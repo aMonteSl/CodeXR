@@ -24,10 +24,6 @@
       {
         "command": "first-vscode-extension.startLocalServer",
         "title": "Iniciar Servidor Local"
-      },
-      {
-        "command": "first-vscode-extension.stopLocalServer",
-        "title": "Detener Servidor Local"
       }
     ],
     "viewsContainers": {

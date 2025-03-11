@@ -1,6 +1,6 @@
 // Importaciones necesarias para la extensión
 import * as vscode from 'vscode';           // API principal de VS Code
-import { startServer, stopServer } from './server';     // Funciones para iniciar/detener el servidor local HTTP
+import { startServer } from './server';     // Función para iniciar el servidor local HTTP
 import { LocalServerProvider } from './treeProvider'; // Proveedor de datos para la vista en el panel lateral
 
 /**
@@ -36,14 +36,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Esto creará un servidor que sirve el archivo HTML con capacidad de recarga en vivo
     await startServer(selectedFile, context);
   });
-  
-  // Registro del comando para detener el servidor local
-  const stopServerCommand = vscode.commands.registerCommand('first-vscode-extension.stopLocalServer', () => {
-    stopServer();
-  });
-  
-  // Registra los comandos en el contexto para que se limpien automáticamente cuando la extensión se desactive
-  context.subscriptions.push(startServerCommand, stopServerCommand);
+  // Registra el comando en el contexto para que se limpie automáticamente cuando la extensión se desactive
+  context.subscriptions.push(startServerCommand);
 
   // Registro del proveedor de datos para la vista en el panel lateral
   // Esto permite mostrar información y controles relacionados con el servidor local
@@ -57,6 +51,6 @@ export function activate(context: vscode.ExtensionContext) {
  * Es útil para limpiar recursos, cerrar conexiones, etc.
  */
 export function deactivate() {
-  // Detener el servidor si está activo
-  stopServer();
+  // Actualmente no hay recursos específicos que limpiar aquí
+  // La limpieza del servidor se maneja mediante context.subscriptions en la función startServer
 }

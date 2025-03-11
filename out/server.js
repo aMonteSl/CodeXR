@@ -34,17 +34,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startServer = startServer;
-exports.stopServer = stopServer;
 const vscode = __importStar(require("vscode")); // API de VS Code para mostrar mensajes y abrir enlaces
 const http = __importStar(require("http")); // Módulo HTTP para crear el servidor web
 const fs = __importStar(require("fs")); // Sistema de archivos para leer archivos y observar cambios
 const path = __importStar(require("path")); // Utilidades para manejar rutas de archivos
-// Variable para almacenar el servidor activo (accesible desde toda la extensión)
-let activeServer;
-// Variable para almacenar el temporizador de auto-cierre
-let shutdownTimer;
-// Tiempo de inactividad antes de cerrar el servidor (30 segundos)
-const INACTIVITY_TIMEOUT = 30000;
 /**
  * Inicia un servidor HTTP local que sirve un archivo HTML y sus recursos asociados
  * con capacidad de recarga en vivo (live reload)
@@ -53,10 +46,6 @@ const INACTIVITY_TIMEOUT = 30000;
  * @param context - Contexto de la extensión para registrar recursos que deben limpiarse
  */
 async function startServer(selectedFile, context) {
-    // Si hay un servidor activo, lo cerramos primero
-    if (activeServer) {
-        stopServer();
-    }
     // Obtiene el directorio donde se encuentra el archivo HTML seleccionado
     const fileDir = path.dirname(selectedFile);
     // Importación dinámica de get-port (módulo ESM)
@@ -70,26 +59,11 @@ async function startServer(selectedFile, context) {
     let sseClients = [];
     // Observa cambios en el archivo HTML para notificar a los clientes SSE
     // Cuando el archivo cambia, envía un mensaje a todos los clientes conectados
-    const watcher = fs.watch(selectedFile, (eventType, filename) => {
+    fs.watch(selectedFile, (eventType, filename) => {
         sseClients.forEach(client => {
             client.write('data: reload\n\n'); // Formato específico de SSE para enviar datos
         });
     });
-    // Función para comprobar si hay clientes conectados e iniciar el temporizador de cierre
-    const checkForActiveConnections = () => {
-        // Cancela cualquier temporizador existente
-        if (shutdownTimer) {
-            clearTimeout(shutdownTimer);
-            shutdownTimer = undefined;
-        }
-        // Si no hay clientes conectados, inicia temporizador para cerrar el servidor
-        if (sseClients.length === 0 && activeServer) {
-            shutdownTimer = setTimeout(() => {
-                vscode.window.showInformationMessage('Cerrando servidor por inactividad...');
-                stopServer();
-            }, INACTIVITY_TIMEOUT);
-        }
-    };
     // Crea el servidor HTTP que manejará las peticiones
     const server = http.createServer((req, res) => {
         // Endpoint especial para conexiones SSE (live reload)
@@ -103,16 +77,9 @@ async function startServer(selectedFile, context) {
             res.write('\n'); // Envía un salto de línea inicial para iniciar la conexión
             // Registra esta respuesta como un cliente SSE activo
             sseClients.push(res);
-            // Si hay clientes conectados, cancela cualquier temporizador de cierre
-            if (shutdownTimer) {
-                clearTimeout(shutdownTimer);
-                shutdownTimer = undefined;
-            }
             // Cuando el cliente cierra la conexión, lo elimina de la lista
             req.on('close', () => {
                 sseClients = sseClients.filter(client => client !== res);
-                // Comprueba si quedan clientes activos
-                checkForActiveConnections();
             });
             return; // Termina el manejo de esta ruta
         }
@@ -166,10 +133,6 @@ async function startServer(selectedFile, context) {
       window.location.reload();
     }
   };
-  // Detectar cierre de ventana
-  window.addEventListener('beforeunload', function() {
-    evtSource.close();
-  });
 </script>
 </body>`);
                         }
@@ -183,10 +146,6 @@ async function startServer(selectedFile, context) {
       window.location.reload();
     }
   };
-  // Detectar cierre de ventana
-  window.addEventListener('beforeunload', function() {
-    evtSource.close();
-  });
 </script>`;
                         }
                     }
@@ -213,17 +172,10 @@ async function startServer(selectedFile, context) {
             }
         });
     });
-    // Guarda referencia al servidor activo
-    activeServer = server;
     // Inicia el servidor en el puerto seleccionado
     server.listen(port, () => {
         // Muestra un mensaje informativo en VS Code
-        vscode.window.showInformationMessage(`Servidor corriendo en http://localhost:${port}`, 'Detener Servidor')
-            .then(selection => {
-            if (selection === 'Detener Servidor') {
-                stopServer();
-            }
-        });
+        vscode.window.showInformationMessage(`Servidor corriendo en http://localhost:${port}`);
         // Abre automáticamente el navegador con la URL del servidor
         vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
     });
@@ -231,23 +183,8 @@ async function startServer(selectedFile, context) {
     // Esto garantiza que el puerto se libere cuando ya no se necesite
     context.subscriptions.push({
         dispose: () => {
-            stopServer();
+            server.close();
         }
     });
-}
-/**
- * Detiene el servidor activo y libera recursos
- */
-function stopServer() {
-    if (activeServer) {
-        activeServer.close(() => {
-            vscode.window.showInformationMessage('Servidor local detenido');
-        });
-        activeServer = undefined;
-    }
-    if (shutdownTimer) {
-        clearTimeout(shutdownTimer);
-        shutdownTimer = undefined;
-    }
 }
 //# sourceMappingURL=server.js.map
