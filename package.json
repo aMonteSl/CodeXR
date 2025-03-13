@@ -14,16 +14,32 @@
   "contributes": {
     "commands": [
       {
-        "command": "integracionvsaframe.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "first-vscode-extension.goodBye",
-        "title": "Good bye"
-      },
-      {
-        "command": "first-vscode-extension.startLocalServer",
+        "command": "integracionvsaframe.startLocalServer",
         "title": "Iniciar Servidor Local"
+      },
+      {
+        "command": "integracionvsaframe.stopLocalServer",
+        "title": "Detener Servidor Local"
+      },
+      {
+        "command": "integracionvsaframe.changeServerMode",
+        "title": "Cambiar Modo de Servidor"
+      },
+      {
+        "command": "integracionvsaframe.startServerWithConfig",
+        "title": "Iniciar Servidor con Configuración Actual"
+      },
+      {
+        "command": "integracionvsaframe.refreshServerView",
+        "title": "Refrescar Vista de Servidores"
+      },
+      {
+        "command": "integracionvsaframe.serverOptions",
+        "title": "Opciones del Servidor"
+      },
+      {
+        "command": "integracionvsaframe.serverStatusActions",
+        "title": "Acciones del Servidor Activo"
       }
     ],
     "viewsContainers": {
@@ -66,5 +82,10 @@
   },
   "dependencies": {
     "get-port": "^7.1.0"
-  }
+  },
+  "files": [
+    "out",
+    "certs/**",
+    "resources"
+  ]
 }
