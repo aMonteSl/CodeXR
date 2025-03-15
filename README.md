@@ -1,71 +1,70 @@
-# integracionvsaframe README
+# IntegracionVSAFrame - Servidor Local para Desarrollo de A-Frame
 
-This is the README for your extension "integracionvsaframe". After writing up a brief description, we recommend including the following sections.
+Esta extensión de VS Code proporciona un servidor local con capacidad de recarga en vivo (live reload) especialmente diseñado para el desarrollo de aplicaciones con A-Frame y experiencias de Realidad Virtual/Aumentada en la web.
 
-## Features
+## Características
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Servidor local HTTP/HTTPS**: Permite ejecutar tus aplicaciones web en un servidor local.
+- **Recarga en vivo**: Los cambios en tus archivos se reflejan automáticamente en el navegador.
+- **Soporte para HTTPS**: Configurable con certificados predeterminados o personalizados (necesario para WebXR).
+- **Múltiples servidores**: Ejecuta varios servidores simultáneamente para trabajar con diferentes proyectos.
+- **Interfaz visual**: Panel lateral para gestionar todos los servidores activos y su configuración.
 
-For example if there is an image subfolder under your extension project workspace:
 
-\!\[feature X\]\(images/feature-x.png\)
+## Requisitos
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- Visual Studio Code 1.98.0 o superior
+- Los archivos de certificado para HTTPS se incluyen en la extensión (o puedes usar los tuyos propios)
 
-## Requirements
+## Uso
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+### Iniciar un servidor
 
-## Extension Settings
+1. Abre el panel lateral de "A-Frame Servers"
+2. Haz clic en "Iniciar Servidor Local"
+3. Selecciona un archivo HTML para servir
+4. El navegador se abrirá automáticamente con tu aplicación
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+### Configurar el modo de servidor
 
-For example:
+1. En el panel lateral, expande "Configuración del servidor"
+2. Selecciona uno de los modos disponibles:
+   - **HTTP**: Servidor básico (no compatible con dispositivos de realidad virtual)
+   - **HTTPS (certificados predeterminados)**: Usa los certificados incluidos en la extensión
+   - **HTTPS (certificados personalizados)**: Te permite seleccionar tus propios certificados
 
-This extension contributes the following settings:
+### Gestionar servidores activos
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+1. Los servidores activos aparecen en la sección "Servidores Activos" del panel lateral
+2. Haz clic en cualquier servidor para:
+   - Abrir el servidor en el navegador
+   - Detener el servidor
 
-## Known Issues
+También puedes acceder rápidamente a los servidores activos desde la barra de estado.
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## Uso con A-Frame y WebXR
 
-## Release Notes
+Para experiencias de realidad virtual con A-Frame y la API WebXR es **obligatorio** usar HTTPS. Esta extensión facilita este requisito mediante:
 
-Users appreciate release notes as you update your extension.
+- Configuración automática del servidor HTTPS
+- Certificados SSL predeterminados incluidos
+- Opción para usar certificados personalizados si los necesitas
 
-### 1.0.0
+## Notas importantes
 
-Initial release of ...
+- Es posible que los navegadores muestren advertencias sobre los certificados autofirmados. Es normal y puedes proceder con seguridad en entornos de desarrollo.
+- Al cerrar VS Code, todos los servidores activos se detendrán automáticamente.
+- El modo HTTP no es compatible con experiencias de VR/AR debido a las restricciones de seguridad de los navegadores.
 
-### 1.0.1
+## Solución de problemas
 
-Fixed issue #.
+Si los puertos permanecen bloqueados después de un uso incorrecto:
+- Reinicia VS Code
+- Si persiste, reinicia tu ordenador
+- Usa el comando "Detener Servidor Local" para cerrar correctamente los servidores
 
-### 1.1.0
+## Contribuir
 
-Added features X, Y, and Z.
+Esta extensión es de código abierto. Si encuentras problemas o tienes sugerencias, por favor crea un issue en el repositorio del proyecto.
 
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+**¡Disfruta desarrollando experiencias inmersivas con A-Frame!**
