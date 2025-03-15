@@ -4,7 +4,7 @@
   "description": "primera extension intentando crear algo con aframe",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.98.0"
+    "vscode": "^1.93.0"
   },
   "categories": [
     "Other"
