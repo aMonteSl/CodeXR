@@ -2,6 +2,31 @@
 
 Esta extensión de VS Code proporciona un servidor local con capacidad de recarga en vivo (live reload) especialmente diseñado para el desarrollo de aplicaciones con A-Frame y experiencias de Realidad Virtual/Aumentada en la web.
 
+## Por hacer
+1. Lanzar html con graficos de BabiaXR
+2. LOC (Lines of Code), número de funciones, número de líneas de código, número de comentarios... (JS)
+3. Complejidad (CCN), otras metricas de calidad de código (JS) 
+
+🚀 Orden recomendado de trabajo:
+Te recomiendo seguir este orden para avanzar de manera eficiente y lógica:
+
+✅ Paso 1 (más prioritario): Lanzar HTML con gráficos de BabiaXR
+Motivo:
+
+Esto sigue la línea natural de lo que ya tienes funcionando (servidor HTTPS).
+Puedes probar inmediatamente tus escenarios VR con las gafas y resolver pronto cualquier problema técnico que pueda surgir.
+🔄 Paso 2: LOC y métricas básicas de JS
+Motivo:
+
+Es relativamente sencillo y te da una base sólida sobre la que construir métricas más avanzadas.
+Te permite rápidamente tener un resultado visual en la extensión.
+🔍 Paso 3: Complejidad ciclomática y métricas avanzadas
+Motivo:
+
+Es más complejo, pero puedes hacerlo apoyándote en librerías existentes.
+Con los pasos anteriores completados, te será más fácil integrarlo en la extensión.
+
+
 ## Características
 
 - **Servidor local HTTP/HTTPS**: Permite ejecutar tus aplicaciones web en un servidor local.
