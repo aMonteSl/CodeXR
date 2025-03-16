@@ -35,132 +35,194 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
-// Importaciones necesarias para la extensión
-const vscode = __importStar(require("vscode")); // API principal de VS Code
-const server_1 = require("./server"); // Funciones para iniciar/detener el servidor
-const treeProvider_1 = require("./treeProvider"); // Proveedor de datos para la vista
-const path = __importStar(require("path")); // Importa el módulo 'path'
+const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
+const server_1 = require("./server");
+const treeProvider_1 = require("./treeProvider");
+const serverModel_1 = require("./models/serverModel");
+const babiaxrManager_1 = require("./babiaxrManager");
 /**
- * Esta función se ejecuta cuando la extensión se activa
+ * This function is executed when the extension is activated
  */
 function activate(context) {
-    console.log('La extensión "integracionvsaframe" está activa.');
-    // Registro del proveedor de datos para la vista en el panel lateral
+    console.log('Extension "integracionvsaframe" is now active.');
+    // Register tree data provider for the unified view
     const treeDataProvider = new treeProvider_1.LocalServerProvider(context);
-    vscode.window.registerTreeDataProvider('localServerView', treeDataProvider);
-    // Registro del proveedor de datos para la vista en el panel lateral
-    const treeView = vscode.window.createTreeView('localServerView', {
+    // Register tree view
+    const treeView = vscode.window.createTreeView('aframeExplorerView', {
         treeDataProvider: treeDataProvider,
         showCollapseAll: true
     });
     context.subscriptions.push(treeView);
-    // Comando para cambiar el modo del servidor
-    const changeServerModeCommand = vscode.commands.registerCommand('integracionvsaframe.changeServerMode', (mode) => {
-        treeDataProvider.changeServerMode(mode);
-    });
-    // Comando para iniciar el servidor con la configuración actual
+    // COMMAND REGISTRATION
+    // ===================
+    // View Management Commands
+    // -----------------------
+    // Command to refresh the view
+    const refreshViewCommand = vscode.commands.registerCommand('integracionvsaframe.refreshView', () => treeDataProvider.refresh());
+    // Server Configuration Commands
+    // ---------------------------
+    // Command to change server mode
+    const changeServerModeCommand = vscode.commands.registerCommand('integracionvsaframe.changeServerMode', (mode) => treeDataProvider.changeServerMode(mode));
+    // Command to start server with current configuration
     const startServerWithConfigCommand = vscode.commands.registerCommand('integracionvsaframe.startServerWithConfig', async () => {
         const currentMode = context.globalState.get('serverMode') ||
-            treeProvider_1.ServerMode.HTTPS_DEFAULT_CERTS;
-        // Configura las opciones para el diálogo de selección de archivos HTML
-        const options = {
-            canSelectMany: false,
-            openLabel: 'Selecciona un archivo HTML',
-            filters: { 'HTML': ['html', 'htm'] }
-        };
-        // Muestra el diálogo para seleccionar un archivo
-        const fileUri = await vscode.window.showOpenDialog(options);
-        if (!fileUri || fileUri.length === 0) {
-            vscode.window.showErrorMessage('No se seleccionó ningún archivo HTML.');
-            return;
+            serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+        try {
+            // Configure file picker for HTML files
+            const options = {
+                canSelectMany: false,
+                openLabel: 'Select HTML File',
+                filters: { 'HTML': ['html', 'htm'] }
+            };
+            // Show file picker dialog
+            const fileUri = await vscode.window.showOpenDialog(options);
+            if (!fileUri || fileUri.length === 0) {
+                return;
+            }
+            // Get full path of selected file
+            const selectedFile = fileUri[0].fsPath;
+            // Define server mode based on configuration
+            const useHttps = currentMode !== serverModel_1.ServerMode.HTTP;
+            const useDefaultCerts = currentMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+            // Start server with selected configuration
+            await (0, server_1.startServer)(selectedFile, context, useHttps, useDefaultCerts);
         }
-        // Obtiene la ruta completa del archivo seleccionado
-        const selectedFile = fileUri[0].fsPath;
-        // Define el modo de servidor según la configuración
-        const useHttps = currentMode !== treeProvider_1.ServerMode.HTTP;
-        const useDefaultCerts = currentMode === treeProvider_1.ServerMode.HTTPS_DEFAULT_CERTS;
-        // Inicia el servidor con la configuración seleccionada
-        await (0, server_1.startServer)(selectedFile, context, useHttps, useDefaultCerts);
+        catch (error) {
+            vscode.window.showErrorMessage(`Error starting server: ${error instanceof Error ? error.message : String(error)}`);
+        }
     });
-    // Comando original para iniciar el servidor (mantiene la compatibilidad)
+    // Legacy command to start server (maintains compatibility)
     const startServerCommand = vscode.commands.registerCommand('integracionvsaframe.startLocalServer', async () => {
-        // Primero, pregunta al usuario si desea usar HTTPS
-        const serverType = await vscode.window.showQuickPick(['HTTP', 'HTTPS (requiere certificados)'], { placeHolder: 'Selecciona el tipo de servidor' });
-        if (!serverType) {
-            return; // El usuario canceló la selección
+        try {
+            // First, ask user if they want to use HTTPS
+            const serverType = await vscode.window.showQuickPick(['HTTP', 'HTTPS (requires certificates)'], { placeHolder: 'Select server type' });
+            if (!serverType) {
+                return; // User cancelled the selection
+            }
+            const useHttps = serverType === 'HTTPS (requires certificates)';
+            // Configure file picker for HTML files
+            const options = {
+                canSelectMany: false,
+                openLabel: 'Select HTML File',
+                filters: { 'HTML': ['html', 'htm'] }
+            };
+            // Show file picker dialog
+            const fileUri = await vscode.window.showOpenDialog(options);
+            if (!fileUri || fileUri.length === 0) {
+                return;
+            }
+            const selectedFile = fileUri[0].fsPath;
+            await (0, server_1.startServer)(selectedFile, context, useHttps, false);
         }
-        const useHttps = serverType === 'HTTPS (requiere certificados)';
-        // Configura las opciones para el diálogo de selección de archivos HTML
-        const options = {
-            canSelectMany: false,
-            openLabel: 'Selecciona un archivo HTML',
-            filters: { 'HTML': ['html', 'htm'] }
-        };
-        // Muestra el diálogo para seleccionar un archivo
-        const fileUri = await vscode.window.showOpenDialog(options);
-        if (!fileUri || fileUri.length === 0) {
-            vscode.window.showErrorMessage('No se seleccionó ningún archivo HTML.');
-            return;
+        catch (error) {
+            vscode.window.showErrorMessage(`Error starting server: ${error instanceof Error ? error.message : String(error)}`);
         }
-        const selectedFile = fileUri[0].fsPath;
-        await (0, server_1.startServer)(selectedFile, context, useHttps, false);
     });
-    // Comando para detener el servidor
-    const stopServerCommand = vscode.commands.registerCommand('integracionvsaframe.stopLocalServer', () => {
-        (0, server_1.stopServer)();
-    });
-    // Comando para refrescar la vista de servidores
-    const refreshServerViewCommand = vscode.commands.registerCommand('integracionvsaframe.refreshServerView', () => {
+    // Command to stop server
+    const stopServerCommand = vscode.commands.registerCommand('integracionvsaframe.stopLocalServer', (serverId) => {
+        (0, server_1.stopServer)(serverId);
         treeDataProvider.refresh();
     });
-    // Comando para mostrar opciones de un servidor activo
+    // Server Management Commands
+    // -------------------------
+    // Command to show options for an active server
     const serverOptionsCommand = vscode.commands.registerCommand('integracionvsaframe.serverOptions', async (serverInfo) => {
-        const selection = await vscode.window.showQuickPick([
-            { label: '$(globe) Abrir en Navegador', id: 'open' },
-            { label: '$(stop) Detener Servidor', id: 'stop' }
-        ], {
-            placeHolder: `Servidor ${serverInfo.url}`,
-            title: `Opciones para ${path.basename(serverInfo.filePath)}`
-        });
-        if (!selection) {
-            return;
+        try {
+            const selection = await vscode.window.showQuickPick([
+                { label: '$(globe) Open in Browser', id: 'open' },
+                { label: '$(stop) Stop Server', id: 'stop' }
+            ], {
+                placeHolder: `Server ${serverInfo.url}`,
+                title: `Options for ${path.basename(serverInfo.filePath)}`
+            });
+            if (!selection) {
+                return;
+            }
+            if (selection.id === 'open') {
+                vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+            }
+            else if (selection.id === 'stop') {
+                (0, server_1.stopServer)(serverInfo.id);
+                treeDataProvider.refresh();
+            }
         }
-        if (selection.id === 'open') {
-            vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
-        }
-        else if (selection.id === 'stop') {
-            (0, server_1.stopServer)(serverInfo.id);
+        catch (error) {
+            vscode.window.showErrorMessage(`Error executing server action: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
-    // Comando para acciones desde la barra de estado
+    // Command for status bar actions
     const serverStatusActionsCommand = vscode.commands.registerCommand('integracionvsaframe.serverStatusActions', async () => {
-        const activeServers = (0, server_1.getActiveServers)();
-        if (activeServers.length === 0) {
-            vscode.window.showInformationMessage('No hay servidores activos');
-            return;
+        try {
+            const activeServers = (0, server_1.getActiveServers)();
+            if (activeServers.length === 0) {
+                vscode.window.showInformationMessage('No active servers');
+                return;
+            }
+            // If there's only one server, show options directly
+            if (activeServers.length === 1) {
+                vscode.commands.executeCommand('integracionvsaframe.serverOptions', activeServers[0]);
+                return;
+            }
+            // If there are multiple servers, show list to select
+            const items = activeServers.map(server => ({
+                label: path.basename(server.filePath),
+                description: server.url,
+                server: server
+            }));
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Select a server',
+            });
+            if (selected) {
+                vscode.commands.executeCommand('integracionvsaframe.serverOptions', selected.server);
+            }
         }
-        // Si solo hay un servidor, mostrar opciones directamente
-        if (activeServers.length === 1) {
-            vscode.commands.executeCommand('first-vscode-extension.serverOptions', activeServers[0]);
-            return;
-        }
-        // Si hay múltiples servidores, mostrar lista para seleccionar
-        const items = activeServers.map(server => ({
-            label: path.basename(server.filePath),
-            description: server.url,
-            server: server
-        }));
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Selecciona un servidor',
-        });
-        if (selected) {
-            vscode.commands.executeCommand('first-vscode-extension.serverOptions', selected.server);
+        catch (error) {
+            vscode.window.showErrorMessage(`Error showing server status: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
-    // Registra los comandos
-    context.subscriptions.push(startServerCommand, stopServerCommand, changeServerModeCommand, startServerWithConfigCommand, refreshServerViewCommand, serverOptionsCommand, serverStatusActionsCommand);
+    // BabiaXR Visualization Commands
+    // ----------------------------
+    // Command to create a BabiaXR visualization
+    const createBabiaXRVisualizationCommand = vscode.commands.registerCommand('integracionvsaframe.createBabiaXRVisualization', async (chartType) => {
+        try {
+            // Collect chart data from user
+            const chartData = await (0, babiaxrManager_1.collectChartData)(chartType);
+            if (!chartData)
+                return;
+            // Collect chart-specific options
+            const options = await (0, babiaxrManager_1.collectChartOptions)(chartType);
+            if (!options)
+                return;
+            // Generate visualization
+            const filePath = await (0, babiaxrManager_1.createBabiaXRVisualization)(chartType, chartData, context);
+            if (filePath) {
+                // Ask if user wants to launch server
+                const launchServer = await vscode.window.showInformationMessage('Visualization created successfully. Do you want to start the server to view it?', 'Yes', 'No');
+                if (launchServer === 'Yes') {
+                    await (0, babiaxrManager_1.launchBabiaXRVisualization)(filePath, context);
+                }
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error creating visualization: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // Register all commands
+    context.subscriptions.push(
+    // View commands
+    refreshViewCommand, 
+    // Server configuration commands
+    changeServerModeCommand, startServerWithConfigCommand, startServerCommand, stopServerCommand, 
+    // Server management commands
+    serverOptionsCommand, serverStatusActionsCommand, 
+    // BabiaXR commands
+    createBabiaXRVisualizationCommand);
 }
+/**
+ * This function is executed when the extension is deactivated
+ */
 function deactivate() {
-    (0, server_1.stopServer)(); // Asegura que el servidor se detenga al desactivar la extensión
+    (0, server_1.stopServer)(); // Ensure all servers are stopped when extension is deactivated
 }
 //# sourceMappingURL=extension.js.map

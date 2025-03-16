@@ -36,72 +36,160 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getActiveServers = getActiveServers;
 exports.startServer = startServer;
 exports.stopServer = stopServer;
-const vscode = __importStar(require("vscode")); // API de VS Code para mostrar mensajes y abrir enlaces
-const http = __importStar(require("http")); // Módulo HTTP para crear el servidor web
-const https = __importStar(require("https")); // Módulo HTTPS para crear un servidor seguro
-const fs = __importStar(require("fs")); // Sistema de archivos para leer archivos y observar cambios
-const path = __importStar(require("path")); // Utilidades para manejar rutas de archivos
-// Lista para almacenar todas las instancias del servidor
+const vscode = __importStar(require("vscode"));
+const http = __importStar(require("http"));
+const https = __importStar(require("https"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+// List to store all server instances
 let activeServerList = [];
-// Variable para tracking del servidor más reciente
+// Variable to track the most recent server
 let activeServer;
-// Función para obtener la lista de servidores activos
+// Variables to store active SSE clients for live reload
+let sseClients = [];
+// Status bar item for quick access to server actions
+let statusBarItem;
+/**
+ * Gets the list of active servers
+ * @returns List of active server information
+ */
 function getActiveServers() {
     return activeServerList.map(entry => entry.info);
 }
-// Variables para almacenar el servidor activo
-let sseClients = [];
-let statusBarItem;
 /**
- * Inicia un servidor HTTP o HTTPS local que sirve un archivo HTML
- * con capacidad de recarga en vivo (live reload)
+ * Starts an HTTP or HTTPS local server that serves an HTML file
+ * with live reload capability
  *
- * @param selectedFile - Ruta completa al archivo HTML principal a servir
- * @param context - Contexto de la extensión para registrar recursos que deben limpiarse
- * @param useHttps - Si es true, usará HTTPS en lugar de HTTP
- * @param useDefaultCerts - Si es true, usará certificados predeterminados en lugar de personalizados
+ * @param selectedFile - Full path to the main HTML file to serve
+ * @param context - Extension context to register resources that need cleanup
+ * @param useHttps - If true, will use HTTPS instead of HTTP
+ * @param useDefaultCerts - If true, will use default certificates instead of custom ones
  */
 async function startServer(selectedFile, context, useHttps = false, useDefaultCerts = true) {
-    // Obtiene el directorio donde se encuentra el archivo HTML seleccionado
+    // Get the directory where the selected HTML file is located
     const fileDir = path.dirname(selectedFile);
-    // Importación dinámica de get-port (módulo ESM)
+    // Dynamic import of get-port (ESM module)
     const getPortModule = await import('get-port');
     const getPort = getPortModule.default;
-    // Busca un puerto libre en el rango de 3000 a 3100 para el servidor
+    // Find a free port in the range 3000-3100 for the server
     const port = await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
-    // Función para crear el manejador de solicitudes (común para HTTP y HTTPS)
-    const requestHandler = (req, res) => {
-        // Endpoint especial para conexiones SSE (live reload)
+    // Create request handler (common for HTTP and HTTPS)
+    const requestHandler = createRequestHandler(fileDir, selectedFile);
+    // Create HTTP or HTTPS server based on the chosen option
+    let server;
+    try {
+        if (useHttps) {
+            const { key, cert } = await getCertificates(context, useDefaultCerts);
+            // Create HTTPS server with certificates
+            server = https.createServer({ key, cert }, requestHandler);
+        }
+        else {
+            // Create standard HTTP server
+            server = http.createServer(requestHandler);
+        }
+        // Watch for changes in the HTML file to notify SSE clients
+        const watcher = fs.watch(selectedFile, (eventType, filename) => {
+            notifyClients();
+        });
+        // Register a disposable to clean up the watcher when the extension is deactivated
+        context.subscriptions.push({
+            dispose: () => {
+                watcher.close();
+            }
+        });
+        // Start the server on the selected port
+        server.listen(port, () => {
+            const protocol = useHttps ? 'https' : 'http';
+            const serverUrl = `${protocol}://localhost:${port}`;
+            // Create a unique ID for this server
+            const serverId = `server-${Date.now()}`;
+            // Server information
+            const serverInfo = {
+                id: serverId,
+                url: serverUrl,
+                protocol,
+                port,
+                filePath: selectedFile,
+                useHttps,
+                startTime: Date.now()
+            };
+            // Create an entry for the new server
+            const serverEntry = {
+                server,
+                info: serverInfo,
+                sseClients: []
+            };
+            // Save as active server and add to the list
+            activeServer = serverEntry;
+            activeServerList.push(serverEntry);
+            // Notify that there's a new server to update the UI
+            vscode.commands.executeCommand('integracionvsaframe.refreshView');
+            // Show initial notification with options
+            vscode.window.showInformationMessage(`${protocol.toUpperCase()} server running at ${serverUrl}`, 'Open in browser', 'Stop server').then(selection => {
+                if (selection === 'Open in browser') {
+                    vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+                }
+                else if (selection === 'Stop server') {
+                    // Fixed: pass the specific ID of the current server
+                    stopServer(serverId);
+                }
+            });
+            // Create a status bar item for persistent information
+            updateStatusBar(serverInfo);
+            // Automatically open the browser with the server URL
+            vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+        });
+        // Register a disposable to close the server when the extension is deactivated
+        context.subscriptions.push({
+            dispose: () => {
+                stopServer();
+            }
+        });
+    }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Error starting server: ${errorMessage}`);
+    }
+}
+/**
+ * Creates the HTTP request handler function
+ * @param fileDir Directory of the HTML file
+ * @param selectedFile Path to the HTML file
+ * @returns Request handler function
+ */
+function createRequestHandler(fileDir, selectedFile) {
+    return (req, res) => {
+        // Special endpoint for SSE connections (live reload)
         if (req.url === '/livereload') {
-            // Configura los encabezados para una conexión SSE
+            // Set headers for an SSE connection
             res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive'
             });
             res.write('\n');
-            // Registra esta respuesta como un cliente SSE activo
+            // Register this response as an active SSE client
             sseClients.push(res);
-            // Cuando el cliente cierra la conexión, lo elimina de la lista
+            // When the client closes the connection, remove it from the list
             req.on('close', () => {
                 sseClients = sseClients.filter(client => client !== res);
             });
             return;
         }
-        // Para las demás rutas, determina qué archivo servir
+        // For all other routes, determine which file to serve
         let filePath = path.join(fileDir, req.url || '');
-        // Si se solicita la raíz ('/'), sirve el archivo HTML seleccionado
+        // If the root ('/') is requested, serve the selected HTML file
         if (req.url === '/' || req.url === '') {
             filePath = selectedFile;
         }
-        // Verifica si el archivo existe
+        // Check if file exists
         fs.exists(filePath, exists => {
             if (!exists) {
                 res.writeHead(404);
-                res.end('Archivo no encontrado');
+                res.end('File not found');
                 return;
             }
-            // Determina el tipo MIME según la extensión del archivo
+            // Determine MIME type based on file extension
             const ext = path.extname(filePath).toLowerCase();
             const mimeTypes = {
                 '.html': 'text/html',
@@ -114,67 +202,28 @@ async function startServer(selectedFile, context, useHttps = false, useDefaultCe
                 '.gif': 'image/gif'
             };
             const contentType = mimeTypes[ext] || 'text/plain';
-            // Tratamiento especial para el archivo HTML principal
+            // Special handling for the main HTML file
             if (filePath === selectedFile && contentType === 'text/html') {
-                // Lee el archivo como texto
+                // Read file as text
                 fs.readFile(filePath, 'utf8', (err, data) => {
                     if (err) {
                         res.writeHead(500);
-                        res.end('Error al leer el archivo');
+                        res.end('Error reading the file');
                         return;
                     }
-                    let injectedData;
-                    // Verifica si ya tiene el script de LiveReload
-                    if (data.indexOf('<!-- LiveReload -->') === -1) {
-                        // Si encuentra la etiqueta </body>, inserta el script justo antes
-                        if (data.indexOf('</body>') !== -1) {
-                            injectedData = data.replace('</body>', `<!-- LiveReload -->
-<script>
-  const evtSource = new EventSource('/livereload');
-  evtSource.onmessage = function(e) {
-    if (e.data === 'reload') {
-      window.location.reload();
-    }
-  };
-  // Detectar cierre de ventana para limpieza
-  window.addEventListener('beforeunload', function() {
-    evtSource.close();
-  });
-</script>
-</body>`);
-                        }
-                        else {
-                            // Si no encuentra </body>, añade el script al final
-                            injectedData = data + `\n<!-- LiveReload -->
-<script>
-  const evtSource = new EventSource('/livereload');
-  evtSource.onmessage = function(e) {
-    if (e.data === 'reload') {
-      window.location.reload();
-    }
-  };
-  // Detectar cierre de ventana para limpieza
-  window.addEventListener('beforeunload', function() {
-    evtSource.close();
-  });
-</script>`;
-                        }
-                    }
-                    else {
-                        // Si ya tiene el script, no modifica nada
-                        injectedData = data;
-                    }
-                    // Envía el HTML con el script de LiveReload inyectado
+                    // Inject live reload script if not already present
+                    const injectedData = injectLiveReloadScript(data);
+                    // Send HTML with injected LiveReload script
                     res.writeHead(200, { 'Content-Type': contentType });
                     res.end(injectedData);
                 });
             }
             else {
-                // Para archivos que no son el HTML principal, los sirve sin modificar
+                // For files other than the main HTML, serve them without modification
                 fs.readFile(filePath, (err, data) => {
                     if (err) {
                         res.writeHead(500);
-                        res.end('Error al leer el archivo');
+                        res.end('Error reading the file');
                         return;
                     }
                     res.writeHead(200, { 'Content-Type': contentType });
@@ -183,174 +232,144 @@ async function startServer(selectedFile, context, useHttps = false, useDefaultCe
             }
         });
     };
-    // Crear servidor HTTP o HTTPS según la opción elegida
-    let server;
-    try {
-        if (useHttps) {
-            let key;
-            let cert;
-            if (useDefaultCerts) {
-                // Usa los certificados predeterminados en ./certs
-                const extensionPath = context.extensionPath;
-                const keyPath = path.join(extensionPath, 'certs', 'babia_key.pem');
-                const certPath = path.join(extensionPath, 'certs', 'babia_cert.pem');
-                // Comprueba si los certificados existen
-                if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-                    throw new Error('Los certificados predeterminados no existen en ./certs');
-                }
-                try {
-                    key = fs.readFileSync(keyPath);
-                    cert = fs.readFileSync(certPath);
-                }
-                catch (err) {
-                    if (err instanceof Error) {
-                        throw new Error(`Error al leer los certificados predeterminados: ${err.message}`);
-                    }
-                    else {
-                        throw new Error('Error al leer los certificados predeterminados');
-                    }
-                }
-            }
-            else {
-                // Diálogo para seleccionar el archivo de clave privada
-                const keyOptions = {
-                    canSelectMany: false,
-                    openLabel: 'Selecciona el archivo de clave privada (.key o .pem)',
-                    filters: { 'Certificados': ['key', 'pem'] }
-                };
-                const keyUri = await vscode.window.showOpenDialog(keyOptions);
-                if (!keyUri || keyUri.length === 0) {
-                    throw new Error('No se seleccionó el archivo de clave privada');
-                }
-                // Diálogo para seleccionar el archivo de certificado
-                const certOptions = {
-                    canSelectMany: false,
-                    openLabel: 'Selecciona el archivo de certificado (.cert o .pem)',
-                    filters: { 'Certificados': ['cert', 'pem'] }
-                };
-                const certUri = await vscode.window.showOpenDialog(certOptions);
-                if (!certUri || certUri.length === 0) {
-                    throw new Error('No se seleccionó el archivo de certificado');
-                }
-                // Carga los archivos de certificado y clave
-                key = fs.readFileSync(keyUri[0].fsPath);
-                cert = fs.readFileSync(certUri[0].fsPath);
-            }
-            // Crea servidor HTTPS con los certificados
-            server = https.createServer({ key, cert }, requestHandler);
-        }
-        else {
-            // Crea servidor HTTP estándar
-            server = http.createServer(requestHandler);
-        }
-        // Observa cambios en el archivo HTML para notificar a los clientes SSE
-        const watcher = fs.watch(selectedFile, (eventType, filename) => {
-            sseClients.forEach(client => {
-                client.write('data: reload\n\n');
-            });
-        });
-        // Registra un disposable para limpiar el watcher cuando la extensión se desactive
-        context.subscriptions.push({
-            dispose: () => {
-                watcher.close();
-            }
-        });
-        // Inicia el servidor en el puerto seleccionado
-        server.listen(port, () => {
-            const protocol = useHttps ? 'https' : 'http';
-            const serverUrl = `${protocol}://localhost:${port}`;
-            // Crea un ID único para este servidor
-            const serverId = `server-${Date.now()}`;
-            // Información del servidor
-            const serverInfo = {
-                id: serverId,
-                url: serverUrl,
-                protocol,
-                port,
-                filePath: selectedFile,
-                useHttps
-            };
-            // Crea una entrada para el nuevo servidor
-            const serverEntry = {
-                server,
-                info: serverInfo
-            };
-            // Guarda como servidor activo y en la lista
-            activeServer = serverEntry;
-            activeServerList.push(serverEntry);
-            // Notificar que hay un nuevo servidor para actualizar la UI
-            vscode.commands.executeCommand('integracionvsaframe.refreshServerView');
-            // Muestra la notificación inicial con las opciones
-            vscode.window.showInformationMessage(`Servidor ${protocol.toUpperCase()} corriendo en ${serverUrl}`, 'Abrir en navegador', 'Detener servidor').then(selection => {
-                if (selection === 'Abrir en navegador') {
-                    vscode.env.openExternal(vscode.Uri.parse(serverUrl));
-                }
-                else if (selection === 'Detener servidor') {
-                    stopServer();
-                }
-            });
-            // Crea un elemento en la barra de estado para información persistente
-            if (statusBarItem) {
-                statusBarItem.dispose(); // Elimina cualquier elemento anterior
-            }
-            statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-            statusBarItem.text = `$(globe) Servidor: ${serverUrl}`;
-            statusBarItem.tooltip = `Servidor ${protocol.toUpperCase()} activo\nHaz clic para ver opciones`;
-            statusBarItem.command = 'integracionvsaframe.serverStatusActions';
-            statusBarItem.show();
-            // Abre automáticamente el navegador con la URL del servidor
-            vscode.env.openExternal(vscode.Uri.parse(serverUrl));
-        });
-        // Registra un disposable para cerrar el servidor cuando la extensión se desactive
-        context.subscriptions.push({
-            dispose: () => {
-                stopServer();
-            }
-        });
+}
+/**
+ * Injects the LiveReload script into HTML content if not already present
+ * @param htmlContent Original HTML content
+ * @returns HTML with LiveReload script injected
+ */
+function injectLiveReloadScript(htmlContent) {
+    // Check if LiveReload script is already present
+    if (htmlContent.indexOf('<!-- LiveReload -->') !== -1) {
+        return htmlContent;
     }
-    catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        vscode.window.showErrorMessage(`Error al iniciar servidor: ${errorMessage}`);
+    const liveReloadScript = `<!-- LiveReload -->
+<script>
+  const evtSource = new EventSource('/livereload');
+  evtSource.onmessage = function(e) {
+    if (e.data === 'reload') {
+      window.location.reload();
+    }
+  };
+  // Detect window close for cleanup
+  window.addEventListener('beforeunload', function() {
+    evtSource.close();
+  });
+</script>`;
+    // If </body> is found, insert script just before it
+    if (htmlContent.indexOf('</body>') !== -1) {
+        return htmlContent.replace('</body>', `${liveReloadScript}\n</body>`);
+    }
+    else {
+        // If </body> not found, add script at the end
+        return htmlContent + `\n${liveReloadScript}`;
     }
 }
 /**
- * Detiene el servidor activo y limpia los recursos asociados
+ * Notifies all SSE clients to reload the page
+ */
+function notifyClients() {
+    sseClients.forEach(client => {
+        client.write('data: reload\n\n');
+    });
+}
+/**
+ * Gets SSL certificates for HTTPS server
+ * @param context Extension context
+ * @param useDefaultCerts Whether to use default certificates
+ * @returns Object with key and cert buffers
+ */
+async function getCertificates(context, useDefaultCerts) {
+    if (useDefaultCerts) {
+        // Use default certificates in ./certs
+        const extensionPath = context.extensionPath;
+        const keyPath = path.join(extensionPath, 'certs', 'babia_key.pem');
+        const certPath = path.join(extensionPath, 'certs', 'babia_cert.pem');
+        // Check if certificates exist
+        if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+            throw new Error('Default certificates do not exist in ./certs');
+        }
+        try {
+            const key = fs.readFileSync(keyPath);
+            const cert = fs.readFileSync(certPath);
+            return { key, cert };
+        }
+        catch (err) {
+            if (err instanceof Error) {
+                throw new Error(`Error reading default certificates: ${err.message}`);
+            }
+            else {
+                throw new Error('Error reading default certificates');
+            }
+        }
+    }
+    else {
+        // Dialog to select private key file
+        const keyOptions = {
+            canSelectMany: false,
+            openLabel: 'Select private key file (.key or .pem)',
+            filters: { 'Certificates': ['key', 'pem'] }
+        };
+        const keyUri = await vscode.window.showOpenDialog(keyOptions);
+        if (!keyUri || keyUri.length === 0) {
+            throw new Error('No private key file was selected');
+        }
+        // Dialog to select certificate file
+        const certOptions = {
+            canSelectMany: false,
+            openLabel: 'Select certificate file (.cert or .pem)',
+            filters: { 'Certificates': ['cert', 'pem'] }
+        };
+        const certUri = await vscode.window.showOpenDialog(certOptions);
+        if (!certUri || certUri.length === 0) {
+            throw new Error('No certificate file was selected');
+        }
+        // Load certificate and key files
+        const key = fs.readFileSync(keyUri[0].fsPath);
+        const cert = fs.readFileSync(certUri[0].fsPath);
+        return { key, cert };
+    }
+}
+/**
+ * Stops the active server and cleans up associated resources
+ * @param serverId Optional ID of the specific server to stop
  */
 function stopServer(serverId) {
     if (!serverId && activeServer) {
-        // Código existente...
+        // Close the active server
         activeServer.server.close(() => {
-            vscode.window.showInformationMessage('Servidor detenido correctamente');
+            vscode.window.showInformationMessage('Server stopped successfully');
         });
-        // Eliminar de la lista de servidores activos
+        // Remove from the active servers list
         activeServerList = activeServerList.filter(entry => entry.info.id !== activeServer?.info.id);
-        // Actualizar el servidor activo (si hay alguno)
-        activeServer = activeServerList.length > 0 ? activeServerList[activeServerList.length - 1] : undefined;
+        // Update the active server reference (if any)
+        activeServer = activeServerList.length > 0 ?
+            activeServerList[activeServerList.length - 1] : undefined;
     }
     else if (serverId) {
-        // Buscar el servidor por ID
+        // Find server by ID
         const serverEntryIndex = activeServerList.findIndex(entry => entry.info.id === serverId);
         if (serverEntryIndex >= 0) {
             const serverEntry = activeServerList[serverEntryIndex];
-            // Importante: cerrar el servidor para liberar el puerto
+            // Close the server to free the port
             serverEntry.server.close(() => {
-                vscode.window.showInformationMessage(`Servidor ${serverEntry.info.url} detenido correctamente`);
+                vscode.window.showInformationMessage(`Server ${serverEntry.info.url} stopped successfully`);
             });
-            // Actualizar el servidor activo si es necesario
+            // Update active server reference if needed
             if (activeServer && activeServer.info.id === serverId) {
                 activeServer = undefined;
             }
-            // Eliminar de la lista
+            // Remove from the list
             activeServerList.splice(serverEntryIndex, 1);
-            // Si quedan servidores, establecer el último como activo
+            // If servers remain, set the last one as active
             if (activeServerList.length > 0 && !activeServer) {
                 activeServer = activeServerList[activeServerList.length - 1];
             }
         }
     }
-    // Actualizar UI
-    vscode.commands.executeCommand('integracionvsaframe.refreshServerView');
-    // Actualizar barra de estado
+    // Update UI
+    vscode.commands.executeCommand('integracionvsaframe.refreshView');
+    // Update status bar
     if (activeServerList.length === 0 && statusBarItem) {
         statusBarItem.dispose();
         statusBarItem = undefined;
@@ -359,13 +378,16 @@ function stopServer(serverId) {
         updateStatusBar(activeServerList[activeServerList.length - 1].info);
     }
 }
-// Función para actualizar la barra de estado
+/**
+ * Updates the status bar with server information
+ * @param serverInfo Server information to display
+ */
 function updateStatusBar(serverInfo) {
     if (!statusBarItem) {
         statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     }
-    statusBarItem.text = `$(globe) Servidor: ${serverInfo.url}`;
-    statusBarItem.tooltip = `Servidor ${serverInfo.protocol.toUpperCase()} activo\nHaz clic para ver opciones`;
+    statusBarItem.text = `$(globe) Server: ${serverInfo.url}`;
+    statusBarItem.tooltip = `${serverInfo.protocol.toUpperCase()} server active\nClick to see options`;
     statusBarItem.command = 'integracionvsaframe.serverStatusActions';
     statusBarItem.show();
 }

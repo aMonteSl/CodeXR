@@ -40,23 +40,35 @@
       {
         "command": "integracionvsaframe.serverStatusActions",
         "title": "Acciones del Servidor Activo"
+      },
+      {
+        "command": "integracionvsaframe.createBabiaXRVisualization",
+        "title": "Crear Visualización BabiaXR"
+      },
+      {
+        "command": "integracionvsaframe.showBabiaXRTemplates",
+        "title": "Mostrar Plantillas BabiaXR"
+      },
+      {
+        "command": "integracionvsaframe.refreshView",
+        "title": "Refrescar Vista de A-Frame Explorer"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "myExtensionContainer",
-          "title": "Servidor Local",
-          "icon": "resources/icon.svg"
+          "id": "aframe-explorer",
+          "title": "A-Frame Explorer",
+          "icon": "resources/aframe.svg"
         }
       ]
     },
     "views": {
-      "myExtensionContainer": [
+      "aframe-explorer": [
         {
-          "id": "localServerView",
-          "name": "Servidor Local",
-          "icon": "resources/icon.svg"
+          "id": "aframeExplorerView",
+          "name": "A-Frame Explorer",
+          "icon": "resources/aframe.svg"
         }
       ]
     }

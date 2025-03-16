@@ -2,6 +2,17 @@
 
 Esta extensión de VS Code proporciona un servidor local con capacidad de recarga en vivo (live reload) especialmente diseñado para el desarrollo de aplicaciones con A-Frame y experiencias de Realidad Virtual/Aumentada en la web.
 
+src/
+├── extension.ts       - Main extension file
+├── server.ts          - HTTP/HTTPS server management
+├── treeProvider.ts    - Tree view provider (unified view)
+├── babiaxrManager.ts  - BabiaXR visualization management
+├── models/            - New folder for data models
+│   ├── serverModel.ts - Server-related interfaces and types
+│   └── chartModel.ts  - Chart-related interfaces and types
+└── utils/             - New folder for utility functions
+    └── templateUtils.ts - Template handling utilities
+
 ## Por hacer
 1. Lanzar html con graficos de BabiaXR
 2. LOC (Lines of Code), número de funciones, número de líneas de código, número de comentarios... (JS)
