@@ -13,6 +13,11 @@ src/
 └── utils/             - New folder for utility functions
     └── templateUtils.ts - Template handling utilities
 
+## Tareas pendientes
+
+Agregar mas templates de graficos
+Que se actualize a tiempo real la pestaña si cambio los datos del json (Actualmente se actualiza pero la camra se resetea)
+
 ## Por hacer
 1. Lanzar html con graficos de BabiaXR
 2. LOC (Lines of Code), número de funciones, número de líneas de código, número de comentarios... (JS)

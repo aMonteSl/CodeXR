@@ -165,8 +165,7 @@ class LocalServerProvider {
     getChartTypesChildren() {
         return Promise.resolve([
             new ChartTypeItem(chartModel_1.ChartType.BAR_CHART, "Visualize categorical data with bars"),
-            new ChartTypeItem(chartModel_1.ChartType.PIE_CHART, "Visualize proportions as circular sectors"),
-            new ChartTypeItem(chartModel_1.ChartType.TIME_SERIES, "Visualize data changing over time")
+            new ChartTypeItem(chartModel_1.ChartType.PIE_CHART, "Visualize proportions as circular sectors")
         ]);
     }
     /**

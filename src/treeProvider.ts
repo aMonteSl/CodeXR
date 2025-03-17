@@ -173,10 +173,6 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       new ChartTypeItem(
         ChartType.PIE_CHART,
         "Visualize proportions as circular sectors"
-      ),
-      new ChartTypeItem(
-        ChartType.TIME_SERIES,
-        "Visualize data changing over time"
       )
     ]);
   }

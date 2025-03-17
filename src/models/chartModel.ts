@@ -4,7 +4,6 @@
 export enum ChartType {
     BAR_CHART = 'Bar Chart',
     PIE_CHART = 'Pie Chart',
-    TIME_SERIES = 'Time Series',
     SCATTER_PLOT = 'Scatter Plot',
     NETWORK_GRAPH = 'Network Graph'
   }

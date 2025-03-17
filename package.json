@@ -59,7 +59,7 @@
         {
           "id": "aframe-explorer",
           "title": "A-Frame Explorer",
-          "icon": "resources/aframe.svg"
+          "icon": "resources/icon.svg"
         }
       ]
     },
@@ -68,7 +68,7 @@
         {
           "id": "aframeExplorerView",
           "name": "A-Frame Explorer",
-          "icon": "resources/aframe.svg"
+          "icon": "resources/icon.svg"
         }
       ]
     }

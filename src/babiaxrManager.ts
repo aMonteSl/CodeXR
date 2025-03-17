@@ -172,17 +172,41 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
     // Extraer dimensiones automáticamente
     const dimensions = await extractDimensions(dataSource);
 
+    // Información sobre cómo se utilizarán las dimensiones para Bar Chart
+    let maxSelections = 3;
+    let minSelections = 2;
+    let infoMessage = 'Selecciona entre 2 y 3 atributos para el gráfico:\n• El 1º seleccionado será el eje X\n• El 2º será la altura de las barras\n• El 3º (opcional) será el eje Z';
+    
+    if (chartType !== ChartType.BAR_CHART) {
+      maxSelections = dimensions.length;
+      minSelections = 1;
+      infoMessage = 'Selecciona los atributos para visualizar';
+    }
+    
+    // Mostrar información al usuario
+    vscode.window.showInformationMessage(infoMessage);
+    
     // Mostrar un selector con las dimensiones encontradas
     const selectedDimensions = await vscode.window.showQuickPick(
       dimensions.map(d => ({ label: d, picked: d === dimensions[0] || d === dimensions[1] })),
       { 
         canPickMany: true,
-        placeHolder: 'Selecciona las dimensiones a visualizar',
+        placeHolder: `Selecciona ${minSelections}-${maxSelections} dimensiones para visualizar`,
         title: 'Dimensiones disponibles en los datos'
       }
     );
 
-    if (!selectedDimensions || selectedDimensions.length === 0) return undefined;
+    // Validar que se hayan seleccionado suficientes dimensiones
+    if (!selectedDimensions || selectedDimensions.length < minSelections) {
+      vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensiones para este tipo de gráfico.`);
+      return undefined;
+    }
+    
+    // Validar que no se excedan las dimensiones máximas para bar chart
+    if (chartType === ChartType.BAR_CHART && selectedDimensions.length > maxSelections) {
+      vscode.window.showErrorMessage(`Para un gráfico de barras, selecciona máximo ${maxSelections} dimensiones.`);
+      return undefined;
+    }
 
     // Usar las dimensiones seleccionadas
     return {
@@ -204,14 +228,12 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
  */
 export async function collectChartOptions(
   chartType: ChartType
-): Promise<BarChartOptions | PieChartOptions | TimeSeriesOptions | undefined> {
+): Promise<BarChartOptions | PieChartOptions | undefined> {
   switch (chartType) {
     case ChartType.BAR_CHART:
       return collectBarChartOptions();
     case ChartType.PIE_CHART:
       return collectPieChartOptions();
-    case ChartType.TIME_SERIES:
-      return collectTimeSeriesOptions();
     default:
       return {};
   }

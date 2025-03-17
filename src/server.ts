@@ -67,14 +67,26 @@ export async function startServer(
     }
     
     // Watch for changes in the HTML file to notify SSE clients
-    const watcher = fs.watch(selectedFile, (eventType, filename) => {
+    const htmlWatcher = fs.watch(selectedFile, (eventType, filename) => {
       notifyClients();
     });
 
-    // Register a disposable to clean up the watcher when the extension is deactivated
+    // Watch for changes in JSON files in the same directory
+    const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
+      // Check if the modified file is a JSON
+      if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
+        // Wait a brief moment to ensure the file write is complete
+        setTimeout(() => {
+          notifyClients();
+        }, 300);
+      }
+    });
+
+    // Register both watchers for cleanup
     context.subscriptions.push({
       dispose: () => {
-        watcher.close();
+        htmlWatcher.close();
+        jsonWatcher.close();
       }
     });
 
@@ -246,16 +258,95 @@ function injectLiveReloadScript(htmlContent: string): string {
   
   const liveReloadScript = `<!-- LiveReload -->
 <script>
+  // Configuración para la recarga en vivo
   const evtSource = new EventSource('/livereload');
+  
+  // Función para guardar la posición de la cámara
+  function saveCameraPosition() {
+    try {
+      // Buscar la cámara y su rig (entidad padre que tiene movement-controls)
+      const camera = document.querySelector('[camera]');
+      if (!camera) return;
+      
+      // Encontrar el rig (puede ser el parent directo o necesitamos buscarlo)
+      const cameraRig = camera.parentNode && camera.parentNode.hasAttribute('movement-controls') 
+        ? camera.parentNode 
+        : document.querySelector('[movement-controls]');
+      
+      if (!cameraRig) return;
+      
+      const position = cameraRig.getAttribute('position');
+      const rotation = cameraRig.getAttribute('rotation');
+      
+      if (position && rotation) {
+        // Guardar en localStorage
+        localStorage.setItem('camera-position', JSON.stringify(position));
+        localStorage.setItem('camera-rotation', JSON.stringify(rotation));
+        console.log('📷 Posición de cámara guardada:', position, rotation);
+      }
+    } catch(error) {
+      console.error('Error guardando posición:', error);
+    }
+  }
+  
+  // Manejador de mensaje de recarga
   evtSource.onmessage = function(e) {
     if (e.data === 'reload') {
+      saveCameraPosition();
       window.location.reload();
     }
   };
-  // Detect window close for cleanup
+  
+  // Detectar cierre de ventana
   window.addEventListener('beforeunload', function() {
     evtSource.close();
   });
+  
+  // Componente personalizado para restaurar la posición
+  if (window.AFRAME) {
+    AFRAME.registerComponent('camera-position-restorer', {
+      init: function() {
+        // Esperamos a que la escena esté completamente cargada
+        this.el.sceneEl.addEventListener('loaded', () => {
+          setTimeout(() => this.restorePosition(), 500); // Extra delay para asegurar que todo está listo
+        });
+      },
+      
+      restorePosition: function() {
+        try {
+          const savedPosition = localStorage.getItem('camera-position');
+          const savedRotation = localStorage.getItem('camera-rotation');
+          
+          if (savedPosition && savedRotation) {
+            // Encontrar el rig (entidad con movement-controls)
+            const cameraRig = this.el.parentNode && this.el.parentNode.hasAttribute('movement-controls')
+              ? this.el.parentNode
+              : document.querySelector('[movement-controls]');
+            
+            if (!cameraRig) return;
+            
+            const position = JSON.parse(savedPosition);
+            const rotation = JSON.parse(savedRotation);
+            
+            // Aplicar posición y rotación
+            cameraRig.setAttribute('position', position);
+            cameraRig.object3D.position.set(position.x, position.y, position.z);
+            
+            cameraRig.setAttribute('rotation', rotation);
+            cameraRig.object3D.rotation.set(
+              THREE.MathUtils.degToRad(rotation.x),
+              THREE.MathUtils.degToRad(rotation.y),
+              THREE.MathUtils.degToRad(rotation.z)
+            );
+            
+            console.log('📷 Posición de cámara restaurada:', position, rotation);
+          }
+        } catch(error) {
+          console.error('Error restaurando posición:', error);
+        }
+      }
+    });
+  }
 </script>`;
 
   // If </body> is found, insert script just before it

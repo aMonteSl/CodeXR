@@ -14,8 +14,6 @@ export function getTemplateFileName(chartType: ChartType): string {
       return 'bar-chart.html';
     case ChartType.PIE_CHART:
       return 'pie-chart.html';
-    case ChartType.TIME_SERIES:
-      return 'time-series.html';
     case ChartType.SCATTER_PLOT:
       return 'scatter-plot.html';
     case ChartType.NETWORK_GRAPH:
@@ -77,21 +75,37 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     dataSource = path.basename(dataSource);
   }
   
-  // Preparar dimensiones individuales para el eje X e Y
-  const xDimension = data.dimensions[0] ? `'${data.dimensions[0]}'` : "'producto'";
-  const yDimension = data.dimensions[1] ? `'${data.dimensions[1]}'` : "'ventas'";
+  // Preparar dimensiones individuales para los ejes
+  const xDimension = data.dimensions[0] || 'producto';
+  const yDimension = data.dimensions[1] || 'ventas';
+  
+  // Componer el tercer eje si existe, o dejarlo vacío
+  let zDimensionAttr = '';
+  if (data.dimensions.length > 2) {
+    zDimensionAttr = `z_axis: ${data.dimensions[2]};`;
+  }
   
   // Valores predeterminados para opciones
   let height: number = 1;
   let width: number = 2;
+  let barRotation: string = "0 0 0"; // Valor por defecto para orientación vertical
   
-  // Si hay opciones específicas, usarlas - usando el operador ?? para manejar undefined
-  if (chartSpecification.options && 'height' in chartSpecification.options) {
-    height = (chartSpecification.options as any).height ?? height;
-  }
-  
-  if (chartSpecification.options && 'width' in chartSpecification.options) {
-    width = (chartSpecification.options as any).width ?? width;
+  // Si hay opciones específicas, usarlas
+  if (chartSpecification.options) {
+    if ('height' in chartSpecification.options) {
+      const optHeight = (chartSpecification.options as any).height;
+      if (typeof optHeight === 'number') height = optHeight;
+    }
+    
+    if ('width' in chartSpecification.options) {
+      const optWidth = (chartSpecification.options as any).width;
+      if (typeof optWidth === 'number') width = optWidth;
+    }
+    
+    // Aplicar rotación si se seleccionó orientación horizontal
+    if ('horizontal' in chartSpecification.options && (chartSpecification.options as any).horizontal) {
+      barRotation = "0 0 90"; // Rotar 90 grados para orientación horizontal
+    }
   }
   
   // Crear mapa de variables
@@ -100,8 +114,10 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     DATA_SOURCE: dataSource,
     X_DIMENSION: xDimension,
     Y_DIMENSION: yDimension,
+    Z_DIMENSION_ATTR: zDimensionAttr,
     HEIGHT: height,
     WIDTH: width,
+    BAR_ROTATION: barRotation,
     DESCRIPTION: data.description || '',
     CHART_TYPE: chartSpecification.type,
   };
