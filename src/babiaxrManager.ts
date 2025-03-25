@@ -34,14 +34,14 @@ export async function createBabiaXRVisualization(
       data: chartData
     };
     
-    // Process template with the chart specification
-    const { html, originalDataPath } = processTemplate(context, chartSpec);
+    // Process template with the chart specification (ahora es async)
+    const { html, originalDataPath, isRemoteData } = await processTemplate(context, chartSpec);
     
     // Get sanitized filename from chart title
     const fileName = `${chartData.title.replace(/\s+/g, '-')}.html`;
     
     // Save the HTML content to a file, passing the original data path if available
-    const filePath = await saveHtmlToFile(html, fileName, originalDataPath);
+    const filePath = await saveHtmlToFile(html, fileName, originalDataPath, isRemoteData);
     if (!filePath) {
       return undefined; // User cancelled the operation
     }
@@ -123,19 +123,19 @@ async function collectDataSource(): Promise<string | undefined> {
       const sampleDataset = await vscode.window.showQuickPick(
         [
           { 
-            label: 'Datos demográficos', 
-            value: 'https://raw.githubusercontent.com/aframevr/aframe/master/examples/test/curve/data.csv', 
-            description: 'Población por países' 
+            label: 'Datos de Apple Stock (simple)', 
+            value: 'https://raw.githubusercontent.com/plotly/datasets/master/2014_apple_stock.csv', 
+            description: 'Pequeño dataset CSV (5 filas)' 
           },
           { 
-            label: 'Ventas trimestrales', 
-            value: 'https://raw.githubusercontent.com/aframevr/aframe/master/examples/test/curve/data.csv', 
-            description: 'Ventas por trimestre' 
+            label: 'Datos de países (simple)', 
+            value: 'https://raw.githubusercontent.com/cs109/2014_data/master/countries.csv', 
+            description: 'Estadísticas de países (CSV)' 
           },
           { 
-            label: 'Estadísticas de uso', 
-            value: 'https://raw.githubusercontent.com/aframevr/aframe/master/examples/test/curve/data.csv', 
-            description: 'Uso de plataforma' 
+            label: 'Datos de mascotas (JSON)', 
+            value: 'https://raw.githubusercontent.com/LearnWebCode/json-example/master/pets-data.json', 
+            description: 'Datos simples en formato JSON' 
           }
         ],
         { 
@@ -319,8 +319,33 @@ async function extractDimensions(dataSource: string): Promise<string[]> {
   try {
     let data: any;
     
-    // Si es una ruta local
-    if (dataSource.startsWith('/') || dataSource.includes(':\\')) {
+    // Verificar si es una URL
+    if (isUrl(dataSource)) {
+      // Obtener el contenido de la URL
+      const fileContent = await fetchDataFromUrl(dataSource);
+      
+      // Determinar si es JSON o CSV por la extensión
+      if (dataSource.toLowerCase().endsWith('.json')) {
+        data = JSON.parse(fileContent);
+        
+        if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+          return Object.keys(data[0]);
+        }
+      } 
+      else if (dataSource.toLowerCase().endsWith('.csv')) {
+        // Detectar automáticamente el separador
+        const firstLine = fileContent.split('\n')[0];
+        const separator = firstLine.includes(';') ? ';' : ',';
+        
+        // Para CSV, asumimos que la primera línea contiene los encabezados
+        const lines = fileContent.split('\n');
+        if (lines.length > 0) {
+          return lines[0].split(separator).map(header => header.trim());
+        }
+      }
+    }
+    // Si es una ruta local (código existente)
+    else if (dataSource.startsWith('/') || dataSource.includes(':\\')) {
       const fileContent = fs.readFileSync(dataSource, 'utf8');
       
       // Determinar si es JSON o CSV por la extensión
@@ -333,18 +358,231 @@ async function extractDimensions(dataSource: string): Promise<string[]> {
         }
       } 
       else if (dataSource.toLowerCase().endsWith('.csv')) {
+        // Detectar automáticamente el separador (coma o punto y coma)
+        const firstLine = fileContent.split('\n')[0];
+        const separator = firstLine.includes(';') ? ';' : ',';
+        
         // Para CSV, asumimos que la primera línea contiene los encabezados
         const lines = fileContent.split('\n');
         if (lines.length > 0) {
-          return lines[0].split(',').map(header => header.trim());
+          return lines[0].split(separator).map(header => header.trim());
         }
       }
     }
     
-    // Para URLs y otros casos, devolvemos un conjunto predeterminado
+    // Para URLs y otros casos sin formato reconocido
     return ['nombre', 'valor'];
   } catch (error) {
     vscode.window.showWarningMessage(`No se pudieron extraer dimensiones automáticamente: ${error}`);
     return ['nombre', 'valor']; // Valores predeterminados en caso de error
   }
+}
+
+/**
+ * Procesa y carga datos desde un archivo CSV
+ * @param filePath Ruta al archivo CSV
+ * @returns Objeto con los datos procesados en formato utilizable
+ */
+export function processCSVData(filePath: string): any[] {
+  // Leer el contenido del archivo
+  const fileContent = fs.readFileSync(filePath, 'utf8');
+  const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+  
+  if (lines.length === 0) {
+    throw new Error('El archivo CSV está vacío');
+  }
+  
+  // Detectar automáticamente el separador
+  const firstLine = lines[0];
+  const separator = firstLine.includes(';') ? ';' : ',';
+  
+  // Extraer encabezados (primera línea)
+  const headers = lines[0].split(separator).map(header => header.trim());
+  
+  // Procesar todas las líneas de datos
+  const result: any[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(separator).map(val => val.trim());
+    
+    // Crear objeto con los valores correspondientes
+    const item: any = {};
+    headers.forEach((header, index) => {
+      // Intentar convertir a número si es posible
+      const value = values[index];
+      if (value && !isNaN(Number(value))) {
+        item[header] = Number(value);
+      } else {
+        item[header] = value;
+      }
+    });
+    
+    // Solo añadir si hay valores válidos
+    if (Object.keys(item).length > 0) {
+      result.push(item);
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Convierte un archivo CSV a JSON y lo guarda en el mismo directorio
+ * @param csvPath Ruta al archivo CSV o URL
+ * @returns Ruta al archivo JSON creado o datos JSON procesados
+ */
+export async function convertCSVtoJSON(csvPath: string): Promise<string> {
+  let jsonData;
+  
+  // Si es una URL
+  if (isUrl(csvPath)) {
+    // Procesamos los datos CSV remotos
+    jsonData = await processRemoteCSVData(csvPath);
+    
+    // Para URLs remotas, usamos un archivo temporal en el directorio de trabajo
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+      throw new Error('No hay un espacio de trabajo abierto para guardar los datos temporales');
+    }
+    
+    // Crear un nombre de archivo basado en la URL
+    const urlObj = new URL(csvPath);
+    const fileName = path.basename(urlObj.pathname).replace(/\.csv$/i, '') || 'remote-data';
+    const jsonPath = path.join(workspaceFolders[0].uri.fsPath, `${fileName}.json`);
+    
+    // Guardar los datos procesados
+    fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
+    return jsonPath;
+  } 
+  // Para archivos locales
+  else {
+    // Procesar los datos CSV
+    jsonData = processCSVData(csvPath);
+    
+    // Crear la ruta para el nuevo archivo JSON
+    const jsonPath = csvPath.replace(/\.csv$/i, '.json');
+    
+    // Guardar el JSON
+    fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
+    return jsonPath;
+  }
+}
+
+/**
+ * Carga datos desde un archivo local o URL
+ * @param dataSource Ruta del archivo o URL
+ * @returns Array con los datos cargados
+ */
+export async function loadData(dataSource: string): Promise<any[]> {
+  // Verificar si es una URL
+  if (isUrl(dataSource)) {
+    // Para URLs remotas
+    if (dataSource.toLowerCase().endsWith('.json')) {
+      const fileContent = await fetchDataFromUrl(dataSource);
+      return JSON.parse(fileContent);
+    } 
+    else if (dataSource.toLowerCase().endsWith('.csv')) {
+      return await processRemoteCSVData(dataSource);
+    }
+    else {
+      throw new Error('URL no válida. Debe ser un archivo CSV o JSON.');
+    }
+  } 
+  else {
+    // Para archivos locales 
+    if (dataSource.toLowerCase().endsWith('.json')) {
+      const fileContent = fs.readFileSync(dataSource, 'utf8');
+      return JSON.parse(fileContent);
+    } 
+    else if (dataSource.toLowerCase().endsWith('.csv')) {
+      return processCSVData(dataSource);
+    }
+    else {
+      throw new Error('Formato de archivo no soportado. Use CSV o JSON.');
+    }
+  }
+}
+
+/**
+ * Verifica si una cadena es una URL válida
+ * @param str Cadena a verificar
+ * @returns true si es una URL, false en caso contrario
+ */
+export function isUrl(str: string): boolean {
+  try {
+    new URL(str);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Descarga datos desde una URL
+ * @param url URL de los datos
+ * @returns Contenido de la URL como texto
+ */
+export async function fetchDataFromUrl(url: string): Promise<string> {
+  const https = require('https');
+  const http = require('http');
+
+  return new Promise((resolve, reject) => {
+    // Determinar qué protocolo usar
+    const requester = url.startsWith('https:') ? https : http;
+    
+    requester.get(url, (res: any) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return reject(new Error(`Error HTTP: ${res.statusCode}`));
+      }
+      
+      let data = '';
+      res.on('data', (chunk: any) => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', (err: any) => reject(err));
+  });
+}
+
+/**
+ * Procesa datos CSV desde una URL remota
+ * @param url URL del archivo CSV
+ * @returns Array de objetos con los datos procesados
+ */
+export async function processRemoteCSVData(url: string): Promise<any[]> {
+  // Descargar el contenido
+  const fileContent = await fetchDataFromUrl(url);
+  
+  // Usar el mismo algoritmo que para archivos locales
+  const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+  
+  if (lines.length === 0) {
+    throw new Error('El archivo CSV remoto está vacío');
+  }
+  
+  // Detectar automáticamente el separador
+  const firstLine = lines[0];
+  const separator = firstLine.includes(';') ? ';' : ',';
+  
+  // Extraer encabezados (primera línea)
+  const headers = lines[0].split(separator).map(header => header.trim());
+  
+  // Procesar todas las líneas de datos
+  const result: any[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(separator).map(val => val.trim());
+    
+    const item: any = {};
+    headers.forEach((header, index) => {
+      const value = values[index];
+      if (value !== undefined && !isNaN(Number(value))) {
+        item[header] = Number(value);
+      } else {
+        item[header] = value || '';
+      }
+    });
+    
+    if (Object.keys(item).length > 0) {
+      result.push(item);
+    }
+  }
+  
+  return result;
 }

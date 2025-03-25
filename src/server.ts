@@ -256,106 +256,213 @@ function injectLiveReloadScript(htmlContent: string): string {
     return htmlContent;
   }
   
-  const liveReloadScript = `<!-- LiveReload -->
+  // Define el script que vamos a inyectar primero
+  const injectScript = `<!-- LiveReload -->
 <script>
   // Configuración para la recarga en vivo
   const evtSource = new EventSource('/livereload');
   
-  // Función para guardar la posición de la cámara
-  function saveCameraPosition() {
-    try {
-      // Buscar la cámara y su rig (entidad padre que tiene movement-controls)
-      const camera = document.querySelector('[camera]');
-      if (!camera) return;
-      
-      // Encontrar el rig (puede ser el parent directo o necesitamos buscarlo)
-      const cameraRig = camera.parentNode && camera.parentNode.hasAttribute('movement-controls') 
-        ? camera.parentNode 
-        : document.querySelector('[movement-controls]');
-      
-      if (!cameraRig) return;
-      
-      const position = cameraRig.getAttribute('position');
-      const rotation = cameraRig.getAttribute('rotation');
-      
-      if (position && rotation) {
-        // Guardar en localStorage
-        localStorage.setItem('camera-position', JSON.stringify(position));
-        localStorage.setItem('camera-rotation', JSON.stringify(rotation));
-        console.log('📷 Posición de cámara guardada:', position, rotation);
+  // Variables para posición y rotación de la cámara
+  let cameraPositionInterval;
+  let lastSavedPosition = null;
+  let lastSavedRotation = null;
+  
+  // Función para guardar la posición de la cámara periódicamente
+  function startCameraTracking() {
+    // Limpiar cualquier intervalo existente
+    if (cameraPositionInterval) {
+      clearInterval(cameraPositionInterval);
+    }
+    
+    // Guardar cada 2 segundos para no sobrecargar
+    cameraPositionInterval = setInterval(() => {
+      const position = getCurrentCameraPosition();
+      if (position) {
+        lastSavedPosition = position.position;
+        lastSavedRotation = position.rotation;
+        localStorage.setItem('camera-position', JSON.stringify(position.position));
+        localStorage.setItem('camera-rotation', JSON.stringify(position.rotation));
+        localStorage.setItem('camera-timestamp', Date.now().toString());
+        
+        // Versión avanzada: guardar también posición para esta URL específica
+        const urlKey = window.location.pathname;
+        const urlPositions = JSON.parse(localStorage.getItem('url-positions') || '{}');
+        urlPositions[urlKey] = {
+          position: position.position,
+          rotation: position.rotation,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('url-positions', JSON.stringify(urlPositions));
       }
+    }, 2000);
+  }
+  
+  // Obtener posición actual de la cámara
+  function getCurrentCameraPosition() {
+    try {
+      // Encontrar la cámara y su rig
+      let camera = document.querySelector('[camera]');
+      if (!camera) return null;
+      
+      // Priorizar el rig con movement-controls cuando existe
+      let cameraRig = null;
+      
+      // Ver si el padre directo es el rig
+      if (camera.parentNode && camera.parentNode.hasAttribute('movement-controls')) {
+        cameraRig = camera.parentNode;
+      } else {
+        // Buscar cualquier elemento con movement-controls
+        cameraRig = document.querySelector('[movement-controls]');
+      }
+      
+      // Si tenemos un rig, usar su posición
+      if (cameraRig) {
+        return {
+          position: cameraRig.getAttribute('position'),
+          rotation: cameraRig.getAttribute('rotation')
+        };
+      }
+      
+      // De lo contrario, usar la posición de la cámara directamente
+      return {
+        position: camera.getAttribute('position'),
+        rotation: camera.getAttribute('rotation')
+      };
     } catch(error) {
-      console.error('Error guardando posición:', error);
+      console.error('Error obteniendo posición de cámara:', error);
+      return null;
     }
   }
   
-  // Manejador de mensaje de recarga
-  evtSource.onmessage = function(e) {
-    if (e.data === 'reload') {
-      saveCameraPosition();
-      window.location.reload();
-    }
-  };
-  
-  // Detectar cierre de ventana
-  window.addEventListener('beforeunload', function() {
-    evtSource.close();
-  });
-  
-  // Componente personalizado para restaurar la posición
+  // Registrar componente de restauración avanzado
   if (window.AFRAME) {
-    AFRAME.registerComponent('camera-position-restorer', {
+    AFRAME.registerComponent('advanced-camera-restorer', {
       init: function() {
-        // Esperamos a que la escena esté completamente cargada
-        this.el.sceneEl.addEventListener('loaded', () => {
-          setTimeout(() => this.restorePosition(), 500); // Extra delay para asegurar que todo está listo
-        });
+        // La función se ejecutará cuando la escena esté completamente cargada
+        this.el.sceneEl.addEventListener('loaded', this.restorePosition.bind(this));
+        
+        // También después de un pequeño retraso para asegurar que todo está inicializado
+        setTimeout(this.restorePosition.bind(this), 1000);
+        
+        // Iniciar seguimiento de la cámara cuando todo esté listo
+        setTimeout(startCameraTracking, 1500);
       },
       
       restorePosition: function() {
         try {
-          const savedPosition = localStorage.getItem('camera-position');
-          const savedRotation = localStorage.getItem('camera-rotation');
+          // Usar datos de posición específicos para esta URL si existen
+          let position, rotation;
           
-          if (savedPosition && savedRotation) {
-            // Encontrar el rig (entidad con movement-controls)
-            const cameraRig = this.el.parentNode && this.el.parentNode.hasAttribute('movement-controls')
-              ? this.el.parentNode
-              : document.querySelector('[movement-controls]');
-            
-            if (!cameraRig) return;
-            
-            const position = JSON.parse(savedPosition);
-            const rotation = JSON.parse(savedRotation);
-            
-            // Aplicar posición y rotación
-            cameraRig.setAttribute('position', position);
-            cameraRig.object3D.position.set(position.x, position.y, position.z);
-            
-            cameraRig.setAttribute('rotation', rotation);
-            cameraRig.object3D.rotation.set(
-              THREE.MathUtils.degToRad(rotation.x),
-              THREE.MathUtils.degToRad(rotation.y),
-              THREE.MathUtils.degToRad(rotation.z)
-            );
-            
-            console.log('📷 Posición de cámara restaurada:', position, rotation);
+          const urlKey = window.location.pathname;
+          const urlPositions = JSON.parse(localStorage.getItem('url-positions') || '{}');
+          
+          if (urlPositions[urlKey]) {
+            position = urlPositions[urlKey].position;
+            rotation = urlPositions[urlKey].rotation;
+            console.log('📷 Restaurando posición específica para URL:', urlKey);
+          } else {
+            // Usar posición genérica
+            position = JSON.parse(localStorage.getItem('camera-position'));
+            rotation = JSON.parse(localStorage.getItem('camera-rotation'));
           }
+          
+          if (!position || !rotation) {
+            console.log('No hay posición guardada para restaurar');
+            return;
+          }
+          
+          // Encontrar el objetivo correcto para aplicar la posición
+          let target = null;
+          
+          // Primero intentar encontrar el rig con movement-controls
+          target = document.querySelector('[movement-controls]');
+          
+          // Si no hay rig, usar la cámara directamente
+          if (!target) {
+            target = document.querySelector('[camera]');
+          }
+          
+          if (!target) {
+            console.log('No se pudo encontrar un objetivo válido para restaurar la posición');
+            return;
+          }
+          
+          console.log('📷 Restaurando posición a:', target, position, rotation);
+          
+          // Aplicar usando el sistema THREE.js para más precisión
+          target.object3D.position.set(position.x, position.y, position.z);
+          
+          // Convertir grados a radianes para THREE.js
+          const degToRad = THREE.MathUtils.degToRad;
+          target.object3D.rotation.set(
+            degToRad(rotation.x),
+            degToRad(rotation.y),
+            degToRad(rotation.z)
+          );
+          
+          // También actualizar los atributos para asegurar consistencia
+          target.setAttribute('position', position);
+          target.setAttribute('rotation', rotation);
+          
+          console.log('📷 Posición de cámara restaurada con éxito');
         } catch(error) {
           console.error('Error restaurando posición:', error);
         }
       }
     });
   }
-</script>`;
-
-  // If </body> is found, insert script just before it
-  if (htmlContent.indexOf('</body>') !== -1) {
-    return htmlContent.replace('</body>', `${liveReloadScript}\n</body>`);
-  } else {
-    // If </body> not found, add script at the end
-    return htmlContent + `\n${liveReloadScript}`;
+  
+  // Cuando se reciba un mensaje para recargar
+  evtSource.onmessage = function(e) {
+    if (e.data === 'reload') {
+      console.log('📷 Recargar solicitado, guardando posición final...');
+      
+      // Guardar posición una última vez antes de recargar
+      const position = getCurrentCameraPosition();
+      if (position) {
+        localStorage.setItem('camera-position', JSON.stringify(position.position));
+        localStorage.setItem('camera-rotation', JSON.stringify(position.rotation));
+        localStorage.setItem('camera-timestamp', Date.now().toString());
+        
+        // Versión avanzada: guardar también posición para esta URL específica
+        const urlKey = window.location.pathname;
+        const urlPositions = JSON.parse(localStorage.getItem('url-positions') || '{}');
+        urlPositions[urlKey] = {
+          position: position.position,
+          rotation: position.rotation,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('url-positions', JSON.stringify(urlPositions));
+      }
+      
+      // Limpiar intervalo antes de recargar
+      if (cameraPositionInterval) {
+        clearInterval(cameraPositionInterval);
+      }
+      
+      window.location.reload();
+    }
+  };
+  
+  // Detener EventSource cuando se cierra la página
+  window.addEventListener('beforeunload', function() {
+    if (cameraPositionInterval) {
+      clearInterval(cameraPositionInterval);
+    }
+    evtSource.close();
+  });
+</script>
+`;
+  
+  // Buscar la etiqueta final </body> para insertar nuestro script antes
+  const bodyEndIndex = htmlContent.lastIndexOf('</body>');
+  if (bodyEndIndex === -1) {
+    // Si no hay etiqueta </body>, simplemente añadimos al final
+    return htmlContent + injectScript;
   }
+  
+  // Insertar el script antes de </body>
+  return htmlContent.substring(0, bodyEndIndex) + injectScript + htmlContent.substring(bodyEndIndex);
 }
 
 /**
