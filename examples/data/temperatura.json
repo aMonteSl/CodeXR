@@ -1,0 +1,14 @@
+[
+    { "ciudad": "Madrid", "temperatura": 14, "mes": "Enero", "estacion": "Invierno" },
+    { "ciudad": "Madrid", "temperatura": 16, "mes": "Febrero", "estacion": "Invierno" },
+    { "ciudad": "Madrid", "temperatura": 19, "mes": "Marzo", "estacion": "Primavera" },
+    { "ciudad": "Madrid", "temperatura": 22, "mes": "Abril", "estacion": "Primavera" },
+    { "ciudad": "Madrid", "temperatura": 25, "mes": "Mayo", "estacion": "Primavera" },
+    { "ciudad": "Madrid", "temperatura": 30, "mes": "Junio", "estacion": "Verano" },
+    { "ciudad": "Barcelona", "temperatura": 16, "mes": "Enero", "estacion": "Invierno" },
+    { "ciudad": "Barcelona", "temperatura": 17, "mes": "Febrero", "estacion": "Invierno" },
+    { "ciudad": "Barcelona", "temperatura": 19, "mes": "Marzo", "estacion": "Primavera" },
+    { "ciudad": "Barcelona", "temperatura": 21, "mes": "Abril", "estacion": "Primavera" },
+    { "ciudad": "Barcelona", "temperatura": 24, "mes": "Mayo", "estacion": "Primavera" },
+    { "ciudad": "Barcelona", "temperatura": 27, "mes": "Junio", "estacion": "Verano" }
+  ]

@@ -2,16 +2,27 @@
 
 Esta extensión de VS Code proporciona un servidor local con capacidad de recarga en vivo (live reload) especialmente diseñado para el desarrollo de aplicaciones con A-Frame y experiencias de Realidad Virtual/Aumentada en la web.
 
-src/
-├── extension.ts       - Main extension file
-├── server.ts          - HTTP/HTTPS server management
-├── treeProvider.ts    - Tree view provider (unified view)
-├── babiaxrManager.ts  - BabiaXR visualization management
-├── models/            - New folder for data models
-│   ├── serverModel.ts - Server-related interfaces and types
-│   └── chartModel.ts  - Chart-related interfaces and types
-└── utils/             - New folder for utility functions
-    └── templateUtils.ts - Template handling utilities
+integracionvsaframe/
+├── src/                  - Código fuente de la extensión
+│   └── ...               - (estructura actual)
+├── templates/            - Plantillas para generar HTML
+│   ├── bar-chart.html    - (ya existente)
+│   └── pie-chart.html    - (ya existente)
+├── examples/             - Ejemplos para los usuarios
+│   ├── charts/           - Ejemplos de visualizaciones
+│   │   ├── bar-chart/    - Ejemplos de gráficos de barras
+│   │   │   ├── simple.html
+│   │   │   └── advanced.html
+│   │   └── pie-chart/    - Ejemplos de gráficos circulares
+│   │       ├── simple.html
+│   │       └── donut.html
+│   └── data/             - Datos JSON/CSV de ejemplo
+│       ├── ventas.json   - (tu ejemplo actual)
+│       ├── productos.json
+│       └── clima.csv
+├── resources/            - Recursos estáticos
+│   └── certs/            - Certificados SSL
+└── package.json
 
 ## Tareas pendientes
 

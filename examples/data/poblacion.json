@@ -1,0 +1,14 @@
+[
+    { "pais": "España", "poblacion": 47, "continente": "Europa" },
+    { "pais": "Francia", "poblacion": 67, "continente": "Europa" },
+    { "pais": "Alemania", "poblacion": 83, "continente": "Europa" },
+    { "pais": "Italia", "poblacion": 60, "continente": "Europa" },
+    { "pais": "Portugal", "poblacion": 10, "continente": "Europa" },
+    { "pais": "Estados Unidos", "poblacion": 329, "continente": "América" },
+    { "pais": "Canada", "poblacion": 38, "continente": "América" },
+    { "pais": "México", "poblacion": 126, "continente": "América" },
+    { "pais": "Brasil", "poblacion": 212, "continente": "América" },
+    { "pais": "China", "poblacion": 1400, "continente": "Asia" },
+    { "pais": "India", "poblacion": 1366, "continente": "Asia" },
+    { "pais": "Japón", "poblacion": 126, "continente": "Asia" }
+  ]

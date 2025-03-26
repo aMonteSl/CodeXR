@@ -7,8 +7,7 @@ import {
   ChartData, 
   ChartSpecification,
   BarChartOptions,
-  PieChartOptions,
-  TimeSeriesOptions
+  PieChartOptions
 } from './models/chartModel';
 import { 
   processTemplate, 
@@ -34,7 +33,7 @@ export async function createBabiaXRVisualization(
       data: chartData
     };
     
-    // Process template with the chart specification (ahora es async)
+    // Process template with the chart specification
     const { html, originalDataPath, isRemoteData } = await processTemplate(context, chartSpec);
     
     // Get sanitized filename from chart title
@@ -70,15 +69,14 @@ export async function launchBabiaXRVisualization(
 }
 
 /**
- * Recopila información sobre la fuente de datos de manera más amigable
- * @returns URL o ruta del archivo de datos seleccionado
+ * Recopila información sobre la fuente de datos
+ * @returns Ruta del archivo de datos seleccionado
  */
 async function collectDataSource(): Promise<string | undefined> {
-  // 1. Mostrar opciones para elegir el tipo de fuente de datos
+  // Mostrar opciones para elegir el tipo de fuente de datos
   const sourceType = await vscode.window.showQuickPick(
     [
       { label: '$(file) Archivo local', id: 'local', description: 'Seleccionar archivo CSV o JSON del equipo' },
-      { label: '$(cloud) URL remota', id: 'remote', description: 'Ingresar URL de datos online' },
       { label: '$(beaker) Datos de ejemplo', id: 'sample', description: 'Usar conjunto de datos predefinido' }
     ],
     { 
@@ -102,46 +100,117 @@ async function collectDataSource(): Promise<string | undefined> {
       if (!fileUri || fileUri.length === 0) return undefined;
       return fileUri[0].fsPath;
       
-    case 'remote':
-      // Para URLs, seguimos necesitando un input box
-      return await vscode.window.showInputBox({
-        prompt: 'Introduce la URL del archivo de datos',
-        placeHolder: 'https://ejemplo.com/datos.csv',
-        validateInput: input => {
-          // Validar que sea una URL válida
-          try {
-            new URL(input);
-            return null; // Sin error
-          } catch {
-            return 'Por favor, introduce una URL válida';
-          }
-        }
-      });
-      
     case 'sample':
-      // Ofrecer datasets de ejemplo para elegir
+      // Obtener la ruta de la extensión de manera más robusta
+      let extensionPath = '';
+      
+      // Intento 1: Obtener desde la API de extensiones
+      try {
+        // Usa el ID correcto de tu extensión - debe coincidir con package.json
+        const extension = vscode.extensions.getExtension('Your.integracionvsaframe');
+        if (extension) {
+          extensionPath = extension.extensionUri.fsPath;
+        }
+      } catch (error) {
+        console.log('Error obteniendo extensión por ID:', error);
+      }
+      
+      // Intento 2: Usar el workspace actual
+      if (!extensionPath && vscode.workspace.workspaceFolders?.length) {
+        extensionPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+      }
+      
+      // Intento 3: Obtener directamente desde __dirname (si estamos en desarrollo)
+      if (!extensionPath) {
+        // Esta línea asume que este archivo está en src/babiaxrManager.ts
+        extensionPath = path.resolve(__dirname, '..');
+      }
+      
+      if (!extensionPath) {
+        vscode.window.showErrorMessage('No se pudo determinar la ruta de la extensión');
+        return undefined;
+      }
+      
+      console.log(`Ruta de la extensión: ${extensionPath}`);
+      
+      // Definir posibles ubicaciones donde podrían estar los ejemplos
+      const possiblePaths = [
+        // El path detectado automáticamente
+        path.join(extensionPath, 'examples', 'data'),
+        // La ubicación correcta que conocemos
+        '/home/adrian/integracionvsaframe/examples/data',
+        // Ruta relativa (si estamos en desarrollo)
+        path.resolve(__dirname, '..', 'examples', 'data')
+      ];
+      
+      let examplesPath = '';
+      
+      // Encontrar la primera ruta que exista
+      for (const testPath of possiblePaths) {
+        if (fs.existsSync(testPath)) {
+          examplesPath = testPath;
+          console.log(`Encontrada ruta de ejemplos válida: ${examplesPath}`);
+          break;
+        }
+      }
+      
+      if (!examplesPath) {
+        vscode.window.showErrorMessage('No se pudieron encontrar los archivos de ejemplo en ninguna ubicación conocida.');
+        return undefined;
+      }
+      
+      // Construir la ruta completa a los ejemplos usando la ruta correcta
+      const ventasPath = path.join(examplesPath, 'ventas.json');
+      const poblacionPath = path.join(examplesPath, 'poblacion.json');
+      const temperaturaPath = path.join(examplesPath, 'temperatura.json');
+      
+      // Verifica que los archivos existan antes de ofrecerlos
+      let availableDatasets = [];
+      
+      if (fs.existsSync(ventasPath)) {
+        availableDatasets.push({ 
+          label: 'Ventas por Producto y Trimestre', 
+          value: ventasPath, 
+          description: 'Datos de ventas por producto y trimestre (JSON)' 
+        });
+      } else {
+        console.log(`Archivo no encontrado: ${ventasPath}`);
+      }
+      
+      if (fs.existsSync(poblacionPath)) {
+        availableDatasets.push({ 
+          label: 'Población por País', 
+          value: poblacionPath, 
+          description: 'Datos demográficos agrupados por continente (JSON)' 
+        });
+      } else {
+        console.log(`Archivo no encontrado: ${poblacionPath}`);
+      }
+      
+      if (fs.existsSync(temperaturaPath)) {
+        availableDatasets.push({ 
+          label: 'Temperaturas por Ciudad', 
+          value: temperaturaPath, 
+          description: 'Datos de temperatura por ciudad y estación (JSON)' 
+        });
+      } else {
+        console.log(`Archivo no encontrado: ${temperaturaPath}`);
+      }
+      
+      if (availableDatasets.length === 0) {
+        vscode.window.showErrorMessage('No se encontraron archivos de datos de ejemplo. Verifica la estructura de carpetas.');
+        return undefined;
+      }
+      
+      // Ofrecer datasets de ejemplo predefinidos
       const sampleDataset = await vscode.window.showQuickPick(
-        [
-          { 
-            label: 'Datos de Apple Stock (simple)', 
-            value: 'https://raw.githubusercontent.com/plotly/datasets/master/2014_apple_stock.csv', 
-            description: 'Pequeño dataset CSV (5 filas)' 
-          },
-          { 
-            label: 'Datos de países (simple)', 
-            value: 'https://raw.githubusercontent.com/cs109/2014_data/master/countries.csv', 
-            description: 'Estadísticas de países (CSV)' 
-          },
-          { 
-            label: 'Datos de mascotas (JSON)', 
-            value: 'https://raw.githubusercontent.com/LearnWebCode/json-example/master/pets-data.json', 
-            description: 'Datos simples en formato JSON' 
-          }
-        ],
+        availableDatasets,
         { 
           placeHolder: 'Selecciona un conjunto de datos de ejemplo',
+          title: 'Datos de ejemplo incluidos en la extensión'
         }
       );
+      
       return sampleDataset?.value;
   }
   
@@ -183,7 +252,7 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
       infoMessage = 'Selecciona los atributos para visualizar';
     }
     
-    // Mostrar información al usuario
+    // Mostrar información al usuario (sin await para no bloquear)
     vscode.window.showInformationMessage(infoMessage);
     
     // Mostrar un selector con las dimensiones encontradas
@@ -247,7 +316,7 @@ async function collectBarChartOptions(): Promise<BarChartOptions | undefined> {
   // Ask for horizontal orientation
   const horizontalResponse = await vscode.window.showQuickPick(
     ['Vertical', 'Horizontal'],
-    { placeHolder: 'Bar orientation' }
+    { placeHolder: 'Orientación de las barras' }
   );
   
   if (!horizontalResponse) return undefined;
@@ -267,7 +336,7 @@ async function collectPieChartOptions(): Promise<PieChartOptions | undefined> {
   // Ask for donut style
   const donutResponse = await vscode.window.showQuickPick(
     ['Standard Pie', 'Donut'],
-    { placeHolder: 'Chart style' }
+    { placeHolder: 'Estilo de gráfico circular' }
   );
   
   if (!donutResponse) return undefined;
@@ -281,99 +350,34 @@ async function collectPieChartOptions(): Promise<PieChartOptions | undefined> {
 }
 
 /**
- * Collects options specific to time series charts
- * @returns Time series options
- */
-async function collectTimeSeriesOptions(): Promise<TimeSeriesOptions | undefined> {
-  // Ask for time column
-  const timeColumn = await vscode.window.showInputBox({
-    prompt: 'Column containing time data',
-    placeHolder: 'e.g., date, timestamp, year',
-    value: 'date'
-  });
-  
-  if (!timeColumn) return undefined;
-  
-  // Ask for area style
-  const areaResponse = await vscode.window.showQuickPick(
-    ['Line', 'Area'],
-    { placeHolder: 'Chart style' }
-  );
-  
-  if (!areaResponse) return undefined;
-  
-  return {
-    timeColumn,
-    area: areaResponse === 'Area',
-    width: 3,
-    height: 1
-  };
-}
-
-/**
  * Extrae automáticamente las dimensiones disponibles de un archivo de datos
- * @param dataSource Ruta o URL al archivo de datos
+ * @param dataSource Ruta del archivo local
  * @returns Array con los nombres de las dimensiones disponibles
  */
 async function extractDimensions(dataSource: string): Promise<string[]> {
   try {
-    let data: any;
+    const fileContent = fs.readFileSync(dataSource, 'utf8');
     
-    // Verificar si es una URL
-    if (isUrl(dataSource)) {
-      // Obtener el contenido de la URL
-      const fileContent = await fetchDataFromUrl(dataSource);
+    if (dataSource.toLowerCase().endsWith('.json')) {
+      const data = JSON.parse(fileContent);
       
-      // Determinar si es JSON o CSV por la extensión
-      if (dataSource.toLowerCase().endsWith('.json')) {
-        data = JSON.parse(fileContent);
-        
-        if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
-          return Object.keys(data[0]);
-        }
-      } 
-      else if (dataSource.toLowerCase().endsWith('.csv')) {
-        // Detectar automáticamente el separador
-        const firstLine = fileContent.split('\n')[0];
-        const separator = firstLine.includes(';') ? ';' : ',';
-        
-        // Para CSV, asumimos que la primera línea contiene los encabezados
-        const lines = fileContent.split('\n');
-        if (lines.length > 0) {
-          return lines[0].split(separator).map(header => header.trim());
-        }
+      if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+        return Object.keys(data[0]);
       }
-    }
-    // Si es una ruta local (código existente)
-    else if (dataSource.startsWith('/') || dataSource.includes(':\\')) {
-      const fileContent = fs.readFileSync(dataSource, 'utf8');
+    } 
+    else if (dataSource.toLowerCase().endsWith('.csv')) {
+      const firstLine = fileContent.split('\n')[0];
+      const separator = firstLine.includes(';') ? ';' : ',';
       
-      // Determinar si es JSON o CSV por la extensión
-      if (dataSource.toLowerCase().endsWith('.json')) {
-        data = JSON.parse(fileContent);
-        
-        // Si tenemos un array con al menos un objeto, extraemos sus propiedades
-        if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
-          return Object.keys(data[0]);
-        }
-      } 
-      else if (dataSource.toLowerCase().endsWith('.csv')) {
-        // Detectar automáticamente el separador (coma o punto y coma)
-        const firstLine = fileContent.split('\n')[0];
-        const separator = firstLine.includes(';') ? ';' : ',';
-        
-        // Para CSV, asumimos que la primera línea contiene los encabezados
-        const lines = fileContent.split('\n');
-        if (lines.length > 0) {
-          return lines[0].split(separator).map(header => header.trim());
-        }
+      const lines = fileContent.split('\n');
+      if (lines.length > 0) {
+        return lines[0].split(separator).map(header => header.trim());
       }
     }
     
-    // Para URLs y otros casos sin formato reconocido
     return ['nombre', 'valor'];
   } catch (error) {
-    vscode.window.showWarningMessage(`No se pudieron extraer dimensiones automáticamente: ${error}`);
+    vscode.window.showWarningMessage(`No se pudieron extraer dimensiones: ${error}`);
     return ['nombre', 'valor']; // Valores predeterminados en caso de error
   }
 }
@@ -427,162 +431,36 @@ export function processCSVData(filePath: string): any[] {
 
 /**
  * Convierte un archivo CSV a JSON y lo guarda en el mismo directorio
- * @param csvPath Ruta al archivo CSV o URL
- * @returns Ruta al archivo JSON creado o datos JSON procesados
+ * @param csvPath Ruta al archivo CSV
+ * @returns Ruta al archivo JSON creado
  */
-export async function convertCSVtoJSON(csvPath: string): Promise<string> {
-  let jsonData;
+export function convertCSVtoJSON(csvPath: string): string {
+  // Procesar los datos CSV
+  const jsonData = processCSVData(csvPath);
   
-  // Si es una URL
-  if (isUrl(csvPath)) {
-    // Procesamos los datos CSV remotos
-    jsonData = await processRemoteCSVData(csvPath);
-    
-    // Para URLs remotas, usamos un archivo temporal en el directorio de trabajo
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-      throw new Error('No hay un espacio de trabajo abierto para guardar los datos temporales');
-    }
-    
-    // Crear un nombre de archivo basado en la URL
-    const urlObj = new URL(csvPath);
-    const fileName = path.basename(urlObj.pathname).replace(/\.csv$/i, '') || 'remote-data';
-    const jsonPath = path.join(workspaceFolders[0].uri.fsPath, `${fileName}.json`);
-    
-    // Guardar los datos procesados
-    fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
-    return jsonPath;
-  } 
-  // Para archivos locales
-  else {
-    // Procesar los datos CSV
-    jsonData = processCSVData(csvPath);
-    
-    // Crear la ruta para el nuevo archivo JSON
-    const jsonPath = csvPath.replace(/\.csv$/i, '.json');
-    
-    // Guardar el JSON
-    fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
-    return jsonPath;
-  }
+  // Crear la ruta para el nuevo archivo JSON
+  const jsonPath = csvPath.replace(/\.csv$/i, '.json');
+  
+  // Guardar el JSON
+  fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
+  return jsonPath;
 }
 
 /**
- * Carga datos desde un archivo local o URL
- * @param dataSource Ruta del archivo o URL
+ * Carga datos desde un archivo local
+ * @param dataSource Ruta del archivo
  * @returns Array con los datos cargados
  */
-export async function loadData(dataSource: string): Promise<any[]> {
-  // Verificar si es una URL
-  if (isUrl(dataSource)) {
-    // Para URLs remotas
-    if (dataSource.toLowerCase().endsWith('.json')) {
-      const fileContent = await fetchDataFromUrl(dataSource);
-      return JSON.parse(fileContent);
-    } 
-    else if (dataSource.toLowerCase().endsWith('.csv')) {
-      return await processRemoteCSVData(dataSource);
-    }
-    else {
-      throw new Error('URL no válida. Debe ser un archivo CSV o JSON.');
-    }
+export function loadData(dataSource: string): any[] {
+  // Para archivos locales 
+  if (dataSource.toLowerCase().endsWith('.json')) {
+    const fileContent = fs.readFileSync(dataSource, 'utf8');
+    return JSON.parse(fileContent);
   } 
+  else if (dataSource.toLowerCase().endsWith('.csv')) {
+    return processCSVData(dataSource);
+  }
   else {
-    // Para archivos locales 
-    if (dataSource.toLowerCase().endsWith('.json')) {
-      const fileContent = fs.readFileSync(dataSource, 'utf8');
-      return JSON.parse(fileContent);
-    } 
-    else if (dataSource.toLowerCase().endsWith('.csv')) {
-      return processCSVData(dataSource);
-    }
-    else {
-      throw new Error('Formato de archivo no soportado. Use CSV o JSON.');
-    }
+    throw new Error('Formato de archivo no soportado. Use CSV o JSON.');
   }
-}
-
-/**
- * Verifica si una cadena es una URL válida
- * @param str Cadena a verificar
- * @returns true si es una URL, false en caso contrario
- */
-export function isUrl(str: string): boolean {
-  try {
-    new URL(str);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Descarga datos desde una URL
- * @param url URL de los datos
- * @returns Contenido de la URL como texto
- */
-export async function fetchDataFromUrl(url: string): Promise<string> {
-  const https = require('https');
-  const http = require('http');
-
-  return new Promise((resolve, reject) => {
-    // Determinar qué protocolo usar
-    const requester = url.startsWith('https:') ? https : http;
-    
-    requester.get(url, (res: any) => {
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        return reject(new Error(`Error HTTP: ${res.statusCode}`));
-      }
-      
-      let data = '';
-      res.on('data', (chunk: any) => data += chunk);
-      res.on('end', () => resolve(data));
-    }).on('error', (err: any) => reject(err));
-  });
-}
-
-/**
- * Procesa datos CSV desde una URL remota
- * @param url URL del archivo CSV
- * @returns Array de objetos con los datos procesados
- */
-export async function processRemoteCSVData(url: string): Promise<any[]> {
-  // Descargar el contenido
-  const fileContent = await fetchDataFromUrl(url);
-  
-  // Usar el mismo algoritmo que para archivos locales
-  const lines = fileContent.split('\n').filter(line => line.trim() !== '');
-  
-  if (lines.length === 0) {
-    throw new Error('El archivo CSV remoto está vacío');
-  }
-  
-  // Detectar automáticamente el separador
-  const firstLine = lines[0];
-  const separator = firstLine.includes(';') ? ';' : ',';
-  
-  // Extraer encabezados (primera línea)
-  const headers = lines[0].split(separator).map(header => header.trim());
-  
-  // Procesar todas las líneas de datos
-  const result: any[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(separator).map(val => val.trim());
-    
-    const item: any = {};
-    headers.forEach((header, index) => {
-      const value = values[index];
-      if (value !== undefined && !isNaN(Number(value))) {
-        item[header] = Number(value);
-      } else {
-        item[header] = value || '';
-      }
-    });
-    
-    if (Object.keys(item).length > 0) {
-      result.push(item);
-    }
-  }
-  
-  return result;
 }
