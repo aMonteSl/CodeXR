@@ -243,22 +243,94 @@ async function collectChartData(chartType) {
             minSelections = 1;
             infoMessage = 'Selecciona los atributos para visualizar';
         }
-        // Mostrar información al usuario (sin await para no bloquear)
+        // Mostrar información al usuario
         vscode.window.showInformationMessage(infoMessage);
-        // Mostrar un selector con las dimensiones encontradas
-        const selectedDimensions = await vscode.window.showQuickPick(dimensions.map(d => ({ label: d, picked: d === dimensions[0] || d === dimensions[1] })), {
-            canPickMany: true,
-            placeHolder: `Selecciona ${minSelections}-${maxSelections} dimensiones para visualizar`,
-            title: 'Dimensiones disponibles en los datos'
-        });
-        // Validar que se hayan seleccionado suficientes dimensiones
-        if (!selectedDimensions || selectedDimensions.length < minSelections) {
-            vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensiones para este tipo de gráfico.`);
-            return undefined;
+        // Crear una instancia de QuickPick en vez de usar showQuickPick directamente
+        const quickPick = vscode.window.createQuickPick();
+        quickPick.items = dimensions.map(d => ({
+            label: d,
+            picked: d === dimensions[0] || d === dimensions[1]
+        }));
+        quickPick.canSelectMany = true;
+        quickPick.placeholder = `Selecciona ${minSelections}-${maxSelections} dimensiones para visualizar`;
+        quickPick.title = 'Dimensiones disponibles en los datos';
+        // Preseleccionar dimensiones iniciales
+        if (dimensions.length >= 2) {
+            quickPick.selectedItems = [
+                quickPick.items[0],
+                quickPick.items[1]
+            ];
         }
-        // Validar que no se excedan las dimensiones máximas para bar chart
-        if (chartType === chartModel_1.ChartType.BAR_CHART && selectedDimensions.length > maxSelections) {
-            vscode.window.showErrorMessage(`Para un gráfico de barras, selecciona máximo ${maxSelections} dimensiones.`);
+        // Variable para rastrear la selección previa
+        let previousSelection = [];
+        // Inicializar con la selección inicial
+        if (quickPick.selectedItems.length > 0) {
+            previousSelection = Array.from(quickPick.selectedItems);
+        }
+        // Limitar la cantidad de selecciones para gráficos de barras
+        quickPick.onDidChangeSelection(items => {
+            if (chartType === chartModel_1.ChartType.BAR_CHART) {
+                // Caso 1: Intentando seleccionar más del máximo
+                if (items.length > maxSelections) {
+                    vscode.window.showErrorMessage(`Para un gráfico de barras, selecciona máximo ${maxSelections} dimensiones.`);
+                    // Mantener solo los primeros maxSelections elementos
+                    quickPick.selectedItems = items.slice(0, maxSelections);
+                }
+                // Caso 2: Intentando deseleccionar por debajo del mínimo
+                else if (items.length < minSelections) {
+                    vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensiones para este tipo de gráfico.`);
+                    // Determinar qué elemento se intentó deseleccionar
+                    const deselectedItems = previousSelection.filter(prev => !items.some(current => current.label === prev.label));
+                    // Restaurar la selección anterior para mantener el mínimo
+                    quickPick.selectedItems = previousSelection;
+                }
+                // Actualizar la selección previa cuando es válida
+                else {
+                    previousSelection = Array.from(items);
+                }
+            }
+            else {
+                // Para otros tipos de gráficos, solo verificar el mínimo
+                if (items.length < minSelections) {
+                    vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensión para este tipo de gráfico.`);
+                    // Restaurar la selección anterior
+                    if (previousSelection.length >= minSelections) {
+                        quickPick.selectedItems = previousSelection;
+                    }
+                }
+                else {
+                    previousSelection = Array.from(items);
+                }
+            }
+        });
+        // Mostrar el QuickPick y esperar hasta que el usuario acepte o cancele
+        quickPick.show();
+        const selectedDimensions = await new Promise(resolve => {
+            // Cuando el usuario confirma la selección
+            quickPick.onDidAccept(() => {
+                if (quickPick.selectedItems.length < minSelections) {
+                    // Mostrar error si seleccionó menos de lo requerido
+                    vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensiones para este tipo de gráfico.`);
+                    // No cerrar el QuickPick, permitir corregir la selección
+                }
+                else if (chartType === chartModel_1.ChartType.BAR_CHART && quickPick.selectedItems.length > maxSelections) {
+                    // Este caso no debería ocurrir debido a la limitación previa, pero lo incluimos por seguridad
+                    vscode.window.showErrorMessage(`Para un gráfico de barras, selecciona máximo ${maxSelections} dimensiones.`);
+                }
+                else {
+                    // Selección válida, resolver la promesa
+                    resolve(quickPick.selectedItems.length > 0 ? Array.from(quickPick.selectedItems) : undefined);
+                    quickPick.hide();
+                }
+            });
+            // Cuando el QuickPick se cierra (cancelar)
+            quickPick.onDidHide(() => {
+                resolve(undefined);
+                quickPick.dispose();
+            });
+        });
+        // Si no hay selección, terminar
+        if (!selectedDimensions || selectedDimensions.length === 0) {
             return undefined;
         }
         // Usar las dimensiones seleccionadas
