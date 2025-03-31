@@ -6,7 +6,7 @@ import { ChartType, ChartData, TemplateVariableMap, ChartSpecification } from '.
 /**
  * Data structure representing a processed template
  */
-interface ProcessedTemplate {
+export interface ProcessedTemplate {
   html: string;
   originalDataPath?: string;
   isRemoteData: boolean;
@@ -99,7 +99,7 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
  * @param str String to check
  * @returns true if it's a URL, false otherwise
  */
-function isUrl(str: string): boolean {
+export function isUrl(str: string): boolean {
   try {
     new URL(str);
     return true;
@@ -111,7 +111,7 @@ function isUrl(str: string): boolean {
 /**
  * Map of chart components to insert in the template
  */
-const chartComponents: Record<ChartType, string> = {
+export const chartComponents: Record<ChartType, string> = {
   [ChartType.BAR_CHART]: `
         <!-- Bar Chart -->
         <a-entity babia-barsmap="from: data; 
@@ -176,95 +176,6 @@ export async function processTemplate(context: vscode.ExtensionContext, chartSpe
   return {
     html: processedHtml,
     originalDataPath: chartSpec.data.dataSource,
-    isRemoteData: false
+    isRemoteData: isUrl(chartSpec.data.dataSource)
   };
-}
-
-/**
- * Saves processed HTML content to a file and copies related data files
- */
-export async function saveHtmlToFile(
-  html: string, 
-  fileName: string, 
-  originalDataPath?: string, 
-  isRemoteData: boolean = false
-): Promise<string | undefined> {
-  try {
-    // Request directory name
-    const projectName = await vscode.window.showInputBox({
-      prompt: 'Name of the directory for the visualization',
-      placeHolder: 'my-visualization',
-      value: path.basename(fileName, '.html').toLowerCase().replace(/\s+/g, '-')
-    });
-    
-    if (!projectName) return undefined;
-    
-    // Determine base directory
-    let baseDir = vscode.workspace.workspaceFolders ? 
-      vscode.workspace.workspaceFolders[0].uri.fsPath : 
-      require('os').homedir();
-    
-    // Request location
-    const dirOptions: vscode.OpenDialogOptions = {
-      canSelectFiles: false,
-      canSelectFolders: true,
-      canSelectMany: false,
-      openLabel: 'Select folder for the project'
-    };
-    
-    const selectedDir = await vscode.window.showOpenDialog(dirOptions);
-    if (selectedDir && selectedDir.length > 0) {
-      baseDir = selectedDir[0].fsPath;
-    }
-    
-    // Create project directory
-    const projectDir = path.join(baseDir, projectName);
-    
-    // Handle existing directory case
-    if (fs.existsSync(projectDir)) {
-      const overwrite = await vscode.window.showWarningMessage(
-        `The folder '${projectName}' already exists. Do you want to overwrite its contents?`,
-        'Overwrite', 'Cancel'
-      );
-      
-      if (overwrite !== 'Overwrite') {
-        return undefined;
-      }
-    } else {
-      fs.mkdirSync(projectDir, { recursive: true });
-    }
-    
-    // Save the HTML file in the project folder
-    const htmlPath = path.join(projectDir, 'index.html');
-    
-    // Copy the JSON data file
-    if (originalDataPath && !isRemoteData) {
-      const dataFileName = path.basename(originalDataPath);
-      const destDataPath = path.join(projectDir, dataFileName);
-      
-      // Copy the file
-      fs.copyFileSync(originalDataPath, destDataPath);
-      
-      // Update the URL in the HTML
-      html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ${dataFileName}"`);
-    }
-    
-    // Save the HTML
-    fs.writeFileSync(htmlPath, html);
-    
-    // Success message
-    vscode.window.showInformationMessage(
-      `Visualization created in: ${projectDir}`,
-      'Open folder'
-    ).then(selection => {
-      if (selection === 'Open folder') {
-        vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(projectDir));
-      }
-    });
-    
-    return htmlPath;
-  } catch (error) {
-    vscode.window.showErrorMessage(`Error saving project: ${error}`);
-    return undefined;
-  }
 }

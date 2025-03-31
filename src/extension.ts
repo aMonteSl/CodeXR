@@ -1,18 +1,21 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { startServer, stopServer, getActiveServers } from './server';
-import { LocalServerProvider } from './treeProvider';
+import { startServer, stopServer, getActiveServers } from './server/serverManager';
+import { LocalServerProvider } from './ui/treeProvider';
 import { 
   ChartType, 
   ChartData 
 } from './models/chartModel';
 import { ServerMode, ServerInfo } from './models/serverModel';
+
+// Import from our new visualization modules
 import { 
   createBabiaXRVisualization, 
-  launchBabiaXRVisualization,
-  collectChartData,
-  collectChartOptions
-} from './babiaxrManager';
+  launchBabiaXRVisualization 
+} from './visualization/chartManager';
+import { collectChartData } from './visualization/dataCollector';
+import { collectChartOptions } from './visualization/optionsCollector';
+import { defaultCertificatesExist } from './server/certificateManager';
 
 /**
  * This function is executed when the extension is activated
@@ -78,6 +81,22 @@ export function activate(context: vscode.ExtensionContext) {
         // Define server mode based on configuration
         const useHttps = currentMode !== ServerMode.HTTP;
         const useDefaultCerts = currentMode === ServerMode.HTTPS_DEFAULT_CERTS;
+        
+        // Check for certificate existence if using default certs
+        if (useHttps && useDefaultCerts && !defaultCertificatesExist(context)) {
+          const warningResult = await vscode.window.showWarningMessage(
+            'Default SSL certificates not found. Server will not work with VR headsets. ' +
+            'Do you want to continue with HTTP instead?',
+            'Use HTTP', 'Cancel'
+          );
+          
+          if (warningResult === 'Use HTTP') {
+            // Fall back to HTTP
+            await startServer(selectedFile, context, false, false);
+          }
+          
+          return;
+        }
         
         // Start server with selected configuration
         await startServer(selectedFile, context, useHttps, useDefaultCerts);
@@ -145,6 +164,7 @@ export function activate(context: vscode.ExtensionContext) {
         const selection = await vscode.window.showQuickPick(
           [
             { label: '$(globe) Open in Browser', id: 'open' },
+            { label: '$(file-binary) View Server Info', id: 'info' },
             { label: '$(stop) Stop Server', id: 'stop' }
           ],
           {
@@ -159,6 +179,23 @@ export function activate(context: vscode.ExtensionContext) {
         
         if (selection.id === 'open') {
           vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+        } else if (selection.id === 'info') {
+          // New functionality: Display detailed server info
+          // Add null check for startTime
+          const timeRunning = serverInfo.startTime 
+            ? Math.floor((Date.now() - serverInfo.startTime) / 1000)
+            : 0;
+          const minutes = Math.floor(timeRunning / 60);
+          const seconds = timeRunning % 60;
+          
+          const infoMessage = 
+            `Server: ${serverInfo.url}\n` +
+            `Protocol: ${serverInfo.protocol.toUpperCase()}\n` +
+            `Port: ${serverInfo.port}\n` +
+            `File: ${serverInfo.filePath}\n` +
+            `Running time: ${minutes}m ${seconds}s`;
+          
+          vscode.window.showInformationMessage(infoMessage);
         } else if (selection.id === 'stop') {
           stopServer(serverInfo.id);
           treeDataProvider.refresh();
@@ -243,6 +280,35 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // New command - Check certificate status
+  const checkCertificatesCommand = vscode.commands.registerCommand(
+    'integracionvsaframe.checkCertificates',
+    async () => {
+      const certStatus = defaultCertificatesExist(context);
+      if (certStatus) {
+        vscode.window.showInformationMessage(
+          'Default SSL certificates are present and ready to use for HTTPS servers.'
+        );
+      } else {
+        const result = await vscode.window.showWarningMessage(
+          'Default SSL certificates not found. HTTPS servers will not work properly without them.',
+          'Generate Certificates', 'Learn More'
+        );
+        
+        if (result === 'Learn More') {
+          vscode.env.openExternal(vscode.Uri.parse(
+            'https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API/Fundamentals#https'
+          ));
+        } else if (result === 'Generate Certificates') {
+          // This would link to a future certificate generation command
+          vscode.window.showInformationMessage(
+            'Certificate generation will be implemented in a future update.'
+          );
+        }
+      }
+    }
+  );
+
   // Register all commands
   context.subscriptions.push(
     // View commands
@@ -259,7 +325,10 @@ export function activate(context: vscode.ExtensionContext) {
     serverStatusActionsCommand,
     
     // BabiaXR commands
-    createBabiaXRVisualizationCommand
+    createBabiaXRVisualizationCommand,
+    
+    // New commands
+    checkCertificatesCommand
   );
 }
 

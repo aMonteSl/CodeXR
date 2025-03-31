@@ -20,6 +20,9 @@ export interface ServerInfo {
   /** Full URL including protocol and port */
   url: string;
   
+  /** Display version of URL (with filename instead of localhost) */
+  displayUrl?: string;
+  
   /** Protocol used (http/https) */
   protocol: string;
   
@@ -45,9 +48,6 @@ export interface ActiveServerEntry {
   
   /** Metadata about the server */
   info: ServerInfo;
-  
-  /** List of SSE clients for live reload */
-  sseClients?: http.ServerResponse[];
 }
 
 /**

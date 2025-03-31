@@ -33,12 +33,12 @@
         </a-entity>
 
         <!-- Título -->
-        <a-text value="Ventas por Producto" position="0 5 -2.8" width="6" color="#111" align="center" scale="1.2 1.2 1.2"></a-text>
+        <a-text value="Ventas por Producto" position="0 15 -2.8" width="6" color="#111" align="center" scale="1.2 1.2 1.2"></a-text>
         
         <!-- Cámara con controles de movimiento -->
         <a-entity movement-controls="fly: true" position="0 5 20">
             <a-entity camera position="0 0 0" look-controls></a-entity>
-            <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
+            <a-entity cursor="rayOrigin: mouse"></a-entity>
             <a-entity laser-controls="hand: right"></a-entity>
         </a-entity>
     </a-scene>

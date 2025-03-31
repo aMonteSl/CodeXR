@@ -1,7 +1,7 @@
 {
   "name": "integracionvsaframe",
   "displayName": "IntegracionVSAFrame",
-  "description": "primera extension intentando crear algo con aframe",
+  "description": "First extension attempting to create something with A-Frame",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.98.0"
@@ -15,45 +15,112 @@
     "commands": [
       {
         "command": "integracionvsaframe.startLocalServer",
-        "title": "Iniciar Servidor Local"
+        "title": "A-Frame: Start Local Server",
+        "icon": {
+          "light": "resources/light/server-start.svg",
+          "dark": "resources/dark/server-start.svg"
+        }
       },
       {
         "command": "integracionvsaframe.stopLocalServer",
-        "title": "Detener Servidor Local"
-      },
-      {
-        "command": "integracionvsaframe.changeServerMode",
-        "title": "Cambiar Modo de Servidor"
+        "title": "A-Frame: Stop Local Server",
+        "icon": {
+          "light": "resources/light/server-stop.svg",
+          "dark": "resources/dark/server-stop.svg"
+        }
       },
       {
         "command": "integracionvsaframe.startServerWithConfig",
-        "title": "Iniciar Servidor con Configuración Actual"
-      },
-      {
-        "command": "integracionvsaframe.refreshServerView",
-        "title": "Refrescar Vista de Servidores"
+        "title": "A-Frame: Start Server with Configuration",
+        "icon": {
+          "light": "resources/light/run.svg",
+          "dark": "resources/dark/run.svg"
+        }
       },
       {
         "command": "integracionvsaframe.serverOptions",
-        "title": "Opciones del Servidor"
+        "title": "A-Frame: Server Options"
       },
       {
         "command": "integracionvsaframe.serverStatusActions",
-        "title": "Acciones del Servidor Activo"
+        "title": "A-Frame: Active Server Actions"
+      },
+      {
+        "command": "integracionvsaframe.changeServerMode",
+        "title": "A-Frame: Change Server Mode",
+        "icon": {
+          "light": "resources/light/settings.svg",
+          "dark": "resources/dark/settings.svg"
+        }
+      },
+      {
+        "command": "integracionvsaframe.checkCertificates",
+        "title": "A-Frame: Check SSL Certificates Status",
+        "icon": {
+          "light": "resources/light/shield.svg",
+          "dark": "resources/dark/shield.svg"
+        }
       },
       {
         "command": "integracionvsaframe.createBabiaXRVisualization",
-        "title": "Crear Visualización BabiaXR"
+        "title": "BabiaXR: Create Visualization",
+        "icon": {
+          "light": "resources/light/graph.svg",
+          "dark": "resources/dark/graph.svg"
+        }
       },
       {
         "command": "integracionvsaframe.showBabiaXRTemplates",
-        "title": "Mostrar Plantillas BabiaXR"
+        "title": "BabiaXR: Browse Templates"
+      },
+      {
+        "command": "integracionvsaframe.refreshServerView",
+        "title": "A-Frame: Refresh Server View",
+        "icon": {
+          "light": "resources/light/refresh.svg",
+          "dark": "resources/dark/refresh.svg"
+        }
       },
       {
         "command": "integracionvsaframe.refreshView",
-        "title": "Refrescar Vista de A-Frame Explorer"
+        "title": "A-Frame: Refresh Explorer View",
+        "icon": {
+          "light": "resources/light/refresh.svg",
+          "dark": "resources/dark/refresh.svg"
+        }
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "integracionvsaframe.refreshView",
+          "when": "view == aframeExplorerView",
+          "group": "navigation"
+        },
+        {
+          "command": "integracionvsaframe.startServerWithConfig",
+          "when": "view == aframeExplorerView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "integracionvsaframe.startLocalServer",
+          "when": "viewItem == servers-section",
+          "group": "inline"
+        },
+        {
+          "command": "integracionvsaframe.stopLocalServer",
+          "when": "viewItem == active-server",
+          "group": "inline"
+        },
+        {
+          "command": "integracionvsaframe.createBabiaXRVisualization",
+          "when": "viewItem == babiaxr-section",
+          "group": "inline"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -71,7 +138,21 @@
           "icon": "resources/icon.svg"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "integracionvsaframe.refreshView",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "focusedView == aframeExplorerView"
+      },
+      {
+        "command": "integracionvsaframe.startServerWithConfig",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "focusedView == aframeExplorerView"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

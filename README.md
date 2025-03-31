@@ -2,32 +2,35 @@
 
 Esta extensión de VS Code proporciona un servidor local con capacidad de recarga en vivo (live reload) especialmente diseñado para el desarrollo de aplicaciones con A-Frame y experiencias de Realidad Virtual/Aumentada en la web.
 
-integracionvsaframe/
-├── src/                  - Código fuente de la extensión
-│   └── ...               - (estructura actual)
-├── templates/            - Plantillas para generar HTML
-│   ├── bar-chart.html    - (ya existente)
-│   └── pie-chart.html    - (ya existente)
-├── examples/             - Ejemplos para los usuarios
-│   ├── charts/           - Ejemplos de visualizaciones
-│   │   ├── bar-chart/    - Ejemplos de gráficos de barras
-│   │   │   ├── simple.html
-│   │   │   └── advanced.html
-│   │   └── pie-chart/    - Ejemplos de gráficos circulares
-│   │       ├── simple.html
-│   │       └── donut.html
-│   └── data/             - Datos JSON/CSV de ejemplo
-│       ├── ventas.json   - (tu ejemplo actual)
-│       ├── productos.json
-│       └── clima.csv
-├── resources/            - Recursos estáticos
-│   └── certs/            - Certificados SSL
-└── package.json
+src/
+├── extension.ts                # Main entry point (stay as is)
+├── models/                     # Models (already well-organized)
+│   ├── chartModel.ts
+│   └── serverModel.ts
+├── server/                     # Server functionality 
+│   ├── serverManager.ts        # Core server operations
+│   ├── requestHandler.ts       # HTTP request handling
+│   ├── certificateManager.ts   # Certificate management
+│   └── liveReloadManager.ts    # Live reload functionality
+├── ui/                         # UI components
+│   ├── treeProvider.ts         # Base provider logic
+│   ├── treeItems/              # Tree item classes
+│   │   ├── baseItems.ts        # Base classes
+│   │   ├── serverItems.ts      # Server-related items
+│   │   └── chartItems.ts       # Chart-related items
+│   └── statusBarManager.ts     # Status bar handling
+├── visualization/              # BabiaXR visualizations
+│   ├── chartManager.ts         # Chart creation/launching
+│   ├── dataCollector.ts        # Data source collection
+│   └── optionsCollector.ts     # Chart options collection
+└── templates/                  # Template processing
+    ├── templateManager.ts      # Template loading/processing
+    └── fileManager.ts          # File saving and export
 
 ## Tareas pendientes
 
 Agregar mas templates de graficos
-Que se actualize a tiempo real la pestaña si cambio los datos del json (Actualmente se actualiza pero la camra se resetea)
+
 
 ## Por hacer
 1. Lanzar html con graficos de BabiaXR

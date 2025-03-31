@@ -37,10 +37,14 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
-const server_1 = require("./server");
-const treeProvider_1 = require("./treeProvider");
+const serverManager_1 = require("./server/serverManager");
+const treeProvider_1 = require("./ui/treeProvider");
 const serverModel_1 = require("./models/serverModel");
-const babiaxrManager_1 = require("./babiaxrManager");
+// Import from our new visualization modules
+const chartManager_1 = require("./visualization/chartManager");
+const dataCollector_1 = require("./visualization/dataCollector");
+const optionsCollector_1 = require("./visualization/optionsCollector");
+const certificateManager_1 = require("./server/certificateManager");
 /**
  * This function is executed when the extension is activated
  */
@@ -85,8 +89,18 @@ function activate(context) {
             // Define server mode based on configuration
             const useHttps = currentMode !== serverModel_1.ServerMode.HTTP;
             const useDefaultCerts = currentMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+            // Check for certificate existence if using default certs
+            if (useHttps && useDefaultCerts && !(0, certificateManager_1.defaultCertificatesExist)(context)) {
+                const warningResult = await vscode.window.showWarningMessage('Default SSL certificates not found. Server will not work with VR headsets. ' +
+                    'Do you want to continue with HTTP instead?', 'Use HTTP', 'Cancel');
+                if (warningResult === 'Use HTTP') {
+                    // Fall back to HTTP
+                    await (0, serverManager_1.startServer)(selectedFile, context, false, false);
+                }
+                return;
+            }
             // Start server with selected configuration
-            await (0, server_1.startServer)(selectedFile, context, useHttps, useDefaultCerts);
+            await (0, serverManager_1.startServer)(selectedFile, context, useHttps, useDefaultCerts);
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error starting server: ${error instanceof Error ? error.message : String(error)}`);
@@ -113,7 +127,7 @@ function activate(context) {
                 return;
             }
             const selectedFile = fileUri[0].fsPath;
-            await (0, server_1.startServer)(selectedFile, context, useHttps, false);
+            await (0, serverManager_1.startServer)(selectedFile, context, useHttps, false);
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error starting server: ${error instanceof Error ? error.message : String(error)}`);
@@ -121,7 +135,7 @@ function activate(context) {
     });
     // Command to stop server
     const stopServerCommand = vscode.commands.registerCommand('integracionvsaframe.stopLocalServer', (serverId) => {
-        (0, server_1.stopServer)(serverId);
+        (0, serverManager_1.stopServer)(serverId);
         treeDataProvider.refresh();
     });
     // Server Management Commands
@@ -131,6 +145,7 @@ function activate(context) {
         try {
             const selection = await vscode.window.showQuickPick([
                 { label: '$(globe) Open in Browser', id: 'open' },
+                { label: '$(file-binary) View Server Info', id: 'info' },
                 { label: '$(stop) Stop Server', id: 'stop' }
             ], {
                 placeHolder: `Server ${serverInfo.url}`,
@@ -142,8 +157,23 @@ function activate(context) {
             if (selection.id === 'open') {
                 vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
             }
+            else if (selection.id === 'info') {
+                // New functionality: Display detailed server info
+                // Add null check for startTime
+                const timeRunning = serverInfo.startTime
+                    ? Math.floor((Date.now() - serverInfo.startTime) / 1000)
+                    : 0;
+                const minutes = Math.floor(timeRunning / 60);
+                const seconds = timeRunning % 60;
+                const infoMessage = `Server: ${serverInfo.url}\n` +
+                    `Protocol: ${serverInfo.protocol.toUpperCase()}\n` +
+                    `Port: ${serverInfo.port}\n` +
+                    `File: ${serverInfo.filePath}\n` +
+                    `Running time: ${minutes}m ${seconds}s`;
+                vscode.window.showInformationMessage(infoMessage);
+            }
             else if (selection.id === 'stop') {
-                (0, server_1.stopServer)(serverInfo.id);
+                (0, serverManager_1.stopServer)(serverInfo.id);
                 treeDataProvider.refresh();
             }
         }
@@ -154,7 +184,7 @@ function activate(context) {
     // Command for status bar actions
     const serverStatusActionsCommand = vscode.commands.registerCommand('integracionvsaframe.serverStatusActions', async () => {
         try {
-            const activeServers = (0, server_1.getActiveServers)();
+            const activeServers = (0, serverManager_1.getActiveServers)();
             if (activeServers.length === 0) {
                 vscode.window.showInformationMessage('No active servers');
                 return;
@@ -187,25 +217,42 @@ function activate(context) {
     const createBabiaXRVisualizationCommand = vscode.commands.registerCommand('integracionvsaframe.createBabiaXRVisualization', async (chartType) => {
         try {
             // Collect chart data from user
-            const chartData = await (0, babiaxrManager_1.collectChartData)(chartType);
+            const chartData = await (0, dataCollector_1.collectChartData)(chartType);
             if (!chartData)
                 return;
             // Collect chart-specific options
-            const options = await (0, babiaxrManager_1.collectChartOptions)(chartType);
+            const options = await (0, optionsCollector_1.collectChartOptions)(chartType);
             if (!options)
                 return;
             // Generate visualization
-            const filePath = await (0, babiaxrManager_1.createBabiaXRVisualization)(chartType, chartData, context);
+            const filePath = await (0, chartManager_1.createBabiaXRVisualization)(chartType, chartData, context);
             if (filePath) {
                 // Ask if user wants to launch server
                 const launchServer = await vscode.window.showInformationMessage('Visualization created successfully. Do you want to start the server to view it?', 'Yes', 'No');
                 if (launchServer === 'Yes') {
-                    await (0, babiaxrManager_1.launchBabiaXRVisualization)(filePath, context);
+                    await (0, chartManager_1.launchBabiaXRVisualization)(filePath, context);
                 }
             }
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error creating visualization: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // New command - Check certificate status
+    const checkCertificatesCommand = vscode.commands.registerCommand('integracionvsaframe.checkCertificates', async () => {
+        const certStatus = (0, certificateManager_1.defaultCertificatesExist)(context);
+        if (certStatus) {
+            vscode.window.showInformationMessage('Default SSL certificates are present and ready to use for HTTPS servers.');
+        }
+        else {
+            const result = await vscode.window.showWarningMessage('Default SSL certificates not found. HTTPS servers will not work properly without them.', 'Generate Certificates', 'Learn More');
+            if (result === 'Learn More') {
+                vscode.env.openExternal(vscode.Uri.parse('https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API/Fundamentals#https'));
+            }
+            else if (result === 'Generate Certificates') {
+                // This would link to a future certificate generation command
+                vscode.window.showInformationMessage('Certificate generation will be implemented in a future update.');
+            }
         }
     });
     // Register all commands
@@ -217,12 +264,14 @@ function activate(context) {
     // Server management commands
     serverOptionsCommand, serverStatusActionsCommand, 
     // BabiaXR commands
-    createBabiaXRVisualizationCommand);
+    createBabiaXRVisualizationCommand, 
+    // New commands
+    checkCertificatesCommand);
 }
 /**
  * This function is executed when the extension is deactivated
  */
 function deactivate() {
-    (0, server_1.stopServer)(); // Ensure all servers are stopped when extension is deactivated
+    (0, serverManager_1.stopServer)(); // Ensure all servers are stopped when extension is deactivated
 }
 //# sourceMappingURL=extension.js.map

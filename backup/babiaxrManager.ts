@@ -69,19 +69,19 @@ export async function launchBabiaXRVisualization(
 }
 
 /**
- * Recopila información sobre la fuente de datos
- * @returns Ruta del archivo de datos seleccionado
+ * Collects information about the data source
+ * @returns Path to the selected data file
  */
 async function collectDataSource(): Promise<string | undefined> {
-  // Mostrar opciones para elegir el tipo de fuente de datos
+  // Show options to choose the type of data source
   const sourceType = await vscode.window.showQuickPick(
     [
-      { label: '$(file) Archivo local', id: 'local', description: 'Seleccionar archivo CSV o JSON del equipo' },
-      { label: '$(beaker) Datos de ejemplo', id: 'sample', description: 'Usar conjunto de datos predefinido' }
+      { label: '$(file) Local File', id: 'local', description: 'Select CSV or JSON file from your computer' },
+      { label: '$(beaker) Sample Data', id: 'sample', description: 'Use predefined dataset' }
     ],
     { 
-      placeHolder: 'Seleccionar la fuente de los datos',
-      title: 'Fuente de datos para la visualización'
+      placeHolder: 'Select the data source',
+      title: 'Data source for visualization'
     }
   );
   
@@ -89,11 +89,11 @@ async function collectDataSource(): Promise<string | undefined> {
   
   switch (sourceType.id) {
     case 'local':
-      // Seleccionar archivo local mediante un diálogo
+      // Select local file using a dialog
       const options: vscode.OpenDialogOptions = {
         canSelectMany: false,
-        openLabel: 'Seleccionar archivo de datos',
-        filters: { 'Archivos de datos': ['csv', 'json'] }
+        openLabel: 'Select data file',
+        filters: { 'Data Files': ['csv', 'json'] }
       };
       
       const fileUri = await vscode.window.showOpenDialog(options);
@@ -101,114 +101,114 @@ async function collectDataSource(): Promise<string | undefined> {
       return fileUri[0].fsPath;
       
     case 'sample':
-      // Obtener la ruta de la extensión de manera más robusta
+      // Get extension path more robustly
       
       let extensionPath = '';
       
-      // Intento 1: Obtener desde la API de extensiones
+      // Attempt 1: Get from the extensions API
       try {
-        // Usa el ID correcto de tu extensión - debe coincidir con package.json
+        // Use the correct ID of your extension - must match package.json
         const extension = vscode.extensions.getExtension('Your.integracionvsaframe');
         if (extension) {
           extensionPath = extension.extensionUri.fsPath;
         }
       } catch (error) {
-        console.log('Error obteniendo extensión por ID:', error);
+        console.log('Error getting extension by ID:', error);
       }
       
-      // Intento 2: Usar el workspace actual
+      // Attempt 2: Use the current workspace
       if (!extensionPath && vscode.workspace.workspaceFolders?.length) {
         extensionPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
       }
       
-      // Intento 3: Obtener directamente desde __dirname (si estamos en desarrollo)
+      // Attempt 3: Get directly from __dirname (if we're in development)
       if (!extensionPath) {
-        // Esta línea asume que este archivo está en src/babiaxrManager.ts
+        // This line assumes this file is in src/babiaxrManager.ts
         extensionPath = path.resolve(__dirname, '..');
       }
       
       if (!extensionPath) {
-        vscode.window.showErrorMessage('No se pudo determinar la ruta de la extensión');
+        vscode.window.showErrorMessage('Could not determine the extension path');
         return undefined;
       }
       
-      console.log(`Ruta de la extensión: ${extensionPath}`);
+      console.log(`Extension path: ${extensionPath}`);
       
-      // Definir posibles ubicaciones donde podrían estar los ejemplos
+      // Define possible locations where examples might be
       const possiblePaths = [
-        // El path detectado automáticamente
+        // Automatically detected path
         path.join(extensionPath, 'examples', 'data'),
-        // La ubicación correcta que conocemos
+        // The correct location that we know
         '/home/adrian/integracionvsaframe/examples/data',
-        // Ruta relativa (si estamos en desarrollo)
+        // Relative path (if we're in development)
         path.resolve(__dirname, '..', 'examples', 'data')
       ];
       
       let examplesPath = '';
       
-      // Encontrar la primera ruta que exista
+      // Find the first path that exists
       for (const testPath of possiblePaths) {
         if (fs.existsSync(testPath)) {
           examplesPath = testPath;
-          console.log(`Encontrada ruta de ejemplos válida: ${examplesPath}`);
+          console.log(`Found valid examples path: ${examplesPath}`);
           break;
         }
       }
       
       if (!examplesPath) {
-        vscode.window.showErrorMessage('No se pudieron encontrar los archivos de ejemplo en ninguna ubicación conocida.');
+        vscode.window.showErrorMessage('Could not find example files in any known location.');
         return undefined;
       }
       
-      // Construir la ruta completa a los ejemplos usando la ruta correcta
-      const ventasPath = path.join(examplesPath, 'ventas.json');
-      const poblacionPath = path.join(examplesPath, 'poblacion.json');
-      const temperaturaPath = path.join(examplesPath, 'temperatura.json');
+      // Build the full path to examples using the correct path
+      const salesPath = path.join(examplesPath, 'ventas.json');
+      const populationPath = path.join(examplesPath, 'poblacion.json');
+      const temperaturePath = path.join(examplesPath, 'temperatura.json');
       
-      // Verifica que los archivos existan antes de ofrecerlos
+      // Verify that the files exist before offering them
       let availableDatasets = [];
       
-      if (fs.existsSync(ventasPath)) {
+      if (fs.existsSync(salesPath)) {
         availableDatasets.push({ 
-          label: 'Ventas por Producto y Trimestre', 
-          value: ventasPath, 
-          description: 'Datos de ventas por producto y trimestre (JSON)' 
+          label: 'Sales by Product and Quarter', 
+          value: salesPath, 
+          description: 'Sales data by product and quarter (JSON)' 
         });
       } else {
-        console.log(`Archivo no encontrado: ${ventasPath}`);
+        console.log(`File not found: ${salesPath}`);
       }
       
-      if (fs.existsSync(poblacionPath)) {
+      if (fs.existsSync(populationPath)) {
         availableDatasets.push({ 
-          label: 'Población por País', 
-          value: poblacionPath, 
-          description: 'Datos demográficos agrupados por continente (JSON)' 
+          label: 'Population by Country', 
+          value: populationPath, 
+          description: 'Demographic data grouped by continent (JSON)' 
         });
       } else {
-        console.log(`Archivo no encontrado: ${poblacionPath}`);
+        console.log(`File not found: ${populationPath}`);
       }
       
-      if (fs.existsSync(temperaturaPath)) {
+      if (fs.existsSync(temperaturePath)) {
         availableDatasets.push({ 
-          label: 'Temperaturas por Ciudad', 
-          value: temperaturaPath, 
-          description: 'Datos de temperatura por ciudad y estación (JSON)' 
+          label: 'Temperatures by City', 
+          value: temperaturePath, 
+          description: 'Temperature data by city and season (JSON)' 
         });
       } else {
-        console.log(`Archivo no encontrado: ${temperaturaPath}`);
+        console.log(`File not found: ${temperaturePath}`);
       }
       
       if (availableDatasets.length === 0) {
-        vscode.window.showErrorMessage('No se encontraron archivos de datos de ejemplo. Verifica la estructura de carpetas.');
+        vscode.window.showErrorMessage('No example data files found. Check the folder structure.');
         return undefined;
       }
       
-      // Ofrecer datasets de ejemplo predefinidos
+      // Offer predefined example datasets
       const sampleDataset = await vscode.window.showQuickPick(
         availableDatasets,
         { 
-          placeHolder: 'Selecciona un conjunto de datos de ejemplo',
-          title: 'Datos de ejemplo incluidos en la extensión'
+          placeHolder: 'Select an example dataset',
+          title: 'Example data included in the extension'
         }
       );
       
@@ -227,46 +227,46 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
   try {
     // Ask for chart title
     const title = await vscode.window.showInputBox({
-      prompt: 'Título del gráfico',
-      placeHolder: 'Mi visualización BabiaXR',
+      prompt: 'Chart title',
+      placeHolder: 'My BabiaXR Visualization',
       value: `${chartType} - ${new Date().toLocaleDateString()}`
     });
     
     if (!title) return undefined;
     
-    // Usar la nueva función para recopilar la fuente de datos
+    // Use the new function to collect the data source
     const dataSource = await collectDataSource();
     
     if (!dataSource) return undefined;
     
-    // Extraer dimensiones automáticamente
+    // Extract dimensions automatically
     const dimensions = await extractDimensions(dataSource);
 
-    // Información sobre cómo se utilizarán las dimensiones para Bar Chart
+    // Information about how dimensions will be used for Bar Chart
     let maxSelections = 3;
     let minSelections = 2;
-    let infoMessage = 'Selecciona entre 2 y 3 atributos para el gráfico:\n• El 1º seleccionado será el eje X\n• El 2º será la altura de las barras\n• El 3º (opcional) será el eje Z';
+    let infoMessage = 'Select between 2 and 3 attributes for the chart:\n• The 1st selected will be the X axis\n• The 2nd will be the height of the bars\n• The 3rd (optional) will be the Z axis';
     
     if (chartType !== ChartType.BAR_CHART) {
       maxSelections = dimensions.length;
       minSelections = 1;
-      infoMessage = 'Selecciona los atributos para visualizar';
+      infoMessage = 'Select attributes to visualize';
     }
     
-    // Mostrar información al usuario
+    // Show information to the user
     vscode.window.showInformationMessage(infoMessage);
     
-    // Crear una instancia de QuickPick en vez de usar showQuickPick directamente
+    // Create a QuickPick instance instead of using showQuickPick directly
     const quickPick = vscode.window.createQuickPick<vscode.QuickPickItem>();
     quickPick.items = dimensions.map(d => ({ 
       label: d, 
       picked: d === dimensions[0] || d === dimensions[1] 
     }));
     quickPick.canSelectMany = true;
-    quickPick.placeholder = `Selecciona ${minSelections}-${maxSelections} dimensiones para visualizar`;
-    quickPick.title = 'Dimensiones disponibles en los datos';
+    quickPick.placeholder = `Select ${minSelections}-${maxSelections} dimensions to visualize`;
+    quickPick.title = 'Available dimensions in the data';
     
-    // Preseleccionar dimensiones iniciales
+    // Preselect initial dimensions
     if (dimensions.length >= 2) {
       quickPick.selectedItems = [
         quickPick.items[0],
@@ -274,45 +274,45 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
       ];
     }
     
-    // Variable para rastrear la selección previa
+    // Variable to track previous selection
     let previousSelection: readonly vscode.QuickPickItem[] = [];
     
-    // Inicializar con la selección inicial
+    // Initialize with initial selection
     if (quickPick.selectedItems.length > 0) {
       previousSelection = Array.from(quickPick.selectedItems);
     }
     
-    // Limitar la cantidad de selecciones para gráficos de barras
+    // Limit the number of selections for bar charts
     quickPick.onDidChangeSelection(items => {
       if (chartType === ChartType.BAR_CHART) {
-        // Caso 1: Intentando seleccionar más del máximo
+        // Case 1: Trying to select more than maximum
         if (items.length > maxSelections) {
-          vscode.window.showErrorMessage(`Para un gráfico de barras, selecciona máximo ${maxSelections} dimensiones.`);
-          // Mantener solo los primeros maxSelections elementos
+          vscode.window.showErrorMessage(`For a bar chart, select maximum ${maxSelections} dimensions.`);
+          // Keep only the first maxSelections elements
           quickPick.selectedItems = items.slice(0, maxSelections);
         } 
-        // Caso 2: Intentando deseleccionar por debajo del mínimo
+        // Case 2: Trying to deselect below minimum
         else if (items.length < minSelections) {
-          vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensiones para este tipo de gráfico.`);
+          vscode.window.showErrorMessage(`You must select at least ${minSelections} dimensions for this chart type.`);
           
-          // Determinar qué elemento se intentó deseleccionar
+          // Determine which item was attempted to be deselected
           const deselectedItems = previousSelection.filter(prev => 
             !items.some(current => current.label === prev.label)
           );
           
-          // Restaurar la selección anterior para mantener el mínimo
+          // Restore previous selection to maintain minimum
           quickPick.selectedItems = previousSelection;
         }
-        // Actualizar la selección previa cuando es válida
+        // Update previous selection when valid
         else {
           previousSelection = Array.from(items);
         }
       } else {
-        // Para otros tipos de gráficos, solo verificar el mínimo
+        // For other chart types, only check minimum
         if (items.length < minSelections) {
-          vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensión para este tipo de gráfico.`);
+          vscode.window.showErrorMessage(`You must select at least ${minSelections} dimension for this chart type.`);
           
-          // Restaurar la selección anterior
+          // Restore previous selection
           if (previousSelection.length >= minSelections) {
             quickPick.selectedItems = previousSelection;
           }
@@ -322,39 +322,39 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
       }
     });
     
-    // Mostrar el QuickPick y esperar hasta que el usuario acepte o cancele
+    // Show the QuickPick and wait until user accepts or cancels
     quickPick.show();
     
     const selectedDimensions = await new Promise<vscode.QuickPickItem[] | undefined>(resolve => {
-      // Cuando el usuario confirma la selección
+      // When user confirms selection
       quickPick.onDidAccept(() => {
         if (quickPick.selectedItems.length < minSelections) {
-          // Mostrar error si seleccionó menos de lo requerido
-          vscode.window.showErrorMessage(`Debes seleccionar al menos ${minSelections} dimensiones para este tipo de gráfico.`);
-          // No cerrar el QuickPick, permitir corregir la selección
+          // Show error if selected less than required
+          vscode.window.showErrorMessage(`You must select at least ${minSelections} dimensions for this chart type.`);
+          // Don't close the QuickPick, allow correcting the selection
         } else if (chartType === ChartType.BAR_CHART && quickPick.selectedItems.length > maxSelections) {
-          // Este caso no debería ocurrir debido a la limitación previa, pero lo incluimos por seguridad
-          vscode.window.showErrorMessage(`Para un gráfico de barras, selecciona máximo ${maxSelections} dimensiones.`);
+          // This case shouldn't happen due to previous limitation, but included for safety
+          vscode.window.showErrorMessage(`For a bar chart, select maximum ${maxSelections} dimensions.`);
         } else {
-          // Selección válida, resolver la promesa
+          // Valid selection, resolve the promise
           resolve(quickPick.selectedItems.length > 0 ? Array.from(quickPick.selectedItems) : undefined);
           quickPick.hide();
         }
       });
       
-      // Cuando el QuickPick se cierra (cancelar)
+      // When the QuickPick is closed (cancel)
       quickPick.onDidHide(() => {
         resolve(undefined);
         quickPick.dispose();
       });
     });
 
-    // Si no hay selección, terminar
+    // If no selection, end
     if (!selectedDimensions || selectedDimensions.length === 0) {
       return undefined;
     }
     
-    // Usar las dimensiones seleccionadas
+    // Use the selected dimensions
     return {
       title,
       dataSource,
@@ -362,7 +362,7 @@ export async function collectChartData(chartType: ChartType): Promise<ChartData 
       createdAt: Date.now()
     };
   } catch (error) {
-    vscode.window.showErrorMessage(`Error recopilando datos del gráfico: ${error instanceof Error ? error.message : String(error)}`);
+    vscode.window.showErrorMessage(`Error collecting chart data: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
 }
@@ -393,7 +393,7 @@ async function collectBarChartOptions(): Promise<BarChartOptions | undefined> {
   // Ask for horizontal orientation
   const horizontalResponse = await vscode.window.showQuickPick(
     ['Vertical', 'Horizontal'],
-    { placeHolder: 'Orientación de las barras' }
+    { placeHolder: 'Bar orientation' }
   );
   
   if (!horizontalResponse) return undefined;
@@ -413,7 +413,7 @@ async function collectPieChartOptions(): Promise<PieChartOptions | undefined> {
   // Ask for donut style
   const donutResponse = await vscode.window.showQuickPick(
     ['Standard Pie', 'Donut'],
-    { placeHolder: 'Estilo de gráfico circular' }
+    { placeHolder: 'Pie chart style' }
   );
   
   if (!donutResponse) return undefined;
@@ -427,9 +427,9 @@ async function collectPieChartOptions(): Promise<PieChartOptions | undefined> {
 }
 
 /**
- * Extrae automáticamente las dimensiones disponibles de un archivo de datos
- * @param dataSource Ruta del archivo local
- * @returns Array con los nombres de las dimensiones disponibles
+ * Automatically extracts available dimensions from a data file
+ * @param dataSource Path to the local file
+ * @returns Array with the names of available dimensions
  */
 async function extractDimensions(dataSource: string): Promise<string[]> {
   try {
@@ -452,43 +452,43 @@ async function extractDimensions(dataSource: string): Promise<string[]> {
       }
     }
     
-    return ['nombre', 'valor'];
+    return ['name', 'value'];
   } catch (error) {
-    vscode.window.showWarningMessage(`No se pudieron extraer dimensiones: ${error}`);
-    return ['nombre', 'valor']; // Valores predeterminados en caso de error
+    vscode.window.showWarningMessage(`Could not extract dimensions: ${error}`);
+    return ['name', 'value']; // Default values in case of error
   }
 }
 
 /**
- * Procesa y carga datos desde un archivo CSV
- * @param filePath Ruta al archivo CSV
- * @returns Objeto con los datos procesados en formato utilizable
+ * Processes and loads data from a CSV file
+ * @param filePath Path to the CSV file
+ * @returns Object with processed data in usable format
  */
 export function processCSVData(filePath: string): any[] {
-  // Leer el contenido del archivo
+  // Read the file content
   const fileContent = fs.readFileSync(filePath, 'utf8');
   const lines = fileContent.split('\n').filter(line => line.trim() !== '');
   
   if (lines.length === 0) {
-    throw new Error('El archivo CSV está vacío');
+    throw new Error('The CSV file is empty');
   }
   
-  // Detectar automáticamente el separador
+  // Automatically detect the separator
   const firstLine = lines[0];
   const separator = firstLine.includes(';') ? ';' : ',';
   
-  // Extraer encabezados (primera línea)
+  // Extract headers (first line)
   const headers = lines[0].split(separator).map(header => header.trim());
   
-  // Procesar todas las líneas de datos
+  // Process all data lines
   const result: any[] = [];
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(separator).map(val => val.trim());
     
-    // Crear objeto con los valores correspondientes
+    // Create object with corresponding values
     const item: any = {};
     headers.forEach((header, index) => {
-      // Intentar convertir a número si es posible
+      // Try to convert to number if possible
       const value = values[index];
       if (value && !isNaN(Number(value))) {
         item[header] = Number(value);
@@ -497,7 +497,7 @@ export function processCSVData(filePath: string): any[] {
       }
     });
     
-    // Solo añadir si hay valores válidos
+    // Only add if there are valid values
     if (Object.keys(item).length > 0) {
       result.push(item);
     }
@@ -507,29 +507,29 @@ export function processCSVData(filePath: string): any[] {
 }
 
 /**
- * Convierte un archivo CSV a JSON y lo guarda en el mismo directorio
- * @param csvPath Ruta al archivo CSV
- * @returns Ruta al archivo JSON creado
+ * Converts a CSV file to JSON and saves it in the same directory
+ * @param csvPath Path to the CSV file
+ * @returns Path to the created JSON file
  */
 export function convertCSVtoJSON(csvPath: string): string {
-  // Procesar los datos CSV
+  // Process CSV data
   const jsonData = processCSVData(csvPath);
   
-  // Crear la ruta para el nuevo archivo JSON
+  // Create path for the new JSON file
   const jsonPath = csvPath.replace(/\.csv$/i, '.json');
   
-  // Guardar el JSON
+  // Save the JSON
   fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
   return jsonPath;
 }
 
 /**
- * Carga datos desde un archivo local
- * @param dataSource Ruta del archivo
- * @returns Array con los datos cargados
+ * Loads data from a local file
+ * @param dataSource Path to the file
+ * @returns Array with loaded data
  */
 export function loadData(dataSource: string): any[] {
-  // Para archivos locales 
+  // For local files 
   if (dataSource.toLowerCase().endsWith('.json')) {
     const fileContent = fs.readFileSync(dataSource, 'utf8');
     return JSON.parse(fileContent);
@@ -538,6 +538,6 @@ export function loadData(dataSource: string): any[] {
     return processCSVData(dataSource);
   }
   else {
-    throw new Error('Formato de archivo no soportado. Use CSV o JSON.');
+    throw new Error('Unsupported file format. Use CSV or JSON.');
   }
 }
