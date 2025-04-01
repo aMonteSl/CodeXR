@@ -38,3 +38,62 @@ export class ChartTypeItem extends TreeItem {
     );
   }
 }
+
+/**
+ * Represents the BabiaXR configuration item in the tree
+ */
+export class BabiaXRConfigItem extends TreeItem {
+  constructor(context: vscode.ExtensionContext) {
+    super(
+      'Visualization Settings',
+      'Default settings for BabiaXR visualizations',
+      TreeItemType.BABIAXR_CONFIG,
+      vscode.TreeItemCollapsibleState.Collapsed,
+      undefined,
+      new vscode.ThemeIcon('settings-gear')
+    );
+  }
+}
+
+/**
+ * Represents a BabiaXR configuration option in the tree
+ */
+export class BabiaXRConfigOption extends TreeItem {
+  constructor(
+    label: string,
+    tooltip: string,
+    command: string,
+    currentValue: string
+  ) {
+    super(
+      label,
+      tooltip,
+      TreeItemType.BABIAXR_CONFIG_ITEM,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: command,
+        title: 'Configure ' + label,
+        arguments: []
+      },
+      new vscode.ThemeIcon('symbol-color')
+    );
+    
+    this.description = currentValue;
+  }
+}
+
+/**
+ * Section item for BabiaXR
+ */
+export class BabiaXRSectionItem extends TreeItem {
+  constructor() {
+    super(
+      'BabiaXR',
+      'Create and configure BabiaXR visualizations',
+      TreeItemType.BABIAXR_SECTION,
+      vscode.TreeItemCollapsibleState.Expanded,
+      undefined,
+      new vscode.ThemeIcon('graph')
+    );
+  }
+}

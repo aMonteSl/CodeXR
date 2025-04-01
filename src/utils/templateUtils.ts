@@ -112,12 +112,12 @@ function isUrl(str: string): boolean {
  * Map of chart components to insert in the template
  */
 const chartComponents: Record<ChartType, string> = {
-  [ChartType.BAR_CHART]: `
-        <!-- Bar Chart -->
+  [ChartType.BARSMAP_CHART]: `
+        <!-- Barsmap Chart -->
         <a-entity babia-barsmap="from: data; 
                   legend: true; 
                   tooltip: true;
-                  palette: ubuntu;
+                  palette: \${CHART_PALETTE};
                   x_axis: \${X_DIMENSION};
                   height: \${Y_DIMENSION};
                   \${Z_DIMENSION_ATTR}
@@ -125,18 +125,18 @@ const chartComponents: Record<ChartType, string> = {
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
                   position="0 1 -3" 
-                  scale="1 1 1"
-                  rotation="\${BAR_ROTATION}">
+                  scale="1 1 1">
         </a-entity>`,
-        
-  [ChartType.PIE_CHART]: `
-        <!-- Pie Chart -->
-        <a-entity babia-pie="from: data;
+  
+  [ChartType.DONUT_CHART]: `
+        <!-- Donut Chart -->
+        <a-entity babia-doughnut="from: data;
                   key: \${X_DIMENSION};
                   size: \${Y_DIMENSION};
                   legend: true;
                   tooltip: true;
-                  palette: ubuntu;
+                  palette: \${CHART_PALETTE};
+                  donutRadius: 0.5;
                   tooltip_position: top;
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
@@ -145,7 +145,22 @@ const chartComponents: Record<ChartType, string> = {
                   scale="2 2 2">
         </a-entity>`,
   
-  // Space for future charts
+  [ChartType.PIE_CHART]: `
+        <!-- Pie Chart -->
+        <a-entity babia-pie="from: data;
+                  key: \${X_DIMENSION};
+                  size: \${Y_DIMENSION};
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 2.5 -3"
+                  rotation="90 0 0"
+                  scale="2 2 2">
+        </a-entity>`,
+  
   [ChartType.SCATTER_PLOT]: "",
   [ChartType.NETWORK_GRAPH]: ""
 };

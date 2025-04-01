@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Simple CylinderMap Chart</title>
+    <meta name="description" content="3D cylinder map visualization with BabiaXR">
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-babia-components/dist/aframe-babia-components.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.0.0/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.0/dist/aframe-extras.min.js"></script>
+</head>
+<body>
+    <a-scene background="color: #212B30">
+        <!-- Environment -->
+        <a-entity environment="preset: dream; groundColor: #445; dressingAmount: 0; grid: cross"></a-entity>
+        
+        <!-- Light -->
+        <a-light type="point" intensity="1" position="-10 20 30"></a-light>
+        <a-light type="ambient" intensity="0.4"></a-light>
+
+        <!-- CylinderMap chart with embedded data -->
+        <a-entity babia-cylsmap="
+                  x_axis: key;
+                  z_axis: key2;
+                  legend: true; 
+                  animation: true;
+                  heightMax: 20;
+                  radiusMax: 2;
+                  palette: blues;
+                  title: Sales by Person and Year;
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 0.5 15;
+                  data: [
+                    {&quot;key&quot;:&quot;Andrea&quot;,&quot;key2&quot;:&quot;2018&quot;,&quot;height&quot;:15,&quot;radius&quot;:2},
+                    {&quot;key&quot;:&quot;Jesus&quot;,&quot;key2&quot;:&quot;2018&quot;,&quot;height&quot;:3,&quot;radius&quot;:5},
+                    {&quot;key&quot;:&quot;David&quot;,&quot;key2&quot;:&quot;2021&quot;,&quot;height&quot;:5,&quot;radius&quot;:1},
+                    {&quot;key&quot;:&quot;Jesus&quot;,&quot;key2&quot;:&quot;2020&quot;,&quot;height&quot;:25,&quot;radius&quot;:1},
+                    {&quot;key&quot;:&quot;Jesus&quot;,&quot;key2&quot;:&quot;2021&quot;,&quot;height&quot;:10,&quot;radius&quot;:4},
+                    {&quot;key&quot;:&quot;Andrea&quot;,&quot;key2&quot;:&quot;2020&quot;,&quot;height&quot;:6,&quot;radius&quot;:4},
+                    {&quot;key&quot;:&quot;David&quot;,&quot;key2&quot;:&quot;2019&quot;,&quot;height&quot;:17,&quot;radius&quot;:3}
+                  ];"
+                  position="0 0.5 0" 
+                  rotation="0 0 0">
+        </a-entity>
+        
+        <!-- Camera with movement controls -->
+        <a-entity movement-controls="fly: true" position="0 10 30">
+            <a-entity camera position="0 0 0" look-controls></a-entity>
+            <a-entity cursor="rayOrigin: mouse"></a-entity>
+            <a-entity laser-controls="hand: right"></a-entity>
+        </a-entity>
+    </a-scene>
+</body>
+</html>

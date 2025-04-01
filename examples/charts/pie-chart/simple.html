@@ -2,8 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Gráfico Circular Simple</title>
-    <meta name="description" content="Visualización de datos con BabiaXR">
+    <title>Simple Pie Chart</title>
+    <meta name="description" content="Data visualization with BabiaXR">
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-babia-components/dist/aframe-babia-components.min.js"></script>
     <script src="https://unpkg.com/aframe-environment-component@1.0.0/dist/aframe-environment-component.min.js"></script>
@@ -11,32 +11,34 @@
 </head>
 <body>
     <a-scene background="color: #FAFAFA">
-        <!-- Entorno -->
+        <!-- Environment -->
         <a-entity environment="preset: forest; groundColor: #445"></a-entity>
         
-        <!-- Luz -->
+        <!-- Light -->
         <a-light type="point" intensity="1" position="-10 20 30"></a-light>
 
-        <!-- Datos -->
+        <!-- Data -->
         <a-entity id="data"
-                  babia-queryjson="url: ../../data/poblacion.json">
+                  babia-queryjson="url: ../../data/population.json">
         </a-entity>
 
-        <!-- Gráfico circular -->
+        <!-- Pie chart with integrated title -->
         <a-entity babia-pie="from: data;
-                  key: pais;
-                  size: poblacion;
+                  key: country;
+                  size: population;
                   legend: true;
-                  palette: ubuntu;"
+                  palette: ubuntu;
+                  title: Population by Country (in millions);
+                  titleColor: #111111;
+                  titlePosition: 2 0 -3;
+                  titleFont: sourcecodepro;
+                  titleSize: 6;"
                   position="0 2.5 -3"
                   rotation="90 0 0"
                   scale="2 2 2">
         </a-entity>
-
-        <!-- Título -->
-        <a-text value="Población por País" position="0 5 -2.8" width="6" color="#111" align="center" scale="1.2 1.2 1.2"></a-text>
         
-        <!-- Cámara con controles de movimiento -->
+        <!-- Camera with movement controls -->
         <a-entity movement-controls="fly: true" position="0 5 20">
             <a-entity camera position="0 0 0" look-controls></a-entity>
             <a-entity cursor="rayOrigin: mouse"></a-entity>

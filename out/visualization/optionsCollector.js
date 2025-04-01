@@ -33,55 +33,124 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.COLOR_PALETTES = exports.ENVIRONMENT_PRESETS = void 0;
 exports.collectChartOptions = collectChartOptions;
-exports.collectBarChartOptions = collectBarChartOptions;
+exports.collectBarsmapChartOptions = collectBarsmapChartOptions;
+exports.collectDonutChartOptions = collectDonutChartOptions;
 exports.collectPieChartOptions = collectPieChartOptions;
+exports.collectEnvironmentOptions = collectEnvironmentOptions;
 const vscode = __importStar(require("vscode"));
 const chartModel_1 = require("../models/chartModel");
 /**
  * Collects chart-specific options based on chart type
- * @param chartType The type of chart
- * @returns Options object or undefined if cancelled
  */
 async function collectChartOptions(chartType) {
     switch (chartType) {
-        case chartModel_1.ChartType.BAR_CHART:
-            return collectBarChartOptions();
+        case chartModel_1.ChartType.BARSMAP_CHART:
+            return collectBarsmapChartOptions();
         case chartModel_1.ChartType.PIE_CHART:
             return collectPieChartOptions();
+        case chartModel_1.ChartType.DONUT_CHART:
+            return collectDonutChartOptions();
         default:
             return {};
     }
 }
 /**
- * Collects options specific to bar charts
- * @returns Bar chart options
+ * Collects options specific to barsmap charts
+ * @returns BarChartOptions object
  */
-async function collectBarChartOptions() {
-    // Ask for horizontal orientation
-    const horizontalResponse = await vscode.window.showQuickPick(['Vertical', 'Horizontal'], { placeHolder: 'Bar orientation' });
-    if (!horizontalResponse)
-        return undefined;
+async function collectBarsmapChartOptions() {
     return {
-        horizontal: horizontalResponse === 'Horizontal',
         height: 1,
         width: 2
     };
 }
 /**
- * Collects options specific to pie charts
- * @returns Pie chart options
+ * Collects options specific to donut charts
+ */
+async function collectDonutChartOptions() {
+    // Return default values without asking for unnecessary parameters
+    return {
+        donutRadius: 0.5 // Use a standard default value
+    };
+}
+/**
+ * Collects options specific to pie charts (simplified - no donut option)
  */
 async function collectPieChartOptions() {
-    // Ask for donut style
-    const donutResponse = await vscode.window.showQuickPick(['Standard Pie', 'Donut'], { placeHolder: 'Pie chart style' });
-    if (!donutResponse)
+    // Simplified implementation - no donut option
+    return {};
+}
+/**
+ * Available environment presets in A-Frame
+ */
+exports.ENVIRONMENT_PRESETS = [
+    'forest', 'starry', 'dream', 'tron', 'arches', 'egypt', 'contact',
+    'threetowers', 'poison', 'default', 'goldmine', 'yavapai', 'osiris', 'moon'
+];
+/**
+ * Available color palettes for BabiaXR
+ */
+exports.COLOR_PALETTES = [
+    'ubuntu', 'blues', 'flat', 'reds', 'greens', 'yellows', 'commerce'
+];
+/**
+ * Collects environment configuration options
+ */
+async function collectEnvironmentOptions(context) {
+    // Get default values from settings
+    const defaultBgColor = context.globalState.get('babiaBackgroundColor') || '#112233';
+    const defaultEnvPreset = context.globalState.get('babiaEnvironmentPreset') || 'forest';
+    const defaultGroundColor = context.globalState.get('babiaGroundColor') || '#445566';
+    const defaultPalette = context.globalState.get('babiaChartPalette') || 'ubuntu';
+    // Select environment preset
+    const environmentPreset = await vscode.window.showQuickPick(exports.ENVIRONMENT_PRESETS.map(preset => ({
+        label: preset,
+        description: `Environment preset: ${preset}`
+    })), {
+        placeHolder: 'Select environment preset',
+        activeItems: [{ label: defaultEnvPreset }]
+    });
+    if (!environmentPreset)
+        return undefined;
+    // Select background color
+    const backgroundColor = await vscode.window.showInputBox({
+        prompt: 'Background color (hex format)',
+        placeHolder: '#112233',
+        value: defaultBgColor,
+        validateInput: value => {
+            return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #112233)';
+        }
+    });
+    if (!backgroundColor)
+        return undefined;
+    // Select ground color
+    const groundColor = await vscode.window.showInputBox({
+        prompt: 'Ground color (hex format)',
+        placeHolder: '#445566',
+        value: defaultGroundColor,
+        validateInput: value => {
+            return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #445566)';
+        }
+    });
+    if (!groundColor)
+        return undefined;
+    // Select chart color palette
+    const chartPalette = await vscode.window.showQuickPick(exports.COLOR_PALETTES.map(palette => ({
+        label: palette,
+        description: `Color palette: ${palette}`
+    })), {
+        placeHolder: 'Select chart color palette',
+        activeItems: [{ label: defaultPalette }]
+    });
+    if (!chartPalette)
         return undefined;
     return {
-        size: 1.5,
-        height: 0.2,
-        donut: donutResponse === 'Donut',
-        showLabels: true
+        backgroundColor,
+        environmentPreset: environmentPreset.label,
+        groundColor,
+        chartPalette: chartPalette.label
     };
 }
 //# sourceMappingURL=optionsCollector.js.map

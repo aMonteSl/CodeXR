@@ -62,14 +62,22 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
   // We use a generic value that will be replaced when saving
   const dataSource = "data.json";
   
+  // Extract the filename from the data source path or URL
+  const dataSourceName = data.dataSource.split('/').pop() || 'Unknown Source';
+  
   // Prepare individual dimensions for the axes
   const xDimension = data.dimensions[0] || 'product';
   const yDimension = data.dimensions[1] || 'sales';
   
   // Compose the third axis if it exists
   let zDimensionAttr = '';
+  let zDimensionText = '';
   if (data.dimensions.length > 2) {
-    zDimensionAttr = `z_axis: ${data.dimensions[2]};`;
+    const zDimension = data.dimensions[2];
+    zDimensionAttr = `z_axis: ${zDimension};`;
+    zDimensionText = `Z: ${zDimension}`;
+  } else {
+    zDimensionText = 'No Z dimension selected';
   }
   
   // Default values for options
@@ -77,18 +85,29 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
   let width: number = 2;
   let barRotation: string = "0 0 0"; // For vertical orientation
   
-  // Create variable map
+  // Environment variables with defaults
+  const backgroundColor = data.environment?.backgroundColor || '#FAFAFA';
+  const environmentPreset = data.environment?.environmentPreset || 'forest';
+  const groundColor = data.environment?.groundColor || '#445566';
+  const chartPalette = data.environment?.chartPalette || 'ubuntu';
+  
   const variableMap: TemplateVariableMap = {
     TITLE: data.title,
     DATA_SOURCE: dataSource,
+    DATA_SOURCE_NAME: dataSourceName,
     X_DIMENSION: xDimension,
     Y_DIMENSION: yDimension,
     Z_DIMENSION_ATTR: zDimensionAttr,
+    Z_DIMENSION_TEXT: zDimensionText,
     HEIGHT: height,
     WIDTH: width,
     BAR_ROTATION: barRotation,
     DESCRIPTION: data.description || '',
     CHART_TYPE: chartSpecification.type,
+    BACKGROUND_COLOR: backgroundColor,
+    ENVIRONMENT_PRESET: environmentPreset,
+    GROUND_COLOR: groundColor,
+    CHART_PALETTE: chartPalette
   };
   
   return variableMap;
@@ -112,23 +131,57 @@ export function isUrl(str: string): boolean {
  * Map of chart components to insert in the template
  */
 export const chartComponents: Record<ChartType, string> = {
-  [ChartType.BAR_CHART]: `
-        <!-- Bar Chart -->
+  [ChartType.BARSMAP_CHART]: `
+        <!-- Barsmap Chart -->
         <a-entity babia-barsmap="from: data; 
                   legend: true; 
                   tooltip: true;
-                  palette: ubuntu;
+                  palette: \${CHART_PALETTE};  // Use variable instead of hardcoded palette
                   x_axis: \${X_DIMENSION};
                   height: \${Y_DIMENSION};
                   \${Z_DIMENSION_ATTR}
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
                   tooltip_position: top;
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
                   position="0 1 -3" 
-                  scale="1 1 1"
-                  rotation="\${BAR_ROTATION}">
-        </a-entity>`,
+                  scale="1 1 1">
+        </a-entity>
         
+        <!-- Info Panel -->
+        <a-entity position="-5 2 -3">
+          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
+          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.7 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Fields Selected:" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.4 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="X: \${X_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Y: \${Y_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="\${Z_DIMENSION_TEXT}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 -0.2 0.01" 
+                 anchor="left"></a-text>
+        </a-entity>`,
+  
   [ChartType.PIE_CHART]: `
         <!-- Pie Chart -->
         <a-entity babia-pie="from: data;
@@ -136,16 +189,92 @@ export const chartComponents: Record<ChartType, string> = {
                   size: \${Y_DIMENSION};
                   legend: true;
                   tooltip: true;
-                  palette: ubuntu;
+                  palette: \${CHART_PALETTE};
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 3 0 -3;
                   tooltip_position: top;
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
                   position="0 2.5 -3"
                   rotation="90 0 0"
                   scale="2 2 2">
+        </a-entity>
+        
+        <!-- Info Panel -->
+        <a-entity position="-5 2 -3">
+          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
+          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.7 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Fields Selected:" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.4 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Key: \${X_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Size: \${Y_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0 0.01" 
+                 anchor="left"></a-text>
         </a-entity>`,
   
-  // Space for future charts
+  [ChartType.DONUT_CHART]: `
+        <!-- Donut Chart -->
+        <a-entity babia-doughnut="from: data;
+                  key: \${X_DIMENSION};
+                  size: \${Y_DIMENSION};
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  donutRadius: 0.5;
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 3 0 -3;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 2.5 -3"
+                  rotation="90 0 0"
+                  scale="2 2 2">
+        </a-entity>
+        
+        <!-- Info Panel -->
+        <a-entity position="-5 2 -3">
+          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
+          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.7 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Fields Selected:" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.4 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Key: \${X_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Size: \${Y_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0 0.01" 
+                 anchor="left"></a-text>
+        </a-entity>`,
+
   [ChartType.SCATTER_PLOT]: "",
   [ChartType.NETWORK_GRAPH]: ""
 };

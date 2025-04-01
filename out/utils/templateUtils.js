@@ -131,12 +131,12 @@ function isUrl(str) {
  * Map of chart components to insert in the template
  */
 const chartComponents = {
-    [chartModel_1.ChartType.BAR_CHART]: `
-        <!-- Bar Chart -->
+    [chartModel_1.ChartType.BARSMAP_CHART]: `
+        <!-- Barsmap Chart -->
         <a-entity babia-barsmap="from: data; 
                   legend: true; 
                   tooltip: true;
-                  palette: ubuntu;
+                  palette: \${CHART_PALETTE};
                   x_axis: \${X_DIMENSION};
                   height: \${Y_DIMENSION};
                   \${Z_DIMENSION_ATTR}
@@ -144,8 +144,23 @@ const chartComponents = {
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
                   position="0 1 -3" 
-                  scale="1 1 1"
-                  rotation="\${BAR_ROTATION}">
+                  scale="1 1 1">
+        </a-entity>`,
+    [chartModel_1.ChartType.DONUT_CHART]: `
+        <!-- Donut Chart -->
+        <a-entity babia-doughnut="from: data;
+                  key: \${X_DIMENSION};
+                  size: \${Y_DIMENSION};
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  donutRadius: 0.5;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 2.5 -3"
+                  rotation="90 0 0"
+                  scale="2 2 2">
         </a-entity>`,
     [chartModel_1.ChartType.PIE_CHART]: `
         <!-- Pie Chart -->
@@ -154,7 +169,7 @@ const chartComponents = {
                   size: \${Y_DIMENSION};
                   legend: true;
                   tooltip: true;
-                  palette: ubuntu;
+                  palette: \${CHART_PALETTE};
                   tooltip_position: top;
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
@@ -162,7 +177,6 @@ const chartComponents = {
                   rotation="90 0 0"
                   scale="2 2 2">
         </a-entity>`,
-    // Space for future charts
     [chartModel_1.ChartType.SCATTER_PLOT]: "",
     [chartModel_1.ChartType.NETWORK_GRAPH]: ""
 };

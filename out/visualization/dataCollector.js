@@ -71,101 +71,70 @@ async function collectDataSource() {
                 return undefined;
             return fileUri[0].fsPath;
         case 'sample':
-            // Get extension path more robustly
-            let extensionPath = '';
-            // Attempt 1: Get from the extensions API
             try {
-                // Use the correct ID of your extension - must match package.json
-                const extension = vscode.extensions.getExtension('Your.integracionvsaframe');
-                if (extension) {
-                    extensionPath = extension.extensionUri.fsPath;
+                // Define the known location of example data
+                const exampleDataPath = '/home/adrian/integracionvsaframe/examples/data';
+                // Check if the directory exists
+                if (!fs.existsSync(exampleDataPath)) {
+                    vscode.window.showErrorMessage(`Example data directory not found: ${exampleDataPath}`);
+                    return undefined;
                 }
+                // Get all JSON files in the directory
+                const files = fs.readdirSync(exampleDataPath)
+                    .filter(file => file.endsWith('.json'))
+                    .map(file => {
+                    const fullPath = path.join(exampleDataPath, file);
+                    // Try to read the first few characters to check if it's valid JSON
+                    try {
+                        const fileContent = fs.readFileSync(fullPath, 'utf8');
+                        const firstItem = JSON.parse(fileContent);
+                        // If we can parse it and it's an array with at least one item, it's valid
+                        const valid = Array.isArray(firstItem) && firstItem.length > 0;
+                        // Extract a nice display name from the filename
+                        const displayName = file
+                            .replace('.json', '')
+                            .split('_')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        return {
+                            label: displayName,
+                            value: fullPath,
+                            description: `${valid ? fileContent.length : 'Invalid'} bytes`,
+                            valid
+                        };
+                    }
+                    catch (error) {
+                        console.error(`Error reading JSON file ${file}:`, error);
+                        return {
+                            label: file,
+                            value: fullPath,
+                            description: 'Error: Invalid JSON',
+                            valid: false
+                        };
+                    }
+                })
+                    // Filter out invalid files
+                    .filter(file => file.valid);
+                if (files.length === 0) {
+                    vscode.window.showErrorMessage('No valid JSON example files found in examples/data directory.');
+                    return undefined;
+                }
+                // Show QuickPick with all valid JSON files
+                const selectedFile = await vscode.window.showQuickPick(files, {
+                    placeHolder: 'Select an example dataset',
+                    title: 'Available example datasets'
+                });
+                if (!selectedFile)
+                    return undefined;
+                vscode.window.showInformationMessage(`Loading example data from: ${selectedFile.label}`);
+                return selectedFile.value;
             }
             catch (error) {
-                console.log('Error getting extension by ID:', error);
-            }
-            // Attempt 2: Use the current workspace
-            if (!extensionPath && vscode.workspace.workspaceFolders?.length) {
-                extensionPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-            }
-            // Attempt 3: Get directly from __dirname (if we're in development)
-            if (!extensionPath) {
-                // This line assumes this file is in src/visualization/dataCollector.ts
-                extensionPath = path.resolve(__dirname, '../..');
-            }
-            if (!extensionPath) {
-                vscode.window.showErrorMessage('Could not determine the extension path');
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(`Error loading example data: ${errorMessage}`);
+                console.error('Error in sample data selection:', error);
                 return undefined;
             }
-            console.log(`Extension path: ${extensionPath}`);
-            // Define possible locations where examples might be
-            const possiblePaths = [
-                // Automatically detected path
-                path.join(extensionPath, 'examples', 'data'),
-                // The correct location that we know
-                '/home/adrian/integracionvsaframe/examples/data',
-                // Relative path (if we're in development)
-                path.resolve(__dirname, '../..', 'examples', 'data')
-            ];
-            let examplesPath = '';
-            // Find the first path that exists
-            for (const testPath of possiblePaths) {
-                if (fs.existsSync(testPath)) {
-                    examplesPath = testPath;
-                    console.log(`Found valid examples path: ${examplesPath}`);
-                    break;
-                }
-            }
-            if (!examplesPath) {
-                vscode.window.showErrorMessage('Could not find example files in any known location.');
-                return undefined;
-            }
-            // Build the full path to examples using the correct path
-            const salesPath = path.join(examplesPath, 'ventas.json');
-            const populationPath = path.join(examplesPath, 'poblacion.json');
-            const temperaturePath = path.join(examplesPath, 'temperatura.json');
-            // Verify that the files exist before offering them
-            let availableDatasets = [];
-            if (fs.existsSync(salesPath)) {
-                availableDatasets.push({
-                    label: 'Sales by Product and Quarter',
-                    value: salesPath,
-                    description: 'Sales data by product and quarter (JSON)'
-                });
-            }
-            else {
-                console.log(`File not found: ${salesPath}`);
-            }
-            if (fs.existsSync(populationPath)) {
-                availableDatasets.push({
-                    label: 'Population by Country',
-                    value: populationPath,
-                    description: 'Demographic data grouped by continent (JSON)'
-                });
-            }
-            else {
-                console.log(`File not found: ${populationPath}`);
-            }
-            if (fs.existsSync(temperaturePath)) {
-                availableDatasets.push({
-                    label: 'Temperatures by City',
-                    value: temperaturePath,
-                    description: 'Temperature data by city and season (JSON)'
-                });
-            }
-            else {
-                console.log(`File not found: ${temperaturePath}`);
-            }
-            if (availableDatasets.length === 0) {
-                vscode.window.showErrorMessage('No example data files found. Check the folder structure.');
-                return undefined;
-            }
-            // Offer predefined example datasets
-            const sampleDataset = await vscode.window.showQuickPick(availableDatasets, {
-                placeHolder: 'Select an example dataset',
-                title: 'Example data included in the extension'
-            });
-            return sampleDataset?.value;
     }
     return undefined;
 }
@@ -190,112 +159,142 @@ async function collectChartData(chartType) {
             return undefined;
         // Extract dimensions automatically
         const dimensions = await extractDimensions(dataSource);
-        // Information about how dimensions will be used for Bar Chart
-        let maxSelections = 3;
-        let minSelections = 2;
-        let infoMessage = 'Select between 2 and 3 attributes for the chart:\n• The 1st selected will be the X axis\n• The 2nd will be the height of the bars\n• The 3rd (optional) will be the Z axis';
-        if (chartType !== chartModel_1.ChartType.BAR_CHART) {
+        // Set selection limits and information based on chart type
+        let maxSelections;
+        let minSelections;
+        let infoMessage;
+        if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
+            maxSelections = 3;
+            minSelections = 2;
+            infoMessage = 'Select between 2 and 3 attributes for the chart:\n• The 1st selected will be the X axis\n• The 2nd will be the height of the bars\n• The 3rd (optional) will be the Z axis';
+        }
+        else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
+            maxSelections = 2;
+            minSelections = 2;
+            infoMessage = 'Select exactly 2 attributes for the chart:\n• The 1st selected will be the Key (categories/slices)\n• The 2nd will be the Size (numeric values)';
+        }
+        else {
             maxSelections = dimensions.length;
             minSelections = 1;
             infoMessage = 'Select attributes to visualize';
         }
         // Show information to the user
         vscode.window.showInformationMessage(infoMessage);
-        // Create a QuickPick instance instead of using showQuickPick directly
+        // Create a QuickPick instance
         const quickPick = vscode.window.createQuickPick();
-        quickPick.items = dimensions.map(d => ({
-            label: d,
-            picked: d === dimensions[0] || d === dimensions[1]
-        }));
+        // Try to find numeric columns for better suggestions
+        const numericColumns = dimensions.filter(dim => {
+            try {
+                const data = loadData(dataSource);
+                return data.length > 0 && typeof data[0][dim] === 'number';
+            }
+            catch {
+                return false;
+            }
+        });
+        // Auto-select the minimum required dimensions
+        if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
+            // For pie/donut, try to select one categorical and one numeric field
+            const categoricalField = dimensions.find(d => !numericColumns.includes(d)) || dimensions[0];
+            const numericField = numericColumns[0] || dimensions[1] || dimensions[0];
+            quickPick.items = dimensions.map(d => {
+                const isNumeric = numericColumns.includes(d);
+                return {
+                    label: d,
+                    description: d === categoricalField ? "(Key - Categories)" :
+                        d === numericField ? "(Size - Values)" : "",
+                    detail: isNumeric ? "Numeric field - good for Size" :
+                        "Text field - good for Key",
+                    picked: d === categoricalField || d === numericField
+                };
+            });
+        }
+        else {
+            // Standard items for other chart types - preselect first minSelections dimensions
+            quickPick.items = dimensions.map((d, index) => ({
+                label: d,
+                picked: index < minSelections // Auto-select minimum required
+            }));
+        }
         quickPick.canSelectMany = true;
-        quickPick.placeholder = `Select ${minSelections}-${maxSelections} dimensions to visualize`;
+        quickPick.placeholder = `Select ${minSelections === maxSelections ? 'exactly ' + minSelections : minSelections + '-' + maxSelections} dimensions`;
         quickPick.title = 'Available dimensions in the data';
-        // Preselect initial dimensions
-        if (dimensions.length >= 2) {
-            quickPick.selectedItems = [
-                quickPick.items[0],
-                quickPick.items[1]
-            ];
-        }
-        // Variable to track previous selection
-        let previousSelection = [];
-        // Initialize with initial selection
-        if (quickPick.selectedItems.length > 0) {
-            previousSelection = Array.from(quickPick.selectedItems);
-        }
-        // Limit the number of selections for bar charts
+        // For tracking previous selections
+        let previousSelection = quickPick.items.filter(item => item.picked);
+        // Handle selection changes
         quickPick.onDidChangeSelection(items => {
-            if (chartType === chartModel_1.ChartType.BAR_CHART) {
-                // Case 1: Trying to select more than maximum
-                if (items.length > maxSelections) {
-                    vscode.window.showErrorMessage(`For a bar chart, select maximum ${maxSelections} dimensions.`);
-                    // Keep only the first maxSelections elements
-                    quickPick.selectedItems = items.slice(0, maxSelections);
+            // Find the newly selected item (if any)
+            const newlySelected = items.find(item => !previousSelection.some(prev => prev.label === item.label));
+            if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
+                if (items.length > maxSelections && newlySelected) {
+                    // Smart replacement: swap the last item with the newly selected one
+                    const keepItems = [...previousSelection.slice(0, maxSelections - 1), newlySelected];
+                    quickPick.selectedItems = keepItems;
+                    // Show user what each dimension represents after the change
+                    const dimLabels = ["X axis", "Height", "Z axis"];
+                    const message = keepItems.map((item, idx) => `${dimLabels[idx]}: "${item.label}"`).join(', ');
+                    vscode.window.showInformationMessage(`Updated selection: ${message}`);
+                    previousSelection = keepItems;
                 }
-                // Case 2: Trying to deselect below minimum
-                else if (items.length < minSelections) {
-                    vscode.window.showErrorMessage(`You must select at least ${minSelections} dimensions for this chart type.`);
-                    // Determine which item was attempted to be deselected
-                    const deselectedItems = previousSelection.filter(prev => !items.some(current => current.label === prev.label));
-                    // Restore previous selection to maintain minimum
-                    quickPick.selectedItems = previousSelection;
-                }
-                // Update previous selection when valid
                 else {
+                    // Allow any selection (even below minimum) but track changes
                     previousSelection = Array.from(items);
+                    // If they have valid selections, show meaningful labels
+                    if (items.length >= 1) {
+                        const dimLabels = ["X axis", "Height", "Z axis"];
+                        const message = items.map((item, idx) => `${dimLabels[idx]}: "${item.label}"`).join(', ');
+                        vscode.window.showInformationMessage(message);
+                    }
+                }
+            }
+            else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
+                if (items.length > maxSelections && newlySelected) {
+                    // Smart replacement for pie/donut: swap the second item with the new one
+                    const keepItems = [previousSelection[0], newlySelected];
+                    quickPick.selectedItems = keepItems;
+                    // Show updated selection
+                    const message = `Key: "${keepItems[0].label}", Size: "${keepItems[1].label}"`;
+                    vscode.window.showInformationMessage(`Updated selection: ${message}`);
+                    previousSelection = keepItems;
+                }
+                else {
+                    // Allow any selection (even below minimum) but track changes
+                    previousSelection = Array.from(items);
+                    // If they have exactly 2 selections, show meaningful labels
+                    if (items.length === 2) {
+                        const message = `Key: "${items[0].label}", Size: "${items[1].label}"`;
+                        vscode.window.showInformationMessage(message);
+                    }
                 }
             }
             else {
-                // For other chart types, only check minimum
-                if (items.length < minSelections) {
-                    vscode.window.showErrorMessage(`You must select at least ${minSelections} dimension for this chart type.`);
-                    // Restore previous selection
-                    if (previousSelection.length >= minSelections) {
-                        quickPick.selectedItems = previousSelection;
-                    }
-                }
-                else {
-                    previousSelection = Array.from(items);
-                }
+                previousSelection = Array.from(items);
             }
         });
-        // Show the QuickPick and wait until user accepts or cancels
-        quickPick.show();
-        const selectedDimensions = await new Promise(resolve => {
-            // When user confirms selection
+        // Handle acceptance (when user presses Enter)
+        return new Promise(resolve => {
             quickPick.onDidAccept(() => {
-                if (quickPick.selectedItems.length < minSelections) {
-                    // Show error if selected less than required
-                    vscode.window.showErrorMessage(`You must select at least ${minSelections} dimensions for this chart type.`);
-                    // Don't close the QuickPick, allow correcting the selection
+                const selectedItems = quickPick.selectedItems;
+                // Validate selection count - this is where minimum is enforced
+                if (selectedItems.length < minSelections) {
+                    vscode.window.showErrorMessage(`Please select at least ${minSelections} dimension(s) before continuing`);
+                    return; // Don't proceed - keep dialog open
                 }
-                else if (chartType === chartModel_1.ChartType.BAR_CHART && quickPick.selectedItems.length > maxSelections) {
-                    // This case shouldn't happen due to previous limitation, but included for safety
-                    vscode.window.showErrorMessage(`For a bar chart, select maximum ${maxSelections} dimensions.`);
-                }
-                else {
-                    // Valid selection, resolve the promise
-                    resolve(quickPick.selectedItems.length > 0 ? Array.from(quickPick.selectedItems) : undefined);
-                    quickPick.hide();
-                }
+                quickPick.hide();
+                // Create the chart data object and resolve the promise
+                resolve({
+                    title,
+                    dataSource,
+                    dimensions: selectedItems.map(item => item.label),
+                    description: `Chart created from ${dataSource.split('/').pop()}`
+                });
             });
-            // When the QuickPick is closed (cancel)
             quickPick.onDidHide(() => {
-                resolve(undefined);
                 quickPick.dispose();
+                resolve(undefined);
             });
+            quickPick.show();
         });
-        // If no selection, end
-        if (!selectedDimensions || selectedDimensions.length === 0) {
-            return undefined;
-        }
-        // Use the selected dimensions
-        return {
-            title,
-            dataSource,
-            dimensions: selectedDimensions.map(d => d.label),
-            createdAt: Date.now()
-        };
     }
     catch (error) {
         vscode.window.showErrorMessage(`Error collecting chart data: ${error instanceof Error ? error.message : String(error)}`);

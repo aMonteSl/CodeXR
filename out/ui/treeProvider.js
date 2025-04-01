@@ -53,8 +53,11 @@ var TreeItemType;
     TreeItemType["START_SERVER"] = "start-server";
     TreeItemType["ACTIVE_SERVER"] = "active-server";
     TreeItemType["SERVERS_CONTAINER"] = "servers-container";
-    TreeItemType["CREATE_VISUALIZATION"] = "create-visualization";
     TreeItemType["CHART_TYPE"] = "chart-type";
+    TreeItemType["CREATE_VISUALIZATION"] = "create-visualization";
+    // Add new types
+    TreeItemType["BABIAXR_CONFIG"] = "babiaxr-config";
+    TreeItemType["BABIAXR_CONFIG_ITEM"] = "babiaxr-config-item";
 })(TreeItemType || (exports.TreeItemType = TreeItemType = {}));
 /**
  * Tree data provider implementation for the sidebar view
@@ -90,32 +93,36 @@ class LocalServerProvider {
      */
     getChildren(element) {
         if (!element) {
-            // Root elements - Main sections
-            return Promise.resolve([
-                new baseItems_1.SectionItem("Servers", "Local server management", TreeItemType.SERVERS_SECTION, vscode.TreeItemCollapsibleState.Expanded),
-                new baseItems_1.SectionItem("BabiaXR Visualizations", "Create 3D data visualizations", TreeItemType.BABIAXR_SECTION, vscode.TreeItemCollapsibleState.Expanded)
-            ]);
+            return this.getRootChildren();
         }
-        // Handle child nodes based on parent element type
         switch (element.contextValue) {
             case TreeItemType.SERVERS_SECTION:
-                return this.getServersSectionChildren();
+                return this.getServersChildren();
             case TreeItemType.BABIAXR_SECTION:
-                return this.getBabiaXRSectionChildren();
+                return this.getBabiaXRChildren();
             case TreeItemType.SERVER_CONFIG:
                 return this.getServerConfigChildren();
             case TreeItemType.SERVERS_CONTAINER:
                 return this.getActiveServersChildren();
-            case TreeItemType.CREATE_VISUALIZATION:
-                return this.getChartTypesChildren();
+            case TreeItemType.BABIAXR_CONFIG:
+                return this.getBabiaXRConfigChildren();
             default:
                 return Promise.resolve([]);
         }
     }
     /**
+     * Gets the root elements
+     */
+    getRootChildren() {
+        return Promise.resolve([
+            new baseItems_1.SectionItem("Servers", "Local server management", TreeItemType.SERVERS_SECTION, vscode.TreeItemCollapsibleState.Expanded),
+            new baseItems_1.SectionItem("BabiaXR Visualizations", "Create 3D data visualizations", TreeItemType.BABIAXR_SECTION, vscode.TreeItemCollapsibleState.Expanded)
+        ]);
+    }
+    /**
      * Gets the child elements of the servers section
      */
-    getServersSectionChildren() {
+    getServersChildren() {
         const currentMode = this.context.globalState.get('serverMode') ||
             serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
         // Check if default certificates exist
@@ -135,11 +142,15 @@ class LocalServerProvider {
     /**
      * Gets the child elements of the BabiaXR section
      */
-    getBabiaXRSectionChildren() {
-        return Promise.resolve([
-            new chartItems_1.CreateVisualizationItem()
-            // You could add more items like "Recent Visualizations" if you implement them
-        ]);
+    getBabiaXRChildren() {
+        const items = [];
+        // Add configuration item
+        items.push(new BabiaXRConfigItem(this.context));
+        // Add create visualization item
+        items.push(new chartItems_1.CreateVisualizationItem());
+        // Add chart types
+        items.push(...this.getChartTypesChildren());
+        return Promise.resolve(items);
     }
     /**
      * Gets the server configuration options
@@ -164,8 +175,25 @@ class LocalServerProvider {
      */
     getChartTypesChildren() {
         return Promise.resolve([
-            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BAR_CHART, "Visualize categorical data with bars"),
-            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.PIE_CHART, "Visualize proportions as circular sectors")
+            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BARSMAP_CHART, "Visualize data with 3D bars in a map layout"),
+            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.PIE_CHART, "Visualize proportions as circular sectors"),
+            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.DONUT_CHART, "Visualize proportions with a hole in the center")
+        ]);
+    }
+    /**
+     * Gets the BabiaXR configuration options
+     */
+    getBabiaXRConfigChildren() {
+        // Get saved configuration values or use defaults
+        const bgColor = this.context.globalState.get('babiaBackgroundColor') || '#112233';
+        const envPreset = this.context.globalState.get('babiaEnvironmentPreset') || 'forest';
+        const groundColor = this.context.globalState.get('babiaGroundColor') || '#445566';
+        const chartPalette = this.context.globalState.get('babiaChartPalette') || 'ubuntu';
+        return Promise.resolve([
+            new BabiaXRConfigOption('Background Color', 'Set default background color for visualizations', 'integracionvsaframe.setBabiaBackgroundColor', bgColor),
+            new BabiaXRConfigOption('Environment Preset', 'Set default environment preset', 'integracionvsaframe.setBabiaEnvironmentPreset', envPreset),
+            new BabiaXRConfigOption('Ground Color', 'Set default ground color', 'integracionvsaframe.setBabiaGroundColor', groundColor),
+            new BabiaXRConfigOption('Chart Palette', 'Set default color palette for charts', 'integracionvsaframe.setBabiaChartPalette', chartPalette)
         ]);
     }
     /**

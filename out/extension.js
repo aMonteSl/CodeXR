@@ -40,7 +40,7 @@ const path = __importStar(require("path"));
 const serverManager_1 = require("./server/serverManager");
 const treeProvider_1 = require("./ui/treeProvider");
 const serverModel_1 = require("./models/serverModel");
-// Import from our new visualization modules
+// Import from our visualization modules
 const chartManager_1 = require("./visualization/chartManager");
 const dataCollector_1 = require("./visualization/dataCollector");
 const optionsCollector_1 = require("./visualization/optionsCollector");
@@ -255,6 +255,80 @@ function activate(context) {
             }
         }
     });
+    // BabiaXR Configuration Commands
+    // ----------------------------
+    // Command to set background color
+    const setBabiaBackgroundColorCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaBackgroundColor', async () => {
+        try {
+            const backgroundColor = await vscode.window.showInputBox({
+                prompt: 'Background color (hex format)',
+                placeHolder: '#112233',
+                value: context.globalState.get('babiaBackgroundColor') || '#112233',
+                validateInput: value => {
+                    return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #112233)';
+                }
+            });
+            if (backgroundColor) {
+                await context.globalState.update('babiaBackgroundColor', backgroundColor);
+                treeDataProvider.refresh();
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error updating background color: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // Command to set environment preset
+    const setBabiaEnvironmentPresetCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaEnvironmentPreset', async () => {
+        try {
+            const environmentPreset = await vscode.window.showQuickPick(optionsCollector_1.ENVIRONMENT_PRESETS.map(preset => ({
+                label: preset,
+                description: `Environment preset: ${preset}`
+            })), { placeHolder: 'Select environment preset' });
+            if (environmentPreset) {
+                await context.globalState.update('babiaEnvironmentPreset', environmentPreset.label);
+                treeDataProvider.refresh();
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error updating environment preset: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // Command to set ground color
+    const setBabiaGroundColorCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaGroundColor', async () => {
+        try {
+            const groundColor = await vscode.window.showInputBox({
+                prompt: 'Ground color (hex format)',
+                placeHolder: '#445566',
+                value: context.globalState.get('babiaGroundColor') || '#445566',
+                validateInput: value => {
+                    return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #445566)';
+                }
+            });
+            if (groundColor) {
+                await context.globalState.update('babiaGroundColor', groundColor);
+                treeDataProvider.refresh();
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error updating ground color: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // Command to set chart palette
+    const setBabiaChartPaletteCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaChartPalette', async () => {
+        try {
+            const chartPalette = await vscode.window.showQuickPick(optionsCollector_1.COLOR_PALETTES.map(palette => ({
+                label: palette,
+                description: `Color palette: ${palette}`
+            })), { placeHolder: 'Select chart color palette' });
+            if (chartPalette) {
+                await context.globalState.update('babiaChartPalette', chartPalette.label);
+                treeDataProvider.refresh();
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error updating chart palette: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
     // Register all commands
     context.subscriptions.push(
     // View commands
@@ -266,7 +340,9 @@ function activate(context) {
     // BabiaXR commands
     createBabiaXRVisualizationCommand, 
     // New commands
-    checkCertificatesCommand);
+    checkCertificatesCommand, 
+    // BabiaXR configuration commands
+    setBabiaBackgroundColorCommand, setBabiaEnvironmentPresetCommand, setBabiaGroundColorCommand, setBabiaChartPaletteCommand);
 }
 /**
  * This function is executed when the extension is deactivated

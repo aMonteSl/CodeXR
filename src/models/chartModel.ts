@@ -2,16 +2,17 @@
  * Types of charts available in BabiaXR
  */
 export enum ChartType {
-    BAR_CHART = 'Bar Chart',
+    BARSMAP_CHART = 'Barsmap Chart',
     PIE_CHART = 'Pie Chart',
+    DONUT_CHART = 'Donut Chart',  // Add new dedicated chart type
     SCATTER_PLOT = 'Scatter Plot',
     NETWORK_GRAPH = 'Network Graph'
-  }
-  
-  /**
-   * Base configuration for all chart types
-   */
-  export interface ChartData {
+}
+
+/**
+ * Base configuration for all chart types
+ */
+export interface ChartData {
     /** Title of the chart */
     title: string;
     
@@ -26,12 +27,24 @@ export enum ChartType {
     
     /** Creation timestamp */
     createdAt?: number;
-  }
-  
-  /**
-   * Bar chart specific configuration
-   */
-  export interface BarChartOptions {
+
+    /** Chart-specific options */
+    options?: {
+        /** Add this option for pie charts */
+        isDonut?: boolean;
+
+        /** Add this for customizing the donut size */
+        donutRadius?: number;
+    };
+
+    /** Environment configuration */
+    environment?: EnvironmentOptions;
+}
+
+/**
+ * Bar chart specific configuration
+ */
+export interface BarChartOptions {
     /** Whether to use vertical or horizontal bars */
     horizontal?: boolean;
     
@@ -43,12 +56,12 @@ export enum ChartType {
     
     /** Color scheme for the bars */
     colorScheme?: string;
-  }
-  
-  /**
-   * Pie chart specific configuration
-   */
-  export interface PieChartOptions {
+}
+
+/**
+ * Pie chart specific configuration
+ */
+export interface PieChartOptions {
     /** Size (diameter) of the pie in meters */
     size?: number;
     
@@ -60,12 +73,26 @@ export enum ChartType {
     
     /** Whether to show as donut chart */
     donut?: boolean;
-  }
-  
-  /**
-   * Time series specific configuration
-   */
-  export interface TimeSeriesOptions {
+}
+
+/**
+ * Donut chart specific configuration
+ */
+export interface DonutChartOptions {
+    /** Size (diameter) of the donut in meters */
+    size?: number;
+    
+    /** Height/thickness of the donut in meters */
+    height?: number;
+    
+    /** Inner radius ratio (0.1-0.9) */
+    donutRadius?: number;
+}
+
+/**
+ * Time series specific configuration
+ */
+export interface TimeSeriesOptions {
     /** Column containing time data */
     timeColumn: string;
     
@@ -80,12 +107,12 @@ export enum ChartType {
     
     /** Height of the visualization in meters */
     height?: number;
-  }
-  
-  /**
-   * Complete chart specification with all options
-   */
-  export interface ChartSpecification {
+}
+
+/**
+ * Complete chart specification with all options
+ */
+export interface ChartSpecification {
     /** Basic chart metadata and data source */
     data: ChartData;
     
@@ -97,12 +124,12 @@ export enum ChartType {
     
     /** Path to the generated HTML file (if saved) */
     outputPath?: string;
-  }
-  
-  /**
-   * Chart template mapping
-   */
-  export interface ChartTemplate {
+}
+
+/**
+ * Chart template mapping
+ */
+export interface ChartTemplate {
     /** Type of chart this template is for */
     chartType: ChartType;
     
@@ -111,11 +138,28 @@ export enum ChartType {
     
     /** Description of the template */
     description: string;
-  }
-  
-  /**
-   * Variable mapping for template replacement
-   */
-  export interface TemplateVariableMap {
+}
+
+/**
+ * Variable mapping for template replacement
+ */
+export interface TemplateVariableMap {
     [key: string]: string | number | boolean;
-  }
+}
+
+/**
+ * Environment configuration for visualizations
+ */
+export interface EnvironmentOptions {
+    /** Background color of the scene */
+    backgroundColor: string;
+    
+    /** Environment preset (forest, starry, dream, etc) */
+    environmentPreset: string;
+    
+    /** Ground color for the environment */
+    groundColor: string;
+    
+    /** Color palette for charts */
+    chartPalette: string;
+}

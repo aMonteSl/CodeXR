@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ChartTypeItem = exports.CreateVisualizationItem = void 0;
+exports.BabiaXRSectionItem = exports.BabiaXRConfigOption = exports.BabiaXRConfigItem = exports.ChartTypeItem = exports.CreateVisualizationItem = void 0;
 const vscode = __importStar(require("vscode"));
 const baseItems_1 = require("./baseItems");
 const treeProvider_1 = require("../treeProvider");
@@ -59,4 +59,36 @@ class ChartTypeItem extends baseItems_1.TreeItem {
     }
 }
 exports.ChartTypeItem = ChartTypeItem;
+/**
+ * Represents the BabiaXR configuration item in the tree
+ */
+class BabiaXRConfigItem extends baseItems_1.TreeItem {
+    constructor(context) {
+        super('Visualization Settings', 'Default settings for BabiaXR visualizations', treeProvider_1.TreeItemType.BABIAXR_CONFIG, vscode.TreeItemCollapsibleState.Collapsed, undefined, new vscode.ThemeIcon('settings-gear'));
+    }
+}
+exports.BabiaXRConfigItem = BabiaXRConfigItem;
+/**
+ * Represents a BabiaXR configuration option in the tree
+ */
+class BabiaXRConfigOption extends baseItems_1.TreeItem {
+    constructor(label, tooltip, command, currentValue) {
+        super(label, tooltip, treeProvider_1.TreeItemType.BABIAXR_CONFIG_ITEM, vscode.TreeItemCollapsibleState.None, {
+            command: command,
+            title: 'Configure ' + label,
+            arguments: []
+        }, new vscode.ThemeIcon('symbol-color'));
+        this.description = currentValue;
+    }
+}
+exports.BabiaXRConfigOption = BabiaXRConfigOption;
+/**
+ * Section item for BabiaXR
+ */
+class BabiaXRSectionItem extends baseItems_1.TreeItem {
+    constructor() {
+        super('BabiaXR', 'Create and configure BabiaXR visualizations', treeProvider_1.TreeItemType.BABIAXR_SECTION, vscode.TreeItemCollapsibleState.Expanded, undefined, new vscode.ThemeIcon('graph'));
+    }
+}
+exports.BabiaXRSectionItem = BabiaXRSectionItem;
 //# sourceMappingURL=chartItems.js.map

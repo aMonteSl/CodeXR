@@ -6,8 +6,9 @@ exports.ChartType = void 0;
  */
 var ChartType;
 (function (ChartType) {
-    ChartType["BAR_CHART"] = "Bar Chart";
+    ChartType["BARSMAP_CHART"] = "Barsmap Chart";
     ChartType["PIE_CHART"] = "Pie Chart";
+    ChartType["DONUT_CHART"] = "Donut Chart";
     ChartType["SCATTER_PLOT"] = "Scatter Plot";
     ChartType["NETWORK_GRAPH"] = "Network Graph";
 })(ChartType || (exports.ChartType = ChartType = {}));

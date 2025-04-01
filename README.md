@@ -1,125 +1,130 @@
-# IntegracionVSAFrame - Servidor Local para Desarrollo de A-Frame
+# IntegracionVSAFrame - Servidor Local y Visualizaciones para A-Frame
 
-Esta extensión de VS Code proporciona un servidor local con capacidad de recarga en vivo (live reload) especialmente diseñado para el desarrollo de aplicaciones con A-Frame y experiencias de Realidad Virtual/Aumentada en la web.
+Esta extensión de VS Code proporciona funcionalidades avanzadas para el desarrollo de aplicaciones con A-Frame:
 
+1. Un servidor local con capacidad de recarga en vivo especialmente diseñado para el desarrollo de experiencias WebXR
+2. Un creador de visualizaciones de datos 3D utilizando la biblioteca BabiaXR
+
+## Estructura del Proyecto
+
+```plaintext
 src/
-├── extension.ts                # Main entry point (stay as is)
-├── models/                     # Models (already well-organized)
-│   ├── chartModel.ts
-│   └── serverModel.ts
-├── server/                     # Server functionality 
-│   ├── serverManager.ts        # Core server operations
-│   ├── requestHandler.ts       # HTTP request handling
-│   ├── certificateManager.ts   # Certificate management
-│   └── liveReloadManager.ts    # Live reload functionality
-├── ui/                         # UI components
-│   ├── treeProvider.ts         # Base provider logic
-│   ├── treeItems/              # Tree item classes
-│   │   ├── baseItems.ts        # Base classes
-│   │   ├── serverItems.ts      # Server-related items
-│   │   └── chartItems.ts       # Chart-related items
-│   └── statusBarManager.ts     # Status bar handling
-├── visualization/              # BabiaXR visualizations
-│   ├── chartManager.ts         # Chart creation/launching
-│   ├── dataCollector.ts        # Data source collection
-│   └── optionsCollector.ts     # Chart options collection
-└── templates/                  # Template processing
-    ├── templateManager.ts      # Template loading/processing
-    └── fileManager.ts          # File saving and export
+├── extension.ts                # Punto de entrada principal
+├── models/                     # Modelos y tipos de datos
+│   ├── chartModel.ts           # Modelos para visualizaciones
+│   └── serverModel.ts          # Modelos para servidor
+├── server/                     # Funcionalidad del servidor 
+│   ├── serverManager.ts        # Gestión de servidores
+│   ├── requestHandler.ts       # Manejo de peticiones HTTP
+│   ├── certificateManager.ts   # Gestión de certificados SSL
+│   └── liveReloadManager.ts    # Recarga en vivo
+├── ui/                         # Componentes de UI
+│   ├── treeProvider.ts         # Proveedor de árbol principal
+│   ├── treeItems/              # Clases de elementos del árbol
+│   │   ├── baseItems.ts        # Clases base
+│   │   ├── serverItems.ts      # Elementos relacionados con servidor
+│   │   └── chartItems.ts       # Elementos relacionados con gráficos
+│   └── statusBarManager.ts     # Gestión de la barra de estado
+├── visualization/              # Visualizaciones BabiaXR
+│   ├── chartManager.ts         # Creación y lanzamiento de gráficos
+│   ├── dataCollector.ts        # Recopilación de fuentes de datos
+│   └── optionsCollector.ts     # Recopilación de opciones de gráficos
+└── templates/                  # Procesamiento de plantillas
+    ├── templateManager.ts      # Carga/procesamiento de plantillas
+    └── fileManager.ts          # Guardado y exportación de archivos
+```
 
-## Tareas pendientes
+## Funcionalidades
 
-Agregar mas templates de graficos
+### Servidor Local para WebXR
+- **Servidor HTTP/HTTPS**: Ejecuta aplicaciones web en un servidor local
+- **Recarga en vivo**: Actualización automática al modificar archivos
+- **HTTPS configurable**: Con certificados predeterminados o personalizados
+- **Múltiples servidores**: Ejecuta varios servidores simultáneamente
+- **Interfaz visual**: Gestión intuitiva desde el panel lateral
 
+### Visualizaciones de Datos con BabiaXR
+- **Gráficos 3D**: Creación de visualizaciones para entornos VR/AR
+- **Múltiples tipos de gráficos**: Gráficos de barras, circulares, etc.
+- **Análisis de datos**: Carga datos desde archivos CSV o JSON
+- **Personalización**: Opciones para ajustar apariencia y comportamiento
+- **Exportación**: Genera proyectos A-Frame completos con visualizaciones
 
-## Por hacer
-1. Lanzar html con graficos de BabiaXR
-2. LOC (Lines of Code), número de funciones, número de líneas de código, número de comentarios... (JS)
-3. Complejidad (CCN), otras metricas de calidad de código (JS) 
+## Tareas Pendientes
 
-🚀 Orden recomendado de trabajo:
-Te recomiendo seguir este orden para avanzar de manera eficiente y lógica:
+- **Agregar más plantillas de gráficos**: Implementar nuevos tipos como:
+  - Gráficos de dispersión 3D
+  - Redes de conectividad
+  - Mapas de calor 3D
+  - Visualización de terrenos para datos geoespaciales
 
-✅ Paso 1 (más prioritario): Lanzar HTML con gráficos de BabiaXR
-Motivo:
+- **Implementar análisis de código**:
+  1. LOC (Lines of Code): Métricas básicas como número de funciones, líneas de código, comentarios en JS
+  2. Complejidad ciclomática (CCN) y otras métricas de calidad de código en JS
+  3. Visualización de estas métricas en gráficos 3D
 
-Esto sigue la línea natural de lo que ya tienes funcionando (servidor HTTPS).
-Puedes probar inmediatamente tus escenarios VR con las gafas y resolver pronto cualquier problema técnico que pueda surgir.
-🔄 Paso 2: LOC y métricas básicas de JS
-Motivo:
+## Uso
 
-Es relativamente sencillo y te da una base sólida sobre la que construir métricas más avanzadas.
-Te permite rápidamente tener un resultado visual en la extensión.
-🔍 Paso 3: Complejidad ciclomática y métricas avanzadas
-Motivo:
+### Servidor Local
 
-Es más complejo, pero puedes hacerlo apoyándote en librerías existentes.
-Con los pasos anteriores completados, te será más fácil integrarlo en la extensión.
+#### Iniciar un servidor
+1. Abre el panel lateral de "A-Frame Explorer"
+2. Haz clic en "Iniciar Servidor Local" o en "Configuración del servidor"
+3. Selecciona un archivo HTML para servir
+4. El navegador se abrirá automáticamente con tu aplicación
 
+#### Configurar el modo de servidor
+1. En el panel lateral, expande "Configuración del servidor"
+2. Selecciona uno de los modos disponibles:
+   - **HTTP**: Básico (no compatible con dispositivos VR)
+   - **HTTPS con certificados predeterminados**: Usa los certificados incluidos
+   - **HTTPS con certificados personalizados**: Selecciona tus propios certificados
 
-## Características
+#### Gestionar servidores activos
+- Los servidores activos aparecen en la sección "Servidores Activos"
+- Haz clic en cualquier servidor para ver opciones:
+  - Abrir en navegador
+  - Ver información detallada
+  - Detener servidor
 
-- **Servidor local HTTP/HTTPS**: Permite ejecutar tus aplicaciones web en un servidor local.
-- **Recarga en vivo**: Los cambios en tus archivos se reflejan automáticamente en el navegador.
-- **Soporte para HTTPS**: Configurable con certificados predeterminados o personalizados (necesario para WebXR).
-- **Múltiples servidores**: Ejecuta varios servidores simultáneamente para trabajar con diferentes proyectos.
-- **Interfaz visual**: Panel lateral para gestionar todos los servidores activos y su configuración.
+### Visualizaciones BabiaXR
 
+#### Crear una visualización
+1. En el panel de A-Frame Explorer, expande "Visualizaciones BabiaXR"
+2. Selecciona "Crear Visualización"
+3. Elige el tipo de gráfico (Barras, Circular)
+4. Selecciona una fuente de datos:
+   - Archivo local (CSV/JSON)
+   - Datos de ejemplo incluidos
+5. Configura los parámetros del gráfico:
+   - Título
+   - Dimensiones a visualizar
+   - Opciones específicas del tipo de gráfico
+6. La visualización se creará como un proyecto A-Frame listo para usar
+
+#### Visualizar en VR/AR
+1. Después de crear una visualización, puedes iniciar un servidor HTTPS
+2. Accede desde un dispositivo compatible con WebXR
+3. Explora tus datos en un entorno inmersivo 3D
 
 ## Requisitos
 
 - Visual Studio Code 1.98.0 o superior
-- Los archivos de certificado para HTTPS se incluyen en la extensión (o puedes usar los tuyos propios)
+- Para experiencias WebXR, se recomienda un navegador compatible como Chrome, Edge o Firefox
+- Para pruebas en dispositivos VR, es necesario usar HTTPS con certificados
 
-## Uso
+## Notas Importantes
 
-### Iniciar un servidor
+- Es normal que los navegadores muestren advertencias sobre certificados autofirmados durante el desarrollo
+- El modo HTTP no es compatible con experiencias VR/AR debido a las restricciones de seguridad
+- Todos los servidores se detienen automáticamente al cerrar VS Code
+- Al navegar con el nombre del archivo en lugar de "localhost" en la URL, recuerda que la conexión real sigue siendo con localhost
 
-1. Abre el panel lateral de "A-Frame Servers"
-2. Haz clic en "Iniciar Servidor Local"
-3. Selecciona un archivo HTML para servir
-4. El navegador se abrirá automáticamente con tu aplicación
+## Solución de Problemas
 
-### Configurar el modo de servidor
+- **Puertos bloqueados**: Si los puertos quedan bloqueados, reinicia VS Code o usa "Detener Servidor"
+- **Certificados SSL**: Si hay problemas con los certificados, intenta usar la opción de certificados personalizados
+- **Dispositivos VR**: Asegúrate de usar HTTPS; el modo HTTP no funcionará con dispositivos VR
+- **Archivos de datos**: Si hay problemas con los archivos CSV/JSON, verifica su formato y codificación
 
-1. En el panel lateral, expande "Configuración del servidor"
-2. Selecciona uno de los modos disponibles:
-   - **HTTP**: Servidor básico (no compatible con dispositivos de realidad virtual)
-   - **HTTPS (certificados predeterminados)**: Usa los certificados incluidos en la extensión
-   - **HTTPS (certificados personalizados)**: Te permite seleccionar tus propios certificados
-
-### Gestionar servidores activos
-
-1. Los servidores activos aparecen en la sección "Servidores Activos" del panel lateral
-2. Haz clic en cualquier servidor para:
-   - Abrir el servidor en el navegador
-   - Detener el servidor
-
-También puedes acceder rápidamente a los servidores activos desde la barra de estado.
-
-## Uso con A-Frame y WebXR
-
-Para experiencias de realidad virtual con A-Frame y la API WebXR es **obligatorio** usar HTTPS. Esta extensión facilita este requisito mediante:
-
-- Configuración automática del servidor HTTPS
-- Certificados SSL predeterminados incluidos
-- Opción para usar certificados personalizados si los necesitas
-
-## Notas importantes
-
-- Es posible que los navegadores muestren advertencias sobre los certificados autofirmados. Es normal y puedes proceder con seguridad en entornos de desarrollo.
-- Al cerrar VS Code, todos los servidores activos se detendrán automáticamente.
-- El modo HTTP no es compatible con experiencias de VR/AR debido a las restricciones de seguridad de los navegadores.
-
-## Solución de problemas
-
-Si los puertos permanecen bloqueados después de un uso incorrecto:
-- Reinicia VS Code
-- Si persiste, reinicia tu ordenador
-- Usa el comando "Detener Servidor Local" para cerrar correctamente los servidores
-
-## Contribuir
-
-Esta extensión es de código abierto. Si encuentras problemas o tienes sugerencias, por favor crea un issue en el repositorio del proyecto.
-
-**¡Disfruta desarrollando experiencias inmersivas con A-Frame!**
+**¡Disfruta desarrollando experiencias inmersivas con A-Frame y visualizaciones 3D de datos!**
