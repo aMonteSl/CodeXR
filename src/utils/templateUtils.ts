@@ -77,6 +77,12 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
   let width: number = 2;
   let barRotation: string = "0 0 0"; // For vertical orientation
   
+  // Environment variables with defaults
+  const backgroundColor = data.environment?.backgroundColor || '#112233';
+  const environmentPreset = data.environment?.environmentPreset || 'forest';
+  const groundColor = data.environment?.groundColor || '#445566';
+  const chartPalette = data.environment?.chartPalette || 'ubuntu';
+  
   // Create variable map
   const variableMap: TemplateVariableMap = {
     TITLE: data.title,
@@ -89,6 +95,11 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     BAR_ROTATION: barRotation,
     DESCRIPTION: data.description || '',
     CHART_TYPE: chartSpecification.type,
+    // Add the environment variables
+    BACKGROUND_COLOR: backgroundColor,
+    ENVIRONMENT_PRESET: environmentPreset,
+    GROUND_COLOR: groundColor,
+    CHART_PALETTE: chartPalette
   };
   
   return variableMap;
@@ -128,6 +139,42 @@ const chartComponents: Record<ChartType, string> = {
                   scale="1 1 1">
         </a-entity>`,
   
+  [ChartType.BARS_CHART]: `
+        <!-- Bars Chart -->
+        <a-entity babia-bars="from: data;
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  x_axis: \${X_DIMENSION};
+                  height: \${Y_DIMENSION};
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -3"
+                  scale="1 1 1">
+        </a-entity>`,
+                  
+  [ChartType.CYLS_CHART]: `
+        <!-- Cylinder Chart -->
+        <a-entity babia-cyls="from: data;
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  x_axis: \${X_DIMENSION};
+                  height: \${Y_DIMENSION};
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -3"
+                  scale="1 1 1">
+        </a-entity>`,
+
   [ChartType.DONUT_CHART]: `
         <!-- Donut Chart -->
         <a-entity babia-doughnut="from: data;
@@ -136,7 +183,6 @@ const chartComponents: Record<ChartType, string> = {
                   legend: true;
                   tooltip: true;
                   palette: \${CHART_PALETTE};
-                  donutRadius: 0.5;
                   tooltip_position: top;
                   tooltip_show_always: false;
                   tooltip_height: 0.3"
@@ -176,10 +222,13 @@ export async function processTemplate(context: vscode.ExtensionContext, chartSpe
   // Get variable mapping
   const variableMap = createVariableMap(chartSpec);
   
+  // Get chart component template
+  const chartComponent = chartComponents[chartSpec.type];
+  
   // Replace the placeholder with the chart component
   let processedHtml = templateContent.replace(
     '<!-- CHART_COMPONENT_PLACEHOLDER -->', 
-    chartComponents[chartSpec.type]
+    chartComponent
   );
   
   // Replace variables in the template
@@ -188,10 +237,14 @@ export async function processTemplate(context: vscode.ExtensionContext, chartSpe
     processedHtml = processedHtml.replace(regex, String(value));
   }
   
+  // Remove inline comments that might break a-frame attribute parsing
+  // This regex targets specifically comments inside attribute strings
+  processedHtml = processedHtml.replace(/([a-z\-]+="[^"]*)(\/\/[^"]*?)([^"]*")/gi, '$1$3');
+  
   return {
     html: processedHtml,
     originalDataPath: chartSpec.data.dataSource,
-    isRemoteData: false
+    isRemoteData: isUrl(chartSpec.data.dataSource)
   };
 }
 
@@ -257,11 +310,19 @@ export async function saveHtmlToFile(
       const dataFileName = path.basename(originalDataPath);
       const destDataPath = path.join(projectDir, dataFileName);
       
-      // Copy the file
-      fs.copyFileSync(originalDataPath, destDataPath);
-      
-      // Update the URL in the HTML
-      html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ${dataFileName}"`);
+      try {
+        // Copy the file
+        fs.copyFileSync(originalDataPath, destDataPath);
+        
+        // Update the URL in the HTML with proper regex
+        html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ./${dataFileName}"`);
+        
+        // Log success for debugging
+        console.log(`Copied data file from ${originalDataPath} to ${destDataPath}`);
+      } catch (error) {
+        console.error(`Error copying data file: ${error}`);
+        vscode.window.showErrorMessage(`Error copying data file: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     
     // Save the HTML
@@ -280,6 +341,35 @@ export async function saveHtmlToFile(
     return htmlPath;
   } catch (error) {
     vscode.window.showErrorMessage(`Error saving project: ${error}`);
+    return undefined;
+  }
+}
+
+/**
+ * Creates a BabiaXR visualization
+ */
+export async function createBabiaXRVisualization(
+  chartType: ChartType, 
+  chartData: ChartData, 
+  context: vscode.ExtensionContext
+): Promise<string | undefined> {
+  try {
+    // Log the data source for debugging
+    console.log(`Data source: ${chartData.dataSource}`);
+    
+    // Validate data source
+    if (!chartData.dataSource || (typeof chartData.dataSource === 'string' && chartData.dataSource.trim() === '')) {
+      throw new Error('Invalid data source');
+    }
+    
+    // Check if file exists (if it's a local path)
+    if (!isUrl(chartData.dataSource) && !fs.existsSync(chartData.dataSource)) {
+      throw new Error(`Data file not found: ${chartData.dataSource}`);
+    }
+    
+    // Rest of the function...
+  } catch (error) {
+    vscode.window.showErrorMessage(`Error creating visualization: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
 }

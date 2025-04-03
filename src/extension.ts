@@ -20,6 +20,7 @@ import {
   COLOR_PALETTES
 } from './visualization/optionsCollector';
 import { defaultCertificatesExist } from './server/certificateManager';
+import { showColorPicker } from './utils/colorPickerUtils';
 
 /**
  * This function is executed when the extension is activated
@@ -256,8 +257,8 @@ export function activate(context: vscode.ExtensionContext) {
     'integracionvsaframe.createBabiaXRVisualization',
     async (chartType: ChartType) => {
       try {
-        // Collect chart data from user
-        const chartData = await collectChartData(chartType);
+        // Collect chart data from user - pass context
+        const chartData = await collectChartData(chartType, context);
         if (!chartData) return;
         
         // Collect chart-specific options
@@ -321,14 +322,10 @@ export function activate(context: vscode.ExtensionContext) {
     'integracionvsaframe.setBabiaBackgroundColor',
     async () => {
       try {
-        const backgroundColor = await vscode.window.showInputBox({
-          prompt: 'Background color (hex format)',
-          placeHolder: '#112233',
-          value: context.globalState.get<string>('babiaBackgroundColor') || '#112233',
-          validateInput: value => {
-            return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #112233)';
-          }
-        });
+        const backgroundColor = await showColorPicker(
+          'Select Background Color',
+          context.globalState.get<string>('babiaBackgroundColor') || '#112233'
+        );
         
         if (backgroundColor) {
           await context.globalState.update('babiaBackgroundColor', backgroundColor);
@@ -347,10 +344,13 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         const environmentPreset = await vscode.window.showQuickPick(
           ENVIRONMENT_PRESETS.map(preset => ({
-            label: preset,
-            description: `Environment preset: ${preset}`
+            label: preset.value,
+            description: preset.description
           })),
-          { placeHolder: 'Select environment preset' }
+          { 
+            placeHolder: 'Select environment preset',
+            matchOnDescription: true // Allow searching in the descriptions
+          }
         );
         
         if (environmentPreset) {
@@ -368,14 +368,10 @@ export function activate(context: vscode.ExtensionContext) {
     'integracionvsaframe.setBabiaGroundColor',
     async () => {
       try {
-        const groundColor = await vscode.window.showInputBox({
-          prompt: 'Ground color (hex format)',
-          placeHolder: '#445566',
-          value: context.globalState.get<string>('babiaGroundColor') || '#445566',
-          validateInput: value => {
-            return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #445566)';
-          }
-        });
+        const groundColor = await showColorPicker(
+          'Select Ground Color',
+          context.globalState.get<string>('babiaGroundColor') || '#445566'
+        );
         
         if (groundColor) {
           await context.globalState.update('babiaGroundColor', groundColor);
@@ -394,10 +390,13 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         const chartPalette = await vscode.window.showQuickPick(
           COLOR_PALETTES.map(palette => ({
-            label: palette,
-            description: `Color palette: ${palette}`
+            label: palette.value,
+            description: palette.description
           })),
-          { placeHolder: 'Select chart color palette' }
+          { 
+            placeHolder: 'Select chart color palette',
+            matchOnDescription: true
+          }
         );
         
         if (chartPalette) {

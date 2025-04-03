@@ -25,6 +25,17 @@ export async function createBabiaXRVisualization(
   context: vscode.ExtensionContext
 ): Promise<string | undefined> {
   try {
+    // Get saved environment configurations
+    const environmentConfig = {
+      backgroundColor: context.globalState.get<string>('babiaBackgroundColor') || '#112233',
+      environmentPreset: context.globalState.get<string>('babiaEnvironmentPreset') || 'forest',
+      groundColor: context.globalState.get<string>('babiaGroundColor') || '#445566',
+      chartPalette: context.globalState.get<string>('babiaChartPalette') || 'ubuntu'
+    };
+    
+    // Add environment configuration to chart data
+    chartData.environment = environmentConfig;
+    
     // Create a chart specification object
     const chartSpec: ChartSpecification = {
       type: chartType,

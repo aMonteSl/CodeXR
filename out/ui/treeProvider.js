@@ -143,14 +143,17 @@ class LocalServerProvider {
      * Gets the child elements of the BabiaXR section
      */
     getBabiaXRChildren() {
-        const items = [];
-        // Add configuration item
-        items.push(new BabiaXRConfigItem(this.context));
-        // Add create visualization item
-        items.push(new chartItems_1.CreateVisualizationItem());
-        // Add chart types
-        items.push(...this.getChartTypesChildren());
-        return Promise.resolve(items);
+        // Instead of spreading the promise directly, use Promise.all to handle it properly
+        return Promise.all([
+            Promise.resolve([
+                new chartItems_1.BabiaXRConfigItem(this.context),
+                new chartItems_1.CreateVisualizationItem()
+            ]),
+            this.getChartTypesChildren()
+        ]).then(([configItems, chartTypes]) => {
+            // Now we can safely concatenate the resolved arrays
+            return [...configItems, ...chartTypes];
+        });
     }
     /**
      * Gets the server configuration options
@@ -176,6 +179,8 @@ class LocalServerProvider {
     getChartTypesChildren() {
         return Promise.resolve([
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BARSMAP_CHART, "Visualize data with 3D bars in a map layout"),
+            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BARS_CHART, "Visualize data with simple 2D bars"),
+            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.CYLS_CHART, "Visualize data with cylinder-shaped bars"),
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.PIE_CHART, "Visualize proportions as circular sectors"),
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.DONUT_CHART, "Visualize proportions with a hole in the center")
         ]);
@@ -190,10 +195,10 @@ class LocalServerProvider {
         const groundColor = this.context.globalState.get('babiaGroundColor') || '#445566';
         const chartPalette = this.context.globalState.get('babiaChartPalette') || 'ubuntu';
         return Promise.resolve([
-            new BabiaXRConfigOption('Background Color', 'Set default background color for visualizations', 'integracionvsaframe.setBabiaBackgroundColor', bgColor),
-            new BabiaXRConfigOption('Environment Preset', 'Set default environment preset', 'integracionvsaframe.setBabiaEnvironmentPreset', envPreset),
-            new BabiaXRConfigOption('Ground Color', 'Set default ground color', 'integracionvsaframe.setBabiaGroundColor', groundColor),
-            new BabiaXRConfigOption('Chart Palette', 'Set default color palette for charts', 'integracionvsaframe.setBabiaChartPalette', chartPalette)
+            new chartItems_1.BabiaXRConfigOption('Background Color', 'Set default background color for visualizations', 'integracionvsaframe.setBabiaBackgroundColor', bgColor),
+            new chartItems_1.BabiaXRConfigOption('Environment Preset', 'Set default environment preset', 'integracionvsaframe.setBabiaEnvironmentPreset', envPreset),
+            new chartItems_1.BabiaXRConfigOption('Ground Color', 'Set default ground color', 'integracionvsaframe.setBabiaGroundColor', groundColor),
+            new chartItems_1.BabiaXRConfigOption('Chart Palette', 'Set default color palette for charts', 'integracionvsaframe.setBabiaChartPalette', chartPalette)
         ]);
     }
     /**

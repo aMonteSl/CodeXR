@@ -11,7 +11,7 @@ Esta extensión de VS Code proporciona funcionalidades avanzadas para el desarro
 src/
 ├── extension.ts                # Punto de entrada principal
 ├── models/                     # Modelos y tipos de datos
-│   ├── chartModel.ts           # Modelos para visualizaciones
+│   ├── [chartModel.ts](http://_vscodecontentref_/2)           # Modelos para visualizaciones
 │   └── serverModel.ts          # Modelos para servidor
 ├── server/                     # Funcionalidad del servidor 
 │   ├── serverManager.ts        # Gestión de servidores
@@ -19,14 +19,14 @@ src/
 │   ├── certificateManager.ts   # Gestión de certificados SSL
 │   └── liveReloadManager.ts    # Recarga en vivo
 ├── ui/                         # Componentes de UI
-│   ├── treeProvider.ts         # Proveedor de árbol principal
+│   ├── [treeProvider.ts](http://_vscodecontentref_/3)         # Proveedor de árbol principal
 │   ├── treeItems/              # Clases de elementos del árbol
 │   │   ├── baseItems.ts        # Clases base
 │   │   ├── serverItems.ts      # Elementos relacionados con servidor
-│   │   └── chartItems.ts       # Elementos relacionados con gráficos
+│   │   └── [chartItems.ts](http://_vscodecontentref_/4)       # Elementos relacionados con gráficos
 │   └── statusBarManager.ts     # Gestión de la barra de estado
 ├── visualization/              # Visualizaciones BabiaXR
-│   ├── chartManager.ts         # Creación y lanzamiento de gráficos
+│   ├── [chartManager.ts](http://_vscodecontentref_/5)         # Creación y lanzamiento de gráficos
 │   ├── dataCollector.ts        # Recopilación de fuentes de datos
 │   └── optionsCollector.ts     # Recopilación de opciones de gráficos
 └── templates/                  # Procesamiento de plantillas
@@ -46,7 +46,7 @@ src/
 ### Visualizaciones de Datos con BabiaXR
 - **Gráficos 3D**: Creación de visualizaciones para entornos VR/AR
 - **Múltiples tipos de gráficos**: Gráficos de barras, circulares, etc.
-- **Análisis de datos**: Carga datos desde archivos CSV o JSON
+- **Análisis de datos**: Carga datos desde archivos JSON
 - **Personalización**: Opciones para ajustar apariencia y comportamiento
 - **Exportación**: Genera proyectos A-Frame completos con visualizaciones
 
@@ -125,6 +125,6 @@ src/
 - **Puertos bloqueados**: Si los puertos quedan bloqueados, reinicia VS Code o usa "Detener Servidor"
 - **Certificados SSL**: Si hay problemas con los certificados, intenta usar la opción de certificados personalizados
 - **Dispositivos VR**: Asegúrate de usar HTTPS; el modo HTTP no funcionará con dispositivos VR
-- **Archivos de datos**: Si hay problemas con los archivos CSV/JSON, verifica su formato y codificación
+- **Archivos de datos**: Si hay problemas con los archivos JSON, verifica su formato y codificación
 
-**¡Disfruta desarrollando experiencias inmersivas con A-Frame y visualizaciones 3D de datos!**
+

@@ -88,6 +88,22 @@
           "light": "resources/light/refresh.svg",
           "dark": "resources/dark/refresh.svg"
         }
+      },
+      {
+        "command": "integracionvsaframe.setBabiaBackgroundColor",
+        "title": "BabiaXR: Set Background Color"
+      },
+      {
+        "command": "integracionvsaframe.setBabiaEnvironmentPreset",
+        "title": "BabiaXR: Set Environment Preset"
+      },
+      {
+        "command": "integracionvsaframe.setBabiaGroundColor",
+        "title": "BabiaXR: Set Ground Color"
+      },
+      {
+        "command": "integracionvsaframe.setBabiaChartPalette",
+        "title": "BabiaXR: Set Chart Palette"
       }
     ],
     "menus": {

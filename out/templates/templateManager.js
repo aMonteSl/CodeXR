@@ -107,7 +107,7 @@ function createVariableMap(chartSpecification) {
     let width = 2;
     let barRotation = "0 0 0"; // For vertical orientation
     // Environment variables with defaults
-    const backgroundColor = data.environment?.backgroundColor || '#FAFAFA';
+    const backgroundColor = data.environment?.backgroundColor || '#112233';
     const environmentPreset = data.environment?.environmentPreset || 'forest';
     const groundColor = data.environment?.groundColor || '#445566';
     const chartPalette = data.environment?.chartPalette || 'ubuntu';
@@ -149,12 +149,56 @@ function isUrl(str) {
  * Map of chart components to insert in the template
  */
 exports.chartComponents = {
+    [chartModel_1.ChartType.BARS_CHART]: `
+        <!-- Bars Chart -->
+        <a-entity babia-bars="from: data;
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  x_axis: \${X_DIMENSION};
+                  height: \${Y_DIMENSION};
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -3"
+                  scale="1 1 1">
+        </a-entity>
+        
+        <!-- Info Panel -->
+        <a-entity position="-5 2 -3">
+          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
+          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.7 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Fields Selected:" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.4 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="X: \${X_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Height: \${Y_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0 0.01" 
+                 anchor="left"></a-text>
+        </a-entity>`,
     [chartModel_1.ChartType.BARSMAP_CHART]: `
         <!-- Barsmap Chart -->
         <a-entity babia-barsmap="from: data; 
                   legend: true; 
                   tooltip: true;
-                  palette: \${CHART_PALETTE};  // Use variable instead of hardcoded palette
+                  palette: \${CHART_PALETTE};
                   x_axis: \${X_DIMENSION};
                   height: \${Y_DIMENSION};
                   \${Z_DIMENSION_ATTR}
@@ -285,6 +329,50 @@ exports.chartComponents = {
                  position="-1.2 0.2 0.01" 
                  anchor="left"></a-text>
           <a-text value="Size: \${Y_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0 0.01" 
+                 anchor="left"></a-text>
+        </a-entity>`,
+    [chartModel_1.ChartType.CYLS_CHART]: `
+        <!-- Cylinder Chart -->
+        <a-entity babia-cyls="from: data;
+                  legend: true;
+                  tooltip: true;
+                  palette: \${CHART_PALETTE};
+                  x_axis: \${X_DIMENSION};
+                  height: \${Y_DIMENSION};
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -3"
+                  scale="1 1 1">
+        </a-entity>
+        
+        <!-- Info Panel -->
+        <a-entity position="-5 2 -3">
+          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
+          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.7 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Fields Selected:" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.4 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="X: \${X_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Height: \${Y_DIMENSION}" 
                  width="2.8" 
                  color="#AAFFAA" 
                  position="-1.2 0 0.01" 

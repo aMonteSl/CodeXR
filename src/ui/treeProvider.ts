@@ -17,7 +17,10 @@ import {
 } from './treeItems/serverItems';
 import { 
   CreateVisualizationItem, 
-  ChartTypeItem 
+  ChartTypeItem,
+  BabiaXRSectionItem,
+  BabiaXRConfigItem,
+  BabiaXRConfigOption
 } from './treeItems/chartItems';
 
 // Types of tree items for context handling
@@ -148,18 +151,17 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
    * Gets the child elements of the BabiaXR section
    */
   private getBabiaXRChildren(): Thenable<TreeItem[]> {
-    const items: TreeItem[] = [];
-    
-    // Add configuration item
-    items.push(new BabiaXRConfigItem(this.context));
-    
-    // Add create visualization item
-    items.push(new CreateVisualizationItem());
-    
-    // Add chart types
-    items.push(...this.getChartTypesChildren());
-    
-    return Promise.resolve(items);
+    // Instead of spreading the promise directly, use Promise.all to handle it properly
+    return Promise.all([
+      Promise.resolve([
+        new BabiaXRConfigItem(this.context),
+        new CreateVisualizationItem()
+      ]),
+      this.getChartTypesChildren()
+    ]).then(([configItems, chartTypes]) => {
+      // Now we can safely concatenate the resolved arrays
+      return [...configItems, ...chartTypes];
+    });
   }
 
   /**
@@ -192,6 +194,14 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       new ChartTypeItem(
         ChartType.BARSMAP_CHART,
         "Visualize data with 3D bars in a map layout"
+      ),
+      new ChartTypeItem(
+        ChartType.BARS_CHART,
+        "Visualize data with simple 2D bars"
+      ),
+      new ChartTypeItem(
+        ChartType.CYLS_CHART,
+        "Visualize data with cylinder-shaped bars"
       ),
       new ChartTypeItem(
         ChartType.PIE_CHART,

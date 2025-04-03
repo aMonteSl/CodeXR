@@ -45,6 +45,7 @@ const chartManager_1 = require("./visualization/chartManager");
 const dataCollector_1 = require("./visualization/dataCollector");
 const optionsCollector_1 = require("./visualization/optionsCollector");
 const certificateManager_1 = require("./server/certificateManager");
+const colorPickerUtils_1 = require("./utils/colorPickerUtils");
 /**
  * This function is executed when the extension is activated
  */
@@ -216,8 +217,8 @@ function activate(context) {
     // Command to create a BabiaXR visualization
     const createBabiaXRVisualizationCommand = vscode.commands.registerCommand('integracionvsaframe.createBabiaXRVisualization', async (chartType) => {
         try {
-            // Collect chart data from user
-            const chartData = await (0, dataCollector_1.collectChartData)(chartType);
+            // Collect chart data from user - pass context
+            const chartData = await (0, dataCollector_1.collectChartData)(chartType, context);
             if (!chartData)
                 return;
             // Collect chart-specific options
@@ -260,14 +261,7 @@ function activate(context) {
     // Command to set background color
     const setBabiaBackgroundColorCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaBackgroundColor', async () => {
         try {
-            const backgroundColor = await vscode.window.showInputBox({
-                prompt: 'Background color (hex format)',
-                placeHolder: '#112233',
-                value: context.globalState.get('babiaBackgroundColor') || '#112233',
-                validateInput: value => {
-                    return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #112233)';
-                }
-            });
+            const backgroundColor = await (0, colorPickerUtils_1.showColorPicker)('Select Background Color', context.globalState.get('babiaBackgroundColor') || '#112233');
             if (backgroundColor) {
                 await context.globalState.update('babiaBackgroundColor', backgroundColor);
                 treeDataProvider.refresh();
@@ -281,9 +275,12 @@ function activate(context) {
     const setBabiaEnvironmentPresetCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaEnvironmentPreset', async () => {
         try {
             const environmentPreset = await vscode.window.showQuickPick(optionsCollector_1.ENVIRONMENT_PRESETS.map(preset => ({
-                label: preset,
-                description: `Environment preset: ${preset}`
-            })), { placeHolder: 'Select environment preset' });
+                label: preset.value,
+                description: preset.description
+            })), {
+                placeHolder: 'Select environment preset',
+                matchOnDescription: true // Allow searching in the descriptions
+            });
             if (environmentPreset) {
                 await context.globalState.update('babiaEnvironmentPreset', environmentPreset.label);
                 treeDataProvider.refresh();
@@ -296,14 +293,7 @@ function activate(context) {
     // Command to set ground color
     const setBabiaGroundColorCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaGroundColor', async () => {
         try {
-            const groundColor = await vscode.window.showInputBox({
-                prompt: 'Ground color (hex format)',
-                placeHolder: '#445566',
-                value: context.globalState.get('babiaGroundColor') || '#445566',
-                validateInput: value => {
-                    return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #445566)';
-                }
-            });
+            const groundColor = await (0, colorPickerUtils_1.showColorPicker)('Select Ground Color', context.globalState.get('babiaGroundColor') || '#445566');
             if (groundColor) {
                 await context.globalState.update('babiaGroundColor', groundColor);
                 treeDataProvider.refresh();
@@ -317,9 +307,12 @@ function activate(context) {
     const setBabiaChartPaletteCommand = vscode.commands.registerCommand('integracionvsaframe.setBabiaChartPalette', async () => {
         try {
             const chartPalette = await vscode.window.showQuickPick(optionsCollector_1.COLOR_PALETTES.map(palette => ({
-                label: palette,
-                description: `Color palette: ${palette}`
-            })), { placeHolder: 'Select chart color palette' });
+                label: palette.value,
+                description: palette.description
+            })), {
+                placeHolder: 'Select chart color palette',
+                matchOnDescription: true
+            });
             if (chartPalette) {
                 await context.globalState.update('babiaChartPalette', chartPalette.label);
                 treeDataProvider.refresh();

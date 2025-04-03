@@ -39,6 +39,7 @@ exports.extractDimensions = extractDimensions;
 exports.processCSVData = processCSVData;
 exports.convertCSVtoJSON = convertCSVtoJSON;
 exports.loadData = loadData;
+exports.collectDimensions = collectDimensions;
 const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -47,7 +48,7 @@ const chartModel_1 = require("../models/chartModel");
  * Collects information about the data source
  * @returns Path to the selected data file
  */
-async function collectDataSource() {
+async function collectDataSource(context) {
     // Show options to choose the type of data source
     const sourceType = await vscode.window.showQuickPick([
         { label: '$(file) Local File', id: 'local', description: 'Select CSV or JSON file from your computer' },
@@ -72,8 +73,8 @@ async function collectDataSource() {
             return fileUri[0].fsPath;
         case 'sample':
             try {
-                // Define the known location of example data
-                const exampleDataPath = '/home/adrian/integracionvsaframe/examples/data';
+                // Define the path to example data using extension context
+                const exampleDataPath = path.join(context.extensionPath, 'examples', 'data');
                 // Check if the directory exists
                 if (!fs.existsSync(exampleDataPath)) {
                     vscode.window.showErrorMessage(`Example data directory not found: ${exampleDataPath}`);
@@ -143,7 +144,7 @@ async function collectDataSource() {
  * @param chartType The type of chart
  * @returns Chart data or undefined if cancelled
  */
-async function collectChartData(chartType) {
+async function collectChartData(chartType, context) {
     try {
         // Ask for chart title
         const title = await vscode.window.showInputBox({
@@ -154,7 +155,7 @@ async function collectChartData(chartType) {
         if (!title)
             return undefined;
         // Use the new function to collect the data source
-        const dataSource = await collectDataSource();
+        const dataSource = await collectDataSource(context);
         if (!dataSource)
             return undefined;
         // Extract dimensions automatically
@@ -165,8 +166,13 @@ async function collectChartData(chartType) {
         let infoMessage;
         if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
             maxSelections = 3;
+            minSelections = 3;
+            infoMessage = 'Select exactly 3 attributes for the chart:\n• The 1st selected will be the X axis\n• The 2nd will be the height of the bars\n• The 3rd will be the Z axis';
+        }
+        else if (chartType === chartModel_1.ChartType.BARS_CHART || chartType === chartModel_1.ChartType.CYLS_CHART) {
+            maxSelections = 2;
             minSelections = 2;
-            infoMessage = 'Select between 2 and 3 attributes for the chart:\n• The 1st selected will be the X axis\n• The 2nd will be the height of the bars\n• The 3rd (optional) will be the Z axis';
+            infoMessage = 'Select exactly 2 attributes for the chart:\n• The 1st selected will be the X axis\n• The 2nd will be the height of the cylinders';
         }
         else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
             maxSelections = 2;
@@ -192,8 +198,22 @@ async function collectChartData(chartType) {
                 return false;
             }
         });
-        // Auto-select the minimum required dimensions
-        if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
+        // Auto-select the minimum required dimensions with descriptive labels
+        if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
+            // For barsmap, try to select appropriate dimensions
+            const xAxisField = dimensions.find(d => !numericColumns.includes(d)) || dimensions[0]; // Categorical for X
+            const heightField = numericColumns[0] || dimensions[1] || dimensions[0]; // Numeric for height
+            // Try to find another categorical field for Z if available
+            const zAxisField = dimensions.find(d => !numericColumns.includes(d) && d !== xAxisField) ||
+                dimensions.find(d => d !== xAxisField && d !== heightField) ||
+                dimensions[2] || dimensions[0];
+            // Return to simpler item format without detailed hints
+            quickPick.items = dimensions.map(d => ({
+                label: d,
+                picked: d === xAxisField || d === heightField || d === zAxisField
+            }));
+        }
+        else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
             // For pie/donut, try to select one categorical and one numeric field
             const categoricalField = dimensions.find(d => !numericColumns.includes(d)) || dimensions[0];
             const numericField = numericColumns[0] || dimensions[1] || dimensions[0];
@@ -227,22 +247,27 @@ async function collectChartData(chartType) {
             const newlySelected = items.find(item => !previousSelection.some(prev => prev.label === item.label));
             if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
                 if (items.length > maxSelections && newlySelected) {
-                    // Smart replacement: swap the last item with the newly selected one
-                    const keepItems = [...previousSelection.slice(0, maxSelections - 1), newlySelected];
+                    // Replace the third item with the newly selected one to maintain exactly 3
+                    const keepItems = [...previousSelection.slice(0, 2), newlySelected];
                     quickPick.selectedItems = keepItems;
                     // Show user what each dimension represents after the change
-                    const dimLabels = ["X axis", "Height", "Z axis"];
-                    const message = keepItems.map((item, idx) => `${dimLabels[idx]}: "${item.label}"`).join(', ');
+                    const message = keepItems.map((item, idx) => {
+                        const roles = ["X axis (Horizontal)", "Height (Vertical)", "Z axis (Depth)"];
+                        return `${roles[idx]}: "${item.label}"`;
+                    }).join(', ');
                     vscode.window.showInformationMessage(`Updated selection: ${message}`);
                     previousSelection = keepItems;
                 }
-                else {
+                else if (items.length <= maxSelections) {
                     // Allow any selection (even below minimum) but track changes
                     previousSelection = Array.from(items);
                     // If they have valid selections, show meaningful labels
-                    if (items.length >= 1) {
-                        const dimLabels = ["X axis", "Height", "Z axis"];
-                        const message = items.map((item, idx) => `${dimLabels[idx]}: "${item.label}"`).join(', ');
+                    if (items.length > 0) {
+                        const message = items.map((item, idx) => {
+                            const roles = ["X axis (Horizontal)", "Height (Vertical)", "Z axis (Depth)"];
+                            const role = idx < roles.length ? roles[idx] : `Dimension ${idx + 1}`;
+                            return `${role}: "${item.label}"`;
+                        }).join(', ');
                         vscode.window.showInformationMessage(message);
                     }
                 }
@@ -263,6 +288,26 @@ async function collectChartData(chartType) {
                     // If they have exactly 2 selections, show meaningful labels
                     if (items.length === 2) {
                         const message = `Key: "${items[0].label}", Size: "${items[1].label}"`;
+                        vscode.window.showInformationMessage(message);
+                    }
+                }
+            }
+            else if (chartType === chartModel_1.ChartType.BARS_CHART || chartType === chartModel_1.ChartType.CYLS_CHART) {
+                if (items.length > maxSelections && newlySelected) {
+                    // Smart replacement for 2D visualization: swap the second item with the new one
+                    const keepItems = [previousSelection[0], newlySelected];
+                    quickPick.selectedItems = keepItems;
+                    // Show updated selection
+                    const message = `X axis: "${keepItems[0].label}", Height: "${keepItems[1].label}"`;
+                    vscode.window.showInformationMessage(`Updated selection: ${message}`);
+                    previousSelection = keepItems;
+                }
+                else {
+                    // Allow any selection (even below minimum) but track changes
+                    previousSelection = Array.from(items);
+                    // If they have exactly 2 selections, show meaningful labels
+                    if (items.length === 2) {
+                        const message = `X axis: "${items[0].label}", Height: "${items[1].label}"`;
                         vscode.window.showInformationMessage(message);
                     }
                 }
@@ -401,5 +446,62 @@ function loadData(dataSource) {
     else {
         throw new Error('Unsupported file format. Use CSV or JSON.');
     }
+}
+/**
+ * Collects dimensions to use for visualization
+ */
+async function collectDimensions(data, chartType) {
+    // Extract field names from the first data item
+    const fields = Object.keys(data[0] || {});
+    if (fields.length === 0) {
+        vscode.window.showErrorMessage('No fields found in the data');
+        return undefined;
+    }
+    // For barsmap charts, we need exactly 3 dimensions (x, y, and z)
+    const isBarsmapChart = chartType === chartModel_1.ChartType.BARSMAP_CHART;
+    const expectedSelections = isBarsmapChart ? 3 : 2; // Exactly 3 for barsmap
+    const minSelections = isBarsmapChart ? 3 : 1; // Require exactly 3 for barsmap
+    // Create quickpick for dimension selection
+    const picker = vscode.window.createQuickPick();
+    picker.title = `Select ${isBarsmapChart ? 'exactly 3' : 'at least 1'} dimension${minSelections > 1 ? 's' : ''}`;
+    picker.placeholder = isBarsmapChart ?
+        'For Barsmap: 1st=x_axis, 2nd=height, 3rd=z_axis (all required)' :
+        'Select dimensions for visualization';
+    picker.canSelectMany = true;
+    // For barsmap, show a more helpful message
+    if (isBarsmapChart) {
+        vscode.window.showInformationMessage('Barsmap charts require exactly 3 dimensions:\n' +
+            '• 1st selected = X axis (horizontal)\n' +
+            '• 2nd selected = Height of bars (vertical)\n' +
+            '• 3rd selected = Z axis (depth)');
+    }
+    picker.items = fields.map(field => ({
+        label: field,
+        description: `Field: ${field}`,
+        picked: false
+    }));
+    return new Promise((resolve) => {
+        picker.onDidAccept(() => {
+            const selections = picker.selectedItems.map(item => item.label);
+            // Validate selections based on chart type
+            if (isBarsmapChart) {
+                if (selections.length !== 3) {
+                    vscode.window.showErrorMessage('Barsmap charts require exactly 3 dimensions (x axis, height, and z axis)');
+                    return; // Don't close picker yet
+                }
+            }
+            else if (selections.length < minSelections) {
+                vscode.window.showErrorMessage(`Please select at least ${minSelections} dimension${minSelections > 1 ? 's' : ''}`);
+                return; // Don't close picker yet
+            }
+            picker.hide();
+            resolve(selections);
+        });
+        picker.onDidHide(() => {
+            picker.dispose();
+            resolve(undefined);
+        });
+        picker.show();
+    });
 }
 //# sourceMappingURL=dataCollector.js.map

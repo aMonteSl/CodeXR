@@ -41,6 +41,7 @@ exports.collectPieChartOptions = collectPieChartOptions;
 exports.collectEnvironmentOptions = collectEnvironmentOptions;
 const vscode = __importStar(require("vscode"));
 const chartModel_1 = require("../models/chartModel");
+const colorPickerUtils_1 = require("../utils/colorPickerUtils");
 /**
  * Collects chart-specific options based on chart type
  */
@@ -83,17 +84,50 @@ async function collectPieChartOptions() {
     return {};
 }
 /**
- * Available environment presets in A-Frame
+ * Available environment presets in A-Frame with English descriptions
  */
 exports.ENVIRONMENT_PRESETS = [
-    'forest', 'starry', 'dream', 'tron', 'arches', 'egypt', 'contact',
-    'threetowers', 'poison', 'default', 'goldmine', 'yavapai', 'osiris', 'moon'
+    { value: 'default', description: 'Base environment, light blue sky, green terrain' },
+    { value: 'none', description: 'No environment, useful for fully custom scenes' },
+    { value: 'checkerboard', description: 'Simple flat checkerboard floor' },
+    { value: 'forest', description: 'Ground with scattered trees, soft lighting, forest-like' },
+    { value: 'goaland', description: 'Mountainous environment with epic sky, game-like' },
+    { value: 'yavapai', description: 'Rocky desert landscape' },
+    { value: 'goldmine', description: 'Foggy mountainous terrain with mining atmosphere' },
+    { value: 'arches', description: 'Similar to Arches National Park, reddish tones' },
+    { value: 'tron', description: 'Sci-fi style with neon colors and Tron-like lines' },
+    { value: 'japan', description: 'Japanese garden atmosphere with pink cherry blossom' },
+    { value: 'dream', description: 'Surreal dreamlike landscape, intense colors' },
+    { value: 'volcano', description: 'Volcanic terrain, dense sky, dark atmosphere' },
+    { value: 'starry', description: 'Starry sky with nighttime atmosphere' },
+    { value: 'egypt', description: 'Sand, pyramids and desert sky, Egyptian style' },
+    { value: 'threetowers', description: 'Three towers rising from the terrain' },
+    { value: 'poison', description: 'Surreal environment, acid green colors, alien-like world' },
+    { value: 'osiris', description: 'Stylized Egyptian setting with mystical tones' },
+    { value: 'moon', description: 'Gray lunar landscape, no atmosphere' }
 ];
 /**
- * Available color palettes for BabiaXR
+ * Available color palettes for BabiaXR with English descriptions
  */
 exports.COLOR_PALETTES = [
-    'ubuntu', 'blues', 'flat', 'reds', 'greens', 'yellows', 'commerce'
+    { value: 'ubuntu', description: 'Vibrant and accessible colors used by Ubuntu' },
+    { value: 'blues', description: 'Scale from soft to intense blues' },
+    { value: 'greens', description: 'Scale of green shades' },
+    { value: 'reds', description: 'Scale of red shades' },
+    { value: 'purples', description: 'Scale of purple shades' },
+    { value: 'oranges', description: 'Scale of orange shades' },
+    { value: 'greys', description: 'Scale of gray shades' },
+    { value: 'spectral', description: 'Balanced multicolor palette from ColorBrewer' },
+    { value: 'paired', description: 'Paired colors with good contrast' },
+    { value: 'category10', description: 'Classic D3 palette for 10 distinct categories' },
+    { value: 'category20', description: 'Extended to 20 colors with more variety' },
+    { value: 'pastel1', description: 'Soft colors, ideal for non-aggressive visualizations' },
+    { value: 'pastel2', description: 'Another soft variant' },
+    { value: 'dark2', description: 'Intense colors, but less saturated' },
+    { value: 'set1', description: 'Bright and vibrant colors' },
+    { value: 'set2', description: 'Medium tone colors' },
+    { value: 'set3', description: 'More colors, somewhat softer' },
+    { value: 'tableau10', description: 'Modern palette, accessible and high contrast' }
 ];
 /**
  * Collects environment configuration options
@@ -106,43 +140,31 @@ async function collectEnvironmentOptions(context) {
     const defaultPalette = context.globalState.get('babiaChartPalette') || 'ubuntu';
     // Select environment preset
     const environmentPreset = await vscode.window.showQuickPick(exports.ENVIRONMENT_PRESETS.map(preset => ({
-        label: preset,
-        description: `Environment preset: ${preset}`
+        label: preset.value,
+        description: preset.description,
+        picked: preset.value === defaultEnvPreset
     })), {
         placeHolder: 'Select environment preset',
-        activeItems: [{ label: defaultEnvPreset }]
+        matchOnDescription: true
     });
     if (!environmentPreset)
         return undefined;
-    // Select background color
-    const backgroundColor = await vscode.window.showInputBox({
-        prompt: 'Background color (hex format)',
-        placeHolder: '#112233',
-        value: defaultBgColor,
-        validateInput: value => {
-            return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #112233)';
-        }
-    });
+    // Select background color using visual picker
+    const backgroundColor = await (0, colorPickerUtils_1.showColorPicker)('Select Background Color', defaultBgColor);
     if (!backgroundColor)
         return undefined;
-    // Select ground color
-    const groundColor = await vscode.window.showInputBox({
-        prompt: 'Ground color (hex format)',
-        placeHolder: '#445566',
-        value: defaultGroundColor,
-        validateInput: value => {
-            return /^#[0-9A-Fa-f]{6}$/.test(value) ? null : 'Please enter a valid hex color (e.g., #445566)';
-        }
-    });
+    // Select ground color using visual picker
+    const groundColor = await (0, colorPickerUtils_1.showColorPicker)('Select Ground Color', defaultGroundColor);
     if (!groundColor)
         return undefined;
     // Select chart color palette
     const chartPalette = await vscode.window.showQuickPick(exports.COLOR_PALETTES.map(palette => ({
-        label: palette,
-        description: `Color palette: ${palette}`
+        label: palette.value,
+        description: palette.description,
+        picked: palette.value === defaultPalette
     })), {
         placeHolder: 'Select chart color palette',
-        activeItems: [{ label: defaultPalette }]
+        matchOnDescription: true
     });
     if (!chartPalette)
         return undefined;

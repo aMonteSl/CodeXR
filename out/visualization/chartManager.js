@@ -48,6 +48,15 @@ const fileManager_1 = require("../templates/fileManager");
  */
 async function createBabiaXRVisualization(chartType, chartData, context) {
     try {
+        // Get saved environment configurations
+        const environmentConfig = {
+            backgroundColor: context.globalState.get('babiaBackgroundColor') || '#112233',
+            environmentPreset: context.globalState.get('babiaEnvironmentPreset') || 'forest',
+            groundColor: context.globalState.get('babiaGroundColor') || '#445566',
+            chartPalette: context.globalState.get('babiaChartPalette') || 'ubuntu'
+        };
+        // Add environment configuration to chart data
+        chartData.environment = environmentConfig;
         // Create a chart specification object
         const chartSpec = {
             type: chartType,
