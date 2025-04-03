@@ -104,6 +104,20 @@
       {
         "command": "integracionvsaframe.setBabiaChartPalette",
         "title": "BabiaXR: Set Chart Palette"
+      },
+      {
+        "command": "integracionvsaframe.stopAllServers",
+        "title": "Stop All Servers",
+        "icon": {
+          "light": "resources/light/stop.svg",
+          "dark": "resources/dark/stop.svg"
+        },
+        "category": "A-Frame Server"
+      },
+      {
+        "command": "integracionvsaframe.stopAllServers",
+        "title": "Stop All Servers",
+        "icon": "$(stop)"
       }
     ],
     "menus": {
@@ -134,24 +148,33 @@
           "command": "integracionvsaframe.createBabiaXRVisualization",
           "when": "viewItem == babiaxr-section",
           "group": "inline"
+        },
+        {
+          "command": "integracionvsaframe.stopAllServers",
+          "when": "view == integracionvsaframe.serverTreeView && viewItem == serverContainer",
+          "group": "inline"
+        },
+        {
+          "command": "integracionvsaframe.stopAllServers",
+          "when": "view == integracionvsaframe.serverTreeView && viewItem == serverContainer",
+          "group": "1_actions"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "aframe-explorer",
+          "id": "integracionvsaframe-explorer",
           "title": "A-Frame Explorer",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "aframe-explorer": [
+      "integracionvsaframe-explorer": [
         {
-          "id": "aframeExplorerView",
-          "name": "A-Frame Explorer",
-          "icon": "resources/icon.svg"
+          "id": "integracionvsaframe.serverTreeView",
+          "name": "A-Frame Servers & Visualizations"
         }
       ]
     },

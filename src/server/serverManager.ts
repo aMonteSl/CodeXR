@@ -216,5 +216,113 @@ export function stopServer(serverId?: string): void {
   }
 }
 
+/**
+ * Creates a server but returns the server info without opening a browser
+ * Useful for programmatic server creation like example launching
+ * 
+ * @param filePath Path to HTML file to serve
+ * @param mode The server mode to use
+ * @param context Extension context
+ * @returns ServerInfo object or undefined if server creation failed
+ */
+export async function createServer(
+  filePath: string,
+  mode: ServerMode,
+  context: vscode.ExtensionContext
+): Promise<ServerInfo | undefined> {
+  try {
+    // Extract server mode parameters
+    const useHttps = mode !== ServerMode.HTTP;
+    const useDefaultCerts = mode === ServerMode.HTTPS_DEFAULT_CERTS;
+    
+    // Get the directory where the selected HTML file is located
+    const fileDir = path.dirname(filePath);
+
+    // Find a free port
+    const getPortModule = await import('get-port');
+    const getPort = getPortModule.default;
+    const port = await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
+
+    // Create request handler
+    const requestHandler = createRequestHandler(fileDir, filePath);
+
+    // Create HTTP or HTTPS server based on the chosen option
+    let server: http.Server | https.Server;
+
+    if (useHttps) {
+      const { key, cert } = await getCertificates(context, useDefaultCerts);
+      server = https.createServer({ key, cert }, requestHandler);
+    } else {
+      server = http.createServer(requestHandler);
+    }
+    
+    // Set up file watching for live reload
+    const htmlWatcher = fs.watch(filePath, () => notifyClients());
+    const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
+      if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
+        setTimeout(() => notifyClients(), 300);
+      }
+    });
+
+    // Register watchers for cleanup
+    context.subscriptions.push({
+      dispose: () => {
+        htmlWatcher.close();
+        jsonWatcher.close();
+      }
+    });
+
+    // Generate server info
+    const protocol = useHttps ? 'https' : 'http';
+    const filename = path.basename(filePath, path.extname(filePath));
+    const serverUrl = `${protocol}://localhost:${port}`;
+    const displayUrl = `${protocol}://${filename}:${port}`;
+    const serverId = `server-${Date.now()}`;
+    
+    const serverInfo: ServerInfo = {
+      id: serverId,
+      url: serverUrl,
+      displayUrl: displayUrl,
+      protocol,
+      port,
+      filePath,
+      useHttps,
+      startTime: Date.now()
+    };
+    
+    // Create server entry and start the server
+    const serverEntry: ActiveServerEntry = {
+      server,
+      info: serverInfo
+    };
+    
+    // Start the server and wait for it to be ready
+    await new Promise<void>((resolve) => {
+      server.listen(port, () => resolve());
+    });
+    
+    // Add to active servers list
+    activeServer = serverEntry;
+    activeServerList.push(serverEntry);
+    
+    // Register cleanup for extension deactivation
+    context.subscriptions.push({
+      dispose: () => {
+        server.close();
+      }
+    });
+    
+    // Notify that there's a new server to update the UI
+    vscode.commands.executeCommand('integracionvsaframe.refreshView');
+    
+    return serverInfo;
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `Error creating server: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return undefined;
+  }
+}
+
 // Export the required state variables for other modules to use
 export { activeServerList, activeServer };

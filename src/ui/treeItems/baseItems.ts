@@ -6,17 +6,20 @@ import { TreeItemType } from '../treeProvider';
  */
 export class TreeItem extends vscode.TreeItem {
   constructor(
-    label: string,
-    tooltip: string,
-    contextValue: string,
+    public readonly label: string,
+    public readonly tooltip: string,
+    contextValue: string, // Remove the readonly modifier
     collapsibleState: vscode.TreeItemCollapsibleState,
     command?: vscode.Command,
-    iconPath?: string | vscode.ThemeIcon
+    iconPath?: vscode.ThemeIcon | vscode.Uri
   ) {
     super(label, collapsibleState);
     this.tooltip = tooltip;
     this.contextValue = contextValue;
-    this.command = command;
+    
+    if (command) {
+      this.command = command;
+    }
     
     if (iconPath) {
       this.iconPath = iconPath;

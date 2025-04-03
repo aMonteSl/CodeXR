@@ -8,6 +8,48 @@ import {
 } from './liveReloadManager';
 
 /**
+ * Handles live reload requests
+ * @param req Incoming HTTP request
+ * @param res HTTP response
+ */
+function handleLiveReload(req: http.IncomingMessage, res: http.ServerResponse): void {
+  // Set headers for an SSE connection
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+  res.write('\n');
+  
+  // Register this response as an active SSE client
+  addSSEClient(res);
+  
+  // When the client closes the connection, remove it from the list
+  req.on('close', () => {
+    removeSSEClient(res);
+  });
+}
+
+/**
+ * Determines the content type based on file extension
+ * @param ext File extension
+ * @returns Content type
+ */
+function getContentType(ext: string): string {
+  const mimeTypes: Record<string, string> = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif'
+  };
+  return mimeTypes[ext] || 'text/plain';
+}
+
+/**
  * Creates the HTTP request handler function
  * @param fileDir Directory of the HTML file
  * @param selectedFile Path to the HTML file
@@ -18,85 +60,75 @@ export function createRequestHandler(
   selectedFile: string
 ): http.RequestListener {
   return (req: http.IncomingMessage, res: http.ServerResponse) => {
-    // Special endpoint for SSE connections (live reload)
-    if (req.url === '/livereload') {
-      // Set headers for an SSE connection
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      });
-      res.write('\n');
-      
-      // Register this response as an active SSE client
-      // Using the centralized client management in liveReloadManager
-      addSSEClient(res);
-      
-      // When the client closes the connection, remove it from the list
-      req.on('close', () => {
-        removeSSEClient(res);
-      });
+    // Get URL path or default to '/'
+    let urlPath = req.url || '/';
+    
+    // Handle default route
+    if (urlPath === '/') {
+      urlPath = '/' + path.basename(selectedFile);
+    }
+    
+    // Handle livereload endpoint
+    if (urlPath === '/livereload') {
+      handleLiveReload(req, res);
       return;
     }
-
-    // For all other routes, determine which file to serve
-    let filePath = path.join(fileDir, req.url || '');
-    // If the root ('/') is requested, serve the selected HTML file
-    if (req.url === '/' || req.url === '') {
-      filePath = selectedFile;
+    
+    // Decode URL to handle spaces and special characters
+    urlPath = decodeURIComponent(urlPath);
+    
+    // Clean up path to prevent directory traversal
+    const safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
+    
+    // Convert URL to file path
+    let filePath: string;
+    
+    // Special handling for relative URLs that go outside the example folder
+    if (safePath.includes('../../data/')) {
+      // Handle paths going to the data directory outside the example folder
+      const dataDir = path.join(path.dirname(fileDir), '..', 'data');
+      const dataFile = path.basename(safePath);
+      filePath = path.join(dataDir, dataFile);
+      
+      console.log(`Resolving data path: ${safePath} -> ${filePath}`);
+    } else {
+      // Normal path resolution
+      filePath = path.join(fileDir, safePath.replace(/^\//, ''));
     }
-
+    
     // Check if file exists
-    fs.exists(filePath, exists => {
-      if (!exists) {
-        res.writeHead(404);
+    fs.stat(filePath, (err, stats) => {
+      if (err) {
+        console.error(`File not found: ${filePath}`);
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('File not found');
         return;
       }
-
-      // Determine MIME type based on file extension
+      
+      // Get file extension and content type
       const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.html': 'text/html',
-        '.js': 'application/javascript',
-        '.css': 'text/css',
-        '.json': 'application/json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif'
-      };
-      const contentType = mimeTypes[ext] || 'text/plain';
-
-      // Special handling for the main HTML file
-      if (filePath === selectedFile && contentType === 'text/html') {
-        // Read file as text
-        fs.readFile(filePath, 'utf8', (err, data) => {
-          if (err) {
-            res.writeHead(500);
-            res.end('Error reading the file');
-            return;
-          }
-          
-          // Inject live reload script if not already present
-          const injectedData = injectLiveReloadScript(data);
-          
-          // Send HTML with injected LiveReload script
+      const contentType = getContentType(ext);
+      
+      // Read file
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          res.end(`Server Error: ${err.message}`);
+          return;
+        }
+        
+        // Process HTML content
+        if (ext === '.html') {
+          // Inject live reload script
+          const processedData = injectLiveReloadScript(data.toString());
           res.writeHead(200, { 'Content-Type': contentType });
-          res.end(injectedData);
-        });
-      } else {
-        // For files other than the main HTML, serve them without modification
-        fs.readFile(filePath, (err, data) => {
-          if (err) {
-            res.writeHead(500);
-            res.end('Error reading the file');
-            return;
-          }
+          res.end(processedData);
+        } else {
+          // Serve other files as-is
           res.writeHead(200, { 'Content-Type': contentType });
           res.end(data);
-        });
-      }
+        }
+      });
     });
   };
 }

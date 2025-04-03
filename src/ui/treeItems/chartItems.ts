@@ -12,7 +12,7 @@ export class CreateVisualizationItem extends TreeItem {
       'Create Visualization',
       'Select a visualization type for BabiaXR',
       TreeItemType.CREATE_VISUALIZATION,
-      vscode.TreeItemCollapsibleState.Collapsed,
+      vscode.TreeItemCollapsibleState.Collapsed, // Make sure this is Collapsed
       undefined,
       new vscode.ThemeIcon('add')
     );
@@ -146,6 +146,42 @@ export class BabiaXRSectionItem extends TreeItem {
       vscode.TreeItemCollapsibleState.Expanded,
       undefined,
       new vscode.ThemeIcon('graph')
+    );
+  }
+}
+
+/**
+ * Item for a BabiaXR example chart
+ */
+export class BabiaXRExampleItem extends TreeItem {
+  constructor(label: string, examplePath: string) {
+    super(
+      label,
+      "Launch this example visualization",
+      TreeItemType.BABIAXR_EXAMPLE,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'integracionvsaframe.launchBabiaXRExample',
+        title: `Launch ${label} Example`,
+        arguments: [examplePath]
+      },
+      new vscode.ThemeIcon('play')
+    );
+  }
+}
+
+/**
+ * Container for BabiaXR examples
+ */
+export class BabiaXRExamplesContainer extends TreeItem {
+  constructor() {
+    super(
+      "Examples",
+      "Launch example visualizations",
+      TreeItemType.BABIAXR_EXAMPLES_CONTAINER,
+      vscode.TreeItemCollapsibleState.Collapsed,
+      undefined,
+      new vscode.ThemeIcon('library')
     );
   }
 }

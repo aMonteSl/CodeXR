@@ -25,11 +25,16 @@ export class StartServerItem extends TreeItem {
         description = "HTTPS with custom certificates";
         break;
     }
+
+    // Determine the initial contextValue based on conditions
+    const initialContextValue = currentMode === ServerMode.HTTPS_DEFAULT_CERTS && !defaultCertsExist 
+      ? 'warning' 
+      : TreeItemType.START_SERVER;
     
     super(
       'Start Local Server',
       'Start server in ' + currentMode + ' mode\nSelect an HTML file to serve',
-      TreeItemType.START_SERVER,
+      initialContextValue,
       vscode.TreeItemCollapsibleState.None,
       {
         command: 'integracionvsaframe.startServerWithConfig',
@@ -39,11 +44,6 @@ export class StartServerItem extends TreeItem {
     );
     
     this.description = description;
-
-    // Context for coloring the item in case of warning
-    if (currentMode === ServerMode.HTTPS_DEFAULT_CERTS && !defaultCertsExist) {
-      this.contextValue = 'warning';
-    }
   }
 }
 
@@ -119,7 +119,7 @@ export class ActiveServersContainer extends TreeItem {
     super(
       `Active Servers (${count})`,
       'Currently running servers',
-      TreeItemType.SERVERS_CONTAINER,
+      'serverContainer', // Use this string directly instead of TreeItemType.SERVERS_CONTAINER
       vscode.TreeItemCollapsibleState.Expanded,
       undefined,
       new vscode.ThemeIcon('server-environment')

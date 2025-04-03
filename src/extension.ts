@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { startServer, stopServer, getActiveServers } from './server/serverManager';
+import { startServer, stopServer, getActiveServers, createServer } from './server/serverManager';
 import { LocalServerProvider } from './ui/treeProvider';
 import { 
   ChartType, 
@@ -21,6 +21,7 @@ import {
 } from './visualization/optionsCollector';
 import { defaultCertificatesExist } from './server/certificateManager';
 import { showColorPicker } from './utils/colorPickerUtils';
+import * as fs from 'fs';
 
 /**
  * This function is executed when the extension is activated
@@ -32,9 +33,9 @@ export function activate(context: vscode.ExtensionContext) {
   const treeDataProvider = new LocalServerProvider(context);
 
   // Register tree view
-  const treeView = vscode.window.createTreeView('aframeExplorerView', {
-    treeDataProvider: treeDataProvider,
-    showCollapseAll: true
+  // Make sure this ID matches what's in package.json
+  const treeView = vscode.window.createTreeView('integracionvsaframe.serverTreeView', {
+    treeDataProvider: treeDataProvider
   });
   context.subscriptions.push(treeView);
 
@@ -285,6 +286,63 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // Command to launch a BabiaXR example
+  const launchBabiaXRExampleCommand = vscode.commands.registerCommand(
+    'integracionvsaframe.launchBabiaXRExample',
+    async (examplePath: string) => {
+      try {
+        if (!examplePath) {
+          vscode.window.showErrorMessage('No example path provided');
+          return;
+        }
+        
+        // Check if file exists
+        if (!fs.existsSync(examplePath)) {
+          vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
+          return;
+        }
+        
+        // Open the file in the editor first
+        await vscode.window.showTextDocument(vscode.Uri.file(examplePath));
+        
+        // Ask if user wants to launch server
+        const launchServer = await vscode.window.showInformationMessage(
+          'Do you want to start the server to view this example?',
+          'Yes', 'No'
+        );
+        
+        if (launchServer === 'Yes') {
+          // Create a server for this example
+          const serverMode = context.globalState.get<ServerMode>('serverMode') || 
+                             ServerMode.HTTPS_DEFAULT_CERTS;
+          
+          // Get the directory of the example rather than the file itself
+          const exampleDir = path.dirname(examplePath);
+          
+          // Use the example directory as the working directory
+          const serverInfo = await createServer(examplePath, serverMode, context);
+          
+          if (serverInfo) {
+            // Open browser
+            vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+            
+            // Show confirmation
+            vscode.window.showInformationMessage(
+              `Server started at ${serverInfo.url}`
+            );
+            
+            // Refresh the tree to show the new server
+            treeDataProvider.refresh();
+          }
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Error launching example: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+
   // New command - Check certificate status
   const checkCertificatesCommand = vscode.commands.registerCommand(
     'integracionvsaframe.checkCertificates',
@@ -310,6 +368,48 @@ export function activate(context: vscode.ExtensionContext) {
             'Certificate generation will be implemented in a future update.'
           );
         }
+      }
+    }
+  );
+
+  // Command to stop all active servers
+  const stopAllServersCommand = vscode.commands.registerCommand(
+    'integracionvsaframe.stopAllServers',
+    async () => {
+      try {
+        const activeServers = getActiveServers();
+        
+        if (activeServers.length === 0) {
+          vscode.window.showInformationMessage('No active servers to stop');
+          return;
+        }
+        
+        // Ask for confirmation if multiple servers are running
+        if (activeServers.length > 1) {
+          const confirm = await vscode.window.showWarningMessage(
+            `Are you sure you want to stop all ${activeServers.length} running servers?`,
+            'Yes', 'No'
+          );
+          
+          if (confirm !== 'Yes') {
+            return;
+          }
+        }
+        
+        // Stop each server one by one
+        for (const server of activeServers) {
+          stopServer(server.id);
+        }
+        
+        vscode.window.showInformationMessage(`Stopped ${activeServers.length} servers successfully`);
+        
+        // Refresh the view
+        treeDataProvider.refresh();
+        
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Error stopping servers: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   );
@@ -426,9 +526,11 @@ export function activate(context: vscode.ExtensionContext) {
     
     // BabiaXR commands
     createBabiaXRVisualizationCommand,
+    launchBabiaXRExampleCommand,
     
     // New commands
     checkCertificatesCommand,
+    stopAllServersCommand,
     
     // BabiaXR configuration commands
     setBabiaBackgroundColorCommand,

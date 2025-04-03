@@ -40,11 +40,18 @@ const treeProvider_1 = require("../treeProvider");
  * Base class for all tree items
  */
 class TreeItem extends vscode.TreeItem {
-    constructor(label, tooltip, contextValue, collapsibleState, command, iconPath) {
+    label;
+    tooltip;
+    constructor(label, tooltip, contextValue, // Remove the readonly modifier
+    collapsibleState, command, iconPath) {
         super(label, collapsibleState);
+        this.label = label;
+        this.tooltip = tooltip;
         this.tooltip = tooltip;
         this.contextValue = contextValue;
-        this.command = command;
+        if (command) {
+            this.command = command;
+        }
         if (iconPath) {
             this.iconPath = iconPath;
         }

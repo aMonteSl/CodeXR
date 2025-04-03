@@ -37,11 +37,13 @@ exports.activeServer = exports.activeServerList = void 0;
 exports.getActiveServers = getActiveServers;
 exports.startServer = startServer;
 exports.stopServer = stopServer;
+exports.createServer = createServer;
 const vscode = __importStar(require("vscode"));
 const http = __importStar(require("http"));
 const https = __importStar(require("https"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
+const serverModel_1 = require("../models/serverModel");
 // Fix 1: Use relative path from src root to avoid module resolution issues
 const certificateManager_1 = require("../server/certificateManager");
 const requestHandler_1 = require("../server/requestHandler");
@@ -214,6 +216,94 @@ function stopServer(serverId) {
     }
     else {
         (0, statusBarManager_1.updateStatusBar)(activeServerList[activeServerList.length - 1].info);
+    }
+}
+/**
+ * Creates a server but returns the server info without opening a browser
+ * Useful for programmatic server creation like example launching
+ *
+ * @param filePath Path to HTML file to serve
+ * @param mode The server mode to use
+ * @param context Extension context
+ * @returns ServerInfo object or undefined if server creation failed
+ */
+async function createServer(filePath, mode, context) {
+    try {
+        // Extract server mode parameters
+        const useHttps = mode !== serverModel_1.ServerMode.HTTP;
+        const useDefaultCerts = mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+        // Get the directory where the selected HTML file is located
+        const fileDir = path.dirname(filePath);
+        // Find a free port
+        const getPortModule = await import('get-port');
+        const getPort = getPortModule.default;
+        const port = await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
+        // Create request handler
+        const requestHandler = (0, requestHandler_1.createRequestHandler)(fileDir, filePath);
+        // Create HTTP or HTTPS server based on the chosen option
+        let server;
+        if (useHttps) {
+            const { key, cert } = await (0, certificateManager_1.getCertificates)(context, useDefaultCerts);
+            server = https.createServer({ key, cert }, requestHandler);
+        }
+        else {
+            server = http.createServer(requestHandler);
+        }
+        // Set up file watching for live reload
+        const htmlWatcher = fs.watch(filePath, () => (0, liveReloadManager_1.notifyClients)());
+        const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
+            if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
+                setTimeout(() => (0, liveReloadManager_1.notifyClients)(), 300);
+            }
+        });
+        // Register watchers for cleanup
+        context.subscriptions.push({
+            dispose: () => {
+                htmlWatcher.close();
+                jsonWatcher.close();
+            }
+        });
+        // Generate server info
+        const protocol = useHttps ? 'https' : 'http';
+        const filename = path.basename(filePath, path.extname(filePath));
+        const serverUrl = `${protocol}://localhost:${port}`;
+        const displayUrl = `${protocol}://${filename}:${port}`;
+        const serverId = `server-${Date.now()}`;
+        const serverInfo = {
+            id: serverId,
+            url: serverUrl,
+            displayUrl: displayUrl,
+            protocol,
+            port,
+            filePath,
+            useHttps,
+            startTime: Date.now()
+        };
+        // Create server entry and start the server
+        const serverEntry = {
+            server,
+            info: serverInfo
+        };
+        // Start the server and wait for it to be ready
+        await new Promise((resolve) => {
+            server.listen(port, () => resolve());
+        });
+        // Add to active servers list
+        exports.activeServer = activeServer = serverEntry;
+        activeServerList.push(serverEntry);
+        // Register cleanup for extension deactivation
+        context.subscriptions.push({
+            dispose: () => {
+                server.close();
+            }
+        });
+        // Notify that there's a new server to update the UI
+        vscode.commands.executeCommand('integracionvsaframe.refreshView');
+        return serverInfo;
+    }
+    catch (error) {
+        vscode.window.showErrorMessage(`Error creating server: ${error instanceof Error ? error.message : String(error)}`);
+        return undefined;
     }
 }
 //# sourceMappingURL=serverManager.js.map

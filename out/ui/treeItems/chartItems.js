@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BabiaXRSectionItem = exports.BabiaXRConfigOption = exports.BabiaXRConfigItem = exports.ChartTypeItem = exports.CreateVisualizationItem = void 0;
+exports.BabiaXRExamplesContainer = exports.BabiaXRExampleItem = exports.BabiaXRSectionItem = exports.BabiaXRConfigOption = exports.BabiaXRConfigItem = exports.ChartTypeItem = exports.CreateVisualizationItem = void 0;
 const vscode = __importStar(require("vscode"));
 const baseItems_1 = require("./baseItems");
 const treeProvider_1 = require("../treeProvider");
@@ -42,7 +42,8 @@ const treeProvider_1 = require("../treeProvider");
  */
 class CreateVisualizationItem extends baseItems_1.TreeItem {
     constructor() {
-        super('Create Visualization', 'Select a visualization type for BabiaXR', treeProvider_1.TreeItemType.CREATE_VISUALIZATION, vscode.TreeItemCollapsibleState.Collapsed, undefined, new vscode.ThemeIcon('add'));
+        super('Create Visualization', 'Select a visualization type for BabiaXR', treeProvider_1.TreeItemType.CREATE_VISUALIZATION, vscode.TreeItemCollapsibleState.Collapsed, // Make sure this is Collapsed
+        undefined, new vscode.ThemeIcon('add'));
     }
 }
 exports.CreateVisualizationItem = CreateVisualizationItem;
@@ -149,4 +150,26 @@ class BabiaXRSectionItem extends baseItems_1.TreeItem {
     }
 }
 exports.BabiaXRSectionItem = BabiaXRSectionItem;
+/**
+ * Item for a BabiaXR example chart
+ */
+class BabiaXRExampleItem extends baseItems_1.TreeItem {
+    constructor(label, examplePath) {
+        super(label, "Launch this example visualization", treeProvider_1.TreeItemType.BABIAXR_EXAMPLE, vscode.TreeItemCollapsibleState.None, {
+            command: 'integracionvsaframe.launchBabiaXRExample',
+            title: `Launch ${label} Example`,
+            arguments: [examplePath]
+        }, new vscode.ThemeIcon('play'));
+    }
+}
+exports.BabiaXRExampleItem = BabiaXRExampleItem;
+/**
+ * Container for BabiaXR examples
+ */
+class BabiaXRExamplesContainer extends baseItems_1.TreeItem {
+    constructor() {
+        super("Examples", "Launch example visualizations", treeProvider_1.TreeItemType.BABIAXR_EXAMPLES_CONTAINER, vscode.TreeItemCollapsibleState.Collapsed, undefined, new vscode.ThemeIcon('library'));
+    }
+}
+exports.BabiaXRExamplesContainer = BabiaXRExamplesContainer;
 //# sourceMappingURL=chartItems.js.map
