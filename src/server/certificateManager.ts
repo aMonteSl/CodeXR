@@ -35,34 +35,31 @@ export async function getCertificates(
       }
     }
   } else {
-    // Dialog to select private key file
-    const keyOptions: vscode.OpenDialogOptions = {
-      canSelectMany: false,
-      openLabel: 'Select private key file (.key or .pem)',
-      filters: { 'Certificates': ['key', 'pem'] }
-    };
+    // Get paths of stored custom certificates
+    const customKeyPath = context.globalState.get<string>('customKeyPath');
+    const customCertPath = context.globalState.get<string>('customCertPath');
     
-    const keyUri = await vscode.window.showOpenDialog(keyOptions);
-    if (!keyUri || keyUri.length === 0) {
-      throw new Error('No private key file was selected');
+    // Verify paths exist
+    if (!customKeyPath || !customCertPath) {
+      throw new Error('No custom certificate paths stored. Please select certificate files first.');
     }
     
-    // Dialog to select certificate file
-    const certOptions: vscode.OpenDialogOptions = {
-      canSelectMany: false,
-      openLabel: 'Select certificate file (.cert or .pem)',
-      filters: { 'Certificates': ['cert', 'pem'] }
-    };
-    
-    const certUri = await vscode.window.showOpenDialog(certOptions);
-    if (!certUri || certUri.length === 0) {
-      throw new Error('No certificate file was selected');
+    if (!fs.existsSync(customKeyPath) || !fs.existsSync(customCertPath)) {
+      throw new Error('Custom certificate files not found at the stored paths.');
     }
     
-    // Load certificate and key files
-    const key = fs.readFileSync(keyUri[0].fsPath);
-    const cert = fs.readFileSync(certUri[0].fsPath);
-    return { key, cert };
+    try {
+      // Read certificate files
+      const key = fs.readFileSync(customKeyPath);
+      const cert = fs.readFileSync(customCertPath);
+      return { key, cert };
+    } catch (err) {
+      if (err instanceof Error) {
+        throw new Error(`Error reading custom certificates: ${err.message}`);
+      } else {
+        throw new Error('Error reading custom certificates');
+      }
+    }
   }
 }
 

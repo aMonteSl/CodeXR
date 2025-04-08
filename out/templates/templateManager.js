@@ -42,7 +42,7 @@ exports.isUrl = isUrl;
 exports.processTemplate = processTemplate;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const chartModel_1 = require("../models/chartModel");
+const chartModel_1 = require("../babiaxr/models/chartModel");
 /**
  * Get the template file name for a chart type
  */

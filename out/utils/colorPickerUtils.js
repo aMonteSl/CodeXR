@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.showColorPicker = showColorPicker;
-const colorPickerWebView_1 = require("./colorPickerWebView");
+const colorPickerWebView_1 = require("../ui/webviews/colorPickerWebView");
 // Color presets with friendly names for quick selection
 const COLOR_PRESETS = [
     { name: 'Dark Blue', hex: '#112233' },

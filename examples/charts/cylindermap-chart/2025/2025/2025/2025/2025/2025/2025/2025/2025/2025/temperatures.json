@@ -1,0 +1,14 @@
+[
+  { "city": "Madrid", "temperature": 14, "month": "January", "season": "Winter" },
+  { "city": "Madrid", "temperature": 16, "month": "February", "season": "Winter" },
+  { "city": "Madrid", "temperature": 19, "month": "March", "season": "Spring" },
+  { "city": "Madrid", "temperature": 22, "month": "April", "season": "Spring" },
+  { "city": "Madrid", "temperature": 25, "month": "May", "season": "Spring" },
+  { "city": "Madrid", "temperature": 30, "month": "June", "season": "Summer" },
+  { "city": "Barcelona", "temperature": 16, "month": "January", "season": "Winter" },
+  { "city": "Barcelona", "temperature": 17, "month": "February", "season": "Winter" },
+  { "city": "Barcelona", "temperature": 19, "month": "March", "season": "Spring" },
+  { "city": "Barcelona", "temperature": 21, "month": "April", "season": "Spring" },
+  { "city": "Barcelona", "temperature": 24, "month": "May", "season": "Spring" },
+  { "city": "Barcelona", "temperature": 27, "month": "June", "season": "Summer" }
+]

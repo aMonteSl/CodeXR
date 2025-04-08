@@ -118,6 +118,21 @@
         "command": "integracionvsaframe.stopAllServers",
         "title": "Stop All Servers",
         "icon": "$(stop)"
+      },
+      {
+        "command": "integracionvsaframe.analyzeCurrentFile",
+        "title": "Analyze Current JavaScript/TypeScript File",
+        "category": "Code Analysis"
+      },
+      {
+        "command": "integracionvsaframe.analyzeFolder",
+        "title": "Analyze JavaScript/TypeScript Folder",
+        "category": "Code Analysis"
+      },
+      {
+        "command": "integracionvsaframe.showJSMetricsDetails",
+        "title": "Show JavaScript Metrics Details",
+        "category": "BabiaXR"
       }
     ],
     "menus": {
@@ -159,6 +174,20 @@
           "when": "view == integracionvsaframe.serverTreeView && viewItem == serverContainer",
           "group": "1_actions"
         }
+      ],
+      "editor/context": [
+        {
+          "command": "integracionvsaframe.analyzeCurrentFile",
+          "when": "resourceLangId =~ /javascript|typescript|javascriptreact|typescriptreact/",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "integracionvsaframe.analyzeFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation"
+        }
       ]
     },
     "viewsContainers": {
@@ -175,6 +204,13 @@
         {
           "id": "integracionvsaframe.serverTreeView",
           "name": "A-Frame Servers & Visualizations"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "integracionvsaframe.analysisView",
+          "name": "JavaScript Analysis",
+          "when": "true"
         }
       ]
     },

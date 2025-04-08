@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { ChartType, ChartData, TemplateVariableMap, ChartSpecification } from '../models/chartModel';
+import { ChartType, ChartData, TemplateVariableMap, ChartSpecification } from '../babiaxr/models/chartModel';
 
 /**
  * Data structure representing a processed template
@@ -62,14 +62,19 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
   // We use a generic value that will be replaced when saving
   const dataSource = "data.json";
   
-  // Prepare individual dimensions for the axes
-  const xDimension = data.dimensions[0] || 'product';
-  const yDimension = data.dimensions[1] || 'sales';
+  // Prepare individual dimensions for the axes using the data properties
+  // with fallbacks in case dimensions array is undefined
+  const dimensions = data.dimensions || [];
+  const xDimension = dimensions[0] || data.xKey || 'product';
+  const yDimension = dimensions[1] || data.yKey || 'sales';
   
   // Compose the third axis if it exists
   let zDimensionAttr = '';
-  if (data.dimensions.length > 2) {
-    zDimensionAttr = `z_axis: ${data.dimensions[2]};`;
+  if (dimensions.length > 2 && dimensions[2]) {
+    zDimensionAttr = `z_axis: ${dimensions[2]};`;
+  } else if (data.zKey) {
+    // Fallback to zKey if no dimensions[2]
+    zDimensionAttr = `z_axis: ${data.zKey};`;
   }
   
   // Default values for options
@@ -95,14 +100,13 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     BAR_ROTATION: barRotation,
     DESCRIPTION: data.description || '',
     CHART_TYPE: chartSpecification.type,
-    // Add the environment variables
     BACKGROUND_COLOR: backgroundColor,
     ENVIRONMENT_PRESET: environmentPreset,
     GROUND_COLOR: groundColor,
     CHART_PALETTE: chartPalette
   };
   
-  return variableMap;
+  return variableMap; // Don't forget to return the variable map!
 }
 
 /**

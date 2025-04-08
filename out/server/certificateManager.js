@@ -35,7 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCertificates = getCertificates;
 exports.defaultCertificatesExist = defaultCertificatesExist;
-const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 /**
@@ -69,30 +68,30 @@ async function getCertificates(context, useDefaultCerts) {
         }
     }
     else {
-        // Dialog to select private key file
-        const keyOptions = {
-            canSelectMany: false,
-            openLabel: 'Select private key file (.key or .pem)',
-            filters: { 'Certificates': ['key', 'pem'] }
-        };
-        const keyUri = await vscode.window.showOpenDialog(keyOptions);
-        if (!keyUri || keyUri.length === 0) {
-            throw new Error('No private key file was selected');
+        // Get paths of stored custom certificates
+        const customKeyPath = context.globalState.get('customKeyPath');
+        const customCertPath = context.globalState.get('customCertPath');
+        // Verify paths exist
+        if (!customKeyPath || !customCertPath) {
+            throw new Error('No custom certificate paths stored. Please select certificate files first.');
         }
-        // Dialog to select certificate file
-        const certOptions = {
-            canSelectMany: false,
-            openLabel: 'Select certificate file (.cert or .pem)',
-            filters: { 'Certificates': ['cert', 'pem'] }
-        };
-        const certUri = await vscode.window.showOpenDialog(certOptions);
-        if (!certUri || certUri.length === 0) {
-            throw new Error('No certificate file was selected');
+        if (!fs.existsSync(customKeyPath) || !fs.existsSync(customCertPath)) {
+            throw new Error('Custom certificate files not found at the stored paths.');
         }
-        // Load certificate and key files
-        const key = fs.readFileSync(keyUri[0].fsPath);
-        const cert = fs.readFileSync(certUri[0].fsPath);
-        return { key, cert };
+        try {
+            // Read certificate files
+            const key = fs.readFileSync(customKeyPath);
+            const cert = fs.readFileSync(customCertPath);
+            return { key, cert };
+        }
+        catch (err) {
+            if (err instanceof Error) {
+                throw new Error(`Error reading custom certificates: ${err.message}`);
+            }
+            else {
+                throw new Error('Error reading custom certificates');
+            }
+        }
     }
 }
 /**

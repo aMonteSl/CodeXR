@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Simple Bar Chart</title>
+    <meta name="description" content="Basic bar chart visualization with BabiaXR">
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-babia-components/dist/aframe-babia-components.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.0.0/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.0/dist/aframe-extras.min.js"></script>
+</head>
+<body>
+    <a-scene background="color: #112233">
+        <!-- Environment -->
+        <a-entity environment="preset: tron; 
+                             groundColor: #223344; 
+                             skyColor: #112233;
+                             skyType: gradient;
+                             lighting: distant;
+                             ground: flat;
+                             dressing: none;
+                             gridColor: #4488FF;
+                             grid: 2x2;
+                             playArea: 20;
+                             fog: 0.1"></a-entity>
+        
+        <!-- Lights -->
+        <a-light type="point" intensity="0.6" position="-10 20 30" color="#88AAFF"></a-light>
+        <a-light type="ambient" intensity="0.4" color="#AABBFF"></a-light>
+
+        <!-- Simple Bar chart-->
+        <a-entity babia-bars="legend: true; axis: true; palette: commerce; title: Performance Metrics (projects completed); 
+                  titleColor: #FFFFFF; titlePosition: -5 0.3 0.5; heightMax: 30; animation: true;
+                  data: [
+                    {&quot;x_axis&quot;:&quot;Ana&quot;,&quot;height&quot;:25},
+                    {&quot;x_axis&quot;:&quot;Carlos&quot;,&quot;height&quot;:18},
+                    {&quot;x_axis&quot;:&quot;Miguel&quot;,&quot;height&quot;:12},
+                    {&quot;x_axis&quot;:&quot;Sofia&quot;,&quot;height&quot;:20},
+                    {&quot;x_axis&quot;:&quot;Pablo&quot;,&quot;height&quot;:15},
+                    {&quot;x_axis&quot;:&quot;Teresa&quot;,&quot;height&quot;:8},
+                    {&quot;x_axis&quot;:&quot;Javier&quot;,&quot;height&quot;:22},
+                    {&quot;x_axis&quot;:&quot;Elena&quot;,&quot;height&quot;:16}
+                  ]"
+                  position="0 0 -10" 
+                  rotation="0 0 0">
+        </a-entity>
+        
+        <!-- Camera with movement controls -->
+        <a-entity movement-controls="fly: true" position="0 10 12">
+            <a-entity camera position="0 0 0" look-controls></a-entity>
+            <a-entity cursor="rayOrigin: mouse"></a-entity>
+            <a-entity laser-controls="hand: right"></a-entity>
+        </a-entity>
+    </a-scene>
+</body>
+</html>

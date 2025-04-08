@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ServerInfo } from '../models/serverModel';
+import { ServerInfo } from '../server/models/serverModel';
 
 // Status bar item for quick access to server actions
 let statusBarItem: vscode.StatusBarItem | undefined;

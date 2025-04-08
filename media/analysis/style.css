@@ -1,0 +1,181 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+  padding: 15px;
+  margin: 0;
+}
+
+.header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  padding-bottom: 10px;
+}
+
+h1 {
+  font-size: 1.5em;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  margin-top: 0;
+  opacity: 0.8;
+}
+
+.message {
+  padding: 20px;
+  text-align: center;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.section {
+  margin-bottom: 25px;
+  background-color: var(--vscode-editor-background);
+  border-radius: 5px;
+  padding: 15px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.metric {
+  background-color: var(--vscode-input-background);
+  border-radius: 5px;
+  padding: 15px;
+  text-align: center;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.metric-value {
+  font-size: 2.2em;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: var(--vscode-textLink-foreground);
+}
+
+.metric-label {
+  font-size: 0.9em;
+  opacity: 0.9;
+}
+
+.files-list {
+  margin-top: 15px;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-item:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.file-name {
+  flex: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 10px;
+}
+
+.file-metrics {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.file-metric {
+  text-align: right;
+  color: var(--vscode-descriptionForeground);
+}
+
+.hidden {
+  display: none;
+}
+
+.chart-container {
+  height: 250px;
+  margin: 20px 0;
+}
+
+.pie-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.pie {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--vscode-charts-blue) 0% var(--code-percent),
+    var(--vscode-charts-red) var(--code-percent) calc(var(--code-percent) + var(--comment-percent)),
+    var(--vscode-charts-yellow) calc(var(--code-percent) + var(--comment-percent)) 100%
+  );
+}
+
+.pie-center {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  top: 30px;
+  left: 30px;
+  border-radius: 50%;
+  background-color: var(--vscode-editor-background);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.legend-color.code {
+  background-color: var(--vscode-charts-blue);
+}
+
+.legend-color.comments {
+  background-color: var(--vscode-charts-red);
+}
+
+.legend-color.blank {
+  background-color: var(--vscode-charts-yellow);
+}

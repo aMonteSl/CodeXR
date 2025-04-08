@@ -3,7 +3,7 @@ import * as http from 'http';
 import * as https from 'https';
 import * as path from 'path';
 import * as fs from 'fs';
-import { ServerInfo, ActiveServerEntry, ServerMode } from '../models/serverModel';
+import { ServerInfo, ActiveServerEntry, ServerMode } from './models/serverModel';
 
 // Fix 1: Use relative path from src root to avoid module resolution issues
 import { getCertificates, defaultCertificatesExist } from '../server/certificateManager';
@@ -57,12 +57,14 @@ export async function startServer(
   let server: http.Server | https.Server;
 
   try {
+    // Aquí está el problema - debemos usar los parámetros para decidir qué tipo de servidor crear
     if (useHttps) {
+      // Si useHttps es true, creamos un servidor HTTPS
       const { key, cert } = await getCertificates(context, useDefaultCerts);
       // Create HTTPS server with certificates
       server = https.createServer({ key, cert }, requestHandler);
     } else {
-      // Create standard HTTP server
+      // Si useHttps es false, creamos un servidor HTTP estándar
       server = http.createServer(requestHandler);
     }
     
@@ -231,9 +233,17 @@ export async function createServer(
   context: vscode.ExtensionContext
 ): Promise<ServerInfo | undefined> {
   try {
-    // Extract server mode parameters
-    const useHttps = mode !== ServerMode.HTTP;
-    const useDefaultCerts = mode === ServerMode.HTTPS_DEFAULT_CERTS;
+    // Asegurarnos de que aquí también funciona correctamente:
+    let useHttps = false;
+    let useDefaultCerts = false;
+
+    if (mode === ServerMode.HTTPS_DEFAULT_CERTS) {
+      useHttps = true;
+      useDefaultCerts = true;
+    } else if (mode === ServerMode.HTTPS_CUSTOM_CERTS) {
+      useHttps = true;
+      useDefaultCerts = false;
+    }
     
     // Get the directory where the selected HTML file is located
     const fileDir = path.dirname(filePath);

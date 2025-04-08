@@ -38,7 +38,7 @@ const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const baseItems_1 = require("./baseItems");
 const treeProvider_1 = require("../treeProvider");
-const serverModel_1 = require("../../models/serverModel");
+const serverModel_1 = require("../../server/models/serverModel");
 /**
  * Item to start the server
  */

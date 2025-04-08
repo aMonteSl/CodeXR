@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { showColorPickerWebView } from './colorPickerWebView';
+import { showColorPickerWebView } from '../ui/webviews/colorPickerWebView';
 
 // Color presets with friendly names for quick selection
 const COLOR_PRESETS = [

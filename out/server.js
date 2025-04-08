@@ -250,28 +250,28 @@ function createRequestHandler(fileDir, selectedFile) {
  * @returns HTML with LiveReload script injected
  */
 function injectLiveReloadScript(htmlContent) {
-    // Evitar duplicación
+    // Avoid duplication
     if (htmlContent.indexOf('<!-- LiveReload -->') !== -1) {
         return htmlContent;
     }
     const liveReloadScript = `<!-- LiveReload -->
 <script>
-  // Configuración para la recarga en vivo
+  // Configuration for live reload
   const evtSource = new EventSource('/livereload');
   
-  // Manejador de recarga
+  // Reload handler
   evtSource.onmessage = function(e) {
     if (e.data === 'reload') {
       window.location.reload();
     }
   };
   
-  // Limpieza al cerrar
+  // Cleanup when closing
   window.addEventListener('beforeunload', function() {
     evtSource.close();
   });
 </script>`;
-    // Insertar antes del cierre de body
+    // Insert before body closing tag
     if (htmlContent.indexOf('</body>') !== -1) {
         return htmlContent.replace('</body>', `${liveReloadScript}\n</body>`);
     }

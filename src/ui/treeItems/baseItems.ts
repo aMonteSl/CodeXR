@@ -5,6 +5,9 @@ import { TreeItemType } from '../treeProvider';
  * Base class for all tree items
  */
 export class TreeItem extends vscode.TreeItem {
+  // Add children property
+  public children?: TreeItem[];
+
   constructor(
     public readonly label: string,
     public readonly tooltip: string,

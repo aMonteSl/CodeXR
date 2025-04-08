@@ -40,7 +40,7 @@ exports.collectDonutChartOptions = collectDonutChartOptions;
 exports.collectPieChartOptions = collectPieChartOptions;
 exports.collectEnvironmentOptions = collectEnvironmentOptions;
 const vscode = __importStar(require("vscode"));
-const chartModel_1 = require("../models/chartModel");
+const chartModel_1 = require("../babiaxr/models/chartModel");
 const colorPickerUtils_1 = require("../utils/colorPickerUtils");
 /**
  * Collects chart-specific options based on chart type

@@ -43,7 +43,7 @@ const http = __importStar(require("http"));
 const https = __importStar(require("https"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
-const serverModel_1 = require("../models/serverModel");
+const serverModel_1 = require("./models/serverModel");
 // Fix 1: Use relative path from src root to avoid module resolution issues
 const certificateManager_1 = require("../server/certificateManager");
 const requestHandler_1 = require("../server/requestHandler");
@@ -83,13 +83,15 @@ async function startServer(selectedFile, context, useHttps = false, useDefaultCe
     // Create HTTP or HTTPS server based on the chosen option
     let server;
     try {
+        // Aquí está el problema - debemos usar los parámetros para decidir qué tipo de servidor crear
         if (useHttps) {
+            // Si useHttps es true, creamos un servidor HTTPS
             const { key, cert } = await (0, certificateManager_1.getCertificates)(context, useDefaultCerts);
             // Create HTTPS server with certificates
             server = https.createServer({ key, cert }, requestHandler);
         }
         else {
-            // Create standard HTTP server
+            // Si useHttps es false, creamos un servidor HTTP estándar
             server = http.createServer(requestHandler);
         }
         // Watch for changes in the HTML file to notify SSE clients
@@ -229,9 +231,17 @@ function stopServer(serverId) {
  */
 async function createServer(filePath, mode, context) {
     try {
-        // Extract server mode parameters
-        const useHttps = mode !== serverModel_1.ServerMode.HTTP;
-        const useDefaultCerts = mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+        // Asegurarnos de que aquí también funciona correctamente:
+        let useHttps = false;
+        let useDefaultCerts = false;
+        if (mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS) {
+            useHttps = true;
+            useDefaultCerts = true;
+        }
+        else if (mode === serverModel_1.ServerMode.HTTPS_CUSTOM_CERTS) {
+            useHttps = true;
+            useDefaultCerts = false;
+        }
         // Get the directory where the selected HTML file is located
         const fileDir = path.dirname(filePath);
         // Find a free port

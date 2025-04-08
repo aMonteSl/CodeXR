@@ -59,6 +59,15 @@ export function createRequestHandler(
   fileDir: string, 
   selectedFile: string
 ): http.RequestListener {
+  // Calcular la ruta base de la extensión CORRECTAMENTE
+  // __dirname es /home/adrian/integracionvsaframe/src/server/
+  // Necesitamos subir solo DOS niveles para llegar a la raíz del proyecto
+  const extensionPath = path.resolve(__dirname, '../..');
+  const examplesDataPath = path.join(extensionPath, 'examples', 'data');
+  
+  console.log(`Ruta base de la extensión: ${extensionPath}`);
+  console.log(`Ruta de datos de ejemplos: ${examplesDataPath}`);
+  
   return (req: http.IncomingMessage, res: http.ServerResponse) => {
     // Get URL path or default to '/'
     let urlPath = req.url || '/';
@@ -77,58 +86,90 @@ export function createRequestHandler(
     // Decode URL to handle spaces and special characters
     urlPath = decodeURIComponent(urlPath);
     
-    // Clean up path to prevent directory traversal
-    const safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
+    // Log the requested URL for debugging
+    console.log(`Requested URL: ${urlPath}`);
     
-    // Convert URL to file path
-    let filePath: string;
-    
-    // Special handling for relative URLs that go outside the example folder
-    if (safePath.includes('../../data/')) {
-      // Handle paths going to the data directory outside the example folder
-      const dataDir = path.join(path.dirname(fileDir), '..', 'data');
-      const dataFile = path.basename(safePath);
-      filePath = path.join(dataDir, dataFile);
+    // PASO 1: Determinar si se está solicitando un archivo JSON de datos
+    if (urlPath.includes('/data/') && urlPath.endsWith('.json')) {
+      // Es una solicitud de datos JSON
+      const jsonFileName = path.basename(urlPath);
       
-      console.log(`Resolving data path: ${safePath} -> ${filePath}`);
-    } else {
-      // Normal path resolution
-      filePath = path.join(fileDir, safePath.replace(/^\//, ''));
+      // Usar la ruta relativa calculada al inicio
+      const correctJsonPath = path.join(examplesDataPath, jsonFileName);
+      
+      console.log(`Intentando acceder JSON desde ruta dinámica: ${correctJsonPath}`);
+      
+      if (fs.existsSync(correctJsonPath)) {
+        // Archivo encontrado, servirlo inmediatamente
+        console.log(`Archivo JSON encontrado: ${correctJsonPath}`);
+        serveFile(correctJsonPath, res);
+        return;
+      }
     }
+    
+    // Procedimiento normal para otros archivos
+    let filePath = path.join(fileDir, urlPath.replace(/^\//, ''));
     
     // Check if file exists
     fs.stat(filePath, (err, stats) => {
       if (err) {
         console.error(`File not found: ${filePath}`);
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('File not found');
-        return;
-      }
-      
-      // Get file extension and content type
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = getContentType(ext);
-      
-      // Read file
-      fs.readFile(filePath, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end(`Server Error: ${err.message}`);
+        
+        // PASO 2: Para cualquier archivo no encontrado que sea JSON, intentar desde la ruta correcta
+        if (urlPath.endsWith('.json')) {
+          const jsonFileName = path.basename(urlPath);
+          
+          // Usar la ruta relativa calculada al inicio
+          const correctJsonPath = path.join(examplesDataPath, jsonFileName);
+          
+          console.log(`Último intento con ruta: ${correctJsonPath}`);
+          
+          fs.stat(correctJsonPath, (jsonErr, jsonStats) => {
+            if (jsonErr) {
+              res.writeHead(404, { 'Content-Type': 'text/plain' });
+              res.end(`File not found: ${urlPath}`);
+              return;
+            }
+            
+            // Servir desde la ruta correcta
+            serveFile(correctJsonPath, res);
+          });
           return;
         }
         
-        // Process HTML content
-        if (ext === '.html') {
-          // Inject live reload script
-          const processedData = injectLiveReloadScript(data.toString());
-          res.writeHead(200, { 'Content-Type': contentType });
-          res.end(processedData);
-        } else {
-          // Serve other files as-is
-          res.writeHead(200, { 'Content-Type': contentType });
-          res.end(data);
-        }
-      });
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end(`File not found: ${urlPath}`);
+        return;
+      }
+      
+      // Serve the file
+      serveFile(filePath, res);
     });
   };
+  
+  // Helper function to serve a file
+  function serveFile(filePath: string, res: http.ServerResponse) {
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = getContentType(ext);
+    
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end(`Server Error: ${err.message}`);
+        return;
+      }
+      
+      // Process HTML content
+      if (ext === '.html') {
+        // Inject live reload script
+        const processedData = injectLiveReloadScript(data.toString());
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(processedData);
+      } else {
+        // Serve other files as-is
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(data);
+      }
+    });
+  }
 }

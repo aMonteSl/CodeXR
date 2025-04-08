@@ -43,7 +43,7 @@ exports.collectDimensions = collectDimensions;
 const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const chartModel_1 = require("../models/chartModel");
+const chartModel_1 = require("../babiaxr/models/chartModel");
 /**
  * Collects information about the data source
  * @returns Path to the selected data file

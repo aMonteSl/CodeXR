@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { TreeItem } from './baseItems';
 import { TreeItemType } from '../treeProvider';
-import { ServerMode, ServerInfo } from '../../models/serverModel';
+import { ServerMode, ServerInfo } from '../../server/models/serverModel';
 
 /**
  * Item to start the server

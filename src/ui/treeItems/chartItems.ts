@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { TreeItem } from './baseItems';
 import { TreeItemType } from '../treeProvider';
-import { ChartType } from '../../models/chartModel';
+import { ChartType } from '../../babiaxr/models/chartModel';
 
 /**
  * Item to create a BabiaXR visualization
