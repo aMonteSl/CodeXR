@@ -4,6 +4,9 @@ Extension for Visual Studio Code that enables source code analysis (JavaScript, 
 
 Transform your workspace into an augmented programming environment, surrounded by 3D graphs and insights into your code.
 
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Key Features
 
 - ⚡ Optimized local server for WebXR experiences
@@ -160,3 +163,7 @@ Commands organized by category to facilitate maintenance:
 | SSL certificate issues | Use custom certificates if necessary |
 | VR/AR issues | Ensure you are using HTTPS |
 | JSON files | Verify format and UTF-8 encoding |
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
