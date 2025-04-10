@@ -3,10 +3,13 @@
   "displayName": "CodeXR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
   "version": "0.0.1",
+  "icon": "resources/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/aMonteSl/CodeXR.git"
   },
+  "license": "MIT",
+  "publisher": "Adrián Montes Linares",
   "engines": {
     "vscode": "^1.98.0"
   },
