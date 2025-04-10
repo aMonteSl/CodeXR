@@ -74,10 +74,10 @@ class BabiaTreeProvider {
         const groundColor = this.context.globalState.get('babiaGroundColor') || '#445566';
         const chartPalette = this.context.globalState.get('babiaChartPalette') || 'ubuntu';
         return Promise.resolve([
-            new chartItems_1.BabiaXRConfigOption('Background Color', 'Set default background color for visualizations', 'integracionvsaframe.setBabiaBackgroundColor', bgColor),
-            new chartItems_1.BabiaXRConfigOption('Environment Preset', 'Set default environment preset', 'integracionvsaframe.setBabiaEnvironmentPreset', envPreset),
-            new chartItems_1.BabiaXRConfigOption('Ground Color', 'Set default ground color', 'integracionvsaframe.setBabiaGroundColor', groundColor),
-            new chartItems_1.BabiaXRConfigOption('Chart Palette', 'Set default color palette for charts', 'integracionvsaframe.setBabiaChartPalette', chartPalette)
+            new chartItems_1.BabiaXRConfigOption('Background Color', 'Set default background color for visualizations', 'codexr.setBackgroundColor', bgColor),
+            new chartItems_1.BabiaXRConfigOption('Environment Preset', 'Set default environment preset', 'codexr.setEnvironmentPreset', envPreset),
+            new chartItems_1.BabiaXRConfigOption('Ground Color', 'Set default ground color', 'codexr.setGroundColor', groundColor),
+            new chartItems_1.BabiaXRConfigOption('Chart Palette', 'Set default color palette for charts', 'codexr.setChartPalette', chartPalette)
         ]);
     }
     /**

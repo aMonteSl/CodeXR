@@ -48,9 +48,9 @@ const certificateManager_1 = require("../server/certificateManager");
 function registerServerCommands(context, treeDataProvider) {
     const disposables = [];
     // Command to change server mode
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.changeServerMode', (mode) => treeDataProvider.changeServerMode(mode)));
+    disposables.push(vscode.commands.registerCommand('codexr.changeServerMode', (mode) => treeDataProvider.changeServerMode(mode)));
     // Command to start server with current configuration
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.startServerWithConfig', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.startServerWithConfig', async () => {
         const currentMode = context.globalState.get('serverMode') ||
             serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
         // Add this diagnostic logging
@@ -105,7 +105,7 @@ function registerServerCommands(context, treeDataProvider) {
         }
     }));
     // Legacy command to start server (maintains compatibility)
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.startLocalServer', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.startLocalServer', async () => {
         try {
             // First, ask user if they want to use HTTPS
             const serverType = await vscode.window.showQuickPick(['HTTP', 'HTTPS (requires certificates)'], { placeHolder: 'Select server type' });
@@ -161,12 +161,12 @@ function registerServerCommands(context, treeDataProvider) {
         }
     }));
     // Command to stop server
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.stopLocalServer', (serverId) => {
+    disposables.push(vscode.commands.registerCommand('codexr.stopLocalServer', (serverId) => {
         (0, serverManager_1.stopServer)(serverId);
         treeDataProvider.refresh();
     }));
     // Command to show options for an active server
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.serverOptions', async (serverInfo) => {
+    disposables.push(vscode.commands.registerCommand('codexr.serverOptions', async (serverInfo) => {
         try {
             const selection = await vscode.window.showQuickPick([
                 { label: '$(globe) Open in Browser', id: 'open' },
@@ -207,7 +207,7 @@ function registerServerCommands(context, treeDataProvider) {
         }
     }));
     // Command for server status actions
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.serverStatusActions', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.serverStatusActions', async () => {
         try {
             const activeServers = (0, serverManager_1.getActiveServers)();
             if (activeServers.length === 0) {
@@ -216,7 +216,7 @@ function registerServerCommands(context, treeDataProvider) {
             }
             // If there's only one server, show options directly
             if (activeServers.length === 1) {
-                vscode.commands.executeCommand('integracionvsaframe.serverOptions', activeServers[0]);
+                vscode.commands.executeCommand('codexr.serverOptions', activeServers[0]);
                 return;
             }
             // If there are multiple servers, show list to select
@@ -229,7 +229,7 @@ function registerServerCommands(context, treeDataProvider) {
                 placeHolder: 'Select a server',
             });
             if (selected) {
-                vscode.commands.executeCommand('integracionvsaframe.serverOptions', selected.server);
+                vscode.commands.executeCommand('codexr.serverOptions', selected.server);
             }
         }
         catch (error) {
@@ -237,7 +237,7 @@ function registerServerCommands(context, treeDataProvider) {
         }
     }));
     // Command to check certificate status
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.checkCertificates', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.checkCertificates', async () => {
         const certStatus = (0, certificateManager_1.defaultCertificatesExist)(context);
         if (certStatus) {
             vscode.window.showInformationMessage('Default SSL certificates are present and ready to use for HTTPS servers.');
@@ -254,7 +254,7 @@ function registerServerCommands(context, treeDataProvider) {
         }
     }));
     // Command to stop all active servers
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.stopAllServers', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.stopAllServers', async () => {
         try {
             const activeServers = (0, serverManager_1.getActiveServers)();
             if (activeServers.length === 0) {
@@ -281,7 +281,7 @@ function registerServerCommands(context, treeDataProvider) {
         }
     }));
     // Command to launch a BabiaXR example with server
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.launchBabiaXRExample', async (examplePath) => {
+    disposables.push(vscode.commands.registerCommand('codexr.launchBabiaXRExample', async (examplePath) => {
         try {
             if (!examplePath) {
                 vscode.window.showErrorMessage('No example path provided');

@@ -40,7 +40,7 @@ const vscode = __importStar(require("vscode"));
  */
 class AnalysisViewProvider {
     _extensionUri;
-    static viewType = 'integracionvsaframe.analysisView';
+    static viewType = 'codexr.analysisView';
     _view;
     _pendingAnalysis;
     constructor(_extensionUri) {
@@ -128,7 +128,7 @@ class AnalysisViewProvider {
         }
     }
     /**
-     * Mostrar resultados en un panel webview si la vista no está disponible
+     * Show results in a webview panel if the view is not available
      */
     _createAnalysisPanel(analysis) {
         // Crear un panel webview como alternativa

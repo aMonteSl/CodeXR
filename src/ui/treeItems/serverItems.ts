@@ -37,7 +37,7 @@ export class StartServerItem extends TreeItem {
       initialContextValue,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'integracionvsaframe.startServerWithConfig',
+        command: 'codexr.startServerWithConfig',
         title: 'Start Server'
       },
       new vscode.ThemeIcon('play')
@@ -97,7 +97,7 @@ export class ServerModeItem extends TreeItem {
       TreeItemType.SERVER_MODE,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'integracionvsaframe.changeServerMode',
+        command: 'codexr.changeServerMode',
         title: 'Change server mode',
         arguments: [mode]
       },
@@ -141,7 +141,7 @@ Click to see options`,
       TreeItemType.ACTIVE_SERVER,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'integracionvsaframe.serverOptions',
+        command: 'codexr.serverOptions',
         title: 'Server Options',
         arguments: [serverInfo]
       },

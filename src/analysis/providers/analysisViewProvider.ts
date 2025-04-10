@@ -6,7 +6,7 @@ import { FileAnalysis, ProjectAnalysis } from '../models/analysisModel';
  * Provides a webview for displaying code analysis results
  */
 export class AnalysisViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'integracionvsaframe.analysisView';
+  public static readonly viewType = 'codexr.analysisView';
   
   private _view?: vscode.WebviewView;
   private _pendingAnalysis?: {type: 'file' | 'project', data: FileAnalysis | ProjectAnalysis};
@@ -112,7 +112,7 @@ export class AnalysisViewProvider implements vscode.WebviewViewProvider {
   }
   
   /**
-   * Mostrar resultados en un panel webview si la vista no está disponible
+   * Show results in a webview panel if the view is not available
    */
   private _createAnalysisPanel(analysis: FileAnalysis | ProjectAnalysis) {
     // Crear un panel webview como alternativa

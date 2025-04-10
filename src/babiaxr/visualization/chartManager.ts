@@ -11,6 +11,7 @@ import {
 import { 
   saveHtmlToFile 
 } from '../templates/fileManager';
+import { ServerMode } from '../../server/models/serverModel';
 
 /**
  * Creates an HTML file with a BabiaXR visualization based on the selected template
@@ -85,6 +86,16 @@ export async function launchBabiaXRVisualization(
   filePath: string, 
   context: vscode.ExtensionContext
 ): Promise<void> {
-  // Start HTTPS server (required for WebXR)
-  await startServer(filePath, context, true, true);
+  // Obtener el modo de servidor configurado actualmente
+  const serverMode = context.globalState.get<ServerMode>('serverMode') || ServerMode.HTTPS_DEFAULT_CERTS;
+  
+  // Determinar si se debe usar HTTPS basado en la configuración del usuario
+  const useHttps = serverMode === ServerMode.HTTPS_DEFAULT_CERTS || 
+                  serverMode === ServerMode.HTTPS_CUSTOM_CERTS;
+  
+  // Determinar si se deben usar certificados predeterminados
+  const useDefaultCerts = serverMode === ServerMode.HTTPS_DEFAULT_CERTS;
+  
+  // Iniciar el servidor respetando la configuración
+  await startServer(filePath, context, useHttps, useDefaultCerts);
 }

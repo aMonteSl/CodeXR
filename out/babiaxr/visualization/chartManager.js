@@ -39,6 +39,7 @@ const vscode = __importStar(require("vscode"));
 const serverManager_1 = require("../../server/serverManager");
 const templateManager_1 = require("../templates/templateManager");
 const fileManager_1 = require("../templates/fileManager");
+const serverModel_1 = require("../../server/models/serverModel");
 /**
  * Creates an HTML file with a BabiaXR visualization based on the selected template
  * @param chartType The type of chart to create
@@ -97,7 +98,14 @@ async function createBabiaXRVisualization(chartType, chartData, context) {
  * @param context Extension context
  */
 async function launchBabiaXRVisualization(filePath, context) {
-    // Start HTTPS server (required for WebXR)
-    await (0, serverManager_1.startServer)(filePath, context, true, true);
+    // Obtener el modo de servidor configurado actualmente
+    const serverMode = context.globalState.get('serverMode') || serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+    // Determinar si se debe usar HTTPS basado en la configuración del usuario
+    const useHttps = serverMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS ||
+        serverMode === serverModel_1.ServerMode.HTTPS_CUSTOM_CERTS;
+    // Determinar si se deben usar certificados predeterminados
+    const useDefaultCerts = serverMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+    // Iniciar el servidor respetando la configuración
+    await (0, serverManager_1.startServer)(filePath, context, useHttps, useDefaultCerts);
 }
 //# sourceMappingURL=chartManager.js.map

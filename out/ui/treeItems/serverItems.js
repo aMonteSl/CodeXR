@@ -64,7 +64,7 @@ class StartServerItem extends baseItems_1.TreeItem {
             ? 'warning'
             : treeProvider_1.TreeItemType.START_SERVER;
         super('Start Local Server', 'Start server in ' + currentMode + ' mode\nSelect an HTML file to serve', initialContextValue, vscode.TreeItemCollapsibleState.None, {
-            command: 'integracionvsaframe.startServerWithConfig',
+            command: 'codexr.startServerWithConfig',
             title: 'Start Server'
         }, new vscode.ThemeIcon('play'));
         this.description = description;
@@ -105,7 +105,7 @@ class ServerModeItem extends baseItems_1.TreeItem {
                 break;
         }
         super(mode, tooltip, treeProvider_1.TreeItemType.SERVER_MODE, vscode.TreeItemCollapsibleState.None, {
-            command: 'integracionvsaframe.changeServerMode',
+            command: 'codexr.changeServerMode',
             title: 'Change server mode',
             arguments: [mode]
         }, iconPath);
@@ -135,7 +135,7 @@ class ActiveServerItem extends baseItems_1.TreeItem {
 Path: ${serverInfo.filePath}
 URL: ${serverInfo.url}
 Click to see options`, treeProvider_1.TreeItemType.ACTIVE_SERVER, vscode.TreeItemCollapsibleState.None, {
-            command: 'integracionvsaframe.serverOptions',
+            command: 'codexr.serverOptions',
             title: 'Server Options',
             arguments: [serverInfo]
         }, new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe'));

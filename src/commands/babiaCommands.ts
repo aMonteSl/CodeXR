@@ -63,9 +63,9 @@ export function registerBabiaCommands(
 ): vscode.Disposable[] {
   const disposables: vscode.Disposable[] = [];
   
-  // Command to create BabiaXR visualization
+  // Command to create visualization
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.createBabiaXRVisualization', async (chartType: ChartType) => {
+    vscode.commands.registerCommand('codexr.createVisualization', async (chartType: ChartType) => {
       try {
         // Collect chart data from user - pass context
         const chartData = await collectChartData(chartType, context);
@@ -109,7 +109,7 @@ export function registerBabiaCommands(
   
   // Command to set background color
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.setBabiaBackgroundColor', async () => {
+    vscode.commands.registerCommand('codexr.setBackgroundColor', async () => {
       try {
         const backgroundColor = await showColorPicker(
           'Select Background Color',
@@ -128,7 +128,7 @@ export function registerBabiaCommands(
 
   // Command to set environment preset
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.setBabiaEnvironmentPreset', async () => {
+    vscode.commands.registerCommand('codexr.setEnvironmentPreset', async () => {
       try {
         const environmentPreset = await vscode.window.showQuickPick(
           ENVIRONMENT_PRESETS.map(preset => ({
@@ -153,7 +153,7 @@ export function registerBabiaCommands(
 
   // Command to set ground color
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.setBabiaGroundColor', async () => {
+    vscode.commands.registerCommand('codexr.setGroundColor', async () => {
       try {
         const groundColor = await showColorPicker(
           'Select Ground Color',
@@ -172,7 +172,7 @@ export function registerBabiaCommands(
 
   // Command to set chart palette
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.setBabiaChartPalette', async () => {
+    vscode.commands.registerCommand('codexr.setChartPalette', async () => {
       try {
         const chartPalette = await vscode.window.showQuickPick(
           COLOR_PALETTES.map(palette => ({

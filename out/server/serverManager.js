@@ -145,7 +145,7 @@ async function startServer(selectedFile, context, useHttps = false, useDefaultCe
             exports.activeServer = activeServer = serverEntry;
             activeServerList.push(serverEntry);
             // Notify that there's a new server to update the UI
-            vscode.commands.executeCommand('integracionvsaframe.refreshView');
+            vscode.commands.executeCommand('codexr.refreshView');
             // Show initial notification with options
             vscode.window.showInformationMessage(`${protocol.toUpperCase()} server running at ${displayUrl}`, 'Open in browser', 'Stop server').then(selection => {
                 if (selection === 'Open in browser') {
@@ -211,7 +211,7 @@ function stopServer(serverId) {
         }
     }
     // Update UI
-    vscode.commands.executeCommand('integracionvsaframe.refreshView');
+    vscode.commands.executeCommand('codexr.refreshView');
     // Update status bar using the new module
     if (activeServerList.length === 0) {
         (0, statusBarManager_1.disposeStatusBar)();
@@ -308,7 +308,7 @@ async function createServer(filePath, mode, context) {
             }
         });
         // Notify that there's a new server to update the UI
-        vscode.commands.executeCommand('integracionvsaframe.refreshView');
+        vscode.commands.executeCommand('codexr.refreshView');
         return serverInfo;
     }
     catch (error) {

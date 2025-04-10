@@ -53,7 +53,7 @@ exports.CreateVisualizationItem = CreateVisualizationItem;
 class ChartTypeItem extends baseItems_1.TreeItem {
     constructor(chartType, tooltip) {
         super(chartType, tooltip, treeProvider_1.TreeItemType.CHART_TYPE, vscode.TreeItemCollapsibleState.None, {
-            command: 'integracionvsaframe.createBabiaXRVisualization',
+            command: 'codexr.createVisualization',
             title: `Create ${chartType}`,
             arguments: [chartType]
         }, new vscode.ThemeIcon('graph'));
@@ -156,7 +156,7 @@ exports.BabiaXRSectionItem = BabiaXRSectionItem;
 class BabiaXRExampleItem extends baseItems_1.TreeItem {
     constructor(label, examplePath) {
         super(label, "Launch this example visualization", treeProvider_1.TreeItemType.BABIAXR_EXAMPLE, vscode.TreeItemCollapsibleState.None, {
-            command: 'integracionvsaframe.launchBabiaXRExample',
+            command: 'codexr.launchBabiaXRExample', // Actualizado a codexr
             title: `Launch ${label} Example`,
             arguments: [examplePath]
         }, new vscode.ThemeIcon('play'));

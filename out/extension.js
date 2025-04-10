@@ -45,14 +45,14 @@ const serverManager_1 = require("./server/serverManager");
  * This function is executed when the extension is activated
  */
 function activate(context) {
-    console.log('Extension "integracionvsaframe" is now active.');
+    console.log('Extension "CodeXR" is now active.');
     // Initialize status bar
     const jsMetricsStatusBar = (0, statusBar_1.initializeStatusBar)(context);
     context.subscriptions.push(jsMetricsStatusBar);
     // Register tree data provider for the unified view
     const treeDataProvider = new treeProvider_1.LocalServerProvider(context);
     // Register tree view
-    const treeView = vscode.window.createTreeView('integracionvsaframe.serverTreeView', {
+    const treeView = vscode.window.createTreeView('codexr.serverTreeView', {
         treeDataProvider: treeDataProvider
     });
     context.subscriptions.push(treeView);
@@ -60,7 +60,7 @@ function activate(context) {
     const analysisViewProvider = new analysisViewProvider_1.AnalysisViewProvider(context.extensionUri);
     console.log('AnalysisViewProvider instance created');
     // Register the provider
-    const analysisViewRegistration = vscode.window.registerWebviewViewProvider(analysisViewProvider_1.AnalysisViewProvider.viewType, analysisViewProvider, {
+    const analysisViewRegistration = vscode.window.registerWebviewViewProvider('codexr.analysisView', analysisViewProvider, {
         webviewOptions: {
             retainContextWhenHidden: true
         }
@@ -70,6 +70,21 @@ function activate(context) {
     // Register all commands
     const commandDisposables = (0, commands_1.registerCommands)(context, treeDataProvider, analysisViewProvider);
     context.subscriptions.push(...commandDisposables);
+    // Register alias commands to maintain backward compatibility
+    registerCommandAliases(context);
+}
+/**
+ * Registers aliases for commands to maintain backward compatibility
+ */
+function registerCommandAliases(context) {
+    // Mapping of old command IDs to new ones
+    const commandMappings = {};
+    // Register each command alias
+    for (const [oldCommand, newCommand] of Object.entries(commandMappings)) {
+        context.subscriptions.push(vscode.commands.registerCommand(oldCommand, (...args) => {
+            return vscode.commands.executeCommand(newCommand, ...args);
+        }));
+    }
 }
 /**
  * This function is executed when the extension is deactivated

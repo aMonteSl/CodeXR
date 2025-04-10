@@ -129,7 +129,7 @@ export async function startServer(
       activeServerList.push(serverEntry);
       
       // Notify that there's a new server to update the UI
-      vscode.commands.executeCommand('integracionvsaframe.refreshView');
+      vscode.commands.executeCommand('codexr.refreshView');
       
       // Show initial notification with options
       vscode.window.showInformationMessage(
@@ -208,7 +208,7 @@ export function stopServer(serverId?: string): void {
   }
   
   // Update UI
-  vscode.commands.executeCommand('integracionvsaframe.refreshView');
+  vscode.commands.executeCommand('codexr.refreshView');
   
   // Update status bar using the new module
   if (activeServerList.length === 0) {
@@ -323,7 +323,7 @@ export async function createServer(
     });
     
     // Notify that there's a new server to update the UI
-    vscode.commands.executeCommand('integracionvsaframe.refreshView');
+    vscode.commands.executeCommand('codexr.refreshView');
     
     return serverInfo;
   } catch (error) {

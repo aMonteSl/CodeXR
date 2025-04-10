@@ -19,14 +19,14 @@ export function registerServerCommands(
   
   // Command to change server mode
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.changeServerMode', 
+    vscode.commands.registerCommand('codexr.changeServerMode', 
       (mode: ServerMode) => treeDataProvider.changeServerMode(mode)
     )
   );
 
   // Command to start server with current configuration
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.startServerWithConfig', async () => {
+    vscode.commands.registerCommand('codexr.startServerWithConfig', async () => {
       const currentMode = context.globalState.get<ServerMode>('serverMode') || 
         ServerMode.HTTPS_DEFAULT_CERTS;
       
@@ -96,7 +96,7 @@ export function registerServerCommands(
 
   // Legacy command to start server (maintains compatibility)
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.startLocalServer', async () => {
+    vscode.commands.registerCommand('codexr.startLocalServer', async () => {
       try {
         // First, ask user if they want to use HTTPS
         const serverType = await vscode.window.showQuickPick(
@@ -167,7 +167,7 @@ export function registerServerCommands(
 
   // Command to stop server
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.stopLocalServer', (serverId?: string) => {
+    vscode.commands.registerCommand('codexr.stopLocalServer', (serverId?: string) => {
       stopServer(serverId);
       treeDataProvider.refresh();
     })
@@ -175,7 +175,7 @@ export function registerServerCommands(
 
   // Command to show options for an active server
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.serverOptions', async (serverInfo: ServerInfo) => {
+    vscode.commands.registerCommand('codexr.serverOptions', async (serverInfo: ServerInfo) => {
       try {
         const selection = await vscode.window.showQuickPick(
           [
@@ -224,7 +224,7 @@ export function registerServerCommands(
 
   // Command for server status actions
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.serverStatusActions', async () => {
+    vscode.commands.registerCommand('codexr.serverStatusActions', async () => {
       try {
         const activeServers = getActiveServers();
         
@@ -235,7 +235,7 @@ export function registerServerCommands(
         
         // If there's only one server, show options directly
         if (activeServers.length === 1) {
-          vscode.commands.executeCommand('integracionvsaframe.serverOptions', activeServers[0]);
+          vscode.commands.executeCommand('codexr.serverOptions', activeServers[0]);
           return;
         }
         
@@ -251,7 +251,7 @@ export function registerServerCommands(
         });
         
         if (selected) {
-          vscode.commands.executeCommand('integracionvsaframe.serverOptions', selected.server);
+          vscode.commands.executeCommand('codexr.serverOptions', selected.server);
         }
       } catch (error) {
         vscode.window.showErrorMessage(`Error showing server status: ${error instanceof Error ? error.message : String(error)}`);
@@ -261,7 +261,7 @@ export function registerServerCommands(
 
   // Command to check certificate status
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.checkCertificates', async () => {
+    vscode.commands.registerCommand('codexr.checkCertificates', async () => {
       const certStatus = defaultCertificatesExist(context);
       if (certStatus) {
         vscode.window.showInformationMessage(
@@ -289,7 +289,7 @@ export function registerServerCommands(
 
   // Command to stop all active servers
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.stopAllServers', async () => {
+    vscode.commands.registerCommand('codexr.stopAllServers', async () => {
       try {
         const activeServers = getActiveServers();
         
@@ -329,7 +329,7 @@ export function registerServerCommands(
 
   // Command to launch a BabiaXR example with server
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.launchBabiaXRExample', async (examplePath: string) => {
+    vscode.commands.registerCommand('codexr.launchBabiaXRExample', async (examplePath: string) => {
       try {
         if (!examplePath) {
           vscode.window.showErrorMessage('No example path provided');

@@ -15,7 +15,7 @@ export function initializeStatusBar(context: vscode.ExtensionContext): vscode.St
     vscode.StatusBarAlignment.Right,
     100
   );
-  jsMetricsStatusBar.command = 'integracionvsaframe.showJSMetricsDetails';
+  jsMetricsStatusBar.command = 'codexr.showJSMetricsDetails';
   
   // Set up event handlers for updating
   setupStatusBarEvents(jsMetricsStatusBar, context);

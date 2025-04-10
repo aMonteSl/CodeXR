@@ -90,8 +90,8 @@ const COLOR_PALETTES = [
  */
 function registerBabiaCommands(context, treeDataProvider) {
     const disposables = [];
-    // Command to create BabiaXR visualization
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.createBabiaXRVisualization', async (chartType) => {
+    // Command to create visualization
+    disposables.push(vscode.commands.registerCommand('codexr.createVisualization', async (chartType) => {
         try {
             // Collect chart data from user - pass context
             const chartData = await (0, dataCollector_1.collectChartData)(chartType, context);
@@ -123,7 +123,7 @@ function registerBabiaCommands(context, treeDataProvider) {
         }
     }));
     // Command to set background color
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.setBabiaBackgroundColor', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.setBackgroundColor', async () => {
         try {
             const backgroundColor = await (0, colorPickerUtils_1.showColorPicker)('Select Background Color', context.globalState.get('babiaBackgroundColor') || '#112233');
             if (backgroundColor) {
@@ -136,7 +136,7 @@ function registerBabiaCommands(context, treeDataProvider) {
         }
     }));
     // Command to set environment preset
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.setBabiaEnvironmentPreset', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.setEnvironmentPreset', async () => {
         try {
             const environmentPreset = await vscode.window.showQuickPick(ENVIRONMENT_PRESETS.map(preset => ({
                 label: preset.value,
@@ -155,7 +155,7 @@ function registerBabiaCommands(context, treeDataProvider) {
         }
     }));
     // Command to set ground color
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.setBabiaGroundColor', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.setGroundColor', async () => {
         try {
             const groundColor = await (0, colorPickerUtils_1.showColorPicker)('Select Ground Color', context.globalState.get('babiaGroundColor') || '#445566');
             if (groundColor) {
@@ -168,7 +168,7 @@ function registerBabiaCommands(context, treeDataProvider) {
         }
     }));
     // Command to set chart palette
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.setBabiaChartPalette', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.setChartPalette', async () => {
         try {
             const chartPalette = await vscode.window.showQuickPick(COLOR_PALETTES.map(palette => ({
                 label: palette.value,

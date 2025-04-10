@@ -43,11 +43,11 @@ const vscode = __importStar(require("vscode"));
 function registerUICommands(treeDataProvider) {
     const disposables = [];
     // Command to refresh the view
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.refreshView', () => {
+    disposables.push(vscode.commands.registerCommand('codexr.refreshView', () => {
         treeDataProvider.refresh();
     }));
     // Command for refreshing the server view (alias for backwards compatibility)
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.refreshServerView', () => {
+    disposables.push(vscode.commands.registerCommand('codexr.refreshServerView', () => {
         treeDataProvider.refresh();
     }));
     return disposables;

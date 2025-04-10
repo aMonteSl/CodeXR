@@ -51,25 +51,25 @@ export class BabiaTreeProvider {
       new BabiaXRConfigOption(
         'Background Color', 
         'Set default background color for visualizations',
-        'integracionvsaframe.setBabiaBackgroundColor',
+        'codexr.setBackgroundColor',
         bgColor
       ),
       new BabiaXRConfigOption(
         'Environment Preset', 
         'Set default environment preset',
-        'integracionvsaframe.setBabiaEnvironmentPreset',
+        'codexr.setEnvironmentPreset',
         envPreset
       ),
       new BabiaXRConfigOption(
         'Ground Color', 
         'Set default ground color',
-        'integracionvsaframe.setBabiaGroundColor',
+        'codexr.setGroundColor',
         groundColor
       ),
       new BabiaXRConfigOption(
         'Chart Palette', 
         'Set default color palette for charts',
-        'integracionvsaframe.setBabiaChartPalette',
+        'codexr.setChartPalette',
         chartPalette
       )
     ]);

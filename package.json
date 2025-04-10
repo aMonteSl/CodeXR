@@ -1,7 +1,7 @@
 {
-  "name": "integracionvsaframe",
-  "displayName": "IntegracionVSAFrame",
-  "description": "First extension attempting to create something with A-Frame",
+  "name": "codexr",
+  "displayName": "CodeXR",
+  "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.98.0"
@@ -14,177 +14,177 @@
   "contributes": {
     "commands": [
       {
-        "command": "integracionvsaframe.startLocalServer",
-        "title": "A-Frame: Start Local Server",
+        "command": "codexr.startLocalServer",
+        "title": "WebXR: Start Local Server",
         "icon": {
           "light": "resources/light/server-start.svg",
           "dark": "resources/dark/server-start.svg"
         }
       },
       {
-        "command": "integracionvsaframe.stopLocalServer",
-        "title": "A-Frame: Stop Local Server",
+        "command": "codexr.stopLocalServer",
+        "title": "WebXR: Stop Local Server",
         "icon": {
           "light": "resources/light/server-stop.svg",
           "dark": "resources/dark/server-stop.svg"
         }
       },
       {
-        "command": "integracionvsaframe.startServerWithConfig",
-        "title": "A-Frame: Start Server with Configuration",
+        "command": "codexr.startServerWithConfig",
+        "title": "WebXR: Start Server with Configuration",
         "icon": {
           "light": "resources/light/run.svg",
           "dark": "resources/dark/run.svg"
         }
       },
       {
-        "command": "integracionvsaframe.serverOptions",
-        "title": "A-Frame: Server Options"
+        "command": "codexr.serverOptions",
+        "title": "WebXR: Server Options"
       },
       {
-        "command": "integracionvsaframe.serverStatusActions",
-        "title": "A-Frame: Active Server Actions"
+        "command": "codexr.serverStatusActions",
+        "title": "WebXR: Active Server Actions"
       },
       {
-        "command": "integracionvsaframe.changeServerMode",
-        "title": "A-Frame: Change Server Mode",
+        "command": "codexr.changeServerMode",
+        "title": "WebXR: Change Server Mode",
         "icon": {
           "light": "resources/light/settings.svg",
           "dark": "resources/dark/settings.svg"
         }
       },
       {
-        "command": "integracionvsaframe.checkCertificates",
-        "title": "A-Frame: Check SSL Certificates Status",
+        "command": "codexr.checkCertificates",
+        "title": "WebXR: Check SSL Certificates Status",
         "icon": {
           "light": "resources/light/shield.svg",
           "dark": "resources/dark/shield.svg"
         }
       },
       {
-        "command": "integracionvsaframe.createBabiaXRVisualization",
-        "title": "BabiaXR: Create Visualization",
+        "command": "codexr.createVisualization",
+        "title": "WebXR: Create Data Visualization",
         "icon": {
           "light": "resources/light/graph.svg",
           "dark": "resources/dark/graph.svg"
         }
       },
       {
-        "command": "integracionvsaframe.showBabiaXRTemplates",
-        "title": "BabiaXR: Browse Templates"
+        "command": "codexr.showTemplates",
+        "title": "WebXR: Browse Templates"
       },
       {
-        "command": "integracionvsaframe.refreshServerView",
-        "title": "A-Frame: Refresh Server View",
+        "command": "codexr.refreshServerView",
+        "title": "WebXR: Refresh Server View",
         "icon": {
           "light": "resources/light/refresh.svg",
           "dark": "resources/dark/refresh.svg"
         }
       },
       {
-        "command": "integracionvsaframe.refreshView",
-        "title": "A-Frame: Refresh Explorer View",
+        "command": "codexr.refreshView",
+        "title": "WebXR: Refresh Explorer View",
         "icon": {
           "light": "resources/light/refresh.svg",
           "dark": "resources/dark/refresh.svg"
         }
       },
       {
-        "command": "integracionvsaframe.setBabiaBackgroundColor",
-        "title": "BabiaXR: Set Background Color"
+        "command": "codexr.setBackgroundColor",
+        "title": "WebXR: Set Background Color"
       },
       {
-        "command": "integracionvsaframe.setBabiaEnvironmentPreset",
-        "title": "BabiaXR: Set Environment Preset"
+        "command": "codexr.setEnvironmentPreset",
+        "title": "WebXR: Set Environment Preset"
       },
       {
-        "command": "integracionvsaframe.setBabiaGroundColor",
-        "title": "BabiaXR: Set Ground Color"
+        "command": "codexr.setGroundColor",
+        "title": "WebXR: Set Ground Color"
       },
       {
-        "command": "integracionvsaframe.setBabiaChartPalette",
-        "title": "BabiaXR: Set Chart Palette"
+        "command": "codexr.setChartPalette",
+        "title": "WebXR: Set Chart Palette"
       },
       {
-        "command": "integracionvsaframe.stopAllServers",
-        "title": "Stop All Servers",
+        "command": "codexr.stopAllServers",
+        "title": "WebXR: Stop All Servers",
         "icon": {
           "light": "resources/light/stop.svg",
           "dark": "resources/dark/stop.svg"
         },
-        "category": "A-Frame Server"
+        "category": "WebXR Server"
       },
       {
-        "command": "integracionvsaframe.stopAllServers",
-        "title": "Stop All Servers",
+        "command": "codexr.stopAllServers",
+        "title": "WebXR: Stop All Servers",
         "icon": "$(stop)"
       },
       {
-        "command": "integracionvsaframe.analyzeCurrentFile",
-        "title": "Analyze Current JavaScript/TypeScript File",
+        "command": "codexr.analyzeCurrentFile",
+        "title": "WebXR: Analyze Current JavaScript/TypeScript File",
         "category": "Code Analysis"
       },
       {
-        "command": "integracionvsaframe.analyzeFolder",
-        "title": "Analyze JavaScript/TypeScript Folder",
+        "command": "codexr.analyzeFolder",
+        "title": "WebXR: Analyze JavaScript/TypeScript Folder",
         "category": "Code Analysis"
       },
       {
-        "command": "integracionvsaframe.showJSMetricsDetails",
-        "title": "Show JavaScript Metrics Details",
-        "category": "BabiaXR"
+        "command": "codexr.showJSMetricsDetails",
+        "title": "WebXR: Show JavaScript Metrics Details",
+        "category": "Code Analysis"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "integracionvsaframe.refreshView",
-          "when": "view == aframeExplorerView",
+          "command": "codexr.refreshView",
+          "when": "view == webxrExplorerView",
           "group": "navigation"
         },
         {
-          "command": "integracionvsaframe.startServerWithConfig",
-          "when": "view == aframeExplorerView",
+          "command": "codexr.startServerWithConfig",
+          "when": "view == webxrExplorerView",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
-          "command": "integracionvsaframe.startLocalServer",
+          "command": "codexr.startLocalServer",
           "when": "viewItem == servers-section",
           "group": "inline"
         },
         {
-          "command": "integracionvsaframe.stopLocalServer",
+          "command": "codexr.stopLocalServer",
           "when": "viewItem == active-server",
           "group": "inline"
         },
         {
-          "command": "integracionvsaframe.createBabiaXRVisualization",
+          "command": "codexr.createVisualization",
           "when": "viewItem == babiaxr-section",
           "group": "inline"
         },
         {
-          "command": "integracionvsaframe.stopAllServers",
-          "when": "view == integracionvsaframe.serverTreeView && viewItem == serverContainer",
+          "command": "codexr.stopAllServers",
+          "when": "view == codexr.serverTreeView && viewItem == serverContainer",
           "group": "inline"
         },
         {
-          "command": "integracionvsaframe.stopAllServers",
-          "when": "view == integracionvsaframe.serverTreeView && viewItem == serverContainer",
+          "command": "codexr.stopAllServers",
+          "when": "view == codexr.serverTreeView && viewItem == serverContainer",
           "group": "1_actions"
         }
       ],
       "editor/context": [
         {
-          "command": "integracionvsaframe.analyzeCurrentFile",
+          "command": "codexr.analyzeCurrentFile",
           "when": "resourceLangId =~ /javascript|typescript|javascriptreact|typescriptreact/",
           "group": "navigation"
         }
       ],
       "explorer/context": [
         {
-          "command": "integracionvsaframe.analyzeFolder",
+          "command": "codexr.analyzeFolder",
           "when": "explorerResourceIsFolder",
           "group": "navigation"
         }
@@ -193,22 +193,22 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "integracionvsaframe-explorer",
-          "title": "A-Frame Explorer",
+          "id": "codexr-explorer",
+          "title": "WebXR Explorer",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "integracionvsaframe-explorer": [
+      "codexr-explorer": [
         {
-          "id": "integracionvsaframe.serverTreeView",
-          "name": "A-Frame Servers & Visualizations"
+          "id": "codexr.serverTreeView",
+          "name": "WebXR Servers & Visualizations"
         }
       ],
       "explorer": [
         {
-          "id": "integracionvsaframe.analysisView",
+          "id": "codexr.analysisView",
           "name": "JavaScript Analysis",
           "when": "true"
         }
@@ -216,16 +216,16 @@
     },
     "keybindings": [
       {
-        "command": "integracionvsaframe.refreshView",
+        "command": "codexr.refreshView",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "focusedView == aframeExplorerView"
+        "when": "focusedView == webxrExplorerView"
       },
       {
-        "command": "integracionvsaframe.startServerWithConfig",
+        "command": "codexr.startServerWithConfig",
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s",
-        "when": "focusedView == aframeExplorerView"
+        "when": "focusedView == webxrExplorerView"
       }
     ]
   },

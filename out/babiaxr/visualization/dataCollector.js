@@ -51,7 +51,7 @@ const chartModel_1 = require("../models/chartModel");
 async function collectDataSource(context) {
     // Show options to choose the type of data source
     const sourceType = await vscode.window.showQuickPick([
-        { label: '$(file) Local File', id: 'local', description: 'Select CSV or JSON file from your computer' },
+        { label: '$(file) Local File', id: 'local', description: 'Select JSON file from your computer' },
         { label: '$(beaker) Sample Data', id: 'sample', description: 'Use predefined dataset' }
     ], {
         placeHolder: 'Select the data source',
@@ -65,7 +65,7 @@ async function collectDataSource(context) {
             const options = {
                 canSelectMany: false,
                 openLabel: 'Select data file',
-                filters: { 'Data Files': ['csv', 'json'] }
+                filters: { 'Data Files': ['json'] }
             };
             const fileUri = await vscode.window.showOpenDialog(options);
             if (!fileUri || fileUri.length === 0)
@@ -141,12 +141,10 @@ async function collectDataSource(context) {
 }
 /**
  * Collects chart data from the user
- * @param chartType The type of chart
- * @returns Chart data or undefined if cancelled
  */
 async function collectChartData(chartType, context) {
     try {
-        // 1. PASO 1: TÍTULO - Pedir al principio
+        // 1. Title
         const title = await vscode.window.showInputBox({
             prompt: `Enter title for your ${chartType}`,
             placeHolder: 'My Data Visualization',
@@ -155,23 +153,22 @@ async function collectChartData(chartType, context) {
         if (!title) {
             return undefined; // User canceled
         }
-        // 2. PASO 2: FUENTE DE DATOS JSON
+        // 2. Data source
         const dataSource = await collectDataSource(context);
         if (!dataSource) {
             return undefined; // User canceled
         }
-        // 3. PASO 3: DIMENSIONES (ATRIBUTOS)
-        // Cargar datos para mostrar las dimensiones disponibles
+        // 3. Process data
         const data = loadData(dataSource);
-        // Recolectar las dimensiones que el usuario quiere visualizar
         const dimensions = await collectDimensions(data, chartType);
         if (!dimensions || dimensions.length === 0) {
             return undefined; // User canceled
         }
-        // 4. Configurar datos del gráfico
+        // 4. Process data
         return {
             title,
             dataSource,
+            dimensions,
             xKey: dimensions[0],
             yKey: dimensions[1],
             zKey: dimensions.length > 2 ? dimensions[2] : undefined

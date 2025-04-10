@@ -51,7 +51,7 @@ function updateStatusBar(serverInfo) {
     const displayUrl = serverInfo.displayUrl || serverInfo.url;
     statusBarItem.text = `$(globe) Server: ${displayUrl}`;
     statusBarItem.tooltip = `${serverInfo.protocol.toUpperCase()} server active\nClick to see options`;
-    statusBarItem.command = 'integracionvsaframe.serverStatusActions';
+    statusBarItem.command = 'codexr.serverStatusActions';
     statusBarItem.show();
 }
 /**

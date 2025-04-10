@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { ChartSpecification, TemplateVariableMap } from '../models/chartModel';
 
 /**
  * Template variable definitions
@@ -217,4 +218,66 @@ export function getComponentNameForChartType(chartType: string): string {
   };
   
   return componentMap[chartType] || 'babia-barchart';
+}
+
+/**
+ * Create a variable map for template processing
+ * @param chartSpecification Chart specification object
+ * @returns Template variable map
+ */
+export function createVariableMap(chartSpecification: ChartSpecification): TemplateVariableMap {
+  const { data } = chartSpecification;
+  
+  // We use a generic value that will be replaced when saving
+  const dataSource = "data.json";
+  
+  // Extract the filename from the data source path or URL
+  const dataSourceName = data.dataSource.split('/').pop() || 'Unknown Source';
+  
+  // IMPORTANT: Use the dimensions property that preserves the original selection order
+  const dimensions = data.dimensions || [];
+  
+  // For Barsmap charts, ensure each dimension is assigned to the correct property
+  const xDimension = dimensions[0] || data.xKey || 'category';
+  const yDimension = dimensions[1] || data.yKey || 'value';
+  
+  // Compose the third axis if it exists
+  let zDimensionAttr = '';
+  let zDimensionText = 'No Z dimension selected';
+  if (dimensions.length > 2 && dimensions[2]) {
+    const zDimension = dimensions[2];
+    zDimensionAttr = `z_axis: ${zDimension};`;
+    zDimensionText = `Z: ${zDimension}`;
+  } else if (data.zKey) {
+    zDimensionAttr = `z_axis: ${data.zKey};`;
+    zDimensionText = `Z: ${data.zKey}`;
+  }
+  
+  // Add a heightMax property to ensure bars are visible
+  let height = chartSpecification.options?.height || 10;
+  let heightMax = "heightMax: 15;";
+  
+  // Environment variables with default values
+  const backgroundColor = data.environment?.backgroundColor || '#112233';
+  const environmentPreset = data.environment?.environmentPreset || 'forest';
+  const groundColor = data.environment?.groundColor || '#445566';
+  const chartPalette = data.environment?.chartPalette || 'ubuntu';
+  
+  const variableMap: TemplateVariableMap = {
+    TITLE: data.title || 'Data Visualization',
+    DATA_SOURCE: dataSource,
+    DATA_SOURCE_NAME: dataSourceName,
+    X_DIMENSION: xDimension,
+    Y_DIMENSION: yDimension,
+    Z_DIMENSION_ATTR: zDimensionAttr,
+    Z_DIMENSION_TEXT: zDimensionText,
+    HEIGHT: height,
+    HEIGHT_MAX: heightMax,
+    BACKGROUND_COLOR: backgroundColor,
+    ENVIRONMENT_PRESET: environmentPreset,
+    GROUND_COLOR: groundColor,
+    CHART_PALETTE: chartPalette
+  };
+  
+  return variableMap;
 }

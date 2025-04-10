@@ -30,7 +30,7 @@ export class ChartTypeItem extends TreeItem {
       TreeItemType.CHART_TYPE,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'integracionvsaframe.createBabiaXRVisualization',
+        command: 'codexr.createVisualization',
         title: `Create ${chartType}`,
         arguments: [chartType]
       },
@@ -161,7 +161,7 @@ export class BabiaXRExampleItem extends TreeItem {
       TreeItemType.BABIAXR_EXAMPLE,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'integracionvsaframe.launchBabiaXRExample',
+        command: 'codexr.launchBabiaXRExample', // Actualizado a codexr
         title: `Launch ${label} Example`,
         arguments: [examplePath]
       },

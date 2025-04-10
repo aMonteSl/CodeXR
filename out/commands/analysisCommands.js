@@ -47,11 +47,11 @@ const analysisPanel_1 = require("../ui/panels/analysisPanel");
 function registerAnalysisCommands(context, analysisViewProvider) {
     const disposables = [];
     // Command to analyze the current file
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.analyzeCurrentFile', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.analyzeCurrentFile', async () => {
         try {
             console.log('analyzeCurrentFile command started');
             // Try to open the analysis view first
-            await vscode.commands.executeCommand('integracionvsaframe.openAnalysisView');
+            await vscode.commands.executeCommand('codexr.openAnalysisView');
             console.log('Analysis view should be open now');
             // Wait a moment for the view to initialize
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -74,7 +74,7 @@ function registerAnalysisCommands(context, analysisViewProvider) {
                 const result = await (0, codeAnalyzer_1.analyzeFile)(filePath);
                 progress.report({ increment: 100 });
                 // Display results
-                vscode.commands.executeCommand('integracionvsaframe.showAnalysisInPanel', result);
+                vscode.commands.executeCommand('codexr.showAnalysisInPanel', result);
                 // Show quick summary
                 const message = `Analysis complete: ${result.metrics.totalLines} lines, ${result.metrics.functionCount} functions`;
                 vscode.window.showInformationMessage(message);
@@ -86,7 +86,7 @@ function registerAnalysisCommands(context, analysisViewProvider) {
         }
     }));
     // Command to analyze a folder
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.analyzeFolder', async (folderUri) => {
+    disposables.push(vscode.commands.registerCommand('codexr.analyzeFolder', async (folderUri) => {
         try {
             let folderPath;
             // If folderUri is provided (from right-click), use it directly
@@ -117,7 +117,7 @@ function registerAnalysisCommands(context, analysisViewProvider) {
                 const result = await (0, codeAnalyzer_1.analyzeDirectory)(folderPath);
                 progress.report({ increment: 100, message: 'Done!' });
                 // Show results
-                vscode.commands.executeCommand('integracionvsaframe.showAnalysisInPanel', result);
+                vscode.commands.executeCommand('codexr.showAnalysisInPanel', result);
                 // Show quick summary
                 const message = `Analysis complete: ${result.files.length} files, ${result.summary.totalLines} lines, ${result.summary.functionCount} functions`;
                 vscode.window.showInformationMessage(message);
@@ -128,11 +128,11 @@ function registerAnalysisCommands(context, analysisViewProvider) {
         }
     }));
     // Command to open the analysis view
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.openAnalysisView', async () => {
+    disposables.push(vscode.commands.registerCommand('codexr.openAnalysisView', async () => {
         console.log('openAnalysisView command called');
         try {
             // Try to focus on the view
-            await vscode.commands.executeCommand('integracionvsaframe.analysisView.focus');
+            await vscode.commands.executeCommand('codexr.analysisView.focus');
             console.log('Successfully focused analysis view');
         }
         catch (error) {
@@ -144,7 +144,7 @@ function registerAnalysisCommands(context, analysisViewProvider) {
                 // Wait a bit and then try to open our view
                 setTimeout(async () => {
                     try {
-                        await vscode.commands.executeCommand('integracionvsaframe.analysisView.focus');
+                        await vscode.commands.executeCommand('codexr.analysisView.focus');
                         console.log('Analysis view focused after delay');
                     }
                     catch (err) {
@@ -158,7 +158,7 @@ function registerAnalysisCommands(context, analysisViewProvider) {
         }
     }));
     // Command to show analysis in panel
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.showAnalysisInPanel', async (analysis) => {
+    disposables.push(vscode.commands.registerCommand('codexr.showAnalysisInPanel', async (analysis) => {
         try {
             await (0, analysisPanel_1.createAnalysisPanel)(context.extensionUri, analysis);
         }
@@ -168,7 +168,7 @@ function registerAnalysisCommands(context, analysisViewProvider) {
         }
     }));
     // Command to show detailed JS metrics
-    disposables.push(vscode.commands.registerCommand('integracionvsaframe.showJSMetricsDetails', () => {
+    disposables.push(vscode.commands.registerCommand('codexr.showJSMetricsDetails', () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor)
             return;

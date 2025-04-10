@@ -13,14 +13,14 @@ export function registerUICommands(
   
   // Command to refresh the view
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.refreshView', () => {
+    vscode.commands.registerCommand('codexr.refreshView', () => {
       treeDataProvider.refresh();
     })
   );
   
   // Command for refreshing the server view (alias for backwards compatibility)
   disposables.push(
-    vscode.commands.registerCommand('integracionvsaframe.refreshServerView', () => {
+    vscode.commands.registerCommand('codexr.refreshServerView', () => {
       treeDataProvider.refresh();
     })
   );

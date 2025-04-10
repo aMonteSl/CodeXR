@@ -46,7 +46,7 @@ let statusBarUpdateTimer;
 function initializeStatusBar(context) {
     // Create status bar item
     const jsMetricsStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    jsMetricsStatusBar.command = 'integracionvsaframe.showJSMetricsDetails';
+    jsMetricsStatusBar.command = 'codexr.showJSMetricsDetails';
     // Set up event handlers for updating
     setupStatusBarEvents(jsMetricsStatusBar, context);
     // Initialize if a JS file is already open
