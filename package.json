@@ -194,7 +194,7 @@
       "activitybar": [
         {
           "id": "codexr-explorer",
-          "title": "WebXR Explorer",
+          "title": "CodeXR",
           "icon": "resources/icon.svg"
         }
       ]
@@ -203,13 +203,16 @@
       "codexr-explorer": [
         {
           "id": "codexr.serverTreeView",
-          "name": "WebXR Servers & Visualizations"
+          "name": "WebXR Servers & Visualizations",
+          "icon": "resources/icon.svg"
+          
         }
       ],
       "explorer": [
         {
           "id": "codexr.analysisView",
           "name": "JavaScript Analysis",
+          "icon": "resources/icon.svg",
           "when": "true"
         }
       ]
