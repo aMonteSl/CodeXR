@@ -6,50 +6,7 @@ import { ChartType } from '../babiaxr/models/chartModel';
 import { createBabiaXRVisualization, launchBabiaXRVisualization } from '../babiaxr/visualization/chartManager';
 import { collectChartData } from '../babiaxr/visualization/dataCollector';
 import { collectChartOptions } from '../babiaxr/visualization/optionsCollector';
-
-// Environment presets for A-Frame
-const ENVIRONMENT_PRESETS = [
-  { value: 'none', description: 'No environment, just a sky' },
-  { value: 'default', description: 'Default environment with hills and sky' },
-  { value: 'forest', description: 'A forest with trees and directional light' },
-  { value: 'egypt', description: 'Egyptian landscape with sand and pyramids' },
-  { value: 'dream', description: 'Surreal dreamlike environment' },
-  { value: 'volcano', description: 'Volcanic terrain with lava and smoke' },
-  { value: 'arches', description: 'Desert with rock arches' },
-  { value: 'tron', description: 'Futuristic Tron-like environment' },
-  { value: 'japan', description: 'Stylized Japanese landscape' },
-  { value: 'threetowers', description: 'Fantasy environment with three towers' },
-  { value: 'poison', description: 'Toxic environment with green fog' },
-  { value: 'alien', description: 'Alien world with strange plants' },
-  { value: 'osiris', description: 'Egyptian themed environment with pyramids' },
-  { value: 'moon', description: 'Lunar landscape with low gravity' },
-  { value: 'contact', description: 'Sci-fi environment with landing pad' },
-  { value: 'canyon', description: 'Desert canyon with rock formations' }
-];
-
-// Color palettes for BabiaXR
-const COLOR_PALETTES = [
-  { value: 'ubuntu', description: 'Ubuntu style colors (default)' },
-  { value: 'blues', description: 'Variations of blue colors' },
-  { value: 'foxy', description: 'Firefox palette with oranges and blues' },
-  { value: 'sunny', description: 'Bright, sunny colors' },
-  { value: 'reds', description: 'Variations of red colors' },
-  { value: 'yellow', description: 'Yellow to orange gradient' },
-  { value: 'teals', description: 'Teal and blue colors' },
-  { value: 'pink', description: 'Pink and purple colors' },
-  { value: 'greens', description: 'Variations of green colors' },
-  { value: 'gray', description: 'Grayscale palette' },
-  { value: 'colorful', description: 'Diverse vibrant colors' },
-  { value: 'category10', description: 'D3 category10 palette' },
-  { value: 'category20', description: 'Extended to 20 colors with more variety' },
-  { value: 'pastel1', description: 'Soft colors, ideal for non-aggressive visualizations' },
-  { value: 'pastel2', description: 'Another soft variant' },
-  { value: 'dark2', description: 'Intense colors, but less saturated' },
-  { value: 'set1', description: 'Bright and vibrant colors' },
-  { value: 'set2', description: 'Medium tone colors' },
-  { value: 'set3', description: 'More colors, somewhat softer' },
-  { value: 'tableau10', description: 'Modern palette, accessible and high contrast' }
-];
+import { ENVIRONMENT_PRESETS, COLOR_PALETTES } from '../babiaxr/config/visualizationConfig';
 
 /**
  * Registers all BabiaXR-related commands
@@ -223,9 +180,9 @@ function getDefaultOptionsForChartType(chartType: ChartType): any {
       break;
       
     case ChartType.CYLS_CHART:
-      position = "0 0 -2";
+      position = "0 0 -3";
       scale = "1 1 1";
-      height = "5";
+      height = "15"; // Aumentamos la altura máxima predeterminada
       break;
       
     case ChartType.BARSMAP_CHART:

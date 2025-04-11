@@ -7,6 +7,7 @@ import {
   EnvironmentOptions
 } from '../models/chartModel';
 import { showColorPicker } from '../../utils/colorPickerUtils';
+import { ENVIRONMENT_PRESETS, COLOR_PALETTES } from '../config/visualizationConfig';
 
 /**
  * Chart options
@@ -98,54 +99,6 @@ function getDefaultScaleForChart(chartType: ChartType): string {
       return '1 1 1';
   }
 }
-
-/**
- * Available environment presets in A-Frame with English descriptions
- */
-export const ENVIRONMENT_PRESETS = [
-    { value: 'default', description: 'Base environment, light blue sky, green terrain' },
-    { value: 'none', description: 'No environment, useful for fully custom scenes' },
-    { value: 'checkerboard', description: 'Simple flat checkerboard floor' },
-    { value: 'forest', description: 'Ground with scattered trees, soft lighting, forest-like' },
-    { value: 'goaland', description: 'Mountainous environment with epic sky, game-like' },
-    { value: 'yavapai', description: 'Rocky desert landscape' },
-    { value: 'goldmine', description: 'Foggy mountainous terrain with mining atmosphere' },
-    { value: 'arches', description: 'Similar to Arches National Park, reddish tones' },
-    { value: 'tron', description: 'Sci-fi style with neon colors and Tron-like lines' },
-    { value: 'japan', description: 'Japanese garden atmosphere with pink cherry blossom' },
-    { value: 'dream', description: 'Surreal dreamlike landscape, intense colors' },
-    { value: 'volcano', description: 'Volcanic terrain, dense sky, dark atmosphere' },
-    { value: 'starry', description: 'Starry sky with nighttime atmosphere' },
-    { value: 'egypt', description: 'Sand, pyramids and desert sky, Egyptian style' },
-    { value: 'threetowers', description: 'Three towers rising from the terrain' },
-    { value: 'poison', description: 'Surreal environment, acid green colors, alien-like world' },
-    { value: 'osiris', description: 'Stylized Egyptian setting with mystical tones' },
-    { value: 'moon', description: 'Gray lunar landscape, no atmosphere' }
-];
-
-/**
- * Available color palettes for BabiaXR with English descriptions
- */
-export const COLOR_PALETTES = [
-    { value: 'ubuntu', description: 'Vibrant and accessible colors used by Ubuntu' },
-    { value: 'blues', description: 'Scale from soft to intense blues' },
-    { value: 'greens', description: 'Scale of green shades' },
-    { value: 'reds', description: 'Scale of red shades' },
-    { value: 'purples', description: 'Scale of purple shades' },
-    { value: 'oranges', description: 'Scale of orange shades' },
-    { value: 'greys', description: 'Scale of gray shades' },
-    { value: 'spectral', description: 'Balanced multicolor palette from ColorBrewer' },
-    { value: 'paired', description: 'Paired colors with good contrast' },
-    { value: 'category10', description: 'Classic D3 palette for 10 distinct categories' },
-    { value: 'category20', description: 'Extended to 20 colors with more variety' },
-    { value: 'pastel1', description: 'Soft colors, ideal for non-aggressive visualizations' },
-    { value: 'pastel2', description: 'Another soft variant' },
-    { value: 'dark2', description: 'Intense colors, but less saturated' },
-    { value: 'set1', description: 'Bright and vibrant colors' },
-    { value: 'set2', description: 'Medium tone colors' },
-    { value: 'set3', description: 'More colors, somewhat softer' },
-    { value: 'tableau10', description: 'Modern palette, accessible and high contrast' }
-];
 
 /**
  * Collects environment configuration options

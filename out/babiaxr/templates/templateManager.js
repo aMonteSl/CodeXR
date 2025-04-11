@@ -92,6 +92,8 @@ function createVariableMap(chartSpecification) {
     const dimensions = data.dimensions || [data.xKey || 'product', data.yKey || 'sales', data.zKey].filter(Boolean);
     const xDimension = dimensions[0] || data.xKey || 'product';
     const yDimension = dimensions[1] || data.yKey || 'sales';
+    // Para garantizar que radiusDimension nunca sea undefined
+    const radiusDimension = dimensions.length > 2 ? dimensions[2] : (yDimension || 'value');
     // Compose the third axis if it exists
     let zDimensionAttr = '';
     let zDimensionText = '';
@@ -117,22 +119,24 @@ function createVariableMap(chartSpecification) {
     const groundColor = data.environment?.groundColor || '#445566';
     const chartPalette = data.environment?.chartPalette || 'ubuntu';
     const variableMap = {
-        TITLE: data.title,
+        TITLE: data.title || 'Chart Visualization',
         DATA_SOURCE: dataSource,
         DATA_SOURCE_NAME: dataSourceName,
-        X_DIMENSION: xDimension,
-        Y_DIMENSION: yDimension,
+        X_DIMENSION: xDimension || 'category',
+        Y_DIMENSION: yDimension || 'value',
+        RADIUS_DIMENSION: radiusDimension || 'defaultRadius',
         Z_DIMENSION_ATTR: zDimensionAttr,
         Z_DIMENSION_TEXT: zDimensionText,
+        POSITION: data.position || "0 1 -3",
+        SCALE: data.scale || "1 1 1",
         HEIGHT: height,
         WIDTH: width,
         BAR_ROTATION: barRotation,
         DESCRIPTION: data.description || '',
         CHART_TYPE: chartSpecification.type,
-        // CORREGIDO: Asignar los valores correctos a las variables
-        BACKGROUND_COLOR: backgroundColor, // Esto debe ser el color de fondo
+        BACKGROUND_COLOR: backgroundColor,
         ENVIRONMENT_PRESET: environmentPreset,
-        GROUND_COLOR: groundColor, // Esto debe ser el color del suelo
+        GROUND_COLOR: groundColor,
         CHART_PALETTE: chartPalette
     };
     return variableMap;
@@ -310,49 +314,56 @@ exports.chartComponents = {
                  anchor="left"></a-text>
         </a-entity>`,
     [chartModel_1.ChartType.CYLS_CHART]: `
-        <!-- Cylinder Chart -->
-        <a-entity babia-cyls="from: data;
-                  legend: true;
-                  tooltip: true;
-                  palette: \${CHART_PALETTE};
-                  x_axis: \${X_DIMENSION};
-                  height: \${Y_DIMENSION};
-                  title: \${TITLE};
-                  titleColor: #FFFFFF;
-                  titlePosition: 0 10 0;
-                  tooltip_position: top;
-                  tooltip_show_always: false;
-                  tooltip_height: 0.3"
-                  position="0 1 -3"
-                  scale="1 1 1">
-        </a-entity>
-        
-        <!-- Info Panel -->
-        <a-entity position="-5 2 -3">
-          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
-          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
-                 width="2.8" 
-                 color="white" 
-                 position="-1.4 0.7 0.01" 
-                 anchor="left"
-                 font="monoid"></a-text>
-          <a-text value="Fields Selected:" 
-                 width="2.8" 
-                 color="white" 
-                 position="-1.4 0.4 0.01" 
-                 anchor="left"
-                 font="monoid"></a-text>
-          <a-text value="X: \${X_DIMENSION}" 
-                 width="2.8" 
-                 color="#AAFFAA" 
-                 position="-1.2 0.2 0.01" 
-                 anchor="left"></a-text>
-          <a-text value="Height: \${Y_DIMENSION}" 
-                 width="2.8" 
-                 color="#AAFFAA" 
-                 position="-1.2 0 0.01" 
-                 anchor="left"></a-text>
-        </a-entity>`,
+  <!-- Cylinder Chart -->
+  <a-entity babia-cyls="
+    from: data;
+    legend: true;
+    axis: true;
+    tooltip: true;
+    palette: \${CHART_PALETTE};
+    x_axis: \${X_DIMENSION};
+    height: \${Y_DIMENSION};
+    radius: \${RADIUS_DIMENSION};
+    heightMax: 10;
+    radiusMax: 1;
+    title: \${TITLE};
+    titleColor: #FFFFFF;
+    titlePosition: 0 10 0;"
+    position="\${POSITION}"
+    scale="\${SCALE}">
+  </a-entity>
+  
+  <!-- Info Panel -->
+  <a-entity position="-5 2 -3">
+    <a-plane color="#112244" width="3" height="2.5" opacity="0.8"></a-plane>
+    <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+           width="2.8" 
+           color="white" 
+           position="-1.4 0.9 0.01" 
+           anchor="left"
+           font="monoid"></a-text>
+    <a-text value="Fields Selected:" 
+           width="2.8" 
+           color="white" 
+           position="-1.4 0.6 0.01" 
+           anchor="left"
+           font="monoid"></a-text>
+    <a-text value="X-Axis: \${X_DIMENSION}" 
+           width="2.8" 
+           color="#AAFFAA" 
+           position="-1.2 0.3 0.01" 
+           anchor="left"></a-text>
+    <a-text value="Height: \${Y_DIMENSION}" 
+           width="2.8" 
+           color="#AAFFAA" 
+           position="-1.2 0 0.01" 
+           anchor="left"></a-text>
+    <a-text value="Radius: \${RADIUS_DIMENSION}" 
+           width="2.8" 
+           color="#AAFFAA" 
+           position="-1.2 -0.3 0.01" 
+           anchor="left"></a-text>
+  </a-entity>`,
     [chartModel_1.ChartType.SCATTER_PLOT]: "",
     [chartModel_1.ChartType.NETWORK_GRAPH]: ""
 };

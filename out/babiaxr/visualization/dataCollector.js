@@ -284,198 +284,212 @@ function loadData(dataSource) {
  * Collects dimensions to use for visualization
  */
 async function collectDimensions(data, chartType) {
-    // Extract field names from the first data item
-    const fields = Object.keys(data[0] || {});
-    if (fields.length === 0) {
-        vscode.window.showErrorMessage('No fields found in the data');
-        return undefined;
-    }
-    // Determine required dimensions based on chart type
-    const getDimensionLimits = () => {
+    try {
+        // Extract field names from the first data item
+        const fields = Object.keys(data[0] || {});
+        if (fields.length === 0) {
+            vscode.window.showErrorMessage('No fields found in the data');
+            return undefined;
+        }
+        // Define limits based on chart type
+        let limits = { min: 2, max: 2 };
+        let pickerTitle = "Select dimensions for your visualization";
         switch (chartType) {
-            case chartModel_1.ChartType.BARSMAP_CHART:
-                return { min: 3, max: 3, description: 'X axis, height, and Z axis (group)' };
+            case chartModel_1.ChartType.BARSMAP_CHART, chartModel_1.ChartType.CYLS_CHART:
+                limits = { min: 3, max: 3 };
+                break;
             case chartModel_1.ChartType.BARS_CHART:
-            case chartModel_1.ChartType.CYLS_CHART:
             case chartModel_1.ChartType.PIE_CHART:
             case chartModel_1.ChartType.DONUT_CHART:
-                return { min: 2, max: 2, description: 'Category and value' };
-            default:
-                return { min: 1, max: 2, description: 'At least category required' };
+                limits = { min: 2, max: 2 };
+                break;
+            // Other cases...
         }
-    };
-    const limits = getDimensionLimits();
-    const exactCount = limits.min === limits.max;
-    // Create QuickPick for dimension selection
-    const picker = vscode.window.createQuickPick();
-    picker.title = exactCount ?
-        `Select exactly ${limits.min} dimension${limits.min > 1 ? 's' : ''}` :
-        `Select ${limits.min}-${limits.max} dimensions`;
-    picker.placeholder = `For ${chartType}: ${limits.description}`;
-    picker.canSelectMany = true;
-    // For barsmap, show a more helpful message
-    if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
-        vscode.window.showInformationMessage('Barsmap charts require exactly 3 dimensions:\n' +
-            '• 1st selected = X axis (horizontal categories)\n' +
-            '• 2nd selected = Height of bars (values)\n' +
-            '• 3rd selected = Z axis (groups for organization)');
-    }
-    else if (limits.max === 2) {
-        vscode.window.showInformationMessage(`This chart type requires exactly ${limits.max} dimensions:\n` +
-            '• 1st selected = Categories/Names\n' +
-            '• 2nd selected = Values/Sizes');
-    }
-    // Create items with descriptions based on likely data content
-    picker.items = fields.map(field => {
-        // Try to determine if this field contains numeric values
-        const isNumeric = data.every(item => !isNaN(parseFloat(item[field])) &&
-            typeof item[field] !== 'boolean' &&
-            item[field] !== null);
-        const isText = data.every(item => typeof item[field] === 'string' &&
-            isNaN(parseFloat(item[field])));
-        let description = `Field: ${field}`;
-        if (isNumeric) {
-            description += ' (Numeric - good for values/heights)';
+        const exactCount = limits.min === limits.max;
+        // Create QuickPick for dimension selection
+        const picker = vscode.window.createQuickPick();
+        picker.title = pickerTitle;
+        picker.placeholder = `For ${chartType}: Select ${limits.min}-${limits.max} dimensions`;
+        picker.canSelectMany = true;
+        // Show informative message based on chart type
+        if (chartType === chartModel_1.ChartType.CYLS_CHART) {
+            vscode.window.showInformationMessage('Select dimensions for cylinder chart:\n' +
+                '• 1st selected = X axis (categories)\n' +
+                '• 2nd selected = Height of cylinders\n' +
+                '• 3rd selected (optional) = Radius of cylinders');
         }
-        else if (isText) {
-            description += ' (Text - good for categories)';
+        else if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
+            vscode.window.showInformationMessage('Barsmap charts require exactly 3 dimensions:\n' +
+                '• 1st selected = X axis (horizontal categories)\n' +
+                '• 2nd selected = Height of bars (values)\n' +
+                '• 3rd selected = Z axis (groups for organization)');
         }
-        return {
-            label: field,
-            description: description,
-            picked: false
-        };
-    });
-    // Track selections and handle auto-deselection
-    let currentSelections = [];
-    // Function to update information message based on current selections
-    const updateAxisMessage = (selectedItems) => {
-        const selectedLabels = selectedItems.map(item => item.label);
-        if (selectedLabels.length === 0) {
-            // No message if no selections yet
-            return;
+        else if (limits.max === 2) {
+            vscode.window.showInformationMessage(`This chart type requires exactly ${limits.max} dimensions:\n` +
+                '• 1st selected = Categories/Names\n' +
+                '• 2nd selected = Values/Sizes');
         }
-        // Build message based on chart type and number of selections
-        let message = 'Current selections: ';
-        if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
-            if (selectedLabels.length >= 1) {
-                message += `X-axis: ${selectedLabels[0]} `;
+        // Create items with descriptions based on likely data content
+        picker.items = fields.map(field => {
+            // Try to determine if this field contains numeric values
+            const isNumeric = data.every(item => !isNaN(parseFloat(item[field])) &&
+                typeof item[field] !== 'boolean' &&
+                item[field] !== null);
+            const isText = data.every(item => typeof item[field] === 'string' &&
+                isNaN(parseFloat(item[field])));
+            let description = `Field: ${field}`;
+            if (isNumeric) {
+                description += ' (Numeric - good for values/heights)';
             }
-            if (selectedLabels.length >= 2) {
-                message += `| Height: ${selectedLabels[1]} `;
+            else if (isText) {
+                description += ' (Text - good for categories)';
             }
-            if (selectedLabels.length >= 3) {
-                message += `| Z-axis (groups): ${selectedLabels[2]}`;
-            }
-        }
-        else if (chartType === chartModel_1.ChartType.BARS_CHART || chartType === chartModel_1.ChartType.CYLS_CHART) {
-            if (selectedLabels.length >= 1) {
-                message += `Categories: ${selectedLabels[0]} `;
-            }
-            if (selectedLabels.length >= 2) {
-                message += `| Heights: ${selectedLabels[1]}`;
-            }
-        }
-        else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
-            if (selectedLabels.length >= 1) {
-                message += `Segments: ${selectedLabels[0]} `;
-            }
-            if (selectedLabels.length >= 2) {
-                message += `| Values: ${selectedLabels[1]}`;
-            }
-        }
-        // Update picker placeholder with current selections
-        picker.placeholder = message;
-        // Also show an information message for immediate feedback
-        // Only show for significant changes (first selection, second selection, etc.)
-        if (selectedLabels.length === 1 || selectedLabels.length === 2 || selectedLabels.length === 3) {
-            vscode.window.showInformationMessage(message);
-        }
-    };
-    return new Promise((resolve) => {
-        // Mantener un array para rastrear el orden de selección del usuario
-        let userSelectionOrder = [];
-        // Handle selection changes
-        picker.onDidChangeSelection(items => {
-            const currentLabels = items.map(item => item.label);
-            // Si no hay selecciones, simplemente limpiar el orden
-            if (currentLabels.length === 0) {
-                userSelectionOrder = [];
-                currentSelections = items;
-                updateAxisMessage(currentSelections);
+            return {
+                label: field,
+                description: description,
+                picked: false
+            };
+        });
+        // Track selections and handle auto-deselection
+        let currentSelections = [];
+        // Function to update information message based on current selections
+        const updateAxisMessage = (selectedItems) => {
+            const selectedLabels = selectedItems.map(item => item.label);
+            if (selectedLabels.length === 0) {
+                // No message if no selections yet
                 return;
             }
-            // 1. Procesar selecciones eliminadas
-            userSelectionOrder = userSelectionOrder.filter(label => currentLabels.includes(label));
-            // 2. Agregar nuevas selecciones al final
-            const newSelections = currentLabels.filter(label => !userSelectionOrder.includes(label));
-            userSelectionOrder = [...userSelectionOrder, ...newSelections];
-            // 3. Si hay demasiadas selecciones, mantener solo las primeras 'max'
-            if (userSelectionOrder.length > limits.max) {
-                userSelectionOrder = userSelectionOrder.slice(0, limits.max);
-            }
-            // 4. Reordenar las selecciones actuales según userSelectionOrder
-            // Esto es clave: forzamos que las selecciones estén en el orden que el usuario las hizo
-            const orderedSelections = userSelectionOrder
-                .map(label => items.find(item => item.label === label))
-                .filter((item) => item !== undefined);
-            // 5. Actualizar las selecciones en el picker para respetar el orden
-            if (orderedSelections.length !== items.length ||
-                !areSelectionsEqual(orderedSelections, items)) {
-                picker.selectedItems = orderedSelections;
-            }
-            currentSelections = orderedSelections;
-            updateAxisMessage(currentSelections);
-        });
-        // Función auxiliar para comparar si dos arrays de selecciones son iguales
-        function areSelectionsEqual(a, b) {
-            if (a.length !== b.length)
-                return false;
-            for (let i = 0; i < a.length; i++) {
-                if (a[i].label !== b[i].label)
-                    return false;
-            }
-            return true;
-        }
-        // El resto del código sigue igual...
-        picker.onDidAccept(() => {
-            // Usar userSelectionOrder para asegurar el orden correcto
-            // en lugar de picker.selectedItems que podría tener un orden diferente
-            const selections = userSelectionOrder;
-            // Validate selections based on chart type
-            if (exactCount && selections.length !== limits.min) {
-                vscode.window.showWarningMessage(`This chart type requires exactly ${limits.min} dimension${limits.min > 1 ? 's' : ''}.`);
-                return; // Don't close the picker, let the user fix their selection
-            }
-            else if (selections.length < limits.min) {
-                vscode.window.showWarningMessage(`Please select at least ${limits.min} dimension${limits.min > 1 ? 's' : ''}.`);
-                return; // Don't close the picker, let the user fix their selection
-            }
-            // Show final selection message before closing
-            let finalMessage = 'Selected dimensions: ';
+            // Build message based on chart type and number of selections
+            let message = 'Current selections: ';
             if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
-                finalMessage += `X-axis: ${selections[0]}, Height: ${selections[1]}, Z-axis: ${selections[2]}`;
+                if (selectedLabels.length >= 1) {
+                    message += `X-axis: ${selectedLabels[0]} `;
+                }
+                if (selectedLabels.length >= 2) {
+                    message += `| Height: ${selectedLabels[1]} `;
+                }
+                if (selectedLabels.length >= 3) {
+                    message += `| Z-axis (groups): ${selectedLabels[2]}`;
+                }
             }
             else if (chartType === chartModel_1.ChartType.BARS_CHART || chartType === chartModel_1.ChartType.CYLS_CHART) {
-                finalMessage += `Categories: ${selections[0]}, Heights: ${selections[1]}`;
+                if (selectedLabels.length >= 1) {
+                    message += `Categories: ${selectedLabels[0]} `;
+                }
+                if (selectedLabels.length >= 2) {
+                    message += `| Heights: ${selectedLabels[1]}`;
+                }
+                if (chartType === chartModel_1.ChartType.CYLS_CHART && selectedLabels.length === 3) {
+                    message += `| Radius: ${selectedLabels[2]}`;
+                }
             }
             else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
-                finalMessage += `Segments: ${selections[0]}, Values: ${selections[1]}`;
+                if (selectedLabels.length >= 1) {
+                    message += `Segments: ${selectedLabels[0]} `;
+                }
+                if (selectedLabels.length >= 2) {
+                    message += `| Values: ${selectedLabels[1]}`;
+                }
             }
-            else {
-                finalMessage += selections.join(', ');
+            // Update picker placeholder with current selections
+            picker.placeholder = message;
+            // Also show an information message for immediate feedback
+            // Only show for significant changes (first selection, second selection, etc.)
+            if (selectedLabels.length === 1 || selectedLabels.length === 2 || selectedLabels.length === 3) {
+                vscode.window.showInformationMessage(message);
             }
-            vscode.window.showInformationMessage(finalMessage);
-            picker.hide();
-            resolve(selections);
+        };
+        return new Promise((resolve) => {
+            // Mantener un array para rastrear el orden de selección del usuario
+            let userSelectionOrder = [];
+            // Handle selection changes
+            picker.onDidChangeSelection(items => {
+                const currentLabels = items.map(item => item.label);
+                // Si no hay selecciones, simplemente limpiar el orden
+                if (currentLabels.length === 0) {
+                    userSelectionOrder = [];
+                    currentSelections = items;
+                    updateAxisMessage(currentSelections);
+                    return;
+                }
+                // 1. Procesar selecciones eliminadas
+                userSelectionOrder = userSelectionOrder.filter(label => currentLabels.includes(label));
+                // 2. Agregar nuevas selecciones al final
+                const newSelections = currentLabels.filter(label => !userSelectionOrder.includes(label));
+                userSelectionOrder = [...userSelectionOrder, ...newSelections];
+                // 3. Si hay demasiadas selecciones, mantener solo las primeras 'max'
+                if (userSelectionOrder.length > limits.max) {
+                    userSelectionOrder = userSelectionOrder.slice(0, limits.max);
+                }
+                // 4. Reordenar las selecciones actuales según userSelectionOrder
+                // Esto es clave: forzamos que las selecciones estén en el orden que el usuario las hizo
+                const orderedSelections = userSelectionOrder
+                    .map(label => items.find(item => item.label === label))
+                    .filter((item) => item !== undefined);
+                // 5. Actualizar las selecciones en el picker para respetar el orden
+                if (orderedSelections.length !== items.length ||
+                    !areSelectionsEqual(orderedSelections, items)) {
+                    picker.selectedItems = orderedSelections;
+                }
+                currentSelections = orderedSelections;
+                updateAxisMessage(currentSelections);
+            });
+            // Función auxiliar para comparar si dos arrays de selecciones son iguales
+            function areSelectionsEqual(a, b) {
+                if (a.length !== b.length)
+                    return false;
+                for (let i = 0; i < a.length; i++) {
+                    if (a[i].label !== b[i].label)
+                        return false;
+                }
+                return true;
+            }
+            picker.onDidAccept(() => {
+                // Usar userSelectionOrder para asegurar el orden correcto
+                // en lugar de picker.selectedItems que podría tener un orden diferente
+                const selections = userSelectionOrder;
+                // Validate selections based on chart type
+                if (exactCount && selections.length !== limits.min) {
+                    vscode.window.showWarningMessage(`This chart type requires exactly ${limits.min} dimension${limits.min > 1 ? 's' : ''}.`);
+                    return; // Don't close the picker, let the user fix their selection
+                }
+                else if (selections.length < limits.min) {
+                    vscode.window.showWarningMessage(`Please select at least ${limits.min} dimension${limits.min > 1 ? 's' : ''}.`);
+                    return; // Don't close the picker, let the user fix their selection
+                }
+                // Show final selection message before closing
+                let finalMessage = 'Selected dimensions: ';
+                if (chartType === chartModel_1.ChartType.BARSMAP_CHART) {
+                    finalMessage += `X-axis: ${selections[0]}, Height: ${selections[1]}, Z-axis: ${selections[2]}`;
+                }
+                else if (chartType === chartModel_1.ChartType.BARS_CHART || chartType === chartModel_1.ChartType.CYLS_CHART) {
+                    finalMessage += `Categories: ${selections[0]}, Heights: ${selections[1]}`;
+                    if (chartType === chartModel_1.ChartType.CYLS_CHART && selections.length === 3) {
+                        finalMessage += `, Radius: ${selections[2]}`;
+                    }
+                }
+                else if (chartType === chartModel_1.ChartType.PIE_CHART || chartType === chartModel_1.ChartType.DONUT_CHART) {
+                    finalMessage += `Segments: ${selections[0]}, Values: ${selections[1]}`;
+                }
+                else {
+                    finalMessage += selections.join(', ');
+                }
+                vscode.window.showInformationMessage(finalMessage);
+                picker.hide();
+                resolve(selections);
+            });
+            picker.onDidHide(() => {
+                picker.dispose();
+                if (!userSelectionOrder || userSelectionOrder.length === 0) {
+                    resolve(undefined);
+                }
+            });
+            picker.show();
         });
-        picker.onDidHide(() => {
-            picker.dispose();
-            if (!userSelectionOrder || userSelectionOrder.length === 0) {
-                resolve(undefined);
-            }
-        });
-        picker.show();
-    });
+    }
+    catch (error) {
+        vscode.window.showErrorMessage(`Error collecting dimensions: ${error instanceof Error ? error.message : String(error)}`);
+        return undefined;
+    }
 }
 //# sourceMappingURL=dataCollector.js.map
