@@ -21,6 +21,9 @@ export interface ChartData {
     /** URL or path to the data source (CSV/JSON) */
     dataSource: string;
 
+    /** Original URL or path to the data source */
+    originalDataSource?: string;
+
     /** Key for x-axis data */
     xKey: string;
 

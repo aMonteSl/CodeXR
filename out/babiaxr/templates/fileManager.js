@@ -68,26 +68,48 @@ async function saveHtmlToFile(html, fileName, originalDataPath, isRemoteData = f
         }
         // Create project directory
         const projectDir = path.join(baseDir, projectName);
-        // Handle existing directory case
-        if (fs.existsSync(projectDir)) {
-            const overwrite = await vscode.window.showWarningMessage(`The folder '${projectName}' already exists. Do you want to overwrite its contents?`, 'Overwrite', 'Cancel');
-            if (overwrite !== 'Overwrite') {
-                return undefined;
-            }
-        }
-        else {
+        if (!fs.existsSync(projectDir)) {
             fs.mkdirSync(projectDir, { recursive: true });
+        }
+        // Create a subdirectory for data
+        const dataDir = path.join(projectDir, 'data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
         }
         // Save the HTML file in the project folder
         const htmlPath = path.join(projectDir, 'index.html');
-        // Copy the JSON data file
+        // Handle the data file
+        let finalDataPath = '';
         if (originalDataPath && !isRemoteData) {
-            const dataFileName = path.basename(originalDataPath);
-            const destDataPath = path.join(projectDir, dataFileName);
-            // Copy the file
-            fs.copyFileSync(originalDataPath, destDataPath);
-            // Update the URL in the HTML
-            html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ${dataFileName}"`);
+            try {
+                // Create a cleaner file name
+                const cleanFileName = path.basename(originalDataPath)
+                    .replace(/^temp_/, '') // Remove temp_ prefix
+                    .replace(/_\d+\.json$/, '.json'); // Remove timestamp
+                const destDataPath = path.join(dataDir, cleanFileName);
+                console.log(`Attempting to copy data file from ${originalDataPath} to ${destDataPath}`);
+                // Verify the source file
+                if (!fs.existsSync(originalDataPath)) {
+                    console.error(`Original data file not found: ${originalDataPath}`);
+                    vscode.window.showWarningMessage(`Data file not found: ${originalDataPath}`);
+                    const errorMsg = `Could not find the data file at ${originalDataPath}. Check if the file exists and has proper permissions.`;
+                    vscode.window.showErrorMessage(errorMsg);
+                    throw new Error(errorMsg);
+                }
+                // Get the content directly
+                const dataContent = fs.readFileSync(originalDataPath, 'utf8');
+                // Write directly to the destination
+                fs.writeFileSync(destDataPath, dataContent);
+                console.log(`Successfully copied data to ${destDataPath}`);
+                // Update the URL in the HTML to point to the new file
+                const relativeDataPath = path.join('data', cleanFileName);
+                html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ${relativeDataPath}"`);
+                finalDataPath = destDataPath;
+            }
+            catch (error) {
+                console.error(`Error handling data file:`, error);
+                vscode.window.showErrorMessage(`Error handling data file: ${error instanceof Error ? error.message : String(error)}`);
+            }
         }
         // Save the HTML
         fs.writeFileSync(htmlPath, html);

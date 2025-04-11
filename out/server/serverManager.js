@@ -83,15 +83,12 @@ async function startServer(selectedFile, context, useHttps = false, useDefaultCe
     // Create HTTP or HTTPS server based on the chosen option
     let server;
     try {
-        // Aquí está el problema - debemos usar los parámetros para decidir qué tipo de servidor crear
         if (useHttps) {
-            // Si useHttps es true, creamos un servidor HTTPS
             const { key, cert } = await (0, certificateManager_1.getCertificates)(context, useDefaultCerts);
             // Create HTTPS server with certificates
             server = https.createServer({ key, cert }, requestHandler);
         }
         else {
-            // Si useHttps es false, creamos un servidor HTTP estándar
             server = http.createServer(requestHandler);
         }
         // Watch for changes in the HTML file to notify SSE clients

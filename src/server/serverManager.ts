@@ -57,14 +57,11 @@ export async function startServer(
   let server: http.Server | https.Server;
 
   try {
-    // Aquí está el problema - debemos usar los parámetros para decidir qué tipo de servidor crear
     if (useHttps) {
-      // Si useHttps es true, creamos un servidor HTTPS
       const { key, cert } = await getCertificates(context, useDefaultCerts);
       // Create HTTPS server with certificates
       server = https.createServer({ key, cert }, requestHandler);
     } else {
-      // Si useHttps es false, creamos un servidor HTTP estándar
       server = http.createServer(requestHandler);
     }
     
