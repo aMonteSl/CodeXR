@@ -2,7 +2,12 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ChartType, ChartData } from '../models/chartModel';
-import { createProcessedJsonFile, cleanupTemporaryFile } from '../utils/dataProcessor';
+import { 
+  createProcessedJsonFile, 
+  cleanupTemporaryFile, 
+  analyzeForPotentialGrouping,
+  processJsonData as dataProcessorProcessJson // Renombrar para evitar conflicto
+} from '../utils/dataProcessor';
 
 /**
  * Collects information about the data source

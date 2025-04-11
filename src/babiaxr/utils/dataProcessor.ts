@@ -123,11 +123,16 @@ export async function processJsonData(
     // Show warning message with simple options
     const userChoice = await vscode.window.showWarningMessage(
       message,
-      { modal: true },
-      'Continue', 
-      'Cancel'
+      { 
+        modal: true,
+        // Esta opción desactiva los botones estándar
+        detail: 'Choose Continue to proceed with current selection.'
+      },
+      // Solo definimos un botón explícito para continuar
+      'Continue'
     );
-    
+
+    // Si no se seleccionó 'Continue', significa que el usuario canceló
     if (userChoice !== 'Continue') {
       return undefined; // User wants to change dimensions
     }
@@ -142,7 +147,7 @@ export async function processJsonData(
  * @param sourceFilePath Original JSON file path
  * @param dimensions Selected dimensions
  * @param context VS Code extension context
- * @returns Path to the processed JSON file
+ * @returns Path to the processed JSON file or undefined if user cancels
  */
 export async function createProcessedJsonFile(
   sourceFilePath: string, 
@@ -155,6 +160,11 @@ export async function createProcessedJsonFile(
   
   // Process the data - only reorder attributes
   const processedData = await processJsonData(data, dimensions, context);
+  
+  // If user cancelled, return undefined
+  if (!processedData) {
+    return undefined;
+  }
   
   // Create a unique filename for the processed file
   const timestamp = new Date().getTime();

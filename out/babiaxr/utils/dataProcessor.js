@@ -137,7 +137,14 @@ async function processJsonData(data, dimensions, context) {
         message += `This might lead to multiple data points overlapping in your visualization.\n\n`;
         message += `Do you want to continue with your current selection?`;
         // Show warning message with simple options
-        const userChoice = await vscode.window.showWarningMessage(message, { modal: true }, 'Continue', 'Cancel');
+        const userChoice = await vscode.window.showWarningMessage(message, {
+            modal: true,
+            // Esta opción desactiva los botones estándar
+            detail: 'Choose Continue to proceed with current selection.'
+        }, 
+        // Solo definimos un botón explícito para continuar
+        'Continue');
+        // Si no se seleccionó 'Continue', significa que el usuario canceló
         if (userChoice !== 'Continue') {
             return undefined; // User wants to change dimensions
         }
@@ -150,7 +157,7 @@ async function processJsonData(data, dimensions, context) {
  * @param sourceFilePath Original JSON file path
  * @param dimensions Selected dimensions
  * @param context VS Code extension context
- * @returns Path to the processed JSON file
+ * @returns Path to the processed JSON file or undefined if user cancels
  */
 async function createProcessedJsonFile(sourceFilePath, dimensions, context) {
     // Read the original data
@@ -158,6 +165,10 @@ async function createProcessedJsonFile(sourceFilePath, dimensions, context) {
     const data = JSON.parse(rawData);
     // Process the data - only reorder attributes
     const processedData = await processJsonData(data, dimensions, context);
+    // If user cancelled, return undefined
+    if (!processedData) {
+        return undefined;
+    }
     // Create a unique filename for the processed file
     const timestamp = new Date().getTime();
     const originalFilename = path.basename(sourceFilePath, path.extname(sourceFilePath));
