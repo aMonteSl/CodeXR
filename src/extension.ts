@@ -44,27 +44,6 @@ export function activate(context: vscode.ExtensionContext) {
   // Register all commands
   const commandDisposables = registerCommands(context, treeDataProvider, analysisViewProvider);
   context.subscriptions.push(...commandDisposables);
-  
-  // Register alias commands to maintain backward compatibility
-  registerCommandAliases(context);
-}
-
-/**
- * Registers aliases for commands to maintain backward compatibility
- */
-function registerCommandAliases(context: vscode.ExtensionContext) {
-  // Mapping of old command IDs to new ones
-  const commandMappings: {[oldCommand: string]: string} = {
-  };
-  
-  // Register each command alias
-  for (const [oldCommand, newCommand] of Object.entries(commandMappings)) {
-    context.subscriptions.push(
-      vscode.commands.registerCommand(oldCommand, (...args) => {
-        return vscode.commands.executeCommand(newCommand, ...args);
-      })
-    );
-  }
 }
 
 /**

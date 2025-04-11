@@ -1,15 +1,15 @@
 {
-  "name": "codexr",
-  "displayName": "CodeXR",
+  "name": "code-xr",
+  "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/aMonteSl/CodeXR.git"
   },
   "license": "MIT",
-  "publisher": "Adrián Montes Linares",
+  "publisher": "aMonteSl",
   "engines": {
     "vscode": "^1.98.0"
   },
@@ -122,11 +122,6 @@
         "category": "WebXR Server"
       },
       {
-        "command": "codexr.stopAllServers",
-        "title": "WebXR: Stop All Servers",
-        "icon": "$(stop)"
-      },
-      {
         "command": "codexr.analyzeCurrentFile",
         "title": "WebXR: Analyze Current JavaScript/TypeScript File",
         "category": "Code Analysis"
@@ -146,12 +141,12 @@
       "view/title": [
         {
           "command": "codexr.refreshView",
-          "when": "view == webxrExplorerView",
+          "when": "view == codexr.serverTreeView",
           "group": "navigation"
         },
         {
           "command": "codexr.startServerWithConfig",
-          "when": "view == webxrExplorerView",
+          "when": "view == codexr.serverTreeView",
           "group": "navigation"
         }
       ],
@@ -212,15 +207,6 @@
           "id": "codexr.serverTreeView",
           "name": "WebXR Servers & Visualizations",
           "icon": "resources/icon.svg"
-          
-        }
-      ],
-      "explorer": [
-        {
-          "id": "codexr.analysisView",
-          "name": "JavaScript Analysis",
-          "icon": "resources/icon.svg",
-          "when": "true"
         }
       ]
     },
@@ -229,13 +215,13 @@
         "command": "codexr.refreshView",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "focusedView == webxrExplorerView"
+        "when": "focusedView == codexr.serverTreeView"
       },
       {
         "command": "codexr.startServerWithConfig",
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s",
-        "when": "focusedView == webxrExplorerView"
+        "when": "focusedView == codexr.serverTreeView"
       }
     ]
   },
@@ -247,6 +233,10 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
+  "dependencies": {
+    "get-port": "^7.1.0",
+    "typescript": "^5.8.3"
+  },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
@@ -255,15 +245,12 @@
     "@typescript-eslint/parser": "^8.25.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.21.0",
-    "typescript": "^5.7.3"
-  },
-  "dependencies": {
-    "get-port": "^7.1.0"
+    "eslint": "^9.21.0"
   },
   "files": [
     "out",
     "certs/**",
-    "resources"
+    "resources",
+    "examples/**"
   ]
 }

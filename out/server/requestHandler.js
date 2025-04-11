@@ -83,7 +83,7 @@ function getContentType(ext) {
  */
 function createRequestHandler(fileDir, selectedFile) {
     // Calcular la ruta base de la extensión CORRECTAMENTE
-    // __dirname es /home/adrian/integracionvsaframe/src/server/
+    // __dirname es /home/adrian/codexr/src/server/
     // Necesitamos subir solo DOS niveles para llegar a la raíz del proyecto
     const extensionPath = path.resolve(__dirname, '../..');
     const examplesDataPath = path.join(extensionPath, 'examples', 'data');

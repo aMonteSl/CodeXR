@@ -70,21 +70,6 @@ function activate(context) {
     // Register all commands
     const commandDisposables = (0, commands_1.registerCommands)(context, treeDataProvider, analysisViewProvider);
     context.subscriptions.push(...commandDisposables);
-    // Register alias commands to maintain backward compatibility
-    registerCommandAliases(context);
-}
-/**
- * Registers aliases for commands to maintain backward compatibility
- */
-function registerCommandAliases(context) {
-    // Mapping of old command IDs to new ones
-    const commandMappings = {};
-    // Register each command alias
-    for (const [oldCommand, newCommand] of Object.entries(commandMappings)) {
-        context.subscriptions.push(vscode.commands.registerCommand(oldCommand, (...args) => {
-            return vscode.commands.executeCommand(newCommand, ...args);
-        }));
-    }
 }
 /**
  * This function is executed when the extension is deactivated
