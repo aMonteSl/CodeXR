@@ -86,20 +86,6 @@ function registerAnalysisCommands(context) {
             return Promise.resolve();
         });
     }));
-    // Register command to update analysis panel with new data
-    const updateAnalysisPanelCommand = vscode.commands.registerCommand('codexr.updateAnalysisPanel', (analysisResult) => {
-        // Get the active panel
-        const activePanel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel();
-        if (activePanel) {
-            // Transform the data for the webview before sending it
-            const transformedData = (0, analysisManager_1.transformAnalysisDataForWebview)(analysisResult);
-            activePanel.webview.postMessage({
-                command: 'setAnalysisData',
-                data: transformedData
-            });
-        }
-    });
-    disposables.push(updateAnalysisPanelCommand);
     // Register standard analysis command (replacing the previous implementation)
     const analyzeFileCommand = vscode.commands.registerCommand('codexr.analyzeFile', async (fileUri) => {
         try {
@@ -130,6 +116,14 @@ function registerAnalysisCommands(context) {
                     analysisDataManager_1.analysisDataManager.setAnalysisResult(result);
                     // Display the analysis in the webview
                     (0, analysisManager_1.showAnalysisWebView)(context, result);
+                    // Set up file watcher after successful analysis
+                    const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
+                    if (fileWatchManager) {
+                        fileWatchManager.setContext(context);
+                        fileWatchManager.setAnalysisMode(model_1.AnalysisMode.STATIC);
+                        fileWatchManager.startWatching(filePath, model_1.AnalysisMode.STATIC);
+                        console.log(`File watcher set up for static analysis of ${filePath}`);
+                    }
                 }
                 else {
                     vscode.window.showErrorMessage('Failed to analyze file. Check console for details.');

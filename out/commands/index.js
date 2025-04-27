@@ -39,7 +39,7 @@ const vscode = __importStar(require("vscode"));
 // Corregir la ruta de importación
 const serverCommands_1 = require("./serverCommands");
 const babiaCommands_1 = require("./babiaCommands");
-const uiCommands_1 = require("./uiCommands");
+const uiCommands_1 = require("./uiCommands"); // Fixed casing here
 /**
  * Refreshes the tree view
  */
@@ -61,7 +61,7 @@ function registerCommands(context, treeDataProvider) {
     // Register each group of commands
     disposables.push(...(0, serverCommands_1.registerServerCommands)(context, treeDataProvider));
     disposables.push(...(0, babiaCommands_1.registerBabiaCommands)(context, treeDataProvider));
-    disposables.push(...(0, uiCommands_1.registerUICommands)(treeDataProvider));
+    disposables.push(...(0, uiCommands_1.registerUiCommands)(context, treeDataProvider)); // Fixed casing and added context parameter
     // We no longer register analysis commands here since they are registered in extension.ts
     // Add the refresh command
     disposables.push(registerRefreshTreeViewCommand(treeDataProvider));

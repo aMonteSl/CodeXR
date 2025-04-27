@@ -10,6 +10,7 @@ import { notifyClientsDataRefresh, notifyClientsAnalysisUpdated } from '../serve
 import { transformAnalysisDataForXR } from './xr/xrDataTransformer';
 import { formatXRDataForBabia } from './xr/xrDataFormatter';
 import { getActiveServers } from '../server/serverManager'; // Import missing function
+import { sendAnalysisData } from './analysisManager';
 
 /**
  * Manages file watchers for analyzed files
@@ -180,9 +181,23 @@ export class FileWatchManager {
     // Store the updated result in the analysisDataManager
     analysisDataManager.setAnalysisResult(analysisResult);
     
-    // Notify the webview panel to update its content (if it's still open)
-    console.log('Sending update to analysis panel');
-    vscode.commands.executeCommand('codexr.updateAnalysisPanel', analysisResult);
+    // Get the active panel reference
+    const panel = analysisDataManager.getActiveFileAnalysisPanel();
+    
+    if (panel && !panel.disposed) {
+      console.log('Sending update directly to existing analysis panel');
+      
+      // Send the new data to the panel directly
+      sendAnalysisData(panel, analysisResult);
+      
+      // Also log that update was sent for debugging
+      console.log('Analysis panel updated with latest data');
+    } else {
+      console.log('No active panel found or panel was disposed');
+      
+      // Fallback to command-based update (though it likely won't work if panel is gone)
+      vscode.commands.executeCommand('codexr.updateAnalysisPanel', analysisResult);
+    }
   }
   
   /**

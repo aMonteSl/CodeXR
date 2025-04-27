@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyzeFile = analyzeFile;
 exports.transformAnalysisDataForWebview = transformAnalysisDataForWebview;
 exports.showAnalysisWebView = showAnalysisWebView;
+exports.sendAnalysisData = sendAnalysisData;
 exports.showFunctionDetailView = showFunctionDetailView;
 exports.registerAnalysisCommand = registerAnalysisCommand;
 exports.registerAnalysis3DCommand = registerAnalysis3DCommand;

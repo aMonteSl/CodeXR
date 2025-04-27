@@ -46,6 +46,8 @@ const serverModel_1 = require("../server/models/serverModel");
 const serverManager_1 = require("../server/serverManager");
 // Import the FileWatchManager at the top
 const fileWatchManager_1 = require("../analysis/fileWatchManager");
+// Add the import at the top
+const workspaceUtils_1 = require("../utils/workspaceUtils");
 /**
  * Registers all BabiaXR-related commands
  * @param context Extension context for storage
@@ -88,6 +90,10 @@ function registerBabiaCommands(context, treeDataProvider) {
                 if (startServer === 'Yes') {
                     await (0, chartManager_1.launchBabiaXRVisualization)(filePath, context);
                 }
+                // Automatically open the visualization folder as the workspace
+                const folderPath = path.dirname(filePath);
+                vscode.window.showInformationMessage(`Opening visualization folder in workspace: ${path.basename(folderPath)}`);
+                await (0, workspaceUtils_1.openFolderInWorkspace)(folderPath, false);
             }
         }
         catch (error) {

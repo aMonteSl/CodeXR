@@ -14,6 +14,9 @@ import { createServer } from '../server/serverManager';
 // Import the FileWatchManager at the top
 import { FileWatchManager } from '../analysis/fileWatchManager';
 
+// Add the import at the top
+import { openFolderInWorkspace } from '../utils/workspaceUtils';
+
 /**
  * Registers all BabiaXR-related commands
  * @param context Extension context for storage
@@ -71,6 +74,11 @@ export function registerBabiaCommands(
           if (startServer === 'Yes') {
             await launchBabiaXRVisualization(filePath, context);
           }
+
+          // Automatically open the visualization folder as the workspace
+          const folderPath = path.dirname(filePath);
+          vscode.window.showInformationMessage(`Opening visualization folder in workspace: ${path.basename(folderPath)}`);
+          await openFolderInWorkspace(folderPath, false);
         }
       } catch (error) {
         vscode.window.showErrorMessage(

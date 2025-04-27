@@ -67,22 +67,6 @@ export function registerAnalysisCommands(
     });
   }));
 
-  // Register command to update analysis panel with new data
-  const updateAnalysisPanelCommand = vscode.commands.registerCommand('codexr.updateAnalysisPanel', (analysisResult: FileAnalysisResult) => {
-    // Get the active panel
-    const activePanel = analysisDataManager.getActiveFileAnalysisPanel();
-    if (activePanel) {
-      // Transform the data for the webview before sending it
-      const transformedData = transformAnalysisDataForWebview(analysisResult);
-      
-      activePanel.webview.postMessage({
-        command: 'setAnalysisData',
-        data: transformedData
-      });
-    }
-  });
-  disposables.push(updateAnalysisPanelCommand);
-
   // Register standard analysis command (replacing the previous implementation)
   const analyzeFileCommand = vscode.commands.registerCommand('codexr.analyzeFile', async (fileUri?: vscode.Uri) => {
     try {
@@ -119,6 +103,15 @@ export function registerAnalysisCommands(
           
           // Display the analysis in the webview
           showAnalysisWebView(context, result);
+          
+          // Set up file watcher after successful analysis
+          const fileWatchManager = FileWatchManager.getInstance();
+          if (fileWatchManager) {
+            fileWatchManager.setContext(context);
+            fileWatchManager.setAnalysisMode(AnalysisMode.STATIC);
+            fileWatchManager.startWatching(filePath, AnalysisMode.STATIC);
+            console.log(`File watcher set up for static analysis of ${filePath}`);
+          }
         } else {
           vscode.window.showErrorMessage('Failed to analyze file. Check console for details.');
         }

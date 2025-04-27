@@ -33,14 +33,15 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerUICommands = registerUICommands;
+exports.registerUiCommands = registerUiCommands;
 const vscode = __importStar(require("vscode"));
+const analysisPanel_1 = require("../ui/panels/analysisPanel");
 /**
  * Registers UI-related commands
  * @param treeDataProvider The main tree data provider
  * @returns Array of disposables for registered commands
  */
-function registerUICommands(treeDataProvider) {
+function registerUiCommands(context, treeDataProvider) {
     const disposables = [];
     // Command to refresh the view
     disposables.push(vscode.commands.registerCommand('codexr.refreshView', () => {
@@ -50,6 +51,14 @@ function registerUICommands(treeDataProvider) {
     disposables.push(vscode.commands.registerCommand('codexr.refreshServerView', () => {
         treeDataProvider.refresh();
     }));
+    // Make sure this command is properly registered and calls the panel update
+    disposables.push(vscode.commands.registerCommand('codexr.updateAnalysisPanel', (analysisResult) => {
+        // Ensure we're calling the proper update method
+        analysisPanel_1.AnalysisPanel.update(analysisResult);
+        // Add debug logging to verify data flow
+        console.log('Analysis panel update triggered with latest data');
+    }));
+    // Return the disposables
     return disposables;
 }
 //# sourceMappingURL=uiCommands.js.map

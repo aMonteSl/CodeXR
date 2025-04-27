@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 // Corregir la ruta de importación
 import { registerServerCommands } from './serverCommands';
 import { registerBabiaCommands } from './babiaCommands';
-import { registerUICommands } from './uiCommands';
+import { registerUiCommands } from './uiCommands'; // Fixed casing here
 import { LocalServerProvider } from '../ui/treeProvider';
 
 /**
@@ -31,7 +31,7 @@ export function registerCommands(
   // Register each group of commands
   disposables.push(...registerServerCommands(context, treeDataProvider));
   disposables.push(...registerBabiaCommands(context, treeDataProvider));
-  disposables.push(...registerUICommands(treeDataProvider));
+  disposables.push(...registerUiCommands(context, treeDataProvider)); // Fixed casing and added context parameter
   
   // We no longer register analysis commands here since they are registered in extension.ts
   

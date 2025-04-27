@@ -353,7 +353,7 @@ export function showAnalysisWebView(
 }
 
 // Extract the data sending logic to a separate function
-function sendAnalysisData(panel: vscode.WebviewPanel, result: FileAnalysisResult): void {
+export function sendAnalysisData(panel: vscode.WebviewPanel, result: FileAnalysisResult): void {
   setTimeout(() => {
     const transformedData = transformAnalysisDataForWebview(result);
     panel.webview.postMessage({
