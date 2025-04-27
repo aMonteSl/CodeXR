@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { FileWatchManager } from '../../analysis/fileWatchManager';
+import { injectVisualizationLiveReloadScript } from '../../server/liveReloadManager';
 
 /**
  * Saves processed HTML content to a file and copies related data files
@@ -106,6 +107,9 @@ export async function saveHtmlToFile(
         vscode.window.showErrorMessage(`Error handling data file: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
+    
+    // Add visualization-specific live reload capability
+    html = injectVisualizationLiveReloadScript(html);
     
     // Save the HTML
     fs.writeFileSync(htmlPath, html);

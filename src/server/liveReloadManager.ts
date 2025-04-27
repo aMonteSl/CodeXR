@@ -86,6 +86,129 @@ export function injectLiveReloadScript(htmlContent: string): string {
 }
 
 /**
+ * Injects a visualization-specific LiveReload script into HTML content
+ * Does not modify the existing injectLiveReloadScript function
+ * @param htmlContent Original HTML content
+ * @returns HTML with Visualization LiveReload script injected
+ */
+export function injectVisualizationLiveReloadScript(htmlContent: string): string {
+  // Check if the script is already injected
+  if (htmlContent.includes('__VISUALIZATION_LIVE_RELOAD_CLIENT__')) {
+    return htmlContent;
+  }
+
+  // Create a completely separate script for visualization reloading
+  const visualizationLiveReloadScript = `
+  <script id="__VISUALIZATION_LIVE_RELOAD_CLIENT__">
+    console.log('🔵 Setting up BabiaXR Visualization LiveReload...');
+
+    const eventSource = new EventSource('/live-reload');
+    let isXRMode = false;
+
+    // Check if we're in an A-Frame scene
+    function checkXRMode() {
+      isXRMode = !!document.querySelector('a-scene');
+      console.log(isXRMode ? '🥽 XR mode detected' : '🖥️ Standard mode detected');
+      return isXRMode;
+    }
+
+    document.addEventListener('DOMContentLoaded', checkXRMode);
+
+    eventSource.onopen = function() {
+      console.log('🟢 Visualization LiveReload connected');
+    };
+
+    eventSource.onerror = function(err) {
+      console.error('🔴 Visualization LiveReload error:', err);
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        console.log('🔄 Attempting to reconnect...');
+        eventSource.close();
+        new EventSource('/live-reload');
+      }, 3000);
+    };
+
+    // Handle data refresh events (JSON changes)
+    eventSource.addEventListener('dataRefresh', function(event) {
+      console.log('📊 Visualization data refresh event received');
+      
+      // Get all babia-queryjson elements
+      const dataEntities = document.querySelectorAll('[babia-queryjson]');
+      const chartEntities = document.querySelectorAll('[babia-bars], [babia-cylinders], [babia-pie], [babia-donut], [babia-barsmap]');
+      
+      if (dataEntities.length > 0) {
+        const timestamp = Date.now();
+        console.log('🔄 Refreshing ' + dataEntities.length + ' visualization data entities');
+        
+        // Update each data entity
+        dataEntities.forEach(dataEntity => {
+          // Get current attributes
+          const queryjson = dataEntity.getAttribute('babia-queryjson');
+          if (queryjson) {
+            // Add cache busting parameter
+            const urlStr = queryjson.url || '';
+            const url = urlStr.split('?')[0] + '?t=' + timestamp;
+            
+            // Create new attributes object with updated URL
+            const newAttr = { ...queryjson };
+            newAttr.url = url;
+            
+            // Update the attribute
+            dataEntity.setAttribute('babia-queryjson', newAttr);
+            
+            setTimeout(() => {
+              // Trigger data refresh event
+              dataEntity.emit('data-loaded', {});
+              console.log('📊 Visualization data entity refreshed');
+            }, 100);
+          }
+        });
+
+        // Rebuild charts
+        setTimeout(() => {
+          chartEntities.forEach(chartEntity => {
+            // Find which component type is used
+            const componentTypes = ['babia-bars', 'babia-cylinders', 'babia-pie', 'babia-donut', 'babia-barsmap'];
+            for (const type of componentTypes) {
+              if (chartEntity.hasAttribute(type)) {
+                const attributes = chartEntity.getAttribute(type);
+                console.log('🔄 Rebuilding visualization ' + type + ' chart');
+                
+                // Remove and re-add component to force refresh
+                chartEntity.removeAttribute(type);
+                setTimeout(() => {
+                  chartEntity.setAttribute(type, attributes);
+                  console.log('✅ Visualization chart rebuilt');
+                }, 50);
+                break;
+              }
+            }
+          });
+        }, 200);
+      }
+    });
+
+    // Handle HTML changes
+    eventSource.onmessage = function(event) {
+      // Skip reload if in XR mode
+      if (checkXRMode()) {
+        console.log('⛔ Blocking visualization page reload in XR mode');
+        return;
+      }
+      
+      if (event.data === 'reload') {
+        console.log('💫 Visualization live reload triggered, refreshing page...');
+        window.location.reload();
+      }
+    };
+  </script>
+  `;
+
+  // Insert the script before the closing </body> tag
+  return htmlContent.replace('</body>', `${visualizationLiveReloadScript}\n</body>`);
+}
+
+/**
  * Notifies all SSE clients that analysis data has been updated
  */
 export function notifyClientsAnalysisUpdated(): void {

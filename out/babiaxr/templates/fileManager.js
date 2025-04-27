@@ -39,6 +39,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const fileWatchManager_1 = require("../../analysis/fileWatchManager");
+const liveReloadManager_1 = require("../../server/liveReloadManager");
 /**
  * Saves processed HTML content to a file and copies related data files
  */
@@ -120,6 +121,8 @@ async function saveHtmlToFile(html, fileName, originalDataPath, isRemoteData = f
                 vscode.window.showErrorMessage(`Error handling data file: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
+        // Add visualization-specific live reload capability
+        html = (0, liveReloadManager_1.injectVisualizationLiveReloadScript)(html);
         // Save the HTML
         fs.writeFileSync(htmlPath, html);
         // Success message

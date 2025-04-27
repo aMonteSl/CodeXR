@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Code Complexity: pruebaTFG.py</title>
+    <meta name="description" content="Code analysis visualization with BabiaXR">
+    <!-- Import A-Frame & BabiaXR -->
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-babia-components/dist/aframe-babia-components.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.0.0/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.0/dist/aframe-extras.min.js"></script>
+    
+    <link rel="icon" type="image/svg" href="file:///home/adrian/CodeXR/resources/icon.svg">
+    <style>
+        .info-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .info-panel h2 {
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .info-panel p {
+            margin: 5px 0;
+        }
+        .controls-hint {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            z-index: 100;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-panel">
+        <h2>Code Complexity: pruebaTFG.py</h2>
+        <p>Analysis of Python code with 5 functions and 113 lines of code</p>
+        <p>X-axis: Function names</p>
+        <p>Y-axis: Cyclomatic Complexity</p>
+    </div>
+    
+    <a-scene background="color: #0074D9">
+        <!-- Lights - hide in AR mode to use real-world lighting -->
+        <a-entity babia-visiblear="ar: false; vr: true">
+            <a-light type="point" intensity="1" position="-10 20 30"></a-light>
+            <a-light type="ambient" intensity="0.4"></a-light>
+        </a-entity>
+
+        <!-- Entity that loads data -->
+        <a-entity id="data" 
+                  babia-queryjson="url: ./data.json">
+        </a-entity>
+
+        <!-- Bars Chart for Code Complexity with auto-updater -->
+        <a-entity id="chart" 
+                  babia-bars="from: data;
+                  legend: true;
+                  tooltip: true;
+                  palette: blues;
+                  x_axis: functionName;
+                  height: complexity;
+                  title: Code Complexity: pruebaTFG.py;
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  heightMax: 20;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -10"
+                  rotation="0 0 0"
+                  scale="1.5 1.5 1.5">
+        </a-entity>
+        
+        <!-- Information Panel -->
+        <a-entity position="-15 5 -10" rotation="0 30 0">
+            <a-plane color="#333333" width="6" height="4" position="0 0 0">
+                <a-text value="Code Complexity: pruebaTFG.py" 
+                       width="5" 
+                       color="white" 
+                       position="-2.5 1.5 0.01" 
+                       anchor="left"
+                       font="monoid"></a-text>
+                <a-text value="File: pruebaTFG.py" 
+                       width="5" 
+                       color="#AAFFAA" 
+                       position="-2.5 1.0 0.01" 
+                       anchor="left"></a-text>
+            </a-plane>
+        </a-entity>
+        
+        <!-- Camera with movement controls -->
+        <a-entity movement-controls="fly: true" position="0 5 10">
+            <a-entity camera position="0 0 0" look-controls></a-entity>
+            <a-entity cursor="rayOrigin:mouse"></a-entity>
+            <a-entity laser-controls="hand: right"></a-entity>
+        </a-entity>
+    </a-scene>
+    
+    <!-- No manual event script needed here - it's injected by liveReloadManager -->
+</body>
+</html>
