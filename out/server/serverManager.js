@@ -55,8 +55,8 @@ exports.activeServerList = activeServerList;
 // Variable to track the most recent server
 let activeServer;
 /**
- * Gets the list of active servers
- * @returns List of active server information
+ * Gets all active servers
+ * @returns Array of active servers
  */
 function getActiveServers() {
     return activeServerList.map(entry => entry.info);
@@ -228,7 +228,6 @@ function stopServer(serverId) {
  */
 async function createServer(filePath, mode, context) {
     try {
-        // Asegurarnos de que aquí también funciona correctamente:
         let useHttps = false;
         let useDefaultCerts = false;
         if (mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS) {
@@ -239,14 +238,47 @@ async function createServer(filePath, mode, context) {
             useHttps = true;
             useDefaultCerts = false;
         }
-        // Get the directory where the selected HTML file is located
-        const fileDir = path.dirname(filePath);
+        // Print the path to the HTML file for debugging
+        console.log('DEBUG - HTML file path (ServerManager):', filePath);
+        // Determine if this is a directory or a file
+        const fs = require('fs');
+        const stats = fs.statSync(filePath);
+        // Choose the correct file and directory paths based on what was provided
+        let serverRootDir;
+        let mainHtmlPath;
+        if (stats.isDirectory()) {
+            // If a directory was passed in (like the examples directory)
+            serverRootDir = filePath;
+            // Examples directory should have an index.html or we'll default to any HTML file
+            // This is just for display purposes, actual requests will still work
+            const possibleIndexFiles = ['index.html', 'main.html'];
+            for (const indexFile of possibleIndexFiles) {
+                const indexPath = path.join(serverRootDir, indexFile);
+                if (fs.existsSync(indexPath)) {
+                    mainHtmlPath = indexPath;
+                    break;
+                }
+            }
+            // If no index file is found, just use the directory path
+            if (!mainHtmlPath) {
+                mainHtmlPath = serverRootDir;
+            }
+        }
+        else {
+            // If a specific file was passed (like a single visualization)
+            mainHtmlPath = filePath;
+            serverRootDir = path.dirname(filePath);
+        }
+        // Log the paths we're using
+        console.log('Server root directory:', serverRootDir);
+        console.log('Main HTML path:', mainHtmlPath);
         // Find a free port
         const getPortModule = await import('get-port');
         const getPort = getPortModule.default;
         const port = await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
-        // Create request handler
-        const requestHandler = (0, requestHandler_1.createRequestHandler)(fileDir, filePath);
+        // Create request handler with the correct server root directory
+        const requestHandler = (0, requestHandler_1.createRequestHandler)(serverRootDir, mainHtmlPath);
+        // Continue with server creation as before...
         // Create HTTP or HTTPS server based on the chosen option
         let server;
         if (useHttps) {
@@ -257,10 +289,12 @@ async function createServer(filePath, mode, context) {
             server = http.createServer(requestHandler);
         }
         // Set up file watching for live reload
-        const htmlWatcher = fs.watch(filePath, () => (0, liveReloadManager_1.notifyClients)());
-        const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
+        const htmlWatcher = fs.watch(mainHtmlPath, (eventType, filename) => {
+            (0, liveReloadManager_1.notifyClients)();
+        });
+        const jsonWatcher = fs.watch(serverRootDir, (eventType, filename) => {
             if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
-                setTimeout(() => (0, liveReloadManager_1.notifyClients)(), 300);
+                (0, liveReloadManager_1.notifyClients)();
             }
         });
         // Register watchers for cleanup
@@ -272,7 +306,7 @@ async function createServer(filePath, mode, context) {
         });
         // Generate server info
         const protocol = useHttps ? 'https' : 'http';
-        const filename = path.basename(filePath, path.extname(filePath));
+        const filename = path.basename(mainHtmlPath, path.extname(mainHtmlPath));
         const serverUrl = `${protocol}://localhost:${port}`;
         const displayUrl = `${protocol}://${filename}:${port}`;
         const serverId = `server-${Date.now()}`;

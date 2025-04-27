@@ -1,9 +1,18 @@
 import * as vscode from 'vscode';
 import { ServerMode } from '../server/models/serverModel';
-import { AnalysisTreeProvider } from '../analysis/providers/analysisTreeProvider';
 import { BabiaTreeProvider } from '../babiaxr/providers/babiaTreeProvider';
 import { ServerTreeProvider } from '../server/providers/serverTreeProvider';
 import { TreeItem } from './treeItems/baseItems';
+import {
+  getAnalysisChildren,
+  getAnalysisSectionItem,
+  getLanguageGroupChildren
+} from '../analysis/tree/analysisTreeProvider';
+import {
+  AnalysisSectionItem,
+  AnalysisSettingsItem,
+  AnalysisModeOptionItem
+} from '../analysis/tree/analysisTreeItems';
 
 // Types of tree items for context handling
 export enum TreeItemType {
@@ -22,7 +31,14 @@ export enum TreeItemType {
   BABIAXR_EXAMPLE = 'babiaxr-example',
   BABIAXR_EXAMPLE_CATEGORY = 'example-category',
   JS_FILE = 'js-file',
-  JS_FILES_CONTAINER = 'js-files-container'
+  JS_FILES_CONTAINER = 'js-files-container',
+  ANALYSIS_FILES_CONTAINER = 'analysis-files-container',
+  ANALYSIS_FILE = 'analysis-file',
+  ANALYSIS_SECTION = 'analysis-section',
+  ANALYSIS_LANGUAGE_GROUP = 'analysis-language-group',
+  ANALYSIS_MESSAGE = 'analysis-message',
+  ANALYSIS_SETTINGS = 'analysis-settings',
+  ANALYSIS_SETTING_OPTION = 'analysis-setting-option'
 }
 
 /**
@@ -30,18 +46,15 @@ export enum TreeItemType {
  */
 export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
   // Event emitter to notify data changes
-  private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | void> = 
-    new vscode.EventEmitter<TreeItem | undefined | void>();
+  private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined> = new vscode.EventEmitter<TreeItem | undefined>();
   
   // Event that VS Code listens to for view updates
-  readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> = 
-    this._onDidChangeTreeData.event;
+  readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined> = this._onDidChangeTreeData.event;
   
   // Extension context for storage access
   private context: vscode.ExtensionContext;
 
   // Specialized tree providers
-  private analysisTreeProvider: AnalysisTreeProvider;
   private babiaTreeProvider: BabiaTreeProvider;
   private serverTreeProvider: ServerTreeProvider;
 
@@ -49,7 +62,6 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
     this.context = context;
     
     // Initialize specialized providers
-    this.analysisTreeProvider = new AnalysisTreeProvider(context);
     this.babiaTreeProvider = new BabiaTreeProvider(context);
     this.serverTreeProvider = new ServerTreeProvider(context);
 
@@ -61,9 +73,10 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
 
   /**
    * Refreshes the tree view
+   * @param element Optional element to refresh, or undefined to refresh all
    */
-  refresh(): void {
-    this._onDidChangeTreeData.fire();
+  public refresh(element?: TreeItem): void {
+    this._onDidChangeTreeData.fire(element);
   }
 
   /**
@@ -85,6 +98,7 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       case TreeItemType.SERVERS_SECTION:
         return this.serverTreeProvider.getServersChildren();
       case TreeItemType.BABIAXR_SECTION:
+        // Get BabiaXR children
         return this.babiaTreeProvider.getBabiaXRChildren();
       case TreeItemType.SERVER_CONFIG:
         return this.serverTreeProvider.getServerConfigChildren();
@@ -101,8 +115,13 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
           return Promise.resolve(element.children);
         }
         return Promise.resolve([]);
-      case TreeItemType.JS_FILES_CONTAINER:
-        return this.analysisTreeProvider.getJavaScriptFilesChildren();
+      // Add the Code Analysis cases
+      case TreeItemType.ANALYSIS_SECTION:
+        return getAnalysisChildren(this.context);
+      case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
+        return getLanguageGroupChildren(element);
+      case TreeItemType.ANALYSIS_SETTINGS:
+        return this.getSettingsChildren(this.context.extensionUri.fsPath);
       default:
         return Promise.resolve([]);
     }
@@ -115,8 +134,27 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
     return Promise.resolve([
       this.serverTreeProvider.getServersSectionItem(),
       this.babiaTreeProvider.getBabiaXRSectionItem(),
-      this.analysisTreeProvider.getJavaScriptFilesContainer()
+      getAnalysisSectionItem(this.context.extensionUri.fsPath)
     ]);
+  }
+
+  /**
+   * Gets settings child items
+   * @param extensionPath Path to the extension
+   * @returns Settings option items
+   */
+  private async getSettingsChildren(extensionPath: string): Promise<TreeItem[]> {
+    console.log('Generating settings children items');
+    const config = vscode.workspace.getConfiguration();
+    const currentMode = config.get<string>('codexr.analysisMode', 'Static');
+    
+    console.log('Current analysis mode:', currentMode);
+    
+    // Create option items for each analysis mode
+    const staticOption = new AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
+    const xrOption = new AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
+    
+    return [staticOption, xrOption];
   }
 
   /**

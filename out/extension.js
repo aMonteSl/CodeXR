@@ -36,45 +36,84 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
+const fs = __importStar(require("fs/promises"));
+const path = __importStar(require("path"));
 const commands_1 = require("./commands");
-const statusBar_1 = require("./ui/statusBar");
-const analysisViewProvider_1 = require("./analysis/providers/analysisViewProvider");
+const statusBarManager_1 = require("./ui/statusBarManager");
 const treeProvider_1 = require("./ui/treeProvider");
 const serverManager_1 = require("./server/serverManager");
+const pythonEnv_1 = require("./pythonEnv");
+const analysisDataManager_1 = require("./analysis/analysisDataManager");
+const analysisCommands_1 = require("./commands/analysisCommands");
+const xrAnalysisManager_1 = require("./analysis/xr/xrAnalysisManager");
+const fileWatchManager_1 = require("./analysis/fileWatchManager");
 /**
  * This function is executed when the extension is activated
  */
-function activate(context) {
+async function activate(context) {
     console.log('Extension "CodeXR" is now active.');
-    // Initialize status bar
-    const jsMetricsStatusBar = (0, statusBar_1.initializeStatusBar)(context);
-    context.subscriptions.push(jsMetricsStatusBar);
+    // Initialize status bar manager
+    const statusBarManager = (0, statusBarManager_1.getStatusBarManager)(context);
+    // Inicializar FileWatchManager - AÑADIR ESTA LÍNEA
+    fileWatchManager_1.FileWatchManager.initialize(context);
     // Register tree data provider for the unified view
     const treeDataProvider = new treeProvider_1.LocalServerProvider(context);
-    // Register tree view
     const treeView = vscode.window.createTreeView('codexr.serverTreeView', {
         treeDataProvider: treeDataProvider
     });
     context.subscriptions.push(treeView);
-    // Register the Analysis View Provider
-    const analysisViewProvider = new analysisViewProvider_1.AnalysisViewProvider(context.extensionUri);
-    console.log('AnalysisViewProvider instance created');
-    // Register the provider
-    const analysisViewRegistration = vscode.window.registerWebviewViewProvider('codexr.analysisView', analysisViewProvider, {
-        webviewOptions: {
-            retainContextWhenHidden: true
-        }
-    });
-    console.log('AnalysisViewProvider registered');
-    context.subscriptions.push(analysisViewRegistration);
-    // Register all commands
-    const commandDisposables = (0, commands_1.registerCommands)(context, treeDataProvider, analysisViewProvider);
+    // Expose the treeDataProvider globally for updates
+    global.treeDataProvider = treeDataProvider;
+    // Register all commands ONCE
+    // Server/UI commands
+    const commandDisposables = (0, commands_1.registerCommands)(context, treeDataProvider);
     context.subscriptions.push(...commandDisposables);
+    // Register Python environment commands ONCE
+    const pythonEnvDisposables = (0, pythonEnv_1.registerPythonEnvCommands)(context);
+    context.subscriptions.push(...pythonEnvDisposables);
+    // Register all analysis commands ONCE - this is the only place that should register analysis commands
+    const analysisDisposables = (0, analysisCommands_1.registerAnalysisCommands)(context);
+    context.subscriptions.push(...analysisDisposables);
+    // Check for Python environment at startup (after short delay to not block activation)
+    setTimeout(() => {
+        (0, pythonEnv_1.checkAndSetupPythonEnvironment)();
+    }, 2000);
 }
 /**
  * This function is executed when the extension is deactivated
  */
-function deactivate() {
-    (0, serverManager_1.stopServer)(); // Ensure all servers are stopped when extension is deactivated
+async function deactivate() {
+    // Clean up any stored data
+    analysisDataManager_1.analysisDataManager.clear();
+    // Clean up XR visualizations
+    (0, xrAnalysisManager_1.cleanupXRVisualizations)();
+    // Stop all servers when extension is deactivated
+    (0, serverManager_1.stopServer)();
+    // Clean up visualization files
+    try {
+        // Get the path to the visualizations directory
+        const visualizationsDir = path.join(__dirname, '..', 'visualizations');
+        // Check if the directory exists
+        try {
+            await fs.access(visualizationsDir);
+            // Read all entries in the directory
+            const entries = await fs.readdir(visualizationsDir);
+            // Delete each entry recursively
+            for (const entry of entries) {
+                const entryPath = path.join(visualizationsDir, entry);
+                console.log(`Cleaning up visualization files: ${entryPath}`);
+                await fs.rm(entryPath, { recursive: true, force: true });
+            }
+            console.log('All visualization files cleaned up successfully');
+        }
+        catch (err) {
+            // Directory doesn't exist, nothing to clean up
+            console.log('No visualizations directory found, nothing to clean up');
+        }
+    }
+    catch (error) {
+        console.error('Error during cleanup of visualization files:', error);
+    }
+    // Status bar is disposed automatically through context.subscriptions
 }
 //# sourceMappingURL=extension.js.map

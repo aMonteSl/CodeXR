@@ -156,7 +156,7 @@ exports.BabiaXRSectionItem = BabiaXRSectionItem;
 class BabiaXRExampleItem extends baseItems_1.TreeItem {
     constructor(label, examplePath) {
         super(label, "Launch this example visualization", treeProvider_1.TreeItemType.BABIAXR_EXAMPLE, vscode.TreeItemCollapsibleState.None, {
-            command: 'codexr.launchBabiaXRExample', // Actualizado a codexr
+            command: 'codexr.launchBabiaXRExample',
             title: `Launch ${label} Example`,
             arguments: [examplePath]
         }, new vscode.ThemeIcon('play'));

@@ -36,9 +36,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LocalServerProvider = exports.TreeItemType = void 0;
 const vscode = __importStar(require("vscode"));
 const serverModel_1 = require("../server/models/serverModel");
-const analysisTreeProvider_1 = require("../analysis/providers/analysisTreeProvider");
 const babiaTreeProvider_1 = require("../babiaxr/providers/babiaTreeProvider");
 const serverTreeProvider_1 = require("../server/providers/serverTreeProvider");
+const analysisTreeProvider_1 = require("../analysis/tree/analysisTreeProvider");
+const analysisTreeItems_1 = require("../analysis/tree/analysisTreeItems");
 // Types of tree items for context handling
 var TreeItemType;
 (function (TreeItemType) {
@@ -58,6 +59,13 @@ var TreeItemType;
     TreeItemType["BABIAXR_EXAMPLE_CATEGORY"] = "example-category";
     TreeItemType["JS_FILE"] = "js-file";
     TreeItemType["JS_FILES_CONTAINER"] = "js-files-container";
+    TreeItemType["ANALYSIS_FILES_CONTAINER"] = "analysis-files-container";
+    TreeItemType["ANALYSIS_FILE"] = "analysis-file";
+    TreeItemType["ANALYSIS_SECTION"] = "analysis-section";
+    TreeItemType["ANALYSIS_LANGUAGE_GROUP"] = "analysis-language-group";
+    TreeItemType["ANALYSIS_MESSAGE"] = "analysis-message";
+    TreeItemType["ANALYSIS_SETTINGS"] = "analysis-settings";
+    TreeItemType["ANALYSIS_SETTING_OPTION"] = "analysis-setting-option";
 })(TreeItemType || (exports.TreeItemType = TreeItemType = {}));
 /**
  * Tree data provider implementation for the sidebar view
@@ -70,13 +78,11 @@ class LocalServerProvider {
     // Extension context for storage access
     context;
     // Specialized tree providers
-    analysisTreeProvider;
     babiaTreeProvider;
     serverTreeProvider;
     constructor(context) {
         this.context = context;
         // Initialize specialized providers
-        this.analysisTreeProvider = new analysisTreeProvider_1.AnalysisTreeProvider(context);
         this.babiaTreeProvider = new babiaTreeProvider_1.BabiaTreeProvider(context);
         this.serverTreeProvider = new serverTreeProvider_1.ServerTreeProvider(context);
         // Initialize with default values if no previous configuration exists
@@ -86,9 +92,10 @@ class LocalServerProvider {
     }
     /**
      * Refreshes the tree view
+     * @param element Optional element to refresh, or undefined to refresh all
      */
-    refresh() {
-        this._onDidChangeTreeData.fire();
+    refresh(element) {
+        this._onDidChangeTreeData.fire(element);
     }
     /**
      * Returns the UI element for an item
@@ -107,6 +114,7 @@ class LocalServerProvider {
             case TreeItemType.SERVERS_SECTION:
                 return this.serverTreeProvider.getServersChildren();
             case TreeItemType.BABIAXR_SECTION:
+                // Get BabiaXR children
                 return this.babiaTreeProvider.getBabiaXRChildren();
             case TreeItemType.SERVER_CONFIG:
                 return this.serverTreeProvider.getServerConfigChildren();
@@ -123,8 +131,13 @@ class LocalServerProvider {
                     return Promise.resolve(element.children);
                 }
                 return Promise.resolve([]);
-            case TreeItemType.JS_FILES_CONTAINER:
-                return this.analysisTreeProvider.getJavaScriptFilesChildren();
+            // Add the Code Analysis cases
+            case TreeItemType.ANALYSIS_SECTION:
+                return (0, analysisTreeProvider_1.getAnalysisChildren)(this.context);
+            case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
+                return (0, analysisTreeProvider_1.getLanguageGroupChildren)(element);
+            case TreeItemType.ANALYSIS_SETTINGS:
+                return this.getSettingsChildren(this.context.extensionUri.fsPath);
             default:
                 return Promise.resolve([]);
         }
@@ -136,8 +149,23 @@ class LocalServerProvider {
         return Promise.resolve([
             this.serverTreeProvider.getServersSectionItem(),
             this.babiaTreeProvider.getBabiaXRSectionItem(),
-            this.analysisTreeProvider.getJavaScriptFilesContainer()
+            (0, analysisTreeProvider_1.getAnalysisSectionItem)(this.context.extensionUri.fsPath)
         ]);
+    }
+    /**
+     * Gets settings child items
+     * @param extensionPath Path to the extension
+     * @returns Settings option items
+     */
+    async getSettingsChildren(extensionPath) {
+        console.log('Generating settings children items');
+        const config = vscode.workspace.getConfiguration();
+        const currentMode = config.get('codexr.analysisMode', 'Static');
+        console.log('Current analysis mode:', currentMode);
+        // Create option items for each analysis mode
+        const staticOption = new analysisTreeItems_1.AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
+        const xrOption = new analysisTreeItems_1.AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
+        return [staticOption, xrOption];
     }
     /**
      * Changes the server mode - delegated to ServerTreeProvider

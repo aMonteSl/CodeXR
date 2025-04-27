@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getTemplateFileName = getTemplateFileName;
 exports.loadTemplate = loadTemplate;
+exports.generateNonce = generateNonce;
 exports.replaceTemplateVariables = replaceTemplateVariables;
 exports.createVariableMap = createVariableMap;
 exports.processTemplate = processTemplate;
@@ -51,19 +52,45 @@ function getTemplateFileName(chartType) {
     return 'chart-template.html';
 }
 /**
- * Loads a template from the templates directory
+ * Loads and processes an HTML template
+ * @param templateName Name of the template file (without path)
+ * @param replacements Key-value pairs for template variable replacements
+ * @param extensionUri Extension URI
+ * @returns Processed HTML content
  */
-function loadTemplate(context, templateFileName) {
+async function loadTemplate(templateName, replacements, extensionUri) {
     try {
-        const templatePath = path.join(context.extensionPath, 'templates', templateFileName);
-        if (!fs.existsSync(templatePath)) {
-            throw new Error(`Template not found: ${templateFileName}`);
+        const templatePath = path.join(extensionUri.fsPath, 'templates', 'analysis', templateName);
+        // Check if template exists
+        if (fs.existsSync(templatePath)) {
+            // Read template content
+            let content = fs.readFileSync(templatePath, 'utf-8');
+            // Replace all variables with their values
+            for (const [key, value] of Object.entries(replacements)) {
+                content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+            }
+            return content;
         }
-        return fs.readFileSync(templatePath, 'utf8');
+        else {
+            throw new Error(`Template not found: ${templatePath}`);
+        }
     }
     catch (error) {
-        throw new Error(`Error loading template: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`Error loading template ${templateName}:`, error);
+        throw error;
     }
+}
+/**
+ * Generates a nonce for script security
+ * @returns Random nonce string
+ */
+function generateNonce() {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
 }
 /**
  * Replaces variables in a template with actual values

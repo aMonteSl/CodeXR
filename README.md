@@ -1,169 +1,162 @@
-# CodeXR — Local Server and WebXR Visualizations
+# CodeXR — Code Analysis & XR Visualizations
 
-Extension for Visual Studio Code that enables source code analysis (JavaScript, TypeScript, Python, etc.) and visualization of key metrics (LOC, variables, cyclomatic complexity, etc.) in immersive XR/VR environments using A-Frame and BabiaXR.
+Extension for Visual Studio Code that enables source code analysis (JavaScript, TypeScript, Python, C) and visualization of key metrics (LOC, comments, cyclomatic complexity, etc.) in both static webviews and immersive XR/VR environments using A-Frame and BabiaXR.
 
-Transform your workspace into an augmented programming environment, surrounded by 3D graphs and insights into your code.
-
+Transform your workspace into an augmented programming environment, surrounded by 3D graphs and insights into your code that update in real-time as you code.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Key Features
 
-- ⚡ Optimized local server for WebXR experiences
-- 📊 3D data visualization generator powered by BabiaXR
-- 🧠 JavaScript code analysis (metrics and visualization)
-- 🛠️ Modular and scalable architecture
+- 🔍 Multi-language code analysis (JavaScript, TypeScript, Python, C)
+- 📊 Static code metrics visualization in VS Code webviews
+- 🥽 XR visualization of code complexity in VR/AR environments
+- 🔄 Real-time update of metrics and visualizations as you code
+- ⚡ Optimized local server for WebXR experiences with SSE updates
+- 🧩 Modular and extensible architecture
 
 ## Technologies and Libraries Used
 
 - **TypeScript** — Main development language
 - **VS Code API** — Native integration with the editor
+- **Python** — For advanced code metrics using Lizard
 - **A-Frame** — WebXR framework
 - **BabiaXR** — Data visualization in VR/AR environments
 - **Node.js** (http, https, fs) — Modules for server and file system
-- **TypeScript Compiler API** — Static code analysis
-- **get-port** — Automatic free port assignment
+- **SSE** (Server-Sent Events) — For real-time visualization updates
+- **Lizard** — Cyclomatic complexity analysis
 
 ## Project Structure
 
+```
 src/
-├── analysis/        # JavaScript code analysis
-├── server/          # Local server for A-Frame with live reload
-├── babiaxr/         # 3D visualizations with BabiaXR
-├── ui/              # Shared user interface components
-├── utils/           # General utilities
-├── commands/        # Extension commands
-└── extension.ts     # Main entry point
+├── analysis/           # Code analysis and metrics
+│   ├── tree/           # TreeView for file analysis
+│   ├── xr/             # XR visualization of code metrics
+│   └── python/         # Python analysis scripts
+├── server/             # Local server with SSE for live update
+├── pythonEnv/          # Python virtual environment manager
+├── babiaxr/            # 3D visualizations with BabiaXR
+├── ui/                 # Shared user interface components
+├── commands/           # Extension commands
+└── extension.ts        # Main entry point
+```
 
 ## Module Descriptions
 
-### 1. analysis/ — JavaScript Code Analysis
+### 1. analysis/ — Code Analysis
 
-Allows obtaining code quality metrics:
+Multi-language code analysis system:
 
-- Lines of code (LOC)
-- Comments
-- Number of functions and classes
-- Metrics visualization in a webview panel
+- Lines of code (LOC), comments, blank lines
+- Function and class detection
+- Cyclomatic complexity (CCN) metrics
+- Static visualization in webview panel
+- XR visualization through BabiaXR
 
 Main files:
-- `codeAnalyzer.ts` — Analysis coordinator
-- `metrics/` — Specific analysis modules
-- `providers/` — Tree and webview result view
-- `utils/fileParser.ts` — Custom JS/TS file parser
+- `analysisManager.ts` — Analysis coordination
+- `fileWatchManager.ts` — Real-time re-analysis on file changes
+- `xr/xrAnalysisManager.ts` — XR visualization generation
+- `python/lizard_analyzer.py` — Python-based complexity analysis
 
-### 2. server/ — Local Server for WebXR
+### 2. server/ — Local Server with SSE
 
-HTTP/HTTPS server with live reload:
+HTTP/HTTPS server with live reload and real-time data updates:
 
 - SSL support (self-signed or custom certificates)
+- Server-Sent Events (SSE) for live visualization updates
+- Support for updating visualizations without page reloads
 - Management of multiple simultaneous servers
-- Automatic reload on file modification
 
 Main files:
-- `serverManager.ts` — Server manager
-- `certificateManager.ts` — SSL certificate management
-- `liveReloadManager.ts` — Live reload
+- `serverManager.ts` — Server management
+- `liveReloadManager.ts` — SSE-based live updates
 - `requestHandler.ts` — HTTP/HTTPS request handler
 
-### 3. babiaxr/ — 3D Data Visualizations
+### 3. pythonEnv/ — Python Environment Manager
+
+Auto-configuration of Python for analysis:
+
+- Automatic virtual environment setup
+- Dependency management (Lizard)
+- Cross-platform compatibility
+
+### 4. babiaxr/ — 3D Data Visualizations
 
 Immersive visualization generator for VR/AR environments:
 
-- Bar, cylinder, pie charts, etc.
-- JSON data support
-- Export of complete A-Frame projects
-
-Main files:
-- `chartManager.ts` — Chart management
-- `dataCollector.ts` — Data loading and processing
-- `templateManager.ts` — Visualization templates
-- `babiaTreeProvider.ts` — UI for BabiaXR visualizations
-
-### 4. ui/ — User Interface Components
-
-Reusable components to improve development experience:
-
-- Custom side tree view
-- VS Code status bar
-- Interactive webviews (color picker)
-
-### 5. commands/ — Modular Command System
-
-Commands organized by category to facilitate maintenance:
-
-- `analysisCommands.ts`
-- `serverCommands.ts`
-- `babiaCommands.ts`
-- `uiCommands.ts`
+- Bar, cylinder charts for code complexity
+- Custom data transformation for BabiaXR compatibility
+- Real-time visualization updates via SSE
 
 ## Main Features
 
-### Local WebXR Server
+### Code Analysis
 
 | Feature | Description |
 |---------|-------------|
-| HTTP / HTTPS | Flexible server mode configuration |
-| Live reload | Automatic browser update |
-| Multi-server management | Visual panel of active servers |
-| Custom certificates | Support for your own SSL certificates |
+| Multi-language | JavaScript, TypeScript, Python, C |
+| Static Mode | Detailed metrics in VS Code webview |
+| XR Mode | Immersive 3D visualization of code metrics |
+| Auto Re-analysis | Real-time updates as you code |
+| TreeView Integration | Easy file selection with language icons |
 
-### 3D Visualizations with BabiaXR
+### XR Visualization
 
 | Feature | Description |
 |---------|-------------|
-| 3D Charts | Bars, cylinders, pies, etc. |
-| Data sources | JSON files |
-| Customization | Configurable visual and aesthetic parameters |
-| Project export | Generation of ready-to-use A-Frame VR/AR projects |
+| Function Complexity | 3D bars showing cyclomatic complexity |
+| AR Mode | View code metrics in your physical environment |
+| VR Mode | Immersive exploration of code structures |
+| Custom Styling | Theme and color customization |
 
-### JavaScript Code Analysis
+### Python Integration
 
-| Metric | Description |
-|--------|-------------|
-| LOC | Total lines of code |
-| Comments | Percentage of commented lines |
-| Functions and Classes | Number of found declarations |
-| Visualization | Results displayed in an interactive panel |
+| Feature | Description |
+|---------|-------------|
+| Auto Environment | Self-configuring Python virtual environment |
+| Lizard Integration | Advanced code metrics computation |
 
-## Requirements
-
-- Visual Studio Code v1.98.0 or higher
-- WebXR-compatible browser (Chrome, Edge, Firefox)
-- For VR/AR environments: HTTPS is mandatory
 
 ## Quick Usage
 
-### Start a Local Server
+### Analyze Code (Static Mode)
 
-1. Open the "WebXR Explorer" side panel
-2. Click "Start Local Server"
-3. Select your .html file
-4. The browser will automatically open your application
+1. Right-click on a file in VS Code Explorer
+2. Select "CodeXR: Analyze File (Static)"
+3. View detailed metrics in the VS Code webview
+4. Edit your file - metrics update automatically!
 
-### Create a BabiaXR Visualization
+### Analyze Code (XR Mode)
 
-1. "WebXR Explorer" side panel → "BabiaXR Visualizations"
-2. Click "Create Visualization"
-3. Select the chart type and data source
-4. Configure visual parameters
-5. Export the project and view it in VR/AR
+1. Right-click on a file in VS Code Explorer
+2. Select "CodeXR: Analyze File (XR)"
+3. A browser will open with your 3D visualization
+5. Use AR/VR mode for immersive exploration
+
+### Change Default Analysis Mode
+
+1. Open the "Code Analysis" side panel
+2. In the Settings section, choose "Static" or "XR"
+3. All analyses from the TreeView will use this mode
 
 ## Important Notes
 
-- It is normal for browsers to warn about self-signed certificates.
-- HTTP mode is not compatible with WebXR.
-- Servers automatically stop when VS Code is closed.
+- First-time setup automatically configures Python environment
+- XR visualizations require HTTPS with WebXR-compatible browser
+- AR mode works best on mobile devices or supported headsets
+- Servers automatically stop when VS Code is closed
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Blocked ports | Restart VS Code or use "Stop Server" |
-| SSL certificate issues | Use custom certificates if necessary |
-| VR/AR issues | Ensure you are using HTTPS |
-| JSON files | Verify format and UTF-8 encoding |
+| Python setup issues | Check Output panel for detailed logs |
+| AR/VR not working | Ensure HTTPS is enabled and using compatible browser |
+| Visualization not updating | Check VS Code Output panel for server logs |
+
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.

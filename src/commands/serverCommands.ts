@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { LocalServerProvider } from '../ui/treeProvider';
+// Fix the incorrect import path:
 import { ServerMode, ServerInfo } from '../server/models/serverModel';
 import { startServer, stopServer, getActiveServers, createServer } from '../server/serverManager';
 import { defaultCertificatesExist } from '../server/certificateManager';
+
 
 /**
  * Registers all server-related commands
@@ -327,61 +329,5 @@ export function registerServerCommands(
     })
   );
 
-  // Command to launch a BabiaXR example with server
-  disposables.push(
-    vscode.commands.registerCommand('codexr.launchBabiaXRExample', async (examplePath: string) => {
-      try {
-        if (!examplePath) {
-          vscode.window.showErrorMessage('No example path provided');
-          return;
-        }
-        
-        // Check if file exists
-        if (!vscode.workspace.fs.stat(vscode.Uri.file(examplePath))) {
-          vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
-          return;
-        }
-        
-        // Open the file in the editor first
-        await vscode.window.showTextDocument(vscode.Uri.file(examplePath));
-        
-        // Ask if user wants to launch server
-        const launchServer = await vscode.window.showInformationMessage(
-          'Do you want to start the server to view this example?',
-          'Yes', 'No'
-        );
-        
-        if (launchServer === 'Yes') {
-          // Create a server for this example
-          const serverMode = context.globalState.get<ServerMode>('serverMode') || 
-                          ServerMode.HTTPS_DEFAULT_CERTS;
-          
-          // Get the directory of the example rather than the file itself
-          const exampleDir = path.dirname(examplePath);
-          
-          // Use the example directory as the working directory
-          const serverInfo = await createServer(examplePath, serverMode, context);
-          
-          if (serverInfo) {
-            // Open browser
-            vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
-            
-            // Show confirmation
-            vscode.window.showInformationMessage(
-              `Server started at ${serverInfo.url}`
-            );
-            
-            // Refresh the tree to show the new server
-            treeDataProvider.refresh();
-          }
-        }
-      } catch (error) {
-        vscode.window.showErrorMessage(
-          `Error launching example: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    })
-  );
-  
   return disposables;
 }

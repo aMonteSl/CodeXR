@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+  <link href="${styleUri}" rel="stylesheet">
+  <title>Code Analysis</title>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1>Code Analysis</h1>
+      <p class="subtitle">Select a file or directory to analyze</p>
+    </div>
+    
+    <div id="no-data" class="message">
+      <p>No analysis data to display yet. Run an analysis to see results here.</p>
+    </div>
+    
+    <div id="results" class="hidden">
+      <div id="summary" class="section">
+        <h2>Summary</h2>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-value" id="total-lines">0</div>
+            <div class="metric-label">Total Lines</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="code-lines">0</div>
+            <div class="metric-label">Code Lines</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="comment-lines">0</div>
+            <div class="metric-label">Comment Lines</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="blank-lines">0</div>
+            <div class="metric-label">Blank Lines</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="function-count">0</div>
+            <div class="metric-label">Functions</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="class-count">0</div>
+            <div class="metric-label">Classes</div>
+          </div>
+          <div class="metric ccn-metric">
+            <div class="metric-value" id="avg-complexity">-</div>
+            <div class="metric-label">Avg Complexity (CCN)</div>
+          </div>
+          <div class="metric ccn-metric">
+            <div class="metric-value" id="max-complexity">-</div>
+            <div class="metric-label">Max Complexity (CCN)</div>
+          </div>
+          <div class="metric ccn-metric high-complexity-metric">
+            <div class="metric-value" id="high-complexity-count">-</div>
+            <div class="metric-label">High CCN Functions</div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="complexity-section" class="section">
+        <h2>Cyclomatic Complexity (CCN)</h2>
+        
+        <div id="complexity-summary" class="complexity-summary">
+          <h3>Summary</h3>
+          <div class="summary-grid">
+            <div class="summary-item highest">
+              <div class="summary-label">Highest Complexity Function</div>
+              <div class="summary-value" id="highest-ccn-function">-</div>
+              <div class="summary-detail" id="highest-ccn-value">-</div>
+            </div>
+            <div class="summary-item lowest">
+              <div class="summary-label">Lowest Complexity Function</div>
+              <div class="summary-value" id="lowest-ccn-function">-</div>
+              <div class="summary-detail" id="lowest-ccn-value">-</div>
+            </div>
+            <div class="summary-item warning">
+              <div class="summary-label">High Complexity Functions (CCN > 10)</div>
+              <div class="summary-value" id="high-complexity-count">-</div>
+              <div class="summary-detail" id="high-complexity-warning">-</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table class="functions-table" id="functions-table">
+            <thead>
+              <tr>
+                <th>Function Name</th>
+                <th>Start Line</th>
+                <th>End Line</th>
+                <th>Length</th>
+                <th>Parameters</th>
+                <th>CCN</th>
+              </tr>
+            </thead>
+            <tbody id="functions-body">
+              <tr>
+                <td colspan="6" class="loading-message">Loading function data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div id="distribution-section" class="section">
+        <h2>Complexity Distribution</h2>
+        <div class="distribution-grid">
+          <div class="distribution-item simple">
+            <div class="distribution-value" id="simple-count">0</div>
+            <div class="distribution-label">Simple (1-5)</div>
+          </div>
+          <div class="distribution-item moderate">
+            <div class="distribution-value" id="moderate-count">0</div>
+            <div class="distribution-label">Moderate (6-10)</div>
+          </div>
+          <div class="distribution-item complex">
+            <div class="distribution-value" id="complex-count">0</div>
+            <div class="distribution-label">Complex (11-20)</div>
+          </div>
+          <div class="distribution-item very-complex">
+            <div class="distribution-value" id="very-complex-count">0</div>
+            <div class="distribution-label">Very Complex (21+)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>

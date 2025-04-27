@@ -161,7 +161,7 @@ export class BabiaXRExampleItem extends TreeItem {
       TreeItemType.BABIAXR_EXAMPLE,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'codexr.launchBabiaXRExample', // Actualizado a codexr
+        command: 'codexr.launchBabiaXRExample',
         title: `Launch ${label} Example`,
         arguments: [examplePath]
       },

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+  <link href="${styleUri}" rel="stylesheet">
+  <title>Function Analysis</title>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1 id="function-name">Function Analysis</h1>
+      <p class="subtitle" id="function-location">Loading...</p>
+      <div class="nav-links">
+        <a id="back-link" class="nav-link">← Back to File Analysis</a>
+        <a id="goto-link" class="nav-link">Open in Editor →</a>
+      </div>
+    </div>
+    
+    <div id="loading" class="message">
+      <p>Loading function data...</p>
+    </div>
+    
+    <div id="results" class="hidden">
+      <div class="section">
+        <h2>Function Overview</h2>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-value" id="line-count">-</div>
+            <div class="metric-label">Lines</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="params-count">-</div>
+            <div class="metric-label">Parameters</div>
+          </div>
+          <div class="metric complexity-metric">
+            <div class="metric-value" id="complexity">-</div>
+            <div class="metric-label">Cyclomatic Complexity</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="token-count">-</div>
+            <div class="metric-label">Token Count</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="nesting-depth">-</div>
+            <div class="metric-label">Max Nesting Depth</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Complexity Analysis</h2>
+        <div class="complexity-analysis">
+          <div class="complexity-gauge-container">
+            <div class="complexity-gauge">
+              <div id="complexity-gauge-fill" class="complexity-gauge-fill"></div>
+            </div>
+            <div class="complexity-gauge-labels">
+              <span class="simple">Simple</span>
+              <span class="moderate">Moderate</span>
+              <span class="complex">Complex</span>
+              <span class="very-complex">Very Complex</span>
+            </div>
+          </div>
+          <div class="complexity-summary">
+            <p id="complexity-text">This function has <span id="complexity-value"></span> cyclomatic complexity, which is considered <span id="complexity-category"></span>.</p>
+            <div id="complexity-details" class="complexity-details"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Location Details</h2>
+        <div class="location-details">
+          <div class="detail-row">
+            <div class="detail-label">File:</div>
+            <div class="detail-value" id="file-name">-</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Start Line:</div>
+            <div class="detail-value" id="start-line">-</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">End Line:</div>
+            <div class="detail-value" id="end-line">-</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Language:</div>
+            <div class="detail-value" id="language">-</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section" id="recommendations-section">
+        <h2>Recommendations</h2>
+        <div id="recommendations" class="recommendations">
+          <!-- Recommendations will be added here based on complexity -->
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>

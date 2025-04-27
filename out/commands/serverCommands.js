@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerServerCommands = registerServerCommands;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
+// Fix the incorrect import path:
 const serverModel_1 = require("../server/models/serverModel");
 const serverManager_1 = require("../server/serverManager");
 const certificateManager_1 = require("../server/certificateManager");
@@ -278,44 +279,6 @@ function registerServerCommands(context, treeDataProvider) {
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error stopping servers: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }));
-    // Command to launch a BabiaXR example with server
-    disposables.push(vscode.commands.registerCommand('codexr.launchBabiaXRExample', async (examplePath) => {
-        try {
-            if (!examplePath) {
-                vscode.window.showErrorMessage('No example path provided');
-                return;
-            }
-            // Check if file exists
-            if (!vscode.workspace.fs.stat(vscode.Uri.file(examplePath))) {
-                vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
-                return;
-            }
-            // Open the file in the editor first
-            await vscode.window.showTextDocument(vscode.Uri.file(examplePath));
-            // Ask if user wants to launch server
-            const launchServer = await vscode.window.showInformationMessage('Do you want to start the server to view this example?', 'Yes', 'No');
-            if (launchServer === 'Yes') {
-                // Create a server for this example
-                const serverMode = context.globalState.get('serverMode') ||
-                    serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
-                // Get the directory of the example rather than the file itself
-                const exampleDir = path.dirname(examplePath);
-                // Use the example directory as the working directory
-                const serverInfo = await (0, serverManager_1.createServer)(examplePath, serverMode, context);
-                if (serverInfo) {
-                    // Open browser
-                    vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
-                    // Show confirmation
-                    vscode.window.showInformationMessage(`Server started at ${serverInfo.url}`);
-                    // Refresh the tree to show the new server
-                    treeDataProvider.refresh();
-                }
-            }
-        }
-        catch (error) {
-            vscode.window.showErrorMessage(`Error launching example: ${error instanceof Error ? error.message : String(error)}`);
         }
     }));
     return disposables;

@@ -38,6 +38,7 @@ exports.exportVisualization = exportVisualization;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
+const fileWatchManager_1 = require("../../analysis/fileWatchManager");
 /**
  * Saves processed HTML content to a file and copies related data files
  */
@@ -104,7 +105,15 @@ async function saveHtmlToFile(html, fileName, originalDataPath, isRemoteData = f
                 // Update the URL in the HTML to point to the new file
                 const relativeDataPath = path.join('data', cleanFileName);
                 html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ${relativeDataPath}"`);
+                // After copying data, get the final data path
                 finalDataPath = destDataPath;
+                // Register watcher for the data file (new code)
+                // Get the FileWatchManager instance
+                const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
+                if (fileWatchManager) {
+                    // Register this JSON file for watching
+                    fileWatchManager.watchVisualizationDataFile(finalDataPath, htmlPath);
+                }
             }
             catch (error) {
                 console.error(`Error handling data file:`, error);

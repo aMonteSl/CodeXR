@@ -122,11 +122,6 @@
         "category": "WebXR Server"
       },
       {
-        "command": "codexr.analyzeCurrentFile",
-        "title": "WebXR: Analyze Current JavaScript/TypeScript File",
-        "category": "Code Analysis"
-      },
-      {
         "command": "codexr.analyzeFolder",
         "title": "WebXR: Analyze JavaScript/TypeScript Folder",
         "category": "Code Analysis"
@@ -135,6 +130,38 @@
         "command": "codexr.showJSMetricsDetails",
         "title": "WebXR: Show JavaScript Metrics Details",
         "category": "Code Analysis"
+      },
+      {
+        "command": "codexr.analyzeFile",
+        "title": "CodeXR: Analyze File (2D)",
+        "category": "Code Analysis",
+        "icon": "$(microscope)"
+      },
+      {
+        "command": "codexr.analyzeFile3D",
+        "title": "CodeXR: Analyze File (3D)",
+        "category": "Code Analysis",
+        "icon": "$(cube)"
+      },
+      {
+        "command": "codexr.setupPythonEnvironment",
+        "title": "CodeXR: Setup Python Environment",
+        "category": "Code Analysis"
+      },
+      {
+        "command": "codexr.setAnalysisMode",
+        "title": "CodeXR: Set Default Analysis Mode",
+        "category": "Code Analysis"
+      },
+      {
+        "command": "codexr.refreshTreeView",
+        "title": "CodeXR: Refresh Tree View",
+        "category": "CodeXR"
+      },
+      {
+        "command": "codexr.analyzeFileFromTree",
+        "title": "Analyze File",
+        "category": "CodeXR"
       }
     ],
     "menus": {
@@ -179,15 +206,25 @@
       ],
       "editor/context": [
         {
-          "command": "codexr.analyzeCurrentFile",
-          "when": "resourceLangId =~ /javascript|typescript|javascriptreact|typescriptreact/",
+          "command": "codexr.analyzeFile",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "codexr.analyzeFile3D",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
           "group": "navigation"
         }
       ],
       "explorer/context": [
         {
-          "command": "codexr.analyzeFolder",
-          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeFile",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "codexr.analyzeFile3D",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
           "group": "navigation"
         }
       ]
@@ -205,7 +242,7 @@
       "codexr-explorer": [
         {
           "id": "codexr.serverTreeView",
-          "name": "WebXR Servers & Visualizations",
+          "name": "CodeXR",
           "icon": "resources/icon.svg"
         }
       ]
@@ -223,7 +260,33 @@
         "mac": "cmd+shift+s",
         "when": "focusedView == codexr.serverTreeView"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "CodeXR",
+      "properties": {
+        "codexr.analysis.useLizard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Lizard for advanced code metrics (requires Python)"
+        },
+        "codexr.analysis.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python executable"
+        },
+        "codexr.analysis.autoSetupPython": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically set up Python environment when opening a workspace"
+        },
+        "codexr.analysisMode": {
+          "type": "string",
+          "default": "Static",
+          "enum": ["Static", "XR"],
+          "description": "Default mode for code analysis (Static or XR)"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -251,6 +314,8 @@
     "out",
     "certs/**",
     "resources",
-    "examples/**"
+    "examples/**",
+    "templates/**",
+    "src/analysis/pythonBridge/scripts"
   ]
 }

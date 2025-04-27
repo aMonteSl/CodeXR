@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { FileWatchManager } from '../../analysis/fileWatchManager';
 
 /**
  * Saves processed HTML content to a file and copies related data files
@@ -90,7 +91,16 @@ export async function saveHtmlToFile(
         const relativeDataPath = path.join('data', cleanFileName);
         html = html.replace(/babia-queryjson="url: .*?"/, `babia-queryjson="url: ${relativeDataPath}"`);
         
+        // After copying data, get the final data path
         finalDataPath = destDataPath;
+        
+        // Register watcher for the data file (new code)
+        // Get the FileWatchManager instance
+        const fileWatchManager = FileWatchManager.getInstance();
+        if (fileWatchManager) {
+          // Register this JSON file for watching
+          fileWatchManager.watchVisualizationDataFile(finalDataPath, htmlPath);
+        }
       } catch (error) {
         console.error(`Error handling data file:`, error);
         vscode.window.showErrorMessage(`Error handling data file: ${error instanceof Error ? error.message : String(error)}`);

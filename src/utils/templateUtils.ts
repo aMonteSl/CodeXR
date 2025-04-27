@@ -20,19 +20,51 @@ export function getTemplateFileName(chartType: ChartType): string {
 }
 
 /**
- * Loads a template from the templates directory
+ * Loads and processes an HTML template
+ * @param templateName Name of the template file (without path)
+ * @param replacements Key-value pairs for template variable replacements
+ * @param extensionUri Extension URI
+ * @returns Processed HTML content
  */
-export function loadTemplate(context: vscode.ExtensionContext, templateFileName: string): string {
+export async function loadTemplate(
+  templateName: string,
+  replacements: Record<string, string>,
+  extensionUri: vscode.Uri
+): Promise<string> {
   try {
-    const templatePath = path.join(context.extensionPath, 'templates', templateFileName);
-    if (!fs.existsSync(templatePath)) {
-      throw new Error(`Template not found: ${templateFileName}`);
-    }
+    const templatePath = path.join(extensionUri.fsPath, 'templates', 'analysis', templateName);
     
-    return fs.readFileSync(templatePath, 'utf8');
+    // Check if template exists
+    if (fs.existsSync(templatePath)) {
+      // Read template content
+      let content = fs.readFileSync(templatePath, 'utf-8');
+      
+      // Replace all variables with their values
+      for (const [key, value] of Object.entries(replacements)) {
+        content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+      }
+      
+      return content;
+    } else {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
   } catch (error) {
-    throw new Error(`Error loading template: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Error loading template ${templateName}:`, error);
+    throw error;
   }
+}
+
+/**
+ * Generates a nonce for script security
+ * @returns Random nonce string
+ */
+export function generateNonce(): string {
+  let text = '';
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
 }
 
 /**

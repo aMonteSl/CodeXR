@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createRequestHandler = createRequestHandler;
 const fs = __importStar(require("fs"));
+const fsPromises = __importStar(require("fs/promises")); // Add this import for Promise-based fs methods
 const path = __importStar(require("path"));
 const liveReloadManager_1 = require("./liveReloadManager");
 /**
@@ -76,103 +77,168 @@ function getContentType(ext) {
     return mimeTypes[ext] || 'text/plain';
 }
 /**
- * Creates the HTTP request handler function
- * @param fileDir Directory of the HTML file
- * @param selectedFile Path to the HTML file
+ * Creates a request handler for serving static files with live reload support
+ * @param baseDir Base directory for serving files
+ * @param mainFilePath Path to the main HTML file
  * @returns Request handler function
  */
-function createRequestHandler(fileDir, selectedFile) {
-    // Calcular la ruta base de la extensión CORRECTAMENTE
-    // __dirname es /home/adrian/codexr/src/server/
-    // Necesitamos subir solo DOS niveles para llegar a la raíz del proyecto
-    const extensionPath = path.resolve(__dirname, '../..');
-    const examplesDataPath = path.join(extensionPath, 'examples', 'data');
-    console.log(`Ruta base de la extensión: ${extensionPath}`);
-    console.log(`Ruta de datos de ejemplos: ${examplesDataPath}`);
-    return (req, res) => {
-        // Get URL path or default to '/'
-        let urlPath = req.url || '/';
-        // Handle default route
-        if (urlPath === '/') {
-            urlPath = '/' + path.basename(selectedFile);
-        }
-        // Handle livereload endpoint
-        if (urlPath === '/livereload') {
+function createRequestHandler(baseDir, mainFilePath) {
+    return async function (req, res) {
+        const requestUrl = req.url || '/';
+        console.log(`Server received request: ${requestUrl} [${req.method}]`);
+        // Handle live reload endpoint
+        if (requestUrl === '/live-reload') {
             handleLiveReload(req, res);
             return;
         }
-        // Decode URL to handle spaces and special characters
-        urlPath = decodeURIComponent(urlPath);
-        // Log the requested URL for debugging
-        console.log(`Requested URL: ${urlPath}`);
-        // PASO 1: Determinar si se está solicitando un archivo JSON de datos
-        if (urlPath.includes('/data/') && urlPath.endsWith('.json')) {
-            // Es una solicitud de datos JSON
-            const jsonFileName = path.basename(urlPath);
-            // Usar la ruta relativa calculada al inicio
-            const correctJsonPath = path.join(examplesDataPath, jsonFileName);
-            console.log(`Intentando acceder JSON desde ruta dinámica: ${correctJsonPath}`);
-            if (fs.existsSync(correctJsonPath)) {
-                // Archivo encontrado, servirlo inmediatamente
-                console.log(`Archivo JSON encontrado: ${correctJsonPath}`);
-                serveFile(correctJsonPath, res);
+        // Add this section to check for SSE-related headers with better detection
+        const isSSEUpdate = req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+            req.headers['accept']?.includes('text/event-stream') ||
+            req.headers['x-requested-by'] === 'SSE-Update' ||
+            (req.headers.referer && (requestUrl === '/index.html' || requestUrl === '/'));
+        // If it looks like an SSE-initiated request for index.html or root, block the reload
+        if (requestUrl === '/' || requestUrl === '/index.html') {
+            // More aggressive check to catch all reload attempts during updates
+            if (isSSEUpdate || req.headers.referer) {
+                console.log('Preventing index.html reload during possible SSE update');
+                res.writeHead(304, {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate',
+                    'Pragma': 'no-cache'
+                });
+                res.end();
                 return;
             }
         }
-        // Procedimiento normal para otros archivos
-        let filePath = path.join(fileDir, urlPath.replace(/^\//, ''));
-        // Check if file exists
-        fs.stat(filePath, (err, stats) => {
-            if (err) {
-                console.error(`File not found: ${filePath}`);
-                // PASO 2: Para cualquier archivo no encontrado que sea JSON, intentar desde la ruta correcta
-                if (urlPath.endsWith('.json')) {
-                    const jsonFileName = path.basename(urlPath);
-                    // Usar la ruta relativa calculada al inicio
-                    const correctJsonPath = path.join(examplesDataPath, jsonFileName);
-                    console.log(`Último intento con ruta: ${correctJsonPath}`);
-                    fs.stat(correctJsonPath, (jsonErr, jsonStats) => {
-                        if (jsonErr) {
-                            res.writeHead(404, { 'Content-Type': 'text/plain' });
-                            res.end(`File not found: ${urlPath}`);
-                            return;
-                        }
-                        // Servir desde la ruta correcta
-                        serveFile(correctJsonPath, res);
+        // Fix the file check for JSON files - BEFORE requesting the rest of the file
+        if (requestUrl.includes('latest-analysis.json') || requestUrl.includes('data.json')) {
+            console.log(`JSON request detected: ${requestUrl}`);
+            // Extract the base part of the URL (without query parameters)
+            const urlWithoutQuery = requestUrl.split('?')[0];
+            // Get the path to the requested file
+            const filePath = path.join(baseDir, decodeURIComponent(urlWithoutQuery));
+            console.log(`Serving JSON file: ${filePath} (from URL: ${requestUrl})`);
+            // Check if the file exists
+            try {
+                const stat = await fsPromises.stat(filePath); // Use Promise-based fs.stat
+                if (stat.isFile()) {
+                    // Serve the file with appropriate headers
+                    const ext = path.extname(filePath);
+                    const contentType = getContentType(ext);
+                    res.writeHead(200, {
+                        'Content-Type': contentType,
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
                     });
+                    const fileStream = fs.createReadStream(filePath);
+                    fileStream.pipe(res);
                     return;
                 }
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end(`File not found: ${urlPath}`);
+            }
+            catch (error) {
+                // If latest-analysis.json doesn't exist, try fallback to data.json
+                if (urlWithoutQuery.endsWith('latest-analysis.json')) {
+                    const dataJsonPath = path.join(baseDir, 'data.json');
+                    try {
+                        const stat = await fsPromises.stat(dataJsonPath);
+                        if (stat.isFile()) {
+                            // Serve data.json instead
+                            res.writeHead(200, {
+                                'Content-Type': 'application/json',
+                                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                            });
+                            const fileStream = fs.createReadStream(dataJsonPath);
+                            fileStream.pipe(res);
+                            return;
+                        }
+                    }
+                    catch (fallbackError) {
+                        // Both files not found
+                        res.writeHead(404);
+                        res.end('Not Found');
+                        return;
+                    }
+                }
+                // File not found
+                res.writeHead(404);
+                res.end(`JSON File not found: ${filePath}`);
                 return;
             }
-            // Serve the file
-            serveFile(filePath, res);
-        });
-    };
-    // Helper function to serve a file
-    function serveFile(filePath, res) {
-        const ext = path.extname(filePath).toLowerCase();
-        const contentType = getContentType(ext);
+        }
+        // Get the path to the requested file
+        let filePath;
+        if (requestUrl === '/') {
+            // If requesting the root, serve the main HTML file
+            console.log('Serving main HTML file for root request');
+            filePath = mainFilePath;
+        }
+        else {
+            // Normalize the URL by removing any query parameters and hash
+            const cleanUrl = decodeURIComponent(requestUrl).split('?')[0].split('#')[0];
+            // IMPORTANT FIX: Always resolve paths relative to the baseDir
+            filePath = path.join(baseDir, cleanUrl);
+            console.log(`Resolving path: ${baseDir} + ${cleanUrl} = ${filePath}`);
+            // Additional security check - make sure the file is within the baseDir
+            const normalizedPath = path.normalize(filePath);
+            if (!normalizedPath.startsWith(baseDir)) {
+                console.error(`Security warning: Attempted to access file outside server root: ${normalizedPath}`);
+                res.statusCode = 403; // Forbidden
+                res.end('Access denied: Cannot access files outside server root');
+                return;
+            }
+        }
+        // Check if the requested path is a directory
+        try {
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+                // If it's a directory, look for index.html inside it
+                const indexPath = path.join(filePath, 'index.html');
+                // Check if index.html exists in the directory
+                if (fs.existsSync(indexPath)) {
+                    filePath = indexPath;
+                }
+                else {
+                    // Directory doesn't have an index.html file
+                    res.writeHead(404, { 'Content-Type': 'text/plain' });
+                    res.end('Directory does not contain an index.html file');
+                    return;
+                }
+            }
+        }
+        catch (error) {
+            // If there's an error accessing the file, continue with the original path
+            // The error will be handled in the file serving logic below
+        }
+        // Serve the requested file
         fs.readFile(filePath, (err, data) => {
             if (err) {
-                res.writeHead(500);
-                res.end(`Server Error: ${err.message}`);
+                if (err.code === 'ENOENT') {
+                    // File not found
+                    res.writeHead(404, { 'Content-Type': 'text/plain' });
+                    res.end('File not found');
+                }
+                else {
+                    // Server error
+                    console.error(`Error serving file: ${err.message}`);
+                    res.writeHead(500, { 'Content-Type': 'text/plain' });
+                    res.end(`Server Error: ${err.code}: ${err.message}`);
+                }
                 return;
             }
-            // Process HTML content
-            if (ext === '.html') {
-                // Inject live reload script
-                const processedData = (0, liveReloadManager_1.injectLiveReloadScript)(data.toString());
+            // Set content type based on file extension
+            const contentType = getContentType(path.extname(filePath));
+            // If this is the main HTML file, inject the live reload script
+            if (filePath === mainFilePath || path.extname(filePath) === '.html') {
+                const htmlWithLiveReload = (0, liveReloadManager_1.injectLiveReloadScript)(data.toString());
                 res.writeHead(200, { 'Content-Type': contentType });
-                res.end(processedData);
+                res.end(htmlWithLiveReload);
             }
             else {
-                // Serve other files as-is
+                // Serve the file as-is
                 res.writeHead(200, { 'Content-Type': contentType });
                 res.end(data);
             }
         });
-    }
+    };
 }
 //# sourceMappingURL=requestHandler.js.map
