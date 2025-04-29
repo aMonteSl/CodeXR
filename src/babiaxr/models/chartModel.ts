@@ -65,6 +65,15 @@ export interface ChartData {
 
     /** Height of the visualization - will be set by default */
     height?: string | number;
+
+    /** Parameters of the function */
+    parameters?: string | number
+
+    /** Color */
+    color?: string;
+
+    /** Area */
+    area?: string | number;
 }
 
 /**

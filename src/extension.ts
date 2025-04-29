@@ -9,11 +9,11 @@ import { registerCommands } from './commands';
 import { getStatusBarManager } from './ui/statusBarManager';
 import { LocalServerProvider } from './ui/treeProvider';
 import { stopServer } from './server/serverManager';
-import { registerPythonEnvCommands, checkAndSetupPythonEnvironment } from './pythonEnv';
-import { analysisDataManager } from './analysis/analysisDataManager';
 import { registerAnalysisCommands } from './commands/analysisCommands';
-import { cleanupXRVisualizations } from './analysis/xr/xrAnalysisManager';
+import { registerPythonEnvCommands, checkAndSetupPythonEnvironment } from './pythonEnv';
 import { FileWatchManager } from './analysis/fileWatchManager';
+import { analysisDataManager } from './analysis/analysisDataManager';
+import { cleanupXRVisualizations } from './analysis/xr/xrAnalysisManager';
 
 /**
  * This function is executed when the extension is activated
@@ -46,7 +46,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const pythonEnvDisposables = registerPythonEnvCommands(context);
   context.subscriptions.push(...pythonEnvDisposables);
   
-  // Register all analysis commands ONCE - this is the only place that should register analysis commands
+  // Register all analysis commands
   const analysisDisposables = registerAnalysisCommands(context);
   context.subscriptions.push(...analysisDisposables);
   

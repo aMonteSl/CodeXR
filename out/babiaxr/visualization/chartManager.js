@@ -98,14 +98,14 @@ async function createBabiaXRVisualization(chartType, chartData, context) {
  * @param context Extension context
  */
 async function launchBabiaXRVisualization(filePath, context) {
-    // Obtener el modo de servidor configurado actualmente
+    // Get the currently configured server mode
     const serverMode = context.globalState.get('serverMode') || serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
-    // Determinar si se debe usar HTTPS basado en la configuración del usuario
+    // Determine if HTTPS should be used based on user configuration
     const useHttps = serverMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS ||
         serverMode === serverModel_1.ServerMode.HTTPS_CUSTOM_CERTS;
-    // Determinar si se deben usar certificados predeterminados
+    // Determine if default certificates should be used
     const useDefaultCerts = serverMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
-    // Iniciar el servidor respetando la configuración
+    // Start the server with the specified configuration
     await (0, serverManager_1.startServer)(filePath, context, useHttps, useDefaultCerts);
 }
 //# sourceMappingURL=chartManager.js.map

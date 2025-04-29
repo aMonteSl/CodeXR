@@ -110,7 +110,7 @@ function createVariableMap(chartSpecification) {
         zDimensionText = 'No Z dimension selected';
     }
     // Default values for options
-    let height = 1;
+    let heightOpt = 1;
     let width = 2;
     let barRotation = "0 0 0"; // For vertical orientation
     // Environment variables with defaults - IMPORTANTE: Asegurarse de no intercambiar estos valores
@@ -118,7 +118,12 @@ function createVariableMap(chartSpecification) {
     const environmentPreset = data.environment?.environmentPreset || 'forest';
     const groundColor = data.environment?.groundColor || '#445566';
     const chartPalette = data.environment?.chartPalette || 'ubuntu';
-    const variableMap = {
+    // Add the new dimension mappings
+    const AREA = data.area || 'parameters';
+    const HEIGHT_DIM = data.height || 'linesCount';
+    const COLOR = data.color || 'complexity';
+    // Return the mapping with new variables
+    return {
         TITLE: data.title || 'Chart Visualization',
         DATA_SOURCE: dataSource,
         DATA_SOURCE_NAME: dataSourceName,
@@ -129,7 +134,7 @@ function createVariableMap(chartSpecification) {
         Z_DIMENSION_TEXT: zDimensionText,
         POSITION: data.position || "0 1 -3",
         SCALE: data.scale || "1 1 1",
-        HEIGHT: height,
+        HEIGHT: heightOpt,
         WIDTH: width,
         BAR_ROTATION: barRotation,
         DESCRIPTION: data.description || '',
@@ -137,9 +142,13 @@ function createVariableMap(chartSpecification) {
         BACKGROUND_COLOR: backgroundColor,
         ENVIRONMENT_PRESET: environmentPreset,
         GROUND_COLOR: groundColor,
-        CHART_PALETTE: chartPalette
+        CHART_PALETTE: chartPalette,
+        // Add the new variables with uppercase keys
+        AREA: AREA,
+        HEIGHT_DIM: HEIGHT_DIM, // Changed from HEIGHT to HEIGHT_DIM
+        COLOR: COLOR,
+        // Other mappings...
     };
-    return variableMap;
 }
 /**
  * Checks if a string is a valid URL

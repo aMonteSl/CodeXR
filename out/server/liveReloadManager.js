@@ -10,99 +10,121 @@ exports.removeSSEClient = removeSSEClient;
 // Global store for SSE clients
 let sseClients = [];
 /**
- * Injects the LiveReload script into HTML content if not already present
- * @param htmlContent Original HTML content
- * @returns HTML with LiveReload script injected
+ * Injects a unified LiveReload script that handles both analysis and visualization updates
  */
 function injectLiveReloadScript(htmlContent) {
-    // Check if the script is already injected
-    if (htmlContent.includes('__LIVE_RELOAD_CLIENT__')) {
-        return htmlContent;
-    }
-    // Create the live reload script with the proven working implementation
-    const liveReloadScript = `
-  <script id="__LIVE_RELOAD_CLIENT__">
-    console.log('🔵 Setting up EventSource...');
-
-    const eventSource = new EventSource('/live-reload');
-
-    eventSource.onopen = function() {
-        console.log('🟢 EventSource connection established');
-    };
-
-    eventSource.onerror = function(err) {
-        console.error('🔴 EventSource error:', err);
-    };
-
-    eventSource.addEventListener('analysisUpdated', function(event) {
-        console.log('⚡ Received analysisUpdated event:', event);
-
-        const timestamp = Date.now();
-        const dataEntity = document.querySelector('#data');
-        const chartEntity = document.querySelector('#chart');
-
-        if (dataEntity) {
-            console.log('🔵 Forcing data reload with cache busting...');
-
-            dataEntity.setAttribute('babia-queryjson', {
-                url: './data.json?t=' + timestamp
-            });
-
-            setTimeout(() => {
-                dataEntity.emit('data-loaded', {});
-
-                if (chartEntity) {
-                    const attributes = chartEntity.getAttribute('babia-bars');
-                    console.log('🔵 Rebuilding chart with attributes:', attributes);
-
-                    chartEntity.removeAttribute('babia-bars');
-
-                    setTimeout(() => {
-                        chartEntity.setAttribute('babia-bars', attributes);
-                        console.log('✅ Chart rebuilt successfully');
-                    }, 50);
-                }
-            }, 100);
-        } else {
-            console.warn('⚠️ dataEntity not found');
-        }
+    // Extended list of selectors and components that combines both cases
+    const scriptContent = createBaseLiveReloadScript({
+        id: '__LIVE_RELOAD_CLIENT__',
+        // List of events to listen for (now listens to both)
+        eventName: ['analysisUpdated', 'dataRefresh'],
+        // Combined selectors for data
+        dataSelector: ['#data', '[babia-queryjson]'],
+        // Combined selectors for charts
+        chartSelector: ['#chart', '[babia-bars]', '[babia-cylinders]', '[babia-pie]', '[babia-donut]', '[babia-barsmap]'],
+        // All supported component types
+        componentTypes: ['babia-bars', 'babia-cylinders', 'babia-pie', 'babia-donut', 'babia-barsmap'],
+        logPrefix: '🔄'
     });
-
-    // Only reload regular pages, not XR pages
-    eventSource.onmessage = function(event) {
-      console.log('Generic message received:', event.data);
-      
-      // Check if we're in XR mode (detected by presence of A-Frame scene)
-      const isXRMode = !!document.querySelector('a-scene');
-      
-      if (isXRMode) {
-        console.log('⛔ Blocking page reload in XR mode');
-        return false;
-      } else if (event.data === 'reload') {
-        console.log('💫 Live reload triggered, refreshing page...');
-        window.location.reload();
-      }
-    };
-  </script>
-  `;
-    // Insert the script before the closing </body> tag
-    return htmlContent.replace('</body>', `${liveReloadScript}\n</body>`);
+    // Inject in exclusive mode to ensure only one script exists
+    return injectCustomScript(htmlContent, '__LIVE_RELOAD_CLIENT__', scriptContent, true);
 }
 /**
- * Injects a visualization-specific LiveReload script into HTML content
- * Does not modify the existing injectLiveReloadScript function
- * @param htmlContent Original HTML content
- * @returns HTML with Visualization LiveReload script injected
+ * Alias for compatibility with existing code - now calls the unified function
+ * @deprecated Use injectLiveReloadScript instead
  */
 function injectVisualizationLiveReloadScript(htmlContent) {
-    // Check if the script is already injected
-    if (htmlContent.includes('__VISUALIZATION_LIVE_RELOAD_CLIENT__')) {
-        return htmlContent;
-    }
-    // Create a completely separate script for visualization reloading
-    const visualizationLiveReloadScript = `
-  <script id="__VISUALIZATION_LIVE_RELOAD_CLIENT__">
-    console.log('🔵 Setting up BabiaXR Visualization LiveReload...');
+    console.log('⚠️ injectVisualizationLiveReloadScript is deprecated, using unified injectLiveReloadScript');
+    return injectLiveReloadScript(htmlContent);
+}
+/**
+ * Creates a base live reload script with given options
+ */
+function createBaseLiveReloadScript(options) {
+    const { id, eventName, dataSelector = '[babia-queryjson]', chartSelector = '[babia-bars], [babia-cylinders], [babia-pie], [babia-donut], [babia-barsmap]', componentTypes = ['babia-bars', 'babia-cylinders', 'babia-pie', 'babia-donut', 'babia-barsmap'], logPrefix = '🔵' } = options;
+    // Convert selectors to arrays for consistent handling
+    const dataSelectors = Array.isArray(dataSelector) ? dataSelector : [dataSelector];
+    const chartSelectors = Array.isArray(chartSelector) ? chartSelector : [chartSelector];
+    // Handle multiple event names
+    const eventNames = Array.isArray(eventName) ? eventName : [eventName];
+    // Create event listeners for each event name
+    const eventListeners = eventNames.map(name => `
+    // Handle ${name} events
+    eventSource.addEventListener('${name}', function(event) {
+      console.log('${logPrefix} Received ${name} event:', event);
+      
+      // Find data entities using all provided selectors
+      let dataEntities = [];
+      ${dataSelectors.map(selector => `
+      dataEntities = [...dataEntities, ...document.querySelectorAll('${selector}')];`).join('')}
+      
+      // Find chart entities using all provided selectors
+      let chartEntities = [];
+      ${chartSelectors.map(selector => `
+      chartEntities = [...chartEntities, ...document.querySelectorAll('${selector}')];`).join('')}
+      
+      if (dataEntities.length > 0) {
+        const timestamp = Date.now();
+        console.log('🔄 Refreshing ' + dataEntities.length + ' data entities');
+        
+        // Update each data entity
+        dataEntities.forEach(dataEntity => {
+          // Get current attributes
+          const queryjson = dataEntity.getAttribute('babia-queryjson');
+          if (queryjson) {
+            // Add cache busting parameter
+            const urlStr = typeof queryjson === 'string' ? queryjson : queryjson.url || '';
+            let url = '';
+            
+            if (typeof urlStr === 'string') {
+              url = urlStr.split('?')[0] + '?t=' + timestamp;
+            }
+            
+            // Handle both string and object attributes
+            if (typeof queryjson === 'string') {
+              dataEntity.setAttribute('babia-queryjson', url);
+            } else {
+              const newAttr = { ...queryjson };
+              newAttr.url = url;
+              dataEntity.setAttribute('babia-queryjson', newAttr);
+            }
+            
+            // Trigger data refresh event after a short delay
+            setTimeout(() => {
+              dataEntity.emit('data-loaded', {});
+              console.log('📊 Data entity refreshed');
+            }, 100);
+          }
+        });
+
+        // Rebuild charts after data is loaded
+        setTimeout(() => {
+          chartEntities.forEach(chartEntity => {
+            // Find which component type is used
+            for (const type of ${JSON.stringify(componentTypes)}) {
+              if (chartEntity.hasAttribute(type)) {
+                const attributes = chartEntity.getAttribute(type);
+                console.log('🔄 Rebuilding ' + type + ' chart');
+                
+                // Remove and re-add component to force refresh
+                chartEntity.removeAttribute(type);
+                setTimeout(() => {
+                  chartEntity.setAttribute(type, attributes);
+                  console.log('✅ Chart rebuilt successfully');
+                }, 50);
+                break;
+              }
+            }
+          });
+        }, 200);
+      } else {
+        console.warn('⚠️ No data entities found for refresh');
+      }
+    });
+  `).join('\n');
+    return `
+  <script id="${id}">
+    console.log('${logPrefix} Setting up EventSource for unified live reload...');
 
     const eventSource = new EventSource('/live-reload');
     let isXRMode = false;
@@ -117,11 +139,11 @@ function injectVisualizationLiveReloadScript(htmlContent) {
     document.addEventListener('DOMContentLoaded', checkXRMode);
 
     eventSource.onopen = function() {
-      console.log('🟢 Visualization LiveReload connected');
+      console.log('🟢 EventSource connection established');
     };
 
     eventSource.onerror = function(err) {
-      console.error('🔴 Visualization LiveReload error:', err);
+      console.error('🔴 EventSource error:', err);
       // Try to reconnect after a delay
       setTimeout(() => {
         console.log('🔄 Attempting to reconnect...');
@@ -130,91 +152,71 @@ function injectVisualizationLiveReloadScript(htmlContent) {
       }, 3000);
     };
 
-    // Handle data refresh events (JSON changes)
-    eventSource.addEventListener('dataRefresh', function(event) {
-      console.log('📊 Visualization data refresh event received');
-      
-      // Get all babia-queryjson elements
-      const dataEntities = document.querySelectorAll('[babia-queryjson]');
-      const chartEntities = document.querySelectorAll('[babia-bars], [babia-cylinders], [babia-pie], [babia-donut], [babia-barsmap]');
-      
-      if (dataEntities.length > 0) {
-        const timestamp = Date.now();
-        console.log('🔄 Refreshing ' + dataEntities.length + ' visualization data entities');
-        
-        // Update each data entity
-        dataEntities.forEach(dataEntity => {
-          // Get current attributes
-          const queryjson = dataEntity.getAttribute('babia-queryjson');
-          if (queryjson) {
-            // Add cache busting parameter
-            const urlStr = queryjson.url || '';
-            const url = urlStr.split('?')[0] + '?t=' + timestamp;
-            
-            // Create new attributes object with updated URL
-            const newAttr = { ...queryjson };
-            newAttr.url = url;
-            
-            // Update the attribute
-            dataEntity.setAttribute('babia-queryjson', newAttr);
-            
-            setTimeout(() => {
-              // Trigger data refresh event
-              dataEntity.emit('data-loaded', {});
-              console.log('📊 Visualization data entity refreshed');
-            }, 100);
-          }
-        });
+    ${eventListeners}
 
-        // Rebuild charts
-        setTimeout(() => {
-          chartEntities.forEach(chartEntity => {
-            // Find which component type is used
-            const componentTypes = ['babia-bars', 'babia-cylinders', 'babia-pie', 'babia-donut', 'babia-barsmap'];
-            for (const type of componentTypes) {
-              if (chartEntity.hasAttribute(type)) {
-                const attributes = chartEntity.getAttribute(type);
-                console.log('🔄 Rebuilding visualization ' + type + ' chart');
-                
-                // Remove and re-add component to force refresh
-                chartEntity.removeAttribute(type);
-                setTimeout(() => {
-                  chartEntity.setAttribute(type, attributes);
-                  console.log('✅ Visualization chart rebuilt');
-                }, 50);
-                break;
-              }
-            }
-          });
-        }, 200);
-      }
-    });
-
-    // Handle HTML changes
+    // Handle general reload messages
     eventSource.onmessage = function(event) {
+      console.log('Generic message received:', event.data);
+      
       // Skip reload if in XR mode
       if (checkXRMode()) {
-        console.log('⛔ Blocking visualization page reload in XR mode');
-        return;
+        console.log('⛔ Blocking page reload in XR mode');
+        return false;
       }
       
       if (event.data === 'reload') {
-        console.log('💫 Visualization live reload triggered, refreshing page...');
+        console.log('💫 Live reload triggered, refreshing page...');
         window.location.reload();
       }
     };
   </script>
   `;
-    // Insert the script before the closing </body> tag
-    return htmlContent.replace('</body>', `${visualizationLiveReloadScript}\n</body>`);
 }
 /**
- * Notifies all SSE clients that analysis data has been updated
+ * Helper function to inject a script into HTML and ensure no duplicate scripts
+ */
+function injectCustomScript(htmlContent, scriptId, scriptContent, exclusiveMode = false) {
+    // Check if this script is already injected
+    if (htmlContent.includes(scriptId)) {
+        return htmlContent;
+    }
+    // In exclusive mode, remove any other live reload scripts
+    if (exclusiveMode) {
+        // List of all possible live reload script IDs
+        const liveReloadScriptIds = [
+            '__LIVE_RELOAD_CLIENT__',
+            '__VISUALIZATION_LIVE_RELOAD_CLIENT__'
+        ];
+        // Remove other script IDs from the list
+        const otherScriptIds = liveReloadScriptIds.filter(id => id !== scriptId);
+        // Check and remove each other script
+        let processedHtml = htmlContent;
+        for (const otherId of otherScriptIds) {
+            if (processedHtml.includes(otherId)) {
+                console.log(`Removing existing script ${otherId} to avoid conflicts`);
+                // Simple removal approach - find the script tag containing the ID and remove it
+                const startTag = `<script id="${otherId}">`;
+                const endTag = `</script>`;
+                const startIndex = processedHtml.indexOf(startTag);
+                if (startIndex !== -1) {
+                    const endIndex = processedHtml.indexOf(endTag, startIndex) + endTag.length;
+                    if (endIndex > startTag.length) {
+                        processedHtml = processedHtml.substring(0, startIndex) + processedHtml.substring(endIndex);
+                    }
+                }
+            }
+        }
+        htmlContent = processedHtml;
+    }
+    // Insert the script before the closing </body> tag
+    return htmlContent.replace('</body>', `${scriptContent}\n</body>`);
+}
+/**
+ * Server-side functions for client notifications
  */
 function notifyClientsAnalysisUpdated() {
     sseClients.forEach(client => {
         try {
-            // Send in exactly this format to match what Express server does
             client.write(`event: analysisUpdated\n`);
             client.write(`data: updated\n\n`);
             console.log('Sent analysisUpdated event to client');
@@ -224,13 +226,9 @@ function notifyClientsAnalysisUpdated() {
         }
     });
 }
-/**
- * Notifies all SSE clients that data has been refreshed
- */
 function notifyClientsDataRefresh() {
     sseClients.forEach(client => {
         try {
-            // Send event for data refresh (different from analysis update)
             client.write(`event: dataRefresh\n`);
             client.write(`data: refreshed\n\n`);
             console.log('Sent dataRefresh event to client');
@@ -240,25 +238,14 @@ function notifyClientsDataRefresh() {
         }
     });
 }
-/**
- * Notifies all SSE clients to reload the page
- */
 function notifyClients() {
     sseClients.forEach(client => {
         client.write('data: reload\n\n');
     });
 }
-/**
- * Adds a client to the SSE clients list
- * @param client The SSE client response object to add
- */
 function addSSEClient(client) {
     sseClients.push(client);
 }
-/**
- * Removes a client from the SSE clients list
- * @param client The SSE client response object to remove
- */
 function removeSSEClient(client) {
     sseClients = sseClients.filter(c => c !== client);
 }

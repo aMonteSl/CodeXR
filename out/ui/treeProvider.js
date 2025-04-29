@@ -160,12 +160,23 @@ class LocalServerProvider {
     async getSettingsChildren(extensionPath) {
         console.log('Generating settings children items');
         const config = vscode.workspace.getConfiguration();
+        // Get current mode setting
         const currentMode = config.get('codexr.analysisMode', 'Static');
-        console.log('Current analysis mode:', currentMode);
-        // Create option items for each analysis mode
+        // Get current debounce delay setting
+        const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
+        // Get current auto-analysis setting
+        const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
+        console.log('Current settings:', {
+            analysisMode: currentMode,
+            debounceDelay,
+            autoAnalysis
+        });
+        // Create option items
         const staticOption = new analysisTreeItems_1.AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
         const xrOption = new analysisTreeItems_1.AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
-        return [staticOption, xrOption];
+        const delayOption = new analysisTreeItems_1.AnalysisDelayOptionItem(debounceDelay, extensionPath);
+        const autoOption = new analysisTreeItems_1.AnalysisAutoOptionItem(autoAnalysis, extensionPath);
+        return [staticOption, xrOption, delayOption, autoOption];
     }
     /**
      * Changes the server mode - delegated to ServerTreeProvider

@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerRefreshTreeViewCommand = registerRefreshTreeViewCommand;
 exports.registerCommands = registerCommands;
 const vscode = __importStar(require("vscode"));
-// Corregir la ruta de importación
+// Fix the import path
 const serverCommands_1 = require("./serverCommands");
 const babiaCommands_1 = require("./babiaCommands");
 const uiCommands_1 = require("./uiCommands"); // Fixed casing here

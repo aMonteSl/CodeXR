@@ -28,6 +28,12 @@ exports.ENVIRONMENT_PRESETS = [
 exports.COLOR_PALETTES = [
     { value: 'ubuntu', description: 'Ubuntu style colors (default)' },
     { value: 'blues', description: 'Variations of blue colors' },
+    { value: 'business', description: 'Professional business colors' },
+    { value: 'commerce', description: 'E-commerce friendly palette' },
+    { value: 'flat', description: 'Flat design color scheme' },
     { value: 'foxy', description: 'Firefox palette with oranges and blues' },
+    { value: 'icecream', description: 'Sweet pastel colors' },
+    { value: 'pearl', description: 'Pearlescent subtle colors' },
+    { value: 'sunset', description: 'Warm sunset color gradients' }
 ];
 //# sourceMappingURL=visualizationConfig.js.map

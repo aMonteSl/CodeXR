@@ -51,8 +51,9 @@ async function saveHtmlToFile(html, fileName, originalDataPath, isRemoteData = f
             placeHolder: 'my-visualization',
             value: path.basename(fileName, '.html').toLowerCase().replace(/\s+/g, '-')
         });
-        if (!projectName)
+        if (!projectName) {
             return undefined;
+        }
         // Determine base directory
         let baseDir = vscode.workspace.workspaceFolders ?
             vscode.workspace.workspaceFolders[0].uri.fsPath :

@@ -20,6 +20,7 @@ export interface XRFunctionData {
   lineStart: number;
   lineEnd: number;
   complexityCategory: string;
+  complexityColor: string; // Add this property for color coding
 }
 
 /**
@@ -51,8 +52,8 @@ export function transformAnalysisDataForXR(analysisResult: FileAnalysisResult): 
     maxNestingDepth: func.maxNestingDepth,
     lineStart: func.lineStart,
     lineEnd: func.lineEnd,
-    // Add a complexity category for color coding
-    complexityCategory: getCategoryFromComplexity(func.complexity)
+    complexityCategory: getCategoryFromComplexity(func.complexity),
+    complexityColor: getColorFromComplexity(func.complexity) // Add color based on complexity
   }));
 
   // Sort by complexity (descending) for better visualization
@@ -92,4 +93,22 @@ function getCategoryFromComplexity(complexity: number): string {
     return 'high';
   }
   return 'critical';
+}
+
+/**
+ * Maps complexity value to a color
+ * @param complexity The complexity value
+ * @returns Hex color code
+ */
+function getColorFromComplexity(complexity: number): string {
+  if (complexity <= 5) {
+    return '#27ae60'; // Green for simple functions
+  }
+  if (complexity <= 10) {
+    return '#f39c12'; // Yellow for moderate complexity
+  }
+  if (complexity <= 20) {
+    return '#e67e22'; // Orange for high complexity
+  }
+  return '#e74c3c'; // Red for very complex/critical functions
 }

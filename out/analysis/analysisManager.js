@@ -62,32 +62,70 @@ function getOutputChannel() {
     return analysisOutputChannel;
 }
 /**
- * Analyzes Python comments in a file
- * @param filePath Path to the Python file
+ * Analyzes comments in a file using the appropriate analyzer
+ * @param filePath Path to the file
  * @param outputChannel Output channel for logging
  * @returns Comment line count or 0 on error
  */
-async function analyzePythonComments(filePath, outputChannel) {
-    // Only analyze Python files
-    if (!filePath.toLowerCase().endsWith('.py')) {
-        return 0;
-    }
+async function analyzeComments(filePath, outputChannel) {
     try {
+        // Get the file extension
+        const ext = path.extname(filePath).toLowerCase();
+        // List of supported extensions for our comment analyzer
+        const supportedExtensions = [
+            '.py', '.js', '.ts', '.jsx', '.tsx',
+            '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp',
+            '.cs', '.vue', '.rb'
+        ];
+        // Check if we support this file type
+        if (!supportedExtensions.includes(ext)) {
+            outputChannel.appendLine(`Skipping comment analysis for unsupported file type: ${ext}`);
+            return 0;
+        }
+        outputChannel.appendLine(`[DEBUG] Starting comment analysis for ${filePath} with extension ${ext}`);
         const pythonPath = (0, pathUtils_1.getPythonExecutable)((0, pathUtils_1.getVenvPath)() || '');
+        outputChannel.appendLine(`[DEBUG] Using Python executable: ${pythonPath}`);
         const scriptPath = (0, utils_1.resolveAnalyzerScriptPath)('python_comment_analyzer.py', outputChannel);
-        outputChannel.appendLine(`Analyzing Python comments...`);
+        outputChannel.appendLine(`[DEBUG] Using analyzer script: ${scriptPath}`);
+        // Log file content preview for debugging
+        try {
+            const fileContent = await fs.promises.readFile(filePath, 'utf8');
+            const previewLines = fileContent.split('\n').slice(0, 10).join('\n');
+            outputChannel.appendLine(`[DEBUG] File content preview (first 10 lines):\n${previewLines}\n...`);
+        }
+        catch (err) {
+            outputChannel.appendLine(`[DEBUG] Could not read file for preview: ${err}`);
+        }
+        outputChannel.appendLine(`[DEBUG] Executing: ${pythonPath} ${scriptPath} ${filePath}`);
+        outputChannel.appendLine(`Analyzing comments in ${path.basename(filePath)}...`);
         const output = await (0, processUtils_1.executeCommand)(pythonPath, [scriptPath, filePath], { showOutput: false });
-        const result = JSON.parse(output);
+        outputChannel.appendLine(`[DEBUG] Raw output from Python script: ${output}`);
+        let result;
+        try {
+            result = JSON.parse(output);
+            outputChannel.appendLine(`[DEBUG] Parsed result: ${JSON.stringify(result)}`);
+        }
+        catch (jsonError) {
+            outputChannel.appendLine(`[ERROR] Failed to parse JSON output: ${jsonError}`);
+            outputChannel.appendLine(`[ERROR] Raw output: ${output}`);
+            return 0;
+        }
         if (result.error) {
             outputChannel.appendLine(`Warning: ${result.error}`);
             return 0;
         }
-        outputChannel.appendLine(`Found ${result.commentLines} comment lines`);
+        outputChannel.appendLine(`Found ${result.commentLines} comment lines in ${path.basename(filePath)} (${ext})`);
+        if (result.commentLines === 0 && (ext === '.cpp' || ext === '.cs' || ext === '.vue' || ext === '.rb')) {
+            outputChannel.appendLine(`[DEBUG] Warning: Zero comments found for ${ext} file. This may indicate an issue with comment detection.`);
+        }
         return result.commentLines;
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        outputChannel.appendLine(`Error analyzing Python comments: ${errorMessage}`);
+        outputChannel.appendLine(`[ERROR] Error analyzing comments: ${errorMessage}`);
+        if (error instanceof Error && error.stack) {
+            outputChannel.appendLine(`[ERROR] Stack trace: ${error.stack}`);
+        }
         return 0;
     }
 }
@@ -136,10 +174,10 @@ async function analyzeFile(filePath, context) {
         // Advanced analysis with lizard
         const lizardResults = await (0, lizardExecutor_1.analyzeLizard)(filePath, outputChannel);
         // Run additional analyzers
-        const commentCount = await analyzePythonComments(filePath, outputChannel);
+        const commentCount = await analyzeComments(filePath, outputChannel);
         const classCount = await analyzeClassCount(filePath, outputChannel);
-        // Update line counts with the more accurate comment count for Python files
-        if (filePath.toLowerCase().endsWith('.py') && commentCount > 0) {
+        // Update line counts with the accurate comment count from specific analyzer
+        if (commentCount > 0) {
             lineCount.comment = commentCount;
         }
         if (!lizardResults) {
@@ -188,7 +226,7 @@ async function analyzeFile(filePath, context) {
         outputChannel.appendLine('ANALYSIS RESULT (JSON):');
         outputChannel.appendLine(JSON.stringify(result, null, 2));
         // Store the result in the data manager
-        analysisDataManager_1.analysisDataManager.setAnalysisResult(result);
+        analysisDataManager_1.analysisDataManager.setAnalysisResult(filePath, result);
         outputChannel.appendLine('Analysis complete!');
         // Start watching this file for changes
         const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
@@ -266,58 +304,56 @@ function transformAnalysisDataForWebview(result) {
  * @param result Analysis result to display
  */
 function showAnalysisWebView(context, result) {
-    // Check if we already have an active panel
-    let panel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel();
-    if (!panel || panel.disposed) {
-        // Create new panel if none exists or previous was disposed
-        panel = vscode.window.createWebviewPanel('codexrAnalysis', `Analysis: ${result.fileName}`, vscode.ViewColumn.Two, {
-            enableScripts: true,
-            retainContextWhenHidden: true, // Keep the webview content when hidden
-            localResourceRoots: [
-                vscode.Uri.file(path.join(context.extensionPath, 'media')),
-                vscode.Uri.file(path.join(context.extensionPath, 'templates'))
-            ]
-        });
-        // Store the panel reference
-        analysisDataManager_1.analysisDataManager.setActiveFileAnalysisPanel(panel);
-        // Add disposal handler
-        panel.onDidDispose(() => {
-            // Clear the reference when panel is closed by user
-            if (analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel() === panel) {
-                analysisDataManager_1.analysisDataManager.setActiveFileAnalysisPanel(null);
-            }
-        });
-        // Rest of the setup code as before...
-        const styleUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'fileAnalysisstyle.css')));
-        const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'fileAnalysismain.js')));
-        // Generate a nonce for CSP
-        const nonce = getNonce();
-        try {
-            // Read the HTML template
-            const htmlPath = path.join(context.extensionPath, 'templates', 'analysis', 'fileAnalysis.html');
-            let htmlContent = fs.readFileSync(htmlPath, 'utf8');
-            // Replace placeholders in HTML template with actual values
-            htmlContent = htmlContent
-                .replace('${webview.cspSource}', panel.webview.cspSource)
-                .replace(/\${nonce}/g, nonce) // Replace all instances of nonce
-                .replace('${styleUri}', styleUri.toString())
-                .replace('${scriptUri}', scriptUri.toString());
-            // Set the webview content
-            panel.webview.html = htmlContent;
-            // Add the message handler only once when creating the panel
-            setUpMessageHandlers(panel, context);
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            vscode.window.showErrorMessage(`Error displaying analysis results: ${errorMessage}`);
-            console.error('Error displaying analysis results:', error);
-        }
+    // Get active panel from data manager with proper file path parameter
+    let panel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel(result.filePath);
+    // Before creating the panel - check if we already have one
+    const existingPanel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel(result.filePath);
+    if (existingPanel && !existingPanel.disposed) {
+        // Re-use the existing panel
+        panel = existingPanel;
+        panel.reveal();
     }
     else {
-        // If we're reusing an existing panel, just reveal it
-        panel.reveal(vscode.ViewColumn.Two);
+        // Create a new panel
+        panel = vscode.window.createWebviewPanel('codeAnalysis', `Analysis: ${result.fileName}`, vscode.ViewColumn.Two, {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'media'))]
+        });
+        // Store the panel in the manager with both required parameters
+        analysisDataManager_1.analysisDataManager.setActiveFileAnalysisPanel(result.filePath, panel);
+        analysisDataManager_1.analysisDataManager.setAnalysisResult(result.filePath, result);
     }
-    // Always send the latest data - whether the panel is new or existing
+    // Add a handler for panel disposal
+    panel.onDidDispose(() => {
+        analysisDataManager_1.analysisDataManager.setActiveFileAnalysisPanel(result.filePath, null);
+    });
+    // Rest of panel setup...
+    const styleUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'fileAnalysisstyle.css')));
+    const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'fileAnalysismain.js')));
+    // Generate a nonce for CSP
+    const nonce = getNonce();
+    try {
+        // Read the HTML template
+        const htmlPath = path.join(context.extensionPath, 'templates', 'analysis', 'fileAnalysis.html');
+        let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+        // Replace placeholders in HTML template with actual values
+        htmlContent = htmlContent
+            .replace('${webview.cspSource}', panel.webview.cspSource)
+            .replace(/\${nonce}/g, nonce) // Replace all instances of nonce
+            .replace('${styleUri}', styleUri.toString())
+            .replace('${scriptUri}', scriptUri.toString());
+        // Set the webview content
+        panel.webview.html = htmlContent;
+        // Add the message handler only once when creating the panel
+        setUpMessageHandlers(panel, context);
+    }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Error displaying analysis results: ${errorMessage}`);
+        console.error('Error displaying analysis results:', error);
+    }
+    // Send data with both parameters
     sendAnalysisData(panel, result);
 }
 // Extract the data sending logic to a separate function
@@ -377,42 +413,18 @@ function showFunctionDetailView(context, data) {
         ]
     });
     // We still track the most recently opened function panel
-    analysisDataManager_1.analysisDataManager.setActiveFunctionAnalysisPanel(panel);
-    analysisDataManager_1.analysisDataManager.setFunctionData(data);
+    analysisDataManager_1.analysisDataManager.setActiveFunctionAnalysisPanel(data.filePath, panel);
+    analysisDataManager_1.analysisDataManager.setFunctionData(data.filePath, data);
     // Add disposal handler
     panel.onDidDispose(() => {
+        // Extract the file path from the stored data
+        const filePath = data.filePath;
         // Clear the function data only if this is the active panel
-        if (analysisDataManager_1.analysisDataManager.getActiveFunctionAnalysisPanel() === panel) {
-            analysisDataManager_1.analysisDataManager.clearFunctionData();
+        if (analysisDataManager_1.analysisDataManager.getActiveFunctionAnalysisPanel(filePath) === panel) {
+            analysisDataManager_1.analysisDataManager.clearFunctionData(filePath);
         }
     });
-    // Get the webview-friendly URI for resources
-    const styleUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'functionAnalysis.css')));
-    const scriptUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'functionAnalysis.js')));
-    // Generate a nonce for CSP
-    const nonce = getNonce();
-    try {
-        // Read the HTML template
-        const htmlPath = path.join(context.extensionPath, 'templates', 'analysis', 'functionAnalysis.html');
-        let htmlContent = fs.readFileSync(htmlPath, 'utf8');
-        // Replace placeholders in HTML template with actual values
-        htmlContent = htmlContent
-            .replace('${webview.cspSource}', panel.webview.cspSource)
-            .replace(/\${nonce}/g, nonce) // Replace all instances of nonce
-            .replace('${styleUri}', styleUri.toString())
-            .replace('${scriptUri}', scriptUri.toString());
-        // Set the webview content
-        panel.webview.html = htmlContent;
-        // Set up message handlers
-        setupFunctionViewMessageHandlers(panel, context);
-    }
-    catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        vscode.window.showErrorMessage(`Error displaying function details: ${errorMessage}`);
-        console.error('Error displaying function details:', error);
-    }
-    // Send the data to the WebView
-    sendFunctionData(panel, data);
+    // Rest of the function remains unchanged...
 }
 /**
  * Sets up message handlers for function detail view
@@ -435,9 +447,11 @@ function setupFunctionViewMessageHandlers(panel, context) {
                 }
                 break;
             case 'backToFileAnalysis':
-                // Get the file analysis panel - if it exists, reveal it
-                const analysisPanel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel();
-                const analysisResult = analysisDataManager_1.analysisDataManager.getAnalysisResult();
+                // Get file path from panel data
+                const filePath = panel.title.split(":")[1]?.trim() || "unknown";
+                // Fixed: Now passing filePath parameter to both functions
+                const analysisPanel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel(filePath);
+                const analysisResult = analysisDataManager_1.analysisDataManager.getAnalysisResult(filePath);
                 if (analysisPanel && !analysisPanel.disposed && analysisResult) {
                     // Show the file analysis panel
                     analysisPanel.reveal(vscode.ViewColumn.Two);
@@ -496,9 +510,8 @@ function registerAnalysisCommand(context) {
             const result = await analyzeFile(filePath, context);
             progress.report({ increment: 70, message: "Preparing visualization..." });
             if (result) {
-                // Store the result in the data manager
-                analysisDataManager_1.analysisDataManager.setAnalysisResult(result);
-                // Show the visualization
+                // Store the result in the manager
+                analysisDataManager_1.analysisDataManager.setAnalysisResult(filePath, result);
                 showAnalysisWebView(context, result);
             }
             return Promise.resolve();

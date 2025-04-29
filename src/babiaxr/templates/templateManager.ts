@@ -89,7 +89,7 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
   }
   
   // Default values for options
-  let height: number = 1;
+  let heightOpt: number = 1;
   let width: number = 2;
   let barRotation: string = "0 0 0"; // For vertical orientation
   
@@ -99,7 +99,13 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
   const groundColor = data.environment?.groundColor || '#445566';
   const chartPalette = data.environment?.chartPalette || 'ubuntu';
   
-  const variableMap: TemplateVariableMap = {
+  // Add the new dimension mappings
+  const AREA = data.area || 'parameters';
+  const HEIGHT_DIM = data.height || 'linesCount';
+  const COLOR = data.color || 'complexity';
+  
+  // Return the mapping with new variables
+  return {
     TITLE: data.title || 'Chart Visualization',
     DATA_SOURCE: dataSource,
     DATA_SOURCE_NAME: dataSourceName,
@@ -110,7 +116,7 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     Z_DIMENSION_TEXT: zDimensionText,
     POSITION: data.position || "0 1 -3",
     SCALE: data.scale || "1 1 1",
-    HEIGHT: height,
+    HEIGHT: heightOpt,
     WIDTH: width,
     BAR_ROTATION: barRotation,
     DESCRIPTION: data.description || '',
@@ -118,10 +124,13 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     BACKGROUND_COLOR: backgroundColor,
     ENVIRONMENT_PRESET: environmentPreset,
     GROUND_COLOR: groundColor,
-    CHART_PALETTE: chartPalette
+    CHART_PALETTE: chartPalette,
+    // Add the new variables with uppercase keys
+    AREA: AREA,
+    HEIGHT_DIM: HEIGHT_DIM,  // Changed from HEIGHT to HEIGHT_DIM
+    COLOR: COLOR,
+    // Other mappings...
   };
-  
-  return variableMap;
 }
 
 /**

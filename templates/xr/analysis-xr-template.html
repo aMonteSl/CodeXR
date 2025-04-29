@@ -49,30 +49,28 @@
     <div class="info-panel">
         <h2>${TITLE}</h2>
         <p>${DESCRIPTION}</p>
-        <p>X-axis: Function names</p>
-        <p>Y-axis: Cyclomatic Complexity</p>
+        <p>Area: ${AREA}</p>
+        <p>Height: ${HEIGHT_DIM}</p>
+        <p>Color: ${COLOR}</p>
     </div>
     
     <a-scene background="color: ${BACKGROUND_COLOR}">
-        <!-- Lights - hide in AR mode to use real-world lighting -->
-        <a-entity babia-visiblear="ar: false; vr: true">
-            <a-light type="point" intensity="1" position="-10 20 30"></a-light>
-            <a-light type="ambient" intensity="0.4"></a-light>
-        </a-entity>
-
         <!-- Entity that loads data -->
         <a-entity id="data" 
                   babia-queryjson="url: ${DATA_SOURCE}">
         </a-entity>
 
-        <!-- Bars Chart for Code Complexity with auto-updater -->
+        <a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>
+
+        <!-- Bars Chart -->
         <a-entity id="chart" 
-                  babia-bars="from: data;
+                  babia-boats="from: data;
                   legend: true;
                   tooltip: true;
                   palette: ${CHART_PALETTE};
-                  x_axis: ${X_DIMENSION};
-                  height: ${Y_DIMENSION};
+                  area: ${AREA};
+                  height: ${HEIGHT_DIM};
+                  color: ${COLOR};
                   title: ${TITLE};
                   titleColor: #FFFFFF;
                   titlePosition: 0 10 0;
@@ -109,7 +107,5 @@
             <a-entity laser-controls="hand: right"></a-entity>
         </a-entity>
     </a-scene>
-    
-    <!-- No manual event script needed here - it's injected by liveReloadManager -->
 </body>
 </html>

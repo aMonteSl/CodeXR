@@ -11,7 +11,9 @@ import {
 import {
   AnalysisSectionItem,
   AnalysisSettingsItem,
-  AnalysisModeOptionItem
+  AnalysisModeOptionItem,
+  AnalysisDelayOptionItem,
+  AnalysisAutoOptionItem
 } from '../analysis/tree/analysisTreeItems';
 
 // Types of tree items for context handling
@@ -146,15 +148,29 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
   private async getSettingsChildren(extensionPath: string): Promise<TreeItem[]> {
     console.log('Generating settings children items');
     const config = vscode.workspace.getConfiguration();
+    
+    // Get current mode setting
     const currentMode = config.get<string>('codexr.analysisMode', 'Static');
     
-    console.log('Current analysis mode:', currentMode);
+    // Get current debounce delay setting
+    const debounceDelay = config.get<number>('codexr.analysis.debounceDelay', 2000);
     
-    // Create option items for each analysis mode
+    // Get current auto-analysis setting
+    const autoAnalysis = config.get<boolean>('codexr.analysis.autoAnalysis', true);
+    
+    console.log('Current settings:', { 
+      analysisMode: currentMode, 
+      debounceDelay, 
+      autoAnalysis 
+    });
+    
+    // Create option items
     const staticOption = new AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
     const xrOption = new AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
+    const delayOption = new AnalysisDelayOptionItem(debounceDelay, extensionPath);
+    const autoOption = new AnalysisAutoOptionItem(autoAnalysis, extensionPath);
     
-    return [staticOption, xrOption];
+    return [staticOption, xrOption, delayOption, autoOption];
   }
 
   /**

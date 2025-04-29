@@ -36,8 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileWatchManager = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
-const fs = __importStar(require("fs")); // Regular fs for existsSync and watch
-const fsPromises = __importStar(require("fs/promises")); // Use separate import for promises
+const fs = __importStar(require("fs"));
 const analysisManager_1 = require("./analysisManager");
 const xrAnalysisManager_1 = require("./xr/xrAnalysisManager");
 const model_1 = require("./model");
@@ -45,39 +44,71 @@ const analysisDataManager_1 = require("./analysisDataManager");
 const liveReloadManager_1 = require("../server/liveReloadManager");
 const xrDataTransformer_1 = require("./xr/xrDataTransformer");
 const xrDataFormatter_1 = require("./xr/xrDataFormatter");
-const serverManager_1 = require("../server/serverManager"); // Import missing function
 const analysisManager_2 = require("./analysisManager");
+const liveReloadManager_2 = require("../server/liveReloadManager");
 /**
  * Manages file watchers for analyzed files
  */
 class FileWatchManager {
-    context;
+    _context;
     static instance;
-    fileWatcher;
-    currentFilePath;
-    lastXRHtmlPath; // Store the path to the last XR HTML file
-    currentMode = model_1.AnalysisMode.STATIC; // Default mode
+    context;
+    // Store multiple file watchers by file path
+    fileWatchers = new Map();
+    // Track analysis mode for each file
+    fileAnalysisModes = new Map();
+    // Track XR HTML paths for each analyzed file
+    xrHtmlPaths = new Map();
+    debounceTimers = new Map();
+    debounceDelay = 2000; // Default to 2 seconds
+    autoAnalysisEnabled = true; // Default to enabled
+    // Allow adjusting the debounce delay
+    setDebounceDelay(delay) {
+        console.log(`Setting debounce delay to ${delay}ms`);
+        this.debounceDelay = delay;
+    }
+    // Allow toggling auto-analysis
+    setAutoAnalysis(enabled) {
+        console.log(`Setting auto-analysis to ${enabled}`);
+        this.autoAnalysisEnabled = enabled;
+    }
     /**
      * Gets the singleton instance of the FileWatchManager
      * @returns The FileWatchManager instance or undefined if not initialized
      */
     static getInstance() {
-        return FileWatchManager.instance;
+        if (!this.instance) {
+            this.instance = new FileWatchManager(undefined);
+        }
+        return this.instance;
     }
     /**
      * Initialize the FileWatchManager
      * @param context Extension context
      */
     static initialize(context) {
-        if (!FileWatchManager.instance) {
-            FileWatchManager.instance = new FileWatchManager(context);
+        if (!this.instance) {
+            this.instance = new FileWatchManager(context);
         }
-        return FileWatchManager.instance;
+        else {
+            this.instance.setContext(context);
+        }
+        // Initialize settings from configuration
+        if (context) {
+            const config = vscode.workspace.getConfiguration();
+            const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
+            const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
+            // Apply settings
+            const instance = this.instance;
+            instance.setDebounceDelay(debounceDelay);
+            instance.setAutoAnalysis(autoAnalysis);
+            console.log(`FileWatchManager initialized with settings: delay=${debounceDelay}ms, autoAnalysis=${autoAnalysis}`);
+        }
+        return this.instance;
     }
-    constructor(context) {
-        this.context = context;
-        // Set as the singleton instance
-        FileWatchManager.instance = this;
+    constructor(_context) {
+        this._context = _context;
+        this.context = _context;
     }
     /**
      * Set the extension context
@@ -85,76 +116,89 @@ class FileWatchManager {
      */
     setContext(context) {
         this.context = context;
-        console.log('FileWatchManager: Context set');
     }
     /**
-     * Set the current analysis mode
+     * Set the analysis mode for a specific file
+     * @param filePath Path to the file
      * @param mode Analysis mode
      */
-    setAnalysisMode(mode) {
-        this.currentMode = mode;
-        console.log(`FileWatchManager: Analysis mode set to ${mode}`);
+    setAnalysisMode(filePath, mode) {
+        this.fileAnalysisModes.set(filePath, mode);
     }
     /**
      * Start watching a file for changes
      * @param filePath Path to the file to watch
-     * @param mode Analysis mode to use for re-analysis
+     * @param mode Analysis mode
      */
     startWatching(filePath, mode) {
-        // Stop any existing watcher
-        this.stopWatching();
-        if (!this.context) {
-            console.error('FileWatchManager: Context not set');
-            return;
-        }
-        // Update current mode if provided
-        if (mode) {
-            this.currentMode = mode;
-        }
-        console.log(`FileWatchManager: Starting to watch ${filePath} in mode ${this.currentMode}`);
-        // Store the current file path
-        this.currentFilePath = filePath;
-        // Create a new file watcher for the specific file
-        const filePattern = new vscode.RelativePattern(path.dirname(filePath), path.basename(filePath));
-        this.fileWatcher = vscode.workspace.createFileSystemWatcher(filePattern);
-        // Register change event - REEMPLAZA ESTA PARTE SI ES DIFERENTE
-        this.fileWatcher.onDidChange(async (uri) => {
-            console.log(`FileWatchManager: Detected change in ${uri.fsPath}`);
-            // Only trigger re-analysis if the changed file is the one we're watching
-            if (uri.fsPath === this.currentFilePath) {
-                console.log('FileWatchManager: File matched, re-analyzing...');
-                await this.handleFileChange(uri.fsPath);
-            }
-            else {
-                console.log(`FileWatchManager: File doesn't match current (${this.currentFilePath}), ignoring change`);
+        // Stop watching this file if already being watched
+        this.stopWatching(filePath);
+        console.log(`Starting to watch ${filePath} in ${mode} mode`);
+        // Store the analysis mode for this file
+        this.fileAnalysisModes.set(filePath, mode);
+        // Setup file watcher for changes
+        const watcher = fs.watch(filePath, (eventType) => {
+            if (eventType === 'change') {
+                console.log(`Detected change in ${filePath}`);
+                this.handleFileChange(filePath);
             }
         });
-        // Add the watcher to disposables for proper cleanup
-        this.context.subscriptions.push(this.fileWatcher);
+        // Store watcher for disposal later
+        this.fileWatchers.set(filePath, { dispose: () => watcher.close() });
     }
     /**
-     * Stop watching the current file
+     * Stop watching a file
+     * @param filePath Path to the file to stop watching
      */
-    stopWatching() {
-        if (this.fileWatcher) {
-            this.fileWatcher.dispose();
-            this.fileWatcher = undefined;
-            console.log('FileWatchManager: Stopped watching file');
+    stopWatching(filePath) {
+        const watcher = this.fileWatchers.get(filePath);
+        if (watcher) {
+            watcher.dispose();
+            this.fileWatchers.delete(filePath);
+            console.log(`Stopped watching ${filePath}`);
         }
-        this.currentFilePath = undefined;
+    }
+    /**
+     * Stop watching all files
+     */
+    stopWatchingAll() {
+        for (const [filePath, watcher] of this.fileWatchers.entries()) {
+            watcher.dispose();
+            console.log(`Stopped watching ${filePath}`);
+        }
+        this.fileWatchers.clear();
     }
     /**
      * Handle file change by re-analyzing it according to the current mode
      * @param filePath Path to the changed file
      */
     async handleFileChange(filePath) {
+        // Skip if auto-analysis is disabled
+        if (!this.autoAnalysisEnabled) {
+            console.log(`Auto-analysis is disabled, ignoring changes to ${filePath}`);
+            return;
+        }
+        // Cancel any pending analysis for this file
+        if (this.debounceTimers.has(filePath)) {
+            clearTimeout(this.debounceTimers.get(filePath));
+        }
+        // Show subtle indication that analysis is pending
+        vscode.window.setStatusBarMessage(`$(sync~spin) CodeXR: Preparing analysis...`);
+        // Schedule a new analysis after the debounce delay
+        this.debounceTimers.set(filePath, setTimeout(async () => {
+            await this.performFileAnalysis(filePath);
+        }, this.debounceDelay));
+    }
+    // Extrae el código de análisis actual a este método
+    async performFileAnalysis(filePath) {
         if (!this.context) {
             console.error('FileWatchManager: Context not set');
             return;
         }
-        console.log(`FileWatchManager: Re-analyzing file ${filePath} in mode ${this.currentMode}`);
+        const mode = this.fileAnalysisModes.get(filePath) || model_1.AnalysisMode.STATIC;
+        console.log(`FileWatchManager: Re-analyzing file ${filePath} in mode ${mode}`);
         try {
-            switch (this.currentMode) {
+            switch (mode) {
                 case model_1.AnalysisMode.STATIC:
                     // Re-analyze and display in static mode (webview)
                     await this.handleStaticReanalysis(filePath);
@@ -164,12 +208,12 @@ class FileWatchManager {
                     await this.handleXRReanalysis(filePath);
                     break;
                 default:
-                    console.log(`FileWatchManager: Unknown analysis mode ${this.currentMode}`);
+                    console.log(`FileWatchManager: Unknown analysis mode ${mode}`);
             }
         }
         catch (error) {
-            console.error('Error during re-analysis:', error);
-            vscode.window.showErrorMessage(`Error during automatic re-analysis: ${error instanceof Error ? error.message : String(error)}`);
+            console.error('Error handling file change:', error);
+            vscode.window.showErrorMessage(`Error updating analysis: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -178,31 +222,27 @@ class FileWatchManager {
      */
     async handleStaticReanalysis(filePath) {
         if (!this.context) {
-            console.error('No context available for static reanalysis');
             return;
         }
-        console.log(`Re-analyzing file in static mode: ${filePath}`);
-        // Re-analyze the file using the existing analyze function
+        console.log(`Re-analyzing ${filePath} for static visualization update`);
         const analysisResult = await (0, analysisManager_1.analyzeFile)(filePath, this.context);
         if (!analysisResult) {
-            console.error('Failed to re-analyze file for static visualization');
+            console.error('Failed to re-analyze file');
             return;
         }
-        // Store the updated result in the analysisDataManager
-        analysisDataManager_1.analysisDataManager.setAnalysisResult(analysisResult);
-        // Get the active panel reference
-        const panel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel();
-        if (panel && !panel.disposed) {
-            console.log('Sending update directly to existing analysis panel');
+        // Update the stored analysis result
+        analysisDataManager_1.analysisDataManager.setAnalysisResult(filePath, analysisResult);
+        // Get the active webview panel
+        const panel = analysisDataManager_1.analysisDataManager.getActiveFileAnalysisPanel(filePath);
+        if (panel) {
             // Send the new data to the panel directly
             (0, analysisManager_2.sendAnalysisData)(panel, analysisResult);
-            // Also log that update was sent for debugging
             console.log('Analysis panel updated with latest data');
         }
         else {
             console.log('No active panel found or panel was disposed');
-            // Fallback to command-based update (though it likely won't work if panel is gone)
-            vscode.commands.executeCommand('codexr.updateAnalysisPanel', analysisResult);
+            // Fallback to command-based update
+            vscode.commands.executeCommand('codexr.updateAnalysisPanel', analysisResult, filePath);
         }
     }
     /**
@@ -211,7 +251,6 @@ class FileWatchManager {
      */
     async handleXRReanalysis(filePath) {
         if (!this.context) {
-            console.error('No context available for XR reanalysis');
             return;
         }
         try {
@@ -236,24 +275,23 @@ class FileWatchManager {
                 console.log('Transformed data for XR');
                 let babiaCompatibleData = (0, xrDataFormatter_1.formatXRDataForBabia)(transformedData);
                 console.log(`Final formatted data has ${babiaCompatibleData.length} functions`);
-                // IMPORTANTE: Usa fs.writeFileSync en lugar de la versión async para evitar problemas
+                // Use fs.writeFileSync to avoid potential issues
                 try {
-                    const fs = require('fs');
                     fs.writeFileSync(dataFilePath, JSON.stringify(babiaCompatibleData, null, 2));
                     console.log(`✅ Data file updated at: ${dataFilePath} with ${babiaCompatibleData.length} items`);
-                    // Notificar a los clientes conectados
+                    // Notify connected clients
                     (0, liveReloadManager_1.notifyClientsAnalysisUpdated)();
-                    console.log('✅ Notificación enviada a los clientes para actualizar visualización');
-                    vscode.window.showInformationMessage('Visualización XR actualizada sin salir de AR/VR');
+                    console.log('✅ Notification sent to clients to update visualization');
+                    vscode.window.showInformationMessage('XR visualization updated without exiting AR/VR');
                 }
                 catch (writeError) {
-                    console.error(`Error al escribir data.json: ${writeError}`);
-                    vscode.window.showErrorMessage(`Error al actualizar data.json: ${writeError}`);
+                    console.error(`Error writing data.json: ${writeError}`);
+                    vscode.window.showErrorMessage(`Error updating data.json: ${writeError}`);
                 }
             }
             else {
-                console.log('No se encontró una carpeta de visualización existente, creando nueva visualización');
-                // Crear nueva visualización
+                console.log('No existing visualization folder found, creating new visualization');
+                // Create new visualization
                 const htmlFilePath = await (0, xrAnalysisManager_1.createXRVisualization)(this.context, analysisResult);
                 if (htmlFilePath) {
                     await (0, xrAnalysisManager_1.openXRVisualization)(htmlFilePath, this.context);
@@ -262,70 +300,58 @@ class FileWatchManager {
         }
         catch (error) {
             console.error('Error updating XR visualization:', error);
-            vscode.window.showErrorMessage(`Error al actualizar visualización XR: ${error instanceof Error ? error.message : String(error)}`);
+            vscode.window.showErrorMessage(`Error updating XR visualization: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
-     * Update the last XR HTML path
+     * Update the XR HTML path for a specific file
+     * @param filePath Path to the analyzed file
      * @param htmlPath Path to the XR HTML file
      */
-    setLastXRHtmlPath(htmlPath) {
-        this.lastXRHtmlPath = htmlPath;
+    setXRHtmlPath(filePath, htmlPath) {
+        this.xrHtmlPaths.set(filePath, htmlPath);
     }
     /**
-     * Get the last XR HTML path
-     * @returns Path to the last XR HTML file
+     * Get the XR HTML path for a specific file
+     * @param filePath Path to the analyzed file
+     * @returns Path to the XR HTML file
      */
-    getLastXRHtmlPath() {
-        return this.lastXRHtmlPath;
+    getXRHtmlPath(filePath) {
+        return this.xrHtmlPaths.get(filePath);
     }
     /**
-     * Watch a JSON data file for a manually created visualization
-     * @param jsonFilePath Path to the JSON data file
-     * @param htmlFilePath Path to the HTML visualization file
+     * Watch a visualization data file for changes
+     * @param jsonFilePath Path to the JSON data file to watch
+     * @param htmlFilePath Path to the HTML file that uses the data
      */
     watchVisualizationDataFile(jsonFilePath, htmlFilePath) {
-        if (!fs.existsSync(jsonFilePath)) {
-            console.error(`Cannot watch non-existent data file: ${jsonFilePath}`);
+        if (!jsonFilePath || !fs.existsSync(jsonFilePath)) {
+            console.error(`Cannot watch non-existent JSON file: ${jsonFilePath}`);
             return;
         }
-        console.log(`🔍 Setting up watcher for visualization data file: ${jsonFilePath}`);
-        // Create a file watcher for the JSON data file using Node's fs.watch
-        const watcher = fs.watch(jsonFilePath, (eventType, filename) => {
+        console.log(`Setting up file watcher for visualization data: ${jsonFilePath}`);
+        // Watch for changes to the JSON file
+        const jsonWatcher = fs.watch(jsonFilePath, (eventType) => {
             if (eventType === 'change') {
-                console.log(`📊 Visualization data file changed: ${jsonFilePath}`);
-                // Use an immediately invoked async function to handle async operations
-                (async () => {
-                    try {
-                        // Read the file to ensure it's a valid JSON
-                        const data = await fsPromises.readFile(jsonFilePath, 'utf8');
-                        JSON.parse(data); // This will throw if invalid JSON
-                        // Find active servers serving this HTML file
-                        const activeServers = (0, serverManager_1.getActiveServers)().filter((server) => path.dirname(server.filePath) === path.dirname(htmlFilePath));
-                        if (activeServers.length > 0) {
-                            console.log(`🔄 Notifying clients to refresh visualization data for ${path.basename(htmlFilePath)}`);
-                            (0, liveReloadManager_1.notifyClientsDataRefresh)();
-                        }
-                        else {
-                            console.log(`ℹ️ No active servers found for ${htmlFilePath}, data refresh notification skipped`);
-                        }
-                    }
-                    catch (error) {
-                        console.error(`❌ Error processing visualization data update: ${error instanceof Error ? error.message : String(error)}`);
-                    }
-                })();
+                console.log(`JSON file changed: ${jsonFilePath}`);
+                // Notify clients to refresh their data
+                (0, liveReloadManager_1.notifyClientsDataRefresh)();
             }
         });
-        // Store the watcher for cleanup on extension deactivation
-        if (this.context) {
-            this.context.subscriptions.push({
-                dispose: () => {
-                    if (watcher) {
-                        watcher.close();
-                    }
+        // Watch for changes to the HTML file
+        if (htmlFilePath && fs.existsSync(htmlFilePath)) {
+            const htmlWatcher = fs.watch(htmlFilePath, (eventType) => {
+                if (eventType === 'change') {
+                    console.log(`HTML file changed: ${htmlFilePath}`);
+                    // Notify clients to reload the page
+                    (0, liveReloadManager_2.notifyClients)();
                 }
             });
+            // Store the watcher
+            this.fileWatchers.set(htmlFilePath, { dispose: () => htmlWatcher.close() });
         }
+        // Store the JSON watcher
+        this.fileWatchers.set(jsonFilePath, { dispose: () => jsonWatcher.close() });
     }
 }
 exports.FileWatchManager = FileWatchManager;

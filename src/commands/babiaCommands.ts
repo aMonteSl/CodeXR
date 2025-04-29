@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { LocalServerProvider } from '../ui/treeProvider';
 import { showColorPicker } from '../utils/colorPickerUtils'; 
 import { ChartType } from '../babiaxr/models/chartModel';
@@ -8,13 +9,8 @@ import { collectChartData } from '../babiaxr/visualization/dataCollector';
 import { collectChartOptions } from '../babiaxr/visualization/optionsCollector';
 import { ENVIRONMENT_PRESETS, COLOR_PALETTES } from '../babiaxr/config/visualizationConfig';
 import { ServerMode } from '../server/models/serverModel';
-// Add missing import:
 import { createServer } from '../server/serverManager';
-
-// Import the FileWatchManager at the top
 import { FileWatchManager } from '../analysis/fileWatchManager';
-
-// Add the import at the top
 import { openFolderInWorkspace } from '../utils/workspaceUtils';
 
 /**
@@ -189,7 +185,6 @@ export function registerBabiaCommands(
         console.log(`Attempting to open example at: ${examplePath}`);
         
         // Check if file exists using fs.existsSync
-        const fs = require('fs');
         if (!fs.existsSync(examplePath)) {
           vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
           console.error(`File not found: ${examplePath}`);
@@ -282,7 +277,7 @@ function getDefaultOptionsForChartType(chartType: ChartType): any {
     case ChartType.CYLS_CHART:
       position = "0 0 -3";
       scale = "1 1 1";
-      height = "15"; // Aumentamos la altura máxima predeterminada
+      height = "15";
       break;
       
     case ChartType.BARSMAP_CHART:

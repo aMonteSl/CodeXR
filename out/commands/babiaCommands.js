@@ -36,17 +36,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerBabiaCommands = registerBabiaCommands;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 const colorPickerUtils_1 = require("../utils/colorPickerUtils");
 const chartModel_1 = require("../babiaxr/models/chartModel");
 const chartManager_1 = require("../babiaxr/visualization/chartManager");
 const dataCollector_1 = require("../babiaxr/visualization/dataCollector");
 const visualizationConfig_1 = require("../babiaxr/config/visualizationConfig");
 const serverModel_1 = require("../server/models/serverModel");
-// Add missing import:
 const serverManager_1 = require("../server/serverManager");
-// Import the FileWatchManager at the top
 const fileWatchManager_1 = require("../analysis/fileWatchManager");
-// Add the import at the top
 const workspaceUtils_1 = require("../utils/workspaceUtils");
 /**
  * Registers all BabiaXR-related commands
@@ -174,7 +172,6 @@ function registerBabiaCommands(context, treeDataProvider) {
             }
             console.log(`Attempting to open example at: ${examplePath}`);
             // Check if file exists using fs.existsSync
-            const fs = require('fs');
             if (!fs.existsSync(examplePath)) {
                 vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
                 console.error(`File not found: ${examplePath}`);
@@ -250,7 +247,7 @@ function getDefaultOptionsForChartType(chartType) {
         case chartModel_1.ChartType.CYLS_CHART:
             position = "0 0 -3";
             scale = "1 1 1";
-            height = "15"; // Aumentamos la altura máxima predeterminada
+            height = "15";
             break;
         case chartModel_1.ChartType.BARSMAP_CHART:
             position = "0 0 -3";

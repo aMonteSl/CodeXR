@@ -4,6 +4,92 @@ This file contains all notable changes and updates for the "CodeXR" Visual Studi
 The changelog follows a versioning system to document new features, improvements, fixes, and relevant modifications made to the project.
 
 
+# CHANGELOG.md
+
+## [0.0.5] - 2025-04-29
+### Added
+- Integrated babia-boats visualization component for enhanced 3D representation
+- New parameter mapping system for more intuitive data representation:
+  - Function parameters shown by area dimension
+  - Lines of code represented by height dimension
+  - Complexity visualized through color dimension
+- Added improved file path resolution for analysis scripts to ensure compatibility across different environments
+
+### Changed
+- Migrated from previous visualization component to babia-boats for better data insight
+- Enhanced template variable system to support multiple dimensions simultaneously
+- Refactored XR template to use the new parameter format
+- Improved visualization mapping for complexity metrics with better color differentiation
+
+### Fixed
+- Resolved template variable substitution issues in XR analysis
+- Fixed path resolution for lizard analyzer to work reliably in all installation scenarios
+- Improved error handling when analyzer scripts cannot be located
+- Enhanced script discovery to support diverse installation environments
+
+### User Experience
+- More intuitive data representation with function parameters, line count, and complexity unified in a single visualization
+- Better visual differentiation between function properties
+- More reliable analysis across different installation environments
+- Smoother visualization experience with improved data mapping
+
+This update enhances the visualization capabilities while improving the robustness of the analysis system across different installation environments.
+
+## [0.0.4] - 2025-04-27
+### Added
+- Added support for multiple programming languages:
+  - C++ support with full metrics analysis
+  - C# integration for .NET projects
+  - Vue.js analysis with HTML/JS component detection
+  - Ruby support with class and method analysis
+- Implemented configurable debounce system for auto-analysis:
+  - User-selectable delay times (500ms to 5000ms)
+  - Option to completely disable auto-analysis
+  - Settings accessible directly from Code Analysis tree view
+- Enhanced XR visualization experience:
+  - Live updates without exiting AR/VR mode when code changes
+- Added multiple analysis capability:
+  - Analyze several files simultaneously
+  - Consistent performance across different file types
+- Added new color palettes for BabiaXR visualizations:
+  - Blues, Business, Commerce, Flat
+  - Foxy, Icecream, Pearl, Sunset, Ubuntu
+
+### Changed
+- Renamed analysis commands for clarity:
+  - "CodeXR Analyze File: Static" instead of "2D"
+  - "CodeXR Analyze File: XR" instead of "3D"
+- Improved code comment detection system:
+  - New language-specific comment parsing
+  - Accurate comment counting for all supported languages
+  - Enhanced multi-line comment detection
+- Modified Tree View structure:
+  - Added settings section with debounce configuration
+  - Better organization of language-specific files
+- Enhanced debugging and logging system:
+  - Detailed logs for Python script execution
+  - Better error reporting for analysis failures
+
+### Fixed
+- Fixed issue where comment lines were counted as 0 for newly supported languages
+- Fixed issue with analysis hanging during frequent auto-saves
+- Corrected class counting in complex object-oriented structures
+- Fixed Tree View refresh issues when toggling settings
+- Resolved Vue.js component detection in single-file components
+- Fixed HTML comment detection in mixed-language files
+
+### User Experience
+- Smoother workflow with configurable debounce system
+- Less intrusive analysis process during active coding
+- Improved performance during analysis of large files
+- Visual indicators when analysis is pending or in progress
+- Consistent experience across all supported languages
+- More intuitive naming in context menus and command palette
+- Better Tree View organization with comprehensive settings
+
+This update significantly expands language support while improving the overall user experience through configurable analysis timing and enhanced visualization capabilities.
+
+
 ## [0.0.3] - 2025-04-11
 ### Added
 - Improved visualization axis selection with step-by-step interface

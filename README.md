@@ -1,161 +1,113 @@
-# CodeXR — Code Analysis & XR Visualizations
+# CodeXR — Code Visualization in Extended Reality
 
-Extension for Visual Studio Code that enables source code analysis (JavaScript, TypeScript, Python, C) and visualization of key metrics (LOC, comments, cyclomatic complexity, etc.) in both static webviews and immersive XR/VR environments using A-Frame and BabiaXR.
+Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code views and breathtaking XR/VR environments powered by BabiaXR. **The primary intended use is in AR mode, bringing your code's structure into your physical workspace.**
 
-Transform your workspace into an augmented programming environment, surrounded by 3D graphs and insights into your code that update in real-time as you code.
+Gain unprecedented insights into your codebase by stepping into a XR representation of your code structure that updates in real-time as you work.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Key Features
+## Primary Feature: Immersive Code Visualization
 
-- 🔍 Multi-language code analysis (JavaScript, TypeScript, Python, C)
-- 📊 Static code metrics visualization in VS Code webviews
-- 🥽 XR visualization of code complexity in VR/AR environments
-- 🔄 Real-time update of metrics and visualizations as you code
-- ⚡ Optimized local server for WebXR experiences with SSE updates
-- 🧩 Modular and extensible architecture
+CodeXR's main purpose is to provide powerful, interactive 3D visualizations of your code:
 
-## Technologies and Libraries Used
+- 🥽 **XR Visualization** - Explore your code metrics in immersive VR/AR environments
+- 🔄 **Live Updates** - See your code changes reflected instantly in the visualization
+- 🎨 **Multi-dimensional Mapping** - View multiple metrics simultaneously:
+  - Function parameters represented by area
+  - Lines of code shown through height
+  - Complexity illustrated with color gradients
+- 📊 **BabiaXR Integration** - Leverage advanced 3D data visualization capabilities
 
-- **TypeScript** — Main development language
-- **VS Code API** — Native integration with the editor
-- **Python** — For advanced code metrics using Lizard
-- **A-Frame** — WebXR framework
-- **BabiaXR** — Data visualization in VR/AR environments
-- **Node.js** (http, https, fs) — Modules for server and file system
-- **SSE** (Server-Sent Events) — For real-time visualization updates
-- **Lizard** — Cyclomatic complexity analysis
+![CodeXR Visualization Example](./resources/gifts/example.gif)
 
-## Project Structure
+## How to Use Visualizations
 
-```
-src/
-├── analysis/           # Code analysis and metrics
-│   ├── tree/           # TreeView for file analysis
-│   ├── xr/             # XR visualization of code metrics
-│   └── python/         # Python analysis scripts
-├── server/             # Local server with SSE for live update
-├── pythonEnv/          # Python virtual environment manager
-├── babiaxr/            # 3D visualizations with BabiaXR
-├── ui/                 # Shared user interface components
-├── commands/           # Extension commands
-└── extension.ts        # Main entry point
-```
+### Quick Start with XR Visualization
 
-## Module Descriptions
+1. Right-click on a file in VS Code Explorer
+2. Select "CodeXR Analyze File: XR"
+3. A browser will open showing your 3D code visualization
+4. Edit your code - watch as the visualization updates in real-time!
+5. **For AR mode**: Access the visualization URL on your AR-capable device to overlay code metrics in your physical environment
 
-### 1. analysis/ — Code Analysis
+### Visualization Modes
 
-Multi-language code analysis system:
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **AR Mode** | Overlay on physical world | **Primary intended use** - Integrating code insights into your workspace |
+| VR Mode | Full immersive experience | Deep code structure exploration |
+| Desktop 3D | Standard browser view | Quick analysis without headset |
 
-- Lines of code (LOC), comments, blank lines
-- Function and class detection
-- Cyclomatic complexity (CCN) metrics
-- Static visualization in webview panel
-- XR visualization through BabiaXR
+### AR Mode Benefits
 
-Main files:
-- `analysisManager.ts` — Analysis coordination
-- `fileWatchManager.ts` — Real-time re-analysis on file changes
-- `xr/xrAnalysisManager.ts` — XR visualization generation
-- `python/lizard_analyzer.py` — Python-based complexity analysis
+The AR visualization is designed to:
+- Blend your code metrics with your physical development environment
+- Enable hands-free code exploration while you continue working
+- Facilitate team discussions with shared AR views of code structure
+- Provide spatial understanding of complex codebases
 
-### 2. server/ — Local Server with SSE
+### Visualization Settings
 
-HTTP/HTTPS server with live reload and real-time data updates:
+Customize your visualization experience:
 
-- SSL support (self-signed or custom certificates)
-- Server-Sent Events (SSE) for live visualization updates
-- Support for updating visualizations without page reloads
-- Management of multiple simultaneous servers
+- **Environment Themes** - Forest, Dream, Arches, and more
+- **Color Palettes** - Choose from multiple data visualization schemes
+- **Chart Types** - Boats, cylinders, bars and other visualization types
+- **Background and Ground** - Set colors that complement your data
 
-Main files:
-- `serverManager.ts` — Server management
-- `liveReloadManager.ts` — SSE-based live updates
-- `requestHandler.ts` — HTTP/HTTPS request handler
-
-### 3. pythonEnv/ — Python Environment Manager
-
-Auto-configuration of Python for analysis:
-
-- Automatic virtual environment setup
-- Dependency management (Lizard)
-- Cross-platform compatibility
-
-### 4. babiaxr/ — 3D Data Visualizations
-
-Immersive visualization generator for VR/AR environments:
-
-- Bar, cylinder charts for code complexity
-- Custom data transformation for BabiaXR compatibility
-- Real-time visualization updates via SSE
-
-## Main Features
+## Additional Features
 
 ### Code Analysis
 
-| Feature | Description |
-|---------|-------------|
-| Multi-language | JavaScript, TypeScript, Python, C |
-| Static Mode | Detailed metrics in VS Code webview |
-| XR Mode | Immersive 3D visualization of code metrics |
-| Auto Re-analysis | Real-time updates as you code |
-| TreeView Integration | Easy file selection with language icons |
+CodeXR provides comprehensive code analysis across multiple languages:
 
-### XR Visualization
+- 🔍 Multi-language support (JavaScript, TypeScript, Python, C, C++, C#, Vue.js, Ruby)
+- 📏 Metrics include lines of code, comments, complexity, function parameters
+- ⚡ Configurable analysis timing with debounce settings
 
-| Feature | Description |
-|---------|-------------|
-| Function Complexity | 3D bars showing cyclomatic complexity |
-| AR Mode | View code metrics in your physical environment |
-| VR Mode | Immersive exploration of code structures |
-| Custom Styling | Theme and color customization |
+### Visualization Options
 
-### Python Integration
+- 📊 **Static Mode** - Traditional webview visualization for quick reference
+- 🔍 **Function Detail View** - Drill down into specific function metrics
+- 📁 **Multi-File Analysis** - Compare metrics across multiple files
 
-| Feature | Description |
-|---------|-------------|
-| Auto Environment | Self-configuring Python virtual environment |
-| Lizard Integration | Advanced code metrics computation |
+## Technical Details
+
+### Technologies Used
+
+- **BabiaXR** - Advanced data visualization in XR environments
+- **A-Frame** - WebXR framework for 3D visualization
+- **TypeScript** - Main development language
+- **Python/Lizard** - Advanced code metrics and analysis
+- **SSE** - Server-Sent Events for real-time visualization updates
+
+### Architecture
 
 
-## Quick Usage
+```
+src/
+├── babiaxr/            # 3D visualizations with BabiaXR
+├── analysis/           # Code analysis engine
+├── server/             # Local server with live updates
+├── pythonEnv/          # Python environment manager
+└── ui/                 # User interface components
+```
 
-### Analyze Code (Static Mode)
 
-1. Right-click on a file in VS Code Explorer
-2. Select "CodeXR: Analyze File (Static)"
-3. View detailed metrics in the VS Code webview
-4. Edit your file - metrics update automatically!
-
-### Analyze Code (XR Mode)
-
-1. Right-click on a file in VS Code Explorer
-2. Select "CodeXR: Analyze File (XR)"
-3. A browser will open with your 3D visualization
-5. Use AR/VR mode for immersive exploration
-
-### Change Default Analysis Mode
-
-1. Open the "Code Analysis" side panel
-2. In the Settings section, choose "Static" or "XR"
-3. All analyses from the TreeView will use this mode
-
-## Important Notes
+## Usage Notes
 
 - First-time setup automatically configures Python environment
-- XR visualizations require HTTPS with WebXR-compatible browser
+- XR visualizations require a WebXR-compatible browser
 - AR mode works best on mobile devices or supported headsets
-- Servers automatically stop when VS Code is closed
+- Visualizations update in real-time as you edit code
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Python setup issues | Check Output panel for detailed logs |
-| AR/VR not working | Ensure HTTPS is enabled and using compatible browser |
-| Visualization not updating | Check VS Code Output panel for server logs |
-
+| Visualization not appearing | Ensure WebXR is supported in your browser |
+| Updates not showing | Check VS Code Output panel for server logs |
+| AR mode issues | Make sure HTTPS is enabled and device supports WebXR |
 
 ## License
 

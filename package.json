@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -133,13 +133,13 @@
       },
       {
         "command": "codexr.analyzeFile",
-        "title": "CodeXR: Analyze File (2D)",
+        "title": "CodeXR Analyze File: Static",
         "category": "Code Analysis",
         "icon": "$(microscope)"
       },
       {
         "command": "codexr.analyzeFile3D",
-        "title": "CodeXR: Analyze File (3D)",
+        "title": "CodeXR Analyze File: XR",
         "category": "Code Analysis",
         "icon": "$(cube)"
       },
@@ -161,6 +161,11 @@
       {
         "command": "codexr.analyzeFileFromTree",
         "title": "Analyze File",
+        "category": "CodeXR"
+      },
+      {
+        "command": "codexr.analyzeMultipleFiles3D",
+        "title": "Analyze Multiple Files in XR",
         "category": "CodeXR"
       }
     ],
@@ -207,25 +212,25 @@
       "editor/context": [
         {
           "command": "codexr.analyzeFile",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb)$/",
           "group": "navigation"
         },
         {
           "command": "codexr.analyzeFile3D",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb)$/",
           "group": "navigation"
         }
       ],
       "explorer/context": [
         {
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby",
           "command": "codexr.analyzeFile",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
-          "group": "navigation"
+          "group": "CodeXR"
         },
         {
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby",
           "command": "codexr.analyzeFile3D",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h)$/",
-          "group": "navigation"
+          "group": "CodeXR"
         }
       ]
     },
@@ -284,6 +289,24 @@
           "default": "Static",
           "enum": ["Static", "XR"],
           "description": "Default mode for code analysis (Static or XR)"
+        },
+        "codexr.analysis.debounceDelay": {
+          "type": "number",
+          "default": 2000,
+          "enum": [500, 1000, 2000, 3000, 5000],
+          "enumDescriptions": [
+            "Very quick (500ms)",
+            "Quick (1 second)",
+            "Standard (2 seconds)",
+            "Relaxed (3 seconds)",
+            "Extended (5 seconds)"
+          ],
+          "description": "Delay in milliseconds before auto-analysis is triggered after file changes"
+        },
+        "codexr.analysis.autoAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically re-analyze files when they change"
         }
       }
     }

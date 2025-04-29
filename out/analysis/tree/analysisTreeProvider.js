@@ -94,14 +94,27 @@ class AnalysisTreeProvider {
      * @returns Settings option items
      */
     async getSettingsChildren(extensionPath) {
-        console.log('Generating settings children items');
+        console.log('DEBUG: getSettingsChildren called with path:', extensionPath);
         const config = vscode.workspace.getConfiguration();
+        // Get current mode setting
         const currentMode = config.get('codexr.analysisMode', 'Static');
-        console.log('Current analysis mode:', currentMode);
-        // Create option items for each analysis mode
+        // Get current debounce delay setting
+        const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
+        // Get current auto-analysis setting
+        const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
+        console.log('DEBUG: Current settings:', {
+            analysisMode: currentMode,
+            debounceDelay,
+            autoAnalysis
+        });
+        // Create option items
         const staticOption = new analysisTreeItems_1.AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
         const xrOption = new analysisTreeItems_1.AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
-        return [staticOption, xrOption];
+        const delayOption = new analysisTreeItems_1.AnalysisDelayOptionItem(debounceDelay, extensionPath);
+        const autoOption = new analysisTreeItems_1.AnalysisAutoOptionItem(autoAnalysis, extensionPath);
+        const result = [staticOption, xrOption, delayOption, autoOption];
+        console.log('DEBUG: Returning items:', result.map(item => item.label));
+        return result;
     }
 }
 exports.AnalysisTreeProvider = AnalysisTreeProvider;
@@ -171,7 +184,14 @@ function getAnalysisSectionItem(extensionPath) {
  * @returns Map of language to file URIs
  */
 async function getAnalyzableFilesByLanguage() {
-    const supportedExtensions = ['.py', '.js', '.ts', '.c'];
+    // Update supported extensions to include new languages
+    const supportedExtensions = [
+        '.py', '.js', '.ts', '.c',
+        '.cpp', '.cc', '.cxx', // C++
+        '.cs', // C#
+        '.vue', // Vue
+        '.rb' // Ruby
+    ];
     const result = {};
     // Skip finding files if no workspace is open
     if (!vscode.workspace.workspaceFolders) {
@@ -233,6 +253,16 @@ function getLanguageFromExtension(ext) {
             return 'TypeScript';
         case '.c':
             return 'C';
+        case '.cpp':
+        case '.cc':
+        case '.cxx':
+            return 'C++';
+        case '.cs':
+            return 'C#';
+        case '.vue':
+            return 'Vue';
+        case '.rb':
+            return 'Ruby';
         default:
             return 'Unknown';
     }

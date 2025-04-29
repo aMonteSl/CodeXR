@@ -42,11 +42,11 @@ const commands_1 = require("./commands");
 const statusBarManager_1 = require("./ui/statusBarManager");
 const treeProvider_1 = require("./ui/treeProvider");
 const serverManager_1 = require("./server/serverManager");
-const pythonEnv_1 = require("./pythonEnv");
-const analysisDataManager_1 = require("./analysis/analysisDataManager");
 const analysisCommands_1 = require("./commands/analysisCommands");
-const xrAnalysisManager_1 = require("./analysis/xr/xrAnalysisManager");
+const pythonEnv_1 = require("./pythonEnv");
 const fileWatchManager_1 = require("./analysis/fileWatchManager");
+const analysisDataManager_1 = require("./analysis/analysisDataManager");
+const xrAnalysisManager_1 = require("./analysis/xr/xrAnalysisManager");
 /**
  * This function is executed when the extension is activated
  */
@@ -71,7 +71,7 @@ async function activate(context) {
     // Register Python environment commands ONCE
     const pythonEnvDisposables = (0, pythonEnv_1.registerPythonEnvCommands)(context);
     context.subscriptions.push(...pythonEnvDisposables);
-    // Register all analysis commands ONCE - this is the only place that should register analysis commands
+    // Register all analysis commands
     const analysisDisposables = (0, analysisCommands_1.registerAnalysisCommands)(context);
     context.subscriptions.push(...analysisDisposables);
     // Check for Python environment at startup (after short delay to not block activation)

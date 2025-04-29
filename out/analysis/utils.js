@@ -110,6 +110,20 @@ function getLanguageName(filePath) {
             return 'C';
         case '.h':
             return 'C Header';
+        // Add new language support
+        case '.cpp':
+        case '.cc':
+        case '.cxx':
+            return 'C++';
+        case '.hpp':
+        case '.hxx':
+            return 'C++ Header';
+        case '.cs':
+            return 'C#';
+        case '.vue':
+            return 'Vue';
+        case '.rb':
+            return 'Ruby';
         default:
             return 'Unknown';
     }

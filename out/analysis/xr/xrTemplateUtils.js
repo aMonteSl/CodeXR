@@ -81,6 +81,10 @@ async function generateXRAnalysisHTML(analysisResult, dataPath, context) {
         '${GROUND_COLOR}': groundColor,
         '${CHART_PALETTE}': chartPalette,
         '${DATA_SOURCE}': dataPath,
+        // New XR settings
+        '${AREA}': 'parameters',
+        '${HEIGHT_DIM}': 'linesCount',
+        '${COLOR}': 'complexity',
         // Chart axis configuration
         '${X_DIMENSION}': 'functionName',
         '${Y_DIMENSION}': 'complexity',

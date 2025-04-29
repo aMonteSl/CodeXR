@@ -46,9 +46,13 @@ const serverManager_1 = require("../../server/serverManager");
 const serverModel_1 = require("../../server/models/serverModel");
 const xrDataFormatter_1 = require("./xrDataFormatter");
 const fileWatchManager_1 = require("../fileWatchManager");
-// Track visualization paths by file to enable reuse
+// Track visualization paths by file
 const visualizationFolders = new Map();
+// Track active servers by visualization directory
 const activeServers = new Map();
+// Track port assignments for each analyzed file
+const filePorts = new Map();
+let nextAvailablePort = 8080;
 /**
  * Creates an XR visualization for a file analysis result
  * @param context Extension context for storage
@@ -79,7 +83,7 @@ async function createXRVisualization(context, analysisResult) {
         }
         else {
             // Create a new folder with simplified naming
-            const folderName = `analysis_${fileNameWithoutExt}`;
+            const folderName = `analysis_${fileNameWithoutExt}_${Date.now()}`;
             visualizationDir = path.join(visualizationsDir, folderName);
             // Create directory if it doesn't exist
             try {
@@ -122,6 +126,11 @@ async function createXRVisualization(context, analysisResult) {
         else {
             console.log('HTML file already exists, skipping generation');
         }
+        // Update the FileWatchManager with the path to this HTML file
+        const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
+        if (fileWatchManager) {
+            fileWatchManager.setXRHtmlPath(analysisResult.filePath, htmlFilePath);
+        }
         return htmlFilePath;
     }
     catch (error) {
@@ -133,13 +142,13 @@ async function createXRVisualization(context, analysisResult) {
  * Opens an XR visualization in the browser
  * @param htmlFilePath Path to the HTML file
  * @param context Extension context
+ * @param filePath Optional path to the analyzed file
  */
-async function openXRVisualization(htmlFilePath, context) {
+async function openXRVisualization(htmlFilePath, context, filePath) {
     try {
         // Debug print for input file path
         console.log('DEBUG - HTML file path:', htmlFilePath);
-        // Ensure the htmlFilePath ends with index.html by checking and appending if needed
-        // This fixes the issue when only a directory path is passed
+        // Ensure the htmlFilePath ends with index.html
         let fullHtmlPath = htmlFilePath;
         if (!htmlFilePath.endsWith('.html')) {
             fullHtmlPath = path.join(htmlFilePath, 'index.html');
@@ -149,11 +158,11 @@ async function openXRVisualization(htmlFilePath, context) {
         const visualizationDir = path.dirname(fullHtmlPath);
         console.log('DEBUG - Visualization directory:', visualizationDir);
         // Get file name without extension for tracking
-        const fileName = path.basename(visualizationDir).replace('analysis_', '');
-        // Check if we already have an active server for this file
-        const existingServer = activeServers.get(fileName);
+        const dirName = path.basename(visualizationDir);
+        // Check if we already have an active server for this visualization
+        const existingServer = activeServers.get(dirName);
         if (existingServer) {
-            console.log(`Using existing server for ${fileName}`);
+            console.log(`Using existing server for ${dirName}`);
             // Just open the URL without creating a new server
             const url = `${existingServer.url}/index.html`;
             console.log('DEBUG - Opening URL:', url);
@@ -161,33 +170,33 @@ async function openXRVisualization(htmlFilePath, context) {
             vscode.window.showInformationMessage(`XR Visualization opened in browser. The server will update automatically when data changes.`);
             return;
         }
-        // Get server mode configuration with proper type casting
+        // Get server mode configuration
         const serverMode = context.globalState.get('serverMode') || serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
-        console.log('DEBUG - Server mode:', serverMode);
-        // IMPORTANT: Pass the FULL HTML path to the createServer function
-        // This ensures the server correctly identifies the main HTML file for SSE injection
-        const serverInfo = await (0, serverManager_1.createServer)(fullHtmlPath, serverMode, context);
+        // Assign a unique port for this file
+        let port;
+        if (filePath && filePorts.has(filePath)) {
+            port = filePorts.get(filePath);
+        }
+        else {
+            port = nextAvailablePort++;
+            if (filePath) {
+                filePorts.set(filePath, port);
+            }
+        }
+        // Create server with specific port
+        const serverInfo = await (0, serverManager_1.createServer)(fullHtmlPath, serverMode, context, port);
         console.log('DEBUG - Server info:', JSON.stringify(serverInfo, null, 2));
         if (!serverInfo) {
             throw new Error('Failed to start server for visualization');
         }
         // Store the server info for future reuse
-        activeServers.set(fileName, serverInfo);
-        // Since we're serving from the visualization directory directly,
-        // we just need the filename (index.html)
-        const htmlFileName = path.basename(fullHtmlPath);
-        console.log('DEBUG - File name:', htmlFileName);
-        // Build a simpler URL pointing directly to the index.html file
-        const url = `${serverInfo.url}/${htmlFileName}`;
+        activeServers.set(dirName, serverInfo);
+        // Build a URL pointing to the index.html file
+        const url = `${serverInfo.url}/index.html`;
         console.log('DEBUG - Final URL:', url);
         // Add a notification with the URL for easy debugging
         vscode.window.showInformationMessage(`Opening URL: ${url}`);
         await vscode.env.openExternal(vscode.Uri.parse(url));
-        // Update the FileWatchManager with the path to this HTML file
-        const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
-        if (fileWatchManager) {
-            fileWatchManager.setLastXRHtmlPath(htmlFilePath);
-        }
         vscode.window.showInformationMessage(`XR Visualization opened in browser. The server will update automatically when data changes.`);
     }
     catch (error) {
@@ -201,6 +210,8 @@ async function openXRVisualization(htmlFilePath, context) {
 function cleanupXRVisualizations() {
     visualizationFolders.clear();
     activeServers.clear();
+    filePorts.clear();
+    nextAvailablePort = 8080;
 }
 /**
  * Get visualization folder for a specific file name

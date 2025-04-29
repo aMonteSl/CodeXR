@@ -101,16 +101,34 @@ export async function analyzeLizard(
     }
     
     // Method 2: Try to use __dirname-based path
-    if (!analyzerScriptPath) {
+    if (!analyzerScriptPath || !require('fs').existsSync(analyzerScriptPath)) {
       // Get directory of current file
       const currentDir = __dirname;
-      // Navigate to project root and then to python dir
-      analyzerScriptPath = path.join(currentDir, '..', 'analysis', 'python', 'lizard_analyzer.py');
+      // Use the known working path directly
+      const analyzerRelativePath = path.join(currentDir, '..', '..', 'src', 'analysis', 'python', 'lizard_analyzer.py');
+      
+      if (require('fs').existsSync(analyzerRelativePath)) {
+        analyzerScriptPath = analyzerRelativePath;
+      }
     }
     
-    // Method 3: Last resort - direct hardcoded path
-    if (!require('fs').existsSync(analyzerScriptPath)) {
-      analyzerScriptPath = '/home/adrian/CodeXR/src/analysis/python/lizard_analyzer.py';
+    // Method 3: Try to resolve from the workspace folders
+    if (!analyzerScriptPath || !require('fs').existsSync(analyzerScriptPath)) {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (workspaceFolders && workspaceFolders.length > 0) {
+        for (const folder of workspaceFolders) {
+          const possiblePath = path.join(folder.uri.fsPath, 'src', 'analysis', 'python', 'lizard_analyzer.py');
+          if (require('fs').existsSync(possiblePath)) {
+            analyzerScriptPath = possiblePath;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Final check and error if not found
+    if (!analyzerScriptPath || !require('fs').existsSync(analyzerScriptPath)) {
+      throw new Error('Could not locate the lizard_analyzer.py script. Please check the extension installation.');
     }
     
     outputChannel.appendLine(`Using analyzer script at: ${analyzerScriptPath}`);

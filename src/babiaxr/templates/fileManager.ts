@@ -21,7 +21,9 @@ export async function saveHtmlToFile(
       value: path.basename(fileName, '.html').toLowerCase().replace(/\s+/g, '-')
     });
     
-    if (!projectName) return undefined;
+    if (!projectName) {
+      return undefined;
+    }
     
     // Determine base directory
     let baseDir = vscode.workspace.workspaceFolders ? 

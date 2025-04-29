@@ -4,9 +4,6 @@ import * as path from 'path';
 import { ChartType, ChartData } from '../models/chartModel';
 import { 
   createProcessedJsonFile, 
-  cleanupTemporaryFile, 
-  analyzeForPotentialGrouping,
-  processJsonData as dataProcessorProcessJson // Renombrar para evitar conflicto
 } from '../utils/dataProcessor';
 
 /**
@@ -26,7 +23,9 @@ export async function collectDataSource(context: vscode.ExtensionContext): Promi
     }
   );
   
-  if (!sourceType) return undefined;
+  if (!sourceType) {
+    return undefined;
+  }
   
   switch (sourceType.id) {
     case 'local':
@@ -38,7 +37,9 @@ export async function collectDataSource(context: vscode.ExtensionContext): Promi
       };
       
       const fileUri = await vscode.window.showOpenDialog(options);
-      if (!fileUri || fileUri.length === 0) return undefined;
+      if (!fileUri || fileUri.length === 0) {
+        return undefined;
+      }
       return fileUri[0].fsPath;
       
     case 'sample':
@@ -188,12 +189,6 @@ export async function collectChartData(chartType: ChartType, context: vscode.Ext
       zKey: dimensions!.length > 2 ? dimensions![2] : undefined
     };
     
-    // NO ELIMINAR el archivo temporal inmediatamente
-    // En su lugar, solo registramos que es un archivo temporal
-    // setImmediate(() => {
-    //   cleanupTemporaryFile(processedJsonPath);
-    // });
-    
     return chartData;
   } catch (error) {
     vscode.window.showErrorMessage(
@@ -332,44 +327,8 @@ export async function collectDimensions(data: any[], chartType: ChartType): Prom
       return undefined;
     }
     
-    // Define required dimensions based on chart type
-    let dimensions: {id: string, name: string, description: string}[] = [];
-    
-    // Configure dimensions based on chart type
-    switch (chartType) {
-      case ChartType.BARSMAP_CHART:
-        dimensions = [
-          { id: 'x', name: 'X axis', description: 'Select the X axis (categories)' },
-          { id: 'height', name: 'Height', description: 'Select the Height axis (values)' },
-          { id: 'z', name: 'Z axis', description: 'Select the Z axis (groups)' }
-        ];
-        break;
-      case ChartType.CYLS_CHART:
-        dimensions = [
-          { id: 'x', name: 'X axis', description: 'Select the X axis (categories)' },
-          { id: 'height', name: 'Height', description: 'Select the Height axis (values)' },
-          { id: 'radius', name: 'Radius', description: 'Select the Radius axis (optional)' }
-        ];
-        break;
-      case ChartType.BARS_CHART:
-        dimensions = [
-          { id: 'x', name: 'Categories', description: 'Select the Categories axis (X)' },
-          { id: 'height', name: 'Values', description: 'Select the Values axis (heights)' }
-        ];
-        break;
-      case ChartType.PIE_CHART:
-      case ChartType.DONUT_CHART:
-        dimensions = [
-          { id: 'segments', name: 'Segments', description: 'Select the Segments axis (categories)' },
-          { id: 'values', name: 'Values', description: 'Select the Values axis (sizes)' }
-        ];
-        break;
-      default:
-        dimensions = [
-          { id: 'dim1', name: 'First dimension', description: 'Select the first dimension' },
-          { id: 'dim2', name: 'Second dimension', description: 'Select the second dimension' }
-        ];
-    }
+    // Define required dimensions based on chart type - extract this to a separate function
+    const dimensions = getDimensionsByChartType(chartType);
     
     // We'll collect dimensions sequentially with ability to go back
     const selectedDimensions: string[] = [];
@@ -386,154 +345,30 @@ export async function collectDimensions(data: any[], chartType: ChartType): Prom
     
     // Loop until all required dimensions are selected or user cancels
     while (currentDimensionIndex < dimensions.length) {
-      // Get current dimension info
-      const dimension = dimensions[currentDimensionIndex];
-      const isOptional = dimension.id === 'radius' && chartType === ChartType.CYLS_CHART;
+      const result = await handleDimensionSelection(
+        dimensions, 
+        currentDimensionIndex, 
+        selectedDimensions, 
+        allFields,
+        data,
+        chartType
+      );
       
-      // Skip optional dimension if we've used all fields
-      if (isOptional && selectedDimensions.length >= allFields.length) {
-        currentDimensionIndex++;
-        continue;
+      if (result.action === 'cancel') {
+        return undefined;
       }
       
-      // Calculate available fields (exclude already selected ones unless we're editing this dimension)
-      const availableFields = allFields.filter(field => {
-        const indexInSelected = selectedDimensions.indexOf(field);
-        return indexInSelected === -1 || indexInSelected === currentDimensionIndex;
-      });
-      
-      // Create items for the picker
-      const items: vscode.QuickPickItem[] = availableFields.map(field => {
-        // Try to determine if this field contains numeric values
-        const isNumeric = data.every(item => 
-          !isNaN(parseFloat(item[field])) && 
-          typeof item[field] !== 'boolean' && 
-          item[field] !== null
-        );
-        
-        const isText = data.every(item => 
-          typeof item[field] === 'string' && 
-          isNaN(parseFloat(item[field]))
-        );
-        
-        let fieldDesc = '';
-        if (isNumeric) {
-          fieldDesc = ' (Numeric)';
-          // Add recommendation based on dimension
-          if (dimension.id === 'height' || dimension.id === 'values' || dimension.id === 'radius') {
-            fieldDesc += ' ✓ Recommended for this dimension';
-          }
-        } else if (isText) {
-          fieldDesc = ' (Text)';
-          // Add recommendation based on dimension
-          if (dimension.id === 'x' || dimension.id === 'segments' || dimension.id === 'z') {
-            fieldDesc += ' ✓ Recommended for this dimension';
-          }
-        }
-        
-        // Mark if this field is currently selected for this dimension
-        if (selectedDimensions[currentDimensionIndex] === field) {
-          fieldDesc += ' [Current selection]';
-        }
-        
-        return {
-          label: field,
-          description: fieldDesc
-        };
-      });
-      
-      // Add navigation buttons
-      if (currentDimensionIndex > 0) {
-        items.unshift({
-          label: '$(arrow-left) Go Back',
-          description: `Return to ${dimensions[currentDimensionIndex - 1].name} selection`,
-          alwaysShow: true
-        });
-      }
-      
-      // Add skip option for optional dimensions
-      if (isOptional) {
-        items.unshift({
-          label: '$(debug-step-over) Skip this dimension',
-          description: 'Continue without selecting this optional dimension',
-          alwaysShow: true
-        });
-      }
-      
-      // Create picker for current dimension
-      const stepText = `Step ${currentDimensionIndex + 1}/${totalSteps}: `;
-      const picker = vscode.window.createQuickPick();
-      picker.title = `${stepText}${dimension.description}`;
-      picker.placeholder = dimension.description;
-      picker.items = items;
-      picker.canSelectMany = false;
-      
-      // If we already have a selection for this dimension, preselect it
-      if (selectedDimensions[currentDimensionIndex]) {
-        const preselectedItem = items.find(item => item.label === selectedDimensions[currentDimensionIndex]);
-        if (preselectedItem) {
-          picker.activeItems = [preselectedItem];
-        }
-      }
-      
-      // Wait for user selection
-      const selection = await new Promise<{action: 'select' | 'back' | 'skip' | 'cancel', value?: string}>((resolve) => {
-        picker.onDidAccept(() => {
-          const selected = picker.selectedItems[0];
-          if (!selected) {
-            if (isOptional) {
-              resolve({action: 'skip'});
-            } else {
-              resolve({action: 'cancel'});
-            }
-          } else if (selected.label === '$(arrow-left) Go Back') {
-            resolve({action: 'back'});
-          } else if (selected.label === '$(debug-step-over) Skip this dimension') {
-            resolve({action: 'skip'});
+      // Update dimension index and selections based on result
+      currentDimensionIndex = result.newIndex;
+      if (result.updatedSelections) {
+        // Copy updated selections
+        for (let i = 0; i < result.updatedSelections.length; i++) {
+          if (i < selectedDimensions.length) {
+            selectedDimensions[i] = result.updatedSelections[i];
           } else {
-            resolve({action: 'select', value: selected.label});
+            selectedDimensions.push(result.updatedSelections[i]);
           }
-          picker.hide();
-        });
-        
-        picker.onDidHide(() => {
-          picker.dispose();
-          if (!picker.selectedItems[0]) {
-            resolve({action: 'cancel'});
-          }
-        });
-        
-        picker.show();
-      });
-      
-      // Process the selection
-      if (selection.action === 'cancel' && !isOptional) {
-        return undefined; // User cancelled a required dimension
-      } else if (selection.action === 'back') {
-        // Go back to previous dimension
-        currentDimensionIndex = Math.max(0, currentDimensionIndex - 1);
-      } else if (selection.action === 'skip') {
-        // Remove any existing selection for this dimension
-        if (currentDimensionIndex < selectedDimensions.length) {
-          selectedDimensions.splice(currentDimensionIndex, 1);
         }
-        // Move to next dimension
-        currentDimensionIndex++;
-      } else if (selection.action === 'select' && selection.value) {
-        // Update or add the selection
-        if (currentDimensionIndex < selectedDimensions.length) {
-          selectedDimensions[currentDimensionIndex] = selection.value;
-        } else {
-          selectedDimensions.push(selection.value);
-        }
-        
-        // Show progress message
-        vscode.window.showInformationMessage(
-          `Selected ${dimension.name}: ${selection.value}`
-        );
-        
-        // Move to next dimension
-        currentDimensionIndex++;
       }
     }
     
@@ -547,28 +382,260 @@ export async function collectDimensions(data: any[], chartType: ChartType): Prom
     }
     
     // Show final confirmation message with all selections
-    let finalMessage = 'Final selections: ';
-    
-    if (chartType === ChartType.BARSMAP_CHART) {
-      finalMessage += `X-axis: ${selectedDimensions[0]}, Height: ${selectedDimensions[1]}, Z-axis: ${selectedDimensions[2]}`;
-    } else if (chartType === ChartType.CYLS_CHART) {
-      finalMessage += `X-axis: ${selectedDimensions[0]}, Height: ${selectedDimensions[1]}`;
-      if (selectedDimensions.length > 2) {
-        finalMessage += `, Radius: ${selectedDimensions[2]}`;
-      }
-    } else if (chartType === ChartType.BARS_CHART) {
-      finalMessage += `Categories: ${selectedDimensions[0]}, Values: ${selectedDimensions[1]}`;
-    } else if (chartType === ChartType.PIE_CHART || chartType === ChartType.DONUT_CHART) {
-      finalMessage += `Segments: ${selectedDimensions[0]}, Values: ${selectedDimensions[1]}`;
-    } else {
-      finalMessage += selectedDimensions.join(', ');
-    }
-    
-    vscode.window.showInformationMessage(finalMessage);
+    showFinalSelectionMessage(chartType, selectedDimensions);
     
     return selectedDimensions;
   } catch (error) {
     vscode.window.showErrorMessage(`Error collecting dimensions: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
+}
+
+/**
+ * Get dimensions configuration based on chart type
+ */
+function getDimensionsByChartType(chartType: ChartType): {id: string, name: string, description: string}[] {
+  switch (chartType) {
+    case ChartType.BARSMAP_CHART:
+      return [
+        { id: 'x', name: 'X axis', description: 'Select the X axis (categories)' },
+        { id: 'height', name: 'Height', description: 'Select the Height axis (values)' },
+        { id: 'z', name: 'Z axis', description: 'Select the Z axis (groups)' }
+      ];
+    case ChartType.CYLS_CHART:
+      return [
+        { id: 'x', name: 'X axis', description: 'Select the X axis (categories)' },
+        { id: 'height', name: 'Height', description: 'Select the Height axis (values)' },
+        { id: 'radius', name: 'Radius', description: 'Select the Radius axis (optional)' }
+      ];
+    case ChartType.BARS_CHART:
+      return [
+        { id: 'x', name: 'Categories', description: 'Select the Categories axis (X)' },
+        { id: 'height', name: 'Values', description: 'Select the Values axis (heights)' }
+      ];
+    case ChartType.PIE_CHART:
+    case ChartType.DONUT_CHART:
+      return [
+        { id: 'segments', name: 'Segments', description: 'Select the Segments axis (categories)' },
+        { id: 'values', name: 'Values', description: 'Select the Values axis (sizes)' }
+      ];
+    default:
+      return [
+        { id: 'dim1', name: 'First dimension', description: 'Select the first dimension' },
+        { id: 'dim2', name: 'Second dimension', description: 'Select the second dimension' }
+      ];
+  }
+}
+
+/**
+ * Handle the selection of a single dimension
+ */
+async function handleDimensionSelection(
+  dimensions: {id: string, name: string, description: string}[],
+  currentIndex: number,
+  currentSelections: string[],
+  allFields: string[],
+  data: any[],
+  chartType: ChartType
+): Promise<{action: 'continue' | 'cancel', newIndex: number, updatedSelections?: string[]}> {
+  // Get current dimension info
+  const dimension = dimensions[currentIndex];
+  const totalSteps = dimensions.length;
+  const isOptional = dimension.id === 'radius' && chartType === ChartType.CYLS_CHART;
+  
+  // Skip optional dimension if we've used all fields
+  if (isOptional && currentSelections.length >= allFields.length) {
+    return { action: 'continue', newIndex: currentIndex + 1 };
+  }
+  
+  // Calculate available fields (exclude already selected ones unless we're editing this dimension)
+  const availableFields = allFields.filter(field => {
+    const indexInSelected = currentSelections.indexOf(field);
+    return indexInSelected === -1 || indexInSelected === currentIndex;
+  });
+  
+  // Create items for the picker with field analysis
+  const items = createFieldItems(availableFields, data, dimension, currentSelections, currentIndex);
+  
+  // Add navigation buttons
+  if (currentIndex > 0) {
+    items.unshift({
+      label: '$(arrow-left) Go Back',
+      description: `Return to ${dimensions[currentIndex - 1].name} selection`,
+      alwaysShow: true
+    });
+  }
+  
+  // Add skip option for optional dimensions
+  if (isOptional) {
+    items.unshift({
+      label: '$(debug-step-over) Skip this dimension',
+      description: 'Continue without selecting this optional dimension',
+      alwaysShow: true
+    });
+  }
+  
+  // Create and configure the picker
+  const stepText = `Step ${currentIndex + 1}/${totalSteps}: `;
+  const picker = vscode.window.createQuickPick();
+  picker.title = `${stepText}${dimension.description}`;
+  picker.placeholder = dimension.description;
+  picker.items = items;
+  picker.canSelectMany = false;
+  
+  // If we already have a selection for this dimension, preselect it
+  if (currentSelections[currentIndex]) {
+    const preselectedItem = items.find(item => item.label === currentSelections[currentIndex]);
+    if (preselectedItem) {
+      picker.activeItems = [preselectedItem];
+    }
+  }
+  
+  // Wait for user selection
+  const selection = await handlePickerSelection(picker, isOptional);
+  
+  // Process the selection
+  if (selection.action === 'cancel' && !isOptional) {
+    return { action: 'cancel', newIndex: currentIndex };
+  } else if (selection.action === 'back') {
+    // Go back to previous dimension
+    return { action: 'continue', newIndex: Math.max(0, currentIndex - 1) };
+  } else if (selection.action === 'skip') {
+    // Remove any existing selection for this dimension and move forward
+    const newSelections = [...currentSelections];
+    if (currentIndex < newSelections.length) {
+      newSelections.splice(currentIndex, 1);
+    }
+    return { action: 'continue', newIndex: currentIndex + 1, updatedSelections: newSelections };
+  } else if (selection.action === 'select' && selection.value) {
+    // Update or add the selection
+    const newSelections = [...currentSelections];
+    if (currentIndex < newSelections.length) {
+      newSelections[currentIndex] = selection.value;
+    } else {
+      newSelections.push(selection.value);
+    }
+    
+    // Show progress message
+    vscode.window.showInformationMessage(
+      `Selected ${dimension.name}: ${selection.value}`
+    );
+    
+    // Move to next dimension
+    return { action: 'continue', newIndex: currentIndex + 1, updatedSelections: newSelections };
+  }
+  
+  // Default case (should rarely happen)
+  return { action: 'continue', newIndex: currentIndex };
+}
+
+/**
+ * Create field items for the QuickPick
+ */
+function createFieldItems(
+  availableFields: string[], 
+  data: any[], 
+  dimension: {id: string, name: string, description: string},
+  selectedDimensions: string[],
+  currentDimensionIndex: number
+): vscode.QuickPickItem[] {
+  return availableFields.map(field => {
+    // Try to determine if this field contains numeric values
+    const isNumeric = data.every(item => 
+      !isNaN(parseFloat(item[field])) && 
+      typeof item[field] !== 'boolean' && 
+      item[field] !== null
+    );
+    
+    const isText = data.every(item => 
+      typeof item[field] === 'string' && 
+      isNaN(parseFloat(item[field]))
+    );
+    
+    let fieldDesc = '';
+    if (isNumeric) {
+      fieldDesc = ' (Numeric)';
+      // Add recommendation based on dimension
+      if (dimension.id === 'height' || dimension.id === 'values' || dimension.id === 'radius') {
+        fieldDesc += ' ✓ Recommended for this dimension';
+      }
+    } else if (isText) {
+      fieldDesc = ' (Text)';
+      // Add recommendation based on dimension
+      if (dimension.id === 'x' || dimension.id === 'segments' || dimension.id === 'z') {
+        fieldDesc += ' ✓ Recommended for this dimension';
+      }
+    }
+    
+    // Mark if this field is currently selected for this dimension
+    if (selectedDimensions[currentDimensionIndex] === field) {
+      fieldDesc += ' [Current selection]';
+    }
+    
+    return {
+      label: field,
+      description: fieldDesc
+    };
+  });
+}
+
+/**
+ * Handle the QuickPick selection logic
+ */
+async function handlePickerSelection(
+  picker: vscode.QuickPick<vscode.QuickPickItem>,
+  isOptional: boolean
+): Promise<{action: 'select' | 'back' | 'skip' | 'cancel', value?: string}> {
+  return new Promise<{action: 'select' | 'back' | 'skip' | 'cancel', value?: string}>((resolve) => {
+    picker.onDidAccept(() => {
+      const selected = picker.selectedItems[0];
+      if (!selected) {
+        if (isOptional) {
+          resolve({action: 'skip'});
+        } else {
+          resolve({action: 'cancel'});
+        }
+      } else if (selected.label === '$(arrow-left) Go Back') {
+        resolve({action: 'back'});
+      } else if (selected.label === '$(debug-step-over) Skip this dimension') {
+        resolve({action: 'skip'});
+      } else {
+        resolve({action: 'select', value: selected.label});
+      }
+      picker.hide();
+    });
+    
+    picker.onDidHide(() => {
+      picker.dispose();
+      if (!picker.selectedItems[0]) {
+        resolve({action: 'cancel'});
+      }
+    });
+    
+    picker.show();
+  });
+}
+
+/**
+ * Show final selection confirmation message
+ */
+function showFinalSelectionMessage(chartType: ChartType, selectedDimensions: string[]): void {
+  let finalMessage = 'Final selections: ';
+  
+  if (chartType === ChartType.BARSMAP_CHART) {
+    finalMessage += `X-axis: ${selectedDimensions[0]}, Height: ${selectedDimensions[1]}, Z-axis: ${selectedDimensions[2]}`;
+  } else if (chartType === ChartType.CYLS_CHART) {
+    finalMessage += `X-axis: ${selectedDimensions[0]}, Height: ${selectedDimensions[1]}`;
+    if (selectedDimensions.length > 2) {
+      finalMessage += `, Radius: ${selectedDimensions[2]}`;
+    }
+  } else if (chartType === ChartType.BARS_CHART) {
+    finalMessage += `Categories: ${selectedDimensions[0]}, Values: ${selectedDimensions[1]}`;
+  } else if (chartType === ChartType.PIE_CHART || chartType === ChartType.DONUT_CHART) {
+    finalMessage += `Segments: ${selectedDimensions[0]}, Values: ${selectedDimensions[1]}`;
+  } else {
+    finalMessage += selectedDimensions.join(', ');
+  }
+  
+  vscode.window.showInformationMessage(finalMessage);
 }

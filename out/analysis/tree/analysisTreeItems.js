@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.AnalysisFileItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = void 0;
+exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.AnalysisFileItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const baseItems_1 = require("../../ui/treeItems/baseItems");
@@ -111,6 +111,42 @@ class AnalysisModeOptionItem extends baseItems_1.TreeItem {
 }
 exports.AnalysisModeOptionItem = AnalysisModeOptionItem;
 /**
+ * Item for setting debounce delay
+ */
+class AnalysisDelayOptionItem extends baseItems_1.TreeItem {
+    constructor(delay, extensionPath) {
+        const delayLabels = {
+            500: "Very Quick (500ms)",
+            1000: "Quick (1 second)",
+            2000: "Standard (2 seconds)",
+            3000: "Relaxed (3 seconds)",
+            5000: "Extended (5 seconds)"
+        };
+        const label = `Debounce Delay: ${delayLabels[delay] || delay + 'ms'}`;
+        super(label, "Set the delay before auto-analysis after a file change", treeProvider_1.TreeItemType.ANALYSIS_SETTING_OPTION, vscode.TreeItemCollapsibleState.None, {
+            command: 'codexr.setAnalysisDebounceDelay',
+            title: 'Set Analysis Debounce Delay',
+            arguments: []
+        }, new vscode.ThemeIcon('clock'));
+    }
+}
+exports.AnalysisDelayOptionItem = AnalysisDelayOptionItem;
+/**
+ * Item for toggling auto-analysis
+ */
+class AnalysisAutoOptionItem extends baseItems_1.TreeItem {
+    constructor(enabled, extensionPath) {
+        super(`Auto-Analysis: ${enabled ? 'Enabled' : 'Disabled'}`, "Toggle automatic re-analysis of files when they change", treeProvider_1.TreeItemType.ANALYSIS_SETTING_OPTION, vscode.TreeItemCollapsibleState.None, {
+            command: 'codexr.toggleAutoAnalysis',
+            title: 'Toggle Auto Analysis',
+            arguments: []
+        }, enabled ? new vscode.ThemeIcon('check') : new vscode.ThemeIcon('close'));
+        // Add a highlight for the current state
+        this.description = enabled ? '(active)' : '(inactive)';
+    }
+}
+exports.AnalysisAutoOptionItem = AnalysisAutoOptionItem;
+/**
  * Gets language name from file extension
  */
 function getLanguageFromExtension(ext) {
@@ -123,6 +159,17 @@ function getLanguageFromExtension(ext) {
             return 'TypeScript';
         case '.c':
             return 'C';
+        // Add new language support
+        case '.cpp':
+        case '.cc':
+        case '.cxx':
+            return 'C++';
+        case '.cs':
+            return 'C#';
+        case '.vue':
+            return 'Vue';
+        case '.rb':
+            return 'Ruby';
         default:
             return 'Unknown';
     }

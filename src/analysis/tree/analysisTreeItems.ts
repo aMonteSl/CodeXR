@@ -116,6 +116,59 @@ export class AnalysisModeOptionItem extends TreeItem {
 }
 
 /**
+ * Item for setting debounce delay
+ */
+export class AnalysisDelayOptionItem extends TreeItem {
+  constructor(delay: number, extensionPath: string) {
+    const delayLabels: Record<number, string> = {
+      500: "Very Quick (500ms)",
+      1000: "Quick (1 second)",
+      2000: "Standard (2 seconds)",
+      3000: "Relaxed (3 seconds)",
+      5000: "Extended (5 seconds)"
+    };
+    
+    const label = `Debounce Delay: ${delayLabels[delay] || delay + 'ms'}`;
+    
+    super(
+      label,
+      "Set the delay before auto-analysis after a file change",
+      TreeItemType.ANALYSIS_SETTING_OPTION,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.setAnalysisDebounceDelay',
+        title: 'Set Analysis Debounce Delay',
+        arguments: []
+      },
+      new vscode.ThemeIcon('clock')
+    );
+  }
+}
+
+/**
+ * Item for toggling auto-analysis
+ */
+export class AnalysisAutoOptionItem extends TreeItem {
+  constructor(enabled: boolean, extensionPath: string) {
+    super(
+      `Auto-Analysis: ${enabled ? 'Enabled' : 'Disabled'}`,
+      "Toggle automatic re-analysis of files when they change",
+      TreeItemType.ANALYSIS_SETTING_OPTION,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.toggleAutoAnalysis',
+        title: 'Toggle Auto Analysis',
+        arguments: []
+      },
+      enabled ? new vscode.ThemeIcon('check') : new vscode.ThemeIcon('close')
+    );
+    
+    // Add a highlight for the current state
+    this.description = enabled ? '(active)' : '(inactive)';
+  }
+}
+
+/**
  * Gets language name from file extension
  */
 function getLanguageFromExtension(ext: string): string {
@@ -128,6 +181,17 @@ function getLanguageFromExtension(ext: string): string {
       return 'TypeScript';
     case '.c':
       return 'C';
+    // Add new language support
+    case '.cpp':
+    case '.cc':
+    case '.cxx':
+      return 'C++';
+    case '.cs':
+      return 'C#';
+    case '.vue':
+      return 'Vue';
+    case '.rb':
+      return 'Ruby';
     default:
       return 'Unknown';
   }

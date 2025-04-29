@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-// Corregir la ruta de importación
+// Fix the import path
 import { registerServerCommands } from './serverCommands';
 import { registerBabiaCommands } from './babiaCommands';
 import { registerUiCommands } from './uiCommands'; // Fixed casing here

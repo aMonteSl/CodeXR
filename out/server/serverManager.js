@@ -218,69 +218,32 @@ function stopServer(serverId) {
     }
 }
 /**
- * Creates a server but returns the server info without opening a browser
- * Useful for programmatic server creation like example launching
- *
- * @param filePath Path to HTML file to serve
- * @param mode The server mode to use
+ * Creates and starts a server
+ * @param rootPath Root path of files to serve
+ * @param mode Server mode
  * @param context Extension context
- * @returns ServerInfo object or undefined if server creation failed
+ * @param port Optional port to use (if not specified, a free port will be found)
+ * @returns Server info or undefined on error
  */
-async function createServer(filePath, mode, context) {
+async function createServer(rootPath, mode = serverModel_1.ServerMode.HTTP, context, port) {
     try {
-        let useHttps = false;
-        let useDefaultCerts = false;
-        if (mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS) {
-            useHttps = true;
-            useDefaultCerts = true;
-        }
-        else if (mode === serverModel_1.ServerMode.HTTPS_CUSTOM_CERTS) {
-            useHttps = true;
-            useDefaultCerts = false;
-        }
-        // Print the path to the HTML file for debugging
-        console.log('DEBUG - HTML file path (ServerManager):', filePath);
-        // Determine if this is a directory or a file
-        const fs = require('fs');
-        const stats = fs.statSync(filePath);
-        // Choose the correct file and directory paths based on what was provided
-        let serverRootDir;
-        let mainHtmlPath;
+        // Use provided port or find a free one
+        const serverPort = port || await findFreePort();
+        // Determine the file to serve (use index.html if rootPath is a directory)
+        let fileToServe = rootPath;
+        const stats = fs.statSync(rootPath);
         if (stats.isDirectory()) {
-            // If a directory was passed in (like the examples directory)
-            serverRootDir = filePath;
-            // Examples directory should have an index.html or we'll default to any HTML file
-            // This is just for display purposes, actual requests will still work
-            const possibleIndexFiles = ['index.html', 'main.html'];
-            for (const indexFile of possibleIndexFiles) {
-                const indexPath = path.join(serverRootDir, indexFile);
-                if (fs.existsSync(indexPath)) {
-                    mainHtmlPath = indexPath;
-                    break;
-                }
-            }
-            // If no index file is found, just use the directory path
-            if (!mainHtmlPath) {
-                mainHtmlPath = serverRootDir;
-            }
+            fileToServe = path.join(rootPath, 'index.html');
         }
-        else {
-            // If a specific file was passed (like a single visualization)
-            mainHtmlPath = filePath;
-            serverRootDir = path.dirname(filePath);
-        }
-        // Log the paths we're using
-        console.log('Server root directory:', serverRootDir);
-        console.log('Main HTML path:', mainHtmlPath);
-        // Find a free port
-        const getPortModule = await import('get-port');
-        const getPort = getPortModule.default;
-        const port = await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
-        // Create request handler with the correct server root directory
-        const requestHandler = (0, requestHandler_1.createRequestHandler)(serverRootDir, mainHtmlPath);
-        // Continue with server creation as before...
-        // Create HTTP or HTTPS server based on the chosen option
+        // Get the directory where the file is located
+        const fileDir = path.dirname(fileToServe);
+        // Create request handler
+        const requestHandler = (0, requestHandler_1.createRequestHandler)(fileDir, fileToServe);
+        // Create HTTP or HTTPS server based on the mode
         let server;
+        // Choose protocol based on mode
+        const useHttps = mode !== serverModel_1.ServerMode.HTTP;
+        const useDefaultCerts = mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
         if (useHttps) {
             const { key, cert } = await (0, certificateManager_1.getCertificates)(context, useDefaultCerts);
             server = https.createServer({ key, cert }, requestHandler);
@@ -288,63 +251,89 @@ async function createServer(filePath, mode, context) {
         else {
             server = http.createServer(requestHandler);
         }
-        // Set up file watching for live reload
-        const htmlWatcher = fs.watch(mainHtmlPath, (eventType, filename) => {
-            (0, liveReloadManager_1.notifyClients)();
+        // Create a promise to handle server startup
+        return new Promise((resolve) => {
+            server.listen(serverPort, () => {
+                const protocol = useHttps ? 'https' : 'http';
+                // Extract filename without extension for display
+                const filename = path.basename(fileToServe, path.extname(fileToServe));
+                // Create server URLs
+                const serverUrl = `${protocol}://localhost:${serverPort}`;
+                const displayUrl = `${protocol}://${filename}:${serverPort}`;
+                // Create server ID
+                const serverId = `server-${Date.now()}`;
+                // Create server info
+                const serverInfo = {
+                    id: serverId,
+                    url: serverUrl,
+                    displayUrl: displayUrl,
+                    protocol,
+                    port: serverPort,
+                    filePath: fileToServe,
+                    useHttps,
+                    startTime: Date.now()
+                };
+                // Create server entry and add to active servers
+                const serverEntry = {
+                    server,
+                    info: serverInfo
+                };
+                activeServerList.push(serverEntry);
+                // Set up file watchers
+                const htmlWatcher = fs.watch(fileToServe, () => (0, liveReloadManager_1.notifyClients)());
+                const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
+                    if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
+                        setTimeout(() => (0, liveReloadManager_1.notifyClients)(), 300);
+                    }
+                });
+                // Register watchers for cleanup
+                context.subscriptions.push({
+                    dispose: () => {
+                        htmlWatcher.close();
+                        jsonWatcher.close();
+                    }
+                });
+                // Register server for cleanup
+                context.subscriptions.push({
+                    dispose: () => {
+                        server.close();
+                        exports.activeServerList = activeServerList = activeServerList.filter(entry => entry.info.id !== serverId);
+                    }
+                });
+                // Refresh the UI
+                vscode.commands.executeCommand('codexr.refreshView');
+                // Resolve with the server info
+                resolve(serverInfo);
+            });
+            // Handle potential server setup errors
+            server.on('error', (err) => {
+                vscode.window.showErrorMessage(`Error starting server: ${err.message}`);
+                resolve(undefined);
+            });
         });
-        const jsonWatcher = fs.watch(serverRootDir, (eventType, filename) => {
-            if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
-                (0, liveReloadManager_1.notifyClients)();
-            }
-        });
-        // Register watchers for cleanup
-        context.subscriptions.push({
-            dispose: () => {
-                htmlWatcher.close();
-                jsonWatcher.close();
-            }
-        });
-        // Generate server info
-        const protocol = useHttps ? 'https' : 'http';
-        const filename = path.basename(mainHtmlPath, path.extname(mainHtmlPath));
-        const serverUrl = `${protocol}://localhost:${port}`;
-        const displayUrl = `${protocol}://${filename}:${port}`;
-        const serverId = `server-${Date.now()}`;
-        const serverInfo = {
-            id: serverId,
-            url: serverUrl,
-            displayUrl: displayUrl,
-            protocol,
-            port,
-            filePath,
-            useHttps,
-            startTime: Date.now()
-        };
-        // Create server entry and start the server
-        const serverEntry = {
-            server,
-            info: serverInfo
-        };
-        // Start the server and wait for it to be ready
-        await new Promise((resolve) => {
-            server.listen(port, () => resolve());
-        });
-        // Add to active servers list
-        exports.activeServer = activeServer = serverEntry;
-        activeServerList.push(serverEntry);
-        // Register cleanup for extension deactivation
-        context.subscriptions.push({
-            dispose: () => {
-                server.close();
-            }
-        });
-        // Notify that there's a new server to update the UI
-        vscode.commands.executeCommand('codexr.refreshView');
-        return serverInfo;
     }
     catch (error) {
-        vscode.window.showErrorMessage(`Error creating server: ${error instanceof Error ? error.message : String(error)}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Error creating server: ${errorMessage}`);
         return undefined;
+    }
+}
+/**
+ * Finds a free port in the range 3000-3100
+ * @returns A free port number
+ */
+async function findFreePort() {
+    try {
+        // Dynamic import of get-port (ESM module)
+        const getPortModule = await import('get-port');
+        const getPort = getPortModule.default;
+        // Find a free port in the range 3000-3100 for the server
+        return await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
+    }
+    catch (error) {
+        console.error('Error finding free port:', error);
+        // Return a fallback port if get-port fails
+        return 3000;
     }
 }
 //# sourceMappingURL=serverManager.js.map

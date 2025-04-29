@@ -86,16 +86,16 @@ export async function launchBabiaXRVisualization(
   filePath: string, 
   context: vscode.ExtensionContext
 ): Promise<void> {
-  // Obtener el modo de servidor configurado actualmente
+  // Get the currently configured server mode
   const serverMode = context.globalState.get<ServerMode>('serverMode') || ServerMode.HTTPS_DEFAULT_CERTS;
   
-  // Determinar si se debe usar HTTPS basado en la configuración del usuario
+  // Determine if HTTPS should be used based on user configuration
   const useHttps = serverMode === ServerMode.HTTPS_DEFAULT_CERTS || 
                   serverMode === ServerMode.HTTPS_CUSTOM_CERTS;
   
-  // Determinar si se deben usar certificados predeterminados
+  // Determine if default certificates should be used
   const useDefaultCerts = serverMode === ServerMode.HTTPS_DEFAULT_CERTS;
   
-  // Iniciar el servidor respetando la configuración
+  // Start the server with the specified configuration
   await startServer(filePath, context, useHttps, useDefaultCerts);
 }

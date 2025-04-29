@@ -16,8 +16,8 @@ function transformAnalysisDataForXR(analysisResult) {
         maxNestingDepth: func.maxNestingDepth,
         lineStart: func.lineStart,
         lineEnd: func.lineEnd,
-        // Add a complexity category for color coding
-        complexityCategory: getCategoryFromComplexity(func.complexity)
+        complexityCategory: getCategoryFromComplexity(func.complexity),
+        complexityColor: getColorFromComplexity(func.complexity) // Add color based on complexity
     }));
     // Sort by complexity (descending) for better visualization
     functionData.sort((a, b) => b.complexity - a.complexity);
@@ -53,5 +53,22 @@ function getCategoryFromComplexity(complexity) {
         return 'high';
     }
     return 'critical';
+}
+/**
+ * Maps complexity value to a color
+ * @param complexity The complexity value
+ * @returns Hex color code
+ */
+function getColorFromComplexity(complexity) {
+    if (complexity <= 5) {
+        return '#27ae60'; // Green for simple functions
+    }
+    if (complexity <= 10) {
+        return '#f39c12'; // Yellow for moderate complexity
+    }
+    if (complexity <= 20) {
+        return '#e67e22'; // Orange for high complexity
+    }
+    return '#e74c3c'; // Red for very complex/critical functions
 }
 //# sourceMappingURL=xrDataTransformer.js.map
