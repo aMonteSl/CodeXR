@@ -6,7 +6,7 @@ The changelog follows a versioning system to document new features, improvements
 
 # CHANGELOG.md
 
-## [0.0.5.1] - 2025-04-29
+## [0.0.6] - 2025-04-29
 
 Fix some issues of the previous version
 
