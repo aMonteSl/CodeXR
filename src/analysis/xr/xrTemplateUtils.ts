@@ -17,6 +17,14 @@ export async function generateXRAnalysisHTML(
   dataPath: string,
   context: vscode.ExtensionContext
 ): Promise<string> {
+  
+  // Get function count for description
+  const functionCount = analysisResult.functions?.length || 0;
+  
+  // Create chart title and description - add timestamp to ensure freshness
+  const chartTitle = `Code Complexity: ${analysisResult.fileName} (${Date.now()})`;
+  const chartDescription = `Analysis of ${analysisResult.language} code with ${functionCount} functions and ${analysisResult.lineCount.total} lines of code`;
+  
   // Get the template
   const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'analysis-xr-template.html');
   let templateContent = await fs.readFile(templatePath, 'utf8');
@@ -28,7 +36,6 @@ export async function generateXRAnalysisHTML(
   const chartPalette = context.globalState.get<string>('babiaChartPalette') || 'ubuntu';
   
   // Calculate complexity metrics for display
-  const functionCount = analysisResult.functions.length;
   const avgComplexity = analysisResult.complexity.averageComplexity.toFixed(1);
   const maxComplexity = analysisResult.complexity.maxComplexity;
   
@@ -40,10 +47,6 @@ export async function generateXRAnalysisHTML(
   
   // Transform the analysis data for XR visualization
   const transformedData = transformAnalysisDataForXR(analysisResult);
-  
-  // Create chart title and description
-  const chartTitle = `Code Complexity: ${analysisResult.fileName}`;
-  const chartDescription = `Analysis of ${analysisResult.language} code with ${functionCount} functions and ${analysisResult.lineCount.total} lines of code`;
   
   // Get icon path
   const iconPath = vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')).toString();

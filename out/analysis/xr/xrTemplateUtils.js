@@ -47,6 +47,11 @@ const xrDataTransformer_1 = require("./xrDataTransformer");
  * @returns Generated HTML content
  */
 async function generateXRAnalysisHTML(analysisResult, dataPath, context) {
+    // Get function count for description
+    const functionCount = analysisResult.functions?.length || 0;
+    // Create chart title and description - add timestamp to ensure freshness
+    const chartTitle = `Code Complexity: ${analysisResult.fileName} (${Date.now()})`;
+    const chartDescription = `Analysis of ${analysisResult.language} code with ${functionCount} functions and ${analysisResult.lineCount.total} lines of code`;
     // Get the template
     const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'analysis-xr-template.html');
     let templateContent = await fs.readFile(templatePath, 'utf8');
@@ -56,7 +61,6 @@ async function generateXRAnalysisHTML(analysisResult, dataPath, context) {
     const groundColor = context.globalState.get('babiaGroundColor') || '#445566';
     const chartPalette = context.globalState.get('babiaChartPalette') || 'ubuntu';
     // Calculate complexity metrics for display
-    const functionCount = analysisResult.functions.length;
     const avgComplexity = analysisResult.complexity.averageComplexity.toFixed(1);
     const maxComplexity = analysisResult.complexity.maxComplexity;
     // Calculate complexity distribution
@@ -66,9 +70,6 @@ async function generateXRAnalysisHTML(analysisResult, dataPath, context) {
     const complexityCritical = analysisResult.functions.filter(f => f.complexity > 20).length;
     // Transform the analysis data for XR visualization
     const transformedData = (0, xrDataTransformer_1.transformAnalysisDataForXR)(analysisResult);
-    // Create chart title and description
-    const chartTitle = `Code Complexity: ${analysisResult.fileName}`;
-    const chartDescription = `Analysis of ${analysisResult.language} code with ${functionCount} functions and ${analysisResult.lineCount.total} lines of code`;
     // Get icon path
     const iconPath = vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')).toString();
     // Create variable replacements
