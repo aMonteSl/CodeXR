@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "0.0.6",
+  "version": "0.0.5.1",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",

@@ -6,6 +6,10 @@ The changelog follows a versioning system to document new features, improvements
 
 # CHANGELOG.md
 
+## [0.0.5.1] - 2025-04-29
+
+Fix some issues of the previous version
+
 ## [0.0.5] - 2025-04-29
 ### Added
 - Integrated babia-boats visualization component for enhanced 3D representation
