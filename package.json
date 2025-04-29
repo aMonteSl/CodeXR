@@ -334,11 +334,10 @@
     "eslint": "^9.21.0"
   },
   "files": [
-    "out",
-    "certs/**",
-    "resources",
-    "examples/**",
-    "templates/**",
-    "src/analysis/pythonBridge/scripts"
+    "out/**/*",
+    "src/analysis/python/**/*.py",
+    "templates/**/*",
+    "media/**/*",
+    "resources/**/*"
   ]
 }

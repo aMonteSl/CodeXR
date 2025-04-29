@@ -110,12 +110,21 @@ async function analyzeLizard(filePath, outputChannel) {
         let analyzerScriptPath = '';
         // Method 1: Try to get from extension
         try {
-            const extPath = vscode.extensions.getExtension('codexr')?.extensionPath;
-            if (extPath) {
-                analyzerScriptPath = path.join(extPath, 'src', 'analysis', 'python', 'lizard_analyzer.py');
-                // Verify file exists
-                if (!require('fs').existsSync(analyzerScriptPath)) {
-                    analyzerScriptPath = ''; // Reset if not found
+            const extensionPath = vscode.extensions.getExtension('amontesl.code-xr')?.extensionPath;
+            if (extensionPath) {
+                // Try multiple possible locations
+                const possiblePaths = [
+                    path.join(extensionPath, 'out', 'analysis', 'python', 'lizard_analyzer.py'),
+                    path.join(extensionPath, 'src', 'analysis', 'python', 'lizard_analyzer.py'),
+                    path.join(extensionPath, 'analysis', 'python', 'lizard_analyzer.py'),
+                    path.join(extensionPath, 'python', 'lizard_analyzer.py'),
+                    path.join(extensionPath, 'dist', 'analysis', 'python', 'lizard_analyzer.py'),
+                ];
+                for (const possiblePath of possiblePaths) {
+                    if (require('fs').existsSync(possiblePath)) {
+                        analyzerScriptPath = possiblePath;
+                        break;
+                    }
                 }
             }
         }
