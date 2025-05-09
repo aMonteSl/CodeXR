@@ -301,6 +301,9 @@ export function registerAnalysisCommands(
   // Add our refresh tree command
   disposables.push(registerRefreshAnalysisTreeCommand());
   
+  // Register the command to set the analysis chart type
+  disposables.push(registerSetAnalysisChartTypeCommand());
+  
   return disposables;
 }
 
@@ -428,6 +431,52 @@ export function registerRefreshAnalysisTreeCommand(): vscode.Disposable {
     }
     
     vscode.window.showInformationMessage('Analysis tree refreshed');
+  });
+}
+
+/**
+ * Registers the command to set the analysis chart type
+ */
+export function registerSetAnalysisChartTypeCommand(): vscode.Disposable {
+  return vscode.commands.registerCommand('codexr.setAnalysisChartType', async () => {
+    const options = [
+      { label: "Boats", description: "3D Blocks Visualization", value: "boats" },
+      { label: "Bars", description: "Classic 2D Bar Chart", value: "bars" },
+      { label: "Cylinders", description: "3D Cylinder Chart", value: "cyls" },
+      { label: "Bars Map", description: "3D Bars Layout", value: "barsmap" },
+      { label: "Pie Chart", description: "Circular Sectors Chart", value: "pie" },
+      { label: "Donut Chart", description: "Ring Chart with Center Hole", value: "donut" }
+    ];
+    
+    const selection = await vscode.window.showQuickPick(
+      options.map(option => ({
+        label: option.label,
+        description: option.description,
+        value: option.value
+      })),
+      { 
+        placeHolder: 'Select chart type for visualizations',
+        title: 'Which chart type should be used for code analysis?'
+      }
+    );
+    
+    if (selection) {
+      console.log('Setting analysis chart type to:', selection.value);
+      
+      // Update configuration
+      const config = vscode.workspace.getConfiguration();
+      await config.update('codexr.analysis.chartType', selection.value, vscode.ConfigurationTarget.Global);
+      
+      // Show confirmation
+      vscode.window.showInformationMessage(`Analysis chart type set to: ${selection.label}`);
+      
+      // Refresh tree view to show updated setting
+      if ((global as any).treeDataProvider) {
+        (global as any).treeDataProvider.refresh();
+      } else {
+        await vscode.commands.executeCommand('codexr.refreshTreeView');
+      }
+    }
   });
 }
 

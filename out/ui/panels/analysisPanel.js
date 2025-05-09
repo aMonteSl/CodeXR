@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnalysisPanel = void 0;
 exports.createAnalysisPanel = createAnalysisPanel;
 const vscode = __importStar(require("vscode"));
-const templateUtils_1 = require("../../utils/templateUtils");
+const nonceUtils_1 = require("../../utils/nonceUtils"); // Importar de nonceUtils en lugar de templateUtils
 /**
  * Manages a panel that displays code analysis results
  */
@@ -124,7 +124,7 @@ class AnalysisPanel {
      */
     _getHtmlForWebview(webview, analysisResult) {
         // Generate nonce for content security policy
-        const nonce = (0, templateUtils_1.generateNonce)();
+        const nonce = (0, nonceUtils_1.generateNonce)();
         // Try to format the analysis result for display
         let formattedResult = '<p>No analysis data available</p>';
         if (analysisResult) {

@@ -1,23 +1,16 @@
 [
   {
-    "functionName": "operar2",
+    "functionName": "operate",
     "complexity": 12,
     "linesCount": 19,
     "parameters": 4,
     "complexityColor": "#e67e22"
   },
   {
-    "functionName": "analizarArray",
+    "functionName": "analyze_array",
     "complexity": 5,
     "linesCount": 12,
     "parameters": 2,
-    "complexityColor": "#27ae60"
-  },
-  {
-    "functionName": "operar1",
-    "complexity": 2,
-    "linesCount": 3,
-    "parameters": 4,
     "complexityColor": "#27ae60"
   },
   {

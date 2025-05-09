@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ChartType, ChartData, TemplateVariableMap, ChartSpecification } from '../babiaxr/models/chartModel';
+import { generateNonce } from './nonceUtils'; // Importar el generador de nonce seguro
 
 /**
  * Data structure representing a processed template
@@ -52,19 +53,6 @@ export async function loadTemplate(
     console.error(`Error loading template ${templateName}:`, error);
     throw error;
   }
-}
-
-/**
- * Generates a nonce for script security
- * @returns Random nonce string
- */
-export function generateNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
 }
 
 /**
@@ -403,7 +391,9 @@ export async function createBabiaXRVisualization(
       throw new Error(`Data file not found: ${chartData.dataSource}`);
     }
     
-    // Rest of the function...
+    // Código adicional aquí
+    return undefined; // Valor de retorno provisional
+    
   } catch (error) {
     vscode.window.showErrorMessage(`Error creating visualization: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;

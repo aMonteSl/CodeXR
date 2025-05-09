@@ -119,7 +119,7 @@ export class ActiveServersContainer extends TreeItem {
     super(
       `Active Servers (${count})`,
       'Currently running servers',
-      'serverContainer', // Use this string directly instead of TreeItemType.SERVERS_CONTAINER
+      TreeItemType.SERVERS_CONTAINER, // Usar la constante en lugar de la cadena literal
       vscode.TreeItemCollapsibleState.Expanded,
       undefined,
       new vscode.ThemeIcon('server-environment')

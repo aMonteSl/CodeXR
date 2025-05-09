@@ -169,6 +169,37 @@ export class AnalysisAutoOptionItem extends TreeItem {
 }
 
 /**
+ * Item for setting chart type for analysis visualizations
+ */
+export class AnalysisChartTypeOptionItem extends TreeItem {
+  constructor(currentChart: string, extensionPath: string) {
+    const chartLabels: Record<string, string> = {
+      'boats': "Boats (3D blocks)",
+      'bars': "Bars (2D bars)",
+      'cyls': "Cylinders (3D cylinders)",
+      'barsmap': "Bars Map (3D layout)",
+      'pie': "Pie Chart",
+      'donut': "Donut Chart"
+    };
+    
+    const label = `Chart Type: ${chartLabels[currentChart] || currentChart}`;
+    
+    super(
+      label,
+      "Select which chart type to use for code analysis visualization",
+      TreeItemType.ANALYSIS_SETTING_OPTION,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.setAnalysisChartType',
+        title: 'Set Analysis Chart Type',
+        arguments: []
+      },
+      new vscode.ThemeIcon('pie-chart')
+    );
+  }
+}
+
+/**
  * Gets language name from file extension
  */
 function getLanguageFromExtension(ext: string): string {

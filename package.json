@@ -19,6 +19,63 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "CodeXR",
+      "properties": {
+        "codexr.analysisMode": {
+          "type": "string",
+          "default": "Static",
+          "enum": ["Static", "XR"],
+          "description": "Default mode for code analysis (Static or XR)"
+        },
+        "codexr.analysis.debounceDelay": {
+          "type": "number",
+          "default": 2000,
+          "enum": [500, 1000, 2000, 3000, 5000],
+          "enumDescriptions": [
+            "Very quick (500ms)",
+            "Quick (1 second)",
+            "Standard (2 seconds)",
+            "Relaxed (3 seconds)",
+            "Extended (5 seconds)"
+          ],
+          "description": "Delay in milliseconds before auto-analysis is triggered after file changes"
+        },
+        "codexr.analysis.autoAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically re-analyze files when they change"
+        },
+        "codexr.analysis.chartType": {
+          "type": "string",
+          "default": "boats",
+          "enum": [
+            "boats",
+            "bars",
+            "cyls",
+            "barsmap",
+            "pie",
+            "donut"
+          ],
+          "description": "Chart type to use for code analysis visualizations"
+        },
+        "codexr.analysis.useLizard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Lizard for advanced code metrics (requires Python)"
+        },
+        "codexr.analysis.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python executable"
+        },
+        "codexr.analysis.autoSetupPython": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically set up Python environment when opening a workspace"
+        }
+      }
+    },
     "commands": [
       {
         "command": "codexr.startLocalServer",
@@ -265,51 +322,7 @@
         "mac": "cmd+shift+s",
         "when": "focusedView == codexr.serverTreeView"
       }
-    ],
-    "configuration": {
-      "title": "CodeXR",
-      "properties": {
-        "codexr.analysis.useLizard": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use Lizard for advanced code metrics (requires Python)"
-        },
-        "codexr.analysis.pythonPath": {
-          "type": "string",
-          "default": "python3",
-          "description": "Path to Python executable"
-        },
-        "codexr.analysis.autoSetupPython": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically set up Python environment when opening a workspace"
-        },
-        "codexr.analysisMode": {
-          "type": "string",
-          "default": "Static",
-          "enum": ["Static", "XR"],
-          "description": "Default mode for code analysis (Static or XR)"
-        },
-        "codexr.analysis.debounceDelay": {
-          "type": "number",
-          "default": 2000,
-          "enum": [500, 1000, 2000, 3000, 5000],
-          "enumDescriptions": [
-            "Very quick (500ms)",
-            "Quick (1 second)",
-            "Standard (2 seconds)",
-            "Relaxed (3 seconds)",
-            "Extended (5 seconds)"
-          ],
-          "description": "Delay in milliseconds before auto-analysis is triggered after file changes"
-        },
-        "codexr.analysis.autoAnalysis": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically re-analyze files when they change"
-        }
-      }
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -62,6 +62,8 @@ function registerCommands(context, treeDataProvider) {
     disposables.push(...(0, serverCommands_1.registerServerCommands)(context, treeDataProvider));
     disposables.push(...(0, babiaCommands_1.registerBabiaCommands)(context, treeDataProvider));
     disposables.push(...(0, uiCommands_1.registerUiCommands)(context, treeDataProvider)); // Fixed casing and added context parameter
+    // Eliminar esta línea que registra el comando duplicado
+    // disposables.push(registerSetAnalysisChartTypeCommand()); // Nuevo comando añadido
     // We no longer register analysis commands here since they are registered in extension.ts
     // Add the refresh command
     disposables.push(registerRefreshTreeViewCommand(treeDataProvider));

@@ -30,7 +30,6 @@ export class BabiaTreeProvider {
   public getBabiaXRChildren(): Thenable<TreeItem[]> {
     const items: TreeItem[] = [];
     
-    items.push(new BabiaXRConfigItem(this.context));
     items.push(new CreateVisualizationItem());
     items.push(new BabiaXRExamplesContainer());
     
@@ -205,6 +204,40 @@ export class BabiaTreeProvider {
       vscode.TreeItemCollapsibleState.Expanded,
       undefined,
       new vscode.ThemeIcon('graph')
+    );
+  }
+}
+
+export class BabiaExampleItem extends TreeItem {
+  constructor(
+    label: string,
+    description: string,
+    command: vscode.Command
+  ) {
+    super(
+      label,
+      description,
+      TreeItemType.BABIAXR_EXAMPLE,  // Now a string
+      vscode.TreeItemCollapsibleState.None,
+      command
+    );
+  }
+}
+
+export class BabiaExampleCategoryItem extends TreeItem {
+  constructor(
+    label: string,
+    tooltip: string,
+    children: TreeItem[]
+  ) {
+    super(
+      label,
+      tooltip,
+      TreeItemType.BABIAXR_EXAMPLE_CATEGORY,  // Now a string
+      vscode.TreeItemCollapsibleState.Expanded,
+      undefined,
+      undefined,
+      children
     );
   }
 }

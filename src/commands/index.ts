@@ -33,6 +33,9 @@ export function registerCommands(
   disposables.push(...registerBabiaCommands(context, treeDataProvider));
   disposables.push(...registerUiCommands(context, treeDataProvider)); // Fixed casing and added context parameter
   
+  // Eliminar esta línea que registra el comando duplicado
+  // disposables.push(registerSetAnalysisChartTypeCommand()); // Nuevo comando añadido
+  
   // We no longer register analysis commands here since they are registered in extension.ts
   
   // Add the refresh command

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.AnalysisFileItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = void 0;
+exports.AnalysisChartTypeOptionItem = exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.AnalysisFileItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const baseItems_1 = require("../../ui/treeItems/baseItems");
@@ -146,6 +146,28 @@ class AnalysisAutoOptionItem extends baseItems_1.TreeItem {
     }
 }
 exports.AnalysisAutoOptionItem = AnalysisAutoOptionItem;
+/**
+ * Item for setting chart type for analysis visualizations
+ */
+class AnalysisChartTypeOptionItem extends baseItems_1.TreeItem {
+    constructor(currentChart, extensionPath) {
+        const chartLabels = {
+            'boats': "Boats (3D blocks)",
+            'bars': "Bars (2D bars)",
+            'cyls': "Cylinders (3D cylinders)",
+            'barsmap': "Bars Map (3D layout)",
+            'pie': "Pie Chart",
+            'donut': "Donut Chart"
+        };
+        const label = `Chart Type: ${chartLabels[currentChart] || currentChart}`;
+        super(label, "Select which chart type to use for code analysis visualization", treeProvider_1.TreeItemType.ANALYSIS_SETTING_OPTION, vscode.TreeItemCollapsibleState.None, {
+            command: 'codexr.setAnalysisChartType',
+            title: 'Set Analysis Chart Type',
+            arguments: []
+        }, new vscode.ThemeIcon('pie-chart'));
+    }
+}
+exports.AnalysisChartTypeOptionItem = AnalysisChartTypeOptionItem;
 /**
  * Gets language name from file extension
  */

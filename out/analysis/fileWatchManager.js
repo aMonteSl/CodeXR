@@ -50,7 +50,6 @@ const liveReloadManager_2 = require("../server/liveReloadManager");
  * Manages file watchers for analyzed files
  */
 class FileWatchManager {
-    _context;
     static instance;
     context;
     // Store multiple file watchers by file path
@@ -62,10 +61,30 @@ class FileWatchManager {
     debounceTimers = new Map();
     debounceDelay = 2000; // Default to 2 seconds
     autoAnalysisEnabled = true; // Default to enabled
+    // Store status messages for each file
+    statusMessages = new Map();
     // Allow adjusting the debounce delay
+    /**
+     * Sets the debounce delay for file watching
+     * @param delay Delay in milliseconds before triggering analysis
+     */
     setDebounceDelay(delay) {
-        console.log(`Setting debounce delay to ${delay}ms`);
+        console.log(`⏱️ Changing debounce time from ${this.debounceDelay}ms to ${delay}ms`);
         this.debounceDelay = delay;
+        // Apply the new delay to all active timers
+        for (const [filePath, timer] of this.debounceTimers.entries()) {
+            console.log(`⏱️ Reconfiguring timer for ${path.basename(filePath)} with new delay: ${delay}ms`);
+            clearTimeout(timer);
+            // Reconfigure with new delay if file is still being watched
+            if (this.fileAnalysisModes.has(filePath)) {
+                const mode = this.fileAnalysisModes.get(filePath);
+                // Start new timer with updated delay
+                this.debounceTimers.set(filePath, setTimeout(async () => {
+                    console.log(`⏱️ Running analysis for ${path.basename(filePath)} after reconfiguring to ${delay}ms`);
+                    await this.performFileAnalysis(filePath);
+                }, delay));
+            }
+        }
     }
     // Allow toggling auto-analysis
     setAutoAnalysis(enabled) {
@@ -78,7 +97,7 @@ class FileWatchManager {
      */
     static getInstance() {
         if (!this.instance) {
-            this.instance = new FileWatchManager(undefined);
+            this.instance = new FileWatchManager();
         }
         return this.instance;
     }
@@ -88,27 +107,28 @@ class FileWatchManager {
      */
     static initialize(context) {
         if (!this.instance) {
-            this.instance = new FileWatchManager(context);
+            this.instance = new FileWatchManager();
+            this.instance.setContext(context);
         }
         else {
             this.instance.setContext(context);
         }
         // Initialize settings from configuration
-        if (context) {
-            const config = vscode.workspace.getConfiguration();
-            const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
-            const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
-            // Apply settings
-            const instance = this.instance;
-            instance.setDebounceDelay(debounceDelay);
-            instance.setAutoAnalysis(autoAnalysis);
-            console.log(`FileWatchManager initialized with settings: delay=${debounceDelay}ms, autoAnalysis=${autoAnalysis}`);
-        }
+        const config = vscode.workspace.getConfiguration();
+        const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
+        const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
+        // Apply settings
+        const instance = this.instance;
+        console.log(`⏱️ Initializing FileWatchManager with delay=${debounceDelay}ms from configuration`);
+        instance.setDebounceDelay(debounceDelay);
+        instance.setAutoAnalysis(autoAnalysis);
         return this.instance;
     }
-    constructor(_context) {
-        this._context = _context;
-        this.context = _context;
+    constructor() {
+        // Load current value from configuration
+        const config = vscode.workspace.getConfiguration();
+        this.debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
+        console.log(`FileWatchManager initialized with debounce delay: ${this.debounceDelay}ms`);
     }
     /**
      * Set the extension context
@@ -178,14 +198,71 @@ class FileWatchManager {
             console.log(`Auto-analysis is disabled, ignoring changes to ${filePath}`);
             return;
         }
+        // Show the current debounce delay value
+        console.log(`⏱️ Debounce delay configured: ${this.debounceDelay}ms for file ${path.basename(filePath)}`);
         // Cancel any pending analysis for this file
         if (this.debounceTimers.has(filePath)) {
+            console.log(`⏱️ Cancelling previous timer for ${path.basename(filePath)}`);
             clearTimeout(this.debounceTimers.get(filePath));
+            // Clear any previous status message
+            if (this.statusMessages.has(filePath)) {
+                this.statusMessages.get(filePath)?.dispose();
+                this.statusMessages.delete(filePath);
+            }
         }
-        // Show subtle indication that analysis is pending
-        vscode.window.setStatusBarMessage(`$(sync~spin) CodeXR: Preparing analysis...`);
+        // Record start time
+        const startTime = Date.now();
+        const fileName = path.basename(filePath);
+        console.log(`⏱️ ${new Date().toLocaleTimeString()} - Starting timer of ${this.debounceDelay}ms for ${fileName}`);
+        // Create an interval timer to update the progress bar
+        const totalSeconds = Math.round(this.debounceDelay / 1000);
+        let secondsRemaining = totalSeconds;
+        // Create an initial status bar message
+        const initialMessage = vscode.window.setStatusBarMessage(`$(sync~spin) CodeXR: Analysis in ${secondsRemaining}s [${'⬛'.repeat(0)}${'⬜'.repeat(10)}]`);
+        // Save the message for later cleanup
+        this.statusMessages.set(filePath, initialMessage);
+        // Calculate the interval for updating the progress bar (every 10% of total time)
+        const updateInterval = Math.max(Math.floor(this.debounceDelay / 10), 100); // minimum 100ms
+        // Create an interval to update the progress bar
+        const progressInterval = setInterval(() => {
+            // Calculate elapsed and remaining time
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, this.debounceDelay - elapsed);
+            secondsRemaining = Math.ceil(remaining / 1000);
+            // Calculate percentage complete (0-10 for our 10-block bar)
+            const percentComplete = Math.min(10, Math.floor((elapsed / this.debounceDelay) * 10));
+            // Update progress bar
+            if (this.statusMessages.has(filePath)) {
+                this.statusMessages.get(filePath)?.dispose();
+                const progressBar = '⬛'.repeat(percentComplete) + '⬜'.repeat(10 - percentComplete);
+                const newMessage = vscode.window.setStatusBarMessage(`$(sync~spin) CodeXR: Analysis in ${secondsRemaining}s [${progressBar}]`);
+                this.statusMessages.set(filePath, newMessage);
+            }
+            // Stop the interval if time is complete
+            if (elapsed >= this.debounceDelay) {
+                clearInterval(progressInterval);
+            }
+        }, updateInterval);
         // Schedule a new analysis after the debounce delay
         this.debounceTimers.set(filePath, setTimeout(async () => {
+            // Clear the progress interval just in case
+            clearInterval(progressInterval);
+            // Clear countdown message
+            if (this.statusMessages.has(filePath)) {
+                this.statusMessages.get(filePath)?.dispose();
+                this.statusMessages.delete(filePath);
+            }
+            // Calculate elapsed time and show analysis message
+            const elapsedTime = Date.now() - startTime;
+            vscode.window.setStatusBarMessage(`$(microscope) CodeXR: Analyzing ${fileName}...`, 3000);
+            console.log(`⏱️ ${new Date().toLocaleTimeString()} - Timer triggered after ${elapsedTime}ms`);
+            // Time verification and analysis (existing code)...
+            if (Math.abs(elapsedTime - this.debounceDelay) > 100) {
+                console.warn(`⚠️ Actual wait time (${elapsedTime}ms) differs from configured time (${this.debounceDelay}ms)`);
+            }
+            else {
+                console.log(`✅ Wait time matches configured time (${this.debounceDelay}ms)`);
+            }
             await this.performFileAnalysis(filePath);
         }, this.debounceDelay));
     }

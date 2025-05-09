@@ -13,34 +13,36 @@ import {
   AnalysisSettingsItem,
   AnalysisModeOptionItem,
   AnalysisDelayOptionItem,
-  AnalysisAutoOptionItem
+  AnalysisAutoOptionItem,
+  AnalysisChartTypeOptionItem // Añadida la nueva clase
 } from '../analysis/tree/analysisTreeItems';
+import { VisualizationSettingsItem } from './treeItems/settingsItems';
 
-// Types of tree items for context handling
+// Types of tree items for context handling - as string literals
 export enum TreeItemType {
-  SERVERS_SECTION = 'servers-section',
-  BABIAXR_SECTION = 'babiaxr-section',
-  SERVER_CONFIG = 'server-config',
-  SERVER_MODE = 'server-mode',
-  START_SERVER = 'start-server',
-  ACTIVE_SERVER = 'active-server',
-  SERVERS_CONTAINER = 'serverContainer',
-  CHART_TYPE = 'chart-type',
-  CREATE_VISUALIZATION = 'create-visualization',
-  BABIAXR_CONFIG = 'babiaxr-config',
-  BABIAXR_CONFIG_ITEM = 'babiaxr-config-item',
-  BABIAXR_EXAMPLES_CONTAINER = 'babiaxr-examples-container',
-  BABIAXR_EXAMPLE = 'babiaxr-example',
-  BABIAXR_EXAMPLE_CATEGORY = 'example-category',
-  JS_FILE = 'js-file',
-  JS_FILES_CONTAINER = 'js-files-container',
-  ANALYSIS_FILES_CONTAINER = 'analysis-files-container',
-  ANALYSIS_FILE = 'analysis-file',
-  ANALYSIS_SECTION = 'analysis-section',
-  ANALYSIS_LANGUAGE_GROUP = 'analysis-language-group',
-  ANALYSIS_MESSAGE = 'analysis-message',
-  ANALYSIS_SETTINGS = 'analysis-settings',
-  ANALYSIS_SETTING_OPTION = 'analysis-setting-option'
+  SERVER_SECTION = 'SERVER_SECTION',
+  SERVER_CONFIG = 'SERVER_CONFIG',
+  SERVER_STATUS = 'SERVER_STATUS',
+  SERVERS_SECTION = 'SERVERS_SECTION',
+  SERVERS_CONTAINER = 'SERVERS_CONTAINER',
+  START_SERVER = 'START_SERVER',
+  SERVER_MODE = 'SERVER_MODE',
+  ACTIVE_SERVER = 'ACTIVE_SERVER',
+  BABIAXR_SECTION = 'BABIAXR_SECTION',
+  BABIAXR_CONFIG = 'BABIAXR_CONFIG',
+  CREATE_VISUALIZATION = 'CREATE_VISUALIZATION',
+  CHART_TYPE = 'CHART_TYPE',
+  ANALYSIS_SECTION = 'ANALYSIS_SECTION',
+  ANALYSIS_SETTINGS = 'ANALYSIS_SETTINGS',
+  ANALYSIS_LANGUAGE_GROUP = 'ANALYSIS_LANGUAGE_GROUP',
+  ANALYSIS_FILE = 'ANALYSIS_FILE',
+  ANALYSIS_SETTING_OPTION = 'ANALYSIS_SETTING_OPTION',
+  ANALYSIS_MESSAGE = 'ANALYSIS_MESSAGE', // Añadido valor faltante
+  VISUALIZATION_SETTINGS = 'VISUALIZATION_SETTINGS',
+  BABIAXR_EXAMPLES_CONTAINER = 'BABIAXR_EXAMPLES_CONTAINER',
+  BABIAXR_EXAMPLE_CATEGORY = 'BABIAXR_EXAMPLE_CATEGORY',
+  BABIAXR_EXAMPLE = 'BABIAXR_EXAMPLE',
+  BABIAXR_CONFIG_ITEM = 'BABIAXR_CONFIG_ITEM' // También añadimos esta constante usada en chartItems.ts
 }
 
 /**
@@ -92,10 +94,26 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
    * Gets the child elements of an element or root elements
    */
   public getChildren(element?: TreeItem): Thenable<TreeItem[]> {
+    // Root level items
     if (!element) {
-      return this.getRootChildren();
+      const items: TreeItem[] = [];
+      
+      // Server section
+      items.push(this.serverTreeProvider.getServersSectionItem());
+      
+      // BabiaXR section
+      items.push(this.babiaTreeProvider.getBabiaXRSectionItem());
+      
+      // Code Analysis section
+      items.push(getAnalysisSectionItem(this.context.extensionUri.fsPath));
+      
+      // NEW: Add Visualization Settings as a top-level item
+      items.push(new VisualizationSettingsItem(this.context));
+      
+      return Promise.resolve(items);
     }
     
+    // Handle getting children based on the element context
     switch (element.contextValue) {
       case TreeItemType.SERVERS_SECTION:
         return this.serverTreeProvider.getServersChildren();
@@ -108,6 +126,8 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
         return this.serverTreeProvider.getActiveServersChildren();
       case TreeItemType.BABIAXR_CONFIG:
         return this.babiaTreeProvider.getBabiaXRConfigChildren();
+      case TreeItemType.VISUALIZATION_SETTINGS:
+        return (element as VisualizationSettingsItem).getChildren();
       case TreeItemType.BABIAXR_EXAMPLES_CONTAINER:
         return this.babiaTreeProvider.getBabiaXRExamplesChildren();
       case TreeItemType.CREATE_VISUALIZATION:
@@ -117,7 +137,6 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
           return Promise.resolve(element.children);
         }
         return Promise.resolve([]);
-      // Add the Code Analysis cases
       case TreeItemType.ANALYSIS_SECTION:
         return getAnalysisChildren(this.context);
       case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
@@ -127,17 +146,6 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       default:
         return Promise.resolve([]);
     }
-  }
-
-  /**
-   * Gets the root elements
-   */
-  private getRootChildren(): Thenable<TreeItem[]> {
-    return Promise.resolve([
-      this.serverTreeProvider.getServersSectionItem(),
-      this.babiaTreeProvider.getBabiaXRSectionItem(),
-      getAnalysisSectionItem(this.context.extensionUri.fsPath)
-    ]);
   }
 
   /**
@@ -158,10 +166,14 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
     // Get current auto-analysis setting
     const autoAnalysis = config.get<boolean>('codexr.analysis.autoAnalysis', true);
     
+    // Get current chart type setting
+    const chartType = config.get<string>('codexr.analysis.chartType', 'boats');
+    
     console.log('Current settings:', { 
       analysisMode: currentMode, 
       debounceDelay, 
-      autoAnalysis 
+      autoAnalysis,
+      chartType 
     });
     
     // Create option items
@@ -169,8 +181,9 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
     const xrOption = new AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
     const delayOption = new AnalysisDelayOptionItem(debounceDelay, extensionPath);
     const autoOption = new AnalysisAutoOptionItem(autoAnalysis, extensionPath);
+    const chartTypeOption = new AnalysisChartTypeOptionItem(chartType, extensionPath);
     
-    return [staticOption, xrOption, delayOption, autoOption];
+    return [staticOption, xrOption, delayOption, autoOption, chartTypeOption];
   }
 
   /**

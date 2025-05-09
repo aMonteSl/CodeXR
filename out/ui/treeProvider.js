@@ -40,32 +40,33 @@ const babiaTreeProvider_1 = require("../babiaxr/providers/babiaTreeProvider");
 const serverTreeProvider_1 = require("../server/providers/serverTreeProvider");
 const analysisTreeProvider_1 = require("../analysis/tree/analysisTreeProvider");
 const analysisTreeItems_1 = require("../analysis/tree/analysisTreeItems");
-// Types of tree items for context handling
+const settingsItems_1 = require("./treeItems/settingsItems");
+// Types of tree items for context handling - as string literals
 var TreeItemType;
 (function (TreeItemType) {
-    TreeItemType["SERVERS_SECTION"] = "servers-section";
-    TreeItemType["BABIAXR_SECTION"] = "babiaxr-section";
-    TreeItemType["SERVER_CONFIG"] = "server-config";
-    TreeItemType["SERVER_MODE"] = "server-mode";
-    TreeItemType["START_SERVER"] = "start-server";
-    TreeItemType["ACTIVE_SERVER"] = "active-server";
-    TreeItemType["SERVERS_CONTAINER"] = "serverContainer";
-    TreeItemType["CHART_TYPE"] = "chart-type";
-    TreeItemType["CREATE_VISUALIZATION"] = "create-visualization";
-    TreeItemType["BABIAXR_CONFIG"] = "babiaxr-config";
-    TreeItemType["BABIAXR_CONFIG_ITEM"] = "babiaxr-config-item";
-    TreeItemType["BABIAXR_EXAMPLES_CONTAINER"] = "babiaxr-examples-container";
-    TreeItemType["BABIAXR_EXAMPLE"] = "babiaxr-example";
-    TreeItemType["BABIAXR_EXAMPLE_CATEGORY"] = "example-category";
-    TreeItemType["JS_FILE"] = "js-file";
-    TreeItemType["JS_FILES_CONTAINER"] = "js-files-container";
-    TreeItemType["ANALYSIS_FILES_CONTAINER"] = "analysis-files-container";
-    TreeItemType["ANALYSIS_FILE"] = "analysis-file";
-    TreeItemType["ANALYSIS_SECTION"] = "analysis-section";
-    TreeItemType["ANALYSIS_LANGUAGE_GROUP"] = "analysis-language-group";
-    TreeItemType["ANALYSIS_MESSAGE"] = "analysis-message";
-    TreeItemType["ANALYSIS_SETTINGS"] = "analysis-settings";
-    TreeItemType["ANALYSIS_SETTING_OPTION"] = "analysis-setting-option";
+    TreeItemType["SERVER_SECTION"] = "SERVER_SECTION";
+    TreeItemType["SERVER_CONFIG"] = "SERVER_CONFIG";
+    TreeItemType["SERVER_STATUS"] = "SERVER_STATUS";
+    TreeItemType["SERVERS_SECTION"] = "SERVERS_SECTION";
+    TreeItemType["SERVERS_CONTAINER"] = "SERVERS_CONTAINER";
+    TreeItemType["START_SERVER"] = "START_SERVER";
+    TreeItemType["SERVER_MODE"] = "SERVER_MODE";
+    TreeItemType["ACTIVE_SERVER"] = "ACTIVE_SERVER";
+    TreeItemType["BABIAXR_SECTION"] = "BABIAXR_SECTION";
+    TreeItemType["BABIAXR_CONFIG"] = "BABIAXR_CONFIG";
+    TreeItemType["CREATE_VISUALIZATION"] = "CREATE_VISUALIZATION";
+    TreeItemType["CHART_TYPE"] = "CHART_TYPE";
+    TreeItemType["ANALYSIS_SECTION"] = "ANALYSIS_SECTION";
+    TreeItemType["ANALYSIS_SETTINGS"] = "ANALYSIS_SETTINGS";
+    TreeItemType["ANALYSIS_LANGUAGE_GROUP"] = "ANALYSIS_LANGUAGE_GROUP";
+    TreeItemType["ANALYSIS_FILE"] = "ANALYSIS_FILE";
+    TreeItemType["ANALYSIS_SETTING_OPTION"] = "ANALYSIS_SETTING_OPTION";
+    TreeItemType["ANALYSIS_MESSAGE"] = "ANALYSIS_MESSAGE";
+    TreeItemType["VISUALIZATION_SETTINGS"] = "VISUALIZATION_SETTINGS";
+    TreeItemType["BABIAXR_EXAMPLES_CONTAINER"] = "BABIAXR_EXAMPLES_CONTAINER";
+    TreeItemType["BABIAXR_EXAMPLE_CATEGORY"] = "BABIAXR_EXAMPLE_CATEGORY";
+    TreeItemType["BABIAXR_EXAMPLE"] = "BABIAXR_EXAMPLE";
+    TreeItemType["BABIAXR_CONFIG_ITEM"] = "BABIAXR_CONFIG_ITEM"; // También añadimos esta constante usada en chartItems.ts
 })(TreeItemType || (exports.TreeItemType = TreeItemType = {}));
 /**
  * Tree data provider implementation for the sidebar view
@@ -107,9 +108,20 @@ class LocalServerProvider {
      * Gets the child elements of an element or root elements
      */
     getChildren(element) {
+        // Root level items
         if (!element) {
-            return this.getRootChildren();
+            const items = [];
+            // Server section
+            items.push(this.serverTreeProvider.getServersSectionItem());
+            // BabiaXR section
+            items.push(this.babiaTreeProvider.getBabiaXRSectionItem());
+            // Code Analysis section
+            items.push((0, analysisTreeProvider_1.getAnalysisSectionItem)(this.context.extensionUri.fsPath));
+            // NEW: Add Visualization Settings as a top-level item
+            items.push(new settingsItems_1.VisualizationSettingsItem(this.context));
+            return Promise.resolve(items);
         }
+        // Handle getting children based on the element context
         switch (element.contextValue) {
             case TreeItemType.SERVERS_SECTION:
                 return this.serverTreeProvider.getServersChildren();
@@ -122,6 +134,8 @@ class LocalServerProvider {
                 return this.serverTreeProvider.getActiveServersChildren();
             case TreeItemType.BABIAXR_CONFIG:
                 return this.babiaTreeProvider.getBabiaXRConfigChildren();
+            case TreeItemType.VISUALIZATION_SETTINGS:
+                return element.getChildren();
             case TreeItemType.BABIAXR_EXAMPLES_CONTAINER:
                 return this.babiaTreeProvider.getBabiaXRExamplesChildren();
             case TreeItemType.CREATE_VISUALIZATION:
@@ -131,7 +145,6 @@ class LocalServerProvider {
                     return Promise.resolve(element.children);
                 }
                 return Promise.resolve([]);
-            // Add the Code Analysis cases
             case TreeItemType.ANALYSIS_SECTION:
                 return (0, analysisTreeProvider_1.getAnalysisChildren)(this.context);
             case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
@@ -141,16 +154,6 @@ class LocalServerProvider {
             default:
                 return Promise.resolve([]);
         }
-    }
-    /**
-     * Gets the root elements
-     */
-    getRootChildren() {
-        return Promise.resolve([
-            this.serverTreeProvider.getServersSectionItem(),
-            this.babiaTreeProvider.getBabiaXRSectionItem(),
-            (0, analysisTreeProvider_1.getAnalysisSectionItem)(this.context.extensionUri.fsPath)
-        ]);
     }
     /**
      * Gets settings child items
@@ -166,17 +169,21 @@ class LocalServerProvider {
         const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
         // Get current auto-analysis setting
         const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
+        // Get current chart type setting
+        const chartType = config.get('codexr.analysis.chartType', 'boats');
         console.log('Current settings:', {
             analysisMode: currentMode,
             debounceDelay,
-            autoAnalysis
+            autoAnalysis,
+            chartType
         });
         // Create option items
         const staticOption = new analysisTreeItems_1.AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
         const xrOption = new analysisTreeItems_1.AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
         const delayOption = new analysisTreeItems_1.AnalysisDelayOptionItem(debounceDelay, extensionPath);
         const autoOption = new analysisTreeItems_1.AnalysisAutoOptionItem(autoAnalysis, extensionPath);
-        return [staticOption, xrOption, delayOption, autoOption];
+        const chartTypeOption = new analysisTreeItems_1.AnalysisChartTypeOptionItem(chartType, extensionPath);
+        return [staticOption, xrOption, delayOption, autoOption, chartTypeOption];
     }
     /**
      * Changes the server mode - delegated to ServerTreeProvider

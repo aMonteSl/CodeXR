@@ -35,7 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getTemplateFileName = getTemplateFileName;
 exports.loadTemplate = loadTemplate;
-exports.generateNonce = generateNonce;
 exports.replaceTemplateVariables = replaceTemplateVariables;
 exports.createVariableMap = createVariableMap;
 exports.processTemplate = processTemplate;
@@ -79,18 +78,6 @@ async function loadTemplate(templateName, replacements, extensionUri) {
         console.error(`Error loading template ${templateName}:`, error);
         throw error;
     }
-}
-/**
- * Generates a nonce for script security
- * @returns Random nonce string
- */
-function generateNonce() {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
 }
 /**
  * Replaces variables in a template with actual values
@@ -372,7 +359,8 @@ async function createBabiaXRVisualization(chartType, chartData, context) {
         if (!isUrl(chartData.dataSource) && !fs.existsSync(chartData.dataSource)) {
             throw new Error(`Data file not found: ${chartData.dataSource}`);
         }
-        // Rest of the function...
+        // Código adicional aquí
+        return undefined; // Valor de retorno provisional
     }
     catch (error) {
         vscode.window.showErrorMessage(`Error creating visualization: ${error instanceof Error ? error.message : String(error)}`);

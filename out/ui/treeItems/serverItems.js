@@ -121,7 +121,7 @@ exports.ServerModeItem = ServerModeItem;
  */
 class ActiveServersContainer extends baseItems_1.TreeItem {
     constructor(count) {
-        super(`Active Servers (${count})`, 'Currently running servers', 'serverContainer', // Use this string directly instead of TreeItemType.SERVERS_CONTAINER
+        super(`Active Servers (${count})`, 'Currently running servers', treeProvider_1.TreeItemType.SERVERS_CONTAINER, // Usar la constante en lugar de la cadena literal
         vscode.TreeItemCollapsibleState.Expanded, undefined, new vscode.ThemeIcon('server-environment'));
     }
 }

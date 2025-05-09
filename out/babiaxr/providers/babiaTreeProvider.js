@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BabiaTreeProvider = void 0;
+exports.BabiaExampleCategoryItem = exports.BabiaExampleItem = exports.BabiaTreeProvider = void 0;
 const vscode = __importStar(require("vscode"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -59,7 +59,6 @@ class BabiaTreeProvider {
      */
     getBabiaXRChildren() {
         const items = [];
-        items.push(new chartItems_1.BabiaXRConfigItem(this.context));
         items.push(new chartItems_1.CreateVisualizationItem());
         items.push(new chartItems_1.BabiaXRExamplesContainer());
         return Promise.resolve(items);
@@ -162,4 +161,18 @@ class BabiaTreeProvider {
     }
 }
 exports.BabiaTreeProvider = BabiaTreeProvider;
+class BabiaExampleItem extends baseItems_1.TreeItem {
+    constructor(label, description, command) {
+        super(label, description, treeProvider_1.TreeItemType.BABIAXR_EXAMPLE, // Now a string
+        vscode.TreeItemCollapsibleState.None, command);
+    }
+}
+exports.BabiaExampleItem = BabiaExampleItem;
+class BabiaExampleCategoryItem extends baseItems_1.TreeItem {
+    constructor(label, tooltip, children) {
+        super(label, tooltip, treeProvider_1.TreeItemType.BABIAXR_EXAMPLE_CATEGORY, // Now a string
+        vscode.TreeItemCollapsibleState.Expanded, undefined, undefined, children);
+    }
+}
+exports.BabiaExampleCategoryItem = BabiaExampleCategoryItem;
 //# sourceMappingURL=babiaTreeProvider.js.map

@@ -40,22 +40,26 @@ const treeProvider_1 = require("../treeProvider");
  * Base class for all tree items
  */
 class TreeItem extends vscode.TreeItem {
-    label;
-    tooltip;
     // Add children property
     children;
-    constructor(label, tooltip, contextValue, // Remove the readonly modifier
-    collapsibleState, command, iconPath) {
+    /**
+     * Creates a new tree item
+     * @param label Display label for the item
+     * @param tooltip Tooltip text
+     * @param contextValue Context value for command handling
+     * @param collapsibleState Whether this item can be collapsed
+     * @param command Command to execute on click
+     * @param iconPath Icon for the item
+     * @param children Pre-loaded child items (optional)
+     */
+    constructor(label, tooltip, contextValue, collapsibleState, command, iconPath, children) {
         super(label, collapsibleState);
-        this.label = label;
-        this.tooltip = tooltip;
         this.tooltip = tooltip;
         this.contextValue = contextValue;
-        if (command) {
-            this.command = command;
-        }
-        if (iconPath) {
-            this.iconPath = iconPath;
+        this.command = command;
+        this.iconPath = iconPath;
+        if (children) {
+            this.children = children;
         }
     }
 }

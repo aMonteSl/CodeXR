@@ -8,24 +8,33 @@ export class TreeItem extends vscode.TreeItem {
   // Add children property
   public children?: TreeItem[];
 
+  /**
+   * Creates a new tree item
+   * @param label Display label for the item
+   * @param tooltip Tooltip text
+   * @param contextValue Context value for command handling
+   * @param collapsibleState Whether this item can be collapsed
+   * @param command Command to execute on click
+   * @param iconPath Icon for the item
+   * @param children Pre-loaded child items (optional)
+   */
   constructor(
-    public readonly label: string,
-    public readonly tooltip: string,
-    contextValue: string, // Remove the readonly modifier
+    label: string,
+    tooltip: string,
+    contextValue: string,
     collapsibleState: vscode.TreeItemCollapsibleState,
     command?: vscode.Command,
-    iconPath?: vscode.ThemeIcon | vscode.Uri
+    iconPath?: string | vscode.ThemeIcon,
+    children?: TreeItem[]
   ) {
     super(label, collapsibleState);
     this.tooltip = tooltip;
     this.contextValue = contextValue;
-    
-    if (command) {
-      this.command = command;
-    }
-    
-    if (iconPath) {
-      this.iconPath = iconPath;
+    this.command = command;
+    this.iconPath = iconPath;
+
+    if (children) {
+      this.children = children;
     }
   }
 }
