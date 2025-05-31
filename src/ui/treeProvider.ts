@@ -17,6 +17,7 @@ import {
   AnalysisChartTypeOptionItem // Añadida la nueva clase
 } from '../analysis/tree/analysisTreeItems';
 import { VisualizationSettingsItem } from './treeItems/settingsItems';
+import { DimensionMappingItem } from '../analysis/tree/dimensionMappingTreeItem';
 
 // Types of tree items for context handling - as string literals
 export enum TreeItemType {
@@ -28,21 +29,25 @@ export enum TreeItemType {
   START_SERVER = 'START_SERVER',
   SERVER_MODE = 'SERVER_MODE',
   ACTIVE_SERVER = 'ACTIVE_SERVER',
+  STOP_ALL_SERVERS = 'STOP_ALL_SERVERS',
   BABIAXR_SECTION = 'BABIAXR_SECTION',
   BABIAXR_CONFIG = 'BABIAXR_CONFIG',
   CREATE_VISUALIZATION = 'CREATE_VISUALIZATION',
   CHART_TYPE = 'CHART_TYPE',
   ANALYSIS_SECTION = 'ANALYSIS_SECTION',
-  ANALYSIS_SETTINGS = 'ANALYSIS_SETTINGS',
+  ANALYSIS_SETTINGS = 'analysis_settings',
   ANALYSIS_LANGUAGE_GROUP = 'ANALYSIS_LANGUAGE_GROUP',
   ANALYSIS_FILE = 'ANALYSIS_FILE',
-  ANALYSIS_SETTING_OPTION = 'ANALYSIS_SETTING_OPTION',
-  ANALYSIS_MESSAGE = 'ANALYSIS_MESSAGE', // Añadido valor faltante
+  ANALYSIS_SETTING_OPTION = 'analysis_setting_option',
+  ANALYSIS_MESSAGE = 'ANALYSIS_MESSAGE',
+  ANALYSIS_RESET = 'analysis_reset', // ✅ AÑADIR NUEVO TIPO
   VISUALIZATION_SETTINGS = 'VISUALIZATION_SETTINGS',
   BABIAXR_EXAMPLES_CONTAINER = 'BABIAXR_EXAMPLES_CONTAINER',
   BABIAXR_EXAMPLE_CATEGORY = 'BABIAXR_EXAMPLE_CATEGORY',
   BABIAXR_EXAMPLE = 'BABIAXR_EXAMPLE',
-  BABIAXR_CONFIG_ITEM = 'BABIAXR_CONFIG_ITEM' // También añadimos esta constante usada en chartItems.ts
+  BABIAXR_CONFIG_ITEM = 'BABIAXR_CONFIG_ITEM',
+  DIMENSION_MAPPING = 'dimension_mapping',
+  DIMENSION_MAPPING_OPTION = 'dimension_mapping_option'
 }
 
 /**
@@ -113,12 +118,11 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       return Promise.resolve(items);
     }
     
-    // Handle getting children based on the element context
-    switch (element.contextValue) {
+    // ✅ CAMBIAR contextValue por type
+    switch (element.type) {
       case TreeItemType.SERVERS_SECTION:
         return this.serverTreeProvider.getServersChildren();
       case TreeItemType.BABIAXR_SECTION:
-        // Get BabiaXR children
         return this.babiaTreeProvider.getBabiaXRChildren();
       case TreeItemType.SERVER_CONFIG:
         return this.serverTreeProvider.getServerConfigChildren();
@@ -142,7 +146,22 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
         return getLanguageGroupChildren(element);
       case TreeItemType.ANALYSIS_SETTINGS:
+        // ✅ Usar el método getChildren del AnalysisSettingsItem
+        if (element instanceof AnalysisSettingsItem) {
+          console.log('🔧 Using AnalysisSettingsItem.getChildren()');
+          return element.getChildren();
+        }
         return this.getSettingsChildren(this.context.extensionUri.fsPath);
+      case TreeItemType.DIMENSION_MAPPING:
+        // ✅ AÑADIR SOPORTE PARA DIMENSION MAPPING
+        if (element instanceof DimensionMappingItem) {
+          console.log('🎯 Using DimensionMappingItem.getChildren()');
+          return element.getChildren();
+        }
+        return Promise.resolve([]);
+      case TreeItemType.STOP_ALL_SERVERS:
+        // Este item no tiene hijos, se maneja directamente con el command
+        return Promise.resolve([]);
       default:
         return Promise.resolve([]);
     }
@@ -166,14 +185,16 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
     // Get current auto-analysis setting
     const autoAnalysis = config.get<boolean>('codexr.analysis.autoAnalysis', true);
     
-    // Get current chart type setting
-    const chartType = config.get<string>('codexr.analysis.chartType', 'boats');
+    // ✅ LEER CHART TYPE DESDE GLOBAL STATE PRIMERO, LUEGO CONFIG COMO FALLBACK
+    const chartType = this.context.globalState.get<string>('codexr.analysis.chartType') || 
+                     config.get<string>('codexr.analysis.chartType', 'boats');
     
     console.log('Current settings:', { 
       analysisMode: currentMode, 
       debounceDelay, 
       autoAnalysis,
-      chartType 
+      chartType,
+      chartTypeSource: this.context.globalState.get<string>('codexr.analysis.chartType') ? 'globalState' : 'config'
     });
     
     // Create option items

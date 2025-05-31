@@ -1,13 +1,16 @@
+import * as vscode from 'vscode';
+
 /**
  * Data models for code analysis
  */
 
 /**
- * Enum for different analysis modes
+ * Represents analysis mode
  */
 export enum AnalysisMode {
   STATIC = 'static',
-  XR = 'xr'
+  XR = 'xr',
+  WEB_VIEW = 'webview' // ✅ AÑADIR ESTA LÍNEA
 }
 
 /**

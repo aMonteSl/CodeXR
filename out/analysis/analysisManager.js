@@ -48,7 +48,7 @@ const utils_1 = require("./utils");
 const analysisDataManager_1 = require("./analysisDataManager");
 const pathUtils_1 = require("../pythonEnv/utils/pathUtils");
 const processUtils_1 = require("../pythonEnv/utils/processUtils");
-const xrAnalysisManager_1 = require("./xr/xrAnalysisManager");
+const xrAnalysisManager_1 = require("./xr/xrAnalysisManager"); // ✅ ELIMINAR openXRVisualization
 const fileWatchManager_1 = require("./fileWatchManager");
 // Output channel for analysis operations
 let analysisOutputChannel;
@@ -358,12 +358,16 @@ function showAnalysisWebView(context, result) {
 }
 // Extract the data sending logic to a separate function
 function sendAnalysisData(panel, result) {
+    console.log(`📤 Sending updated analysis data for ${result.fileName}`);
     setTimeout(() => {
         const transformedData = transformAnalysisDataForWebview(result);
+        // ✅ ADD TIMESTAMP TO SHOW IT'S UPDATED
+        transformedData.lastUpdated = new Date().toLocaleTimeString();
         panel.webview.postMessage({
             command: 'setAnalysisData',
             data: transformedData
         });
+        console.log(`✅ Analysis data sent to webview for ${result.fileName}`);
     }, 500);
 }
 // Extract message handling logic to a separate function
@@ -562,9 +566,9 @@ function registerAnalysis3DCommand(context) {
                 vscode.window.showErrorMessage(`Failed to create XR visualization for: ${path.basename(filePath)}`);
                 return;
             }
-            // Open the visualization
-            progress.report({ increment: 30, message: "Launching visualization..." });
-            await (0, xrAnalysisManager_1.openXRVisualization)(htmlFilePath, context);
+            // ✅ NO LLAMAR openXRVisualization - createXRVisualization ya abre el navegador
+            progress.report({ increment: 30, message: "Visualization opened in browser..." });
+            console.log('✅ XR visualization created and opened successfully');
             return Promise.resolve();
         });
     });

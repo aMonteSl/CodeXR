@@ -68,6 +68,10 @@ class ServerTreeProvider {
         ];
         if (activeServers.length > 0) {
             children.push(new serverItems_1.ActiveServersContainer(activeServers.length));
+            // ✅ AÑADIR BOTÓN DE CIERRE MASIVO SI HAY 2 O MÁS SERVIDORES
+            if (activeServers.length >= 2) {
+                children.push(new serverItems_1.StopAllServersItem(activeServers.length));
+            }
         }
         return Promise.resolve(children);
     }

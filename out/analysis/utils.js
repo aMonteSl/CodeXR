@@ -90,8 +90,6 @@ function resolveAnalyzerScriptPath(scriptName, outputChannel) {
 }
 /**
  * Gets the language name based on file extension
- * @param filePath Path to the file
- * @returns Human-readable language name
  */
 function getLanguageName(filePath) {
     const ext = path.extname(filePath).toLowerCase();
@@ -110,14 +108,17 @@ function getLanguageName(filePath) {
             return 'C';
         case '.h':
             return 'C Header';
-        // Add new language support
+        // ✅ FIX: Ensure C++ extensions return exact "C++" language name
         case '.cpp':
         case '.cc':
         case '.cxx':
+        case '.c++':
             return 'C++';
         case '.hpp':
         case '.hxx':
+        case '.h++':
             return 'C++ Header';
+        // ✅ FIX: Ensure C# extension returns exact "C#" language name
         case '.cs':
             return 'C#';
         case '.vue':

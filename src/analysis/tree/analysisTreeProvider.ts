@@ -4,64 +4,77 @@ import { TreeItem } from '../../ui/treeItems/baseItems';
 import { TreeItemType } from '../../ui/treeProvider';
 import { 
   AnalysisSectionItem, 
-  LanguageGroupItem, 
-  AnalysisFileItem,
   AnalysisSettingsItem,
+  LanguageGroupItem,
+  AnalysisFileItem,
   AnalysisModeOptionItem,
   AnalysisDelayOptionItem,
   AnalysisAutoOptionItem
 } from './analysisTreeItems';
+import { DimensionMappingItem } from './dimensionMappingTreeItem'; // ✅ Añadir import
 
 /**
- * Provider for code analysis tree items
+ * Tree data provider for analysis section
  */
 export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
-  private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined> = new vscode.EventEmitter<TreeItem | undefined>();
-  readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined> = this._onDidChangeTreeData.event;
+  private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | null | void> = new vscode.EventEmitter<TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-  /**
-   * Constructor for the Analysis Tree Provider
-   * @param context Extension context for storage
-   */
-  constructor(private readonly context: vscode.ExtensionContext) {}
-  
-  /**
-   * Method to refresh the tree view
-   * @param element Optional element to refresh
-   */
-  public refresh(element?: TreeItem): void {
-    console.log('Refreshing tree view', element?.label);
-    this._onDidChangeTreeData.fire(element);
+  constructor(private context: vscode.ExtensionContext) {} // ✅ Añadir context como propiedad
+
+  refresh(): void {
+    this._onDidChangeTreeData.fire();
   }
 
-  /**
-   * Required implementation for TreeDataProvider
-   */
-  public getTreeItem(element: TreeItem): vscode.TreeItem {
+  getTreeItem(element: TreeItem): vscode.TreeItem {
     return element;
   }
 
-  /**
-   * Required implementation - gets children of a tree item
-   */
-  public getChildren(element?: TreeItem): Thenable<TreeItem[]> {
+  async getChildren(element?: TreeItem): Promise<TreeItem[]> {
     if (!element) {
-      return getAnalysisChildren(this.context);
+      // Root level - return analysis section
+      const extensionPath = this.context.extensionUri.fsPath; // ✅ Usar context en lugar de this.extensionPath
+      return [new AnalysisSectionItem(extensionPath)];
     }
-    
-    console.log('Getting children for element type:', element.contextValue);
-    
-    switch (element.contextValue) {
-      case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
-        return getLanguageGroupChildren(element);
+
+    // Handle different element types
+    if (!element.type) { // ✅ Verificar si existe la propiedad type
+      return [];
+    }
+
+    switch (element.type) {
+      case TreeItemType.ANALYSIS_SECTION:
+        return getAnalysisChildren(this.context);
+
       case TreeItemType.ANALYSIS_SETTINGS:
-        console.log('Getting settings children');
-        return this.getSettingsChildren(this.context.extensionUri.fsPath);
+        // ✅ Usar el método getChildren del AnalysisSettingsItem
+        if (element instanceof AnalysisSettingsItem) {
+          console.log('🔧 Using AnalysisSettingsItem.getChildren()');
+          return element.getChildren();
+        }
+        // Fallback to old method if needed
+        const extensionPath = this.context.extensionUri.fsPath; // ✅ Usar context
+        return this.getSettingsChildren(extensionPath);
+
+      case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
+        if (element instanceof LanguageGroupItem) {
+          return element.children || [];
+        }
+        return [];
+
+      case TreeItemType.DIMENSION_MAPPING:
+        // ✅ AÑADIR SOPORTE PARA DIMENSION MAPPING
+        if (element instanceof DimensionMappingItem) {
+          console.log('🎯 Using DimensionMappingItem.getChildren()');
+          return element.getChildren();
+        }
+        return [];
+
       default:
-        return Promise.resolve([]);
+        return [];
     }
   }
-  
+
   /**
    * Gets settings child items
    * @param extensionPath Path to the extension
@@ -111,7 +124,7 @@ export async function getAnalysisChildren(context: vscode.ExtensionContext): Pro
   try {
     // Create settings item
     const extensionPath = context.extensionUri.fsPath;
-    const settingsItem = new AnalysisSettingsItem(extensionPath);
+    const settingsItem = new AnalysisSettingsItem(extensionPath, context);
     
     // Get all analyzable files and group by language
     const filesByLanguage = await getAnalyzableFilesByLanguage();
@@ -137,8 +150,26 @@ export async function getAnalysisChildren(context: vscode.ExtensionContext): Pro
       
       const languageGroup = new LanguageGroupItem(language, files.length, extensionPath);
       
-      // Add file items as children to the language group
-      languageGroup.children = files.map(fileUri => new AnalysisFileItem(fileUri, extensionPath));
+      // ✅ ARREGLAR LA CREACIÓN DE AnalysisFileItem CON TODOS LOS ARGUMENTOS REQUERIDOS
+      languageGroup.children = files.map(fileUri => {
+        const filePath = fileUri.fsPath;
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        let relativePath = filePath;
+        
+        // ✅ CALCULAR LA RUTA RELATIVA RESPECTO AL WORKSPACE
+        if (workspaceFolders && workspaceFolders.length > 0) {
+          const workspaceRoot = workspaceFolders[0].uri.fsPath;
+          relativePath = path.relative(workspaceRoot, filePath);
+        }
+        
+        // ✅ CREAR AnalysisFileItem CON LOS 4 ARGUMENTOS REQUERIDOS
+        return new AnalysisFileItem(
+          filePath,        // filePath: string
+          relativePath,    // relativePath: string  
+          language,        // language: string
+          extensionPath    // extensionPath: string
+        );
+      });
       
       languageGroups.push(languageGroup);
     }

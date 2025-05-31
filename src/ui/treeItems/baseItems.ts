@@ -5,6 +5,7 @@ import { TreeItemType } from '../treeProvider';
  * Base class for all tree items
  */
 export class TreeItem extends vscode.TreeItem {
+  public type: TreeItemType; // ✅ Añadir esta propiedad
   // Add children property
   public children?: TreeItem[];
 
@@ -21,7 +22,7 @@ export class TreeItem extends vscode.TreeItem {
   constructor(
     label: string,
     tooltip: string,
-    contextValue: string,
+    type: TreeItemType,
     collapsibleState: vscode.TreeItemCollapsibleState,
     command?: vscode.Command,
     iconPath?: string | vscode.ThemeIcon,
@@ -29,7 +30,7 @@ export class TreeItem extends vscode.TreeItem {
   ) {
     super(label, collapsibleState);
     this.tooltip = tooltip;
-    this.contextValue = contextValue;
+    this.type = type; // ✅ Asignar el tipo
     this.command = command;
     this.iconPath = iconPath;
 

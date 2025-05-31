@@ -3,8 +3,174 @@
 This file contains all notable changes and updates for the "CodeXR" Visual Studio Code extension.
 The changelog follows a versioning system to document new features, improvements, fixes, and relevant modifications made to the project.
 
-
 # CHANGELOG.md
+
+## [0.0.7] - 2025-06-01
+
+### Added
+- **Enhanced Live Reload System**: Complete rewrite of the live reload functionality for XR visualizations
+  - Server-Sent Events (SSE) for real-time communication between VS Code and browser
+  - Automatic cache-busting with timestamps to ensure fresh data loading
+  - Multiple event types support for different update scenarios
+  - Client-side automatic chart rebuilding without page refresh
+- **Advanced Chart Configuration**: Flexible chart type and dimension mapping system
+  - Support for multiple BabiaXR chart types (bars, cylinders, bubbles, donuts, etc.)
+  - Custom dimension mapping for X, Y, Z axes and additional properties
+  - Real-time chart type switching without server restart
+  - Intelligent dimension recommendations based on data types
+- **Comprehensive Environment Settings**: Full customization of XR environment appearance
+  - Background color picker with real-time preview
+  - Ground color customization for immersive experiences
+  - Multiple chart color palettes (Blues, Business, Commerce, Flat, Foxy, etc.)
+  - Environment preset selection (forest, city, space, etc.)
+  - Settings accessible directly from tree view
+- **Enhanced VR/AR Controller Support**: Universal controller compatibility and improved navigation
+  - Support for all major VR headsets (Oculus, Valve Index, HTC Vive, etc.)
+  - Left joystick movement controls for natural locomotion
+  - Right joystick rotation controls for smooth turning
+  - Hand tracking support for gesture-based interaction
+  - Automatic controller detection and configuration
+- **Advanced Analysis Configuration**: Granular control over analysis behavior
+  - Visible debounce delay indicator in status bar
+  - Reset to defaults button for quick configuration restoration
+  - Per-analysis custom chart type selection
+  - Dimension mapping persistence across sessions
+- **Improved File Opening UX**: When analyzing files from the tree view, files now automatically open in the editor
+  - Files open in the main column (not preview mode) for better workflow
+  - Respects the configured analysis mode (Static/XR) from settings
+  - Seamless integration between file selection and analysis
+- **Enhanced Server Management**: 
+  - Better server display names showing analysis file names instead of generic "index.html"
+  - Format: `filename.py: 3001` for XR analysis servers
+  - Improved server info with analysis-specific metadata
+  - Enhanced server lifecycle management
+- **Robust File Watching**: Comprehensive file watcher improvements
+  - Enhanced error handling for non-existent files
+  - Better cleanup of file watchers when servers stop
+  - Improved detection of file changes with proper debouncing
+  - Multiple notification strategies to ensure reliable updates
+
+
+### Changed
+- **A-Frame Upgrade**: Updated to A-Frame 1.7.1 for enhanced performance and stability
+  - Improved WebXR compatibility and performance
+  - Better rendering performance in VR/AR modes
+  - Enhanced entity management and memory optimization
+  - Improved hand tracking and controller support
+- **Enhanced AR/VR Experience**: Significant improvements to immersive functionality
+  - Added `hide-on-enter-ar` component for cleaner AR experiences
+  - Optimized scene rendering for better frame rates
+  - Improved lighting and shadow systems
+  - Better asset loading and management
+- **Live Reload Architecture**: Completely reimplemented for reliability
+  - Moved from polling-based to event-driven updates
+  - Simplified notification flow with single event dispatch
+  - Better error handling and recovery mechanisms
+  - Reduced server load and improved performance
+- **Analysis Workflow**: More flexible and user-friendly analysis process
+  - Chart type selection during analysis setup
+  - Interactive dimension mapping with real-time preview
+  - Better integration between settings and analysis results
+  - Persistent user preferences across sessions
+- **Server Creation Logic**: Enhanced server startup process
+  - Better validation of file existence before creating watchers
+  - Improved error messages when files or directories don't exist
+  - More robust cleanup when servers fail to start
+  - Enhanced logging for debugging server issues
+- **XR Analysis Display**: Improved visualization of analysis results
+  - Custom server names in Active Servers list
+  - Better distinction between analysis servers and example servers
+  - Enhanced tooltips and descriptions for XR analysis servers
+  - Improved context menus for analysis-specific actions
+- **File Analysis Workflow**: Streamlined analysis process
+  - Automatic file opening when analyzing from tree
+  - Consistent behavior across Static and XR analysis modes
+  - Better progress indicators and user feedback
+  - Enhanced error handling during analysis
+
+### Fixed
+- **Critical Live Reload Issues**: Resolved major problems with XR visualization updates
+  - Fixed dynamic import resolution errors in file watch manager
+  - Corrected module path issues causing silent failures
+  - Resolved timestamp propagation ensuring proper cache invalidation
+  - Fixed event listener attachment in browser clients
+- **Server Watch Errors**: Eliminated ENOENT errors when launching examples
+  - Added existence checks before setting up file watchers
+  - Proper error handling for missing HTML files
+  - Better validation of example directory structure
+  - Fixed watcher cleanup on server shutdown
+- **Tree View Synchronization**: Improved tree view refresh and display
+  - Fixed server list updates after analysis completion
+  - Resolved display name updates for XR analysis servers
+  - Better synchronization between server state and UI
+  - Enhanced refresh mechanisms for real-time updates
+- **Analysis Command Integration**: Resolved issues with file opening and analysis
+  - Fixed command registration and execution flow
+  - Corrected parameter passing between commands
+  - Better error handling when files cannot be opened
+  - Improved timing between file opening and analysis start
+- **VR/AR Controller Issues**: Resolved compatibility problems with different headsets
+  - Fixed controller mapping inconsistencies across devices
+  - Resolved joystick sensitivity and dead zone issues
+  - Fixed hand tracking detection problems
+  - Improved controller button mapping consistency
+
+### User Experience
+- **Seamless XR Updates**: XR visualizations now update automatically when code changes
+  - No need to manually refresh browser or restart servers
+  - Real-time data updates without losing VR/AR context
+  - Smooth transitions between different analysis states
+  - Immediate feedback when code metrics change
+- **Immersive Navigation**: Natural movement and interaction in VR/AR
+  - Intuitive joystick-based locomotion
+  - Smooth rotation controls for comfortable navigation
+  - Support for room-scale and teleportation movement
+  - Gesture-based interaction for hand tracking devices
+- **Visual Customization**: Complete control over XR environment appearance
+  - Real-time color changes without reloading
+  - Multiple environment themes for different preferences
+  - Chart palettes optimized for VR/AR viewing
+  - Consistent theming with VS Code appearance
+- **Flexible Analysis**: Adaptable analysis workflow for different needs
+  - Quick chart type switching for different data perspectives
+  - Intuitive dimension mapping with drag-and-drop interface
+  - One-click reset to sensible defaults
+  - Visual feedback for configuration changes
+- **Improved Workflow**: Enhanced development experience
+  - Files automatically open when selected for analysis
+  - Clear visual indicators of active analysis servers
+  - Better server management with descriptive names
+  - Streamlined example browsing and launching
+- **Better Error Handling**: More informative error messages and recovery
+  - Clear feedback when files or servers cannot be accessed
+  - Helpful suggestions for resolving common issues
+  - Graceful degradation when optional features fail
+  - Comprehensive logging for troubleshooting
+- **Enhanced Performance**: Optimized operations for better responsiveness
+  - Faster server startup and shutdown cycles
+  - Reduced memory usage through better cleanup
+  - More efficient file watching and event handling
+  - Improved browser-side chart rebuilding performance
+  - Better VR/AR frame rates and reduced motion sickness
+
+### Technical Improvements
+- **A-Frame 1.7.1 Integration**: Latest WebXR framework with enhanced capabilities
+- **Universal Controller Support**: Comprehensive gamepad and hand tracking API integration
+- **Module Resolution**: Fixed ES module import issues across the codebase
+- **TypeScript Compliance**: Enhanced type safety and error detection
+- **Event System**: Robust event-driven architecture for real-time updates
+- **Resource Management**: Better cleanup of servers, watchers, and temporary files
+- **Code Organization**: Improved separation of concerns and modularity
+- **Performance Optimization**: Reduced overhead and improved rendering performance
+
+### Developer Experience
+- **Status Bar Integration**: Visual debounce delay indicator for immediate feedback
+- **Settings Persistence**: User preferences saved across VS Code sessions
+- **Real-time Preview**: See changes immediately without manual refresh
+- **Comprehensive Logging**: Detailed debug information for troubleshooting
+- **Better Error Messages**: More informative feedback when things go wrong
+
+This update significantly enhances the live development experience for XR code visualization, making it possible to see code metrics changes in real-time within VR/AR environments while maintaining a smooth and intuitive workflow. The addition of universal controller support and A-Frame 1.7.1 provides a much more immersive and accessible experience across all major VR/AR platforms.
 
 ## [0.0.6] - 2025-04-29
 

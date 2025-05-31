@@ -4,20 +4,15 @@ import * as fs from 'fs/promises';
 import { FileAnalysisResult } from '../model';
 import { transformAnalysisDataForXR } from './xrDataTransformer';
 import { generateXRAnalysisHTML } from './xrTemplateUtils';
-import { createServer } from '../../server/serverManager';
+import { createServer, getActiveServers, stopServer, updateServerDisplayInfo } from '../../server/serverManager'; // ✅ AÑADIR updateServerDisplayInfo AL IMPORT ESTÁTICO
 import { ServerInfo, ServerMode } from '../../server/models/serverModel';
 import { formatXRDataForBabia } from './xrDataFormatter';
 import { FileWatchManager } from '../fileWatchManager';
+import { portManager } from '../../server/portManager';
+import { defaultCertificatesExist } from '../../server/certificateManager';
 
 // Track visualization paths by file
 const visualizationFolders: Map<string, string> = new Map();
-
-// Track active servers by visualization directory
-const activeServers: Map<string, ServerInfo> = new Map();
-
-// Track port assignments for each analyzed file
-const filePorts: Map<string, number> = new Map();
-let nextAvailablePort = 8080;
 
 /**
  * Creates an XR visualization for a file analysis result
@@ -30,181 +25,226 @@ export async function createXRVisualization(
   analysisResult: FileAnalysisResult
 ): Promise<string | undefined> {
   try {
-    console.log('Creating XR visualization for:', analysisResult.fileName);
-    
-    // Get the base name without extension for folder naming
     const fileNameWithoutExt = path.basename(analysisResult.fileName, path.extname(analysisResult.fileName));
     
-    // Check if we already have a visualization folder for this file
+    // ✅ VERIFICAR SI YA HAY UNA VISUALIZACIÓN ACTIVA PARA ESTE ARCHIVO
     const existingFolder = visualizationFolders.get(fileNameWithoutExt);
-    let visualizationDir: string;
-    let isNewFolder = false;
     
-    // Get the visualizations directory
+    if (existingFolder) {
+      console.log(`♻️ Found existing visualization folder for ${fileNameWithoutExt}: ${existingFolder}`);
+      
+      // ✅ VERIFICAR SI HAY UN SERVIDOR ACTIVO PARA ESTA CARPETA
+      const activeServers = getActiveServers();
+      const existingServer = activeServers.find(server => {
+        const serverDir = path.dirname(server.filePath);
+        return serverDir === existingFolder;
+      });
+      
+      if (existingServer) {
+        console.log(`🔄 Found existing server for ${fileNameWithoutExt}: ${existingServer.url}`);
+        console.log(`🛑 Stopping existing server to launch new analysis...`);
+        
+        // ✅ CERRAR EL SERVIDOR EXISTENTE
+        stopServer(existingServer.id);
+        
+        // ✅ MOSTRAR MENSAJE AL USUARIO
+        vscode.window.showInformationMessage(
+          `🔄 Relaunching analysis for ${analysisResult.fileName}...`,
+          { modal: false }
+        );
+        
+        // ✅ PEQUEÑA PAUSA PARA ASEGURAR QUE EL PUERTO SE LIBERE
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    // ✅ CREAR NUEVA VISUALIZACIÓN (reutilizar carpeta si existe)
     const visualizationsDir = path.join(context.extensionPath, 'visualizations');
     
-    // Create the visualizations directory if it doesn't exist
     try {
       await fs.mkdir(visualizationsDir, { recursive: true });
     } catch (e) {
-      console.log('Visualizations directory already exists');
+      // Directory exists
     }
     
+    let visualizationDir: string;
+    
     if (existingFolder) {
-      console.log(`Reusing existing visualization folder: ${existingFolder}`);
+      // ✅ REUTILIZAR CARPETA EXISTENTE
       visualizationDir = existingFolder;
+      console.log(`♻️ Reusing existing visualization folder: ${visualizationDir}`);
     } else {
-      // Create a new folder with simplified naming
+      // ✅ CREAR NUEVA CARPETA
       const folderName = `analysis_${fileNameWithoutExt}_${Date.now()}`;
       visualizationDir = path.join(visualizationsDir, folderName);
       
-      // Create directory if it doesn't exist
       try {
         await fs.mkdir(visualizationDir, { recursive: true });
-        isNewFolder = true;
       } catch (e) {
-        // Folder might already exist from a previous session
-        console.log(`Folder ${visualizationDir} already exists, reusing it`);
+        // Directory exists
       }
       
-      // Save for future reuse
+      // Guardar para reutilización futura
       visualizationFolders.set(fileNameWithoutExt, visualizationDir);
+      console.log(`📁 Created new visualization folder: ${visualizationDir}`);
     }
     
-    console.log(`Visualization directory: ${visualizationDir}`);
+    // ✅ SIEMPRE REGENERAR DATOS Y HTML (para reflejar cambios en el código)
+    console.log(`🔄 Regenerating analysis data for ${analysisResult.fileName}...`);
     
-    // Transform the analysis data for internal use
+    // Transformar y guardar datos actualizados
     const transformedData = transformAnalysisDataForXR(analysisResult);
-    
-    // Apply the formatter to simplify the data structure for BabiaXR
     const babiaCompatibleData = formatXRDataForBabia(transformedData);
-    
-    // Save the simplified data as JSON
     const dataFilePath = path.join(visualizationDir, 'data.json');
     await fs.writeFile(dataFilePath, JSON.stringify(babiaCompatibleData, null, 2));
-    console.log('Data file saved at:', dataFilePath);
+    console.log(`💾 Updated data file: ${dataFilePath}`);
     
-    // Only generate the HTML if this is a new folder or the HTML doesn't exist
+    // Regenerar HTML siempre (para asegurar actualizaciones)
     const htmlFilePath = path.join(visualizationDir, 'index.html');
-    let htmlExists = false;
+    const htmlContent = await generateXRAnalysisHTML(analysisResult, './data.json', context);
+    await fs.writeFile(htmlFilePath, htmlContent);
+    console.log(`📄 Updated HTML file: ${htmlFilePath}`);
     
-    try {
-      await fs.access(htmlFilePath);
-      htmlExists = true;
-    } catch (e) {
-      // HTML doesn't exist, need to create it
-    }
-    
-    if (!htmlExists || isNewFolder) {
-      // Generate the HTML content with all placeholders replaced
-      const htmlContent = await generateXRAnalysisHTML(analysisResult, './data.json', context);
-      
-      // Save the HTML file
-      await fs.writeFile(htmlFilePath, htmlContent);
-      console.log('HTML file created at:', htmlFilePath);
-    } else {
-      console.log('HTML file already exists, skipping generation');
-    }
-    
-    // Update the FileWatchManager with the path to this HTML file
+    // Actualizar FileWatchManager
     const fileWatchManager = FileWatchManager.getInstance();
     if (fileWatchManager) {
       fileWatchManager.setXRHtmlPath(analysisResult.filePath, htmlFilePath);
     }
     
-    return htmlFilePath;
+    // ✅ DETERMINAR MODO DE SERVIDOR BASADO EN CONFIGURACIÓN
+    const userServerMode = context.globalState.get<ServerMode>('serverMode') || ServerMode.HTTPS_DEFAULT_CERTS;
+    let analysisServerMode: ServerMode;
+    let protocolForPort: 'http' | 'https';
+    
+    switch (userServerMode) {
+      case ServerMode.HTTP:
+        analysisServerMode = ServerMode.HTTP;
+        protocolForPort = 'http';
+        break;
+        
+      case ServerMode.HTTPS_DEFAULT_CERTS:
+        if (defaultCertificatesExist(context)) {
+          analysisServerMode = ServerMode.HTTPS_DEFAULT_CERTS;
+          protocolForPort = 'https';
+        } else {
+          analysisServerMode = ServerMode.HTTP;
+          protocolForPort = 'http';
+          vscode.window.showWarningMessage(
+            'Default HTTPS certificates not found. Analysis server will use HTTP instead.'
+          );
+        }
+        break;
+        
+      case ServerMode.HTTPS_CUSTOM_CERTS:
+        const customKeyPath = context.globalState.get<string>('customKeyPath');
+        const customCertPath = context.globalState.get<string>('customCertPath');
+        
+        if (customKeyPath && customCertPath) {
+          analysisServerMode = ServerMode.HTTPS_CUSTOM_CERTS;
+          protocolForPort = 'https';
+        } else {
+          analysisServerMode = ServerMode.HTTP;
+          protocolForPort = 'http';
+          vscode.window.showWarningMessage(
+            'Custom HTTPS certificates not configured. Analysis server will use HTTP instead.'
+          );
+        }
+        break;
+        
+      default:
+        analysisServerMode = ServerMode.HTTP;
+        protocolForPort = 'http';
+    }
+    
+    // ✅ CREAR NUEVO SERVIDOR (puede usar el mismo puerto si se liberó)
+    console.log(`🚀 Creating new server for updated analysis...`);
+    const serverInfo = await createServer(visualizationDir, analysisServerMode, context);
+    
+    if (serverInfo) {
+      // ✅ USAR EL IMPORT ESTÁTICO EN LUGAR DEL DINÁMICO
+      const customDisplayName = `${analysisResult.fileName}: ${serverInfo.port}`;
+      
+      updateServerDisplayInfo(serverInfo.id, {
+        displayUrl: customDisplayName,
+        analysisFileName: analysisResult.fileName
+      });
+      
+      console.log(`✅ New analysis server started: ${serverInfo.url}`);
+      console.log(`🏷️ Display name set to: ${customDisplayName}`);
+      
+      // Abrir en navegador
+      vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+      
+      const protocolMessage = protocolForPort === 'https' 
+        ? '🔒 Secure HTTPS server (VR compatible)' 
+        : '🌐 HTTP server (not VR compatible)';
+      
+      const isRelaunch = existingFolder ? ' (relaunched)' : '';
+      
+      vscode.window.showInformationMessage(
+        `XR Analysis visualization opened at ${serverInfo.displayUrl}${isRelaunch}\n${protocolMessage}`
+      );
+      
+      // ✅ REFRESH TREE VIEW PARA MOSTRAR EL NOMBRE ACTUALIZADO
+      vscode.commands.executeCommand('codexr.refreshView');
+      
+      return htmlFilePath;
+    } else {
+      vscode.window.showErrorMessage('Failed to start XR analysis server');
+      return undefined;
+    }
   } catch (error) {
-    vscode.window.showErrorMessage(`Error creating XR visualization: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('Error creating XR visualization:', error);
+    vscode.window.showErrorMessage(`Error: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
 }
 
 /**
- * Opens an XR visualization in the browser
- * @param htmlFilePath Path to the HTML file
- * @param context Extension context
- * @param filePath Optional path to the analyzed file
+ * ✅ NUEVA FUNCIÓN PARA CERRAR SERVIDOR ESPECÍFICO DE UN ARCHIVO
+ * Close any existing server for a specific file analysis
+ * @param fileName File name without extension
  */
-export async function openXRVisualization(
-  htmlFilePath: string,
-  context: vscode.ExtensionContext,
-  filePath?: string
-): Promise<void> {
-  try {
-    // Debug print for input file path
-    console.log('DEBUG - HTML file path:', htmlFilePath);
+export function closeExistingAnalysisServer(fileName: string): boolean {
+  const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
+  const existingFolder = visualizationFolders.get(fileNameWithoutExt);
+  
+  if (existingFolder) {
+    const activeServers = getActiveServers();
+    const existingServer = activeServers.find(server => {
+      const serverDir = path.dirname(server.filePath);
+      return serverDir === existingFolder;
+    });
     
-    // Ensure the htmlFilePath ends with index.html
-    let fullHtmlPath = htmlFilePath;
-    if (!htmlFilePath.endsWith('.html')) {
-      fullHtmlPath = path.join(htmlFilePath, 'index.html');
-      console.log('DEBUG - Fixed HTML path:', fullHtmlPath);
-    }
-    
-    // Get the visualization directory (parent of the HTML file)
-    const visualizationDir = path.dirname(fullHtmlPath);
-    console.log('DEBUG - Visualization directory:', visualizationDir);
-    
-    // Get file name without extension for tracking
-    const dirName = path.basename(visualizationDir);
-    
-    // Check if we already have an active server for this visualization
-    const existingServer = activeServers.get(dirName);
     if (existingServer) {
-      console.log(`Using existing server for ${dirName}`);
-      
-      // Just open the URL without creating a new server
-      const url = `${existingServer.url}/index.html`;
-      console.log('DEBUG - Opening URL:', url);
-      await vscode.env.openExternal(vscode.Uri.parse(url));
-      
-      vscode.window.showInformationMessage(
-        `XR Visualization opened in browser. The server will update automatically when data changes.`
-      );
-      return;
+      console.log(`🛑 Closing existing analysis server for ${fileName}: ${existingServer.url}`);
+      stopServer(existingServer.id);
+      return true;
     }
-    
-    // Get server mode configuration
-    const serverMode = context.globalState.get<ServerMode>('serverMode') || ServerMode.HTTPS_DEFAULT_CERTS;
-    
-    // Assign a unique port for this file
-    let port: number;
-    if (filePath && filePorts.has(filePath)) {
-      port = filePorts.get(filePath)!;
-    } else {
-      port = nextAvailablePort++;
-      if (filePath) {
-        filePorts.set(filePath, port);
-      }
-    }
-    
-    // Create server with specific port
-    const serverInfo = await createServer(fullHtmlPath, serverMode, context, port);
-    console.log('DEBUG - Server info:', JSON.stringify(serverInfo, null, 2));
-    
-    if (!serverInfo) {
-      throw new Error('Failed to start server for visualization');
-    }
-    
-    // Store the server info for future reuse
-    activeServers.set(dirName, serverInfo);
-    
-    // Build a URL pointing to the index.html file
-    const url = `${serverInfo.url}/index.html`;
-    console.log('DEBUG - Final URL:', url);
-    
-    // Add a notification with the URL for easy debugging
-    vscode.window.showInformationMessage(`Opening URL: ${url}`);
-    
-    await vscode.env.openExternal(vscode.Uri.parse(url));
-    
-    vscode.window.showInformationMessage(
-      `XR Visualization opened in browser. The server will update automatically when data changes.`
-    );
-  } catch (error) {
-    console.error('ERROR in openXRVisualization:', error);
-    vscode.window.showErrorMessage(`Error opening XR visualization: ${error instanceof Error ? error.message : String(error)}`);
   }
+  
+  return false;
+}
+
+/**
+ * ✅ NUEVA FUNCIÓN PARA VERIFICAR SI HAY SERVIDOR ACTIVO PARA UN ARCHIVO
+ * Check if there's an active server for a specific file
+ * @param fileName File name without extension
+ * @returns ServerInfo if found, undefined otherwise
+ */
+export function getActiveAnalysisServer(fileName: string): ServerInfo | undefined {
+  const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
+  const existingFolder = visualizationFolders.get(fileNameWithoutExt);
+  
+  if (existingFolder) {
+    const activeServers = getActiveServers();
+    return activeServers.find(server => {
+      const serverDir = path.dirname(server.filePath);
+      return serverDir === existingFolder;
+    });
+  }
+  
+  return undefined;
 }
 
 /**
@@ -212,9 +252,6 @@ export async function openXRVisualization(
  */
 export function cleanupXRVisualizations(): void {
   visualizationFolders.clear();
-  activeServers.clear();
-  filePorts.clear();
-  nextAvailablePort = 8080;
 }
 
 /**

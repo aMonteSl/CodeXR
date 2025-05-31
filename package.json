@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -80,149 +80,214 @@
       {
         "command": "codexr.startLocalServer",
         "title": "WebXR: Start Local Server",
-        "icon": {
-          "light": "resources/light/server-start.svg",
-          "dark": "resources/dark/server-start.svg"
-        }
+        "icon": "$(play)"
       },
       {
         "command": "codexr.stopLocalServer",
-        "title": "WebXR: Stop Local Server",
-        "icon": {
-          "light": "resources/light/server-stop.svg",
-          "dark": "resources/dark/server-stop.svg"
-        }
+        "title": "WebXR: Stop Local Server", 
+        "icon": "$(stop)"
       },
       {
         "command": "codexr.startServerWithConfig",
         "title": "WebXR: Start Server with Configuration",
-        "icon": {
-          "light": "resources/light/run.svg",
-          "dark": "resources/dark/run.svg"
-        }
+        "icon": "$(run)"
       },
       {
         "command": "codexr.serverOptions",
-        "title": "WebXR: Server Options"
+        "title": "WebXR: Server Options",
+        "icon": "$(gear)"
       },
       {
         "command": "codexr.serverStatusActions",
-        "title": "WebXR: Active Server Actions"
+        "title": "WebXR: Active Server Actions",
+        "icon": "$(server-process)"
       },
       {
         "command": "codexr.changeServerMode",
         "title": "WebXR: Change Server Mode",
-        "icon": {
-          "light": "resources/light/settings.svg",
-          "dark": "resources/dark/settings.svg"
-        }
+        "icon": "$(settings)"
       },
       {
         "command": "codexr.checkCertificates",
         "title": "WebXR: Check SSL Certificates Status",
-        "icon": {
-          "light": "resources/light/shield.svg",
-          "dark": "resources/dark/shield.svg"
-        }
-      },
-      {
-        "command": "codexr.createVisualization",
-        "title": "WebXR: Create Data Visualization",
-        "icon": {
-          "light": "resources/light/graph.svg",
-          "dark": "resources/dark/graph.svg"
-        }
-      },
-      {
-        "command": "codexr.showTemplates",
-        "title": "WebXR: Browse Templates"
-      },
-      {
-        "command": "codexr.refreshServerView",
-        "title": "WebXR: Refresh Server View",
-        "icon": {
-          "light": "resources/light/refresh.svg",
-          "dark": "resources/dark/refresh.svg"
-        }
-      },
-      {
-        "command": "codexr.refreshView",
-        "title": "WebXR: Refresh Explorer View",
-        "icon": {
-          "light": "resources/light/refresh.svg",
-          "dark": "resources/dark/refresh.svg"
-        }
-      },
-      {
-        "command": "codexr.setBackgroundColor",
-        "title": "WebXR: Set Background Color"
-      },
-      {
-        "command": "codexr.setEnvironmentPreset",
-        "title": "WebXR: Set Environment Preset"
-      },
-      {
-        "command": "codexr.setGroundColor",
-        "title": "WebXR: Set Ground Color"
-      },
-      {
-        "command": "codexr.setChartPalette",
-        "title": "WebXR: Set Chart Palette"
+        "icon": "$(shield)"
       },
       {
         "command": "codexr.stopAllServers",
         "title": "WebXR: Stop All Servers",
-        "icon": {
-          "light": "resources/light/stop.svg",
-          "dark": "resources/dark/stop.svg"
-        },
+        "icon": "$(stop-circle)",
         "category": "WebXR Server"
       },
       {
-        "command": "codexr.analyzeFolder",
-        "title": "WebXR: Analyze JavaScript/TypeScript Folder",
-        "category": "Code Analysis"
+        "command": "codexr.stopAllServersFromTree",
+        "title": "WebXR: Stop All Servers from Tree",
+        "icon": "$(stop-circle)",
+        "category": "WebXR Server"
       },
       {
-        "command": "codexr.showJSMetricsDetails",
-        "title": "WebXR: Show JavaScript Metrics Details",
-        "category": "Code Analysis"
+        "command": "codexr.showPortStatus",
+        "title": "WebXR: Show Port Status",
+        "icon": "$(ports-view-icon)",
+        "category": "WebXR Server"
       },
+      {
+        "command": "codexr.debugServerStatus",
+        "title": "WebXR: Debug Server Status",
+        "icon": "$(bug)",
+        "category": "WebXR Server"
+      },
+
+
+      {
+        "command": "codexr.createVisualization",
+        "title": "WebXR: Create Data Visualization",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "codexr.showTemplates",
+        "title": "WebXR: Browse Templates",
+        "icon": "$(template)"
+      },
+      {
+        "command": "codexr.setBackgroundColor",
+        "title": "WebXR: Set Background Color",
+        "icon": "$(color-mode)"
+      },
+      {
+        "command": "codexr.setEnvironmentPreset",
+        "title": "WebXR: Set Environment Preset",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "codexr.setGroundColor",
+        "title": "WebXR: Set Ground Color",
+        "icon": "$(paintcan)"
+      },
+      {
+        "command": "codexr.setChartPalette",
+        "title": "WebXR: Set Chart Palette",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "codexr.launchBabiaXRExample",
+        "title": "WebXR: Launch BabiaXR Example",
+        "icon": "$(rocket)"
+      },
+
       {
         "command": "codexr.analyzeFile",
-        "title": "CodeXR Analyze File: Static",
+        "title": "CodeXR: Analyze File (Static)",
         "category": "Code Analysis",
         "icon": "$(microscope)"
       },
       {
         "command": "codexr.analyzeFile3D",
-        "title": "CodeXR Analyze File: XR",
+        "title": "CodeXR: Analyze File (XR)",
         "category": "Code Analysis",
         "icon": "$(cube)"
       },
       {
-        "command": "codexr.setupPythonEnvironment",
-        "title": "CodeXR: Setup Python Environment",
-        "category": "Code Analysis"
+        "command": "codexr.analyzeFileFromTree",
+        "title": "CodeXR: Analyze File",
+        "category": "Code Analysis",
+        "icon": "$(search)"
       },
+      {
+        "command": "codexr.openAndAnalyzeFile",
+        "title": "CodeXR: Open and Analyze File",
+        "category": "Code Analysis",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "codexr.analyzeMultipleFiles3D",
+        "title": "CodeXR: Analyze Multiple Files in XR",
+        "category": "Code Analysis",
+        "icon": "$(files)"
+      },
+      {
+        "command": "codexr.analyzeFolder",
+        "title": "CodeXR: Analyze JavaScript/TypeScript Folder",
+        "category": "Code Analysis",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "codexr.showJSMetricsDetails",
+        "title": "CodeXR: Show JavaScript Metrics Details",
+        "category": "Code Analysis",
+        "icon": "$(info)"
+      },
+
+
       {
         "command": "codexr.setAnalysisMode",
         "title": "CodeXR: Set Default Analysis Mode",
-        "category": "Code Analysis"
+        "category": "Analysis Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "codexr.setAnalysisDebounceDelay",
+        "title": "CodeXR: Set Analysis Delay",
+        "category": "Analysis Settings",
+        "icon": "$(clock)"
+      },
+      {
+        "command": "codexr.toggleAutoAnalysis",
+        "title": "CodeXR: Toggle Auto Analysis",
+        "category": "Analysis Settings",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "codexr.setAnalysisChartType",
+        "title": "CodeXR: Set Chart Type",
+        "category": "Analysis Settings",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "codexr.setDimensionMapping",
+        "title": "CodeXR: Set Dimension Mapping",
+        "category": "Analysis Settings",
+        "icon": "$(symbol-parameter)"
+      },
+      {
+        "command": "codexr.resetAnalysisDefaults",
+        "title": "CodeXR: Reset Analysis Defaults",
+        "category": "Analysis Settings",
+        "icon": "$(refresh)"
+      },
+
+      
+      {
+        "command": "codexr.setupPythonEnvironment",
+        "title": "CodeXR: Setup Python Environment",
+        "category": "Python Environment",
+        "icon": "$(symbol-misc)"
+      },
+
+      {
+        "command": "codexr.refreshView",
+        "title": "CodeXR: Refresh Explorer View",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codexr.refreshServerView",
+        "title": "CodeXR: Refresh Server View",
+        "icon": "$(refresh)"
       },
       {
         "command": "codexr.refreshTreeView",
         "title": "CodeXR: Refresh Tree View",
-        "category": "CodeXR"
+        "category": "CodeXR",
+        "icon": "$(refresh)"
       },
       {
-        "command": "codexr.analyzeFileFromTree",
-        "title": "Analyze File",
-        "category": "CodeXR"
+        "command": "codexr.refreshAnalysisTree",
+        "title": "CodeXR: Refresh Analysis Tree",
+        "category": "Analysis Settings",
+        "icon": "$(refresh)"
       },
       {
-        "command": "codexr.analyzeMultipleFiles3D",
-        "title": "Analyze Multiple Files in XR",
+        "command": "codexr.updateAnalysisPanel",
+        "title": "CodeXR: Update Analysis Panel",
         "category": "CodeXR"
       }
     ],
@@ -251,6 +316,16 @@
           "group": "inline"
         },
         {
+          "command": "codexr.serverOptions",
+          "when": "viewItem == activeServer",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.serverOptions",
+          "when": "viewItem == activeXRAnalysisServer",
+          "group": "inline"
+        },
+        {
           "command": "codexr.createVisualization",
           "when": "viewItem == babiaxr-section",
           "group": "inline"
@@ -264,6 +339,51 @@
           "command": "codexr.stopAllServers",
           "when": "view == codexr.serverTreeView && viewItem == serverContainer",
           "group": "1_actions"
+        },
+        {
+          "command": "codexr.analyzeFileFromTree",
+          "when": "viewItem == analysis_file",
+          "group": "navigation"
+        },
+        {
+          "command": "codexr.openAndAnalyzeFile",
+          "when": "viewItem == analysis_file",
+          "group": "1_actions"
+        },
+        {
+          "command": "codexr.setAnalysisMode",
+          "when": "viewItem == analysis_setting_option && resourceLangId == mode",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.setAnalysisDebounceDelay",
+          "when": "viewItem == analysis_setting_option && resourceLangId == delay",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.toggleAutoAnalysis",
+          "when": "viewItem == analysis_setting_option && resourceLangId == auto",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.setAnalysisChartType",
+          "when": "viewItem == analysis_setting_option && resourceLangId == chartType",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.setDimensionMapping",
+          "when": "viewItem == analysis_setting_option && resourceLangId == dimensionMapping",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.resetAnalysisDefaults",
+          "when": "viewItem == analysis_reset",
+          "group": "inline"
+        },
+        {
+          "command": "codexr.launchBabiaXRExample",
+          "when": "viewItem == babiaxr_example",
+          "group": "navigation"
         }
       ],
       "editor/context": [

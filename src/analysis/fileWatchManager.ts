@@ -1,16 +1,13 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import * as fs from 'fs';
-import { analyzeFile } from './analysisManager';
-import { createXRVisualization, openXRVisualization, getVisualizationFolder } from './xr/xrAnalysisManager';
+import * as path from 'path';
 import { AnalysisMode } from './model';
+import { analyzeFile, showAnalysisWebView, sendAnalysisData } from './analysisManager';
 import { analysisDataManager } from './analysisDataManager';
-import { notifyClientsDataRefresh, notifyClientsAnalysisUpdated } from '../server/liveReloadManager';
+import { createXRVisualization, getVisualizationFolder } from './xr/xrAnalysisManager';
 import { transformAnalysisDataForXR } from './xr/xrDataTransformer';
 import { formatXRDataForBabia } from './xr/xrDataFormatter';
-import { getActiveServers } from '../server/serverManager';
-import { sendAnalysisData } from './analysisManager';
-import { notifyClients } from '../server/liveReloadManager';
+import { notifyClientsDataRefresh } from '../server/liveReloadManager';
 
 /**
  * Manages file watchers for analyzed files
@@ -165,21 +162,86 @@ export class FileWatchManager {
     if (watcher) {
       watcher.dispose();
       this.fileWatchers.delete(filePath);
-      console.log(`Stopped watching ${filePath}`);
+      console.log(`🛑 Stopped watching ${path.basename(filePath)}`);
     }
+    
+    const timer = this.debounceTimers.get(filePath);
+    if (timer) {
+      clearTimeout(timer);
+      this.debounceTimers.delete(filePath);
+    }
+    
+    // Clean up XR HTML path
+    this.removeXRHtmlPath(filePath);
+    
+    // Remove analysis mode
+    this.fileAnalysisModes.delete(filePath);
   }
   
   /**
    * Stop watching all files
    */
   public stopWatchingAll(): void {
+    console.log(`🛑 Stopping all file watchers (${this.fileWatchers.size} active)`);
+    
     for (const [filePath, watcher] of this.fileWatchers.entries()) {
       watcher.dispose();
-      console.log(`Stopped watching ${filePath}`);
+      
+      // Clean up status messages
+      const statusMessage = this.statusMessages.get(filePath);
+      if (statusMessage) {
+        statusMessage.dispose();
+      }
     }
+    
     this.fileWatchers.clear();
+    
+    // Clear all timers
+    for (const timer of this.debounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.debounceTimers.clear();
+    
+    // Clear status messages
+    this.statusMessages.clear();
+    
+    // Clear analysis modes
+    this.fileAnalysisModes.clear();
+    
+    // Clean up XR HTML paths
+    this.xrHtmlPaths.clear();
+    
+    console.log('✅ All file watchers stopped and cleaned up');
   }
   
+  /**
+   * Sets the XR HTML path for a file
+   * @param filePath Path to the source file
+   * @param htmlPath Path to the XR HTML visualization
+   */
+  public setXRHtmlPath(filePath: string, htmlPath: string): void {
+    this.xrHtmlPaths.set(filePath, htmlPath);
+    console.log(`📄 Set XR HTML path for ${path.basename(filePath)}: ${htmlPath}`);
+  }
+
+  /**
+   * Gets the XR HTML path for a file
+   * @param filePath Path to the source file
+   * @returns HTML path or undefined if not found
+   */
+  public getXRHtmlPath(filePath: string): string | undefined {
+    return this.xrHtmlPaths.get(filePath);
+  }
+
+  /**
+   * Removes the XR HTML path for a file
+   * @param filePath Path to the source file
+   */
+  public removeXRHtmlPath(filePath: string): void {
+    this.xrHtmlPaths.delete(filePath);
+    console.log(`🗑️ Removed XR HTML path for ${path.basename(filePath)}`);
+  }
+
   /**
    * Handle file change by re-analyzing it according to the current mode
    * @param filePath Path to the changed file
@@ -266,7 +328,7 @@ export class FileWatchManager {
       vscode.window.setStatusBarMessage(`$(microscope) CodeXR: Analyzing ${fileName}...`, 3000);
       console.log(`⏱️ ${new Date().toLocaleTimeString()} - Timer triggered after ${elapsedTime}ms`);
       
-      // Time verification and analysis (existing code)...
+      // Time verification and analysis
       if (Math.abs(elapsedTime - this.debounceDelay) > 100) {
         console.warn(`⚠️ Actual wait time (${elapsedTime}ms) differs from configured time (${this.debounceDelay}ms)`);
       } else {
@@ -277,7 +339,9 @@ export class FileWatchManager {
     }, this.debounceDelay));
   }
   
-  // Extrae el código de análisis actual a este método
+  /**
+   * Performs the actual file analysis
+   */
   private async performFileAnalysis(filePath: string): Promise<void> {
     if (!this.context) {
       console.error('FileWatchManager: Context not set');
@@ -290,6 +354,7 @@ export class FileWatchManager {
     try {
       switch (mode) {
         case AnalysisMode.STATIC:
+        case AnalysisMode.WEB_VIEW:
           // Re-analyze and display in static mode (webview)
           await this.handleStaticReanalysis(filePath);
           break;
@@ -330,16 +395,29 @@ export class FileWatchManager {
     
     // Get the active webview panel
     const panel = analysisDataManager.getActiveFileAnalysisPanel(filePath);
-    if (panel) {
+    if (panel && !panel.disposed) { 
       // Send the new data to the panel directly
+      console.log('Updating webview panel with new analysis data');
       sendAnalysisData(panel, analysisResult);
       
+      // Update the panel title to show it's updated
+      panel.title = `Analysis: ${analysisResult.fileName} (Updated)`;
+      
       console.log('Analysis panel updated with latest data');
+      
+      // Show notification to user
+      vscode.window.showInformationMessage(
+        `Analysis updated for ${analysisResult.fileName}`,
+        { modal: false }
+      );
     } else {
       console.log('No active panel found or panel was disposed');
       
-      // Fallback to command-based update
-      vscode.commands.executeCommand('codexr.updateAnalysisPanel', analysisResult, filePath);
+      // Create a new panel if none exists
+      if (!panel) {
+        console.log('Creating new analysis panel for updated results');
+        showAnalysisWebView(this.context, analysisResult);
+      }
     }
   }
   
@@ -353,80 +431,106 @@ export class FileWatchManager {
     }
     
     try {
-      console.log(`🔄 Re-analyzing file ${filePath} for XR update...`);
-      const analysisResult = await analyzeFile(filePath, this.context);
+      console.log(`🔮 Re-analyzing ${path.basename(filePath)} for XR update`);
       
+      const analysisResult = await analyzeFile(filePath, this.context);
       if (!analysisResult) {
-        console.error('❌ Failed to re-analyze file for XR visualization');
+        console.error('❌ Failed to re-analyze file for XR');
         return;
       }
       
-      // Get the file name without extension for folder lookup
+      // Use the filename from analysis result
       const fileNameWithoutExt = path.basename(analysisResult.fileName, path.extname(analysisResult.fileName));
       
-      // Look up the existing visualization folder
+      // Find existing visualization folder
       const existingFolder = getVisualizationFolder(fileNameWithoutExt);
       
-      if (existingFolder) {
-        console.log(`Found existing visualization folder: ${existingFolder}`);
+      if (existingFolder && fs.existsSync(existingFolder)) {
+        console.log(`📁 Updating existing XR visualization in: ${existingFolder}`);
         
-        // Path to the existing data.json file
+        // Verify data.json file exists
         const dataFilePath = path.join(existingFolder, 'data.json');
-        console.log(`Updating data.json at: ${dataFilePath}`);
         
-        // Transform the analysis data for XR visualization
-        console.log(`Analysis result contains ${analysisResult.functions.length} functions`);
-        const transformedData = transformAnalysisDataForXR(analysisResult);
-        console.log('Transformed data for XR');
-        let babiaCompatibleData = formatXRDataForBabia(transformedData);
-        console.log(`Final formatted data has ${babiaCompatibleData.length} functions`);
-
-        // Use fs.writeFileSync to avoid potential issues
         try {
-          fs.writeFileSync(dataFilePath, JSON.stringify(babiaCompatibleData, null, 2));
-          console.log(`✅ Data file updated at: ${dataFilePath} with ${babiaCompatibleData.length} items`);
+          // Transform data correctly
+          const transformedData = transformAnalysisDataForXR(analysisResult);
+          const babiaCompatibleData = formatXRDataForBabia(transformedData);
           
-          // Notify connected clients
-          notifyClientsAnalysisUpdated();
-          console.log('✅ Notification sent to clients to update visualization');
+          console.log(`📊 Transformed data for ${analysisResult.functions.length} functions`);
+          console.log(`📊 Sample function data:`, babiaCompatibleData[0]);
+          console.log(`📊 Full data array length:`, babiaCompatibleData.length);
           
-          vscode.window.showInformationMessage('XR visualization updated without exiting AR/VR');
-        } catch (writeError) {
-          console.error(`Error writing data.json: ${writeError}`);
-          vscode.window.showErrorMessage(`Error updating data.json: ${writeError}`);
+          // Write updated data.json file
+          await fs.promises.writeFile(dataFilePath, JSON.stringify(babiaCompatibleData, null, 2));
+          
+          console.log(`✅ Updated XR data file: ${dataFilePath}`);
+          console.log(`📊 File size: ${(await fs.promises.stat(dataFilePath)).size} bytes`);
+          
+          // Verify file was written correctly
+          const writtenContent = await fs.promises.readFile(dataFilePath, 'utf8');
+          const parsedContent = JSON.parse(writtenContent);
+          console.log(`📊 Verified: ${parsedContent.length} functions written to data.json`);
+          console.log(`📊 First function in written file:`, parsedContent[0]);
+          
+          // Single notification - immediate, no delays
+          console.log(`📡 Sending dataRefresh event to clients...`);
+          notifyClientsDataRefresh();
+          
+          // Update HTML path in file watch manager
+          const htmlFilePath = path.join(existingFolder, 'index.html');
+          this.setXRHtmlPath(filePath, htmlFilePath);
+          
+          // Simple notification
+          this.notifyXRDataUpdated(filePath);
+          
+          vscode.window.showInformationMessage(
+            `🔮 XR visualization updated for ${analysisResult.fileName}`,
+            { modal: false }
+          );
+          
+        } catch (error) {
+          console.error('❌ Error updating XR data file:', error);
+          vscode.window.showErrorMessage(`Error updating XR data: ${error instanceof Error ? error.message : String(error)}`);
         }
+        
       } else {
-        console.log('No existing visualization folder found, creating new visualization');
-        // Create new visualization
-        const htmlFilePath = await createXRVisualization(this.context, analysisResult);
-        if (htmlFilePath) {
-          await openXRVisualization(htmlFilePath, this.context);
-        }
+        console.log('❌ No existing XR visualization found, creating new one');
+        // If no existing visualization, create a new one
+        await createXRVisualization(this.context, analysisResult);
       }
     } catch (error) {
-      console.error('Error updating XR visualization:', error);
+      console.error('❌ Error handling XR re-analysis:', error);
       vscode.window.showErrorMessage(`Error updating XR visualization: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   
   /**
-   * Update the XR HTML path for a specific file
-   * @param filePath Path to the analyzed file
-   * @param htmlPath Path to the XR HTML file
+   * Simple notification for XR data updates
    */
-  public setXRHtmlPath(filePath: string, htmlPath: string): void {
-    this.xrHtmlPaths.set(filePath, htmlPath);
+  private notifyXRDataUpdated(filePath: string): void {
+    const fileName = path.basename(filePath);
+    console.log(`📊 XR data updated for: ${fileName}`);
+    console.log(`📊 Current time: ${new Date().toISOString()}`);
+    console.log(`📊 File path: ${filePath}`);
+    
+    // Add more logs for debugging
+    const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
+    const existingFolder = getVisualizationFolder(fileNameWithoutExt);
+    
+    if (existingFolder) {
+      const dataFilePath = path.join(existingFolder, 'data.json');
+      console.log(`📊 Expected data.json path: ${dataFilePath}`);
+      
+      try {
+        const stats = fs.statSync(dataFilePath);
+        console.log(`📊 data.json last modified: ${stats.mtime.toISOString()}`);
+        console.log(`📊 data.json size: ${stats.size} bytes`);
+      } catch (error) {
+        console.error(`❌ Error checking data.json stats:`, error);
+      }
+    }
   }
   
-  /**
-   * Get the XR HTML path for a specific file
-   * @param filePath Path to the analyzed file
-   * @returns Path to the XR HTML file
-   */
-  public getXRHtmlPath(filePath: string): string | undefined {
-    return this.xrHtmlPaths.get(filePath);
-  }
-
   /**
    * Watch a visualization data file for changes
    * @param jsonFilePath Path to the JSON data file to watch
@@ -434,7 +538,7 @@ export class FileWatchManager {
    */
   public watchVisualizationDataFile(jsonFilePath: string, htmlFilePath: string): void {
     if (!jsonFilePath || !fs.existsSync(jsonFilePath)) {
-      console.error(`Cannot watch non-existent JSON file: ${jsonFilePath}`);
+      console.warn(`JSON file not found: ${jsonFilePath}`);
       return;
     }
 
@@ -443,10 +547,9 @@ export class FileWatchManager {
     // Watch for changes to the JSON file
     const jsonWatcher = fs.watch(jsonFilePath, (eventType) => {
       if (eventType === 'change') {
-        console.log(`JSON file changed: ${jsonFilePath}`);
-        
-        // Notify clients to refresh their data
-        notifyClientsDataRefresh();
+        console.log(`📊 Data file changed: ${path.basename(jsonFilePath)}`);
+        // Replace with simple notification
+        this.notifyVisualizationDataChanged(jsonFilePath);
       }
     });
     
@@ -454,18 +557,33 @@ export class FileWatchManager {
     if (htmlFilePath && fs.existsSync(htmlFilePath)) {
       const htmlWatcher = fs.watch(htmlFilePath, (eventType) => {
         if (eventType === 'change') {
-          console.log(`HTML file changed: ${htmlFilePath}`);
-          
-          // Notify clients to reload the page
-          notifyClients();
+          console.log(`📄 HTML file changed: ${path.basename(htmlFilePath)}`);
+          // Replace with simple notification
+          this.notifyVisualizationChanged(htmlFilePath);
         }
       });
       
-      // Store the watcher
+      // Store both watchers
       this.fileWatchers.set(htmlFilePath, { dispose: () => htmlWatcher.close() });
     }
     
     // Store the JSON watcher
     this.fileWatchers.set(jsonFilePath, { dispose: () => jsonWatcher.close() });
+  }
+  
+  /**
+   * Simple notification for data changes
+   */
+  private notifyVisualizationDataChanged(filePath: string): void {
+    console.log(`📊 Visualization data changed: ${path.basename(filePath)}`);
+    // File change detected - browsers with live reload will automatically refresh
+  }
+  
+  /**
+   * Simple notification for HTML changes
+   */
+  private notifyVisualizationChanged(filePath: string): void {
+    console.log(`📄 Visualization HTML changed: ${path.basename(filePath)}`);
+    // File change detected - browsers with live reload will automatically refresh
   }
 }

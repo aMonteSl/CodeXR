@@ -9,35 +9,41 @@ import {
 } from '../analysis/analysisManager';
 import { FileWatchManager } from '../analysis/fileWatchManager';
 import { FileAnalysisResult, AnalysisMode } from '../analysis/model';
-import { createXRVisualization, openXRVisualization } from '../analysis/xr/xrAnalysisManager';
+import { createXRVisualization } from '../analysis/xr/xrAnalysisManager';
 import { analysisDataManager } from '../analysis/analysisDataManager';
+import { 
+  getChartDimensions, 
+  getDimensionMapping, 
+  setDimensionMapping, 
+  ANALYSIS_FIELDS 
+} from '../analysis/xr/dimensionMapping.js';
 
 /**
  * Registers all analysis-related commands
- * @param context Extension context for storage
- * @returns Array of disposables for registered commands
  */
 export function registerAnalysisCommands(
   context: vscode.ExtensionContext
 ): vscode.Disposable[] {
-  // Use an array to collect all command disposables
   const disposables: vscode.Disposable[] = [];
   
-  // IMPORTANT: Don't register these since they would conflict with our new ones
-  // Register analyze command
-  // disposables.push(registerAnalysisCommand(context));
-  
-  // Register 3D analysis command
-  // disposables.push(registerAnalysis3DCommand(context));
-  
-  // Register the command to switch analysis modes
+  // Register settings commands
   disposables.push(registerSetAnalysisModeCommand());
+  disposables.push(registerSetAnalysisDebounceDelayCommand());
+  disposables.push(registerToggleAutoAnalysisCommand());
+  disposables.push(registerRefreshAnalysisTreeCommand());
+  disposables.push(registerSetAnalysisChartTypeCommand(context));
+  disposables.push(registerSetDimensionMappingCommand(context));
+  disposables.push(registerResetAnalysisDefaultsCommand(context));
 
-  // Actualizar el comando de análisis desde el árbol
-  disposables.push(vscode.commands.registerCommand('codexr.analyzeFileFromTree', async (filePath: string) => {
-    console.log(`Analyzing file from tree: ${filePath}`);
+  // ✅ COMANDOS PRINCIPALES DE ANÁLISIS (MENÚ CONTEXTUAL)
+  
+  // Comando para análisis estático (webview)
+  disposables.push(vscode.commands.registerCommand('codexr.analyzeFile', async (fileUri?: vscode.Uri) => {
+    const filePath = getFilePathFromUri(fileUri);
+    if (!filePath) return;
+
+    console.log(`🔍 Starting STATIC analysis of file: ${filePath}`);
     
-    // Fix the showAnalysisWebView calls to include both required parameters
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
       title: `Analyzing ${path.basename(filePath)}...`,
@@ -46,265 +52,185 @@ export function registerAnalysisCommands(
       progress.report({ increment: 30, message: "Running code analysis..." });
       
       const result = await analyzeFile(filePath, context);
+      if (!result) {
+        vscode.window.showErrorMessage('Failed to analyze file.');
+        return;
+      }
       
       progress.report({ increment: 70, message: "Preparing visualization..." });
       
-      if (result) {
-        // Store result for potential updates
-        analysisDataManager.setAnalysisResult(filePath, result);
-        
-        // Display the analysis in the webview
-        showAnalysisWebView(context, result);
-      }
+      // Store result
+      analysisDataManager.setAnalysisResult(filePath, result);
       
-      return Promise.resolve();
+      // Show static webview
+      showAnalysisWebView(context, result);
+      
+      // Configure file watcher for static analysis
+      const fileWatchManager = FileWatchManager.getInstance();
+      if (fileWatchManager) {
+        fileWatchManager.setContext(context);
+        fileWatchManager.setAnalysisMode(filePath, AnalysisMode.STATIC);
+        fileWatchManager.startWatching(filePath, AnalysisMode.STATIC);
+      }
     });
   }));
 
-  // Register standard analysis command (replacing the previous implementation)
-  const analyzeFileCommand = vscode.commands.registerCommand('codexr.analyzeFile', async (fileUri?: vscode.Uri) => {
-    try {
-      // Get the active file if no fileUri is provided
-      if (!fileUri) {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-          vscode.window.showErrorMessage('No file selected for analysis.');
-          return;
-        }
-        fileUri = editor.document.uri;
+  // Comando para análisis XR (3D)
+  disposables.push(vscode.commands.registerCommand('codexr.analyzeFile3D', async (fileUri?: vscode.Uri) => {
+    const filePath = getFilePathFromUri(fileUri);
+    if (!filePath) return;
+
+    console.log(`🔮 Starting XR analysis of file: ${filePath}`);
+    
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: `Creating XR visualization for ${path.basename(filePath)}...`,
+      cancellable: false
+    }, async (progress) => {
+      progress.report({ increment: 30, message: "Running code analysis..." });
+      
+      const result = await analyzeFile(filePath, context);
+      if (!result) {
+        vscode.window.showErrorMessage('Failed to analyze file.');
+        return;
       }
       
-      // At this point fileUri is guaranteed to be defined
-      const filePath = fileUri.fsPath;
-      console.log(`Starting analysis of file: ${filePath}`);
+      progress.report({ increment: 70, message: "Creating XR visualization..." });
       
-      // Show progress notification
+      // Create XR visualization (this automatically opens the browser)
+      const htmlPath = await createXRVisualization(context, result);
+      
+      if (htmlPath) {
+        // Configure file watcher for XR analysis
+        const fileWatchManager = FileWatchManager.getInstance();
+        if (fileWatchManager) {
+          fileWatchManager.setContext(context);
+          fileWatchManager.setAnalysisMode(filePath, AnalysisMode.XR);
+          fileWatchManager.startWatching(filePath, AnalysisMode.XR);
+        }
+        console.log('✅ XR visualization created and file watcher configured');
+      }
+    });
+  }));
+
+  // ✅ COMANDO DESDE EL ÁRBOL (USA EL MODO CONFIGURADO)
+  disposables.push(vscode.commands.registerCommand('codexr.analyzeFileFromTree', async (filePath: string) => {
+    console.log(`🌳 Analyzing file from tree: ${filePath}`);
+    
+    try {
+      // ✅ PRIMERO ABRIR EL ARCHIVO EN EL EDITOR SI NO ESTÁ ABIERTO
+      console.log(`📂 Opening file in editor: ${path.basename(filePath)}`);
+      
+      const fileUri = vscode.Uri.file(filePath);
+      const document = await vscode.workspace.openTextDocument(fileUri);
+      await vscode.window.showTextDocument(document, {
+        preview: false, // No abrir en modo preview
+        viewColumn: vscode.ViewColumn.One // Abrir en la columna principal
+      });
+      
+      console.log(`✅ File opened in editor: ${path.basename(filePath)}`);
+      
+      // ✅ PEQUEÑO DELAY PARA ASEGURAR QUE EL EDITOR ESTÉ LISTO
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Get current analysis mode from settings
+      const config = vscode.workspace.getConfiguration();
+      const currentMode = config.get<string>('codexr.analysisMode', 'Static');
+      
+      console.log(`🔍 Analysis mode from settings: ${currentMode}`);
+      
+      if (currentMode === 'XR') {
+        // Use XR analysis
+        console.log(`🔮 Starting XR analysis for ${path.basename(filePath)}`);
+        await vscode.commands.executeCommand('codexr.analyzeFile3D', fileUri);
+      } else {
+        // Use static analysis
+        console.log(`📊 Starting static analysis for ${path.basename(filePath)}`);
+        await vscode.commands.executeCommand('codexr.analyzeFile', fileUri);
+      }
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Error opening/analyzing file from tree:`, error);
+      vscode.window.showErrorMessage(`Error opening file: ${errorMessage}`);
+    }
+  }));
+
+  // ✅ COMANDO DE APERTURA Y ANÁLISIS (SIEMPRE ESTÁTICO)
+  disposables.push(vscode.commands.registerCommand('codexr.openAndAnalyzeFile', async (filePath: string) => {
+    console.log(`📂 Opening and analyzing file: ${filePath}`);
+    
+    try {
+      // ✅ ABRIR EL ARCHIVO EN EL EDITOR
+      const fileUri = vscode.Uri.file(filePath);
+      const document = await vscode.workspace.openTextDocument(fileUri);
+      const editor = await vscode.window.showTextDocument(document, {
+        preview: false,
+        viewColumn: vscode.ViewColumn.One
+      });
+      
+      console.log(`✅ File opened: ${path.basename(filePath)}`);
+      
+      // ✅ PEQUEÑO DELAY PARA ASEGURAR QUE EL EDITOR ESTÉ LISTO
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // ✅ SIEMPRE USAR ANÁLISIS ESTÁTICO PARA ESTE COMANDO
+      console.log(`📊 Starting static analysis for opened file: ${path.basename(filePath)}`);
+      
       await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: `Analyzing ${path.basename(filePath)}...`,
         cancellable: false
       }, async (progress) => {
-        progress.report({ increment: 30, message: "Running code analysis..." });
+        progress.report({ increment: 50, message: "Running code analysis..." });
         
-        // Use filePath instead of fileUri.fsPath
         const result = await analyzeFile(filePath, context);
-        
-        progress.report({ increment: 70, message: "Preparing visualization..." });
-        
-        if (result) {
-          // Store result for potential updates
-          analysisDataManager.setAnalysisResult(filePath, result);
-          
-          // Display the analysis in the webview
-          showAnalysisWebView(context, result);
-          
-          // Set up file watcher after successful analysis
-          const fileWatchManager = FileWatchManager.getInstance();
-          if (fileWatchManager) {
-            fileWatchManager.setContext(context);
-            fileWatchManager.setAnalysisMode(filePath, AnalysisMode.STATIC);
-            fileWatchManager.startWatching(filePath, AnalysisMode.STATIC);
-            console.log(`File watcher set up for static analysis of ${filePath}`);
-          }
-        } else {
-          vscode.window.showErrorMessage('Failed to analyze file. Check console for details.');
-        }
-        
-        return Promise.resolve();
-      });
-    } catch (error) {
-      console.error('Error analyzing file in static mode:', error);
-      vscode.window.showErrorMessage(`Error analyzing file: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-  disposables.push(analyzeFileCommand);
-  
-  // Reemplazar el comando de análisis XR
-  const analyzeFile3DCommand = vscode.commands.registerCommand('codexr.analyzeFile3D', async (fileUri?: vscode.Uri) => {
-    try {
-      // Get the active file if no fileUri is provided
-      if (!fileUri) {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-          vscode.window.showErrorMessage('No file selected for analysis.');
+        if (!result) {
+          vscode.window.showErrorMessage('Failed to analyze file.');
           return;
         }
-        fileUri = editor.document.uri;
-      }
-      
-      // At this point fileUri is guaranteed to be defined
-      const filePath = fileUri.fsPath;
-      console.log(`Starting XR analysis of file: ${filePath}`);
-      
-      // Show progress notification
-      await vscode.window.withProgress({
-        location: vscode.ProgressLocation.Notification,
-        title: `Preparing XR visualization for ${path.basename(filePath)}...`,
-        cancellable: false
-      }, async (progress) => {
-        progress.report({ increment: 30, message: "Running code analysis..." });
         
-        // Use filePath instead of fileUri.fsPath
-        const result = await analyzeFile(filePath, context);
+        progress.report({ increment: 50, message: "Opening analysis view..." });
         
-        if (!result) {
-          vscode.window.showErrorMessage('Failed to analyze file for XR visualization.');
-          return Promise.resolve();
+        // Show static analysis
+        showAnalysisWebView(context, result);
+        
+        // Configure file watcher for static analysis
+        const fileWatchManager = FileWatchManager.getInstance();
+        if (fileWatchManager) {
+          fileWatchManager.setContext(context);
+          fileWatchManager.setAnalysisMode(filePath, AnalysisMode.STATIC);
+          fileWatchManager.startWatching(filePath, AnalysisMode.STATIC);
         }
         
-        progress.report({ increment: 60, message: "Creating XR visualization..." });
-        
-        // Store result for potential updates
-        analysisDataManager.setAnalysisResult(filePath, result);
-        
-        // Create and open XR visualization
-        const htmlFilePath = await createXRVisualization(context, result);
-        
-        if (htmlFilePath) {
-          progress.report({ increment: 90, message: "Opening visualization in browser..." });
-          
-          // Set up file watcher after successful analysis
-          const fileWatchManager = FileWatchManager.getInstance();
-          if (fileWatchManager) {
-            fileWatchManager.setContext(context);
-            fileWatchManager.setAnalysisMode(filePath, AnalysisMode.XR);
-            fileWatchManager.startWatching(filePath, AnalysisMode.XR);
-            // Para el modo XR, también configurar la ruta del HTML
-            fileWatchManager.setXRHtmlPath(filePath, htmlFilePath);
-          }
-          
-          // Open the visualization in the browser
-          await openXRVisualization(htmlFilePath, context);
-        } else {
-          vscode.window.showErrorMessage('Failed to create XR visualization.');
-        }
-        
-        return Promise.resolve();
+        console.log('✅ Static analysis completed and file watcher configured');
       });
-    } catch (error) {
-      console.error('Error analyzing file for XR:', error);
-      vscode.window.showErrorMessage(`Error creating XR visualization: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-  disposables.push(analyzeFile3DCommand);
-
-  // Command to analyze multiple files in XR mode
-  const analyzeMultipleFiles3DCommand = vscode.commands.registerCommand(
-    'codexr.analyzeMultipleFiles3D', 
-    async (fileUris?: vscode.Uri[]) => {
-      try {
-        // If no fileUris provided, let the user select files
-        if (!fileUris || fileUris.length === 0) {
-          const options: vscode.OpenDialogOptions = {
-            canSelectMany: true,
-            openLabel: 'Analyze Files in XR',
-            filters: {
-              'Code Files': ['py', 'js', 'ts', 'c', 'cpp', 'java']
-            }
-          };
-          
-          fileUris = await vscode.window.showOpenDialog(options);
-          if (!fileUris || fileUris.length === 0) {
-            return;
-          }
-        }
-        
-        // Show progress notification
-        await vscode.window.withProgress({
-          location: vscode.ProgressLocation.Notification,
-          title: `Preparing XR visualizations for ${fileUris.length} files...`,
-          cancellable: false
-        }, async (progress) => {
-          // Process each file
-          for (let i = 0; i < fileUris!.length; i++) {
-            const fileUri = fileUris![i];
-            const filePath = fileUri.fsPath;
-            const fileName = path.basename(filePath);
-            
-            progress.report({ 
-              increment: (100 / fileUris!.length), 
-              message: `Analyzing ${fileName} (${i+1}/${fileUris!.length})` 
-            });
-            
-            // Analyze the file
-            const result = await analyzeFile(filePath, context);
-            
-            if (result) {
-              // Store the result
-              analysisDataManager.setAnalysisResult(filePath, result);
-              
-              // Create XR visualization
-              const htmlFilePath = await createXRVisualization(context, result);
-              
-              if (htmlFilePath) {
-                // Set up file watcher
-                const fileWatchManager = FileWatchManager.getInstance();
-                if (fileWatchManager) {
-                  fileWatchManager.setContext(context);
-                  fileWatchManager.setAnalysisMode(filePath, AnalysisMode.XR);
-                  fileWatchManager.startWatching(filePath, AnalysisMode.XR);
-                  fileWatchManager.setXRHtmlPath(filePath, htmlFilePath);
-                }
-                
-                // Open visualization in browser
-                await openXRVisualization(htmlFilePath, context, filePath);
-              }
-            }
-          }
-          
-          return Promise.resolve();
-        });
-      } catch (error) {
-        console.error('Error analyzing multiple files:', error);
-        vscode.window.showErrorMessage(`Error analyzing files: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-  );
-  disposables.push(analyzeMultipleFiles3DCommand);
-  
-  // Command to open and analyze file in static mode
-  const openAndAnalyzeFileCommand = vscode.commands.registerCommand('codexr.openAndAnalyzeFile', async (fileUri: vscode.Uri) => {
-    try {
-      // First, open the document
-      await vscode.window.showTextDocument(fileUri);
       
-      // Then analyze it
-      await vscode.commands.executeCommand('codexr.analyzeFile', fileUri);
     } catch (error) {
-      console.error('Error opening and analyzing file:', error);
-      vscode.window.showErrorMessage(`Error analyzing file: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Error in openAndAnalyzeFile:`, error);
+      vscode.window.showErrorMessage(`Error: ${errorMessage}`);
     }
-  });
-  disposables.push(openAndAnalyzeFileCommand);
-  
-  // Command to open and analyze file in XR mode
-  const openAndAnalyzeFile3DCommand = vscode.commands.registerCommand('codexr.openAndAnalyzeFile3D', async (fileUri: vscode.Uri) => {
-    try {
-      // First, open the document
-      await vscode.window.showTextDocument(fileUri);
-      
-      // Then analyze it in XR mode
-      await vscode.commands.executeCommand('codexr.analyzeFile3D', fileUri);
-    } catch (error) {
-      console.error('Error opening and analyzing file in XR mode:', error);
-      vscode.window.showErrorMessage(`Error analyzing file in XR: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-  disposables.push(openAndAnalyzeFile3DCommand);
+  }));
 
-  // Register the command to set analysis debounce delay
-  disposables.push(registerSetAnalysisDebounceDelayCommand());
-  
-  // Register the command to toggle auto-analysis
-  disposables.push(registerToggleAutoAnalysisCommand());
-  
-  // Add our refresh tree command
-  disposables.push(registerRefreshAnalysisTreeCommand());
-  
-  // Register the command to set the analysis chart type
-  disposables.push(registerSetAnalysisChartTypeCommand());
-  
   return disposables;
+}
+
+/**
+ * Helper function to get file path from URI
+ */
+function getFilePathFromUri(fileUri?: vscode.Uri): string | undefined {
+  if (fileUri) {
+    return fileUri.fsPath;
+  }
+  
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showInformationMessage('No file is currently open for analysis');
+    return undefined;
+  }
+  
+  return editor.document.uri.fsPath;
 }
 
 /**
@@ -324,8 +250,7 @@ export function registerSetAnalysisModeCommand(): vscode.Disposable {
     if ((global as any).treeDataProvider) {
       (global as any).treeDataProvider.refresh();
     } else {
-      // Fallback
-      await vscode.commands.executeCommand('codexr.refreshTreeView');
+      vscode.commands.executeCommand('codexr.refreshTreeView');
     }
   });
 }
@@ -356,26 +281,22 @@ export function registerSetAnalysisDebounceDelayCommand(): vscode.Disposable {
     );
     
     if (selection) {
-      console.log('Setting analysis debounce delay to:', selection.value);
-      
-      // Update configuration
       const config = vscode.workspace.getConfiguration();
       await config.update('codexr.analysis.debounceDelay', selection.value, vscode.ConfigurationTarget.Global);
       
-      // Update FileWatchManager directly
+      // Update FileWatchManager if it exists
       const fileWatchManager = FileWatchManager.getInstance();
       if (fileWatchManager) {
         fileWatchManager.setDebounceDelay(selection.value);
       }
       
-      // Show confirmation
-      vscode.window.showInformationMessage(`Analysis debounce delay set to: ${selection.label}`);
+      vscode.window.showInformationMessage(`Debounce delay set to ${selection.label}`);
       
       // Refresh tree view
       if ((global as any).treeDataProvider) {
         (global as any).treeDataProvider.refresh();
       } else {
-        await vscode.commands.executeCommand('codexr.refreshTreeView');
+        vscode.commands.executeCommand('codexr.refreshTreeView');
       }
     }
   });
@@ -387,47 +308,38 @@ export function registerSetAnalysisDebounceDelayCommand(): vscode.Disposable {
 export function registerToggleAutoAnalysisCommand(): vscode.Disposable {
   return vscode.commands.registerCommand('codexr.toggleAutoAnalysis', async () => {
     const config = vscode.workspace.getConfiguration();
-    const currentSetting = config.get<boolean>('codexr.analysis.autoAnalysis', true);
+    const currentValue = config.get<boolean>('codexr.analysis.autoAnalysis', true);
+    const newValue = !currentValue;
     
-    // Toggle the setting
-    const newSetting = !currentSetting;
+    await config.update('codexr.analysis.autoAnalysis', newValue, vscode.ConfigurationTarget.Global);
     
-    console.log('Toggling auto-analysis from', currentSetting, 'to', newSetting);
-    
-    // Update configuration
-    await config.update('codexr.analysis.autoAnalysis', newSetting, vscode.ConfigurationTarget.Global);
-    
-    // Update FileWatchManager directly
+    // Update FileWatchManager if it exists
     const fileWatchManager = FileWatchManager.getInstance();
     if (fileWatchManager) {
-      fileWatchManager.setAutoAnalysis(newSetting);
+      fileWatchManager.setAutoAnalysis(newValue);
     }
     
-    // Show confirmation
-    vscode.window.showInformationMessage(`Auto-analysis ${newSetting ? 'enabled' : 'disabled'}`);
+    vscode.window.showInformationMessage(`Auto-analysis ${newValue ? 'enabled' : 'disabled'}`);
     
     // Refresh tree view
     if ((global as any).treeDataProvider) {
       (global as any).treeDataProvider.refresh();
     } else {
-      await vscode.commands.executeCommand('codexr.refreshTreeView');
+      vscode.commands.executeCommand('codexr.refreshTreeView');
     }
   });
 }
 
 /**
- * Sets the analysis debounce delay
+ * Refresh the analysis tree
  */
 export function registerRefreshAnalysisTreeCommand(): vscode.Disposable {
   return vscode.commands.registerCommand('codexr.refreshAnalysisTree', async () => {
     // Usa el proveedor global si está disponible
     if ((global as any).treeDataProvider) {
-      console.log('Refreshing analysis tree via global provider');
       (global as any).treeDataProvider.refresh();
     } else {
-      // Fallback - intenta usar el comando estándar de refresh
-      console.log('Refreshing tree view via command');
-      await vscode.commands.executeCommand('codexr.refreshTreeView');
+      vscode.commands.executeCommand('codexr.refreshTreeView');
     }
     
     vscode.window.showInformationMessage('Analysis tree refreshed');
@@ -437,7 +349,7 @@ export function registerRefreshAnalysisTreeCommand(): vscode.Disposable {
 /**
  * Registers the command to set the analysis chart type
  */
-export function registerSetAnalysisChartTypeCommand(): vscode.Disposable {
+export function registerSetAnalysisChartTypeCommand(context: vscode.ExtensionContext): vscode.Disposable {
   return vscode.commands.registerCommand('codexr.setAnalysisChartType', async () => {
     const options = [
       { label: "Boats", description: "3D Blocks Visualization", value: "boats" },
@@ -461,21 +373,133 @@ export function registerSetAnalysisChartTypeCommand(): vscode.Disposable {
     );
     
     if (selection) {
-      console.log('Setting analysis chart type to:', selection.value);
+      // ✅ GUARDAR EN AMBOS LUGARES PARA CONSISTENCIA
+      await context.globalState.update('codexr.analysis.chartType', selection.value);
       
-      // Update configuration
+      // ✅ TAMBIÉN GUARDAR EN WORKSPACE CONFIG PARA EL TREE VIEW
       const config = vscode.workspace.getConfiguration();
       await config.update('codexr.analysis.chartType', selection.value, vscode.ConfigurationTarget.Global);
       
-      // Show confirmation
-      vscode.window.showInformationMessage(`Analysis chart type set to: ${selection.label}`);
+      vscode.window.showInformationMessage(`Chart type set to: ${selection.label}`);
       
-      // Refresh tree view to show updated setting
+      // Refresh tree view
       if ((global as any).treeDataProvider) {
         (global as any).treeDataProvider.refresh();
       } else {
-        await vscode.commands.executeCommand('codexr.refreshTreeView');
+        vscode.commands.executeCommand('codexr.refreshTreeView');
       }
+    }
+  });
+}
+
+/**
+ * Register command to set dimension mapping for analysis charts
+ */
+function registerSetDimensionMappingCommand(context: vscode.ExtensionContext): vscode.Disposable {
+  return vscode.commands.registerCommand(
+    'codexr.setDimensionMapping',
+    async (chartType: string, dimensionKey: string, dimensionLabel: string) => {
+      try {
+        // Get current mapping
+        const currentMapping = getDimensionMapping(chartType, context);
+        
+        // Show available fields
+        const options = ANALYSIS_FIELDS.map(field => ({
+          label: field.label,
+          description: field.description,
+          value: field.key
+        }));
+        
+        const selection = await vscode.window.showQuickPick(options, {
+          placeHolder: `Select field for ${dimensionLabel}`,
+          title: `Map ${dimensionLabel} to which data field?`
+        });
+        
+        if (selection) {
+          // Update the mapping
+          const updatedMapping = { ...currentMapping };
+          updatedMapping[dimensionKey] = selection.value;
+          
+          // Save the mapping
+          setDimensionMapping(chartType, updatedMapping, context);
+          
+          vscode.window.showInformationMessage(
+            `${dimensionLabel} mapped to ${selection.label}`
+          );
+          
+          // Refresh tree view
+          if ((global as any).treeDataProvider) {
+            (global as any).treeDataProvider.refresh();
+          } else {
+            vscode.commands.executeCommand('codexr.refreshTreeView');
+          }
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Error setting dimension mapping: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+}
+
+/**
+ * ✅ NUEVO COMANDO PARA RESET DE CONFIGURACIÓN
+ */
+function registerResetAnalysisDefaultsCommand(context: vscode.ExtensionContext): vscode.Disposable {
+  return vscode.commands.registerCommand('codexr.resetAnalysisDefaults', async () => {
+    try {
+      // Confirmar la acción con el usuario
+      const confirmation = await vscode.window.showWarningMessage(
+        'This will reset your analysis configuration to defaults:\n\n• Chart Type: Boats\n• Area: parameters\n• Height: linesCount\n• Color: complexity\n\nDo you want to continue?',
+        { modal: true },
+        'Reset to Defaults',
+        'Cancel'
+      );
+
+      if (confirmation !== 'Reset to Defaults') {
+        return;
+      }
+
+      // Reset chart type to boats
+      await context.globalState.update('codexr.analysis.chartType', 'boats');
+      
+      // ✅ TAMBIÉN ACTUALIZAR EN WORKSPACE CONFIG PARA CONSISTENCIA
+      const config = vscode.workspace.getConfiguration();
+      await config.update('codexr.analysis.chartType', 'boats', vscode.ConfigurationTarget.Global);
+      
+      // Reset dimension mapping for boats to default values
+      const defaultBoatsMapping = {
+        area: 'parameters',
+        height: 'linesCount',
+        color: 'complexity'
+      };
+      
+      await context.globalState.update('codexr.analysis.dimensionMapping.boats', defaultBoatsMapping);
+      
+      // Clear any other chart type mappings to ensure clean state
+      const chartTypes = ['bars', 'cyls', 'barsmap', 'pie', 'donut'];
+      for (const chartType of chartTypes) {
+        await context.globalState.update(`codexr.analysis.dimensionMapping.${chartType}`, undefined);
+      }
+      
+      console.log('🔄 Analysis configuration reset to defaults:', {
+        chartType: 'boats',
+        mapping: defaultBoatsMapping
+      });
+      
+      vscode.window.showInformationMessage('Analysis configuration reset to defaults: Boats chart with default dimension mapping.');
+      
+      // Refresh tree view
+      if ((global as any).treeDataProvider) {
+        (global as any).treeDataProvider.refresh();
+      } else {
+        vscode.commands.executeCommand('codexr.refreshTreeView');
+      }
+      
+    } catch (error) {
+      console.error('Error resetting analysis defaults:', error);
+      vscode.window.showErrorMessage(`Error resetting configuration: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
 }

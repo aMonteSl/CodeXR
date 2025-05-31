@@ -170,55 +170,72 @@ function registerBabiaCommands(context, treeDataProvider) {
                 vscode.window.showErrorMessage('No example path provided');
                 return;
             }
-            console.log(`Attempting to open example at: ${examplePath}`);
-            // Check if file exists using fs.existsSync
+            console.log(`🚀 Attempting to launch example at: ${examplePath}`);
+            // ✅ VERIFICAR QUE EL ARCHIVO EXISTE
             if (!fs.existsSync(examplePath)) {
                 vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
-                console.error(`File not found: ${examplePath}`);
+                console.error(`❌ File not found: ${examplePath}`);
+                // ✅ LISTAR ARCHIVOS DISPONIBLES PARA DEBUG
+                const exampleDir = path.dirname(examplePath);
+                if (fs.existsSync(exampleDir)) {
+                    console.log(`📁 Available files in ${exampleDir}:`);
+                    try {
+                        const files = fs.readdirSync(exampleDir);
+                        files.forEach(file => console.log(`  - ${file}`));
+                    }
+                    catch (error) {
+                        console.error(`Error reading directory ${exampleDir}:`, error);
+                    }
+                }
+                else {
+                    console.error(`Directory does not exist: ${exampleDir}`);
+                }
                 return;
             }
-            // Get the examples directory
-            const examplesRoot = path.join(context.extensionPath, 'examples');
-            console.log(`Using examples directory as server root: ${examplesRoot}`);
-            // IMPORTANT FIX: Verify the examples directory exists
-            if (!fs.existsSync(examplesRoot)) {
-                vscode.window.showErrorMessage(`Examples directory not found: ${examplesRoot}`);
+            // ✅ USAR LA CARPETA DEL EJEMPLO COMO ROOT DEL SERVIDOR
+            const exampleDir = path.dirname(examplePath);
+            const fileName = path.basename(examplePath);
+            console.log(`📁 Using example directory as server root: ${exampleDir}`);
+            console.log(`📄 Example file name: ${fileName}`);
+            // ✅ VERIFICAR QUE EL DIRECTORIO EXISTE
+            if (!fs.existsSync(exampleDir)) {
+                vscode.window.showErrorMessage(`Example directory not found: ${exampleDir}`);
                 return;
             }
-            // DEBUG: Check the actual permissions and content of the examples directory
+            // ✅ LISTAR CONTENIDO DEL DIRECTORIO PARA DEBUG
             try {
-                const files = fs.readdirSync(examplesRoot);
-                console.log(`Examples directory contains ${files.length} items`);
-                // List the first few items for debugging
-                console.log(`Content sample: ${files.slice(0, 5).join(', ')}...`);
+                const files = fs.readdirSync(exampleDir);
+                console.log(`📁 Example directory contains ${files.length} items:`);
+                files.forEach(file => console.log(`  - ${file}`));
             }
             catch (err) {
-                console.error(`Error reading examples directory: ${err}`);
+                console.error(`❌ Error reading example directory: ${err}`);
+                return;
             }
-            // Create server with the examples directory as root
-            const serverInfo = await (0, serverManager_1.createServer)(examplesRoot, serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS, context);
+            // ✅ CREAR SERVIDOR CON EL DIRECTORIO DEL EJEMPLO COMO ROOT
+            const serverInfo = await (0, serverManager_1.createServer)(exampleDir, // ✅ USAR EL DIRECTORIO DEL EJEMPLO, NO EL ROOT DE EXAMPLES
+            serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS, context);
             if (serverInfo) {
-                // Calculate the correct relative path from examples root
-                let relativePath = path.relative(examplesRoot, examplePath);
-                // Ensure proper path separators (important for Windows compatibility)
-                relativePath = relativePath.split(path.sep).join('/');
-                console.log(`Relative path from server root: ${relativePath}`);
-                // Construct the URL - use a slight delay to ensure server is fully ready
-                const url = `${serverInfo.url}/${relativePath}`;
-                console.log(`Opening URL: ${url}`);
-                // Add a small delay to ensure server is initialized
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                // Open in browser
+                // ✅ LA URL ES SIMPLEMENTE EL NOMBRE DEL ARCHIVO HTML
+                const url = `${serverInfo.url}/${fileName}`;
+                console.log(`✅ Example server created successfully`);
+                console.log(`🌐 Opening example URL: ${url}`);
+                // Open the example in the default browser
                 await vscode.env.openExternal(vscode.Uri.parse(url));
-                vscode.window.showInformationMessage(`Launched BabiaXR example in browser: ${path.basename(examplePath)}`);
+                // Show success message
+                vscode.window.showInformationMessage(`🚀 BabiaXR example "${path.basename(fileName, '.html')}" launched at ${url}`, 'View in Browser').then(selection => {
+                    if (selection === 'View in Browser') {
+                        vscode.env.openExternal(vscode.Uri.parse(url));
+                    }
+                });
             }
             else {
                 vscode.window.showErrorMessage('Failed to start server for BabiaXR example');
             }
         }
         catch (error) {
-            console.error('Error launching BabiaXR example:', error);
-            vscode.window.showErrorMessage(`Error launching BabiaXR example: ${error instanceof Error ? error.message : String(error)}`);
+            console.error('❌ Error launching BabiaXR example:', error);
+            vscode.window.showErrorMessage(`Error launching example: ${error instanceof Error ? error.message : String(error)}`);
         }
     }));
     return disposables;

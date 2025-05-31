@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TreeItem } from '../../ui/treeItems/baseItems';
 import { TreeItemType } from '../../ui/treeProvider';
+import { DimensionMappingItem } from './dimensionMappingTreeItem';
 
 /**
  * Item for the main analysis section
@@ -40,53 +41,104 @@ export class LanguageGroupItem extends TreeItem {
 }
 
 /**
- * Item for an analyzable file
+ * Individual file item in the analysis tree
  */
 export class AnalysisFileItem extends TreeItem {
-  constructor(fileUri: vscode.Uri, extensionPath: string) {
-    const fileName = path.basename(fileUri.fsPath);
-    const fileExtension = path.extname(fileUri.fsPath).toLowerCase();
-    const language = getLanguageFromExtension(fileExtension);
-    const languageIcon = getLanguageIcon(language, extensionPath);
-    
-    // Get the configured analysis mode
-    const config = vscode.workspace.getConfiguration();
-    const analysisMode = config.get<string>('codexr.analysisMode', 'Static');
-    
-    // Use our new commands that first open the file, then analyze it
-    const command = analysisMode === 'XR' ? 'codexr.openAndAnalyzeFile3D' : 'codexr.openAndAnalyzeFile';
+  constructor(
+    filePath: string,
+    relativePath: string,
+    language: string,
+    extensionPath: string
+  ) {
+    const fileName = path.basename(filePath);
     
     super(
       fileName,
-      `Analyze ${fileName} using ${analysisMode} mode`,
+      `${language} file - ${relativePath}`,
       TreeItemType.ANALYSIS_FILE,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: command,
-        title: `Analyze File (${analysisMode})`,
-        arguments: [fileUri]
+        // ✅ CAMBIAR EL COMANDO INEXISTENTE
+        command: 'codexr.analyzeFileFromTree', // ✅ USAR COMANDO QUE SÍ EXISTE
+        title: 'Analyze File',
+        arguments: [filePath] // ✅ PASAR LA RUTA COMO ARGUMENTO
       },
-      languageIcon
+      new vscode.ThemeIcon('file-code')
     );
     
-    // Use the resource URI to enable VS Code's built-in file handling capabilities
-    this.resourceUri = fileUri;
+    this.resourceUri = vscode.Uri.file(filePath);
+    this.tooltip = `Analyze ${fileName} (${language})`;
   }
 }
 
 /**
- * Item for analysis settings section
+ * Analysis settings container
  */
 export class AnalysisSettingsItem extends TreeItem {
-  constructor(extensionPath: string) {
+  private extensionPath: string;
+  private context: vscode.ExtensionContext;
+
+  constructor(extensionPath: string, context: vscode.ExtensionContext) {
     super(
       'Settings',
       'Configure analysis preferences',
       TreeItemType.ANALYSIS_SETTINGS,
-      vscode.TreeItemCollapsibleState.Expanded, // Change from Collapsed to Expanded
+      vscode.TreeItemCollapsibleState.Expanded,
       undefined,
       new vscode.ThemeIcon('gear')
     );
+    
+    this.extensionPath = extensionPath;
+    this.context = context;
+  }
+  
+  /**
+   * Gets current analysis settings from VS Code configuration
+   */
+  private async getCurrentSettings() {
+    const config = vscode.workspace.getConfiguration();
+    
+    // ✅ LEER CHART TYPE DESDE GLOBAL STATE PRIMERO
+    const chartType = this.context.globalState.get<string>('codexr.analysis.chartType') || 
+                     config.get<string>('codexr.analysis.chartType', 'boats');
+    
+    return {
+      currentMode: config.get<string>('codexr.analysisMode', 'Static'),
+      debounceDelay: config.get<number>('codexr.analysis.debounceDelay', 2000),
+      autoAnalysis: config.get<boolean>('codexr.analysis.autoAnalysis', true),
+      chartType
+    };
+  }
+  
+  async getChildren(): Promise<TreeItem[]> {
+    console.log('🔧 AnalysisSettingsItem.getChildren() called');
+    
+    // Get current settings
+    const { currentMode, debounceDelay, autoAnalysis, chartType } = await this.getCurrentSettings();
+    
+    console.log('🔧 Current settings in getChildren:', { currentMode, chartType });
+    
+    const items: TreeItem[] = [
+      new AnalysisModeOptionItem('Static', currentMode === 'Static', this.extensionPath),
+      new AnalysisModeOptionItem('XR', currentMode === 'XR', this.extensionPath),
+      new AnalysisDelayOptionItem(debounceDelay, this.extensionPath),
+      new AnalysisAutoOptionItem(autoAnalysis, this.extensionPath),
+      new AnalysisChartTypeOptionItem(chartType, this.extensionPath)
+    ];
+
+    // Add dimension mapping only for XR mode
+    if (currentMode === 'XR') {
+      console.log('🎯 Adding DimensionMappingItem for chart type:', chartType);
+      items.push(new DimensionMappingItem(chartType, this.extensionPath, this.context));
+    } else {
+      console.log('🔧 Not adding DimensionMappingItem because mode is:', currentMode);
+    }
+
+    // ✅ AÑADIR RESET BUTTON AL FINAL
+    items.push(new AnalysisResetItem(this.extensionPath));
+
+    console.log('🔧 Returning items:', items.map(item => item.label));
+    return items;
   }
 }
 
@@ -200,6 +252,26 @@ export class AnalysisChartTypeOptionItem extends TreeItem {
 }
 
 /**
+ * ✅ NUEVO ITEM PARA RESET DE CONFIGURACIÓN
+ */
+export class AnalysisResetItem extends TreeItem {
+  constructor(extensionPath: string) {
+    super(
+      'Reset to Defaults',
+      'Reset chart type to Boats and dimension mapping to default values',
+      TreeItemType.ANALYSIS_RESET,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.resetAnalysisDefaults',
+        title: 'Reset Analysis Configuration',
+        arguments: []
+      },
+      new vscode.ThemeIcon('refresh')
+    );
+  }
+}
+
+/**
  * Gets language name from file extension
  */
 function getLanguageFromExtension(ext: string): string {
@@ -232,13 +304,45 @@ function getLanguageFromExtension(ext: string): string {
  * Gets appropriate icon for language
  */
 function getLanguageIcon(language: string, extensionPath: string): any {
-  // Convert language name to lowercase for filename
-  const languageFileName = language.toLowerCase() + '.png';
+  // ✅ FIX: Handle special cases for C# and C++ language names
+  let iconFileName: string;
   
-  // Handle special case for JavaScript (correct casing in filename)
-  const iconFileName = language === 'JavaScript' 
-    ? 'javascript.png' 
-    : languageFileName;
+  switch (language) {
+    case 'C#':
+      iconFileName = 'csharp.png';
+      break;
+    case 'C++':
+    case 'C++ Header':
+      iconFileName = 'cpp.png';
+      break;
+    case 'JavaScript':
+    case 'JavaScript (JSX)':
+      iconFileName = 'javascript.png';
+      break;
+    case 'TypeScript':
+    case 'TypeScript (TSX)':
+      iconFileName = 'typescript.png';
+      break;
+    case 'Python':
+      iconFileName = 'python.png';
+      break;
+    case 'C':
+    case 'C Header':
+      iconFileName = 'c.png';
+      break;
+    case 'Vue':
+      iconFileName = 'vue.png';
+      break;
+    case 'Ruby':
+      iconFileName = 'ruby.png';
+      break;
+    default:
+      // For any other language, convert to lowercase and add .png
+      iconFileName = language.toLowerCase() + '.png';
+      break;
+  }
+  
+  console.log(`🎨 Language: "${language}" → Icon: "${iconFileName}"`);
   
   // Return custom icon paths
   return {

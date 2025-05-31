@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ActiveServerItem = exports.ActiveServersContainer = exports.ServerModeItem = exports.ServerConfigItem = exports.StartServerItem = void 0;
+exports.StopAllServersItem = exports.ActiveServerItem = exports.ActiveServersContainer = exports.ServerModeItem = exports.ServerConfigItem = exports.StartServerItem = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const baseItems_1 = require("./baseItems");
@@ -59,15 +59,18 @@ class StartServerItem extends baseItems_1.TreeItem {
                 description = "HTTPS with custom certificates";
                 break;
         }
-        // Determine the initial contextValue based on conditions
-        const initialContextValue = currentMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS && !defaultCertsExist
-            ? 'warning'
-            : treeProvider_1.TreeItemType.START_SERVER;
-        super('Start Local Server', 'Start server in ' + currentMode + ' mode\nSelect an HTML file to serve', initialContextValue, vscode.TreeItemCollapsibleState.None, {
+        // ✅ USAR SOLO TreeItemType.START_SERVER
+        super('Start Local Server', 'Start server in ' + currentMode + ' mode\nSelect an HTML file to serve', treeProvider_1.TreeItemType.START_SERVER, // ✅ Usar siempre el mismo tipo
+        vscode.TreeItemCollapsibleState.None, {
             command: 'codexr.startServerWithConfig',
             title: 'Start Server'
         }, new vscode.ThemeIcon('play'));
         this.description = description;
+        // ✅ MANEJAR EL WARNING A TRAVÉS DE PROPIEDADES
+        if (currentMode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS && !defaultCertsExist) {
+            this.iconPath = new vscode.ThemeIcon('warning');
+            this.description = "⚠️ " + description;
+        }
     }
 }
 exports.StartServerItem = StartServerItem;
@@ -131,16 +134,53 @@ exports.ActiveServersContainer = ActiveServersContainer;
  */
 class ActiveServerItem extends baseItems_1.TreeItem {
     constructor(serverInfo) {
-        super(path.basename(serverInfo.filePath), `${serverInfo.protocol.toUpperCase()} Server
+        // ✅ USAR NOMBRE PERSONALIZADO SI ES UN ANÁLISIS XR
+        const displayName = serverInfo.analysisFileName
+            ? `${serverInfo.analysisFileName}: ${serverInfo.port}`
+            : path.basename(serverInfo.filePath);
+        // ✅ DESCRIPCIÓN PERSONALIZADA PARA ANÁLISIS XR
+        const description = serverInfo.analysisFileName
+            ? `XR Analysis - ${serverInfo.protocol.toUpperCase()}`
+            : serverInfo.url;
+        const tooltip = serverInfo.analysisFileName
+            ? `XR Analysis Server
+File: ${serverInfo.analysisFileName}
 Path: ${serverInfo.filePath}
 URL: ${serverInfo.url}
-Click to see options`, treeProvider_1.TreeItemType.ACTIVE_SERVER, vscode.TreeItemCollapsibleState.None, {
+Click to see options`
+            : `${serverInfo.protocol.toUpperCase()} Server
+Path: ${serverInfo.filePath}
+URL: ${serverInfo.url}
+Click to see options`;
+        super(displayName, // ✅ USAR EL NOMBRE PERSONALIZADO
+        tooltip, treeProvider_1.TreeItemType.ACTIVE_SERVER, vscode.TreeItemCollapsibleState.None, {
             command: 'codexr.serverOptions',
             title: 'Server Options',
             arguments: [serverInfo]
-        }, new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe'));
-        this.description = serverInfo.url;
+        }, 
+        // ✅ ICONO DIFERENTE PARA ANÁLISIS XR
+        serverInfo.analysisFileName
+            ? new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.purple')) // Icono de análisis
+            : new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe'));
+        this.description = description;
+        // ✅ CONTEXT VALUE DIFERENTE PARA ANÁLISIS XR
+        this.contextValue = serverInfo.analysisFileName ? 'activeXRAnalysisServer' : 'activeServer';
     }
 }
 exports.ActiveServerItem = ActiveServerItem;
+/**
+ * Item to stop all servers when multiple servers are active
+ */
+class StopAllServersItem extends baseItems_1.TreeItem {
+    constructor(serverCount) {
+        super(`Stop All Servers (${serverCount})`, `Stop all ${serverCount} running servers at once`, treeProvider_1.TreeItemType.STOP_ALL_SERVERS, vscode.TreeItemCollapsibleState.None, {
+            command: 'codexr.stopAllServersFromTree',
+            title: 'Stop All Servers',
+            arguments: [serverCount]
+        }, new vscode.ThemeIcon('debug-stop', new vscode.ThemeColor('list.errorForeground')));
+        // Mostrar descripción con el número de servidores
+        this.description = `${serverCount} active`;
+    }
+}
+exports.StopAllServersItem = StopAllServersItem;
 //# sourceMappingURL=serverItems.js.map

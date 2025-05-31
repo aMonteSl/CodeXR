@@ -10,7 +10,8 @@ import {
   ServerModeItem, 
   StartServerItem, 
   ActiveServersContainer, 
-  ActiveServerItem 
+  ActiveServerItem,
+  StopAllServersItem  // ✅ NUEVA IMPORTACIÓN
 } from '../../ui/treeItems/serverItems';
 
 /**
@@ -41,6 +42,11 @@ export class ServerTreeProvider {
     
     if (activeServers.length > 0) {
       children.push(new ActiveServersContainer(activeServers.length));
+      
+      // ✅ AÑADIR BOTÓN DE CIERRE MASIVO SI HAY 2 O MÁS SERVIDORES
+      if (activeServers.length >= 2) {
+        children.push(new StopAllServersItem(activeServers.length));
+      }
     }
     
     return Promise.resolve(children);

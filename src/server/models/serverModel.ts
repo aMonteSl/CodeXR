@@ -37,6 +37,9 @@ export interface ServerInfo {
   
   /** Timestamp when the server was started */
   startTime?: number;
+  
+  /** ✅ AÑADIR: Nombre del archivo de análisis (para servidores XR) */
+  analysisFileName?: string;
 }
 
 /**

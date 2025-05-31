@@ -26,15 +26,11 @@ export class StartServerItem extends TreeItem {
         break;
     }
 
-    // Determine the initial contextValue based on conditions
-    const initialContextValue = currentMode === ServerMode.HTTPS_DEFAULT_CERTS && !defaultCertsExist 
-      ? 'warning' 
-      : TreeItemType.START_SERVER;
-    
+    // ✅ USAR SOLO TreeItemType.START_SERVER
     super(
       'Start Local Server',
       'Start server in ' + currentMode + ' mode\nSelect an HTML file to serve',
-      initialContextValue,
+      TreeItemType.START_SERVER, // ✅ Usar siempre el mismo tipo
       vscode.TreeItemCollapsibleState.None,
       {
         command: 'codexr.startServerWithConfig',
@@ -44,6 +40,12 @@ export class StartServerItem extends TreeItem {
     );
     
     this.description = description;
+    
+    // ✅ MANEJAR EL WARNING A TRAVÉS DE PROPIEDADES
+    if (currentMode === ServerMode.HTTPS_DEFAULT_CERTS && !defaultCertsExist) {
+      this.iconPath = new vscode.ThemeIcon('warning');
+      this.description = "⚠️ " + description;
+    }
   }
 }
 
@@ -132,12 +134,30 @@ export class ActiveServersContainer extends TreeItem {
  */
 export class ActiveServerItem extends TreeItem {
   constructor(serverInfo: ServerInfo) {
-    super(
-      path.basename(serverInfo.filePath),
-      `${serverInfo.protocol.toUpperCase()} Server
+    // ✅ USAR NOMBRE PERSONALIZADO SI ES UN ANÁLISIS XR
+    const displayName = serverInfo.analysisFileName 
+      ? `${serverInfo.analysisFileName}: ${serverInfo.port}`
+      : path.basename(serverInfo.filePath);
+    
+    // ✅ DESCRIPCIÓN PERSONALIZADA PARA ANÁLISIS XR
+    const description = serverInfo.analysisFileName
+      ? `XR Analysis - ${serverInfo.protocol.toUpperCase()}`
+      : serverInfo.url;
+    
+    const tooltip = serverInfo.analysisFileName
+      ? `XR Analysis Server
+File: ${serverInfo.analysisFileName}
 Path: ${serverInfo.filePath}
 URL: ${serverInfo.url}
-Click to see options`,
+Click to see options`
+      : `${serverInfo.protocol.toUpperCase()} Server
+Path: ${serverInfo.filePath}
+URL: ${serverInfo.url}
+Click to see options`;
+    
+    super(
+      displayName, // ✅ USAR EL NOMBRE PERSONALIZADO
+      tooltip,
       TreeItemType.ACTIVE_SERVER,
       vscode.TreeItemCollapsibleState.None,
       {
@@ -145,9 +165,38 @@ Click to see options`,
         title: 'Server Options',
         arguments: [serverInfo]
       },
-      new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe')
+      // ✅ ICONO DIFERENTE PARA ANÁLISIS XR
+      serverInfo.analysisFileName 
+        ? new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.purple')) // Icono de análisis
+        : new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe')
     );
     
-    this.description = serverInfo.url;
+    this.description = description;
+    
+    // ✅ CONTEXT VALUE DIFERENTE PARA ANÁLISIS XR
+    this.contextValue = serverInfo.analysisFileName ? 'activeXRAnalysisServer' : 'activeServer';
+  }
+}
+
+/**
+ * Item to stop all servers when multiple servers are active
+ */
+export class StopAllServersItem extends TreeItem {
+  constructor(serverCount: number) {
+    super(
+      `Stop All Servers (${serverCount})`,
+      `Stop all ${serverCount} running servers at once`,
+      TreeItemType.STOP_ALL_SERVERS,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.stopAllServersFromTree',
+        title: 'Stop All Servers',
+        arguments: [serverCount]
+      },
+      new vscode.ThemeIcon('debug-stop', new vscode.ThemeColor('list.errorForeground'))
+    );
+    
+    // Mostrar descripción con el número de servidores
+    this.description = `${serverCount} active`;
   }
 }

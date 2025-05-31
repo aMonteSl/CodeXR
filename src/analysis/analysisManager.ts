@@ -7,7 +7,7 @@ import { countFileLines, getFileSize, getLanguageName, formatFileSize, classifyC
 import { analysisDataManager } from './analysisDataManager';
 import { getPythonExecutable, getVenvPath } from '../pythonEnv/utils/pathUtils';
 import { executeCommand } from '../pythonEnv/utils/processUtils';
-import { createXRVisualization, openXRVisualization } from './xr/xrAnalysisManager';
+import { createXRVisualization } from './xr/xrAnalysisManager'; // ✅ ELIMINAR openXRVisualization
 import { FileWatchManager } from './fileWatchManager';
 
 // Output channel for analysis operations
@@ -394,12 +394,20 @@ export function showAnalysisWebView(context: vscode.ExtensionContext, result: Fi
 
 // Extract the data sending logic to a separate function
 export function sendAnalysisData(panel: vscode.WebviewPanel, result: FileAnalysisResult): void {
+  console.log(`📤 Sending updated analysis data for ${result.fileName}`);
+  
   setTimeout(() => {
     const transformedData = transformAnalysisDataForWebview(result);
+    
+    // ✅ ADD TIMESTAMP TO SHOW IT'S UPDATED
+    transformedData.lastUpdated = new Date().toLocaleTimeString();
+    
     panel.webview.postMessage({
       command: 'setAnalysisData',
       data: transformedData
     });
+    
+    console.log(`✅ Analysis data sent to webview for ${result.fileName}`);
   }, 500);
 }
 
@@ -645,9 +653,9 @@ export function registerAnalysis3DCommand(context: vscode.ExtensionContext): vsc
         return;
       }
       
-      // Open the visualization
-      progress.report({ increment: 30, message: "Launching visualization..." });
-      await openXRVisualization(htmlFilePath, context);
+      // ✅ NO LLAMAR openXRVisualization - createXRVisualization ya abre el navegador
+      progress.report({ increment: 30, message: "Visualization opened in browser..." });
+      console.log('✅ XR visualization created and opened successfully');
       
       return Promise.resolve();
     });

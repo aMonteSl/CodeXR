@@ -40,6 +40,7 @@ const treeProvider_1 = require("../treeProvider");
  * Base class for all tree items
  */
 class TreeItem extends vscode.TreeItem {
+    type; // ✅ Añadir esta propiedad
     // Add children property
     children;
     /**
@@ -52,10 +53,10 @@ class TreeItem extends vscode.TreeItem {
      * @param iconPath Icon for the item
      * @param children Pre-loaded child items (optional)
      */
-    constructor(label, tooltip, contextValue, collapsibleState, command, iconPath, children) {
+    constructor(label, tooltip, type, collapsibleState, command, iconPath, children) {
         super(label, collapsibleState);
         this.tooltip = tooltip;
-        this.contextValue = contextValue;
+        this.type = type; // ✅ Asignar el tipo
         this.command = command;
         this.iconPath = iconPath;
         if (children) {

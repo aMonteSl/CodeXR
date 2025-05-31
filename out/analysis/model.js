@@ -1,15 +1,16 @@
 "use strict";
-/**
- * Data models for code analysis
- */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnalysisMode = void 0;
 /**
- * Enum for different analysis modes
+ * Data models for code analysis
+ */
+/**
+ * Represents analysis mode
  */
 var AnalysisMode;
 (function (AnalysisMode) {
     AnalysisMode["STATIC"] = "static";
     AnalysisMode["XR"] = "xr";
+    AnalysisMode["WEB_VIEW"] = "webview"; // ✅ AÑADIR ESTA LÍNEA
 })(AnalysisMode || (exports.AnalysisMode = AnalysisMode = {}));
 //# sourceMappingURL=model.js.map

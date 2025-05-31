@@ -40,6 +40,7 @@ const path = __importStar(require("path"));
 const serverModel_1 = require("../server/models/serverModel");
 const serverManager_1 = require("../server/serverManager");
 const certificateManager_1 = require("../server/certificateManager");
+const portManager_1 = require("../server/portManager");
 /**
  * Registers all server-related commands
  * @param context Extension context for storage
@@ -280,6 +281,133 @@ function registerServerCommands(context, treeDataProvider) {
         catch (error) {
             vscode.window.showErrorMessage(`Error stopping servers: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }));
+    /**
+     * Command to show port status
+     */
+    disposables.push(vscode.commands.registerCommand('codexr.showPortStatus', async () => {
+        try {
+            const status = await portManager_1.portManager.getPortStatus();
+            const statusMessage = `Port Status (${status.range.start}-${status.range.end}):\n\n` +
+                `🔒 Active Services (${status.managed.length}):\n` +
+                status.managed.map(port => `  • Port ${port.port}: ${port.service} - ${port.description}`).join('\n') +
+                `\n\n✅ Available Ports: ${status.available.length}/${status.total}\n` +
+                `📋 Some available: ${status.available.slice(0, 10).join(', ')}${status.available.length > 10 ? '...' : ''}`;
+            vscode.window.showInformationMessage(statusMessage, { modal: true });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error getting port status: ${error}`);
+        }
+    }));
+    /**
+     * Helper function to stop all servers
+     */
+    function stopAllServers() {
+        const activeServers = (0, serverManager_1.getActiveServers)();
+        for (const server of activeServers) {
+            (0, serverManager_1.stopServer)(server.id);
+        }
+    }
+    /**
+     * Command to release all managed ports
+     */
+    disposables.push(vscode.commands.registerCommand('codexr.releaseAllPorts', async () => {
+        const confirm = await vscode.window.showWarningMessage('This will stop all CodeXR servers and release all managed ports. Continue?', 'Release All Ports', 'Cancel');
+        if (confirm === 'Release All Ports') {
+            // Stop all servers first
+            stopAllServers();
+            // Release all managed ports
+            portManager_1.portManager.releaseAllPorts();
+            vscode.window.showInformationMessage('All ports released successfully');
+        }
+    }));
+    /**
+     * Command to check specific port
+     */
+    disposables.push(vscode.commands.registerCommand('codexr.checkPort', async () => {
+        const input = await vscode.window.showInputBox({
+            prompt: 'Enter port number to check (3000-3100)',
+            placeHolder: '3000',
+            validateInput: (value) => {
+                const port = parseInt(value);
+                if (isNaN(port) || port < 3000 || port > 3100) {
+                    return 'Please enter a valid port number (3000-3100)';
+                }
+                return null;
+            }
+        });
+        if (input) {
+            const port = parseInt(input);
+            if (portManager_1.portManager.isPortManaged(port)) {
+                const activePorts = portManager_1.portManager.getActivePorts();
+                const activePort = activePorts.find(p => p.port === port);
+                vscode.window.showInformationMessage(`Port ${port} is managed by CodeXR:\n${activePort?.service} - ${activePort?.description}`);
+            }
+            else {
+                try {
+                    const nextFree = await portManager_1.portManager.findFreePort(port);
+                    if (nextFree === port) {
+                        vscode.window.showInformationMessage(`✅ Port ${port} is available`);
+                    }
+                    else {
+                        vscode.window.showWarningMessage(`❌ Port ${port} is in use by another application.\nNext available port: ${nextFree}`);
+                    }
+                }
+                catch (error) {
+                    vscode.window.showErrorMessage(`Error checking port: ${error}`);
+                }
+            }
+        }
+    }));
+    /**
+     * Command to stop all servers from tree (with confirmation)
+     */
+    disposables.push(vscode.commands.registerCommand('codexr.stopAllServersFromTree', async (serverCount) => {
+        try {
+            const confirm = await vscode.window.showWarningMessage(`Are you sure you want to stop all ${serverCount} running servers?`, { modal: true }, 'Stop All Servers', 'Cancel');
+            if (confirm === 'Stop All Servers') {
+                const activeServers = (0, serverManager_1.getActiveServers)();
+                // Mostrar progreso mientras se detienen los servidores
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: "Stopping servers...",
+                    cancellable: false
+                }, async (progress) => {
+                    const increment = 100 / activeServers.length;
+                    for (let i = 0; i < activeServers.length; i++) {
+                        const server = activeServers[i];
+                        progress.report({
+                            increment: increment,
+                            message: `Stopping ${path.basename(server.filePath)} (${i + 1}/${activeServers.length})`
+                        });
+                        (0, serverManager_1.stopServer)(server.id);
+                        // Pequeña pausa para dar tiempo al cierre
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                });
+                vscode.window.showInformationMessage(`✅ Successfully stopped ${serverCount} servers`, { modal: false });
+                // Refresh the view
+                treeDataProvider.refresh();
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error stopping servers: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }));
+    /**
+     * Command to debug server status
+     */
+    disposables.push(vscode.commands.registerCommand('codexr.debugServerStatus', async () => {
+        const activeServers = (0, serverManager_1.getActiveServers)();
+        const portStatus = await portManager_1.portManager.getPortStatus();
+        const debugInfo = `🔍 Server Debug Info:\n\n` +
+            `Active Servers (${activeServers.length}):\n` +
+            activeServers.map(server => `  • ${server.id}: ${server.url} (port ${server.port})`).join('\n') +
+            `\n\nManaged Ports (${portStatus.managed.length}):\n` +
+            portStatus.managed.map(port => `  • Port ${port.port}: ${port.service} - ${port.description}`).join('\n') +
+            `\n\nAvailable Ports: ${portStatus.available.length}/${portStatus.total}`;
+        console.log(debugInfo);
+        vscode.window.showInformationMessage(debugInfo, { modal: true });
     }));
     return disposables;
 }

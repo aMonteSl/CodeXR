@@ -42,50 +42,59 @@ const path = __importStar(require("path"));
 const baseItems_1 = require("../../ui/treeItems/baseItems");
 const treeProvider_1 = require("../../ui/treeProvider");
 const analysisTreeItems_1 = require("./analysisTreeItems");
+const dimensionMappingTreeItem_1 = require("./dimensionMappingTreeItem"); // ✅ Añadir import
 /**
- * Provider for code analysis tree items
+ * Tree data provider for analysis section
  */
 class AnalysisTreeProvider {
     context;
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
-    /**
-     * Constructor for the Analysis Tree Provider
-     * @param context Extension context for storage
-     */
     constructor(context) {
         this.context = context;
+    } // ✅ Añadir context como propiedad
+    refresh() {
+        this._onDidChangeTreeData.fire();
     }
-    /**
-     * Method to refresh the tree view
-     * @param element Optional element to refresh
-     */
-    refresh(element) {
-        console.log('Refreshing tree view', element?.label);
-        this._onDidChangeTreeData.fire(element);
-    }
-    /**
-     * Required implementation for TreeDataProvider
-     */
     getTreeItem(element) {
         return element;
     }
-    /**
-     * Required implementation - gets children of a tree item
-     */
-    getChildren(element) {
+    async getChildren(element) {
         if (!element) {
-            return getAnalysisChildren(this.context);
+            // Root level - return analysis section
+            const extensionPath = this.context.extensionUri.fsPath; // ✅ Usar context en lugar de this.extensionPath
+            return [new analysisTreeItems_1.AnalysisSectionItem(extensionPath)];
         }
-        console.log('Getting children for element type:', element.contextValue);
-        switch (element.contextValue) {
-            case treeProvider_1.TreeItemType.ANALYSIS_LANGUAGE_GROUP:
-                return getLanguageGroupChildren(element);
+        // Handle different element types
+        if (!element.type) { // ✅ Verificar si existe la propiedad type
+            return [];
+        }
+        switch (element.type) {
+            case treeProvider_1.TreeItemType.ANALYSIS_SECTION:
+                return getAnalysisChildren(this.context);
             case treeProvider_1.TreeItemType.ANALYSIS_SETTINGS:
-                console.log('Getting settings children');
-                return this.getSettingsChildren(this.context.extensionUri.fsPath);
+                // ✅ Usar el método getChildren del AnalysisSettingsItem
+                if (element instanceof analysisTreeItems_1.AnalysisSettingsItem) {
+                    console.log('🔧 Using AnalysisSettingsItem.getChildren()');
+                    return element.getChildren();
+                }
+                // Fallback to old method if needed
+                const extensionPath = this.context.extensionUri.fsPath; // ✅ Usar context
+                return this.getSettingsChildren(extensionPath);
+            case treeProvider_1.TreeItemType.ANALYSIS_LANGUAGE_GROUP:
+                if (element instanceof analysisTreeItems_1.LanguageGroupItem) {
+                    return element.children || [];
+                }
+                return [];
+            case treeProvider_1.TreeItemType.DIMENSION_MAPPING:
+                // ✅ AÑADIR SOPORTE PARA DIMENSION MAPPING
+                if (element instanceof dimensionMappingTreeItem_1.DimensionMappingItem) {
+                    console.log('🎯 Using DimensionMappingItem.getChildren()');
+                    return element.getChildren();
+                }
+                return [];
             default:
-                return Promise.resolve([]);
+                return [];
         }
     }
     /**
@@ -130,7 +139,7 @@ async function getAnalysisChildren(context) {
     try {
         // Create settings item
         const extensionPath = context.extensionUri.fsPath;
-        const settingsItem = new analysisTreeItems_1.AnalysisSettingsItem(extensionPath);
+        const settingsItem = new analysisTreeItems_1.AnalysisSettingsItem(extensionPath, context);
         // Get all analyzable files and group by language
         const filesByLanguage = await getAnalyzableFilesByLanguage();
         if (Object.keys(filesByLanguage).length === 0) {
@@ -149,8 +158,23 @@ async function getAnalysisChildren(context) {
                 return aName.localeCompare(bName);
             });
             const languageGroup = new analysisTreeItems_1.LanguageGroupItem(language, files.length, extensionPath);
-            // Add file items as children to the language group
-            languageGroup.children = files.map(fileUri => new analysisTreeItems_1.AnalysisFileItem(fileUri, extensionPath));
+            // ✅ ARREGLAR LA CREACIÓN DE AnalysisFileItem CON TODOS LOS ARGUMENTOS REQUERIDOS
+            languageGroup.children = files.map(fileUri => {
+                const filePath = fileUri.fsPath;
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                let relativePath = filePath;
+                // ✅ CALCULAR LA RUTA RELATIVA RESPECTO AL WORKSPACE
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+                    relativePath = path.relative(workspaceRoot, filePath);
+                }
+                // ✅ CREAR AnalysisFileItem CON LOS 4 ARGUMENTOS REQUERIDOS
+                return new analysisTreeItems_1.AnalysisFileItem(filePath, // filePath: string
+                relativePath, // relativePath: string  
+                language, // language: string
+                extensionPath // extensionPath: string
+                );
+            });
             languageGroups.push(languageGroup);
         }
         // Return settings first, then language groups

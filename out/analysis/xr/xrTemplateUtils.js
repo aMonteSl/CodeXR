@@ -35,90 +35,57 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateXRAnalysisHTML = generateXRAnalysisHTML;
 const vscode = __importStar(require("vscode"));
-const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
-const utils_1 = require("../utils");
-const xrDataTransformer_1 = require("./xrDataTransformer");
+const path = __importStar(require("path"));
+const chartComponents_1 = require("./chartComponents"); // ✅ Cambiar el import
 /**
  * Generates HTML content for XR analysis visualization
- * @param analysisResult Analysis result to visualize
- * @param dataPath Path to the JSON data file
- * @param context Extension context
- * @returns Generated HTML content
  */
 async function generateXRAnalysisHTML(analysisResult, dataPath, context) {
     // Get the template
     const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'analysis-xr-template.html');
     let templateContent = await fs.readFile(templatePath, 'utf8');
-    // Get environmental settings from global state (reuse BabiaXR settings)
-    const backgroundColor = context.globalState.get('babiaBackgroundColor') || '#112233';
-    const environmentPreset = context.globalState.get('babiaEnvironmentPreset') || 'forest';
-    const groundColor = context.globalState.get('babiaGroundColor') || '#445566';
-    const chartPalette = context.globalState.get('babiaChartPalette') || 'ubuntu';
-    // Calculate complexity metrics for display
-    const functionCount = analysisResult.functions.length;
-    const avgComplexity = analysisResult.complexity.averageComplexity.toFixed(1);
-    const maxComplexity = analysisResult.complexity.maxComplexity;
-    // Calculate complexity distribution
-    const complexityLow = analysisResult.functions.filter(f => f.complexity <= 5).length;
-    const complexityMedium = analysisResult.functions.filter(f => f.complexity > 5 && f.complexity <= 10).length;
-    const complexityHigh = analysisResult.functions.filter(f => f.complexity > 10 && f.complexity <= 20).length;
-    const complexityCritical = analysisResult.functions.filter(f => f.complexity > 20).length;
-    // Transform the analysis data for XR visualization
-    const transformedData = (0, xrDataTransformer_1.transformAnalysisDataForXR)(analysisResult);
-    // Create chart title and description
+    // Get environmental settings
+    const backgroundColor = context.globalState.get('babiaBackgroundColor') || '#202020';
+    const environmentPreset = context.globalState.get('babiaEnvironmentPreset') || 'egypt';
+    const groundColor = context.globalState.get('babiaGroundColor') || '#B10DC9';
+    // ✅ OBTENER TIPO DE CHART DESDE LA CONFIGURACIÓN GLOBAL
+    const chartType = context.globalState.get('codexr.analysis.chartType') || 'boats';
+    console.log('🎯 Chart type from settings:', chartType);
+    console.log('🎯 All global state keys:', context.globalState.keys());
+    // Create chart title
     const chartTitle = `Code Complexity: ${analysisResult.fileName}`;
-    const chartDescription = `Analysis of ${analysisResult.language} code with ${functionCount} functions and ${analysisResult.lineCount.total} lines of code`;
     // Get icon path
     const iconPath = vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')).toString();
-    // Create variable replacements
+    // ✅ GENERAR EL HTML DEL CHART CON EL TIPO CORRECTO
+    const chartComponentHTML = (0, chartComponents_1.generateChartHTML)(chartType, context, chartTitle);
+    console.log('🎯 Generated chart HTML length:', chartComponentHTML.length);
+    console.log('🎯 Chart HTML preview:', chartComponentHTML.substring(0, 200) + '...');
+    // ✅ APLICAR LOS REEMPLAZOS
     const replacements = {
-        // Basic visualization settings
         '${TITLE}': chartTitle,
-        '${DESCRIPTION}': chartDescription,
+        '${DATA_SOURCE}': dataPath,
+        '${CHART_COMPONENT}': chartComponentHTML,
         '${BACKGROUND_COLOR}': backgroundColor,
         '${ENVIRONMENT_PRESET}': environmentPreset,
         '${GROUND_COLOR}': groundColor,
-        '${CHART_PALETTE}': chartPalette,
-        '${DATA_SOURCE}': dataPath,
-        // New XR settings
-        '${AREA}': 'parameters',
-        '${HEIGHT_DIM}': 'linesCount',
-        '${COLOR}': 'complexity',
-        // Chart axis configuration
-        '${X_DIMENSION}': 'functionName',
-        '${Y_DIMENSION}': 'complexity',
-        '${X_AXIS_TITLE}': 'Function Names',
-        '${Y_AXIS_TITLE}': 'Cyclomatic Complexity',
-        // File information
-        '${FILE_NAME}': analysisResult.fileName,
-        '${FILE_PATH}': analysisResult.filePath,
-        '${LANGUAGE}': analysisResult.language,
-        '${TIMESTAMP}': new Date(analysisResult.timestamp).toLocaleString(),
-        // Code metrics
-        '${TOTAL_LINES}': analysisResult.lineCount.total.toString(),
-        '${CODE_LINES}': analysisResult.lineCount.code.toString(),
-        '${COMMENT_LINES}': analysisResult.lineCount.comment.toString(),
-        '${COMMENTS_PERCENTAGE}': (analysisResult.lineCount.comment / analysisResult.lineCount.total * 100).toFixed(1),
-        // Complexity metrics
-        '${FUNCTION_COUNT}': functionCount.toString(),
-        '${AVG_COMPLEXITY}': avgComplexity,
-        '${MAX_COMPLEXITY}': maxComplexity.toString(),
-        '${COMPLEXITY_CLASS}': (0, utils_1.classifyComplexity)(analysisResult.complexity.averageComplexity),
-        // Complexity distribution
-        '${COMPLEXITY_LOW}': complexityLow.toString(),
-        '${COMPLEXITY_MEDIUM}': complexityMedium.toString(),
-        '${COMPLEXITY_HIGH}': complexityHigh.toString(),
-        '${COMPLEXITY_CRITICAL}': complexityCritical.toString(),
-        // Icon path
         '${ICON_PATH}': iconPath
     };
-    // Replace all placeholders in the template
-    for (const [key, value] of Object.entries(replacements)) {
-        // Escape special characters in key before using in RegExp
-        const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        templateContent = templateContent.replace(new RegExp(escapedKey, 'g'), value);
+    console.log('🎯 Applying replacements...');
+    // Aplicar reemplazos
+    let processedTemplate = templateContent;
+    Object.entries(replacements).forEach(([placeholder, value]) => {
+        const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        processedTemplate = processedTemplate.replace(regex, value);
+    });
+    // ✅ VERIFICAR QUE EL REEMPLAZO SE APLICÓ CORRECTAMENTE
+    if (processedTemplate.includes('${CHART_COMPONENT}')) {
+        console.error('🚨 Chart component placeholder was not replaced!');
+        console.error('🚨 Template preview:', processedTemplate.substring(0, 500));
     }
-    return templateContent;
+    else {
+        console.log('✅ Chart component placeholder replaced successfully');
+    }
+    return processedTemplate;
 }
 //# sourceMappingURL=xrTemplateUtils.js.map

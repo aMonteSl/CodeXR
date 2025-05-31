@@ -38,6 +38,9 @@ exports.getActiveServers = getActiveServers;
 exports.startServer = startServer;
 exports.stopServer = stopServer;
 exports.createServer = createServer;
+exports.getServerPortStatus = getServerPortStatus;
+exports.stopAllServers = stopAllServers;
+exports.updateServerDisplayInfo = updateServerDisplayInfo;
 const vscode = __importStar(require("vscode"));
 const http = __importStar(require("http"));
 const https = __importStar(require("https"));
@@ -49,6 +52,7 @@ const certificateManager_1 = require("../server/certificateManager");
 const requestHandler_1 = require("../server/requestHandler");
 const liveReloadManager_1 = require("../server/liveReloadManager");
 const statusBarManager_1 = require("../ui/statusBarManager");
+const portManager_1 = require("./portManager");
 // List to store all server instances
 let activeServerList = [];
 exports.activeServerList = activeServerList;
@@ -71,102 +75,45 @@ function getActiveServers() {
  * @param useDefaultCerts - If true, will use default certificates instead of custom ones
  */
 async function startServer(selectedFile, context, useHttps = false, useDefaultCerts = true) {
-    // Get the directory where the selected HTML file is located
-    const fileDir = path.dirname(selectedFile);
-    // Dynamic import of get-port (ESM module)
-    const getPortModule = await import('get-port');
-    const getPort = getPortModule.default;
-    // Find a free port in the range 3000-3100 for the server
-    const port = await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
-    // Create request handler (common for HTTP and HTTPS)
-    const requestHandler = (0, requestHandler_1.createRequestHandler)(fileDir, selectedFile);
-    // Create HTTP or HTTPS server based on the chosen option
-    let server;
     try {
-        if (useHttps) {
-            const { key, cert } = await (0, certificateManager_1.getCertificates)(context, useDefaultCerts);
-            // Create HTTPS server with certificates
-            server = https.createServer({ key, cert }, requestHandler);
+        console.log(`🚀 Starting server for: ${selectedFile}`);
+        console.log(`🔧 HTTPS: ${useHttps}, Default certs: ${useDefaultCerts}`);
+        // Determine mode based on parameters
+        let mode;
+        if (!useHttps) {
+            mode = serverModel_1.ServerMode.HTTP;
+        }
+        else if (useDefaultCerts) {
+            mode = serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
         }
         else {
-            server = http.createServer(requestHandler);
+            mode = serverModel_1.ServerMode.HTTPS_CUSTOM_CERTS;
         }
-        // Watch for changes in the HTML file to notify SSE clients
-        const htmlWatcher = fs.watch(selectedFile, (eventType, filename) => {
-            (0, liveReloadManager_1.notifyClients)();
-        });
-        // Watch for changes in JSON files in the same directory
-        const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
-            // Check if the modified file is a JSON
-            if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
-                // Wait a brief moment to ensure the file write is complete
-                setTimeout(() => {
-                    (0, liveReloadManager_1.notifyClients)();
-                }, 300);
-            }
-        });
-        // Register both watchers for cleanup
-        context.subscriptions.push({
-            dispose: () => {
-                htmlWatcher.close();
-                jsonWatcher.close();
-            }
-        });
-        // Start the server on the selected port
-        server.listen(port, () => {
-            const protocol = useHttps ? 'https' : 'http';
-            // Extract the filename without extension for use in the URL display
-            const filename = path.basename(selectedFile, path.extname(selectedFile));
-            // The actual URL will still use localhost, but the display will include the filename
-            const serverUrl = `${protocol}://localhost:${port}`;
-            const displayUrl = `${protocol}://${filename}:${port}`;
-            // Create a unique ID for this server
-            const serverId = `server-${Date.now()}`;
-            // Server information
-            const serverInfo = {
-                id: serverId,
-                url: serverUrl,
-                displayUrl: displayUrl, // Add a new field for display purposes
-                protocol,
-                port,
-                filePath: selectedFile,
-                useHttps,
-                startTime: Date.now()
-            };
-            // Create an entry for the new server
-            const serverEntry = {
-                server,
-                info: serverInfo
-            };
-            // Save as active server and add to the list
-            exports.activeServer = activeServer = serverEntry;
-            activeServerList.push(serverEntry);
-            // Notify that there's a new server to update the UI
-            vscode.commands.executeCommand('codexr.refreshView');
+        // Use unified createServer function
+        const serverInfo = await createServer(selectedFile, mode, context);
+        if (serverInfo) {
+            console.log(`✅ Server started successfully: ${serverInfo.url}`);
             // Show initial notification with options
-            vscode.window.showInformationMessage(`${protocol.toUpperCase()} server running at ${displayUrl}`, 'Open in browser', 'Stop server').then(selection => {
+            vscode.window.showInformationMessage(`${serverInfo.protocol.toUpperCase()} server running at ${serverInfo.displayUrl}`, 'Open in browser', 'Stop server').then(selection => {
                 if (selection === 'Open in browser') {
-                    vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+                    vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
                 }
                 else if (selection === 'Stop server') {
-                    // Fixed: pass the specific ID of the current server
-                    stopServer(serverId);
+                    stopServer(serverInfo.id);
                 }
             });
-            // Update status bar using the new module with the display URL
+            // Update status bar
             (0, statusBarManager_1.updateStatusBar)(serverInfo);
-            // Automatically open the browser with the actual server URL
-            vscode.env.openExternal(vscode.Uri.parse(serverUrl));
-        });
-        // Register a disposable to close the server when the extension is deactivated
-        context.subscriptions.push({
-            dispose: () => {
-                stopServer();
-            }
-        });
+            // Automatically open the browser
+            vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+        }
+        else {
+            throw new Error('Failed to create server');
+        }
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Error starting server:`, error);
         vscode.window.showErrorMessage(`Error starting server: ${errorMessage}`);
     }
 }
@@ -177,12 +124,17 @@ async function startServer(selectedFile, context, useHttps = false, useDefaultCe
 function stopServer(serverId) {
     if (!serverId && activeServer) {
         // Close the active server
-        activeServer.server.close(() => {
+        const serverToStop = activeServer;
+        console.log(`🛑 Stopping active server: ${serverToStop.info.url}`);
+        serverToStop.server.close(() => {
+            // Release port when closing
+            portManager_1.portManager.releasePort(serverToStop.info.port);
+            console.log(`🔓 Released port ${serverToStop.info.port} from active server`);
             vscode.window.showInformationMessage('Server stopped successfully');
         });
         // Remove from the active servers list
         exports.activeServerList = activeServerList = activeServerList.filter(entry => entry.info.id !== activeServer?.info.id);
-        // Update the active server reference (if any)
+        // Update the active server reference
         exports.activeServer = activeServer = activeServerList.length > 0 ?
             activeServerList[activeServerList.length - 1] : undefined;
     }
@@ -191,9 +143,13 @@ function stopServer(serverId) {
         const serverEntryIndex = activeServerList.findIndex(entry => entry.info.id === serverId);
         if (serverEntryIndex >= 0) {
             const serverEntry = activeServerList[serverEntryIndex];
+            console.log(`🛑 Stopping server by ID: ${serverEntry.info.url} (port ${serverEntry.info.port})`);
             // Close the server to free the port
             serverEntry.server.close(() => {
-                vscode.window.showInformationMessage(`Server ${serverEntry.info.url} stopped successfully`);
+                // Release port when closing
+                portManager_1.portManager.releasePort(serverEntry.info.port);
+                console.log(`🔓 Released port ${serverEntry.info.port} from server ${serverId}`);
+                console.log(`✅ Server ${serverEntry.info.url} stopped successfully`);
             });
             // Update active server reference if needed
             if (activeServer && activeServer.info.id === serverId) {
@@ -206,44 +162,45 @@ function stopServer(serverId) {
                 exports.activeServer = activeServer = activeServerList[activeServerList.length - 1];
             }
         }
+        else {
+            console.warn(`⚠️ Server with ID ${serverId} not found in active servers list`);
+        }
     }
     // Update UI
     vscode.commands.executeCommand('codexr.refreshView');
-    // Update status bar using the new module
+    // Update status bar
     if (activeServerList.length === 0) {
         (0, statusBarManager_1.disposeStatusBar)();
     }
-    else {
-        (0, statusBarManager_1.updateStatusBar)(activeServerList[activeServerList.length - 1].info);
+    else if (activeServer) {
+        (0, statusBarManager_1.updateStatusBar)(activeServer.info);
     }
 }
 /**
- * Creates and starts a server
- * @param rootPath Root path of files to serve
- * @param mode Server mode
- * @param context Extension context
- * @param port Optional port to use (if not specified, a free port will be found)
- * @returns Server info or undefined on error
+ * Main unified function for creating servers
+ * Creates and starts a server using the unified port manager
  */
-async function createServer(rootPath, mode = serverModel_1.ServerMode.HTTP, context, port) {
+async function createServer(rootPath, mode = serverModel_1.ServerMode.HTTP, context, preferredPort) {
     try {
-        // Use provided port or find a free one
-        const serverPort = port || await findFreePort();
-        // Determine the file to serve (use index.html if rootPath is a directory)
+        console.log(`🚀 Creating server for: ${rootPath}`);
+        console.log(`🔧 Mode: ${mode}, Preferred port: ${preferredPort || 'auto'}`);
+        // Determine protocol based on mode
+        const useHttps = mode !== serverModel_1.ServerMode.HTTP;
+        const protocol = useHttps ? 'https' : 'http';
+        const useDefaultCerts = mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+        // Find free port with port manager
+        const serverPort = await portManager_1.portManager.findFreePort(preferredPort, protocol);
+        console.log(`✅ Port manager assigned port: ${serverPort} for ${protocol.toUpperCase()}`);
+        // Determine the file to serve
         let fileToServe = rootPath;
         const stats = fs.statSync(rootPath);
         if (stats.isDirectory()) {
             fileToServe = path.join(rootPath, 'index.html');
         }
-        // Get the directory where the file is located
         const fileDir = path.dirname(fileToServe);
-        // Create request handler
         const requestHandler = (0, requestHandler_1.createRequestHandler)(fileDir, fileToServe);
-        // Create HTTP or HTTPS server based on the mode
+        // Create server based on mode
         let server;
-        // Choose protocol based on mode
-        const useHttps = mode !== serverModel_1.ServerMode.HTTP;
-        const useDefaultCerts = mode === serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
         if (useHttps) {
             const { key, cert } = await (0, certificateManager_1.getCertificates)(context, useDefaultCerts);
             server = https.createServer({ key, cert }, requestHandler);
@@ -251,89 +208,186 @@ async function createServer(rootPath, mode = serverModel_1.ServerMode.HTTP, cont
         else {
             server = http.createServer(requestHandler);
         }
-        // Create a promise to handle server startup
+        // Promise with robust port handling
         return new Promise((resolve) => {
+            // Reserve port before starting server
+            portManager_1.portManager.reservePort(serverPort, 'HTTP/HTTPS Server', `Serving ${path.basename(fileToServe)}`, protocol);
             server.listen(serverPort, () => {
-                const protocol = useHttps ? 'https' : 'http';
-                // Extract filename without extension for display
+                const serverProtocol = useHttps ? 'https' : 'http';
                 const filename = path.basename(fileToServe, path.extname(fileToServe));
-                // Create server URLs
-                const serverUrl = `${protocol}://localhost:${serverPort}`;
-                const displayUrl = `${protocol}://${filename}:${serverPort}`;
-                // Create server ID
+                const serverUrl = `${serverProtocol}://localhost:${serverPort}`;
+                const displayUrl = `${serverProtocol}://${filename}:${serverPort}`;
                 const serverId = `server-${Date.now()}`;
                 // Create server info
                 const serverInfo = {
                     id: serverId,
                     url: serverUrl,
                     displayUrl: displayUrl,
-                    protocol,
+                    protocol: serverProtocol,
                     port: serverPort,
                     filePath: fileToServe,
                     useHttps,
                     startTime: Date.now()
+                    // analysisFileName will be set later if needed
                 };
-                // Create server entry and add to active servers
-                const serverEntry = {
-                    server,
-                    info: serverInfo
-                };
+                // Add to active servers
+                const serverEntry = { server, info: serverInfo };
                 activeServerList.push(serverEntry);
+                // Update activeServer
+                exports.activeServer = activeServer = serverEntry;
+                // Set up cleanup function
+                const cleanup = () => {
+                    console.log(`🧹 Cleaning up server on port ${serverPort}`);
+                    server.close();
+                    portManager_1.portManager.releasePort(serverPort);
+                    exports.activeServerList = activeServerList = activeServerList.filter(entry => entry.info.id !== serverId);
+                    // Update activeServer reference
+                    if (activeServer && activeServer.info.id === serverId) {
+                        exports.activeServer = activeServer = activeServerList.length > 0 ?
+                            activeServerList[activeServerList.length - 1] : undefined;
+                    }
+                };
+                // Register cleanup
+                context.subscriptions.push({ dispose: cleanup });
                 // Set up file watchers
-                const htmlWatcher = fs.watch(fileToServe, () => (0, liveReloadManager_1.notifyClients)());
-                const jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
-                    if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
-                        setTimeout(() => (0, liveReloadManager_1.notifyClients)(), 300);
+                // Verify files exist before setting up watchers
+                // Set up file watchers ONLY if files exist
+                let htmlWatcher;
+                let jsonWatcher;
+                // Only set up HTML watcher if file exists
+                if (fs.existsSync(fileToServe)) {
+                    console.log(`📁 Setting up HTML file watcher for: ${fileToServe}`);
+                    try {
+                        htmlWatcher = fs.watch(fileToServe, () => {
+                            console.log(`📁 HTML file changed: ${fileToServe}`);
+                            (0, liveReloadManager_1.notifyClients)();
+                        });
+                    }
+                    catch (error) {
+                        console.warn(`⚠️ Could not set up HTML file watcher: ${error}`);
+                    }
+                }
+                else {
+                    console.log(`⚠️ HTML file does not exist, skipping watcher: ${fileToServe}`);
+                }
+                // Only set up directory watcher if directory exists
+                if (fs.existsSync(fileDir)) {
+                    console.log(`📁 Setting up directory watcher for: ${fileDir}`);
+                    try {
+                        jsonWatcher = fs.watch(fileDir, (eventType, filename) => {
+                            if (filename && (filename.endsWith('.json') || filename.endsWith('.csv'))) {
+                                console.log(`📁 Data file changed: ${filename} (${eventType})`);
+                                console.log(`📁 Full path: ${path.join(fileDir, filename)}`);
+                                console.log(`📁 Event type: ${eventType}`);
+                                // Skip watcher for data.json files (they are managed by FileWatchManager)
+                                if (filename === 'data.json') {
+                                    console.log(`📁 Skipping server watcher for data.json - managed by FileWatchManager`);
+                                    return;
+                                }
+                                setTimeout(() => {
+                                    console.log(`📡 Sending notification for ${filename}...`);
+                                    (0, liveReloadManager_1.notifyClients)();
+                                    // Also send specific dataRefresh event
+                                    const { notifyClientsDataRefresh } = require('./liveReloadManager');
+                                    notifyClientsDataRefresh();
+                                    console.log(`📡 Both generic and dataRefresh events sent for ${filename}`);
+                                }, 300);
+                            }
+                        });
+                    }
+                    catch (error) {
+                        console.warn(`⚠️ Could not set up directory watcher: ${error}`);
+                    }
+                }
+                else {
+                    console.log(`⚠️ Directory does not exist, skipping watcher: ${fileDir}`);
+                }
+                // Improved cleanup
+                server.on('close', () => {
+                    try {
+                        if (htmlWatcher) {
+                            htmlWatcher.close();
+                            console.log('📁 HTML file watcher closed');
+                        }
+                    }
+                    catch (error) {
+                        console.warn('Warning: Error closing HTML watcher:', error);
+                    }
+                    try {
+                        if (jsonWatcher) {
+                            jsonWatcher.close();
+                            console.log('📁 Directory watcher closed');
+                        }
+                    }
+                    catch (error) {
+                        console.warn('Warning: Error closing directory watcher:', error);
                     }
                 });
-                // Register watchers for cleanup
-                context.subscriptions.push({
-                    dispose: () => {
-                        htmlWatcher.close();
-                        jsonWatcher.close();
-                    }
-                });
-                // Register server for cleanup
-                context.subscriptions.push({
-                    dispose: () => {
-                        server.close();
-                        exports.activeServerList = activeServerList = activeServerList.filter(entry => entry.info.id !== serverId);
-                    }
-                });
-                // Refresh the UI
+                console.log(`✅ Server started successfully on port ${serverPort}`);
                 vscode.commands.executeCommand('codexr.refreshView');
-                // Resolve with the server info
                 resolve(serverInfo);
             });
-            // Handle potential server setup errors
+            // Enhanced error handling
             server.on('error', (err) => {
-                vscode.window.showErrorMessage(`Error starting server: ${err.message}`);
+                console.error(`❌ Server error on port ${serverPort}:`, err);
+                // Release port on error
+                portManager_1.portManager.releasePort(serverPort);
+                if (err.code === 'EADDRINUSE') {
+                    vscode.window.showErrorMessage(`Port ${serverPort} is already in use. The Port Manager will try a different port on next attempt.`);
+                }
+                else {
+                    vscode.window.showErrorMessage(`Error starting server: ${err.message}`);
+                }
                 resolve(undefined);
             });
         });
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Error creating server:`, error);
         vscode.window.showErrorMessage(`Error creating server: ${errorMessage}`);
         return undefined;
     }
 }
 /**
- * Finds a free port in the range 3000-3100
- * @returns A free port number
+ * Get port status for UI display
  */
-async function findFreePort() {
-    try {
-        // Dynamic import of get-port (ESM module)
-        const getPortModule = await import('get-port');
-        const getPort = getPortModule.default;
-        // Find a free port in the range 3000-3100 for the server
-        return await getPort({ port: [...Array(101).keys()].map(i => i + 3000) });
+async function getServerPortStatus() {
+    return await portManager_1.portManager.getPortStatus();
+}
+/**
+ * Function to stop all servers
+ */
+function stopAllServers() {
+    console.log(`🛑 Stopping all ${activeServerList.length} servers`);
+    const serversToStop = [...activeServerList]; // Copy to avoid modifications during iteration
+    serversToStop.forEach(serverEntry => {
+        stopServer(serverEntry.info.id);
+    });
+    // Clear references
+    exports.activeServerList = activeServerList = [];
+    exports.activeServer = activeServer = undefined;
+    console.log('✅ All servers stopped');
+}
+/**
+ * Updates server info for analysis servers
+ * @param serverId Server ID to update
+ * @param updates Partial server info updates
+ * @returns true if server was found and updated, false otherwise
+ */
+function updateServerDisplayInfo(serverId, updates) {
+    const serverEntry = activeServerList.find(entry => entry.info.id === serverId);
+    if (serverEntry) {
+        // Update server information
+        Object.assign(serverEntry.info, updates);
+        console.log(`📝 Updated server ${serverId} display info:`, updates);
+        // Refresh tree view to show changes
+        vscode.commands.executeCommand('codexr.refreshView');
+        return true;
     }
-    catch (error) {
-        console.error('Error finding free port:', error);
-        // Return a fallback port if get-port fails
-        return 3000;
+    else {
+        console.warn(`⚠️ Server ${serverId} not found for display update`);
+        return false;
     }
 }
 //# sourceMappingURL=serverManager.js.map
