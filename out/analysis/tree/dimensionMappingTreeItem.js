@@ -56,7 +56,7 @@ class DimensionMappingItem extends vscode.TreeItem {
         const currentMapping = (0, dimensionMapping_1.getDimensionMapping)(this.chartType, this.context);
         return dimensions.map(dimension => {
             const currentField = currentMapping[dimension.key] || 'Not mapped';
-            const fieldLabel = dimensionMapping_1.ANALYSIS_FIELDS.find(f => f.key === currentField)?.label || currentField;
+            const fieldLabel = dimensionMapping_1.ANALYSIS_FIELDS.find(f => f.key === currentField)?.displayName || currentField;
             return new DimensionMappingOptionItem(this.chartType, dimension, fieldLabel, this.context);
         });
     }

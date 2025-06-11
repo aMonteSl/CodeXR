@@ -289,6 +289,12 @@
         "command": "codexr.updateAnalysisPanel",
         "title": "CodeXR: Update Analysis Panel",
         "category": "CodeXR"
+      },
+      {
+        "command": "codexr.debugWatchers",
+        "title": "CodeXR: Debug File Watchers",
+        "category": "Code Analysis",
+        "icon": "$(bug)"
       }
     ],
     "menus": {
@@ -389,23 +395,23 @@
       "editor/context": [
         {
           "command": "codexr.analyzeFile",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb)$/",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb|java|m|mm|swift|ttcn3|ttcn|3mp|php|phtml|php3|php4|php5|phps|scala|sc|gd|go|lua|rs|f|f77|f90|f95|f03|f08|for|ftn|kt|kts|sol|erl|hrl|zig|pl|pm|pod|t)$/",
           "group": "navigation"
         },
         {
           "command": "codexr.analyzeFile3D",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb)$/",
+          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb|java|m|mm|swift|ttcn3|ttcn|3mp|php|phtml|php3|php4|php5|phps|scala|sc|gd|go|lua|rs|f|f77|f90|f95|f03|f08|for|ftn|kt|kts|sol|erl|hrl|zig|pl|pm|pod|t)$/",
           "group": "navigation"
         }
       ],
       "explorer/context": [
         {
-          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby || resourceLangId == java || resourceLangId == objective-c || resourceLangId == objective-cpp || resourceLangId == swift || resourceLangId == ttcn3 || resourceLangId == php || resourceLangId == scala || resourceLangId == gdscript || resourceLangId == go || resourceLangId == lua || resourceLangId == rust || resourceLangId == fortran || resourceLangId == kotlin || resourceLangId == solidity || resourceLangId == erlang || resourceLangId == zig || resourceLangId == perl",
           "command": "codexr.analyzeFile",
           "group": "CodeXR"
         },
         {
-          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby || resourceLangId == java || resourceLangId == objective-c || resourceLangId == objective-cpp || resourceLangId == swift || resourceLangId == ttcn3 || resourceLangId == php || resourceLangId == scala || resourceLangId == gdscript || resourceLangId == go || resourceLangId == lua || resourceLangId == rust || resourceLangId == fortran || resourceLangId == kotlin || resourceLangId == solidity || resourceLangId == erlang || resourceLangId == zig || resourceLangId == perl",
           "command": "codexr.analyzeFile3D",
           "group": "CodeXR"
         }

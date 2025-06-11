@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 
 // ✅ DEFINIR TODOS LOS CAMPOS DISPONIBLES PARA ANÁLISIS
 export const ANALYSIS_FIELDS = [
-  { key: 'complexity', label: 'Complexity', description: 'Cyclomatic complexity of functions' },
-  { key: 'linesCount', label: 'Lines Count', description: 'Number of lines in functions' },
-  { key: 'parameters', label: 'Parameters', description: 'Number of parameters in functions' }
+  { key: 'complexity', displayName: 'Complexity', description: 'Cyclomatic complexity of functions' },
+  { key: 'linesCount', displayName: 'Lines Count', description: 'Number of lines in functions' },
+  { key: 'parameters', displayName: 'Parameters', description: 'Number of parameters in functions' }
 ];
 
 // ✅ CONFIGURACIÓN DE DIMENSIONES POR TIPO DE CHART
@@ -95,14 +95,28 @@ export function getDimensionMapping(chartType: string, context: vscode.Extension
 }
 
 /**
+ * ✅ CORREGIR LA FUNCIÓN setDimensionMapping - ELIMINAR PARÁMETROS DUPLICADOS
  * Set dimension mapping for a specific chart type
  */
-export function setDimensionMapping(
+export async function setDimensionMapping(
+  context: vscode.ExtensionContext, 
   chartType: string, 
-  mapping: Record<string, string>, 
-  context: vscode.ExtensionContext
-): void {
+  dimensionKey: string, 
+  value: string
+): Promise<void> {
+  // Obtener el mapping actual
+  const currentMapping = getDimensionMapping(chartType, context);
+  
+  // Actualizar la dimensión específica
+  const updatedMapping = {
+    ...currentMapping,
+    [dimensionKey]: value
+  };
+  
+  // Guardar el mapping actualizado
   const storageKey = `codexr.analysis.dimensionMapping.${chartType}`;
-  context.globalState.update(storageKey, mapping);
-  console.log(`💾 Saved mapping for ${chartType}:`, mapping);
+  await context.globalState.update(storageKey, updatedMapping);
+  
+  console.log(`💾 Updated mapping for ${chartType}.${dimensionKey} = ${value}`);
+  console.log(`📊 Full mapping for ${chartType}:`, updatedMapping);
 }

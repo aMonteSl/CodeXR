@@ -92,12 +92,18 @@
     sortedFunctions.forEach(func => {
       const row = document.createElement('tr');
       
-      // Function name
+      // Function name - ✅ ARREGLAR EL EVENTO CLICK
       const nameCell = document.createElement('td');
       const nameLink = document.createElement('span');
       nameLink.classList.add('function-link');
       nameLink.textContent = func.name;
+      nameLink.style.cursor = 'pointer';
+      nameLink.style.color = '#007acc';
+      nameLink.style.textDecoration = 'underline';
+      
+      // ✅ EVENTO CLICK CORREGIDO - ENVIAR DATOS COMPLETOS
       nameLink.addEventListener('click', () => {
+        console.log('🔍 Function clicked:', func.name);
         vscode.postMessage({
           command: 'showFunctionDetails',
           data: {
@@ -108,6 +114,7 @@
           }
         });
       });
+      
       nameCell.appendChild(nameLink);
       row.appendChild(nameCell);
       

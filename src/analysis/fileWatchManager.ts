@@ -158,17 +158,30 @@ export class FileWatchManager {
    * @param filePath Path to the file to stop watching
    */
   public stopWatching(filePath: string): void {
+    console.log(`🛑 Stopping file watcher for: ${path.basename(filePath)}`);
+    
     const watcher = this.fileWatchers.get(filePath);
     if (watcher) {
+      console.log(`🔌 Disposing file watcher for ${filePath}`);
       watcher.dispose();
       this.fileWatchers.delete(filePath);
-      console.log(`🛑 Stopped watching ${path.basename(filePath)}`);
+    } else {
+      console.log(`⚠️ No active watcher found for ${filePath}`);
     }
     
     const timer = this.debounceTimers.get(filePath);
     if (timer) {
+      console.log(`⏰ Clearing debounce timer for ${filePath}`);
       clearTimeout(timer);
       this.debounceTimers.delete(filePath);
+    }
+    
+    // Clean up status message if exists
+    const statusMessage = this.statusMessages.get(filePath);
+    if (statusMessage) {
+      console.log(`📢 Disposing status message for ${filePath}`);
+      statusMessage.dispose();
+      this.statusMessages.delete(filePath);
     }
     
     // Clean up XR HTML path
@@ -176,6 +189,8 @@ export class FileWatchManager {
     
     // Remove analysis mode
     this.fileAnalysisModes.delete(filePath);
+    
+    console.log(`✅ File watcher cleanup completed for ${path.basename(filePath)}`);
   }
   
   /**
@@ -585,5 +600,45 @@ export class FileWatchManager {
   private notifyVisualizationChanged(filePath: string): void {
     console.log(`📄 Visualization HTML changed: ${path.basename(filePath)}`);
     // File change detected - browsers with live reload will automatically refresh
+  }
+  
+  /**
+   * ✅ NUEVA FUNCIÓN: Verificar si un archivo está siendo observado
+   * Check if a file is currently being watched
+   * @param filePath Path to the file to check
+   * @returns True if the file is being watched, false otherwise
+   */
+  public isWatching(filePath: string): boolean {
+    return this.fileWatchers.has(filePath);
+  }
+
+  /**
+   * ✅ NUEVA FUNCIÓN: Obtener lista de archivos siendo observados
+   * Get list of files currently being watched
+   * @returns Array of file paths being watched
+   */
+  public getWatchedFiles(): string[] {
+    return Array.from(this.fileWatchers.keys());
+  }
+
+  /**
+   * ✅ NUEVA FUNCIÓN: Obtener estado del watcher para UI
+   * Get watcher status for UI display
+   * @returns Object with watcher statistics
+   */
+  public getWatcherStatus(): {
+    totalWatchers: number;
+    activeTimers: number;
+    watchedFiles: string[];
+    autoAnalysisEnabled: boolean;
+    debounceDelay: number;
+  } {
+    return {
+      totalWatchers: this.fileWatchers.size,
+      activeTimers: this.debounceTimers.size,
+      watchedFiles: Array.from(this.fileWatchers.keys()).map(fp => path.basename(fp)),
+      autoAnalysisEnabled: this.autoAnalysisEnabled,
+      debounceDelay: this.debounceDelay
+    };
   }
 }

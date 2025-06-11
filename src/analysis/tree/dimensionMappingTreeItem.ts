@@ -34,7 +34,7 @@ export class DimensionMappingItem extends vscode.TreeItem {
     
     return dimensions.map(dimension => {
       const currentField = currentMapping[dimension.key] || 'Not mapped';
-      const fieldLabel = ANALYSIS_FIELDS.find(f => f.key === currentField)?.label || currentField;
+      const fieldLabel = ANALYSIS_FIELDS.find(f => f.key === currentField)?.displayName || currentField;
       
       return new DimensionMappingOptionItem(
         this.chartType,

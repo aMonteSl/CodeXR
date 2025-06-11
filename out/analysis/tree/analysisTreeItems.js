@@ -33,12 +33,47 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AnalysisResetItem = exports.AnalysisChartTypeOptionItem = exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.AnalysisFileItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = void 0;
+exports.AnalysisResetItem = exports.AnalysisChartTypeOptionItem = exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = exports.AnalysisFileItem = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const baseItems_1 = require("../../ui/treeItems/baseItems");
 const treeProvider_1 = require("../../ui/treeProvider");
+const analysisDataManager_1 = require("../analysisDataManager"); // ✅ VERIFICAR QUE ESTÉ IMPORTADO
 const dimensionMappingTreeItem_1 = require("./dimensionMappingTreeItem");
+/**
+ * Individual file item in the analysis tree
+ */
+class AnalysisFileItem extends baseItems_1.TreeItem {
+    constructor(filePath, relativePath, language, extensionPath) {
+        const fileName = path.basename(filePath);
+        // ✅ VERIFICAR SI EL ARCHIVO ESTÁ SIENDO ANALIZADO
+        const isBeingAnalyzed = analysisDataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath);
+        console.log(`🔍 Checking if ${fileName} is being analyzed: ${isBeingAnalyzed}`); // ✅ AÑADIR LOG PARA DEBUG
+        // ✅ AJUSTAR LABEL Y DESCRIPCIÓN SEGÚN EL ESTADO
+        const label = isBeingAnalyzed ? `${fileName} ⚡` : fileName;
+        const tooltip = isBeingAnalyzed
+            ? `🔄 Analyzing ${fileName} (${language}) - Please wait...`
+            : `Analyze ${fileName} (${language})`;
+        super(label, `${language} file - ${relativePath}`, treeProvider_1.TreeItemType.ANALYSIS_FILE, vscode.TreeItemCollapsibleState.None, {
+            command: 'codexr.analyzeFileFromTree',
+            title: 'Analyze File',
+            arguments: [filePath]
+        }, vscode.ThemeIcon.File // ✅ USAR EL ICONO ESPECÍFICO DEL ARCHIVO
+        );
+        this.resourceUri = vscode.Uri.file(filePath); // ✅ ESTO ES CLAVE
+        this.tooltip = tooltip;
+        // ✅ AÑADIR INDICADOR VISUAL SI ESTÁ SIENDO ANALIZADO
+        if (isBeingAnalyzed) {
+            // Cambiar el icono a uno de loading/progreso
+            this.iconPath = new vscode.ThemeIcon('sync~spin');
+            // Añadir color distintivo
+            this.description = `${relativePath} 🔄 Analyzing...`;
+            // Deshabilitar el comando mientras se analiza
+            this.command = undefined;
+        }
+    }
+}
+exports.AnalysisFileItem = AnalysisFileItem;
 /**
  * Item for the main analysis section
  */
@@ -53,29 +88,14 @@ exports.AnalysisSectionItem = AnalysisSectionItem;
  */
 class LanguageGroupItem extends baseItems_1.TreeItem {
     constructor(language, fileCount, extensionPath) {
+        // ✅ USAR LA FUNCIÓN getLanguageIcon RESTAURADA
         const languageIcon = getLanguageIcon(language, extensionPath);
-        super(language, `${language} files that can be analyzed`, treeProvider_1.TreeItemType.ANALYSIS_LANGUAGE_GROUP, vscode.TreeItemCollapsibleState.Expanded, undefined, languageIcon);
+        super(language, `${language} files that can be analyzed`, treeProvider_1.TreeItemType.ANALYSIS_LANGUAGE_GROUP, vscode.TreeItemCollapsibleState.Expanded, undefined, languageIcon // ✅ USAR EL ICONO DE LA FUNCIÓN
+        );
         this.description = `(${fileCount} files)`;
     }
 }
 exports.LanguageGroupItem = LanguageGroupItem;
-/**
- * Individual file item in the analysis tree
- */
-class AnalysisFileItem extends baseItems_1.TreeItem {
-    constructor(filePath, relativePath, language, extensionPath) {
-        const fileName = path.basename(filePath);
-        super(fileName, `${language} file - ${relativePath}`, treeProvider_1.TreeItemType.ANALYSIS_FILE, vscode.TreeItemCollapsibleState.None, {
-            // ✅ CAMBIAR EL COMANDO INEXISTENTE
-            command: 'codexr.analyzeFileFromTree', // ✅ USAR COMANDO QUE SÍ EXISTE
-            title: 'Analyze File',
-            arguments: [filePath] // ✅ PASAR LA RUTA COMO ARGUMENTO
-        }, new vscode.ThemeIcon('file-code'));
-        this.resourceUri = vscode.Uri.file(filePath);
-        this.tooltip = `Analyze ${fileName} (${language})`;
-    }
-}
-exports.AnalysisFileItem = AnalysisFileItem;
 /**
  * Analysis settings container
  */
@@ -219,78 +239,87 @@ class AnalysisResetItem extends baseItems_1.TreeItem {
 }
 exports.AnalysisResetItem = AnalysisResetItem;
 /**
- * Gets language name from file extension
- */
-function getLanguageFromExtension(ext) {
-    switch (ext) {
-        case '.py':
-            return 'Python';
-        case '.js':
-            return 'JavaScript';
-        case '.ts':
-            return 'TypeScript';
-        case '.c':
-            return 'C';
-        // Add new language support
-        case '.cpp':
-        case '.cc':
-        case '.cxx':
-            return 'C++';
-        case '.cs':
-            return 'C#';
-        case '.vue':
-            return 'Vue';
-        case '.rb':
-            return 'Ruby';
-        default:
-            return 'Unknown';
-    }
-}
-/**
- * Gets appropriate icon for language
+ * ✅ RESTAURAR LA FUNCIÓN getLanguageIcon CON ICONOS PNG
+ * Gets appropriate icon for language using PNG files
  */
 function getLanguageIcon(language, extensionPath) {
-    // ✅ FIX: Handle special cases for C# and C++ language names
     let iconFileName;
     switch (language) {
-        case 'C#':
-            iconFileName = 'csharp.png';
-            break;
-        case 'C++':
-        case 'C++ Header':
-            iconFileName = 'cpp.png';
-            break;
         case 'JavaScript':
-        case 'JavaScript (JSX)':
             iconFileName = 'javascript.png';
             break;
         case 'TypeScript':
-        case 'TypeScript (TSX)':
             iconFileName = 'typescript.png';
             break;
         case 'Python':
             iconFileName = 'python.png';
             break;
+        case 'Java': // ✅ AÑADIR JAVA
+            iconFileName = 'java.png';
+            break;
         case 'C':
-        case 'C Header':
             iconFileName = 'c.png';
             break;
-        case 'Vue':
-            iconFileName = 'vue.png';
+        case 'C++':
+            iconFileName = 'cpp.png';
+            break;
+        case 'C#':
+            iconFileName = 'csharp.png';
             break;
         case 'Ruby':
             iconFileName = 'ruby.png';
             break;
-        default:
-            // For any other language, convert to lowercase and add .png
-            iconFileName = language.toLowerCase() + '.png';
+        case 'Vue.js':
+            iconFileName = 'vuejs.png';
             break;
+        default:
+            iconFileName = 'code.png';
     }
     console.log(`🎨 Language: "${language}" → Icon: "${iconFileName}"`);
-    // Return custom icon paths
     return {
         light: vscode.Uri.file(path.join(extensionPath, 'resources', 'languajes_icons', iconFileName)),
         dark: vscode.Uri.file(path.join(extensionPath, 'resources', 'languajes_icons', iconFileName))
     };
+}
+/**
+ * Gets an example file name for a language to display the correct icon
+ */
+function getExampleFileForLanguage(language) {
+    switch (language.toLowerCase()) {
+        case 'python': return 'example.py';
+        case 'javascript': return 'example.js';
+        case 'typescript': return 'example.ts';
+        case 'java': return 'Example.java';
+        case 'c': return 'example.c';
+        case 'c header': return 'example.h';
+        case 'c++': return 'example.cpp';
+        case 'c++ header': return 'example.hpp';
+        case 'c#': return 'Example.cs';
+        case 'vue': return 'Example.vue';
+        case 'ruby': return 'example.rb';
+        case 'objective-c': return 'example.m';
+        case 'objective-c++': return 'example.mm';
+        case 'swift': return 'Example.swift';
+        case 'php': return 'example.php';
+        case 'scala': return 'Example.scala';
+        case 'gdscript': return 'example.gd';
+        case 'go': return 'example.go';
+        case 'lua': return 'example.lua';
+        case 'rust': return 'example.rs';
+        case 'fortran':
+        case 'fortran 77': return 'example.f90';
+        case 'kotlin': return 'Example.kt';
+        case 'kotlin script': return 'example.kts';
+        case 'solidity': return 'Example.sol';
+        case 'erlang': return 'example.erl';
+        case 'erlang header': return 'example.hrl';
+        case 'zig': return 'example.zig';
+        case 'perl': return 'example.pl';
+        case 'perl module': return 'example.pm';
+        case 'perl pod': return 'example.pod';
+        case 'perl test': return 'example.t';
+        case 'ttcn-3': return 'example.ttcn3';
+        default: return 'example.txt';
+    }
 }
 //# sourceMappingURL=analysisTreeItems.js.map

@@ -96,43 +96,86 @@ function getLanguageName(filePath) {
     switch (ext) {
         case '.js':
             return 'JavaScript';
+        case '.jsx':
+            return 'React JSX';
         case '.ts':
             return 'TypeScript';
-        case '.jsx':
-            return 'JavaScript (JSX)';
         case '.tsx':
-            return 'TypeScript (TSX)';
+            return 'React TSX';
         case '.py':
             return 'Python';
+        case '.java':
+            return 'Java'; // ✅ AÑADIR JAVA
         case '.c':
             return 'C';
-        case '.h':
-            return 'C Header';
-        // ✅ FIX: Ensure C++ extensions return exact "C++" language name
         case '.cpp':
-        case '.cc':
         case '.cxx':
-        case '.c++':
+        case '.cc':
             return 'C++';
-        case '.hpp':
-        case '.hxx':
-        case '.h++':
-            return 'C++ Header';
-        // ✅ FIX: Ensure C# extension returns exact "C#" language name
         case '.cs':
             return 'C#';
-        case '.vue':
-            return 'Vue';
+        case '.php':
+            return 'PHP';
         case '.rb':
             return 'Ruby';
+        case '.go':
+            return 'Go';
+        case '.rs':
+            return 'Rust';
+        case '.swift':
+            return 'Swift';
+        case '.kt':
+        case '.kts':
+            return 'Kotlin';
+        case '.scala':
+        case '.sc':
+            return 'Scala';
+        case '.r':
+            return 'R';
+        case '.m':
+            return 'Objective-C';
+        case '.pl':
+            return 'Perl';
+        case '.sh':
+        case '.bash':
+            return 'Shell Script';
+        case '.lua':
+            return 'Lua';
+        case '.vue':
+            return 'Vue.js';
         default:
             return 'Unknown';
     }
 }
 /**
+ * Gets comment patterns for different file types
+ */
+function getCommentPatterns(extension) {
+    const patterns = {
+        '.js': {
+            singleLine: ['//'],
+            blockStart: [{ start: '/*', end: '*/' }]
+        },
+        '.tsx': {
+            singleLine: ['//'],
+            blockStart: [{ start: '/*', end: '*/' }]
+        },
+        '.py': {
+            singleLine: ['#'],
+            blockStart: [{ start: '"""', end: '"""' }, { start: "'''", end: "'''" }]
+        },
+        '.java': {
+            singleLine: ['//'],
+            blockStart: [{ start: '/*', end: '*/' }, { start: '/**', end: '*/' }]
+        }
+    };
+    return patterns[extension] || {
+        singleLine: ['#'],
+        blockStart: []
+    };
+}
+/**
  * Counts code, comment, and blank lines
- * @param filePath Path to file
- * @returns Line count information
  */
 async function countFileLines(filePath) {
     try {
@@ -155,8 +198,15 @@ async function countFileLines(filePath) {
             // Handle multi-line comments
             if (inMultilineComment) {
                 commentLines++;
-                if ((ext === '.js' || ext === '.ts' || ext === '.c' || ext === '.h') &&
+                if ((ext === '.js' || ext === '.ts' || ext === '.c' || ext === '.h' ||
+                    ext === '.java' || ext === '.m' || ext === '.mm' || ext === '.swift' ||
+                    ext === '.scala' || ext === '.sc' || ext === '.ttcn3' || ext === '.ttcn' || ext === '.3mp' ||
+                    ext === '.php' || ext === '.phtml' || ext === '.php3' || ext === '.php4' || ext === '.php5' || ext === '.phps' ||
+                    ext === '.go' || ext === '.rs' || ext === '.kt' || ext === '.kts' || ext === '.sol' || ext === '.zig') &&
                     trimmedLine.includes('*/')) {
+                    inMultilineComment = false;
+                }
+                else if (ext === '.lua' && trimmedLine.includes(']]')) {
                     inMultilineComment = false;
                 }
                 continue;
@@ -165,21 +215,83 @@ async function countFileLines(filePath) {
             if ((ext === '.js' || ext === '.ts') && trimmedLine.startsWith('//')) {
                 commentLines++;
             }
-            else if (ext === '.py' && trimmedLine.startsWith('#')) {
+            else if ((ext === '.py' || ext === '.gd') && trimmedLine.startsWith('#')) {
                 commentLines++;
             }
             else if ((ext === '.c' || ext === '.h') && trimmedLine.startsWith('//')) {
                 commentLines++;
             }
+            else if ((ext === '.java') && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if ((ext === '.m' || ext === '.mm') && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if (ext === '.swift' && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if ((ext === '.scala' || ext === '.sc') && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if ((ext === '.ttcn3' || ext === '.ttcn' || ext === '.3mp') && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if ((ext === '.php' || ext === '.phtml' || ext === '.php3' || ext === '.php4' || ext === '.php5' || ext === '.phps') &&
+                (trimmedLine.startsWith('//') || trimmedLine.startsWith('#'))) {
+                commentLines++;
+                // ✅ AÑADIR NUEVOS LENGUAJES
+            }
+            else if (ext === '.go' && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if (ext === '.rs' && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if ((ext === '.kt' || ext === '.kts') && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if (ext === '.sol' && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if (ext === '.zig' && trimmedLine.startsWith('//')) {
+                commentLines++;
+            }
+            else if (ext === '.lua' && trimmedLine.startsWith('--')) {
+                commentLines++;
+            }
+            else if ((ext === '.f' || ext === '.f77' || ext === '.f90' || ext === '.f95' || ext === '.f03' || ext === '.f08' || ext === '.for' || ext === '.ftn') &&
+                (trimmedLine.startsWith('!') || (line.length > 0 && line[0].toLowerCase() === 'c'))) {
+                commentLines++;
+            }
+            else if ((ext === '.erl' || ext === '.hrl') && trimmedLine.startsWith('%')) {
+                commentLines++;
+            }
+            else if ((ext === '.pl' || ext === '.pm' || ext === '.pod' || ext === '.t') &&
+                (trimmedLine.startsWith('#') || trimmedLine.startsWith('='))) {
+                commentLines++;
+            }
             // Multi-line comment start
-            else if ((ext === '.js' || ext === '.ts' || ext === '.c' || ext === '.h') &&
+            else if ((ext === '.js' || ext === '.ts' || ext === '.c' || ext === '.h' ||
+                ext === '.java' || ext === '.m' || ext === '.mm' || ext === '.swift' ||
+                ext === '.scala' || ext === '.sc' || ext === '.ttcn3' || ext === '.ttcn' || ext === '.3mp' ||
+                ext === '.php' || ext === '.phtml' || ext === '.php3' || ext === '.php4' || ext === '.php5' || ext === '.phps' ||
+                ext === '.go' || ext === '.rs' || ext === '.kt' || ext === '.kts' || ext === '.sol' || ext === '.zig') &&
                 trimmedLine.startsWith('/*')) {
                 commentLines++;
-                if (!trimmedLine.includes('*/')) {
-                    inMultilineComment = true;
+                inMultilineComment = true;
+                // Check if comment ends on same line
+                if (trimmedLine.includes('*/')) {
+                    inMultilineComment = false;
                 }
             }
-            // Code line
+            else if (ext === '.lua' && trimmedLine.includes('--[[')) {
+                commentLines++;
+                inMultilineComment = true;
+                // Check if comment ends on same line
+                if (trimmedLine.includes(']]')) {
+                    inMultilineComment = false;
+                }
+            }
             else {
                 codeLines++;
             }

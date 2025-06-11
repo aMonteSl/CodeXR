@@ -42,7 +42,7 @@ const path = __importStar(require("path"));
 const baseItems_1 = require("../../ui/treeItems/baseItems");
 const treeProvider_1 = require("../../ui/treeProvider");
 const analysisTreeItems_1 = require("./analysisTreeItems");
-const dimensionMappingTreeItem_1 = require("./dimensionMappingTreeItem"); // ✅ Añadir import
+const dimensionMappingTreeItem_1 = require("./dimensionMappingTreeItem");
 /**
  * Tree data provider for analysis section
  */
@@ -52,7 +52,7 @@ class AnalysisTreeProvider {
     onDidChangeTreeData = this._onDidChangeTreeData.event;
     constructor(context) {
         this.context = context;
-    } // ✅ Añadir context como propiedad
+    }
     refresh() {
         this._onDidChangeTreeData.fire();
     }
@@ -61,35 +61,15 @@ class AnalysisTreeProvider {
     }
     async getChildren(element) {
         if (!element) {
-            // Root level - return analysis section
-            const extensionPath = this.context.extensionUri.fsPath; // ✅ Usar context en lugar de this.extensionPath
-            return [new analysisTreeItems_1.AnalysisSectionItem(extensionPath)];
-        }
-        // Handle different element types
-        if (!element.type) { // ✅ Verificar si existe la propiedad type
-            return [];
+            return getAnalysisChildren(this.context);
         }
         switch (element.type) {
-            case treeProvider_1.TreeItemType.ANALYSIS_SECTION:
-                return getAnalysisChildren(this.context);
             case treeProvider_1.TreeItemType.ANALYSIS_SETTINGS:
-                // ✅ Usar el método getChildren del AnalysisSettingsItem
-                if (element instanceof analysisTreeItems_1.AnalysisSettingsItem) {
-                    console.log('🔧 Using AnalysisSettingsItem.getChildren()');
-                    return element.getChildren();
-                }
-                // Fallback to old method if needed
-                const extensionPath = this.context.extensionUri.fsPath; // ✅ Usar context
-                return this.getSettingsChildren(extensionPath);
+                return this.getSettingsChildren(this.context.extensionPath);
             case treeProvider_1.TreeItemType.ANALYSIS_LANGUAGE_GROUP:
-                if (element instanceof analysisTreeItems_1.LanguageGroupItem) {
-                    return element.children || [];
-                }
-                return [];
+                return getLanguageGroupChildren(element);
             case treeProvider_1.TreeItemType.DIMENSION_MAPPING:
-                // ✅ AÑADIR SOPORTE PARA DIMENSION MAPPING
                 if (element instanceof dimensionMappingTreeItem_1.DimensionMappingItem) {
-                    console.log('🎯 Using DimensionMappingItem.getChildren()');
                     return element.getChildren();
                 }
                 return [];
@@ -103,27 +83,8 @@ class AnalysisTreeProvider {
      * @returns Settings option items
      */
     async getSettingsChildren(extensionPath) {
-        console.log('DEBUG: getSettingsChildren called with path:', extensionPath);
-        const config = vscode.workspace.getConfiguration();
-        // Get current mode setting
-        const currentMode = config.get('codexr.analysisMode', 'Static');
-        // Get current debounce delay setting
-        const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
-        // Get current auto-analysis setting
-        const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
-        console.log('DEBUG: Current settings:', {
-            analysisMode: currentMode,
-            debounceDelay,
-            autoAnalysis
-        });
-        // Create option items
-        const staticOption = new analysisTreeItems_1.AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
-        const xrOption = new analysisTreeItems_1.AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
-        const delayOption = new analysisTreeItems_1.AnalysisDelayOptionItem(debounceDelay, extensionPath);
-        const autoOption = new analysisTreeItems_1.AnalysisAutoOptionItem(autoAnalysis, extensionPath);
-        const result = [staticOption, xrOption, delayOption, autoOption];
-        console.log('DEBUG: Returning items:', result.map(item => item.label));
-        return result;
+        const settingsItem = new analysisTreeItems_1.AnalysisSettingsItem(extensionPath, this.context);
+        return settingsItem.getChildren();
     }
 }
 exports.AnalysisTreeProvider = AnalysisTreeProvider;
@@ -133,55 +94,35 @@ exports.AnalysisTreeProvider = AnalysisTreeProvider;
  */
 async function getAnalysisChildren(context) {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-        // No workspace is open
         return [createNoWorkspaceItem()];
     }
     try {
-        // Create settings item
-        const extensionPath = context.extensionUri.fsPath;
-        const settingsItem = new analysisTreeItems_1.AnalysisSettingsItem(extensionPath, context);
-        // Get all analyzable files and group by language
+        // Get analyzable files grouped by language
         const filesByLanguage = await getAnalyzableFilesByLanguage();
-        if (Object.keys(filesByLanguage).length === 0) {
-            // No analyzable files found
-            return [settingsItem, createNoFilesItem()];
-        }
+        const items = [];
+        // Add settings first
+        items.push(new analysisTreeItems_1.AnalysisSettingsItem(context.extensionPath, context));
         // Create language group items
-        const languageGroups = [];
-        // Sort languages alphabetically (A → Z)
-        for (const language of Object.keys(filesByLanguage).sort()) {
-            const files = filesByLanguage[language];
-            // Sort files alphabetically by filename (A → Z)
-            files.sort((a, b) => {
-                const aName = path.basename(a.fsPath).toLowerCase();
-                const bName = path.basename(b.fsPath).toLowerCase();
-                return aName.localeCompare(bName);
-            });
-            const languageGroup = new analysisTreeItems_1.LanguageGroupItem(language, files.length, extensionPath);
-            // ✅ ARREGLAR LA CREACIÓN DE AnalysisFileItem CON TODOS LOS ARGUMENTOS REQUERIDOS
-            languageGroup.children = files.map(fileUri => {
-                const filePath = fileUri.fsPath;
-                const workspaceFolders = vscode.workspace.workspaceFolders;
-                let relativePath = filePath;
-                // ✅ CALCULAR LA RUTA RELATIVA RESPECTO AL WORKSPACE
-                if (workspaceFolders && workspaceFolders.length > 0) {
-                    const workspaceRoot = workspaceFolders[0].uri.fsPath;
-                    relativePath = path.relative(workspaceRoot, filePath);
-                }
-                // ✅ CREAR AnalysisFileItem CON LOS 4 ARGUMENTOS REQUERIDOS
-                return new analysisTreeItems_1.AnalysisFileItem(filePath, // filePath: string
-                relativePath, // relativePath: string  
-                language, // language: string
-                extensionPath // extensionPath: string
-                );
-            });
-            languageGroups.push(languageGroup);
+        for (const [language, files] of Object.entries(filesByLanguage)) {
+            if (files.length > 0) {
+                const languageGroupItem = new LanguageGroupItem(language, files.length, context.extensionPath);
+                // Create file items for this language
+                const fileItems = files.map(fileUri => {
+                    const filePath = fileUri.fsPath;
+                    const relativePath = vscode.workspace.asRelativePath(filePath);
+                    return new analysisTreeItems_1.AnalysisFileItem(filePath, relativePath, language, context.extensionPath);
+                });
+                languageGroupItem.children = fileItems;
+                items.push(languageGroupItem);
+            }
         }
-        // Return settings first, then language groups
-        return [settingsItem, ...languageGroups];
+        if (items.length === 1) { // Only settings item
+            items.push(createNoFilesItem());
+        }
+        return items;
     }
     catch (error) {
-        console.error('Error fetching analyzable files:', error);
+        console.error('Error getting analysis children:', error);
         return [createErrorItem(error)];
     }
 }
@@ -205,16 +146,27 @@ function getAnalysisSectionItem(extensionPath) {
 }
 /**
  * Gets analyzable files from workspace grouped by language
- * @returns Map of language to file URIs
  */
 async function getAnalyzableFilesByLanguage() {
-    // Update supported extensions to include new languages
     const supportedExtensions = [
         '.py', '.js', '.ts', '.c',
-        '.cpp', '.cc', '.cxx', // C++
-        '.cs', // C#
-        '.vue', // Vue
-        '.rb' // Ruby
+        '.cpp', '.cc', '.cxx', '.h', '.hpp',
+        '.cs', '.java', '.vue', '.rb',
+        '.m', '.mm', // Objective-C
+        '.swift', // Swift
+        '.ttcn3', '.ttcn', '.3mp', // TTCN-3
+        '.php', '.phtml', '.php3', '.php4', '.php5', '.phps', // PHP
+        '.scala', '.sc', // Scala
+        '.gd', // GDScript
+        '.go', // Golang
+        '.lua', // Lua
+        '.rs', // Rust
+        '.f', '.f77', '.f90', '.f95', '.f03', '.f08', '.for', '.ftn', // Fortran
+        '.kt', '.kts', // Kotlin
+        '.sol', // Solidity
+        '.erl', '.hrl', // Erlang
+        '.zig', // Zig
+        '.pl', '.pm', '.pod', '.t' // Perl
     ];
     const result = {};
     // Skip finding files if no workspace is open
@@ -222,17 +174,49 @@ async function getAnalyzableFilesByLanguage() {
         return result;
     }
     // Exclude common non-user code directories and patterns
-    const excludePattern = '{**/node_modules/**,**/.venv/**,**/venv/**,**/.git/**,**/env/**,**/__pycache__/**}';
+    const excludePattern = '{**/node_modules/**,**/.venv/**,**/venv/**,**/.git/**,**/env/**,**/__pycache__/**,**/target/**,**/build/**,**/DerivedData/**,**/Pods/**,**/vendor/**,**/Cargo.toml,**/go.mod}';
     for (const ext of supportedExtensions) {
-        const language = getLanguageFromExtension(ext);
-        // Find files with the current extension
-        let files = await vscode.workspace.findFiles(`**/*${ext}`, excludePattern);
-        // Apply additional filtering for Python files
-        if (ext === '.py') {
-            files = files.filter(file => shouldIncludePythonFile(file));
-        }
+        const files = await vscode.workspace.findFiles(`**/*${ext}`, excludePattern);
         if (files.length > 0) {
-            result[language] = files;
+            // Filter files based on language-specific rules
+            let filteredFiles = [];
+            if (ext === '.py') {
+                filteredFiles = files.filter(shouldIncludePythonFile);
+            }
+            else if (ext === '.java') {
+                filteredFiles = files.filter(shouldIncludeJavaFile);
+            }
+            else if (ext === '.m' || ext === '.mm') {
+                filteredFiles = files.filter(shouldIncludeObjectiveCFile);
+            }
+            else if (ext === '.swift') {
+                filteredFiles = files.filter(shouldIncludeSwiftFile);
+            }
+            else if (ext === '.ttcn3' || ext === '.ttcn' || ext === '.3mp') {
+                filteredFiles = files.filter(shouldIncludeTTCN3File);
+            }
+            else if (ext === '.php' || ext === '.phtml' || ext === '.php3' || ext === '.php4' || ext === '.php5' || ext === '.phps') {
+                filteredFiles = files.filter(shouldIncludePHPFile);
+            }
+            else if (ext === '.scala' || ext === '.sc') {
+                filteredFiles = files.filter(shouldIncludeScalaFile);
+            }
+            else if (ext === '.go') {
+                filteredFiles = files.filter(shouldIncludeGoFile);
+            }
+            else if (ext === '.rs') {
+                filteredFiles = files.filter(shouldIncludeRustFile);
+            }
+            else if (ext === '.kt' || ext === '.kts') {
+                filteredFiles = files.filter(shouldIncludeKotlinFile);
+            }
+            else {
+                filteredFiles = files;
+            }
+            if (filteredFiles.length > 0) {
+                const language = getLanguageFromExtension(ext);
+                result[language] = (result[language] || []).concat(filteredFiles);
+            }
         }
     }
     return result;
@@ -259,8 +243,161 @@ function shouldIncludePythonFile(fileUri) {
     }
     // Exclude test files if desired
     if (fileName.startsWith('test_') || fileName.endsWith('_test.py') || /[/\\]tests?[/\\]/.test(filePath)) {
-        // You can comment this line out if you want to include test files
-        // return false;
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a Java file should be included in the analysis view
+ * @param fileUri URI of the Java file
+ * @returns True if the file should be included, false otherwise
+ */
+function shouldIncludeJavaFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in build directories
+    if (/[/\\](target|build|out)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude Maven/Gradle wrapper files
+    if (fileName.includes('wrapper') || fileName.startsWith('mvnw') || fileName.startsWith('gradlew')) {
+        return false;
+    }
+    // Exclude test files (optional - you might want to analyze these)
+    if (fileName.endsWith('Test.java') || fileName.endsWith('Tests.java') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if an Objective-C file should be included
+ */
+function shouldIncludeObjectiveCFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in build directories
+    if (/[/\\](build|DerivedData|Pods)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files (optional)
+    if (fileName.endsWith('Test.m') || fileName.endsWith('Tests.m') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a Swift file should be included
+ */
+function shouldIncludeSwiftFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in build directories
+    if (/[/\\](build|DerivedData|Pods)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files (optional)
+    if (fileName.endsWith('Test.swift') || fileName.endsWith('Tests.swift') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a TTCN-3 file should be included
+ */
+function shouldIncludeTTCN3File(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in build directories
+    if (/[/\\](build|out|target)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude temporary files
+    if (fileName.startsWith('.') || fileName.endsWith('.tmp')) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a PHP file should be included
+ */
+function shouldIncludePHPFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in vendor directories (Composer packages)
+    if (/[/\\]vendor[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude files in cache directories
+    if (/[/\\](cache|tmp|temp)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files (optional)
+    if (fileName.endsWith('Test.php') || fileName.endsWith('Tests.php') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a Scala file should be included
+ */
+function shouldIncludeScalaFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in build directories
+    if (/[/\\](target|build|out|project)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files (optional)
+    if (fileName.endsWith('Test.scala') || fileName.endsWith('Tests.scala') || fileName.endsWith('Spec.scala') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a Go file should be included
+ */
+function shouldIncludeGoFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in vendor directories
+    if (/[/\\]vendor[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files (optional)
+    if (fileName.endsWith('_test.go') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a Rust file should be included
+ */
+function shouldIncludeRustFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in target directories
+    if (/[/\\]target[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files in tests directory (optional)
+    if (/[/\\]tests[/\\]/.test(filePath)) {
+        return false;
+    }
+    return true;
+}
+/**
+ * Determines if a Kotlin file should be included
+ */
+function shouldIncludeKotlinFile(fileUri) {
+    const fileName = path.basename(fileUri.fsPath);
+    const filePath = fileUri.fsPath;
+    // Exclude files in build directories
+    if (/[/\\](build|target|out)[/\\]/.test(filePath)) {
+        return false;
+    }
+    // Exclude test files (optional)
+    if (fileName.endsWith('Test.kt') || fileName.endsWith('Tests.kt') || /[/\\](test|tests)[/\\]/.test(filePath)) {
+        return false;
     }
     return true;
 }
@@ -277,16 +414,81 @@ function getLanguageFromExtension(ext) {
             return 'TypeScript';
         case '.c':
             return 'C';
+        case '.h':
+            return 'C Header';
         case '.cpp':
         case '.cc':
         case '.cxx':
             return 'C++';
+        case '.hpp':
+        case '.hxx':
+            return 'C++ Header';
         case '.cs':
             return 'C#';
+        case '.java':
+            return 'Java';
         case '.vue':
             return 'Vue';
         case '.rb':
             return 'Ruby';
+        case '.m':
+            return 'Objective-C';
+        case '.mm':
+            return 'Objective-C++';
+        case '.swift':
+            return 'Swift';
+        case '.ttcn3':
+        case '.ttcn':
+        case '.3mp':
+            return 'TTCN-3';
+        case '.php':
+        case '.phtml':
+        case '.php3':
+        case '.php4':
+        case '.php5':
+        case '.phps':
+            return 'PHP';
+        case '.scala':
+        case '.sc':
+            return 'Scala';
+        case '.gd':
+            return 'GDScript';
+        case '.go':
+            return 'Go';
+        case '.lua':
+            return 'Lua';
+        case '.rs':
+            return 'Rust';
+        case '.f':
+        case '.f77':
+        case '.for':
+        case '.ftn':
+            return 'Fortran 77';
+        case '.f90':
+        case '.f95':
+        case '.f03':
+        case '.f08':
+            return 'Fortran';
+        case '.kt':
+            return 'Kotlin';
+        case '.kts':
+            return 'Kotlin Script';
+        case '.sol':
+            return 'Solidity';
+        case '.erl':
+            return 'Erlang';
+        case '.hrl':
+            return 'Erlang Header';
+        case '.zig':
+            return 'Zig';
+        case '.pl':
+            return 'Perl';
+        case '.pm':
+            return 'Perl Module';
+        case '.pod':
+            return 'Perl POD';
+        case '.t':
+            return 'Perl Test';
         default:
             return 'Unknown';
     }
@@ -305,12 +507,123 @@ function createNoWorkspaceItem() {
  * Creates an item when no analyzable files are found
  */
 function createNoFilesItem() {
-    return new baseItems_1.TreeItem('No analyzable files found', 'No files with supported extensions (.py, .js, .ts, .c) found in workspace', treeProvider_1.TreeItemType.ANALYSIS_MESSAGE, vscode.TreeItemCollapsibleState.None, undefined, new vscode.ThemeIcon('info'));
+    return new baseItems_1.TreeItem('No analyzable files found', 'No files with supported extensions found in workspace', treeProvider_1.TreeItemType.ANALYSIS_MESSAGE, vscode.TreeItemCollapsibleState.None, undefined, new vscode.ThemeIcon('info'));
 }
 /**
  * Creates an error item
  */
 function createErrorItem(error) {
     return new baseItems_1.TreeItem('Error loading files', `Error: ${error instanceof Error ? error.message : String(error)}`, treeProvider_1.TreeItemType.ANALYSIS_MESSAGE, vscode.TreeItemCollapsibleState.None, undefined, new vscode.ThemeIcon('error'));
+}
+/**
+ * ✅ RESTAURAR LanguageGroupItem USANDO ICONOS PNG
+ * Container for language file groups
+ */
+class LanguageGroupItem extends baseItems_1.TreeItem {
+    constructor(language, fileCount, extensionPath) {
+        // ✅ USAR LA FUNCIÓN getLanguageIcon RESTAURADA
+        const languageIcon = getLanguageIcon(language, extensionPath);
+        super(language, `${language} files that can be analyzed`, treeProvider_1.TreeItemType.ANALYSIS_LANGUAGE_GROUP, vscode.TreeItemCollapsibleState.Expanded, undefined, languageIcon // ✅ USAR EL ICONO DE LA FUNCIÓN
+        );
+        this.description = `(${fileCount} files)`;
+    }
+}
+/**
+ * ✅ RESTAURAR LA FUNCIÓN getLanguageIcon CON ICONOS PNG
+ * Gets appropriate icon for language using PNG files
+ */
+function getLanguageIcon(language, extensionPath) {
+    let iconFileName;
+    switch (language) {
+        case 'Python':
+            iconFileName = 'python.png';
+            break;
+        case 'JavaScript':
+            iconFileName = 'javascript.png';
+            break;
+        case 'TypeScript':
+            iconFileName = 'typescript.png';
+            break;
+        case 'Java':
+            iconFileName = 'java.png';
+            break;
+        case 'C':
+        case 'C Header':
+            iconFileName = 'c.png';
+            break;
+        case 'C++':
+        case 'C++ Header':
+            iconFileName = 'cpp.png';
+            break;
+        case 'C#':
+            iconFileName = 'csharp.png';
+            break;
+        case 'Vue':
+            iconFileName = 'vue.png';
+            break;
+        case 'Ruby':
+            iconFileName = 'ruby.png';
+            break;
+        case 'Objective-C':
+        case 'Objective-C++':
+            iconFileName = 'objective-c.png';
+            break;
+        case 'Swift':
+            iconFileName = 'swift.png';
+            break;
+        case 'TTCN-3':
+            iconFileName = 'ttcn3.png';
+            break;
+        case 'PHP':
+            iconFileName = 'php.png';
+            break;
+        case 'Scala':
+            iconFileName = 'scala.png';
+            break;
+        // ✅ AÑADIR ICONOS PARA NUEVOS LENGUAJES
+        case 'GDScript':
+            iconFileName = 'gdscript.png';
+            break;
+        case 'Go':
+            iconFileName = 'go.png';
+            break;
+        case 'Lua':
+            iconFileName = 'lua.png';
+            break;
+        case 'Rust':
+            iconFileName = 'rust.png';
+            break;
+        case 'Fortran':
+        case 'Fortran 77':
+            iconFileName = 'fortran.png';
+            break;
+        case 'Kotlin':
+        case 'Kotlin Script':
+            iconFileName = 'kotlin.png';
+            break;
+        case 'Solidity':
+            iconFileName = 'solidity.png';
+            break;
+        case 'Erlang':
+        case 'Erlang Header':
+            iconFileName = 'erlang.png';
+            break;
+        case 'Zig':
+            iconFileName = 'zig.png';
+            break;
+        case 'Perl':
+        case 'Perl Module':
+        case 'Perl POD':
+        case 'Perl Test':
+            iconFileName = 'perl.png';
+            break;
+        default:
+            iconFileName = 'file-code.png';
+    }
+    console.log(`🎨 Language: "${language}" → Icon: "${iconFileName}"`);
+    return {
+        light: vscode.Uri.file(path.join(extensionPath, 'resources', 'languajes_icons', iconFileName)),
+        dark: vscode.Uri.file(path.join(extensionPath, 'resources', 'languajes_icons', iconFileName))
+    };
 }
 //# sourceMappingURL=analysisTreeProvider.js.map

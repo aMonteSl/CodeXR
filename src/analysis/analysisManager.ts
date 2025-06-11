@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { FileAnalysisResult, WebviewMessage } from './model';
-import { analyzeLizard } from './lizardExecutor';
-import { countFileLines, getFileSize, getLanguageName, formatFileSize, classifyComplexity, resolveAnalyzerScriptPath } from './utils';
+import { FileAnalysisResult, AnalysisMode, WebviewMessage } from './model';
+import { countFileLines, getLanguageName, formatFileSize, resolveAnalyzerScriptPath } from './utils';
 import { analysisDataManager } from './analysisDataManager';
+import { FileWatchManager } from './fileWatchManager';
+import { createXRVisualization } from './xr/xrAnalysisManager';
+// ✅ AÑADIR IMPORTS FALTANTES
 import { getPythonExecutable, getVenvPath } from '../pythonEnv/utils/pathUtils';
 import { executeCommand } from '../pythonEnv/utils/processUtils';
-import { createXRVisualization } from './xr/xrAnalysisManager'; // ✅ ELIMINAR openXRVisualization
-import { FileWatchManager } from './fileWatchManager';
+import { generateNonce } from '../utils/nonceUtils';
 
 // Output channel for analysis operations
 let analysisOutputChannel: vscode.OutputChannel;
@@ -34,25 +35,24 @@ async function analyzeComments(
   outputChannel: vscode.OutputChannel
 ): Promise<number> {
   try {
-    // Get the file extension
     const ext = path.extname(filePath).toLowerCase();
     
-    // List of supported extensions for our comment analyzer
-    const supportedExtensions = [
-      '.py', '.js', '.ts', '.jsx', '.tsx',
-      '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp',
-      '.cs', '.vue', '.rb'
-    ];
-    
-    // Check if we support this file type
-    if (!supportedExtensions.includes(ext)) {
+    // ✅ AÑADIR SCALA A LA LISTA DE EXTENSIONES SOPORTADAS
+    if (!ext || !['.py', '.js', '.ts', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs', '.java', '.rb', '.vue', '.m', '.mm', '.swift', '.ttcn3', '.ttcn', '.3mp', '.php', '.phtml', '.php3', '.php4', '.php5', '.phps', '.scala', '.sc', '.gd', '.go', '.lua', '.rs', '.f', '.f77', '.f90', '.f95', '.f03', '.f08', '.for', '.ftn', '.kt', '.kts', '.sol', '.erl', '.hrl', '.zig', '.pl', '.pm', '.pod', '.t'].includes(ext)) {
       outputChannel.appendLine(`Skipping comment analysis for unsupported file type: ${ext}`);
       return 0;
     }
     
     outputChannel.appendLine(`[DEBUG] Starting comment analysis for ${filePath} with extension ${ext}`);
     
-    const pythonPath = getPythonExecutable(getVenvPath() || '');
+    // ✅ VERIFICAR QUE EXISTE VENV Y PYTHON
+    const venvPath = getVenvPath();
+    if (!venvPath) {
+      outputChannel.appendLine('[ERROR] No virtual environment found');
+      return 0;
+    }
+    
+    const pythonPath = getPythonExecutable(venvPath);
     outputChannel.appendLine(`[DEBUG] Using Python executable: ${pythonPath}`);
     
     const scriptPath = resolveAnalyzerScriptPath('python_comment_analyzer.py', outputChannel);
@@ -61,21 +61,19 @@ async function analyzeComments(
     // Log file content preview for debugging
     try {
       const fileContent = await fs.promises.readFile(filePath, 'utf8');
-      const previewLines = fileContent.split('\n').slice(0, 10).join('\n');
-      outputChannel.appendLine(`[DEBUG] File content preview (first 10 lines):\n${previewLines}\n...`);
-    } catch (err) {
-      outputChannel.appendLine(`[DEBUG] Could not read file for preview: ${err}`);
+      const preview = fileContent.split('\n').slice(0, 3).join('\n');
+      outputChannel.appendLine(`[DEBUG] File preview (first 3 lines): ${preview}`);
+    } catch (e) {
+      outputChannel.appendLine(`[DEBUG] Could not read file for preview: ${e}`);
     }
-
-    outputChannel.appendLine(`[DEBUG] Executing: ${pythonPath} ${scriptPath} ${filePath}`);
-    outputChannel.appendLine(`Analyzing comments in ${path.basename(filePath)}...`);
     
+    // Execute the Python analyzer
     const output = await executeCommand(
       pythonPath,
       [scriptPath, filePath],
       { showOutput: false }
     );
-    
+
     outputChannel.appendLine(`[DEBUG] Raw output from Python script: ${output}`);
 
     let result;
@@ -94,18 +92,10 @@ async function analyzeComments(
     }
 
     outputChannel.appendLine(`Found ${result.commentLines} comment lines in ${path.basename(filePath)} (${ext})`);
-    
-    if (result.commentLines === 0 && (ext === '.cpp' || ext === '.cs' || ext === '.vue' || ext === '.rb')) {
-      outputChannel.appendLine(`[DEBUG] Warning: Zero comments found for ${ext} file. This may indicate an issue with comment detection.`);
-    }
-    
     return result.commentLines;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    outputChannel.appendLine(`[ERROR] Error analyzing comments: ${errorMessage}`);
-    if (error instanceof Error && error.stack) {
-      outputChannel.appendLine(`[ERROR] Stack trace: ${error.stack}`);
-    }
+    outputChannel.appendLine(`[ERROR] Error analyzing comments: ${error instanceof Error ? error.message : String(error)}`);
+    outputChannel.appendLine(`[ERROR] Stack trace: ${error instanceof Error ? error.stack : 'No stack trace available'}`);
     return 0;
   }
 }
@@ -121,28 +111,51 @@ async function analyzeClassCount(
   outputChannel: vscode.OutputChannel
 ): Promise<number> {
   try {
-    const pythonPath = getPythonExecutable(getVenvPath() || '');
+    const ext = path.extname(filePath).toLowerCase();
     
+    // ✅ AÑADIR SCALA A LA LISTA DE EXTENSIONES SOPORTADAS
+    if (!ext || !['.py', '.js', '.ts', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs', '.java', '.rb', '.vue', '.m', '.mm', '.swift', '.ttcn3', '.ttcn', '.3mp', '.php', '.phtml', '.php3', '.php4', '.php5', '.phps', '.scala', '.sc', '.gd', '.go', '.lua', '.rs', '.f', '.f77', '.f90', '.f95', '.f03', '.f08', '.for', '.ftn', '.kt', '.kts', '.sol', '.erl', '.hrl', '.zig', '.pl', '.pm', '.pod', '.t'].includes(ext)) {
+      outputChannel.appendLine(`Skipping class analysis for unsupported file type: ${ext}`);
+      return 0;
+    }
+    
+    outputChannel.appendLine(`[DEBUG] Starting class analysis for ${filePath} with extension ${ext}`);
+    
+    // ✅ VERIFICAR QUE EXISTE VENV Y PYTHON
+    const venvPath = getVenvPath();
+    if (!venvPath) {
+      outputChannel.appendLine('[ERROR] No virtual environment found');
+      return 0;
+    }
+    
+    const pythonPath = getPythonExecutable(venvPath);
     const scriptPath = resolveAnalyzerScriptPath('class_counter_analyzer.py', outputChannel);
-
-    outputChannel.appendLine(`Analyzing class declarations...`);
+    
+    // Execute the Python analyzer
     const output = await executeCommand(
       pythonPath,
       [scriptPath, filePath],
       { showOutput: false }
     );
 
-    const result = JSON.parse(output);
+    let result;
+    try {
+      result = JSON.parse(output);
+    } catch (jsonError) {
+      outputChannel.appendLine(`[ERROR] Failed to parse JSON output from class analyzer: ${jsonError}`);
+      outputChannel.appendLine(`[ERROR] Raw output: ${output}`);
+      return 0;
+    }
+    
     if (result.error) {
       outputChannel.appendLine(`Warning: ${result.error}`);
       return 0;
     }
 
-    outputChannel.appendLine(`Found ${result.classCount} class declarations`);
+    outputChannel.appendLine(`Found ${result.classCount} classes/interfaces/types`);
     return result.classCount;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    outputChannel.appendLine(`Error analyzing class declarations: ${errorMessage}`);
+    outputChannel.appendLine(`[ERROR] Error analyzing classes: ${error instanceof Error ? error.message : String(error)}`);
     return 0;
   }
 }
@@ -159,93 +172,148 @@ export async function analyzeFile(filePath: string, context: vscode.ExtensionCon
   outputChannel.show();
   outputChannel.appendLine(`Analyzing ${path.basename(filePath)}...`);
   
+  // ✅ MARCAR ARCHIVO COMO "SIENDO ANALIZADO"
+  analysisDataManager.setFileAnalyzing(filePath);
+  
   try {
-    // Basic file info
-    const fileSize = await getFileSize(filePath);
-    const lineCount = await countFileLines(filePath);
-    const language = getLanguageName(filePath);
-    
-    // Advanced analysis with lizard
-    const lizardResults = await analyzeLizard(filePath, outputChannel);
-    
-    // Run additional analyzers
-    const commentCount = await analyzeComments(filePath, outputChannel);
-    const classCount = await analyzeClassCount(filePath, outputChannel);
-    
-    // Update line counts with the accurate comment count from specific analyzer
-    if (commentCount > 0) {
-      lineCount.comment = commentCount;
+    // Verificar que el archivo existe
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
     }
+
+    // Obtener información básica del archivo
+    const fileName = path.basename(filePath);
+    const language = getLanguageName(filePath);
+    const fileSize = fs.statSync(filePath).size;
+    const lineCount = await countFileLines(filePath);
     
-    if (!lizardResults) {
-      outputChannel.appendLine('Advanced analysis unavailable. Using basic analysis only.');
-      
-      // Prepare basic result
-      const basicResult = {
-        filePath,
-        fileName: path.basename(filePath),
-        language,
-        fileSize,
-        lineCount,
-        classCount, // Use the analyzed class count
-        complexity: {
+    outputChannel.appendLine(`File: ${fileName}`);
+    outputChannel.appendLine(`Language: ${language}`);
+    outputChannel.appendLine(`Size: ${formatFileSize(fileSize)}`);
+    outputChannel.appendLine(`Lines: ${lineCount.total} total, ${lineCount.code} code, ${lineCount.comment} comments`);
+
+    // ✅ VERIFICAR SI EXISTE ENTORNO PYTHON ANTES DE USAR LIZARD
+    const venvPath = getVenvPath();
+    let functions: any[] = [];
+    let complexity = {
+      averageComplexity: 0,
+      maxComplexity: 0,
+      functionCount: 0,
+      highComplexityFunctions: 0,
+      criticalComplexityFunctions: 0
+    };
+
+    if (venvPath) {
+      try {
+        outputChannel.appendLine('Running Lizard analyzer...');
+        
+        // Usar Lizard para análisis detallado
+        const scriptPath = resolveAnalyzerScriptPath('lizard_analyzer.py', outputChannel);
+        const pythonPath = getPythonExecutable(venvPath);
+        
+        const lizardArgs = [scriptPath, filePath];
+        
+        const { spawn } = require('child_process');
+        const lizardProcess = spawn(pythonPath, lizardArgs);
+        
+        let stdout = '';
+        let stderr = '';
+        
+        lizardProcess.stdout.on('data', (data: Buffer) => {
+          stdout += data.toString();
+        });
+        
+        lizardProcess.stderr.on('data', (data: Buffer) => {
+          stderr += data.toString();
+        });
+        
+        const lizardResult = await new Promise<string>((resolve, reject) => {
+          lizardProcess.on('close', (code: number) => {
+            if (code === 0) {
+              resolve(stdout);
+            } else {
+              reject(new Error(`Lizard process failed with code ${code}: ${stderr}`));
+            }
+          });
+        });
+        
+        // Parsear resultado de Lizard
+        const lizardData = JSON.parse(lizardResult);
+        functions = lizardData.functions || [];
+        
+        // Calcular métricas de complejidad
+        if (functions.length > 0) {
+          const complexities = functions.map((f: any) => f.complexity);
+          complexity = {
+            averageComplexity: complexities.reduce((a: number, b: number) => a + b, 0) / complexities.length,
+            maxComplexity: Math.max(...complexities),
+            functionCount: functions.length,
+            highComplexityFunctions: complexities.filter((c: number) => c > 10).length,
+            criticalComplexityFunctions: complexities.filter((c: number) => c > 25).length
+          };
+        }
+        
+        outputChannel.appendLine(`Functions found: ${functions.length}`);
+        outputChannel.appendLine(`Average complexity: ${complexity.averageComplexity.toFixed(2)}`);
+        outputChannel.appendLine(`Max complexity: ${complexity.maxComplexity}`);
+        
+      } catch (error) {
+        outputChannel.appendLine(`Warning: Lizard analysis failed: ${error}`);
+        outputChannel.appendLine('Continuing with basic analysis...');
+        
+        // Fallback a análisis básico sin Lizard
+        functions = [];
+        complexity = {
           averageComplexity: 0,
           maxComplexity: 0,
           functionCount: 0,
           highComplexityFunctions: 0,
           criticalComplexityFunctions: 0
-        },
-        functions: [],
-        timestamp: Date.now()
-      };
-      
-      // Log the final result as JSON
-      outputChannel.appendLine('ANALYSIS RESULT (JSON):');
-      outputChannel.appendLine(JSON.stringify(basicResult, null, 2));
-      
-      // Start watching this file for changes
-      const fileWatchManager = FileWatchManager.getInstance();
-      if (fileWatchManager) {
-        fileWatchManager.setContext(context);
+        };
       }
-
-      return basicResult;
+    } else {
+      outputChannel.appendLine('No Python virtual environment found. Skipping Lizard analysis...');
     }
+
+    // Analizar comentarios
+    const commentLines = await analyzeComments(filePath, outputChannel);
     
-    // Complete result with lizard data and our additional analyzers
+    // Actualizar conteo de comentarios si se obtuvo un resultado diferente
+    if (commentLines > 0) {
+      lineCount.comment = commentLines;
+    }
+
+    // Analizar clases
+    const classCount = await analyzeClassCount(filePath, outputChannel);
+
+    // Crear resultado de análisis
     const result: FileAnalysisResult = {
       filePath,
-      fileName: path.basename(filePath),
+      fileName,
       language,
       fileSize,
       lineCount,
-      classCount, // Use the analyzed class count
-      complexity: lizardResults.metrics,
-      functions: lizardResults.functions,
+      classCount,
+      complexity,
+      functions,
       timestamp: Date.now()
     };
-    
-    // Log the final result as JSON
-    outputChannel.appendLine('ANALYSIS RESULT (JSON):');
-    outputChannel.appendLine(JSON.stringify(result, null, 2));
-    
-    // Store the result in the data manager
-    analysisDataManager.setAnalysisResult(filePath, result);
-    
-    outputChannel.appendLine('Analysis complete!');
-    
-    // Start watching this file for changes
-    const fileWatchManager = FileWatchManager.getInstance();
-    if (fileWatchManager) {
-      fileWatchManager.setContext(context);
-    }
 
+    outputChannel.appendLine('✅ Analysis completed successfully');
+    console.log('Analysis result:', result);
+    
+    // ✅ MARCAR ARCHIVO COMO "ANÁLISIS COMPLETADO"
+    analysisDataManager.setFileAnalyzed(filePath);
+    
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    outputChannel.appendLine(`Error analyzing file: ${errorMessage}`);
+    outputChannel.appendLine(`❌ Analysis failed: ${errorMessage}`);
+    console.error('Analysis error:', error);
     
-    vscode.window.showErrorMessage(`Failed to analyze file: ${errorMessage}`);
+    // ✅ MARCAR ARCHIVO COMO "ANÁLISIS COMPLETADO" (INCLUSO SI FALLÓ)
+    analysisDataManager.setFileAnalyzed(filePath);
+    
     return undefined;
   }
 }
@@ -327,30 +395,53 @@ export function showAnalysisWebView(context: vscode.ExtensionContext, result: Fi
   // Before creating the panel - check if we already have one
   const existingPanel = analysisDataManager.getActiveFileAnalysisPanel(result.filePath);
   if (existingPanel && !existingPanel.disposed) {
-    // Re-use the existing panel
-    panel = existingPanel;
-    panel.reveal();
+    console.log(`📄 Reusing existing panel for ${result.fileName}`);
+    sendAnalysisData(existingPanel, result);
+    existingPanel.reveal(vscode.ViewColumn.Beside);
+    return;
   } else {
-    // Create a new panel
+    console.log(`📄 Creating new analysis panel for ${result.fileName}`);
+    
+    // Create new panel with specific title
     panel = vscode.window.createWebviewPanel(
-      'codeAnalysis', 
+      'codeAnalysis',
       `Analysis: ${result.fileName}`,
-      vscode.ViewColumn.Two,
+      vscode.ViewColumn.Beside,
       {
         enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'media'))]
+        localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis'))],
+        retainContextWhenHidden: true
       }
     );
     
-    // Store the panel in the manager with both required parameters
+    // Store panel reference
     analysisDataManager.setActiveFileAnalysisPanel(result.filePath, panel);
-    analysisDataManager.setAnalysisResult(result.filePath, result);
   }
 
-  // Add a handler for panel disposal
+  // ✅ NUEVA FUNCIONALIDAD: Detectar cierre del panel y limpiar watcher
   panel.onDidDispose(() => {
+    console.log(`🗑️ Analysis panel for ${result.fileName} was closed manually`);
+    
+    // Limpiar referencia del panel
     analysisDataManager.setActiveFileAnalysisPanel(result.filePath, null);
+    
+    // ✅ PARAR EL FILE WATCHER PARA ESTE ARCHIVO
+    const fileWatchManager = FileWatchManager.getInstance();
+    if (fileWatchManager) {
+      console.log(`🛑 Stopping file watcher for ${result.filePath} due to panel closure`);
+      fileWatchManager.stopWatching(result.filePath);
+      
+      // Mostrar mensaje informativo opcional
+      vscode.window.showInformationMessage(
+        `Analysis panel for ${result.fileName} closed. Auto-analysis disabled for this file.`,
+        'OK'
+      );
+    }
+    
+    // ✅ LIMPIAR DATOS DE ANÁLISIS
+    analysisDataManager.removeFile(result.filePath);
+    
+    console.log(`✅ Cleaned up all resources for ${result.fileName}`);
   });
   
   // Rest of panel setup...
@@ -363,30 +454,28 @@ export function showAnalysisWebView(context: vscode.ExtensionContext, result: Fi
   );
   
   // Generate a nonce for CSP
-  const nonce = getNonce();
+  const nonce = generateNonce();
   
   try {
-    // Read the HTML template
-    const htmlPath = path.join(context.extensionPath, 'templates', 'analysis', 'fileAnalysis.html');
-    let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+    const templatePath = path.join(context.extensionPath, 'templates', 'analysis', 'fileAnalysis.html');
+    let htmlContent = fs.readFileSync(templatePath, 'utf8');
     
-    // Replace placeholders in HTML template with actual values
+    // Replace placeholders in the template
     htmlContent = htmlContent
-      .replace('${webview.cspSource}', panel.webview.cspSource)
-      .replace(/\${nonce}/g, nonce)  // Replace all instances of nonce
-      .replace('${styleUri}', styleUri.toString())
-      .replace('${scriptUri}', scriptUri.toString());
-    
-    // Set the webview content
-    panel.webview.html = htmlContent;
+      .replace(/\${webview\.cspSource}/g, panel.webview.cspSource)
+      .replace(/\${nonce}/g, nonce)
+      .replace(/\${styleUri}/g, styleUri.toString())
+      .replace(/\${scriptUri}/g, scriptUri.toString());
 
-    // Add the message handler only once when creating the panel
-    setUpMessageHandlers(panel, context);
+    panel.webview.html = htmlContent;
+    console.log(`📊 Panel content set for ${result.fileName}`);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`Error displaying analysis results: ${errorMessage}`);
-    console.error('Error displaying analysis results:', error);
+    console.error('Error reading template file:', error);
+    panel.webview.html = `<html><body><h1>Error loading analysis template</h1><p>${error}</p></body></html>`;
   }
+
+  // Setup message handlers
+  setUpMessageHandlers(panel, context);
 
   // Send data with both parameters
   sendAnalysisData(panel, result);
@@ -415,30 +504,38 @@ export function sendAnalysisData(panel: vscode.WebviewPanel, result: FileAnalysi
 function setUpMessageHandlers(panel: vscode.WebviewPanel, context: vscode.ExtensionContext): void {
   panel.webview.onDidReceiveMessage(
     (message: WebviewMessage) => {
+      console.log('📨 Received message from webview:', message);
+      
       switch (message.command) {
-        case 'openFile':
-          if (message.data && message.data.path && message.data.line) {
-            const fileUri = vscode.Uri.file(message.data.path);
-            vscode.workspace.openTextDocument(fileUri).then(doc => {
-              vscode.window.showTextDocument(doc).then(editor => {
-                // Go to specific line
-                const line = Math.max(0, message.data.line - 1);
-                const position = new vscode.Position(line, 0);
-                editor.selection = new vscode.Selection(position, position);
-                editor.revealRange(
-                  new vscode.Range(position, position),
-                  vscode.TextEditorRevealType.InCenter
-                );
-              });
+        case 'showFunctionDetails':
+          console.log('🔍 Opening function detail view for:', message.data?.function?.name);
+          showFunctionDetailView(context, message.data);
+          break;
+        case 'openInEditor':
+          // Open file at specific line
+          if (message.data && message.data.filePath && message.data.lineNumber) {
+            const uri = vscode.Uri.file(message.data.filePath);
+            vscode.window.showTextDocument(uri, {
+              selection: new vscode.Range(
+                message.data.lineNumber - 1, 0,
+                message.data.lineNumber - 1, 0
+              )
             });
           }
           break;
-        case 'showFunctionDetails':
-          // Handle request to show function details
-          if (message.data) {
-            showFunctionDetailView(context, message.data);
+        case 'goToLine':
+          // Navigate to specific line in editor
+          if (message.data && message.data.filePath && message.data.lineNumber) {
+            const uri = vscode.Uri.file(message.data.filePath);
+            vscode.window.showTextDocument(uri).then(editor => {
+              const position = new vscode.Position(message.data.lineNumber - 1, 0);
+              editor.selection = new vscode.Selection(position, position);
+              editor.revealRange(new vscode.Range(position, position));
+            });
           }
           break;
+        default:
+          console.log('Unknown command:', message.command);
       }
     },
     undefined,
@@ -455,40 +552,90 @@ export function showFunctionDetailView(
   context: vscode.ExtensionContext,
   data: {function: any, filePath: string, fileName: string, language: string}
 ): void {
-  // Create a unique identifier for this function to ensure it opens in a new tab
-  const functionId = `${data.fileName}:${data.function.name}:${data.function.lineStart}`;
+  console.log('🔍 Creating function detail view for:', data.function.name);
   
-  // Always create a new panel for each function
+  // Create a unique panel ID based on function and file
+  const panelId = `function-${data.fileName}-${data.function.name}`;
+  
+  // Check if we already have a panel for this function
+  let existingPanel = analysisDataManager.getActiveFunctionAnalysisPanel(data.filePath);
+  
+  if (existingPanel && !existingPanel.disposed) {
+    console.log('📋 Reusing existing function panel');
+    existingPanel.reveal(vscode.ViewColumn.Two);
+    sendFunctionData(existingPanel, data);
+    return;
+  }
+  
+  // Create new webview panel
   const panel = vscode.window.createWebviewPanel(
-    `codexrFunctionAnalysis-${functionId}`,  // Use unique ID in the panel type
+    'functionAnalysis',
     `Function: ${data.function.name}`,
-    vscode.ViewColumn.Beside,  // Open beside the current panel
+    vscode.ViewColumn.Two,
     {
       enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [
-        vscode.Uri.file(path.join(context.extensionPath, 'media')),
-        vscode.Uri.file(path.join(context.extensionPath, 'templates'))
-      ]
+      localResourceRoots: [context.extensionUri],
+      retainContextWhenHidden: true
     }
   );
   
-  // We still track the most recently opened function panel
+  // Store reference to this panel
   analysisDataManager.setActiveFunctionAnalysisPanel(data.filePath, panel);
-  analysisDataManager.setFunctionData(data.filePath, data);
   
-  // Add disposal handler
-  panel.onDidDispose(() => {
-    // Extract the file path from the stored data
-    const filePath = data.filePath;
+  // Set up the webview content
+  const styleUri = panel.webview.asWebviewUri(
+    vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'functionAnalysisstyle.css'))
+  );
+  
+  const scriptUri = panel.webview.asWebviewUri(
+    vscode.Uri.file(path.join(context.extensionPath, 'media', 'analysis', 'functionAnalysismain.js'))
+  );
+  
+  // Generate nonce for CSP
+  const nonce = generateNonce();
+  
+  // Load the function analysis template
+  try {
+    const templatePath = path.join(context.extensionPath, 'templates', 'analysis', 'functionAnalysis.html');
+    let template = fs.readFileSync(templatePath, 'utf8');
     
-    // Clear the function data only if this is the active panel
-    if (analysisDataManager.getActiveFunctionAnalysisPanel(filePath) === panel) {
-      analysisDataManager.clearFunctionData(filePath);
-    }
+    // Replace placeholders
+    template = template
+      .replace(/\${webview\.cspSource}/g, panel.webview.cspSource)
+      .replace(/\${styleUri}/g, styleUri.toString())
+      .replace(/\${scriptUri}/g, scriptUri.toString())
+      .replace(/\${nonce}/g, nonce);
+    
+    panel.webview.html = template;
+    console.log('✅ Function panel HTML set successfully');
+  } catch (error) {
+    console.error('❌ Error loading function analysis template:', error);
+    panel.webview.html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}';">
+        </head>
+        <body>
+          <h1>Error</h1>
+          <p>Could not load function analysis template: ${error}</p>
+        </body>
+      </html>
+    `;
+  }
+  
+  // Set up message handlers for function panel
+  setupFunctionViewMessageHandlers(panel, context);
+  
+  // Handle panel disposal
+  panel.onDidDispose(() => {
+    analysisDataManager.setActiveFunctionAnalysisPanel(data.filePath, null);
+    console.log('🗑️ Function panel disposed');
   });
   
-  // Rest of the function remains unchanged...
+  // Send function data to webview
+  sendFunctionData(panel, data);
 }
 
 /**
@@ -497,43 +644,43 @@ export function showFunctionDetailView(
 function setupFunctionViewMessageHandlers(panel: vscode.WebviewPanel, context: vscode.ExtensionContext): void {
   panel.webview.onDidReceiveMessage(
     (message: WebviewMessage) => {
+      console.log('📨 Function panel message:', message);
+      
       switch (message.command) {
-        case 'openFile':
-          if (message.data && message.data.path && message.data.line) {
-            const fileUri = vscode.Uri.file(message.data.path);
-            vscode.workspace.openTextDocument(fileUri).then(doc => {
-              vscode.window.showTextDocument(doc).then(editor => {
-                // Go to specific line
-                const line = Math.max(0, message.data.line - 1);
-                const position = new vscode.Position(line, 0);
-                editor.selection = new vscode.Selection(position, position);
-                editor.revealRange(
-                  new vscode.Range(position, position),
-                  vscode.TextEditorRevealType.InCenter
-                );
-              });
+        case 'openInEditor':
+          // Open file at specific line
+          if (message.data && message.data.filePath && message.data.lineNumber) {
+            const uri = vscode.Uri.file(message.data.filePath);
+            vscode.window.showTextDocument(uri, {
+              selection: new vscode.Range(
+                message.data.lineNumber - 1, 0,
+                message.data.lineNumber - 1, 0
+              )
+            });
+          }
+          break;
+        case 'goToLine':
+          // Navigate to specific line in editor
+          if (message.data && message.data.filePath && message.data.lineNumber) {
+            const uri = vscode.Uri.file(message.data.filePath);
+            vscode.window.showTextDocument(uri).then(editor => {
+              const position = new vscode.Position(message.data.lineNumber - 1, 0);
+              editor.selection = new vscode.Selection(position, position);
+              editor.revealRange(new vscode.Range(position, position));
             });
           }
           break;
         case 'backToFileAnalysis':
-          // Get file path from panel data
-          const filePath = panel.title.split(":")[1]?.trim() || "unknown";
-          
-          // Fixed: Now passing filePath parameter to both functions
-          const analysisPanel = analysisDataManager.getActiveFileAnalysisPanel(filePath);
-          const analysisResult = analysisDataManager.getAnalysisResult(filePath);
-          
-          if (analysisPanel && !analysisPanel.disposed && analysisResult) {
-            // Show the file analysis panel
-            analysisPanel.reveal(vscode.ViewColumn.Two);
-            
-            // Re-send the data to ensure it's properly displayed
-            sendAnalysisData(analysisPanel, analysisResult);
+          // Return to file analysis view
+          if (message.data && message.data.filePath) {
+            const filePanel = analysisDataManager.getActiveFileAnalysisPanel(message.data.filePath);
+            if (filePanel && !filePanel.disposed) {
+              filePanel.reveal(vscode.ViewColumn.One);
+            }
           }
-          
-          // Close the function detail panel
-          panel.dispose();
           break;
+        default:
+          console.log('Unknown function panel command:', message.command);
       }
     },
     undefined,
@@ -545,119 +692,58 @@ function setupFunctionViewMessageHandlers(panel: vscode.WebviewPanel, context: v
  * Sends function data to the WebView
  */
 function sendFunctionData(panel: vscode.WebviewPanel, data: any): void {
+  console.log('📤 Sending function data to webview:', data.function.name);
+  
+  // Prepare function data for webview
+  const functionData = {
+    function: data.function,
+    filePath: data.filePath,
+    fileName: data.fileName,
+    language: data.language,
+    // Calculate additional metrics
+    complexityCategory: getComplexityCategory(data.function.complexity),
+    recommendations: getComplexityRecommendations(data.function.complexity)
+  };
+  
+  // Send data to webview with a delay to ensure it's ready
   setTimeout(() => {
     panel.webview.postMessage({
       command: 'setFunctionData',
-      data: data
+      data: functionData
     });
+    console.log('✅ Function data sent to webview');
   }, 500);
 }
 
 /**
- * Generate a nonce string for Content Security Policy
+ * Helper function to determine complexity category
  */
-function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+function getComplexityCategory(complexity: number): string {
+  if (complexity <= 5) return 'Simple';
+  if (complexity <= 10) return 'Moderate';
+  if (complexity <= 20) return 'Complex';
+  return 'Very Complex';
+}
+
+/**
+ * Helper function to get complexity recommendations
+ */
+function getComplexityRecommendations(complexity: number): string[] {
+  const recommendations: string[] = [];
+  
+  if (complexity <= 5) {
+    recommendations.push('This function has low complexity and is easy to understand and maintain.');
+  } else if (complexity <= 10) {
+    recommendations.push('This function has moderate complexity. Consider if it can be simplified.');
+  } else if (complexity <= 20) {
+    recommendations.push('This function is complex. Consider breaking it into smaller functions.');
+    recommendations.push('Look for opportunities to reduce nesting and conditional logic.');
+  } else {
+    recommendations.push('This function is very complex and should be refactored.');
+    recommendations.push('Break it down into multiple smaller, focused functions.');
+    recommendations.push('Consider using design patterns to reduce complexity.');
+    recommendations.push('Add comprehensive unit tests before refactoring.');
   }
-  return text;
-}
-
-/**
- * Registers the Static analysis command
- * @param context Extension context
- * @returns Disposable for the registered command
- */
-export function registerAnalysisCommand(context: vscode.ExtensionContext): vscode.Disposable {
-  return vscode.commands.registerCommand('codexr.analyzeFile', async () => {
-    // Get the active editor
-    const editor = vscode.window.activeTextEditor;
-    
-    if (!editor) {
-      vscode.window.showInformationMessage('No file is currently open for analysis');
-      return;
-    }
-    
-    const filePath = editor.document.uri.fsPath;
-    
-    // Show progress notification
-    vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: `Analyzing ${path.basename(filePath)}...`,
-      cancellable: false
-    }, async (progress) => {
-      progress.report({ increment: 30, message: "Running code analysis..." });
-      
-      const result = await analyzeFile(filePath, context);
-      
-      progress.report({ increment: 70, message: "Preparing visualization..." });
-      
-      if (result) {
-        // Store the result in the manager
-        analysisDataManager.setAnalysisResult(filePath, result);
-        showAnalysisWebView(context, result);
-      }
-      
-      return Promise.resolve();
-    });
-  });
-}
-
-/**
- * Registers the XR analysis command
- * @param context Extension context
- * @returns Disposable for the registered command
- */
-export function registerAnalysis3DCommand(context: vscode.ExtensionContext): vscode.Disposable {
-  return vscode.commands.registerCommand('codexr.analyzeFile3D', async (fileUri) => {
-    // Get the file path
-    let filePath: string | undefined;
-    
-    if (typeof fileUri === 'string') {
-      filePath = fileUri;
-    } else if (fileUri instanceof vscode.Uri) {
-      filePath = fileUri.fsPath;
-    } else {
-      // Get the active text editor
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        vscode.window.showErrorMessage('No file is open to analyze in XR');
-        return;
-      }
-      filePath = editor.document.uri.fsPath;
-    }
-    
-    // Show progress notification
-    vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: `Analyzing ${path.basename(filePath)} for XR visualization...`,
-      cancellable: false
-    }, async (progress) => {
-      // First analyze the file with existing analysis
-      progress.report({ increment: 30, message: "Running code analysis..." });
-      const result = await analyzeFile(filePath, context);
-      
-      if (!result) {
-        vscode.window.showErrorMessage(`Failed to analyze file: ${path.basename(filePath)}`);
-        return;
-      }
-      
-      // Create XR visualization
-      progress.report({ increment: 40, message: "Creating XR visualization..." });
-      const htmlFilePath = await createXRVisualization(context, result);
-      
-      if (!htmlFilePath) {
-        vscode.window.showErrorMessage(`Failed to create XR visualization for: ${path.basename(filePath)}`);
-        return;
-      }
-      
-      // ✅ NO LLAMAR openXRVisualization - createXRVisualization ya abre el navegador
-      progress.report({ increment: 30, message: "Visualization opened in browser..." });
-      console.log('✅ XR visualization created and opened successfully');
-      
-      return Promise.resolve();
-    });
-  });
+  
+  return recommendations;
 }

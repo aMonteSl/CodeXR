@@ -6,9 +6,9 @@ exports.getDimensionMapping = getDimensionMapping;
 exports.setDimensionMapping = setDimensionMapping;
 // ✅ DEFINIR TODOS LOS CAMPOS DISPONIBLES PARA ANÁLISIS
 exports.ANALYSIS_FIELDS = [
-    { key: 'complexity', label: 'Complexity', description: 'Cyclomatic complexity of functions' },
-    { key: 'linesCount', label: 'Lines Count', description: 'Number of lines in functions' },
-    { key: 'parameters', label: 'Parameters', description: 'Number of parameters in functions' }
+    { key: 'complexity', displayName: 'Complexity', description: 'Cyclomatic complexity of functions' },
+    { key: 'linesCount', displayName: 'Lines Count', description: 'Number of lines in functions' },
+    { key: 'parameters', displayName: 'Parameters', description: 'Number of parameters in functions' }
 ];
 // ✅ CONFIGURACIÓN DE DIMENSIONES POR TIPO DE CHART
 exports.CHART_DIMENSIONS = {
@@ -91,11 +91,21 @@ function getDimensionMapping(chartType, context) {
     return defaultMapping;
 }
 /**
+ * ✅ CORREGIR LA FUNCIÓN setDimensionMapping - ELIMINAR PARÁMETROS DUPLICADOS
  * Set dimension mapping for a specific chart type
  */
-function setDimensionMapping(chartType, mapping, context) {
+async function setDimensionMapping(context, chartType, dimensionKey, value) {
+    // Obtener el mapping actual
+    const currentMapping = getDimensionMapping(chartType, context);
+    // Actualizar la dimensión específica
+    const updatedMapping = {
+        ...currentMapping,
+        [dimensionKey]: value
+    };
+    // Guardar el mapping actualizado
     const storageKey = `codexr.analysis.dimensionMapping.${chartType}`;
-    context.globalState.update(storageKey, mapping);
-    console.log(`💾 Saved mapping for ${chartType}:`, mapping);
+    await context.globalState.update(storageKey, updatedMapping);
+    console.log(`💾 Updated mapping for ${chartType}.${dimensionKey} = ${value}`);
+    console.log(`📊 Full mapping for ${chartType}:`, updatedMapping);
 }
 //# sourceMappingURL=dimensionMapping.js.map
