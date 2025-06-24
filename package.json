@@ -24,55 +24,68 @@
       "properties": {
         "codexr.analysisMode": {
           "type": "string",
-          "default": "Static",
           "enum": ["Static", "XR"],
+          "default": "XR",
           "description": "Default mode for code analysis (Static or XR)"
         },
         "codexr.analysis.debounceDelay": {
           "type": "number",
           "default": 2000,
-          "enum": [500, 1000, 2000, 3000, 5000],
-          "enumDescriptions": [
-            "Very quick (500ms)",
-            "Quick (1 second)",
-            "Standard (2 seconds)",
-            "Relaxed (3 seconds)",
-            "Extended (5 seconds)"
-          ],
+          "minimum": 100,
+          "maximum": 10000,
           "description": "Delay in milliseconds before auto-analysis is triggered after file changes"
         },
         "codexr.analysis.autoAnalysis": {
-          "type": "boolean",
+          "type": "boolean", 
           "default": true,
-          "description": "Automatically re-analyze files when they change"
+          "description": "Enable automatic analysis when files are saved"
         },
         "codexr.analysis.chartType": {
           "type": "string",
+          "enum": ["boats", "bars", "cylinders", "pie", "donut"],
           "default": "boats",
-          "enum": [
-            "boats",
-            "bars",
-            "cyls",
-            "barsmap",
-            "pie",
-            "donut"
-          ],
-          "description": "Chart type to use for code analysis visualizations"
+          "description": "Default chart type for XR analysis visualizations"
         },
-        "codexr.analysis.useLizard": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use Lizard for advanced code metrics (requires Python)"
+        "codexr.analysis.tree.maxFilesPerLanguage": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Maximum number of files to show per language group (0 = unlimited)"
+        },
+        "codexr.analysis.tree.languageSortMethod": {
+          "type": "string",
+          "enum": ["alphabetical", "fileCount"],
+          "default": "fileCount",
+          "description": "Method for sorting language groups"
+        },
+        "codexr.analysis.tree.languageSortDirection": {
+          "type": "string",
+          "enum": ["ascending", "descending"],
+          "default": "descending",
+          "description": "Direction for sorting language groups"
+        },
+        "codexr.analysis.tree.fileSortMethod": {
+          "type": "string",
+          "enum": ["alphabetical", "fileSize", "modificationDate", "fileExtension"],
+          "default": "alphabetical",
+          "description": "Method for sorting files within language groups"
+        },
+        "codexr.analysis.tree.fileSortDirection": {
+          "type": "string",
+          "enum": ["ascending", "descending"],
+          "default": "ascending",
+          "description": "Direction for sorting files within language groups"
         },
         "codexr.analysis.pythonPath": {
           "type": "string",
-          "default": "python3",
-          "description": "Path to Python executable"
+          "default": "",
+          "description": "Path to Python executable (leave empty for auto-detection)"
         },
         "codexr.analysis.autoSetupPython": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically set up Python environment when opening a workspace"
+          "description": "Automatically set up Python environment if not found"
         }
       }
     },
@@ -295,6 +308,23 @@
         "title": "CodeXR: Debug File Watchers",
         "category": "Code Analysis",
         "icon": "$(bug)"
+      },
+      {
+        "command": "codexr.visualizeDOM",
+        "title": "CodeXR: Visualize DOM",
+        "icon": "$(browser)"
+      },
+      {
+        "command": "codexr.toggleAnalysisMode",
+        "title": "Toggle Analysis Mode",
+        "category": "CodeXR",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "codexr.configureTreeDisplay",
+        "title": "Configure Tree Display",
+        "category": "CodeXR",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
@@ -402,6 +432,11 @@
           "command": "codexr.analyzeFile3D",
           "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb|java|m|mm|swift|ttcn3|ttcn|3mp|php|phtml|php3|php4|php5|phps|scala|sc|gd|go|lua|rs|f|f77|f90|f95|f03|f08|for|ftn|kt|kts|sol|erl|hrl|zig|pl|pm|pod|t)$/",
           "group": "navigation"
+        },
+        {
+          "command": "codexr.visualizeDOM",
+          "when": "resourceExtname == .html",
+          "group": "codexr@3"
         }
       ],
       "explorer/context": [
@@ -414,6 +449,11 @@
           "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby || resourceLangId == java || resourceLangId == objective-c || resourceLangId == objective-cpp || resourceLangId == swift || resourceLangId == ttcn3 || resourceLangId == php || resourceLangId == scala || resourceLangId == gdscript || resourceLangId == go || resourceLangId == lua || resourceLangId == rust || resourceLangId == fortran || resourceLangId == kotlin || resourceLangId == solidity || resourceLangId == erlang || resourceLangId == zig || resourceLangId == perl",
           "command": "codexr.analyzeFile3D",
           "group": "CodeXR"
+        },
+        {
+          "command": "codexr.visualizeDOM",
+          "when": "resourceExtname == .html",
+          "group": "codexr@3"
         }
       ]
     },

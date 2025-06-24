@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 export enum AnalysisMode {
   STATIC = 'static',
   XR = 'xr',
-  WEB_VIEW = 'webview' // ✅ AÑADIR ESTA LÍNEA
+  WEB_VIEW = 'webview'
 }
 
 /**
@@ -29,8 +29,6 @@ export interface FunctionInfo {
   complexity: number;
   /** Number of parameters */
   parameters: number;
-  /** Estimated cognitive complexity (if available) */
-  cognitiveComplexity?: number;
   /** Maximum nesting level */
   maxNestingDepth?: number;
 }
@@ -44,7 +42,7 @@ export interface LineCountInfo {
   /** Number of code lines */
   code: number;
   /** Number of comment lines */
-  comment: number;
+  comment: number; // ✅ FIXED: Use 'comment' not 'comments'
   /** Number of blank lines */
   blank: number;
 }
@@ -75,10 +73,18 @@ export interface FileAnalysisResult {
   fileName: string;
   /** Language of the file */
   language: string;
-  /** File size in bytes */
-  fileSize: number;
-  /** Line count information */
-  lineCount: LineCountInfo;
+  /** File size in human readable format */
+  fileSize: string; // ✅ FIXED: Should be string, not number
+  /** Total lines in file */
+  totalLines: number; // ✅ ADDED: Missing property
+  /** Code lines in file */
+  codeLines: number;
+  /** Comment lines in file */
+  commentLines: number;
+  /** Blank lines in file */
+  blankLines: number;
+  /** Number of functions in the file */
+  functionCount: number; // ✅ ADDED: Missing property
   /** Number of classes in the file */
   classCount: number;
   /** Overall complexity metrics */
@@ -86,7 +92,7 @@ export interface FileAnalysisResult {
   /** Detailed analysis of all functions */
   functions: FunctionInfo[];
   /** Timestamp of when analysis was performed */
-  timestamp: number;
+  timestamp: string; // ✅ FIXED: Should be string, not number
   /** Any error that occurred during analysis */
   error?: string;
 }

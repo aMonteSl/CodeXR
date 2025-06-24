@@ -35,12 +35,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LocalServerProvider = exports.TreeItemType = void 0;
 const vscode = __importStar(require("vscode"));
-const serverModel_1 = require("../server/models/serverModel");
+const baseItems_1 = require("./treeItems/baseItems");
 const babiaTreeProvider_1 = require("../babiaxr/providers/babiaTreeProvider");
 const serverTreeProvider_1 = require("../server/providers/serverTreeProvider");
 const analysisTreeProvider_1 = require("../analysis/tree/analysisTreeProvider");
-const analysisTreeItems_1 = require("../analysis/tree/analysisTreeItems");
 const settingsItems_1 = require("./treeItems/settingsItems");
+const serverModel_1 = require("../server/models/serverModel");
 const dimensionMappingTreeItem_1 = require("../analysis/tree/dimensionMappingTreeItem");
 // Types of tree items for context handling - as string literals
 var TreeItemType;
@@ -65,6 +65,7 @@ var TreeItemType;
     TreeItemType["ANALYSIS_SETTING_OPTION"] = "analysis_setting_option";
     TreeItemType["ANALYSIS_MESSAGE"] = "ANALYSIS_MESSAGE";
     TreeItemType["ANALYSIS_RESET"] = "analysis_reset";
+    TreeItemType["FILES_PER_LANGUAGE_CONTAINER"] = "FILES_PER_LANGUAGE_CONTAINER";
     TreeItemType["VISUALIZATION_SETTINGS"] = "VISUALIZATION_SETTINGS";
     TreeItemType["BABIAXR_EXAMPLES_CONTAINER"] = "BABIAXR_EXAMPLES_CONTAINER";
     TreeItemType["BABIAXR_EXAMPLE_CATEGORY"] = "BABIAXR_EXAMPLE_CATEGORY";
@@ -86,22 +87,32 @@ class LocalServerProvider {
     // Specialized tree providers
     babiaTreeProvider;
     serverTreeProvider;
+    analysisTreeProvider;
     constructor(context) {
         this.context = context;
         // Initialize specialized providers
         this.babiaTreeProvider = new babiaTreeProvider_1.BabiaTreeProvider(context);
         this.serverTreeProvider = new serverTreeProvider_1.ServerTreeProvider(context);
+        this.analysisTreeProvider = new analysisTreeProvider_1.AnalysisTreeProvider(context);
+        // Subscribe to analysis tree provider changes
+        this.analysisTreeProvider.onDidChangeTreeData(() => {
+            console.log('🔄 Analysis tree data changed, refreshing main tree...');
+            this.refresh();
+        });
         // Initialize with default values if no previous configuration exists
         if (!this.context.globalState.get('serverMode')) {
             this.context.globalState.update('serverMode', serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS);
         }
+        console.log('✅ LocalServerProvider initialized with automatic file system watching');
     }
     /**
      * Refreshes the tree view
      * @param element Optional element to refresh, or undefined to refresh all
      */
     refresh(element) {
+        console.log('🔄 LocalServerProvider: Refreshing main tree view...');
         this._onDidChangeTreeData.fire(element);
+        console.log('✅ LocalServerProvider: Main tree refresh event fired');
     }
     /**
      * Returns the UI element for an item
@@ -115,96 +126,50 @@ class LocalServerProvider {
     getChildren(element) {
         // Root level items
         if (!element) {
-            const items = [];
-            // Server section
-            items.push(this.serverTreeProvider.getServersSectionItem());
-            // BabiaXR section
-            items.push(this.babiaTreeProvider.getBabiaXRSectionItem());
-            // Code Analysis section
-            items.push((0, analysisTreeProvider_1.getAnalysisSectionItem)(this.context.extensionUri.fsPath));
-            // NEW: Add Visualization Settings as a top-level item
-            items.push(new settingsItems_1.VisualizationSettingsItem(this.context));
-            return Promise.resolve(items);
+            return Promise.resolve([
+                this.serverTreeProvider.getServersSectionItem(),
+                new baseItems_1.TreeItem("BabiaXR Visualizations", "Create 3D data visualizations", TreeItemType.BABIAXR_SECTION, vscode.TreeItemCollapsibleState.Expanded, undefined, new vscode.ThemeIcon('graph')),
+                new baseItems_1.TreeItem('Code Analysis', 'Analyze code metrics and complexity', TreeItemType.ANALYSIS_SECTION, vscode.TreeItemCollapsibleState.Expanded, undefined, new vscode.ThemeIcon('microscope')),
+                new settingsItems_1.VisualizationSettingsItem(this.context)
+            ]);
         }
-        // ✅ CAMBIAR contextValue por type
         switch (element.type) {
             case TreeItemType.SERVERS_SECTION:
                 return this.serverTreeProvider.getServersChildren();
-            case TreeItemType.BABIAXR_SECTION:
-                return this.babiaTreeProvider.getBabiaXRChildren();
             case TreeItemType.SERVER_CONFIG:
                 return this.serverTreeProvider.getServerConfigChildren();
             case TreeItemType.SERVERS_CONTAINER:
                 return this.serverTreeProvider.getActiveServersChildren();
-            case TreeItemType.BABIAXR_CONFIG:
-                return this.babiaTreeProvider.getBabiaXRConfigChildren();
-            case TreeItemType.VISUALIZATION_SETTINGS:
-                return element.getChildren();
-            case TreeItemType.BABIAXR_EXAMPLES_CONTAINER:
-                return this.babiaTreeProvider.getBabiaXRExamplesChildren();
+            case TreeItemType.BABIAXR_SECTION:
+                return this.babiaTreeProvider.getBabiaXRChildren();
             case TreeItemType.CREATE_VISUALIZATION:
                 return this.babiaTreeProvider.getCreateVisualizationChildren();
-            case TreeItemType.BABIAXR_EXAMPLE_CATEGORY:
-                if (element.children && element.children.length > 0) {
-                    return Promise.resolve(element.children);
-                }
-                return Promise.resolve([]);
+            case TreeItemType.BABIAXR_CONFIG:
+                return this.babiaTreeProvider.getBabiaXRConfigChildren();
+            case TreeItemType.BABIAXR_EXAMPLES_CONTAINER:
+                return this.babiaTreeProvider.getBabiaXRExamplesChildren();
             case TreeItemType.ANALYSIS_SECTION:
-                return (0, analysisTreeProvider_1.getAnalysisChildren)(this.context);
+                return this.analysisTreeProvider.getChildren(element);
+            case TreeItemType.FILES_PER_LANGUAGE_CONTAINER:
+                return this.analysisTreeProvider.getChildren(element);
             case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
-                return (0, analysisTreeProvider_1.getLanguageGroupChildren)(element);
+                return this.analysisTreeProvider.getChildren(element);
             case TreeItemType.ANALYSIS_SETTINGS:
-                // ✅ Usar el método getChildren del AnalysisSettingsItem
-                if (element instanceof analysisTreeItems_1.AnalysisSettingsItem) {
-                    console.log('🔧 Using AnalysisSettingsItem.getChildren()');
-                    return element.getChildren();
-                }
-                return this.getSettingsChildren(this.context.extensionUri.fsPath);
+                return this.analysisTreeProvider.getChildren(element);
             case TreeItemType.DIMENSION_MAPPING:
-                // ✅ AÑADIR SOPORTE PARA DIMENSION MAPPING
+                // ✅ FIX: Check for DimensionMappingItem and call the correct method
                 if (element instanceof dimensionMappingTreeItem_1.DimensionMappingItem) {
-                    console.log('🎯 Using DimensionMappingItem.getChildren()');
                     return element.getChildren();
                 }
                 return Promise.resolve([]);
-            case TreeItemType.STOP_ALL_SERVERS:
-                // Este item no tiene hijos, se maneja directamente con el command
+            case TreeItemType.VISUALIZATION_SETTINGS:
+                if (element instanceof settingsItems_1.VisualizationSettingsItem) {
+                    return element.getChildren();
+                }
                 return Promise.resolve([]);
             default:
                 return Promise.resolve([]);
         }
-    }
-    /**
-     * Gets settings child items
-     * @param extensionPath Path to the extension
-     * @returns Settings option items
-     */
-    async getSettingsChildren(extensionPath) {
-        console.log('Generating settings children items');
-        const config = vscode.workspace.getConfiguration();
-        // Get current mode setting
-        const currentMode = config.get('codexr.analysisMode', 'Static');
-        // Get current debounce delay setting
-        const debounceDelay = config.get('codexr.analysis.debounceDelay', 2000);
-        // Get current auto-analysis setting
-        const autoAnalysis = config.get('codexr.analysis.autoAnalysis', true);
-        // ✅ LEER CHART TYPE DESDE GLOBAL STATE PRIMERO, LUEGO CONFIG COMO FALLBACK
-        const chartType = this.context.globalState.get('codexr.analysis.chartType') ||
-            config.get('codexr.analysis.chartType', 'boats');
-        console.log('Current settings:', {
-            analysisMode: currentMode,
-            debounceDelay,
-            autoAnalysis,
-            chartType,
-            chartTypeSource: this.context.globalState.get('codexr.analysis.chartType') ? 'globalState' : 'config'
-        });
-        // Create option items
-        const staticOption = new analysisTreeItems_1.AnalysisModeOptionItem('Static', currentMode === 'Static', extensionPath);
-        const xrOption = new analysisTreeItems_1.AnalysisModeOptionItem('XR', currentMode === 'XR', extensionPath);
-        const delayOption = new analysisTreeItems_1.AnalysisDelayOptionItem(debounceDelay, extensionPath);
-        const autoOption = new analysisTreeItems_1.AnalysisAutoOptionItem(autoAnalysis, extensionPath);
-        const chartTypeOption = new analysisTreeItems_1.AnalysisChartTypeOptionItem(chartType, extensionPath);
-        return [staticOption, xrOption, delayOption, autoOption, chartTypeOption];
     }
     /**
      * Changes the server mode - delegated to ServerTreeProvider
@@ -212,6 +177,15 @@ class LocalServerProvider {
     async changeServerMode(mode) {
         await this.serverTreeProvider.changeServerMode(mode);
         this.refresh();
+    }
+    // Get file system watcher status for debugging
+    getFileSystemWatcherStatus() {
+        return this.analysisTreeProvider.getFileSystemWatcherStatus();
+    }
+    // Dispose method to cleanup resources
+    dispose() {
+        console.log('🧹 Disposing LocalServerProvider...');
+        this.analysisTreeProvider.dispose();
     }
 }
 exports.LocalServerProvider = LocalServerProvider;

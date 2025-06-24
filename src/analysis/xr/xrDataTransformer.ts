@@ -34,7 +34,7 @@ export interface XRMetadata {
   functionCount: number;
   averageComplexity: number;
   maxComplexity: number;
-  timestamp: number;
+  timestamp: string; // ✅ FIXED: Should be string, not number
 }
 
 /**
@@ -64,10 +64,12 @@ export function transformAnalysisDataForXR(analysisResult: FileAnalysisResult): 
     fileName: analysisResult.fileName,
     filePath: analysisResult.filePath,
     language: analysisResult.language,
-    totalLines: analysisResult.lineCount.total,
+    // ✅ FIXED: Use correct property names from FileAnalysisResult
+    totalLines: analysisResult.totalLines,
     functionCount: analysisResult.functions.length,
     averageComplexity: analysisResult.complexity.averageComplexity,
     maxComplexity: analysisResult.complexity.maxComplexity,
+    // ✅ FIXED: timestamp is already a string in FileAnalysisResult
     timestamp: analysisResult.timestamp
   };
 

@@ -44,7 +44,7 @@ const fs = __importStar(require("fs"));
 const utils_1 = require("./utils");
 const analysisDataManager_1 = require("./analysisDataManager");
 const fileWatchManager_1 = require("./fileWatchManager");
-// ✅ AÑADIR IMPORTS FALTANTES
+const lizardExecutor_1 = require("./lizardExecutor"); // ✅ ADDED: Import missing function
 const pathUtils_1 = require("../pythonEnv/utils/pathUtils");
 const processUtils_1 = require("../pythonEnv/utils/processUtils");
 const nonceUtils_1 = require("../utils/nonceUtils");
@@ -175,25 +175,29 @@ async function analyzeFile(filePath, context) {
     const outputChannel = getOutputChannel();
     outputChannel.clear();
     outputChannel.show();
-    outputChannel.appendLine(`Analyzing ${path.basename(filePath)}...`);
-    // ✅ MARCAR ARCHIVO COMO "SIENDO ANALIZADO"
-    analysisDataManager_1.analysisDataManager.setFileAnalyzing(filePath);
+    outputChannel.appendLine(`🔍 Starting analysis of ${path.basename(filePath)}...`);
+    // ✅ MARK FILE AS BEING ANALYZED (if not already marked)
+    if (!analysisDataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath)) {
+        analysisDataManager_1.analysisDataManager.setFileAnalyzing(filePath);
+    }
     try {
-        // Verificar que el archivo existe
+        console.log(`📊 Analyzing file: ${filePath}`);
+        // ✅ BASIC FILE VALIDATION
         if (!fs.existsSync(filePath)) {
             throw new Error(`File not found: ${filePath}`);
         }
-        // Obtener información básica del archivo
+        // Get basic file information
+        const fileStats = fs.statSync(filePath);
         const fileName = path.basename(filePath);
         const language = (0, utils_1.getLanguageName)(filePath);
-        const fileSize = fs.statSync(filePath).size;
-        const lineCount = await (0, utils_1.countFileLines)(filePath);
-        outputChannel.appendLine(`File: ${fileName}`);
-        outputChannel.appendLine(`Language: ${language}`);
-        outputChannel.appendLine(`Size: ${(0, utils_1.formatFileSize)(fileSize)}`);
-        outputChannel.appendLine(`Lines: ${lineCount.total} total, ${lineCount.code} code, ${lineCount.comment} comments`);
-        // ✅ VERIFICAR SI EXISTE ENTORNO PYTHON ANTES DE USAR LIZARD
-        const venvPath = (0, pathUtils_1.getVenvPath)();
+        const fileSize = (0, utils_1.formatFileSize)(fileStats.size);
+        outputChannel.appendLine(`📄 File: ${fileName}`);
+        outputChannel.appendLine(`🏷️ Language: ${language}`);
+        outputChannel.appendLine(`📦 Size: ${fileSize}`);
+        // Count basic file metrics
+        const lineInfo = await (0, utils_1.countFileLines)(filePath);
+        outputChannel.appendLine(`📏 Lines: ${lineInfo.total} (Code: ${lineInfo.code}, Comments: ${lineInfo.comment}, Blank: ${lineInfo.blank})`); // ✅ FIXED: Use .comment
+        // Initialize function analysis
         let functions = [];
         let complexity = {
             averageComplexity: 0,
@@ -202,55 +206,25 @@ async function analyzeFile(filePath, context) {
             highComplexityFunctions: 0,
             criticalComplexityFunctions: 0
         };
-        if (venvPath) {
+        // ✅ TRY LIZARD ANALYSIS (with better error handling)
+        const venvPath = (0, pathUtils_1.getVenvPath)();
+        if (venvPath && fs.existsSync(venvPath)) {
             try {
-                outputChannel.appendLine('Running Lizard analyzer...');
-                // Usar Lizard para análisis detallado
-                const scriptPath = (0, utils_1.resolveAnalyzerScriptPath)('lizard_analyzer.py', outputChannel);
-                const pythonPath = (0, pathUtils_1.getPythonExecutable)(venvPath);
-                const lizardArgs = [scriptPath, filePath];
-                const { spawn } = require('child_process');
-                const lizardProcess = spawn(pythonPath, lizardArgs);
-                let stdout = '';
-                let stderr = '';
-                lizardProcess.stdout.on('data', (data) => {
-                    stdout += data.toString();
-                });
-                lizardProcess.stderr.on('data', (data) => {
-                    stderr += data.toString();
-                });
-                const lizardResult = await new Promise((resolve, reject) => {
-                    lizardProcess.on('close', (code) => {
-                        if (code === 0) {
-                            resolve(stdout);
-                        }
-                        else {
-                            reject(new Error(`Lizard process failed with code ${code}: ${stderr}`));
-                        }
-                    });
-                });
-                // Parsear resultado de Lizard
-                const lizardData = JSON.parse(lizardResult);
-                functions = lizardData.functions || [];
-                // Calcular métricas de complejidad
-                if (functions.length > 0) {
-                    const complexities = functions.map((f) => f.complexity);
-                    complexity = {
-                        averageComplexity: complexities.reduce((a, b) => a + b, 0) / complexities.length,
-                        maxComplexity: Math.max(...complexities),
-                        functionCount: functions.length,
-                        highComplexityFunctions: complexities.filter((c) => c > 10).length,
-                        criticalComplexityFunctions: complexities.filter((c) => c > 25).length
-                    };
+                outputChannel.appendLine('🐍 Python environment found, running Lizard analysis...');
+                const lizardResult = await (0, lizardExecutor_1.analyzeLizard)(filePath, outputChannel);
+                if (lizardResult && lizardResult.functions.length > 0) {
+                    functions = lizardResult.functions;
+                    complexity = lizardResult.metrics;
+                    outputChannel.appendLine(`✅ Lizard analysis completed: ${functions.length} functions found`);
                 }
-                outputChannel.appendLine(`Functions found: ${functions.length}`);
-                outputChannel.appendLine(`Average complexity: ${complexity.averageComplexity.toFixed(2)}`);
-                outputChannel.appendLine(`Max complexity: ${complexity.maxComplexity}`);
+                else {
+                    outputChannel.appendLine('⚠️ Lizard analysis returned no functions');
+                }
             }
             catch (error) {
-                outputChannel.appendLine(`Warning: Lizard analysis failed: ${error}`);
-                outputChannel.appendLine('Continuing with basic analysis...');
-                // Fallback a análisis básico sin Lizard
+                outputChannel.appendLine(`⚠️ Lizard analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+                outputChannel.appendLine('📊 Continuing with basic analysis...');
+                // Fallback to basic analysis without Lizard
                 functions = [];
                 complexity = {
                     averageComplexity: 0,
@@ -262,40 +236,60 @@ async function analyzeFile(filePath, context) {
             }
         }
         else {
-            outputChannel.appendLine('No Python virtual environment found. Skipping Lizard analysis...');
+            outputChannel.appendLine('⚠️ No Python virtual environment found. Skipping Lizard analysis...');
         }
-        // Analizar comentarios
-        const commentLines = await analyzeComments(filePath, outputChannel);
-        // Actualizar conteo de comentarios si se obtuvo un resultado diferente
-        if (commentLines > 0) {
-            lineCount.comment = commentLines;
+        // ✅ ANALYZE COMMENTS (with better error handling)
+        let commentLines = 0;
+        try {
+            commentLines = await analyzeComments(filePath, outputChannel);
+            outputChannel.appendLine(`💬 Comments: ${commentLines} lines`);
         }
-        // Analizar clases
-        const classCount = await analyzeClassCount(filePath, outputChannel);
-        // Crear resultado de análisis
+        catch (error) {
+            outputChannel.appendLine(`⚠️ Comment analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        // ✅ ANALYZE CLASSES (with better error handling)
+        let classCount = 0;
+        try {
+            classCount = await analyzeClassCount(filePath, outputChannel);
+            outputChannel.appendLine(`🏛️ Classes: ${classCount}`);
+        }
+        catch (error) {
+            outputChannel.appendLine(`⚠️ Class analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        // ✅ BUILD FINAL RESULT
         const result = {
-            filePath,
             fileName,
+            filePath,
             language,
-            fileSize,
-            lineCount,
+            fileSize, // ✅ FIXED: Already a string from formatFileSize
+            totalLines: lineInfo.total,
+            codeLines: lineInfo.code,
+            commentLines: Math.max(commentLines, lineInfo.comment), // ✅ FIXED: Use .comment
+            blankLines: lineInfo.blank,
+            functions,
+            functionCount: functions.length,
             classCount,
             complexity,
-            functions,
-            timestamp: Date.now()
+            timestamp: new Date().toLocaleString() // ✅ FIXED: Return string not number
         };
-        outputChannel.appendLine('✅ Analysis completed successfully');
-        console.log('Analysis result:', result);
-        // ✅ MARCAR ARCHIVO COMO "ANÁLISIS COMPLETADO"
+        outputChannel.appendLine(`✅ Analysis completed successfully for ${fileName}`);
+        console.log(`✅ Analysis completed for ${filePath}:`, {
+            functions: result.functionCount, // ✅ FIXED: Use functionCount
+            complexity: result.complexity.averageComplexity,
+            lines: result.totalLines // ✅ FIXED: Use totalLines
+        });
+        // ✅ MARK ANALYSIS AS COMPLETED
         analysisDataManager_1.analysisDataManager.setFileAnalyzed(filePath);
         return result;
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         outputChannel.appendLine(`❌ Analysis failed: ${errorMessage}`);
-        console.error('Analysis error:', error);
-        // ✅ MARCAR ARCHIVO COMO "ANÁLISIS COMPLETADO" (INCLUSO SI FALLÓ)
+        console.error('❌ Analysis error:', error);
+        // ✅ MARK ANALYSIS AS COMPLETED (even if failed)
         analysisDataManager_1.analysisDataManager.setFileAnalyzed(filePath);
+        // ✅ SHOW USER-FRIENDLY ERROR MESSAGE
+        vscode.window.showErrorMessage(`Failed to analyze ${path.basename(filePath)}: ${errorMessage}`);
         return undefined;
     }
 }
@@ -314,24 +308,26 @@ function transformAnalysisDataForWebview(result) {
     };
     // Find highest and lowest complexity functions
     const sortedByComplexity = [...result.functions].sort((a, b) => b.complexity - a.complexity);
-    const highestComplexityFunction = sortedByComplexity.length > 0 ?
-        { name: sortedByComplexity[0].name, value: sortedByComplexity[0].complexity } :
-        { name: 'None', value: 0 };
-    const lowestComplexityFunction = sortedByComplexity.length > 0 ?
-        { name: sortedByComplexity[sortedByComplexity.length - 1].name, value: sortedByComplexity[sortedByComplexity.length - 1].complexity } :
-        { name: 'None', value: 0 };
-    // Format the data for the webview
+    const highestComplexityFunction = sortedByComplexity.length > 0 ? {
+        name: sortedByComplexity[0].name,
+        value: sortedByComplexity[0].complexity
+    } : { name: 'None', value: 0 };
+    const lowestComplexityFunction = sortedByComplexity.length > 0 ? {
+        name: sortedByComplexity[sortedByComplexity.length - 1].name,
+        value: sortedByComplexity[sortedByComplexity.length - 1].complexity
+    } : { name: 'None', value: 0 };
+    // Return formatted data for the webview
     return {
         fileName: result.fileName,
-        filePath: result.filePath,
         language: result.language,
-        fileSize: (0, utils_1.formatFileSize)(result.fileSize),
-        timestamp: new Date(result.timestamp).toLocaleString(),
-        // Line counts
-        totalLines: result.lineCount.total,
-        codeLines: result.lineCount.code,
-        commentLines: result.lineCount.comment,
-        blankLines: result.lineCount.blank,
+        // ✅ FIXED: Use result.fileSize directly (it's already a string)
+        fileSize: result.fileSize,
+        timestamp: result.timestamp,
+        // ✅ FIXED: Use correct property names from FileAnalysisResult
+        totalLines: result.totalLines,
+        codeLines: result.codeLines,
+        commentLines: result.commentLines,
+        blankLines: result.blankLines,
         // Function counts and complexity
         functionCount: result.functions.length,
         classCount: result.classCount,

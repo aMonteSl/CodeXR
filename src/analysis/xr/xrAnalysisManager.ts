@@ -201,49 +201,109 @@ export async function createXRVisualization(
 }
 
 /**
- * ✅ NUEVA FUNCIÓN PARA CERRAR SERVIDOR ESPECÍFICO DE UN ARCHIVO
- * Close any existing server for a specific file analysis
+ * ✅ ENHANCED: Close any existing server for a specific file analysis
  * @param fileName File name without extension
+ * @returns Promise<boolean> indicating success
  */
 export function closeExistingAnalysisServer(fileName: string): boolean {
   const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
+  console.log(`🛑 Attempting to close analysis server for: ${fileNameWithoutExt}`);
+  
+  // Check if we have a tracked folder for this file
   const existingFolder = visualizationFolders.get(fileNameWithoutExt);
   
   if (existingFolder) {
+    console.log(`📁 Found tracked folder for ${fileNameWithoutExt}: ${existingFolder}`);
+    
+    // Find the server by looking for servers serving files in this folder
     const activeServers = getActiveServers();
-    const existingServer = activeServers.find(server => {
-      const serverDir = path.dirname(server.filePath);
-      return serverDir === existingFolder;
+    const serverToClose = activeServers.find(server => {
+      // Check if the server is serving a file from the visualization folder
+      return server.filePath.includes(existingFolder) && 
+             (server.analysisFileName === fileNameWithoutExt || 
+              server.filePath.includes(`analysis_${fileNameWithoutExt}_`));
     });
     
-    if (existingServer) {
-      console.log(`🛑 Closing existing analysis server for ${fileName}: ${existingServer.url}`);
-      stopServer(existingServer.id);
+    if (serverToClose) {
+      console.log(`🎯 Found server to close:`, {
+        id: serverToClose.id,
+        url: serverToClose.url,
+        filePath: serverToClose.filePath,
+        analysisFileName: serverToClose.analysisFileName
+      });
+      
+      // Stop the server using the server manager
+      stopServer(serverToClose.id);
+      
+      // Clean up the tracked folder
+      visualizationFolders.delete(fileNameWithoutExt);
+      console.log(`🧹 Cleaned up tracked folder for ${fileNameWithoutExt}`);
+      
+      // ✅ CRITICAL: Refresh tree view to update UI
+      const treeDataProvider = (global as any).treeDataProvider;
+      if (treeDataProvider && typeof treeDataProvider.refresh === 'function') {
+        treeDataProvider.refresh();
+      }
+      
       return true;
+    } else {
+      console.warn(`⚠️ No active server found for folder: ${existingFolder}`);
+      
+      // Clean up orphaned folder tracking
+      visualizationFolders.delete(fileNameWithoutExt);
+      console.log(`🧹 Cleaned up orphaned folder tracking for ${fileNameWithoutExt}`);
+      
+      return false;
     }
+  } else {
+    console.warn(`⚠️ No tracked folder found for: ${fileNameWithoutExt}`);
+    return false;
   }
-  
-  return false;
 }
 
 /**
- * ✅ NUEVA FUNCIÓN PARA VERIFICAR SI HAY SERVIDOR ACTIVO PARA UN ARCHIVO
- * Check if there's an active server for a specific file
+ * ✅ ENHANCED: Check if there's an active server for a specific file
  * @param fileName File name without extension
  * @returns ServerInfo if found, undefined otherwise
  */
 export function getActiveAnalysisServer(fileName: string): ServerInfo | undefined {
   const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
+  console.log(`🔍 Checking for active analysis server for: ${fileNameWithoutExt}`);
+  
   const existingFolder = visualizationFolders.get(fileNameWithoutExt);
   
   if (existingFolder) {
+    console.log(`📁 Found tracked folder: ${existingFolder}`);
+    
+    // Find the server by looking for servers serving files in this folder
     const activeServers = getActiveServers();
-    return activeServers.find(server => {
-      const serverDir = path.dirname(server.filePath);
-      return serverDir === existingFolder;
+    const foundServer = activeServers.find(server => {
+      const isMatchingPath = server.filePath.includes(existingFolder);
+      const isMatchingAnalysisFile = server.analysisFileName === fileNameWithoutExt;
+      const isMatchingPattern = server.filePath.includes(`analysis_${fileNameWithoutExt}_`);
+      
+      console.log(`🔍 Checking server:`, {
+        id: server.id,
+        filePath: server.filePath,
+        analysisFileName: server.analysisFileName,
+        isMatchingPath,
+        isMatchingAnalysisFile,
+        isMatchingPattern
+      });
+      
+      return isMatchingPath && (isMatchingAnalysisFile || isMatchingPattern);
     });
+    
+    if (foundServer) {
+      console.log(`✅ Found active analysis server:`, foundServer);
+      return foundServer;
+    } else {
+      console.warn(`⚠️ Tracked folder exists but no matching server found, cleaning up...`);
+      visualizationFolders.delete(fileNameWithoutExt);
+    }
   }
   
+  console.log(`❌ No active analysis server found for: ${fileNameWithoutExt}`);
   return undefined;
 }
 

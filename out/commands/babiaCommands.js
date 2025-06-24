@@ -252,24 +252,22 @@ function getDefaultOptionsForChartType(chartType) {
     switch (chartType) {
         case chartModel_1.ChartType.PIE_CHART:
         case chartModel_1.ChartType.DONUT_CHART:
-            position = "0 1.6 -2";
-            scale = "2 2 2";
-            rotation = "-90 0 0";
+            position = "0 2.5 -2";
+            rotation = "90 0 0";
             break;
         case chartModel_1.ChartType.BARS_CHART:
-            position = "0 0 -2";
-            scale = "1 1 1";
-            height = "5";
+            position = "0 1.6 -2";
             break;
         case chartModel_1.ChartType.CYLS_CHART:
-            position = "0 0 -3";
-            scale = "1 1 1";
-            height = "15";
+            position = "0 1.6 -2";
+            break;
+        // ✅ ADDED: Bubbles chart configuration
+        case chartModel_1.ChartType.BUBBLES_CHART:
+            position = "0 1.6 -2";
+            scale = "1.2 1.2 1.2"; // Slightly smaller scale for bubbles
             break;
         case chartModel_1.ChartType.BARSMAP_CHART:
-            position = "0 0 -3";
-            scale = "1 1 1";
-            height = "5";
+            position = "0 1.6 -2";
             break;
     }
     return {

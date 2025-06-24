@@ -98,63 +98,65 @@ export function stopServer(serverId?: string): void {
     // Close the active server
     const serverToStop = activeServer;
     
-    console.log(`🛑 Stopping active server: ${serverToStop.info.url}`);
+    console.log(`🛑 Stopping active server:`, {
+      id: serverToStop.info.id,
+      url: serverToStop.info.url,
+      analysisFileName: serverToStop.info.analysisFileName
+    });
     
     serverToStop.server.close(() => {
-      // Release port when closing
-      portManager.releasePort(serverToStop.info.port);
-      console.log(`🔓 Released port ${serverToStop.info.port} from active server`);
-      vscode.window.showInformationMessage('Server stopped successfully');
+      console.log(`✅ Active server closed: ${serverToStop.info.url}`);
     });
     
     // Remove from the active servers list
-    activeServerList = activeServerList.filter(entry => entry.info.id !== activeServer?.info.id);
+    const index = activeServerList.findIndex(entry => entry.info.id === serverToStop.info.id);
+    if (index !== -1) {
+      activeServerList.splice(index, 1);
+      console.log(`🧹 Removed server from active list: ${serverToStop.info.id}`);
+    }
     
-    // Update the active server reference
-    activeServer = activeServerList.length > 0 ? 
-      activeServerList[activeServerList.length - 1] : undefined;
+    // Clear active server reference
+    activeServer = activeServerList.length > 0 ? activeServerList[activeServerList.length - 1] : undefined;
+    
   } else if (serverId) {
-    // Find server by ID
-    const serverEntryIndex = activeServerList.findIndex(entry => entry.info.id === serverId);
+    // Close specific server by ID
+    const serverEntry = activeServerList.find(entry => entry.info.id === serverId);
     
-    if (serverEntryIndex >= 0) {
-      const serverEntry = activeServerList[serverEntryIndex];
-      
-      console.log(`🛑 Stopping server by ID: ${serverEntry.info.url} (port ${serverEntry.info.port})`);
-      
-      // Close the server to free the port
-      serverEntry.server.close(() => {
-        // Release port when closing
-        portManager.releasePort(serverEntry.info.port);
-        console.log(`🔓 Released port ${serverEntry.info.port} from server ${serverId}`);
-        console.log(`✅ Server ${serverEntry.info.url} stopped successfully`);
+    if (serverEntry) {
+      console.log(`🛑 Stopping specific server:`, {
+        id: serverEntry.info.id,
+        url: serverEntry.info.url,
+        analysisFileName: serverEntry.info.analysisFileName
       });
       
-      // Update active server reference if needed
-      if (activeServer && activeServer.info.id === serverId) {
-        activeServer = undefined;
+      serverEntry.server.close(() => {
+        console.log(`✅ Specific server closed: ${serverEntry.info.url}`);
+      });
+      
+      // Remove from list
+      const index = activeServerList.findIndex(entry => entry.info.id === serverId);
+      if (index !== -1) {
+        activeServerList.splice(index, 1);
+        console.log(`🧹 Removed server from active list: ${serverId}`);
       }
       
-      // Remove from the list
-      activeServerList.splice(serverEntryIndex, 1);
-      
-      // If servers remain, set the last one as active
-      if (activeServerList.length > 0 && !activeServer) {
-        activeServer = activeServerList[activeServerList.length - 1];
+      // Update active server reference
+      if (activeServer && activeServer.info.id === serverId) {
+        activeServer = activeServerList.length > 0 ? activeServerList[activeServerList.length - 1] : undefined;
       }
     } else {
-      console.warn(`⚠️ Server with ID ${serverId} not found in active servers list`);
+      console.warn(`⚠️ Server ${serverId} not found for stopping`);
     }
   }
   
-  // Update UI
-  vscode.commands.executeCommand('codexr.refreshView');
+  // ✅ UPDATE: Always refresh UI after stopping servers
+  vscode.commands.executeCommand('codexr.refreshTreeView');
   
   // Update status bar
   if (activeServerList.length === 0) {
-    disposeStatusBar();
+    console.log(`📊 All servers stopped, updating status bar`);
   } else if (activeServer) {
-    updateStatusBar(activeServer.info);
+    console.log(`📊 ${activeServerList.length} servers remaining, active: ${activeServer.info.url}`);
   }
 }
 
@@ -392,7 +394,7 @@ export function stopAllServers(): void {
 }
 
 /**
- * Updates server info for analysis servers
+ * ✅ ENHANCED: Updates server info for analysis servers with better tracking
  * @param serverId Server ID to update
  * @param updates Partial server info updates
  * @returns true if server was found and updated, false otherwise
@@ -401,17 +403,30 @@ export function updateServerDisplayInfo(serverId: string, updates: Partial<Serve
   const serverEntry = activeServerList.find(entry => entry.info.id === serverId);
   
   if (serverEntry) {
-    // Update server information
+    // ✅ UPDATE: Apply all updates to server info
     Object.assign(serverEntry.info, updates);
     
-    console.log(`📝 Updated server ${serverId} display info:`, updates);
+    console.log(`✅ Updated server info for ${serverId}:`, {
+      url: serverEntry.info.url,
+      displayUrl: serverEntry.info.displayUrl,
+      analysisFileName: serverEntry.info.analysisFileName,
+      filePath: serverEntry.info.filePath
+    });
     
-    // Refresh tree view to show changes
-    vscode.commands.executeCommand('codexr.refreshView');
+    // ✅ UPDATE: Update active server reference if this is the active one
+    if (activeServer && activeServer.info.id === serverId) {
+      activeServer = serverEntry;
+    }
+    
+    // ✅ UPDATE: Refresh tree view to show changes
+    const treeDataProvider = (global as any).treeDataProvider;
+    if (treeDataProvider && typeof treeDataProvider.refresh === 'function') {
+      treeDataProvider.refresh();
+    }
     
     return true;
   } else {
-    console.warn(`⚠️ Server ${serverId} not found for display update`);
+    console.warn(`⚠️ Server ${serverId} not found for update`);
     return false;
   }
 }

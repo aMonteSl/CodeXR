@@ -250,6 +250,47 @@ class AnalysisDataManager {
             filesBeingAnalyzed: this.filesBeingAnalyzed.size
         };
     }
+    /**
+     * ✅ NEW: Clear all stored data (for cleanup)
+     */
+    clearAllData() {
+        console.log('🧹 Clearing all analysis data...');
+        // Clear analysis results
+        this.analysisResults.clear();
+        // Clear active panels
+        for (const [filePath, panel] of this.fileAnalysisPanels) {
+            if (panel && typeof panel.dispose === 'function') {
+                try {
+                    panel.dispose();
+                    console.log(`🗑️ Disposed panel for ${path_1.default.basename(filePath)}`);
+                }
+                catch (error) {
+                    console.warn(`⚠️ Error disposing panel for ${path_1.default.basename(filePath)}: ${error}`);
+                }
+            }
+        }
+        this.fileAnalysisPanels.clear();
+        // Clear function panels
+        for (const [filePath, panel] of this.functionAnalysisPanels) {
+            if (panel && typeof panel.dispose === 'function') {
+                try {
+                    panel.dispose();
+                    console.log(`🗑️ Disposed function panel for ${path_1.default.basename(filePath)}`);
+                }
+                catch (error) {
+                    console.warn(`⚠️ Error disposing function panel for ${path_1.default.basename(filePath)}: ${error}`);
+                }
+            }
+        }
+        this.functionAnalysisPanels.clear();
+        // Clear function data
+        this.functionData.clear();
+        // Clear files being analyzed
+        this.filesBeingAnalyzed.clear();
+        console.log('✅ All analysis data cleared successfully');
+        // Refresh tree view
+        this.refreshTreeView();
+    }
 }
 // Export the singleton instance
 exports.analysisDataManager = AnalysisDataManager.getInstance();

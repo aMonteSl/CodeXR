@@ -47,46 +47,74 @@ const pythonEnv_1 = require("./pythonEnv");
 const fileWatchManager_1 = require("./analysis/fileWatchManager");
 const analysisDataManager_1 = require("./analysis/analysisDataManager");
 const xrAnalysisManager_1 = require("./analysis/xr/xrAnalysisManager");
+const domVisualizationManager_1 = require("./analysis/html/domVisualizationManager");
 /**
  * This function is executed when the extension is activated
  */
 async function activate(context) {
-    console.log('Extension "CodeXR" is now active.');
+    console.log('🚀 Extension "CodeXR" is now active.');
     // Initialize status bar manager
     const statusBarManager = (0, statusBarManager_1.getStatusBarManager)(context);
-    // Inicializar FileWatchManager - AÑADIR ESTA LÍNEA
-    fileWatchManager_1.FileWatchManager.initialize(context);
+    // ✅ CRITICAL: Initialize FileWatchManager with proper settings
+    console.log('🔧 Initializing FileWatchManager...');
+    const fileWatchManager = fileWatchManager_1.FileWatchManager.initialize(context);
+    if (fileWatchManager) {
+        console.log('✅ FileWatchManager initialized successfully');
+    }
+    else {
+        console.error('❌ Failed to initialize FileWatchManager');
+    }
     // Register tree data provider for the unified view
     const treeDataProvider = new treeProvider_1.LocalServerProvider(context);
     const treeView = vscode.window.createTreeView('codexr.serverTreeView', {
         treeDataProvider: treeDataProvider
     });
     context.subscriptions.push(treeView);
+    // Register tree data provider disposal
+    context.subscriptions.push({
+        dispose: () => {
+            console.log('🧹 Disposing tree data provider...');
+            treeDataProvider.dispose();
+        }
+    });
     // Expose the treeDataProvider globally for updates
     global.treeDataProvider = treeDataProvider;
     // Register all commands ONCE
-    // Server/UI commands
+    console.log('📝 Registering server/UI commands...');
     const commandDisposables = (0, commands_1.registerCommands)(context, treeDataProvider);
     context.subscriptions.push(...commandDisposables);
     // Register Python environment commands ONCE
+    console.log('🐍 Registering Python environment commands...');
     const pythonEnvDisposables = (0, pythonEnv_1.registerPythonEnvCommands)(context);
     context.subscriptions.push(...pythonEnvDisposables);
     // Register all analysis commands
+    console.log('🔬 Registering analysis commands...');
     const analysisDisposables = (0, analysisCommands_1.registerAnalysisCommands)(context);
     context.subscriptions.push(...analysisDisposables);
+    console.log(`✅ Registered ${commandDisposables.length + pythonEnvDisposables.length + analysisDisposables.length} commands total`);
     // Check for Python environment at startup (after short delay to not block activation)
     setTimeout(() => {
+        console.log('🔍 Checking Python environment...');
         (0, pythonEnv_1.checkAndSetupPythonEnvironment)();
     }, 2000);
+    // Log file system watcher status after initialization
+    setTimeout(() => {
+        const watcherStatus = treeDataProvider.getFileSystemWatcherStatus();
+        console.log('📊 File System Watcher Status:', watcherStatus);
+    }, 3000);
+    console.log('🎉 CodeXR extension activation completed!');
 }
 /**
  * This function is executed when the extension is deactivated
  */
 async function deactivate() {
+    console.log('🧹 Deactivating CodeXR extension...');
     // Clean up any stored data
     analysisDataManager_1.analysisDataManager.clear();
     // Clean up XR visualizations
     (0, xrAnalysisManager_1.cleanupXRVisualizations)();
+    // Clean up DOM visualizations
+    (0, domVisualizationManager_1.cleanupDOMVisualizations)();
     // Stop all servers when extension is deactivated
     (0, serverManager_1.stopServer)();
     // Clean up visualization files
@@ -114,6 +142,6 @@ async function deactivate() {
     catch (error) {
         console.error('Error during cleanup of visualization files:', error);
     }
-    // Status bar is disposed automatically through context.subscriptions
+    console.log('✅ CodeXR extension deactivated successfully');
 }
 //# sourceMappingURL=extension.js.map

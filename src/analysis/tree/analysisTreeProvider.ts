@@ -1,13 +1,18 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import * as path from 'path'; // ✅ ADDED: Missing path import
 import { TreeItem } from '../../ui/treeItems/baseItems';
-import { TreeItemType } from '../../ui/treeProvider';
+import { TreeItemType } from '../../ui/treeProvider'; // ✅ ADDED: Missing TreeItemType import
+import { FileSystemWatcher } from './fileSystemWatcher';
+import { FileWatchManager } from '../fileWatchManager';
+// ✅ REMOVED: Circular imports - we'll import these inside functions where needed
 import { 
-  AnalysisSectionItem,
-  AnalysisFileItem,
-  AnalysisSettingsItem
-} from './analysisTreeItems';
-import { DimensionMappingItem } from './dimensionMappingTreeItem';
+  AnalysisSettingsItem, 
+  AnalysisSectionItem, 
+  LanguageGroupItem, 
+  FilesPerLanguageContainer,
+  AnalysisFileItem 
+} from './analysisTreeItems.js'; // ✅ ADDED: Direct imports with .js extension
+import { getTreeDisplayConfig, sortLanguageEntries, limitAndSortFiles } from './treeDisplayConfig.js'; // ✅ ADDED: Missing utility imports
 
 /**
  * Tree data provider for analysis section
@@ -16,9 +21,48 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | null | void> = new vscode.EventEmitter<TreeItem | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-  constructor(private context: vscode.ExtensionContext) {}
+  private fileSystemWatcher: FileSystemWatcher;
+  // ✅ NEW: Countdown refresh timer
+  private countdownRefreshTimer: NodeJS.Timeout | undefined;
+
+  constructor(private context: vscode.ExtensionContext) {
+    this.fileSystemWatcher = FileSystemWatcher.getInstance();
+    this.setupFileSystemWatcher();
+    
+    // ✅ NEW: Start countdown refresh timer for live updates
+    this.startCountdownRefreshTimer();
+  }
+
+  /**
+   * ✅ NEW: Starts a timer to refresh tree view during active countdowns
+   */
+  private startCountdownRefreshTimer(): void {
+    // Refresh tree view every 2 seconds when there are active countdowns
+    this.countdownRefreshTimer = setInterval(() => {
+      // ✅ FIXED: Now FileWatchManager is properly imported
+      const fileWatchManager = FileWatchManager.getInstance();
+      if (fileWatchManager) {
+        const watcherStatus = fileWatchManager.getWatcherStatus();
+        // ✅ FIXED: Add type annotation for detail parameter
+        const hasActiveCountdowns = watcherStatus.activeTimerDetails.some((detail: any) => detail.hasCountdown);
+        
+        if (hasActiveCountdowns) {
+          console.log('🔄 Refreshing tree view for countdown updates');
+          this.refresh();
+        }
+      }
+    }, 2000); // Refresh every 2 seconds when countdowns are active
+  }
+
+  private setupFileSystemWatcher(): void {
+    this.fileSystemWatcher.initialize(() => {
+      console.log('🔄 AnalysisTreeProvider: File system change detected, refreshing...');
+      this.refresh();
+    });
+  }
 
   refresh(): void {
+    console.log('🔄 AnalysisTreeProvider: Refreshing tree view...');
     this._onDidChangeTreeData.fire();
   }
 
@@ -28,531 +72,255 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
 
   async getChildren(element?: TreeItem): Promise<TreeItem[]> {
     if (!element) {
-      return getAnalysisChildren(this.context);
+      // Root level: return analysis section
+      return [getAnalysisSectionItem(this.context.extensionPath)];
     }
+
+    // ✅ FIXED: Handle different element types properly
+    console.log('🔍 Getting children for element type:', element.type, 'label:', element.label);
 
     switch (element.type) {
-      case TreeItemType.ANALYSIS_SETTINGS:
-        return this.getSettingsChildren(this.context.extensionPath);
+      case TreeItemType.ANALYSIS_SECTION:
+        console.log('📊 Getting analysis section children');
+        return await getAnalysisChildren(this.context);
+      
+      case TreeItemType.FILES_PER_LANGUAGE_CONTAINER:
+        console.log('📁 Getting files per language children');
+        return await getFilesPerLanguageChildren(this.context);
+      
       case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
-        return getLanguageGroupChildren(element);
-      case TreeItemType.DIMENSION_MAPPING:
-        if (element instanceof DimensionMappingItem) {
-          return element.getChildren();
+        console.log('📂 Getting language group children for:', element.label);
+        return await getLanguageGroupChildren(element, this.context);
+      
+      case TreeItemType.ANALYSIS_SETTINGS:
+        console.log('⚙️ Getting analysis settings children');
+        // ✅ FIXED: Handle settings children properly
+        if (element instanceof AnalysisSettingsItem) {
+          return await element.getChildren();
         }
         return [];
+      
+      case TreeItemType.DIMENSION_MAPPING:
+        console.log('🔗 Getting dimension mapping children');
+        // ✅ FIXED: Import and handle dimension mapping
+        try {
+          const { DimensionMappingItem } = await import('./dimensionMappingTreeItem.js');
+          if (element instanceof DimensionMappingItem) {
+            return await element.getChildren();
+          }
+        } catch (error) {
+          console.error('❌ Error loading dimension mapping children:', error);
+        }
+        return [];
+      
       default:
+        console.log('❓ Unknown element type:', element.type);
         return [];
     }
   }
 
-  /**
-   * Gets settings child items
-   * @param extensionPath Path to the extension
-   * @returns Settings option items
-   */
-  private async getSettingsChildren(extensionPath: string): Promise<TreeItem[]> {
-    const settingsItem = new AnalysisSettingsItem(extensionPath, this.context);
-    return settingsItem.getChildren();
+  public triggerRefresh(): void {
+    console.log('🔄 AnalysisTreeProvider: Manual refresh triggered');
+    this.refresh();
+  }
+
+  public getFileSystemWatcherStatus() {
+    return this.fileSystemWatcher.getStatus();
+  }
+
+  public dispose(): void {
+    console.log('🧹 AnalysisTreeProvider: Disposing...');
+    
+    // ✅ CLEAR: Stop countdown refresh timer
+    if (this.countdownRefreshTimer) {
+      clearInterval(this.countdownRefreshTimer);
+      this.countdownRefreshTimer = undefined;
+    }
+    
+    this.fileSystemWatcher.dispose();
   }
 }
 
 /**
- * Gets child elements of the analysis section
- * @returns Tree items for analysis section
+ * Gets child elements of the analysis section with the new container structure
  */
 export async function getAnalysisChildren(context: vscode.ExtensionContext): Promise<TreeItem[]> {
-  if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-    return [createNoWorkspaceItem()];
-  }
-  
   try {
-    // Get analyzable files grouped by language
-    const filesByLanguage = await getAnalyzableFilesByLanguage();
-    const items: TreeItem[] = [];
+    console.log('📊 Getting analysis children...');
     
-    // Add settings first
-    items.push(new AnalysisSettingsItem(context.extensionPath, context));
+    const children: TreeItem[] = [];
+    
+    // ✅ FIXED: Use imported class
+    children.push(new AnalysisSettingsItem(context.extensionPath, context));
+    
+    // Get all analyzable files
+    const filesByLanguage = await getAnalyzableFilesByLanguage();
+    const languages = Object.keys(filesByLanguage);
+    const totalFiles = Object.values(filesByLanguage).reduce((sum, files) => sum + files.length, 0);
+    
+    if (languages.length === 0) {
+      console.log('📂 No analyzable files found in workspace');
+      children.push(createErrorItem(
+        'No analyzable files found',
+        'No supported programming language files were found in the current workspace'
+      ));
+      return children;
+    }
+    
+    // ✅ FIXED: Use imported class
+    children.push(new FilesPerLanguageContainer(languages.length, totalFiles, context.extensionPath));
+    
+    console.log(`✅ Analysis children created: ${children.length} items (${languages.length} languages, ${totalFiles} files)`);
+    return children;
+    
+  } catch (error) {
+    console.error('❌ Error getting analysis children:', error);
+    return [
+      createErrorItem(
+        'Error loading files',
+        `Failed to load analyzable files: ${error instanceof Error ? error.message : String(error)}`
+      )
+    ];
+  }
+}
+
+/**
+ * Gets child elements of the Files per Language container
+ */
+export async function getFilesPerLanguageChildren(context: vscode.ExtensionContext): Promise<TreeItem[]> {
+  try {
+    console.log('📁 Getting files per language children...');
+    
+    // Get all analyzable files grouped by language
+    const filesByLanguage = await getAnalyzableFilesByLanguage();
+    // ✅ FIXED: Use imported function
+    const config = getTreeDisplayConfig(context);
+    
+    // ✅ FIXED: Use imported function
+    const sortedLanguageEntries = sortLanguageEntries(filesByLanguage, config);
     
     // Create language group items
-    for (const [language, files] of Object.entries(filesByLanguage)) {
-      if (files.length > 0) {
-        const languageGroupItem = new LanguageGroupItem(language, files.length, context.extensionPath);
-        
-        // Create file items for this language
-        const fileItems = files.map(fileUri => {
-          const filePath = fileUri.fsPath;
-          const relativePath = vscode.workspace.asRelativePath(filePath);
-          return new AnalysisFileItem(filePath, relativePath, language, context.extensionPath);
-        });
-        
-        languageGroupItem.children = fileItems;
-        items.push(languageGroupItem);
-      }
+    const languageItems: TreeItem[] = [];
+    
+    for (const [language, files] of sortedLanguageEntries) {
+      // ✅ FIXED: Use imported function
+      const limitedFiles = limitAndSortFiles(files, config);
+      
+      console.log(`📂 Creating language group for ${language}: ${files.length} total files, ${limitedFiles.length} showing`);
+      
+      // ✅ FIXED: Use imported class and set correct properties
+      const languageGroupItem = new LanguageGroupItem(
+        language,
+        files.length,        // Total file count
+        limitedFiles.length, // Showing file count (after limiting)
+        context.extensionPath
+      );
+      
+      // ✅ CRITICAL: Store the files data in the item for retrieval later
+      (languageGroupItem as any).filesData = limitedFiles;
+      
+      languageItems.push(languageGroupItem);
     }
     
-    if (items.length === 1) { // Only settings item
-      items.push(createNoFilesItem());
-    }
+    console.log(`✅ Files per language children created: ${languageItems.length} language groups`);
+    return languageItems;
     
-    return items;
   } catch (error) {
-    console.error('Error getting analysis children:', error);
-    return [createErrorItem(error)];
+    console.error('❌ Error getting files per language children:', error);
+    return [
+      createErrorItem(
+        'Error loading language groups',
+        `Failed to load files by language: ${error instanceof Error ? error.message : String(error)}`
+      )
+    ];
   }
 }
 
 /**
- * Gets child elements of a language group
- * @param groupItem The language group item
- * @returns Tree items for files in the language group
+ * ✅ FIXED: Gets child elements of a language group (individual files)
  */
-export function getLanguageGroupChildren(groupItem: TreeItem): Thenable<TreeItem[]> {
-  if (groupItem.children) {
-    return Promise.resolve(groupItem.children);
-  }
-  return Promise.resolve([]);
-}
-
-/**
- * Creates the section item for code analysis
- * @returns Section tree item for code analysis
- */
-export function getAnalysisSectionItem(extensionPath: string): TreeItem {
-  return new AnalysisSectionItem(extensionPath);
-}
-
-/**
- * Gets analyzable files from workspace grouped by language
- */
-async function getAnalyzableFilesByLanguage(): Promise<Record<string, vscode.Uri[]>> {
-  const supportedExtensions = [
-    '.py', '.js', '.ts', '.c', 
-    '.cpp', '.cc', '.cxx', '.h', '.hpp',
-    '.cs', '.java', '.vue', '.rb',
-    '.m', '.mm',    // Objective-C
-    '.swift',       // Swift
-    '.ttcn3', '.ttcn', '.3mp',  // TTCN-3
-    '.php', '.phtml', '.php3', '.php4', '.php5', '.phps',  // PHP
-    '.scala', '.sc',  // Scala
-    '.gd',          // GDScript
-    '.go',          // Golang
-    '.lua',         // Lua
-    '.rs',          // Rust
-    '.f', '.f77', '.f90', '.f95', '.f03', '.f08', '.for', '.ftn',  // Fortran
-    '.kt', '.kts',  // Kotlin
-    '.sol',         // Solidity
-    '.erl', '.hrl', // Erlang
-    '.zig',         // Zig
-    '.pl', '.pm', '.pod', '.t'  // Perl
-  ];
-  const result: Record<string, vscode.Uri[]> = {};
-  
-  // Skip finding files if no workspace is open
-  if (!vscode.workspace.workspaceFolders) {
-    return result;
-  }
-  
-  // Exclude common non-user code directories and patterns
-  const excludePattern = '{**/node_modules/**,**/.venv/**,**/venv/**,**/.git/**,**/env/**,**/__pycache__/**,**/target/**,**/build/**,**/DerivedData/**,**/Pods/**,**/vendor/**,**/Cargo.toml,**/go.mod}';
-  
-  for (const ext of supportedExtensions) {
-    const files = await vscode.workspace.findFiles(`**/*${ext}`, excludePattern);
+export async function getLanguageGroupChildren(groupItem: TreeItem, context: vscode.ExtensionContext): Promise<TreeItem[]> {
+  try {
+    console.log('📂 Getting language group children for:', groupItem.label);
     
-    if (files.length > 0) {
-      // Filter files based on language-specific rules
-      let filteredFiles: vscode.Uri[] = [];
-      
-      if (ext === '.py') {
-        filteredFiles = files.filter(shouldIncludePythonFile);
-      } else if (ext === '.java') {
-        filteredFiles = files.filter(shouldIncludeJavaFile);
-      } else if (ext === '.m' || ext === '.mm') {
-        filteredFiles = files.filter(shouldIncludeObjectiveCFile);
-      } else if (ext === '.swift') {
-        filteredFiles = files.filter(shouldIncludeSwiftFile);
-      } else if (ext === '.ttcn3' || ext === '.ttcn' || ext === '.3mp') {
-        filteredFiles = files.filter(shouldIncludeTTCN3File);
-      } else if (ext === '.php' || ext === '.phtml' || ext === '.php3' || ext === '.php4' || ext === '.php5' || ext === '.phps') {
-        filteredFiles = files.filter(shouldIncludePHPFile);
-      } else if (ext === '.scala' || ext === '.sc') {
-        filteredFiles = files.filter(shouldIncludeScalaFile);
-      } else if (ext === '.go') {
-        filteredFiles = files.filter(shouldIncludeGoFile);
-      } else if (ext === '.rs') {
-        filteredFiles = files.filter(shouldIncludeRustFile);
-      } else if (ext === '.kt' || ext === '.kts') {
-        filteredFiles = files.filter(shouldIncludeKotlinFile);
-      } else {
-        filteredFiles = files;
-      }
-      
-      if (filteredFiles.length > 0) {
-        const language = getLanguageFromExtension(ext);
-        result[language] = (result[language] || []).concat(filteredFiles);
-      }
+    // ✅ FIXED: Extract language name from label (remove file count info)
+    const labelStr = typeof groupItem.label === 'string' ? groupItem.label : String(groupItem.label || '');
+    const languageName = labelStr.split(' (')[0]; // Extract language name before the count
+    
+    if (!languageName) {
+      console.log('📂 No language name found for group item');
+      return [];
     }
-  }
-  
-  return result;
-}
-
-/**
- * Determines if a Python file should be included in the analysis view
- * @param fileUri URI of the Python file
- * @returns True if the file should be included, false otherwise
- */
-function shouldIncludePythonFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files starting with __ (dunder files)
-  if (fileName.startsWith('__')) {
-    return false;
-  }
-  
-  // Exclude setup.py files
-  if (fileName === 'setup.py') {
-    return false;
-  }
-  
-  // Exclude files in virtual environments (additional check beyond glob pattern)
-  if (/[/\\]\.?venv[/\\]|[/\\]env[/\\]|[/\\]virtualenv[/\\]|[/\\]\.python-version[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files if desired
-  if (fileName.startsWith('test_') || fileName.endsWith('_test.py') || /[/\\]tests?[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a Java file should be included in the analysis view
- * @param fileUri URI of the Java file
- * @returns True if the file should be included, false otherwise
- */
-function shouldIncludeJavaFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in build directories
-  if (/[/\\](target|build|out)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude Maven/Gradle wrapper files
-  if (fileName.includes('wrapper') || fileName.startsWith('mvnw') || fileName.startsWith('gradlew')) {
-    return false;
-  }
-  
-  // Exclude test files (optional - you might want to analyze these)
-  if (fileName.endsWith('Test.java') || fileName.endsWith('Tests.java') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if an Objective-C file should be included
- */
-function shouldIncludeObjectiveCFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in build directories
-  if (/[/\\](build|DerivedData|Pods)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files (optional)
-  if (fileName.endsWith('Test.m') || fileName.endsWith('Tests.m') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a Swift file should be included
- */
-function shouldIncludeSwiftFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in build directories
-  if (/[/\\](build|DerivedData|Pods)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files (optional)
-  if (fileName.endsWith('Test.swift') || fileName.endsWith('Tests.swift') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a TTCN-3 file should be included
- */
-function shouldIncludeTTCN3File(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in build directories
-  if (/[/\\](build|out|target)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude temporary files
-  if (fileName.startsWith('.') || fileName.endsWith('.tmp')) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a PHP file should be included
- */
-function shouldIncludePHPFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in vendor directories (Composer packages)
-  if (/[/\\]vendor[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude files in cache directories
-  if (/[/\\](cache|tmp|temp)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files (optional)
-  if (fileName.endsWith('Test.php') || fileName.endsWith('Tests.php') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a Scala file should be included
- */
-function shouldIncludeScalaFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in build directories
-  if (/[/\\](target|build|out|project)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files (optional)
-  if (fileName.endsWith('Test.scala') || fileName.endsWith('Tests.scala') || fileName.endsWith('Spec.scala') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a Go file should be included
- */
-function shouldIncludeGoFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in vendor directories
-  if (/[/\\]vendor[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files (optional)
-  if (fileName.endsWith('_test.go') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a Rust file should be included
- */
-function shouldIncludeRustFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in target directories
-  if (/[/\\]target[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files in tests directory (optional)
-  if (/[/\\]tests[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Determines if a Kotlin file should be included
- */
-function shouldIncludeKotlinFile(fileUri: vscode.Uri): boolean {
-  const fileName = path.basename(fileUri.fsPath);
-  const filePath = fileUri.fsPath;
-  
-  // Exclude files in build directories
-  if (/[/\\](build|target|out)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  // Exclude test files (optional)
-  if (fileName.endsWith('Test.kt') || fileName.endsWith('Tests.kt') || /[/\\](test|tests)[/\\]/.test(filePath)) {
-    return false;
-  }
-  
-  return true;
-}
-
-/**
- * Gets language name from file extension
- */
-function getLanguageFromExtension(ext: string): string {
-  switch (ext) {
-    case '.py':
-      return 'Python';
-    case '.js':
-      return 'JavaScript';
-    case '.ts':
-      return 'TypeScript';
-    case '.c':
-      return 'C';
-    case '.h':
-      return 'C Header';
-    case '.cpp':
-    case '.cc':
-    case '.cxx':
-      return 'C++';
-    case '.hpp':
-    case '.hxx':
-      return 'C++ Header';
-    case '.cs':
-      return 'C#';
-    case '.java':
-      return 'Java';
-    case '.vue':
-      return 'Vue';
-    case '.rb':
-      return 'Ruby';
-    case '.m':
-      return 'Objective-C';
-    case '.mm':
-      return 'Objective-C++';
-    case '.swift':
-      return 'Swift';
-    case '.ttcn3':
-    case '.ttcn':
-    case '.3mp':
-      return 'TTCN-3';
-    case '.php':
-    case '.phtml':
-    case '.php3':
-    case '.php4':
-    case '.php5':
-    case '.phps':
-      return 'PHP';
-    case '.scala':
-    case '.sc':
-      return 'Scala';
-    case '.gd':
-      return 'GDScript';
-    case '.go':
-      return 'Go';
-    case '.lua':
-      return 'Lua';
-    case '.rs':
-      return 'Rust';
-    case '.f':
-    case '.f77':
-    case '.for':
-    case '.ftn':
-      return 'Fortran 77';
-    case '.f90':
-    case '.f95':
-    case '.f03':
-    case '.f08':
-      return 'Fortran';
-    case '.kt':
-      return 'Kotlin';
-    case '.kts':
-      return 'Kotlin Script';
-    case '.sol':
-      return 'Solidity';
-    case '.erl':
-      return 'Erlang';
-    case '.hrl':
-      return 'Erlang Header';
-    case '.zig':
-      return 'Zig';
-    case '.pl':
-      return 'Perl';
-    case '.pm':
-      return 'Perl Module';
-    case '.pod':
-      return 'Perl POD';
-    case '.t':
-      return 'Perl Test';
-    default:
-      return 'Unknown';
+    
+    console.log('📂 Processing language:', languageName);
+    
+    // ✅ NEW: Try to get files from stored data first (more efficient)
+    const storedFiles = (groupItem as any).filesData as vscode.Uri[];
+    
+    let filesToProcess: vscode.Uri[] = [];
+    
+    if (storedFiles && Array.isArray(storedFiles)) {
+      console.log(`📂 Using stored files for ${languageName}: ${storedFiles.length} files`);
+      filesToProcess = storedFiles;
+    } else {
+      console.log(`📂 No stored files, fetching fresh data for ${languageName}`);
+      // Fallback: fetch fresh data
+      const filesByLanguage = await getAnalyzableFilesByLanguage();
+      const config = getTreeDisplayConfig(context);
+      const filesForLanguage = filesByLanguage[languageName];
+      
+      if (!filesForLanguage || filesForLanguage.length === 0) {
+        console.log(`📂 No files found for language: ${languageName}`);
+        return [];
+      }
+      
+      filesToProcess = limitAndSortFiles(filesForLanguage, config);
+    }
+    
+    // Create file items
+    const fileItems: TreeItem[] = [];
+    
+    for (const fileUri of filesToProcess) {
+      const filePath = fileUri.fsPath;
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(fileUri);
+      // ✅ FIXED: path is now imported
+      const relativePath = workspaceFolder 
+        ? path.relative(workspaceFolder.uri.fsPath, filePath)
+        : path.basename(filePath);
+      
+      // ✅ FIXED: Use imported class
+      const fileItem = new AnalysisFileItem(
+        filePath,
+        relativePath,
+        languageName,
+        context.extensionPath
+      );
+      
+      fileItems.push(fileItem);
+    }
+    
+    console.log(`✅ Created ${fileItems.length} file items for ${languageName}`);
+    return fileItems;
+    
+  } catch (error) {
+    console.error('❌ Error getting language group children:', error);
+    return [
+      createErrorItem(
+        'Error loading files',
+        `Failed to load files for this language: ${error instanceof Error ? error.message : String(error)}`
+      )
+    ];
   }
 }
 
 /**
- * Creates an item when no workspace is open
+ * Creates a tree item for displaying error messages
  */
-function createNoWorkspaceItem(): TreeItem {
+function createErrorItem(message: string, tooltip?: string): TreeItem {
   return new TreeItem(
-    'No workspace open',
-    'Open a folder to see analyzable files',
-    TreeItemType.ANALYSIS_MESSAGE,
-    vscode.TreeItemCollapsibleState.None,
-    {
-      command: 'vscode.openFolder',
-      title: 'Open Folder',
-      arguments: []
-    },
-    new vscode.ThemeIcon('folder')
-  );
-}
-
-/**
- * Creates an item when no analyzable files are found
- */
-function createNoFilesItem(): TreeItem {
-  return new TreeItem(
-    'No analyzable files found',
-    'No files with supported extensions found in workspace',
-    TreeItemType.ANALYSIS_MESSAGE,
-    vscode.TreeItemCollapsibleState.None,
-    undefined,
-    new vscode.ThemeIcon('info')
-  );
-}
-
-/**
- * Creates an error item
- */
-function createErrorItem(error: any): TreeItem {
-  return new TreeItem(
-    'Error loading files',
-    `Error: ${error instanceof Error ? error.message : String(error)}`,
+    message,
+    tooltip || message,
+    // ✅ FIXED: TreeItemType is now imported
     TreeItemType.ANALYSIS_MESSAGE,
     vscode.TreeItemCollapsibleState.None,
     undefined,
@@ -561,125 +329,301 @@ function createErrorItem(error: any): TreeItem {
 }
 
 /**
- * ✅ RESTAURAR LanguageGroupItem USANDO ICONOS PNG
- * Container for language file groups
+ * Creates the section item for code analysis
  */
-class LanguageGroupItem extends TreeItem {
-  constructor(language: string, fileCount: number, extensionPath: string) {
-    // ✅ USAR LA FUNCIÓN getLanguageIcon RESTAURADA
-    const languageIcon = getLanguageIcon(language, extensionPath);
+export function getAnalysisSectionItem(extensionPath: string): TreeItem {
+  // ✅ FIXED: Use imported class
+  return new AnalysisSectionItem(extensionPath);
+}
+
+/**
+ * Gets analyzable files from workspace grouped by language
+ */
+async function getAnalyzableFilesByLanguage(): Promise<Record<string, vscode.Uri[]>> {
+  const filesByLanguage: Record<string, vscode.Uri[]> = {};
+  
+  if (!vscode.workspace.workspaceFolders) {
+    console.log('📂 No workspace folders found');
+    return filesByLanguage;
+  }
+
+  try {
+    // ✅ COMPREHENSIVE EXCLUDE PATTERN (keep as before)
+    const excludePattern = `{${[
+      // Hidden directories (starting with dot)
+      '**/.venv/**',
+      '**/.git/**',
+      '**/.svn/**',
+      '**/.hg/**',
+      '**/.bzr/**',
+      '**/.idea/**',
+      '**/.vscode/**',
+      '**/.vs/**',
+      '**/.eclipse/**',
+      '**/.settings/**',
+      '**/.metadata/**',
+      '**/.pytest_cache/**',
+      '**/.coverage/**',
+      '**/.nyc_output/**',
+      '**/.sass-cache/**',
+      
+      // Build and output directories
+      '**/node_modules/**',
+      '**/bower_components/**',
+      '**/vendor/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/target/**',        // Maven
+      '**/bin/**',
+      '**/obj/**',
+      '**/out/**',
+      '**/release/**',
+      '**/debug/**',
+      
+      // Python specific
+      '**/__pycache__/**',
+      '**/site-packages/**',
+      '**/Scripts/**',       // Windows venv
+      '**/lib/python*/**',   // Unix venv
+      '**/Lib/**',           // Windows Python
+      '**/DLLs/**',
+      '**/Include/**',
+      
+      // JavaScript/Node.js specific
+      '**/.next/**',
+      '**/.nuxt/**',
+      '**/coverage/**',
+      '**/public/build/**',
+      
+      // Java specific
+      '**/classes/**',
+      '**/generated/**',
+      '**/META-INF/**',
+      
+      // .NET specific
+      '**/packages/**',
+      
+      // Temporary and cache directories
+      '**/tmp/**',
+      '**/temp/**',
+      '**/cache/**',
+      '**/logs/**',
+      
+      // Package manager files and directories
+      '**/yarn.lock',
+      '**/package-lock.json',
+      '**/composer.lock',
+      '**/Pipfile.lock',
+      
+      // Documentation directories that might contain code examples
+      '**/docs/**',
+      '**/documentation/**'
+    ].join(',')}}`;
+
+    console.log('🔍 Searching for ALL files with simplified unknown detection...');
     
-    super(
-      language,
-      `${language} files that can be analyzed`,
-      TreeItemType.ANALYSIS_LANGUAGE_GROUP,
-      vscode.TreeItemCollapsibleState.Expanded,
-      undefined,
-      languageIcon // ✅ USAR EL ICONO DE LA FUNCIÓN
+    // ✅ SIMPLIFIED APPROACH: Search for ALL files at once
+    const allFiles = await vscode.workspace.findFiles(
+      '**/*',  // Find ALL files
+      excludePattern
     );
     
-    this.description = `(${fileCount} files)`;
+    console.log(`📄 Found ${allFiles.length} total files, categorizing by extension...`);
+    
+    // ✅ PROCESS ALL FILES: Categorize each file by its extension
+    for (const file of allFiles) {
+      // ✅ FIXED: path is now imported
+      const fileName = path.basename(file.fsPath);
+      const ext = path.extname(file.fsPath).toLowerCase();
+      
+      // Skip hidden files (starting with dot)
+      if (fileName.startsWith('.')) {
+        continue;
+      }
+      
+      // Get language from extension
+      const language = getLanguageFromExtension(ext);
+      
+      // Apply basic file filtering
+      if (shouldIncludeFile(file, language)) {
+        if (!filesByLanguage[language]) {
+          filesByLanguage[language] = [];
+        }
+        filesByLanguage[language].push(file);
+      }
+    }
+    
+    // Log results
+    const totalFiles = Object.values(filesByLanguage).reduce((sum, files) => sum + files.length, 0);
+    console.log(`🔍 Categorized ${totalFiles} files into ${Object.keys(filesByLanguage).length} languages`);
+    
+    // Log breakdown by language
+    for (const [language, files] of Object.entries(filesByLanguage)) {
+      console.log(`  📁 ${language}: ${files.length} files`);
+    }
+    
+    return filesByLanguage;
+    
+  } catch (error) {
+    console.error('❌ Error finding analyzable files:', error);
+    return filesByLanguage;
   }
 }
 
 /**
- * ✅ RESTAURAR LA FUNCIÓN getLanguageIcon CON ICONOS PNG
- * Gets appropriate icon for language using PNG files
+ * ✅ UPDATED: Gets language name from file extension - simplified logic
  */
-function getLanguageIcon(language: string, extensionPath: string): any {
-  let iconFileName: string;
+function getLanguageFromExtension(ext: string): string {
+  const languageMap: Record<string, string> = {
+    '.js': 'JavaScript',
+    '.jsx': 'JavaScript',
+    '.ts': 'TypeScript',
+    '.tsx': 'TypeScript',
+    '.py': 'Python',
+    '.c': 'C',
+    '.h': 'C/C++ Headers',
+    '.cpp': 'C++',
+    '.cc': 'C++',
+    '.cxx': 'C++',
+    '.hpp': 'C/C++ Headers',
+    '.cs': 'C#',
+    '.java': 'Java',
+    '.vue': 'Vue',
+    '.rb': 'Ruby',
+    '.m': 'Objective-C',
+    '.mm': 'Objective-C',
+    '.swift': 'Swift',
+    '.ttcn': 'TTCN-3',
+    '.ttcn3': 'TTCN-3',
+    '.3mp': 'TTCN-3',
+    '.php': 'PHP',
+    '.phtml': 'PHP',
+    '.php3': 'PHP',
+    '.php4': 'PHP',
+    '.php5': 'PHP',
+    '.phps': 'PHP',
+    '.scala': 'Scala',
+    '.sc': 'Scala',
+    '.gd': 'GDScript',
+    '.go': 'Go',
+    '.lua': 'Lua',
+    '.rs': 'Rust',
+    '.f': 'Fortran',
+    '.f77': 'Fortran',
+    '.f90': 'Fortran',
+    '.f95': 'Fortran',
+    '.f03': 'Fortran',
+    '.f08': 'Fortran',
+    '.for': 'Fortran',
+    '.ftn': 'Fortran',
+    '.kt': 'Kotlin',
+    '.kts': 'Kotlin',
+    '.sol': 'Solidity',
+    '.erl': 'Erlang',
+    '.hrl': 'Erlang',
+    '.zig': 'Zig',
+    '.pl': 'Perl',
+    '.pm': 'Perl',
+    '.pod': 'Perl',
+    '.t': 'Perl',
+    '.html': 'HTML',
+    '.htm': 'HTML'
+  };
   
-  switch (language) {
-    case 'Python':
-      iconFileName = 'python.png';
-      break;
-    case 'JavaScript':
-      iconFileName = 'javascript.png';
-      break;
-    case 'TypeScript':
-      iconFileName = 'typescript.png';
-      break;
-    case 'Java':
-      iconFileName = 'java.png';
-      break;
-    case 'C':
-    case 'C Header':
-      iconFileName = 'c.png';
-      break;
-    case 'C++':
-    case 'C++ Header':
-      iconFileName = 'cpp.png';
-      break;
-    case 'C#':
-      iconFileName = 'csharp.png';
-      break;
-    case 'Vue':
-      iconFileName = 'vue.png';
-      break;
-    case 'Ruby':
-      iconFileName = 'ruby.png';
-      break;
-    case 'Objective-C':
-    case 'Objective-C++':
-      iconFileName = 'objective-c.png';
-      break;
-    case 'Swift':
-      iconFileName = 'swift.png';
-      break;
-    case 'TTCN-3':
-      iconFileName = 'ttcn3.png';
-      break;
-    case 'PHP':
-      iconFileName = 'php.png';
-      break;
-    case 'Scala':
-      iconFileName = 'scala.png';
-      break;
-    // ✅ AÑADIR ICONOS PARA NUEVOS LENGUAJES
-    case 'GDScript':
-      iconFileName = 'gdscript.png';
-      break;
-    case 'Go':
-      iconFileName = 'go.png';
-      break;
-    case 'Lua':
-      iconFileName = 'lua.png';
-      break;
-    case 'Rust':
-      iconFileName = 'rust.png';
-      break;
-    case 'Fortran':
-    case 'Fortran 77':
-      iconFileName = 'fortran.png';
-      break;
-    case 'Kotlin':
-    case 'Kotlin Script':
-      iconFileName = 'kotlin.png';
-      break;
-    case 'Solidity':
-      iconFileName = 'solidity.png';
-      break;
-    case 'Erlang':
-    case 'Erlang Header':
-      iconFileName = 'erlang.png';
-      break;
-    case 'Zig':
-      iconFileName = 'zig.png';
-      break;
-    case 'Perl':
-    case 'Perl Module':
-    case 'Perl POD':
-    case 'Perl Test':
-      iconFileName = 'perl.png';
-      break;
-    default:
-      iconFileName = 'file-code.png';
+  // ✅ SIMPLE LOGIC: If extension not in our map, it's "Unknown Files"
+  return languageMap[ext] || 'Unknown Files';
+}
+
+/**
+ * ✅ SIMPLIFIED: Determines if a file should be included (much simpler now)
+ */
+function shouldIncludeFile(fileUri: vscode.Uri, language: string): boolean {
+  // ✅ FIXED: path is now imported
+  const fileName = path.basename(fileUri.fsPath);
+  
+  // Skip hidden files (already handled above, but double-check)
+  if (fileName.startsWith('.')) {
+    return false;
   }
   
-  console.log(`🎨 Language: "${language}" → Icon: "${iconFileName}"`);
+  // ✅ SIMPLE LOGIC: Include almost everything, with minimal exclusions
   
-  return {
-    light: vscode.Uri.file(path.join(extensionPath, 'resources', 'languajes_icons', iconFileName)),
-    dark: vscode.Uri.file(path.join(extensionPath, 'resources', 'languajes_icons', iconFileName))
-  };
+  // For "Unknown Files", apply basic filtering
+  if (language === 'Unknown Files') {
+    return shouldIncludeUnknownFile(fileUri);
+  }
+  
+  // For known languages, apply minimal filtering
+  switch (language) {
+    case 'Python':
+      return shouldIncludePythonFile(fileUri);
+    case 'Java':
+      return shouldIncludeJavaFile(fileUri);
+    default:
+      return true; // Include all other known language files
+  }
+}
+
+/**
+ * ✅ SIMPLIFIED: Determines if an unknown file should be included
+ */
+function shouldIncludeUnknownFile(fileUri: vscode.Uri): boolean {
+  // ✅ FIXED: path is now imported
+  const fileName = path.basename(fileUri.fsPath);
+  const ext = path.extname(fileName).toLowerCase();
+  
+  // ✅ MUCH SIMPLER: Only exclude obviously non-useful files
+  const excludeExtensions = [
+    // Binary files
+    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
+    '.mp3', '.mp4', '.avi', '.mkv', '.wav', '.ogg',
+    '.zip', '.tar', '.gz', '.rar', '.7z',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.ttf', '.otf', '.woff', '.woff2', '.eot',
+    '.dll', '.so', '.dylib', '.exe', '.bin',
+    '.jar', '.war', '.ear', '.class',
+    '.pyc', '.pyo', '.pyd',
+    '.o', '.obj', '.lib', '.a',
+    
+    // Minified files
+    '.min.js', '.min.css',
+    
+    // Temporary files
+    '.bak', '.tmp', '.temp', '.swp', '.swo'
+  ];
+  
+  // ✅ SIMPLE: If not in exclude list, include it
+  if (excludeExtensions.includes(ext)) {
+    return false;
+  }
+  
+  // ✅ INCLUDE: .txt, .md, .json, .xml, .yml, .yaml, .ini, .cfg, .conf, etc.
+  // These are files users might want to see even if they're not "code"
+  return true;
+}
+
+// Keep the existing simple functions:
+function shouldIncludePythonFile(fileUri: vscode.Uri): boolean {
+  // ✅ FIXED: path is now imported
+  const fileName = path.basename(fileUri.fsPath);
+  
+  // Exclude specific Python files
+  const excludePatterns = [
+    /^__pycache__/,
+    /\.pyc$/,
+    /\.pyo$/,
+    /\.pyd$/,
+    /^setup\.py$/,
+    /^conftest\.py$/
+  ];
+  
+  return !excludePatterns.some(pattern => pattern.test(fileName));
+}
+
+function shouldIncludeJavaFile(fileUri: vscode.Uri): boolean {
+  // ✅ FIXED: path is now imported
+  const fileName = path.basename(fileUri.fsPath);
+  
+  // Exclude generated files (containing $ usually indicates inner classes)
+  return !fileName.includes('$');
 }

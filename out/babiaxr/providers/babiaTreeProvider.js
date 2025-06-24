@@ -88,6 +88,8 @@ class BabiaTreeProvider {
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BARSMAP_CHART, "Visualize data with 3D bars in a map layout"),
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BARS_CHART, "Visualize data with simple 2D bars"),
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.CYLS_CHART, "Visualize data with cylinder-shaped bars"),
+            // ✅ ADDED: Bubbles chart option for BabiaXR
+            new chartItems_1.ChartTypeItem(chartModel_1.ChartType.BUBBLES_CHART, "Visualize data with 3D bubbles in X/Z space"),
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.PIE_CHART, "Visualize proportions as circular sectors"),
             new chartItems_1.ChartTypeItem(chartModel_1.ChartType.DONUT_CHART, "Visualize proportions with a hole in the center")
         ]);

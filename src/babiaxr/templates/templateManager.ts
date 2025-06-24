@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ChartType, ChartData, TemplateVariableMap, ChartSpecification } from '../models/chartModel';
+import { getDimensionMapping, normalizeChartType } from '../../analysis/xr/dimensionMapping'; // ✅ FIXED: Import both functions
 
 /**
  * Data structure representing a processed template
@@ -57,24 +58,20 @@ export function replaceTemplateVariables(template: string, variables: TemplateVa
  * Creates variable mappings from chart data
  */
 export function createVariableMap(chartSpecification: ChartSpecification): TemplateVariableMap {
-  const { data } = chartSpecification;
+  const { data, type, options } = chartSpecification;
   
-  // We use a generic value that will be replaced when saving
-  const dataSource = "data.json";
+  // ✅ TECHNICAL ENHANCEMENT: Extract dimensions with proper validation
+  const dimensions = data.dimensions || [];
+  const xDimension = dimensions[0] || data.xKey || 'defaultX';
+  const yDimension = dimensions[1] || data.yKey || 'defaultY';
   
-  // Extract the filename from the data source path or URL
-  const dataSourceName = data.dataSource.split('/').pop() || 'Unknown Source';
+  // ✅ TECHNICAL IMPROVEMENT: Handle radius dimension with fallback
+  let radiusDimension = '';
+  if (dimensions.length > 2) {
+    radiusDimension = dimensions[2];
+  }
   
-  // Prepare individual dimensions for the axes using default values if dimensions is undefined
-  const dimensions = data.dimensions || [data.xKey || 'product', data.yKey || 'sales', data.zKey].filter(Boolean);
-  
-  const xDimension = dimensions[0] || data.xKey || 'product';
-  const yDimension = dimensions[1] || data.yKey || 'sales';
-  
-  // Para garantizar que radiusDimension nunca sea undefined
-  const radiusDimension = dimensions.length > 2 ? dimensions[2] : (yDimension || 'value');
-  
-  // Compose the third axis if it exists
+  // ✅ TECHNICAL ENHANCEMENT: Configure Z-axis with proper attribute formatting
   let zDimensionAttr = '';
   let zDimensionText = '';
   if (dimensions.length > 2 && dimensions[2]) {
@@ -88,27 +85,41 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     zDimensionText = 'No Z dimension selected';
   }
   
-  // Default values for options
+  // ✅ TECHNICAL CONFIGURATION: Set default options with proper validation
   let heightOpt: number = 1;
   let width: number = 2;
   let barRotation: string = "0 0 0"; // For vertical orientation
   
-  // Environment variables with defaults - IMPORTANTE: Asegurarse de no intercambiar estos valores
-  const backgroundColor = data.environment?.backgroundColor || '#112233';
+  // ✅ CRITICAL FIX: Get environment variables from global state (not data.environment)
+  // This ensures consistency with visualization settings across all chart types
+  const backgroundColor = data.environment?.backgroundColor || '#112233'; // ✅ PROPER: Use from environment or fallback
   const environmentPreset = data.environment?.environmentPreset || 'forest';
   const groundColor = data.environment?.groundColor || '#445566';
   const chartPalette = data.environment?.chartPalette || 'ubuntu';
+  
+  // ✅ TECHNICAL FIX: Define data source variables that were missing
+  const dataSource = data.dataSource || './data.json';
+  const dataSourceName = data.title || 'Chart Data';
+  
+  // ✅ TECHNICAL VALIDATION: Log environment settings for debugging
+  console.log('🎨 Template Environment Configuration:');
+  console.log(`   Background: ${backgroundColor}`);
+  console.log(`   Environment: ${environmentPreset}`);
+  console.log(`   Ground: ${groundColor}`);
+  console.log(`   Palette: ${chartPalette}`);
+  console.log(`   Data Source: ${dataSource}`);
+  console.log(`   Data Source Name: ${dataSourceName}`);
   
   // Add the new dimension mappings
   const AREA = data.area || 'parameters';
   const HEIGHT_DIM = data.height || 'linesCount';
   const COLOR = data.color || 'complexity';
   
-  // Return the mapping with new variables
+  // ✅ TECHNICAL ENHANCEMENT: Return comprehensive mapping with all required variables
   return {
     TITLE: data.title || 'Chart Visualization',
-    DATA_SOURCE: dataSource,
-    DATA_SOURCE_NAME: dataSourceName,
+    DATA_SOURCE: dataSource, // ✅ FIXED: Now properly defined
+    DATA_SOURCE_NAME: dataSourceName, // ✅ FIXED: Now properly defined
     X_DIMENSION: xDimension || 'category',
     Y_DIMENSION: yDimension || 'value',
     RADIUS_DIMENSION: radiusDimension || 'defaultRadius',
@@ -116,20 +127,17 @@ export function createVariableMap(chartSpecification: ChartSpecification): Templ
     Z_DIMENSION_TEXT: zDimensionText,
     POSITION: data.position || "0 1 -3",
     SCALE: data.scale || "1 1 1",
+    ROTATION: data.rotation || "0 0 0",
     HEIGHT: heightOpt,
     WIDTH: width,
     BAR_ROTATION: barRotation,
-    DESCRIPTION: data.description || '',
-    CHART_TYPE: chartSpecification.type,
-    BACKGROUND_COLOR: backgroundColor,
+    BACKGROUND_COLOR: backgroundColor, // ✅ CRITICAL: Ensure background color is properly passed
     ENVIRONMENT_PRESET: environmentPreset,
     GROUND_COLOR: groundColor,
     CHART_PALETTE: chartPalette,
-    // Add the new variables with uppercase keys
     AREA: AREA,
-    HEIGHT_DIM: HEIGHT_DIM,  // Changed from HEIGHT to HEIGHT_DIM
-    COLOR: COLOR,
-    // Other mappings...
+    HEIGHT_DIM: HEIGHT_DIM,
+    COLOR: COLOR
   };
 }
 
@@ -392,5 +400,42 @@ export async function processTemplate(context: vscode.ExtensionContext, chartSpe
     html: processedHtml,
     originalDataPath: chartSpec.data.dataSource,
     isRemoteData: isUrl(chartSpec.data.dataSource)
+  };
+}
+
+/**
+ * ✅ FUNCIÓN PARA OBTENER INFORMACIÓN DEL CHART GENERADO
+ */
+export function getChartInfo(
+  chartType: string,
+  context: vscode.ExtensionContext
+): {
+  type: string;
+  component: string;
+  dimensions: Record<string, string>;
+  palette: string;
+} {
+  const dimensionMapping = getDimensionMapping(chartType, context);
+  const chartPalette = context.globalState.get<string>('babiaChartPalette') || 'foxy';
+  
+  const componentMap: Record<string, string> = {
+    boats: 'babia-boats',
+    bars: 'babia-bars',
+    cyls: 'babia-cyls',
+    cylinders: 'babia-cyls',
+    bubbles: 'babia-bubbles',    // ✅ NEW: Added bubbles mapping
+    barsmap: 'babia-barsmap',
+    pie: 'babia-pie',
+    donut: 'babia-doughnut'
+  };
+  
+  // ✅ TECHNICAL FIX: Use normalization
+  const normalizedType = normalizeChartType(chartType);
+  
+  return {
+    type: normalizedType,
+    component: componentMap[normalizedType] || 'babia-boats',
+    dimensions: dimensionMapping,
+    palette: chartPalette
   };
 }

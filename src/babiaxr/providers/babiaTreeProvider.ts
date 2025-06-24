@@ -92,6 +92,11 @@ export class BabiaTreeProvider {
         ChartType.CYLS_CHART,
         "Visualize data with cylinder-shaped bars"
       ),
+      // ✅ ADDED: Bubbles chart option for BabiaXR
+      new ChartTypeItem(
+        ChartType.BUBBLES_CHART,
+        "Visualize data with 3D bubbles in X/Z space"
+      ),
       new ChartTypeItem(
         ChartType.PIE_CHART,
         "Visualize proportions as circular sectors"

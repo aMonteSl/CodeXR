@@ -11,6 +11,6 @@ var AnalysisMode;
 (function (AnalysisMode) {
     AnalysisMode["STATIC"] = "static";
     AnalysisMode["XR"] = "xr";
-    AnalysisMode["WEB_VIEW"] = "webview"; // ✅ AÑADIR ESTA LÍNEA
+    AnalysisMode["WEB_VIEW"] = "webview";
 })(AnalysisMode || (exports.AnalysisMode = AnalysisMode = {}));
 //# sourceMappingURL=model.js.map

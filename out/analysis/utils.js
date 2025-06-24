@@ -40,8 +40,8 @@ exports.getFileSize = getFileSize;
 exports.formatFileSize = formatFileSize;
 exports.classifyComplexity = classifyComplexity;
 const vscode = __importStar(require("vscode"));
-const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 /**
  * Resolves the path to a Python analyzer script using multiple strategies
  * @param scriptName Name of the Python script (e.g., 'python_comment_analyzer.py')
@@ -95,23 +95,24 @@ function getLanguageName(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     switch (ext) {
         case '.js':
-            return 'JavaScript';
         case '.jsx':
-            return 'React JSX';
+            return 'JavaScript';
         case '.ts':
-            return 'TypeScript';
         case '.tsx':
-            return 'React TSX';
+            return 'TypeScript';
         case '.py':
             return 'Python';
         case '.java':
-            return 'Java'; // ✅ AÑADIR JAVA
+            return 'Java';
         case '.c':
             return 'C';
         case '.cpp':
         case '.cxx':
         case '.cc':
             return 'C++';
+        case '.h':
+        case '.hpp':
+            return 'C/C++ Headers';
         case '.cs':
             return 'C#';
         case '.php':
@@ -127,22 +128,46 @@ function getLanguageName(filePath) {
         case '.kt':
         case '.kts':
             return 'Kotlin';
+        case '.html':
+        case '.htm':
+            return 'HTML';
+        case '.vue':
+            return 'Vue';
         case '.scala':
         case '.sc':
             return 'Scala';
-        case '.r':
-            return 'R';
-        case '.m':
-            return 'Objective-C';
-        case '.pl':
-            return 'Perl';
-        case '.sh':
-        case '.bash':
-            return 'Shell Script';
         case '.lua':
             return 'Lua';
-        case '.vue':
-            return 'Vue.js';
+        case '.erl':
+        case '.hrl':
+            return 'Erlang';
+        case '.zig':
+            return 'Zig';
+        case '.pl':
+        case '.pm':
+        case '.pod':
+        case '.t':
+            return 'Perl';
+        case '.gd':
+            return 'GDScript';
+        case '.sol':
+            return 'Solidity';
+        case '.f':
+        case '.f77':
+        case '.f90':
+        case '.f95':
+        case '.f03':
+        case '.f08':
+        case '.for':
+        case '.ftn':
+            return 'Fortran';
+        case '.ttcn3':
+        case '.ttcn':
+        case '.3mp':
+            return 'TTCN-3';
+        case '.m':
+        case '.mm':
+            return 'Objective-C';
         default:
             return 'Unknown';
     }

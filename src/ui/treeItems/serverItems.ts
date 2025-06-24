@@ -134,12 +134,12 @@ export class ActiveServersContainer extends TreeItem {
  */
 export class ActiveServerItem extends TreeItem {
   constructor(serverInfo: ServerInfo) {
-    // ✅ USAR NOMBRE PERSONALIZADO SI ES UN ANÁLISIS XR
+    // ✅ USE CUSTOM NAME IF IT'S AN XR ANALYSIS (including DOM visualization)
     const displayName = serverInfo.analysisFileName 
       ? `${serverInfo.analysisFileName}: ${serverInfo.port}`
       : path.basename(serverInfo.filePath);
     
-    // ✅ DESCRIPCIÓN PERSONALIZADA PARA ANÁLISIS XR
+    // ✅ CUSTOM DESCRIPTION FOR XR ANALYSIS (including DOM visualization)  
     const description = serverInfo.analysisFileName
       ? `XR Analysis - ${serverInfo.protocol.toUpperCase()}`
       : serverInfo.url;
@@ -156,7 +156,7 @@ URL: ${serverInfo.url}
 Click to see options`;
     
     super(
-      displayName, // ✅ USAR EL NOMBRE PERSONALIZADO
+      displayName,
       tooltip,
       TreeItemType.ACTIVE_SERVER,
       vscode.TreeItemCollapsibleState.None,
@@ -165,15 +165,15 @@ Click to see options`;
         title: 'Server Options',
         arguments: [serverInfo]
       },
-      // ✅ ICONO DIFERENTE PARA ANÁLISIS XR
+      // ✅ PURPLE ICON FOR XR ANALYSIS (including DOM visualization)
       serverInfo.analysisFileName 
-        ? new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.purple')) // Icono de análisis
+        ? new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.purple'))
         : new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe')
     );
     
     this.description = description;
     
-    // ✅ CONTEXT VALUE DIFERENTE PARA ANÁLISIS XR
+    // ✅ DIFFERENT CONTEXT VALUE FOR XR ANALYSIS (including DOM visualization)
     this.contextValue = serverInfo.analysisFileName ? 'activeXRAnalysisServer' : 'activeServer';
   }
 }

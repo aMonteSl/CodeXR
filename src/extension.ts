@@ -14,18 +14,26 @@ import { registerPythonEnvCommands, checkAndSetupPythonEnvironment } from './pyt
 import { FileWatchManager } from './analysis/fileWatchManager';
 import { analysisDataManager } from './analysis/analysisDataManager';
 import { cleanupXRVisualizations } from './analysis/xr/xrAnalysisManager';
+import { cleanupDOMVisualizations } from './analysis/html/domVisualizationManager';
 
 /**
  * This function is executed when the extension is activated
  */
 export async function activate(context: vscode.ExtensionContext) {
-  console.log('Extension "CodeXR" is now active.');
+  console.log('🚀 Extension "CodeXR" is now active.');
 
   // Initialize status bar manager
   const statusBarManager = getStatusBarManager(context);
   
-  // Inicializar FileWatchManager - AÑADIR ESTA LÍNEA
-  FileWatchManager.initialize(context);
+  // ✅ CRITICAL: Initialize FileWatchManager with proper settings
+  console.log('🔧 Initializing FileWatchManager...');
+  const fileWatchManager = FileWatchManager.initialize(context);
+  
+  if (fileWatchManager) {
+    console.log('✅ FileWatchManager initialized successfully');
+  } else {
+    console.error('❌ Failed to initialize FileWatchManager');
+  }
   
   // Register tree data provider for the unified view
   const treeDataProvider = new LocalServerProvider(context);
@@ -34,37 +42,63 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(treeView);
 
+  // Register tree data provider disposal
+  context.subscriptions.push({
+    dispose: () => {
+      console.log('🧹 Disposing tree data provider...');
+      treeDataProvider.dispose();
+    }
+  });
+
   // Expose the treeDataProvider globally for updates
   global.treeDataProvider = treeDataProvider;
 
   // Register all commands ONCE
-  // Server/UI commands
+  console.log('📝 Registering server/UI commands...');
   const commandDisposables = registerCommands(context, treeDataProvider);
   context.subscriptions.push(...commandDisposables);
   
   // Register Python environment commands ONCE
+  console.log('🐍 Registering Python environment commands...');
   const pythonEnvDisposables = registerPythonEnvCommands(context);
   context.subscriptions.push(...pythonEnvDisposables);
   
   // Register all analysis commands
+  console.log('🔬 Registering analysis commands...');
   const analysisDisposables = registerAnalysisCommands(context);
   context.subscriptions.push(...analysisDisposables);
   
+  console.log(`✅ Registered ${commandDisposables.length + pythonEnvDisposables.length + analysisDisposables.length} commands total`);
+  
   // Check for Python environment at startup (after short delay to not block activation)
   setTimeout(() => {
+    console.log('🔍 Checking Python environment...');
     checkAndSetupPythonEnvironment();
   }, 2000);
+
+  // Log file system watcher status after initialization
+  setTimeout(() => {
+    const watcherStatus = treeDataProvider.getFileSystemWatcherStatus();
+    console.log('📊 File System Watcher Status:', watcherStatus);
+  }, 3000);
+  
+  console.log('🎉 CodeXR extension activation completed!');
 }
 
 /**
  * This function is executed when the extension is deactivated
  */
 export async function deactivate() {
+  console.log('🧹 Deactivating CodeXR extension...');
+  
   // Clean up any stored data
   analysisDataManager.clear();
   
   // Clean up XR visualizations
   cleanupXRVisualizations();
+  
+  // Clean up DOM visualizations
+  cleanupDOMVisualizations();
   
   // Stop all servers when extension is deactivated
   stopServer();
@@ -97,5 +131,5 @@ export async function deactivate() {
     console.error('Error during cleanup of visualization files:', error);
   }
   
-  // Status bar is disposed automatically through context.subscriptions
+  console.log('✅ CodeXR extension deactivated successfully');
 }

@@ -4,7 +4,8 @@
 export enum ChartType {
     BARSMAP_CHART = 'Barsmap Chart',
     BARS_CHART = 'Bars Chart',
-    CYLS_CHART = 'Cylinder Chart', // Add this new type
+    CYLS_CHART = 'Cylinder Chart',
+    BUBBLES_CHART = 'Bubbles Chart', // ✅ ADDED: Bubbles chart type
     PIE_CHART = 'Pie Chart',
     DONUT_CHART = 'Donut Chart',
     SCATTER_PLOT = 'Scatter Plot',

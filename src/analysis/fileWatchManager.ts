@@ -32,31 +32,190 @@ export class FileWatchManager {
   // Store status messages for each file
   private statusMessages: Map<string, vscode.Disposable> = new Map();
   
+  // ✅ NEW: Track countdown intervals for visual feedback
+  private countdownIntervals: Map<string, NodeJS.Timeout> = new Map();
+
+  /**
+   * ✅ NEW: Updates status message for a specific file with countdown
+   * @param filePath Path to the file
+   * @param message New status message
+   * @param showCountdown Whether to show countdown timer
+   */
+  private updateStatusMessage(filePath: string, message: string, showCountdown: boolean = false): void {
+    // Clear existing message and countdown
+    this.clearStatusMessage(filePath);
+    
+    if (showCountdown) {
+      // Start countdown display
+      this.startCountdownDisplay(filePath, this.debounceDelay);
+    } else {
+      // Set simple message
+      const statusMessage = vscode.window.setStatusBarMessage(message);
+      this.statusMessages.set(filePath, statusMessage);
+      
+      // Clear the message after 3 seconds
+      setTimeout(() => {
+        this.clearStatusMessage(filePath);
+      }, 3000);
+    }
+  }
+
+  /**
+   * ✅ NEW: Starts countdown display for a file
+   * @param filePath Path to the file
+   * @param totalTime Total countdown time in milliseconds
+   */
+  private startCountdownDisplay(filePath: string, totalTime: number): void {
+    const fileName = path.basename(filePath);
+    const startTime = Date.now();
+    let lastDisplayedSeconds = Math.ceil(totalTime / 1000);
+    
+    // Initial status message
+    const initialMessage = vscode.window.setStatusBarMessage(
+      `$(clock) CodeXR: Analyzing ${fileName} in ${lastDisplayedSeconds}s...`
+    );
+    this.statusMessages.set(filePath, initialMessage);
+    
+    // Start countdown interval (update every 100ms for smooth countdown)
+    const countdownInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, totalTime - elapsed);
+      const remainingSeconds = Math.ceil(remaining / 1000);
+      
+      // Update display only when seconds change
+      if (remainingSeconds !== lastDisplayedSeconds && remaining > 0) {
+        lastDisplayedSeconds = remainingSeconds;
+        
+        // Clear previous message
+        if (this.statusMessages.has(filePath)) {
+          this.statusMessages.get(filePath)?.dispose();
+        }
+        
+        // Create progress bar effect
+        const progress = Math.round(((totalTime - remaining) / totalTime) * 10);
+        const progressBar = '█'.repeat(progress) + '░'.repeat(10 - progress);
+        
+        // Show updated countdown with progress bar
+        const countdownMessage = vscode.window.setStatusBarMessage(
+          `$(sync~spin) CodeXR: ${fileName} analysis in ${remainingSeconds}s ${progressBar}`
+        );
+        this.statusMessages.set(filePath, countdownMessage);
+      }
+      
+      // Clear countdown when time is up
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        this.countdownIntervals.delete(filePath);
+        
+        // Show "analyzing now" message
+        if (this.statusMessages.has(filePath)) {
+          this.statusMessages.get(filePath)?.dispose();
+        }
+        
+        const analyzingMessage = vscode.window.setStatusBarMessage(
+          `$(microscope) CodeXR: Analyzing ${fileName} now...`
+        );
+        this.statusMessages.set(filePath, analyzingMessage);
+      }
+    }, 100); // Update every 100ms for smooth countdown
+    
+    this.countdownIntervals.set(filePath, countdownInterval);
+  }
+
+  /**
+   * ✅ ENHANCED: Clears status message and countdown for a specific file
+   * @param filePath Path to the file
+   */
+  private clearStatusMessage(filePath: string): void {
+    // Clear countdown interval
+    if (this.countdownIntervals.has(filePath)) {
+      clearInterval(this.countdownIntervals.get(filePath)!);
+      this.countdownIntervals.delete(filePath);
+    }
+    
+    // Clear status message
+    if (this.statusMessages.has(filePath)) {
+      this.statusMessages.get(filePath)?.dispose();
+      this.statusMessages.delete(filePath);
+    }
+  }
+
   // Allow adjusting the debounce delay
   /**
    * Sets the debounce delay for file watching
    * @param delay Delay in milliseconds before triggering analysis
    */
   public setDebounceDelay(delay: number): void {
-    console.log(`⏱️ Changing debounce time from ${this.debounceDelay}ms to ${delay}ms`);
+    console.log(`⏱️ Changing debounce delay from ${this.debounceDelay}ms to ${delay}ms`);
+    
+    // ✅ VALIDATE INPUT
+    if (delay < 100 || delay > 10000) {
+      console.warn(`⚠️ Invalid delay value: ${delay}ms. Must be between 100-10000ms`);
+      return;
+    }
+    
+    const oldDelay = this.debounceDelay;
     this.debounceDelay = delay;
     
-    // Apply the new delay to all active timers
-    for (const [filePath, timer] of this.debounceTimers.entries()) {
-      console.log(`⏱️ Reconfiguring timer for ${path.basename(filePath)} with new delay: ${delay}ms`);
-      clearTimeout(timer);
+    // ✅ UPDATE ALL ACTIVE TIMERS WITH NEW DELAY
+    const activeTimerCount = this.debounceTimers.size;
+    
+    if (activeTimerCount > 0) {
+      console.log(`🔄 Updating ${activeTimerCount} active timers with new delay`);
       
-      // Reconfigure with new delay if file is still being watched
-      if (this.fileAnalysisModes.has(filePath)) {
-        const mode = this.fileAnalysisModes.get(filePath)!;
-        
-        // Start new timer with updated delay
-        this.debounceTimers.set(filePath, setTimeout(async () => {
-          console.log(`⏱️ Running analysis for ${path.basename(filePath)} after reconfiguring to ${delay}ms`);
-          await this.performFileAnalysis(filePath);
-        }, delay));
+      // ✅ STORE FILES THAT NEED TIMER UPDATES
+      const filesToRestart: string[] = [];
+      
+      // Cancel all existing timers and collect file paths
+      for (const [filePath, timer] of this.debounceTimers.entries()) {
+        const fileName = path.basename(filePath);
+        console.log(`⏹️ Cancelling existing timer for ${fileName}`);
+        clearTimeout(timer);
+        filesToRestart.push(filePath);
       }
+      
+      // Clear the timer map
+      this.debounceTimers.clear();
+      
+      // ✅ RESTART TIMERS WITH NEW DELAY FOR ALL ACTIVE FILES
+      for (const filePath of filesToRestart) {
+        if (this.fileAnalysisModes.has(filePath)) {
+          const fileName = path.basename(filePath);
+          
+          console.log(`🆕 Starting new timer for ${fileName} with ${delay}ms delay`);
+          
+          // ✅ RESTART COUNTDOWN: Show updated countdown with new delay
+          this.updateStatusMessage(filePath, '', true);
+          
+          // ✅ CREATE NEW TIMER WITH UPDATED DELAY
+          this.debounceTimers.set(filePath, setTimeout(async () => {
+            console.log(`⏰ Timer completed for ${fileName} after ${delay}ms (updated delay)`);
+            this.debounceTimers.delete(filePath);
+            
+            // Clear countdown
+            this.clearStatusMessage(filePath);
+            
+            // Show analysis starting message
+            vscode.window.setStatusBarMessage(
+              `$(microscope) CodeXR: Analyzing ${fileName}...`, 
+              3000
+            );
+            
+            await this.performFileAnalysis(filePath);
+          }, delay));
+        }
+      }
+      
+      console.log(`✅ Updated ${filesToRestart.length} timers from ${oldDelay}ms to ${delay}ms`);
+    } else {
+      console.log(`📝 No active timers to update. New delay ${delay}ms will apply to future file changes.`);
     }
+    
+    // ✅ SHOW USER FEEDBACK
+    vscode.window.setStatusBarMessage(
+      `$(clock) CodeXR: Auto-analysis delay updated to ${delay}ms`, 
+      3000
+    );
   }
   
   // Allow toggling auto-analysis
@@ -262,96 +421,51 @@ export class FileWatchManager {
    * @param filePath Path to the changed file
    */
   public async handleFileChange(filePath: string): Promise<void> {
-    // Skip if auto-analysis is disabled
     if (!this.autoAnalysisEnabled) {
-      console.log(`Auto-analysis is disabled, ignoring changes to ${filePath}`);
+      console.log(`⚠️ Auto-analysis disabled for ${path.basename(filePath)}`);
       return;
     }
-    
-    // Show the current debounce delay value
-    console.log(`⏱️ Debounce delay configured: ${this.debounceDelay}ms for file ${path.basename(filePath)}`);
-    
-    // Cancel any pending analysis for this file
-    if (this.debounceTimers.has(filePath)) {
-      console.log(`⏱️ Cancelling previous timer for ${path.basename(filePath)}`);
-      clearTimeout(this.debounceTimers.get(filePath));
-      
-      // Clear any previous status message
-      if (this.statusMessages.has(filePath)) {
-        this.statusMessages.get(filePath)?.dispose();
-        this.statusMessages.delete(filePath);
-      }
-    }
-    
-    // Record start time
-    const startTime = Date.now();
+
     const fileName = path.basename(filePath);
-    console.log(`⏱️ ${new Date().toLocaleTimeString()} - Starting timer of ${this.debounceDelay}ms for ${fileName}`);
-    
-    // Create an interval timer to update the progress bar
-    const totalSeconds = Math.round(this.debounceDelay / 1000);
-    let secondsRemaining = totalSeconds;
-    
-    // Create an initial status bar message
-    const initialMessage = vscode.window.setStatusBarMessage(`$(sync~spin) CodeXR: Analysis in ${secondsRemaining}s [${'⬛'.repeat(0)}${'⬜'.repeat(10)}]`);
-    
-    // Save the message for later cleanup
-    this.statusMessages.set(filePath, initialMessage);
-    
-    // Calculate the interval for updating the progress bar (every 10% of total time)
-    const updateInterval = Math.max(Math.floor(this.debounceDelay / 10), 100); // minimum 100ms
-    
-    // Create an interval to update the progress bar
-    const progressInterval = setInterval(() => {
-      // Calculate elapsed and remaining time
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, this.debounceDelay - elapsed);
-      secondsRemaining = Math.ceil(remaining / 1000);
-      
-      // Calculate percentage complete (0-10 for our 10-block bar)
-      const percentComplete = Math.min(10, Math.floor((elapsed / this.debounceDelay) * 10));
-      
-      // Update progress bar
-      if (this.statusMessages.has(filePath)) {
-        this.statusMessages.get(filePath)?.dispose();
-        const progressBar = '⬛'.repeat(percentComplete) + '⬜'.repeat(10 - percentComplete);
-        const newMessage = vscode.window.setStatusBarMessage(
-          `$(sync~spin) CodeXR: Analysis in ${secondsRemaining}s [${progressBar}]`
-        );
-        this.statusMessages.set(filePath, newMessage);
-      }
-      
-      // Stop the interval if time is complete
-      if (elapsed >= this.debounceDelay) {
-        clearInterval(progressInterval);
-      }
-    }, updateInterval);
-    
-    // Schedule a new analysis after the debounce delay
+    console.log(`📁 File changed: ${fileName}`);
+
+    // Check if file is currently being analyzed
+    if (analysisDataManager.isFileBeingAnalyzed(filePath)) {
+      console.log(`⏸️ File ${fileName} is already being analyzed, skipping`);
+      return;
+    }
+
+    // ✅ CLEAR ANY EXISTING TIMER FOR THIS FILE
+    if (this.debounceTimers.has(filePath)) {
+      console.log(`🔄 Clearing existing timer for ${fileName}`);
+      clearTimeout(this.debounceTimers.get(filePath)!);
+      this.debounceTimers.delete(filePath);
+      this.clearStatusMessage(filePath);
+    }
+
+    // ✅ USE CURRENT DEBOUNCE DELAY (not a cached value)
+    const currentDelay = this.debounceDelay;
+    console.log(`⏱️ Setting new timer for ${fileName} with current delay: ${currentDelay}ms`);
+
+    // ✅ SHOW COUNTDOWN: Start visual countdown display
+    this.updateStatusMessage(filePath, '', true); // Empty message, countdown will be shown
+
+    // ✅ CREATE NEW TIMER WITH CURRENT DELAY
     this.debounceTimers.set(filePath, setTimeout(async () => {
-      // Clear the progress interval just in case
-      clearInterval(progressInterval);
+      console.log(`⏰ Timer completed for ${fileName} after ${currentDelay}ms`);
+      this.debounceTimers.delete(filePath);
       
-      // Clear countdown message
-      if (this.statusMessages.has(filePath)) {
-        this.statusMessages.get(filePath)?.dispose();
-        this.statusMessages.delete(filePath);
-      }
+      // Clear countdown and show analysis starting message
+      this.clearStatusMessage(filePath);
       
-      // Calculate elapsed time and show analysis message
-      const elapsedTime = Date.now() - startTime;
-      vscode.window.setStatusBarMessage(`$(microscope) CodeXR: Analyzing ${fileName}...`, 3000);
-      console.log(`⏱️ ${new Date().toLocaleTimeString()} - Timer triggered after ${elapsedTime}ms`);
-      
-      // Time verification and analysis
-      if (Math.abs(elapsedTime - this.debounceDelay) > 100) {
-        console.warn(`⚠️ Actual wait time (${elapsedTime}ms) differs from configured time (${this.debounceDelay}ms)`);
-      } else {
-        console.log(`✅ Wait time matches configured time (${this.debounceDelay}ms)`);
-      }
+      // Show analysis starting message
+      vscode.window.setStatusBarMessage(
+        `$(microscope) CodeXR: Analyzing ${fileName}...`, 
+        3000
+      );
       
       await this.performFileAnalysis(filePath);
-    }, this.debounceDelay));
+    }, currentDelay));
   }
   
   /**
@@ -632,13 +746,86 @@ export class FileWatchManager {
     watchedFiles: string[];
     autoAnalysisEnabled: boolean;
     debounceDelay: number;
+    delayCategory: string;
+    activeTimerDetails: Array<{file: string, remainingTime: string, hasCountdown: boolean}>;
   } {
+    // Categorize delay for user-friendly display
+    let delayCategory: string;
+    if (this.debounceDelay <= 500) {
+      delayCategory = 'Very Fast';
+    } else if (this.debounceDelay <= 1000) {
+      delayCategory = 'Fast';
+    } else if (this.debounceDelay <= 2000) {
+      delayCategory = 'Normal';
+    } else if (this.debounceDelay <= 3000) {
+      delayCategory = 'Slow';
+    } else {
+      delayCategory = 'Very Slow';
+    }
+    
+    // Get details about active timers with countdown info
+    const activeTimerDetails: Array<{file: string, remainingTime: string, hasCountdown: boolean}> = [];
+    for (const [filePath] of this.debounceTimers) {
+      const fileName = path.basename(filePath);
+      const hasCountdown = this.countdownIntervals.has(filePath);
+      
+      activeTimerDetails.push({
+        file: fileName,
+        remainingTime: `${this.debounceDelay}ms`,
+        hasCountdown
+      });
+    }
+    
     return {
       totalWatchers: this.fileWatchers.size,
       activeTimers: this.debounceTimers.size,
-      watchedFiles: Array.from(this.fileWatchers.keys()).map(fp => path.basename(fp)),
+      watchedFiles: Array.from(this.fileWatchers.keys()),
       autoAnalysisEnabled: this.autoAnalysisEnabled,
-      debounceDelay: this.debounceDelay
+      debounceDelay: this.debounceDelay,
+      delayCategory,
+      activeTimerDetails
     };
+  }
+
+  /**
+   * ✅ ENHANCED: Stop all watchers and clear countdowns
+   */
+  public stopAllWatchers(): void {
+    console.log('🛑 Stopping all file watchers...');
+    
+    // Clear all countdown intervals
+    for (const [filePath, interval] of this.countdownIntervals) {
+      clearInterval(interval);
+      console.log(`⏹️ Cleared countdown for ${path.basename(filePath)}`);
+    }
+    this.countdownIntervals.clear();
+    
+    // Clear all timers
+    for (const [filePath, timer] of this.debounceTimers) {
+      clearTimeout(timer);
+      console.log(`⏹️ Cleared timer for ${path.basename(filePath)}`);
+    }
+    this.debounceTimers.clear();
+    
+    // Dispose all watchers
+    for (const [filePath, watcher] of this.fileWatchers) {
+      watcher.dispose();
+      console.log(`🗑️ Disposed watcher for ${path.basename(filePath)}`);
+    }
+    this.fileWatchers.clear();
+    
+    // Clear all status messages
+    for (const [filePath, message] of this.statusMessages) {
+      message.dispose();
+    }
+    this.statusMessages.clear();
+    
+    // Clear analysis modes
+    this.fileAnalysisModes.clear();
+    
+    // Clear XR HTML paths
+    this.xrHtmlPaths.clear();
+    
+    console.log('✅ All file watchers stopped and cleaned up');
   }
 }
