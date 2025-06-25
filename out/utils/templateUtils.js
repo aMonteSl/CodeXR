@@ -240,6 +240,28 @@ const chartComponents = {
                   rotation="90 0 0"
                   scale="2 2 2">
         </a-entity>`,
+    [chartModel_1.ChartType.BUBBLES_CHART]: `
+        <!-- Bubbles Chart -->
+        <a-entity babia-bubbles="from: data;
+                  legend: true;
+                  tooltip: true;
+                  animation: true;
+                  palette: \${CHART_PALETTE};
+                  x_axis: \${X_DIMENSION};
+                  z_axis: \${Z_DIMENSION};
+                  height: \${Y_DIMENSION};
+                  radius: \${RADIUS_DIMENSION};
+                  heightMax: 15;
+                  radiusMax: 1;
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -3"
+                  scale="1 1 1">
+        </a-entity>`,
     [chartModel_1.ChartType.SCATTER_PLOT]: "",
     [chartModel_1.ChartType.NETWORK_GRAPH]: ""
 };

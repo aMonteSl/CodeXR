@@ -369,6 +369,66 @@ export const chartComponents: Record<ChartType, string> = {
            anchor="left"></a-text>
   </a-entity>`,
 
+  [ChartType.BUBBLES_CHART]: `
+        <!-- Bubbles Chart -->
+        <a-entity babia-bubbles="from: data;
+                  legend: true;
+                  tooltip: true;
+                  animation: true;
+                  palette: \${CHART_PALETTE};
+                  x_axis: \${X_DIMENSION};
+                  z_axis: \${Z_DIMENSION};
+                  height: \${Y_DIMENSION};
+                  radius: \${RADIUS_DIMENSION};
+                  heightMax: 15;
+                  radiusMax: 1;
+                  title: \${TITLE};
+                  titleColor: #FFFFFF;
+                  titlePosition: 0 10 0;
+                  tooltip_position: top;
+                  tooltip_show_always: false;
+                  tooltip_height: 0.3"
+                  position="0 1 -3"
+                  scale="1 1 1">
+        </a-entity>
+        
+        <!-- Info Panel -->
+        <a-entity position="-5 2 -3">
+          <a-plane color="#112244" width="3" height="2" opacity="0.8"></a-plane>
+          <a-text value="Data Source: \${DATA_SOURCE_NAME}" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.7 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="Fields Selected:" 
+                 width="2.8" 
+                 color="white" 
+                 position="-1.4 0.4 0.01" 
+                 anchor="left"
+                 font="monoid"></a-text>
+          <a-text value="X: \${X_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Z: \${Z_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 0.0 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Height: \${Y_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 -0.2 0.01" 
+                 anchor="left"></a-text>
+          <a-text value="Radius: \${RADIUS_DIMENSION}" 
+                 width="2.8" 
+                 color="#AAFFAA" 
+                 position="-1.2 -0.4 0.01" 
+                 anchor="left"></a-text>
+        </a-entity>`,
+
   [ChartType.SCATTER_PLOT]: "",
   [ChartType.NETWORK_GRAPH]: ""
 };
