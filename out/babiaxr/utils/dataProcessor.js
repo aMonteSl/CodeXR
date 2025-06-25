@@ -81,6 +81,11 @@ function reorderJsonAttributes(data, dimensions) {
                 reorderedItem[key] = item[key];
             }
         });
+        // Ensure cyclomaticDensity is calculated if missing
+        if (!reorderedItem.cyclomaticDensity && reorderedItem.complexity && (reorderedItem.linesCount || reorderedItem.lineCount)) {
+            const lines = reorderedItem.linesCount || reorderedItem.lineCount;
+            reorderedItem.cyclomaticDensity = lines > 0 ? Number((reorderedItem.complexity / lines).toFixed(3)) : 0;
+        }
         return reorderedItem;
     });
 }
@@ -202,8 +207,9 @@ async function createProcessedJsonFile(sourceFilePath, dimensions, context) {
  * @param filePath Path to the temporary file to clean up
  */
 function cleanupTemporaryFile(filePath) {
-    if (!filePath)
+    if (!filePath) {
         return;
+    }
     console.log(`Scheduled cleanup for temporary file: ${filePath}`);
 }
 //# sourceMappingURL=dataProcessor.js.map

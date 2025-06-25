@@ -17,7 +17,8 @@ function transformAnalysisDataForXR(analysisResult) {
         lineStart: func.lineStart,
         lineEnd: func.lineEnd,
         complexityCategory: getCategoryFromComplexity(func.complexity),
-        complexityColor: getColorFromComplexity(func.complexity) // Add color based on complexity
+        complexityColor: getColorFromComplexity(func.complexity), // Add color based on complexity
+        cyclomaticDensity: func.cyclomaticDensity
     }));
     // Sort by complexity (descending) for better visualization
     functionData.sort((a, b) => b.complexity - a.complexity);

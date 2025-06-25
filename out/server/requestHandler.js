@@ -227,9 +227,19 @@ function createRequestHandler(baseDir, mainFilePath) {
             }
             // Set content type based on file extension
             const contentType = getContentType(path.extname(filePath));
-            // If this is the main HTML file, inject the live reload script
+            // If this is the main HTML file, inject the appropriate live reload script
             if (filePath === mainFilePath || path.extname(filePath) === '.html') {
-                const htmlWithLiveReload = (0, liveReloadManager_1.injectLiveReloadScript)(data.toString());
+                // Detect if this is a DOM visualization by checking the base directory path
+                const isDOMVisualization = baseDir.includes('/dom-') || path.basename(baseDir).startsWith('dom-');
+                let htmlWithLiveReload;
+                if (isDOMVisualization) {
+                    console.log('🌐 Injecting HTML live-reload script for DOM visualization');
+                    htmlWithLiveReload = (0, liveReloadManager_1.injectHTMLLiveReloadScript)(data.toString());
+                }
+                else {
+                    console.log('📊 Injecting standard live-reload script for data visualization');
+                    htmlWithLiveReload = (0, liveReloadManager_1.injectLiveReloadScript)(data.toString());
+                }
                 res.writeHead(200, { 'Content-Type': contentType });
                 res.end(htmlWithLiveReload);
             }

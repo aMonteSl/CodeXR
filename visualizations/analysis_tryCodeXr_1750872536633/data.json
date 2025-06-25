@@ -1,0 +1,50 @@
+[
+  {
+    "functionName": "CalculadoraAvanzada::operar",
+    "complexity": 12,
+    "linesCount": 29,
+    "parameters": 3,
+    "cyclomaticDensity": 0.414,
+    "complexityColor": "#e67e22"
+  },
+  {
+    "functionName": "CalculadoraAvanzada::operar1",
+    "complexity": 12,
+    "linesCount": 29,
+    "parameters": 3,
+    "cyclomaticDensity": 0.414,
+    "complexityColor": "#e67e22"
+  },
+  {
+    "functionName": "CalculadoraAvanzada::operar2",
+    "complexity": 12,
+    "linesCount": 29,
+    "parameters": 3,
+    "cyclomaticDensity": 0.414,
+    "complexityColor": "#e67e22"
+  },
+  {
+    "functionName": "CalculadoraAvanzada::analizarArray",
+    "complexity": 5,
+    "linesCount": 18,
+    "parameters": 1,
+    "cyclomaticDensity": 0.278,
+    "complexityColor": "#27ae60"
+  },
+  {
+    "functionName": "CalculadoraAvanzada::CalculadoraAvanzada",
+    "complexity": 1,
+    "linesCount": 3,
+    "parameters": 0,
+    "cyclomaticDensity": 0.333,
+    "complexityColor": "#27ae60"
+  },
+  {
+    "functionName": "main",
+    "complexity": 1,
+    "linesCount": 23,
+    "parameters": 0,
+    "cyclomaticDensity": 0.043,
+    "complexityColor": "#27ae60"
+  }
+]

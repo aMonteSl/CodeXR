@@ -19,8 +19,8 @@ function generateChartHTML(chartType, context, title = 'Code Analysis') {
     // Get environmental settings
     const chartPalette = context.globalState.get('babiaChartPalette') || 'foxy';
     console.log(`   🎨 Chart palette: ${chartPalette}`);
-    // ✅ VALIDACIÓN DE CAMPOS NUMÉRICOS (solo estos están permitidos)
-    const validFields = ['complexity', 'linesCount', 'parameters'];
+    // ✅ ENHANCED: Added functionName and cyclomaticDensity as valid fields for categorical and numeric dimensions
+    const validFields = ['complexity', 'linesCount', 'parameters', 'functionName', 'cyclomaticDensity'];
     const validateField = (field, fallback) => {
         return validFields.includes(field) ? field : fallback;
     };

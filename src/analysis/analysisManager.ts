@@ -369,7 +369,8 @@ export function transformAnalysisDataForWebview(result: FileAnalysisResult): any
       lineCount: func.lineCount,
       parameters: func.parameters,
       complexity: func.complexity,
-      maxNestingDepth: func.maxNestingDepth || 0
+      maxNestingDepth: func.maxNestingDepth || 0,
+      cyclomaticDensity: func.cyclomaticDensity
     }))
   };
 }
@@ -710,9 +711,15 @@ function sendFunctionData(panel: vscode.WebviewPanel, data: any): void {
  * Helper function to determine complexity category
  */
 function getComplexityCategory(complexity: number): string {
-  if (complexity <= 5) return 'Simple';
-  if (complexity <= 10) return 'Moderate';
-  if (complexity <= 20) return 'Complex';
+  if (complexity <= 5) {
+    return 'Simple';
+  }
+  if (complexity <= 10) {
+    return 'Moderate';
+  }
+  if (complexity <= 20) {
+    return 'Complex';
+  }
   return 'Very Complex';
 }
 

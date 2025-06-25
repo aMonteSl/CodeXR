@@ -194,6 +194,131 @@ function createBaseLiveReloadScript(options: LiveReloadOptions): string {
 }
 
 /**
+ * Injects a specialized LiveReload script for HTML/DOM visualizations
+ * This handles updates to babia-html components separately from data-based charts
+ */
+export function injectHTMLLiveReloadScript(htmlContent: string): string {
+  const scriptContent = createHTMLLiveReloadScript({
+    id: '__LIVE_RELOAD_CLIENT_HTML__',
+    eventName: 'htmlUpdated',
+    htmlSelector: '[babia-html]',
+    logPrefix: '🌐'
+  });
+  
+  // Inject in exclusive mode to prevent conflicts
+  return injectCustomScript(htmlContent, '__LIVE_RELOAD_CLIENT_HTML__', scriptContent, true);
+}
+
+/**
+ * Creates a specialized live reload script for HTML-based visualizations
+ */
+function createHTMLLiveReloadScript(options: {
+  id: string;
+  eventName: string;
+  htmlSelector: string;
+  logPrefix: string;
+}): string {
+  const { id, eventName, htmlSelector, logPrefix } = options;
+
+  return `
+  <script id="${id}">
+    console.log('${logPrefix} Setting up EventSource for HTML live reload...');
+
+    const eventSource = new EventSource('/live-reload');
+    let isXRMode = false;
+
+    function checkXRMode() {
+      isXRMode = !!document.querySelector('a-scene');
+      console.log(isXRMode ? '🥽 XR mode detected' : '🖥️ Standard mode detected');
+      return isXRMode;
+    }
+
+    document.addEventListener('DOMContentLoaded', checkXRMode);
+
+    eventSource.onopen = function () {
+      console.log('🟢 HTML EventSource connection established');
+    };
+
+    eventSource.onerror = function (err) {
+      console.error('🔴 HTML EventSource error:', err);
+      setTimeout(() => {
+        console.log('🔄 Attempting to reconnect HTML EventSource...');
+        eventSource.close();
+        new EventSource('/live-reload');
+      }, 3000);
+    };
+
+    eventSource.addEventListener('${eventName}', function (event) {
+      console.log('${logPrefix} Received ${eventName} event:', event);
+
+      const htmlEntities = document.querySelectorAll('${htmlSelector}');
+      if (htmlEntities.length === 0) {
+        console.warn('⚠️ No HTML entities found for refresh');
+        return;
+      }
+
+      console.log('🔄 Refreshing ' + htmlEntities.length + ' HTML entities');
+
+      htmlEntities.forEach((htmlEntity, index) => {
+        console.log('🌐 Updating babia-html entity #' + index);
+
+        let newHtmlContent = '';
+        try {
+          const eventData = JSON.parse(event.data);
+          newHtmlContent = eventData.htmlContent || '';
+        } catch (e) {
+          console.warn('⚠️ Could not parse HTML update event data');
+          return;
+        }
+
+        if (!newHtmlContent) {
+          console.warn('⚠️ No new HTML content provided');
+          return;
+        }
+
+        const newConfig = {
+          renderHTML: true,
+          renderHTMLOnlyLeafs: true,
+          distanceLevels: 0.7,
+          html: newHtmlContent
+        };
+
+        try {
+          console.log('🔧 Setting new babia-html component config...');
+          htmlEntity.setAttribute('babia-html', newConfig);
+
+          // Force component update
+          const component = htmlEntity.components['babia-html'];
+          if (component && typeof component.update === 'function') {
+            console.log('🔄 Manually triggering update()...');
+            component.update();
+          }
+
+          console.log('✅ babia-html component updated with new HTML');
+        } catch (error) {
+          console.error('❌ Failed to update babia-html component:', error);
+        }
+      });
+    });
+
+    eventSource.onmessage = function (event) {
+      console.log('Generic HTML message received:', event.data);
+
+      if (checkXRMode()) {
+        console.log('⛔ Blocking page reload in XR mode (HTML visualization)');
+        return false;
+      }
+
+      if (event.data === 'reload') {
+        console.log('💫 HTML Live reload triggered, refreshing page...');
+        window.location.reload();
+      }
+    };
+  </script>
+  `;
+}
+
+/**
  * Helper function to inject a script into HTML and ensure no duplicate scripts
  */
 function injectCustomScript(htmlContent: string, scriptId: string, scriptContent: string, exclusiveMode: boolean = false): string {
@@ -279,4 +404,16 @@ export function addSSEClient(client: http.ServerResponse): void {
 
 export function removeSSEClient(client: http.ServerResponse): void {
   sseClients = sseClients.filter(c => c !== client);
+}
+
+export function notifyClientsHTMLUpdated(htmlContent: string): void {
+  sseClients.forEach(client => {
+    try {
+      client.write(`event: htmlUpdated\n`);
+      client.write(`data: ${JSON.stringify({ htmlContent })}\n\n`);
+      console.log('Sent htmlUpdated event to client with new HTML content');
+    } catch (error) {
+      console.error('Error sending SSE HTML update:', error);
+    }
+  });
 }

@@ -128,8 +128,9 @@ async function collectDataSource(context) {
                     placeHolder: 'Select an example dataset',
                     title: 'Available example datasets'
                 });
-                if (!selectedFile)
+                if (!selectedFile) {
                     return undefined;
+                }
                 vscode.window.showInformationMessage(`Loading example data from: ${selectedFile.label}`);
                 return selectedFile.value;
             }

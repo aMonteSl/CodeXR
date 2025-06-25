@@ -21,6 +21,7 @@ export interface XRFunctionData {
   lineEnd: number;
   complexityCategory: string;
   complexityColor: string; // Add this property for color coding
+  cyclomaticDensity: number;
 }
 
 /**
@@ -53,7 +54,8 @@ export function transformAnalysisDataForXR(analysisResult: FileAnalysisResult): 
     lineStart: func.lineStart,
     lineEnd: func.lineEnd,
     complexityCategory: getCategoryFromComplexity(func.complexity),
-    complexityColor: getColorFromComplexity(func.complexity) // Add color based on complexity
+    complexityColor: getColorFromComplexity(func.complexity), // Add color based on complexity
+    cyclomaticDensity: func.cyclomaticDensity
   }));
 
   // Sort by complexity (descending) for better visualization

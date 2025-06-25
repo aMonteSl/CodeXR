@@ -4,6 +4,7 @@ import * as fsPromises from 'fs/promises'; // Add this import for Promise-based 
 import * as path from 'path';
 import { 
   injectLiveReloadScript, 
+  injectHTMLLiveReloadScript,
   addSSEClient, 
   removeSSEClient 
 } from './liveReloadManager';
@@ -216,9 +217,20 @@ export function createRequestHandler(baseDir: string, mainFilePath: string): (re
       // Set content type based on file extension
       const contentType = getContentType(path.extname(filePath));
       
-      // If this is the main HTML file, inject the live reload script
+      // If this is the main HTML file, inject the appropriate live reload script
       if (filePath === mainFilePath || path.extname(filePath) === '.html') {
-        const htmlWithLiveReload = injectLiveReloadScript(data.toString());
+        // Detect if this is a DOM visualization by checking the base directory path
+        const isDOMVisualization = baseDir.includes('/dom-') || path.basename(baseDir).startsWith('dom-');
+        
+        let htmlWithLiveReload: string;
+        if (isDOMVisualization) {
+          console.log('🌐 Injecting HTML live-reload script for DOM visualization');
+          htmlWithLiveReload = injectHTMLLiveReloadScript(data.toString());
+        } else {
+          console.log('📊 Injecting standard live-reload script for data visualization');
+          htmlWithLiveReload = injectLiveReloadScript(data.toString());
+        }
+        
         res.writeHead(200, { 'Content-Type': contentType });
         res.end(htmlWithLiveReload);
       } else {

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Code Complexity: tryCodeXr.cpp</title>
+    <meta name="description" content="Code analysis visualization with BabiaXR">
+    <!-- A-Frame Core -->
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+
+    <!-- A-Frame Extras (v7.5.4: añade compatibilidad con gamepad-controls para 1.7.0+) -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.4/dist/aframe-extras.min.js"></script> 
+
+    <!-- Babia -->
+    <script src="https://unpkg.com/aframe-babia-components/dist/aframe-babia-components.min.js"></script>
+
+    <!-- Environment Component (v1.5.0: última publicada) -->
+    <script src="https://unpkg.com/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
+
+    <!-- Geometry Merger Component (v2.0.1: última publicada) -->
+    <script src="https://unpkg.com/aframe-geometry-merger-component@2.0.1/dist/aframe-geometry-merger-component.min.js"></script> 
+    
+    <link rel="icon" type="image/svg" href="file:///home/adrian/CodeXR/resources/icon.svg">
+</head>
+<body>
+    <a-scene id="scene"
+    light="defaultLightsEnabled: false"
+    background="color: #FF851B"
+    xr-mode-ui="enabled: true; XRMode: xr"
+    device-orientation-permission-ui>
+
+        
+        <!-- Environment -->
+        <a-entity id="env" environment="preset: poison; groundColor: #B10DC9" hide-on-enter-ar></a-entity>
+
+        <!-- Light -->
+        <a-entity light="color: #fff; type:ambient; intensity: 0.85"></a-entity>
+        
+        <!-- Data -->
+        <a-entity id="data" babia-queryjson="url: ./data.json"></a-entity>
+        <a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>
+
+        <!-- Chart Component (Dynamic) -->
+        <a-entity id="chart"
+              babia-boats="from: data;
+              legend: true;
+              tooltip: true;
+              palette: blues;
+              area: complexity;
+              height: linesCount;
+              color: complexity;
+              tooltip_position: top;
+              tooltip_show_always: false;
+              tooltip_height: 0.3;
+              heightMax: 20"
+              position="0 1 -10"
+              rotation="0 0 0"
+              scale="1.5 1.5 1.5">
+    </a-entity>
+
+        <a-entity id="rig" movement-controls="fly: true" position="0 1.2 12">
+        <!-- Cámara -->
+        <a-entity camera position="0 3 4" look-controls></a-entity>
+
+        <!-- Mando izquierdo SIN raycaster (solo visual) -->
+        <a-entity
+        id="leftController"
+        laser-controls="hand: left"
+        meta-touch-controls="hand: left; model: true"
+        daydream-controls="hand: left"
+        gearvr-controls="hand: left"
+        hp-mixed-reality-controls="hand: left"
+        magicleap-controls="hand: left"
+        oculus-go-controls="hand: left"
+        valve-index-controls="hand: left"
+        vive-controls="hand: left"
+        vive-focus-controls="hand: left"
+        windows-motion-controls="hand: left"
+        generic-tracked-controller-controls="hand: left">
+        </a-entity>
+
+        <!-- Mando derecho CON raycaster (SOLO este interactúa) -->
+        <a-entity
+        id="rightController"
+        laser-controls="hand: right"
+        meta-touch-controls="hand: right; model: true"
+        daydream-controls="hand: right"
+        gearvr-controls="hand: right"
+        hp-mixed-reality-controls="hand: right"
+        magicleap-controls="hand: right"
+        oculus-go-controls="hand: right"
+        valve-index-controls="hand: right"
+        vive-controls="hand: right"
+        vive-focus-controls="hand: right"
+        windows-motion-controls="hand: right"
+        generic-tracked-controller-controls="hand: right"
+        raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
+        </a-entity>
+
+        <!-- Cursor para interacción con ratón -->
+        <a-entity 
+        cursor="rayOrigin: mouse"
+        raycaster="objects: .babiaxraycasterclass; far: 100">
+        </a-entity>
+    </a-scene>
+</body>
+</html>

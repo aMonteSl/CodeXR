@@ -158,7 +158,15 @@ export async function analyzeLizard(
     }
     
     // Extract functions and metrics from the result
-    const functions: FunctionInfo[] = result.functions || [];
+    const functions: FunctionInfo[] = (result.functions || []).map((func: any) => {
+      // Ensure cyclomaticDensity is calculated if missing
+      if (func.cyclomaticDensity === undefined) {
+        const lineCount = func.lineCount > 0 ? func.lineCount : 1; // Avoid division by zero
+        func.cyclomaticDensity = Math.round((func.complexity / lineCount) * 1000) / 1000; // Round to 3 decimal places
+      }
+      
+      return func as FunctionInfo;
+    });
     const metrics: ComplexityMetrics = result.metrics || {
       averageComplexity: 0,
       maxComplexity: 0,

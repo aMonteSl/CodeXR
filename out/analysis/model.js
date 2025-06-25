@@ -12,5 +12,7 @@ var AnalysisMode;
     AnalysisMode["STATIC"] = "static";
     AnalysisMode["XR"] = "xr";
     AnalysisMode["WEB_VIEW"] = "webview";
+    /** DOM visualization with live-reload support */
+    AnalysisMode["DOM"] = "dom";
 })(AnalysisMode || (exports.AnalysisMode = AnalysisMode = {}));
 //# sourceMappingURL=model.js.map

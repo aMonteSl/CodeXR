@@ -167,7 +167,14 @@ async function analyzeLizard(filePath, outputChannel) {
             throw new Error(result.error || 'Unknown error running lizard analysis');
         }
         // Extract functions and metrics from the result
-        const functions = result.functions || [];
+        const functions = (result.functions || []).map((func) => {
+            // Ensure cyclomaticDensity is calculated if missing
+            if (func.cyclomaticDensity === undefined) {
+                const lineCount = func.lineCount > 0 ? func.lineCount : 1; // Avoid division by zero
+                func.cyclomaticDensity = Math.round((func.complexity / lineCount) * 1000) / 1000; // Round to 3 decimal places
+            }
+            return func;
+        });
         const metrics = result.metrics || {
             averageComplexity: 0,
             maxComplexity: 0,

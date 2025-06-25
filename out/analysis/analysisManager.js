@@ -347,7 +347,8 @@ function transformAnalysisDataForWebview(result) {
             lineCount: func.lineCount,
             parameters: func.parameters,
             complexity: func.complexity,
-            maxNestingDepth: func.maxNestingDepth || 0
+            maxNestingDepth: func.maxNestingDepth || 0,
+            cyclomaticDensity: func.cyclomaticDensity
         }))
     };
 }
@@ -607,12 +608,15 @@ function sendFunctionData(panel, data) {
  * Helper function to determine complexity category
  */
 function getComplexityCategory(complexity) {
-    if (complexity <= 5)
+    if (complexity <= 5) {
         return 'Simple';
-    if (complexity <= 10)
+    }
+    if (complexity <= 10) {
         return 'Moderate';
-    if (complexity <= 20)
+    }
+    if (complexity <= 20) {
         return 'Complex';
+    }
     return 'Very Complex';
 }
 /**

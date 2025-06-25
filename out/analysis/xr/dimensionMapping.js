@@ -7,11 +7,13 @@ exports.getDimensionMapping = getDimensionMapping;
 exports.setDimensionMapping = setDimensionMapping;
 exports.validateDimensionMapping = validateDimensionMapping;
 exports.getDimensionMappingSummary = getDimensionMappingSummary;
-// ✅ DEFINIR TODOS LOS CAMPOS DISPONIBLES PARA ANÁLISIS
+// Available fields for analysis visualization
 exports.ANALYSIS_FIELDS = [
     { key: 'complexity', displayName: 'Complexity', description: 'Cyclomatic complexity of functions' },
     { key: 'linesCount', displayName: 'Lines Count', description: 'Number of lines in functions' },
-    { key: 'parameters', displayName: 'Parameters', description: 'Number of parameters in functions' }
+    { key: 'parameters', displayName: 'Parameters', description: 'Number of parameters in functions' },
+    { key: 'functionName', displayName: 'Function Name', description: 'Name identifier of functions (categorical)' },
+    { key: 'cyclomaticDensity', displayName: 'Cyclomatic Density', description: 'Complexity density relative to function size (complexity/lines)' }
 ];
 // ✅ FIXED: CONFIGURACIÓN DE DIMENSIONES POR TIPO DE CHART - Now matches actual chart components exactly
 exports.CHART_DIMENSIONS = {
@@ -115,8 +117,7 @@ function normalizeChartType(chartType) {
     // Default fallback
     console.warn('⚠️ Unknown chart type:', chartType, 'using boats as fallback');
     return 'boats';
-}
-// ✅ FIXED: MAPEOS POR DEFECTO ESPECÍFICOS PARA CADA TIPO - Now matches chart components exactly
+} // ✅ ENHANCED: Default mappings updated to include functionName options
 const defaultMappings = {
     boats: {
         area: 'parameters',
@@ -124,35 +125,35 @@ const defaultMappings = {
         color: 'complexity'
     },
     bars: {
-        x_axis: 'complexity',
+        x_axis: 'functionName', // ✅ Use functionName for categorical X-axis
         height: 'linesCount'
     },
     // ✅ FIXED: Cylinder default mapping uses correct properties
     cyls: {
-        x_axis: 'complexity',
+        x_axis: 'functionName', // ✅ Use functionName for categorical X-axis
         height: 'linesCount',
         radius: 'parameters'
     },
     // ✅ NEW: Bubbles default mapping uses babia-bubbles properties
     bubbles: {
-        x_axis: 'complexity',
+        x_axis: 'functionName', // ✅ Use functionName for categorical X-axis
         z_axis: 'parameters',
         height: 'linesCount',
-        radius: 'parameters'
+        radius: 'complexity'
     },
     barsmap: {
-        x_axis: 'complexity',
+        x_axis: 'functionName', // ✅ Use functionName for categorical X-axis
         height: 'linesCount',
         z_axis: 'parameters'
     },
     // ✅ FIXED: Pie chart default mapping uses "key" and "size"
     pie: {
-        key: 'complexity',
+        key: 'functionName', // ✅ Use functionName for categorical segments
         size: 'linesCount'
     },
     // ✅ FIXED: Donut chart default mapping uses "key" and "size"
     donut: {
-        key: 'complexity',
+        key: 'functionName', // ✅ Use functionName for categorical segments
         size: 'linesCount'
     }
 };

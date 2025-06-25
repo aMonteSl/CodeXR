@@ -47,7 +47,13 @@ function reorderJsonAttributes(data: any[], dimensions: string[]): any[] {
         reorderedItem[key] = item[key];
       }
     });
-    
+
+    // Ensure cyclomaticDensity is calculated if missing
+    if (!reorderedItem.cyclomaticDensity && reorderedItem.complexity && (reorderedItem.linesCount || reorderedItem.lineCount)) {
+      const lines = reorderedItem.linesCount || reorderedItem.lineCount;
+      reorderedItem.cyclomaticDensity = lines > 0 ? Number((reorderedItem.complexity / lines).toFixed(3)) : 0;
+    }
+
     return reorderedItem;
   });
 }
@@ -205,8 +211,9 @@ export async function createProcessedJsonFile(
  * @param filePath Path to the temporary file to clean up
  */
 export function cleanupTemporaryFile(filePath: string | undefined): void {
-
-  if (!filePath) return;
+  if (!filePath) {
+    return;
+  }
   
   console.log(`Scheduled cleanup for temporary file: ${filePath}`);
 }

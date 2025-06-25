@@ -44,6 +44,9 @@ const fs = __importStar(require("fs"));
 const htmlDomParser_1 = require("./htmlDomParser");
 const serverManager_1 = require("../../server/serverManager");
 const serverModel_1 = require("../../server/models/serverModel");
+// ✅ NEW: Import FileWatchManager and AnalysisMode for DOM live-reload
+const fileWatchManager_1 = require("../fileWatchManager");
+const model_1 = require("../model");
 // ✅ ADD: Track DOM visualization folders by filename (similar to XR analysis)
 const domVisualizationFolders = new Map();
 /**
@@ -134,6 +137,18 @@ async function createDOMVisualization(filePath, context) {
             // Automatically open browser
             console.log(`🌐 Opening DOM visualization in browser: ${serverInfo.url}`);
             await vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+            // ✅ NEW: Set up file watching for DOM live-reload
+            const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
+            if (fileWatchManager) {
+                // Set the DOM HTML path for this file
+                fileWatchManager.setDOMHtmlPath(filePath, htmlFilePath);
+                // Start watching the original HTML file in DOM mode
+                fileWatchManager.startWatching(filePath, model_1.AnalysisMode.DOM);
+                console.log(`🔍 Started file watching for DOM live-reload: ${originalFileName}`);
+            }
+            else {
+                console.warn('⚠️ FileWatchManager not available, DOM live-reload not enabled');
+            }
             // Show simple success message
             vscode.window.showInformationMessage(`DOM visualization server started for ${originalFileName}`, { modal: false });
             return htmlFilePath;

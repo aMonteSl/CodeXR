@@ -18,6 +18,7 @@ function formatXRDataForBabia(jsonData) {
             complexity: func.complexity,
             linesCount: func.lineCount || func.linesCount,
             parameters: func.parameters,
+            cyclomaticDensity: func.cyclomaticDensity || (func.linesCount > 0 ? Number((func.complexity / func.linesCount).toFixed(3)) : 0),
             complexityColor: func.complexityColor || getColorFromComplexity(func.complexity) // Ensure color exists
         }));
     }
@@ -28,6 +29,7 @@ function formatXRDataForBabia(jsonData) {
             complexity: func.complexity,
             linesCount: func.lineCount || func.lines || func.linesCount,
             parameters: func.parameters,
+            cyclomaticDensity: func.cyclomaticDensity || ((func.lineCount || func.lines || func.linesCount) > 0 ? Number((func.complexity / (func.lineCount || func.lines || func.linesCount)).toFixed(3)) : 0),
             complexityColor: func.complexityColor || getColorFromComplexity(func.complexity) // Ensure color exists
         }));
     }
@@ -36,9 +38,9 @@ function formatXRDataForBabia(jsonData) {
         console.log('⚠️ Warning: No functions found in analysis data, using fallback sample data');
         // Provide fallback sample data to ensure visualization works
         formattedData = [
-            { functionName: "sample_function1", complexity: 5, linesCount: 10, parameters: 2, complexityColor: "#27ae60" },
-            { functionName: "sample_function2", complexity: 8, linesCount: 15, parameters: 1, complexityColor: "#f39c12" },
-            { functionName: "sample_function3", complexity: 3, linesCount: 7, parameters: 0, complexityColor: "#27ae60" }
+            { functionName: "sample_function1", complexity: 5, linesCount: 10, parameters: 2, cyclomaticDensity: 0.5, complexityColor: "#27ae60" },
+            { functionName: "sample_function2", complexity: 8, linesCount: 15, parameters: 1, cyclomaticDensity: 0.533, complexityColor: "#f39c12" },
+            { functionName: "sample_function3", complexity: 3, linesCount: 7, parameters: 0, cyclomaticDensity: 0.429, complexityColor: "#27ae60" }
         ];
     }
     console.log(`Formatted ${formattedData.length} functions for BabiaXR visualization`);

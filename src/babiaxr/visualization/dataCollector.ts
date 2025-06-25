@@ -105,7 +105,9 @@ export async function collectDataSource(context: vscode.ExtensionContext): Promi
           }
         );
         
-        if (!selectedFile) return undefined;
+        if (!selectedFile) {
+          return undefined;
+        }
         
         vscode.window.showInformationMessage(`Loading example data from: ${selectedFile.label}`);
         return selectedFile.value;

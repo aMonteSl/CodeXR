@@ -13,6 +13,7 @@ import json
 import os
 import lizard
 
+
 def analyze_file(file_path):
     """
     Analyze a single file using lizard and return structured metrics
@@ -44,6 +45,10 @@ def analyze_file(file_path):
         # Extract function-level metrics
         functions = []
         for func in analysis.function_list:
+            # Calculate cyclomatic density safely (avoid division by zero)
+            lines_count = func.nloc if func.nloc > 0 else 1  # Ensure we never divide by zero
+            cyclomatic_density = round(func.cyclomatic_complexity / lines_count, 3)  # Round to 3 decimal places
+            
             function_info = {
                 "name": func.name,
                 "lineStart": func.start_line,
@@ -51,7 +56,8 @@ def analyze_file(file_path):
                 "lineCount": func.nloc,
                 "complexity": func.cyclomatic_complexity,
                 "parameters": len(func.parameters),
-                "maxNestingDepth": func.max_nesting_depth if hasattr(func, 'max_nesting_depth') else 0
+                "maxNestingDepth": func.max_nesting_depth if hasattr(func, 'max_nesting_depth') else 0,
+                "cyclomaticDensity": cyclomatic_density
             }
             functions.append(function_info)
         
@@ -73,6 +79,7 @@ def analyze_file(file_path):
             "error": str(e),
             "status": "error"
         }
+
 
 def calculate_complexity_metrics(functions):
     """

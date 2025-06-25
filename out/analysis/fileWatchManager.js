@@ -44,6 +44,9 @@ const xrAnalysisManager_1 = require("./xr/xrAnalysisManager");
 const xrDataTransformer_1 = require("./xr/xrDataTransformer");
 const xrDataFormatter_1 = require("./xr/xrDataFormatter");
 const liveReloadManager_1 = require("../server/liveReloadManager");
+// ✅ NEW: Import DOM visualization manager
+const htmlDomParser_1 = require("./html/htmlDomParser");
+const domVisualizationManager_1 = require("./html/domVisualizationManager");
 /**
  * Manages file watchers for analyzed files
  */
@@ -56,6 +59,8 @@ class FileWatchManager {
     fileAnalysisModes = new Map();
     // Track XR HTML paths for each analyzed file
     xrHtmlPaths = new Map();
+    // ✅ NEW: Track DOM HTML paths for each analyzed HTML file
+    domHtmlPaths = new Map();
     debounceTimers = new Map();
     debounceDelay = 2000; // Default to 2 seconds
     autoAnalysisEnabled = true; // Default to enabled
@@ -313,6 +318,10 @@ class FileWatchManager {
         }
         // Clean up XR HTML path
         this.removeXRHtmlPath(filePath);
+        // ✅ NEW: Clean up DOM HTML path
+        this.removeDOMHtmlPath(filePath);
+        // Clean up DOM HTML path
+        this.removeDOMHtmlPath(filePath);
         // Remove analysis mode
         this.fileAnalysisModes.delete(filePath);
         console.log(`✅ File watcher cleanup completed for ${path.basename(filePath)}`);
@@ -342,6 +351,8 @@ class FileWatchManager {
         this.fileAnalysisModes.clear();
         // Clean up XR HTML paths
         this.xrHtmlPaths.clear();
+        // Clean up DOM HTML paths
+        this.domHtmlPaths.clear();
         console.log('✅ All file watchers stopped and cleaned up');
     }
     /**
@@ -368,6 +379,31 @@ class FileWatchManager {
     removeXRHtmlPath(filePath) {
         this.xrHtmlPaths.delete(filePath);
         console.log(`🗑️ Removed XR HTML path for ${path.basename(filePath)}`);
+    }
+    /**
+     * ✅ NEW: Sets the DOM HTML path for a file
+     * @param filePath Path to the source HTML file
+     * @param htmlPath Path to the DOM visualization HTML
+     */
+    setDOMHtmlPath(filePath, htmlPath) {
+        this.domHtmlPaths.set(filePath, htmlPath);
+        console.log(`📄 Set DOM HTML path for ${path.basename(filePath)}: ${htmlPath}`);
+    }
+    /**
+     * ✅ NEW: Gets the DOM HTML path for a file
+     * @param filePath Path to the source HTML file
+     * @returns HTML path or undefined if not found
+     */
+    getDOMHtmlPath(filePath) {
+        return this.domHtmlPaths.get(filePath);
+    }
+    /**
+     * ✅ NEW: Removes the DOM HTML path for a file
+     * @param filePath Path to the source HTML file
+     */
+    removeDOMHtmlPath(filePath) {
+        this.domHtmlPaths.delete(filePath);
+        console.log(`🗑️ Removed DOM HTML path for ${path.basename(filePath)}`);
     }
     /**
      * Handle file change by re-analyzing it according to the current mode
@@ -428,6 +464,11 @@ class FileWatchManager {
                 case model_1.AnalysisMode.XR:
                     // Re-analyze and update XR visualization
                     await this.handleXRReanalysis(filePath);
+                    break;
+                // ✅ NEW: Add DOM analysis mode support
+                case model_1.AnalysisMode.DOM:
+                    // Re-analyze and update DOM visualization
+                    await this.handleDOMReanalysis(filePath);
                     break;
                 default:
                     console.log(`FileWatchManager: Unknown analysis mode ${mode}`);
@@ -538,6 +579,128 @@ class FileWatchManager {
         catch (error) {
             console.error('❌ Error handling XR re-analysis:', error);
             vscode.window.showErrorMessage(`Error updating XR visualization: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * ✅ NEW: Handle re-analysis in DOM mode
+     * Handle re-analysis in DOM mode for HTML files
+     * @param filePath Path to the HTML file to re-analyze
+     */
+    async handleDOMReanalysis(filePath) {
+        if (!this.context) {
+            return;
+        }
+        try {
+            console.log(`📄 Re-analyzing ${path.basename(filePath)} for DOM update`);
+            // ✅ STEP 1: Parse the HTML file (not code analysis)
+            const domAnalysis = await (0, htmlDomParser_1.parseHTMLFile)(filePath);
+            if (!domAnalysis) {
+                console.error('❌ Failed to parse HTML file for DOM visualization');
+                return;
+            }
+            const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
+            // ✅ STEP 2: Find existing DOM visualization folder
+            const existingFolder = (0, domVisualizationManager_1.getDOMVisualizationFolder)(fileNameWithoutExt);
+            if (existingFolder && fs.existsSync(existingFolder)) {
+                console.log(`📁 Updating existing DOM visualization in: ${existingFolder}`);
+                // ✅ STEP 3: Check if debounce delay is 0 (special case for testing)
+                if (this.debounceDelay === 0) {
+                    // For debounce delay 0, we just log a message to browser console
+                    const htmlFilePath = path.join(existingFolder, 'index.html');
+                    if (fs.existsSync(htmlFilePath)) {
+                        try {
+                            // Read the existing HTML file
+                            let htmlContent = await fs.promises.readFile(htmlFilePath, 'utf-8');
+                            // Remove any existing console log scripts to avoid accumulation
+                            htmlContent = htmlContent.replace(/<script>\s*console\.log\("First step of the new DOM live-reload characteristic.*?\);\s*<\/script>/gs, '');
+                            // Inject a console log message
+                            const consoleLogScript = `
+                <script>
+                  console.log("First step of the new DOM live-reload characteristic working - File: ${domAnalysis.fileName}, Time: ${new Date().toISOString()}");
+                </script>
+              `;
+                            // Insert the script before the closing body tag
+                            htmlContent = htmlContent.replace('</body>', `${consoleLogScript}</body>`);
+                            // Write the updated HTML file
+                            await fs.promises.writeFile(htmlFilePath, htmlContent);
+                            console.log(`✅ Updated DOM HTML file with console log: ${htmlFilePath}`);
+                            // Notify clients to refresh
+                            console.log(`📡 Sending dataRefresh event to clients...`);
+                            (0, liveReloadManager_1.notifyClientsDataRefresh)();
+                            vscode.window.showInformationMessage(`📄 DOM live-reload test: Check browser console for confirmation message`, { modal: false });
+                        }
+                        catch (error) {
+                            console.error('❌ Error updating DOM HTML file:', error);
+                        }
+                    }
+                }
+                else {
+                    // ✅ STEP 2: Normal live-reload behavior - Update the babia-html attribute
+                    console.log(`📊 DOM live-reload for ${domAnalysis.fileName} - debounce delay: ${this.debounceDelay}ms`);
+                    const htmlFilePath = path.join(existingFolder, 'index.html');
+                    if (fs.existsSync(htmlFilePath)) {
+                        await this.updateDOMVisualizationHTML(htmlFilePath, domAnalysis);
+                    }
+                }
+            }
+            else {
+                console.log('⚠️ No existing DOM visualization found for live-reload');
+                vscode.window.showWarningMessage(`No active DOM visualization found for ${domAnalysis.fileName}. Please create a DOM visualization first.`);
+            }
+        }
+        catch (error) {
+            console.error('❌ Error handling DOM re-analysis:', error);
+            vscode.window.showErrorMessage(`Error updating DOM visualization: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Updates the DOM visualization HTML file with new HTML content
+     * @param htmlFilePath Path to the index.html file in the visualization folder
+     * @param domAnalysis The parsed DOM analysis result containing new HTML content
+     */
+    async updateDOMVisualizationHTML(htmlFilePath, domAnalysis) {
+        try {
+            // Read the current HTML file
+            let htmlContent = await fs.promises.readFile(htmlFilePath, 'utf-8');
+            // Prepare the new HTML content for the babia-html attribute
+            const newTemplateHTML = (0, htmlDomParser_1.prepareHTMLForTemplate)(domAnalysis);
+            // Update the babia-html attribute with the new HTML content
+            // Look for the babia-html attribute and replace the html: parameter
+            const babiaHtmlRegex = /babia-html='([^']*?)'/;
+            const match = htmlContent.match(babiaHtmlRegex);
+            if (match) {
+                const currentAttribute = match[1];
+                // Parse the current attribute to extract and replace the html: parameter
+                // Format: 'renderHTML: true; renderHTMLOnlyLeafs: true; distanceLevels: 0.7; html: CONTENT'
+                const htmlParamRegex = /html:\s*([^;]*?)(?=;|$)/;
+                let newAttribute;
+                if (currentAttribute.match(htmlParamRegex)) {
+                    // Replace existing html: parameter
+                    newAttribute = currentAttribute.replace(htmlParamRegex, `html: ${newTemplateHTML}`);
+                }
+                else {
+                    // Add html: parameter if it doesn't exist
+                    newAttribute = `${currentAttribute}; html: ${newTemplateHTML}`;
+                }
+                // Replace the entire babia-html attribute in the HTML content
+                const newBabiaHtml = `babia-html='${newAttribute}'`;
+                htmlContent = htmlContent.replace(babiaHtmlRegex, newBabiaHtml);
+                // Write the updated HTML file
+                await fs.promises.writeFile(htmlFilePath, htmlContent);
+                console.log(`✅ Updated DOM visualization HTML content: ${htmlFilePath}`);
+                // Notify clients to refresh with the new HTML content
+                console.log(`📡 Sending htmlUpdated event to clients...`);
+                (0, liveReloadManager_1.notifyClientsHTMLUpdated)(newTemplateHTML);
+                vscode.window.showInformationMessage(`📄 DOM visualization updated with latest HTML content from ${domAnalysis.fileName}`, { modal: false });
+            }
+            else {
+                console.error('❌ Could not find babia-html attribute in visualization file');
+                vscode.window.showErrorMessage('Could not update DOM visualization: babia-html attribute not found');
+            }
+        }
+        catch (error) {
+            console.error('❌ Error updating DOM visualization HTML:', error);
+            vscode.window.showErrorMessage(`Error updating DOM visualization: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -705,6 +868,12 @@ class FileWatchManager {
         this.fileAnalysisModes.clear();
         // Clear XR HTML paths
         this.xrHtmlPaths.clear();
+        // ✅ NEW: Clear DOM HTML paths
+        this.domHtmlPaths.clear();
+        // ✅ NEW: Clear DOM HTML paths
+        this.domHtmlPaths.clear();
+        // Clear DOM HTML paths
+        this.domHtmlPaths.clear();
         console.log('✅ All file watchers stopped and cleaned up');
     }
 }

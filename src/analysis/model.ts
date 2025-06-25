@@ -10,7 +10,9 @@ import * as vscode from 'vscode';
 export enum AnalysisMode {
   STATIC = 'static',
   XR = 'xr',
-  WEB_VIEW = 'webview'
+  WEB_VIEW = 'webview',
+  /** DOM visualization with live-reload support */
+  DOM = 'dom'
 }
 
 /**
@@ -31,6 +33,8 @@ export interface FunctionInfo {
   parameters: number;
   /** Maximum nesting level */
   maxNestingDepth?: number;
+  /** Cyclomatic density (complexity / lineCount) */
+  cyclomaticDensity: number;
 }
 
 /**
