@@ -15,29 +15,31 @@ import { getLanguageName } from '../../utils/languageUtils';
  * @returns Resolved path to the script
  */
 export function resolveAnalyzerScriptPath(scriptName: string, outputChannel?: vscode.OutputChannel): string {
-  // Get the directory of the current module (__dirname points to out/analysis/utils in bundled version)
-  // We need to go from out/analysis/utils to src/analysis/python
-  
-  outputChannel?.appendLine(`Current __dirname: ${__dirname}`);
+  // Use VS Code's extension context to get the correct extension path
+  const extension = vscode.extensions.getExtension('aMonteSl.code-xr');
+  if (!extension) {
+    const errorMsg = 'Extension not found! Cannot resolve script path.';
+    outputChannel?.appendLine(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  const extensionPath = extension.extensionPath;
+  outputChannel?.appendLine(`Extension path: ${extensionPath}`);
   outputChannel?.appendLine(`Looking for script: ${scriptName}`);
   
   const possiblePaths = [
-    // 1. From bundled output directory: out/analysis/utils -> src/analysis/python
-    path.join(__dirname, '..', '..', '..', 'src', 'analysis', 'python', scriptName),
+    // 1. From extension installation directory (most reliable for published extension)
+    path.join(extensionPath, 'src', 'analysis', 'python', scriptName),
     
-    // 2. From development directory: src/analysis/utils -> src/analysis/python  
-    path.join(__dirname, '..', 'python', scriptName),
+    // 2. From development directory (for development)
+    path.join(extensionPath, 'out', '..', 'src', 'analysis', 'python', scriptName),
     
-    // 3. Try using extension path if available
-    ...(vscode.extensions.getExtension('aMonteSl.code-xr')?.extensionPath ? 
-        [path.join(vscode.extensions.getExtension('aMonteSl.code-xr')!.extensionPath, 'src', 'analysis', 'python', scriptName)] : []),
+    // 3. Alternative bundled location
+    path.join(extensionPath, 'python', scriptName),
     
-    // 4. Try workspace folders
+    // 4. Try workspace folders as fallback
     ...(vscode.workspace.workspaceFolders?.map(folder => 
-      path.join(folder.uri.fsPath, 'src', 'analysis', 'python', scriptName)) || []),
-    
-    // 5. Try relative to project root
-    path.resolve(__dirname, '..', '..', '..', 'src', 'analysis', 'python', scriptName)
+      path.join(folder.uri.fsPath, 'src', 'analysis', 'python', scriptName)) || [])
   ];
   
   // Log all paths we're searching (helpful for debugging)
@@ -57,7 +59,7 @@ export function resolveAnalyzerScriptPath(scriptName: string, outputChannel?: vs
   }
   
   // If we can't find it, return the most likely path so we can show a proper error
-  const fallbackPath = path.join(__dirname, '..', '..', '..', 'src', 'analysis', 'python', scriptName);
+  const fallbackPath = path.join(extensionPath, 'src', 'analysis', 'python', scriptName);
   outputChannel?.appendLine(`⚠️ Script not found, using fallback path: ${fallbackPath}`);
   return fallbackPath;
 }
