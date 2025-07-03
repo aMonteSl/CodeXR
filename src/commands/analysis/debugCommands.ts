@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { FileWatchManager } from '../../analysis/fileWatchManager';
-import { analysisDataManager } from '../../analysis/analysisDataManager';
+import { FileWatchManager } from '../../analysis/watchers/fileWatchManager';
+import { analysisDataManager } from '../../analysis/utils/dataManager';
 
 /**
  * Commands for debugging and troubleshooting analysis operations

@@ -73,6 +73,8 @@ var TreeItemType;
     TreeItemType["BABIAXR_CONFIG_ITEM"] = "BABIAXR_CONFIG_ITEM";
     TreeItemType["DIMENSION_MAPPING"] = "dimension_mapping";
     TreeItemType["DIMENSION_MAPPING_OPTION"] = "dimension_mapping_option";
+    TreeItemType["ACTIVE_ANALYSES_SECTION"] = "ACTIVE_ANALYSES_SECTION";
+    TreeItemType["ACTIVE_ANALYSIS"] = "ACTIVE_ANALYSIS";
 })(TreeItemType || (exports.TreeItemType = TreeItemType = {}));
 /**
  * Tree data provider implementation for the sidebar view
@@ -111,6 +113,7 @@ class LocalServerProvider {
      */
     refresh(element) {
         console.log('🔄 LocalServerProvider: Refreshing main tree view...');
+        console.log(`🔄 LocalServerProvider: Refresh element type: ${element?.type || 'ROOT'}`);
         this._onDidChangeTreeData.fire(element);
         console.log('✅ LocalServerProvider: Main tree refresh event fired');
     }
@@ -124,8 +127,10 @@ class LocalServerProvider {
      * Gets the child elements of an element or root elements
      */
     getChildren(element) {
+        console.log(`🔍 [LocalServerProvider] getChildren called for: ${element ? `${element.type} - "${element.label}"` : 'ROOT'}`);
         // Root level items
         if (!element) {
+            console.log('🏠 [LocalServerProvider] Returning root level items');
             return Promise.resolve([
                 this.serverTreeProvider.getServersSectionItem(),
                 new baseItems_1.TreeItem("BabiaXR Visualizations", "Create 3D data visualizations", TreeItemType.BABIAXR_SECTION, vscode.TreeItemCollapsibleState.Expanded, undefined, new vscode.ThemeIcon('graph')),
@@ -133,6 +138,7 @@ class LocalServerProvider {
                 new settingsItems_1.VisualizationSettingsItem(this.context)
             ]);
         }
+        console.log(`🔍 [LocalServerProvider] Handling element type: ${element.type}`);
         switch (element.type) {
             case TreeItemType.SERVERS_SECTION:
                 return this.serverTreeProvider.getServersChildren();
@@ -147,8 +153,21 @@ class LocalServerProvider {
             case TreeItemType.BABIAXR_CONFIG:
                 return this.babiaTreeProvider.getBabiaXRConfigChildren();
             case TreeItemType.BABIAXR_EXAMPLES_CONTAINER:
+                console.log('🔍 [LocalServerProvider] Handling BABIAXR_EXAMPLES_CONTAINER, delegating to babiaTreeProvider');
                 return this.babiaTreeProvider.getBabiaXRExamplesChildren();
+            case TreeItemType.BABIAXR_EXAMPLE_CATEGORY:
+                console.log('🔍 [LocalServerProvider] Handling BABIAXR_EXAMPLE_CATEGORY');
+                // If element has children array, return it directly
+                if (element.children && Array.isArray(element.children)) {
+                    return Promise.resolve(element.children);
+                }
+                return Promise.resolve([]);
             case TreeItemType.ANALYSIS_SECTION:
+                return this.analysisTreeProvider.getChildren(element);
+            case TreeItemType.ACTIVE_ANALYSES_SECTION:
+                console.log('🔍 [LocalServerProvider] Handling ACTIVE_ANALYSES_SECTION, delegating to analysisTreeProvider');
+                return this.analysisTreeProvider.getChildren(element);
+            case TreeItemType.ACTIVE_ANALYSIS:
                 return this.analysisTreeProvider.getChildren(element);
             case TreeItemType.FILES_PER_LANGUAGE_CONTAINER:
                 return this.analysisTreeProvider.getChildren(element);

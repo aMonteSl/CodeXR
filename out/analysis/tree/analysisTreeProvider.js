@@ -38,15 +38,17 @@ exports.getAnalysisChildren = getAnalysisChildren;
 exports.getFilesPerLanguageChildren = getFilesPerLanguageChildren;
 exports.getLanguageGroupChildren = getLanguageGroupChildren;
 exports.getAnalysisSectionItem = getAnalysisSectionItem;
+exports.getActiveAnalysesChildren = getActiveAnalysesChildren;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path")); // ✅ ADDED: Missing path import
 const baseItems_1 = require("../../ui/treeItems/baseItems");
 const treeProvider_1 = require("../../ui/treeProvider"); // ✅ ADDED: Missing TreeItemType import
-const fileSystemWatcher_1 = require("./fileSystemWatcher");
-const fileWatchManager_1 = require("../fileWatchManager");
+const fileSystemWatcher_1 = require("../watchers/fileSystemWatcher");
+const fileWatchManager_1 = require("../watchers/fileWatchManager");
 // ✅ REMOVED: Circular imports - we'll import these inside functions where needed
 const analysisTreeItems_js_1 = require("./analysisTreeItems.js"); // ✅ ADDED: Direct imports with .js extension
 const treeDisplayConfig_js_1 = require("./treeDisplayConfig.js"); // ✅ ADDED: Missing utility imports
+const analysisSessionManager_1 = require("../analysisSessionManager");
 /**
  * Tree data provider for analysis section
  */
@@ -63,6 +65,14 @@ class AnalysisTreeProvider {
         this.setupFileSystemWatcher();
         // ✅ NEW: Start countdown refresh timer for live updates
         this.startCountdownRefreshTimer();
+        // ✅ NEW: Listen to analysis session changes
+        const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+        console.log(`🔗 [TreeProvider] Connecting to session manager...`);
+        sessionManager.onDidChangeTreeData(() => {
+            console.log('🔄 [TreeProvider] Analysis sessions changed, refreshing tree...');
+            this.refresh();
+        });
+        console.log(`✅ [TreeProvider] Connected to session manager events`);
     }
     /**
      * ✅ NEW: Starts a timer to refresh tree view during active countdowns
@@ -91,7 +101,12 @@ class AnalysisTreeProvider {
     }
     refresh() {
         console.log('🔄 AnalysisTreeProvider: Refreshing tree view...');
+        // Debug session manager state
+        const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+        sessionManager.debugState();
+        console.log('🔄 AnalysisTreeProvider: Firing onDidChangeTreeData event...');
         this._onDidChangeTreeData.fire();
+        console.log('✅ AnalysisTreeProvider: onDidChangeTreeData event fired!');
     }
     getTreeItem(element) {
         return element;
@@ -107,6 +122,9 @@ class AnalysisTreeProvider {
             case treeProvider_1.TreeItemType.ANALYSIS_SECTION:
                 console.log('📊 Getting analysis section children');
                 return await getAnalysisChildren(this.context);
+            case treeProvider_1.TreeItemType.ACTIVE_ANALYSES_SECTION:
+                console.log('🔍 Getting active analyses children');
+                return await getActiveAnalysesChildren(this.context);
             case treeProvider_1.TreeItemType.FILES_PER_LANGUAGE_CONTAINER:
                 console.log('📁 Getting files per language children');
                 return await getFilesPerLanguageChildren(this.context);
@@ -163,6 +181,9 @@ async function getAnalysisChildren(context) {
     try {
         console.log('📊 Getting analysis children...');
         const children = [];
+        // Add Active Analyses section first
+        const { ActiveAnalysesSection } = await import('./analysisTreeItems.js');
+        children.push(new ActiveAnalysesSection(context.extensionPath));
         // ✅ FIXED: Use imported class
         children.push(new analysisTreeItems_js_1.AnalysisSettingsItem(context.extensionPath, context));
         // Get all analyzable files
@@ -543,5 +564,53 @@ function shouldIncludeJavaFile(fileUri) {
     const fileName = path.basename(fileUri.fsPath);
     // Exclude generated files (containing $ usually indicates inner classes)
     return !fileName.includes('$');
+}
+/**
+ * Gets child elements for the Active Analyses section
+ */
+async function getActiveAnalysesChildren(context) {
+    try {
+        console.log('🔍 [TreeProvider] === GETTING ACTIVE ANALYSES CHILDREN ===');
+        const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+        console.log('🔍 [TreeProvider] Session manager instance obtained');
+        const activeSessions = sessionManager.getAllSessions();
+        console.log(`🔍 [TreeProvider] getAllSessions() returned: ${activeSessions}`);
+        console.log(`🔍 [TreeProvider] Sessions array length: ${activeSessions.length}`);
+        console.log(`🔍 [TreeProvider] Sessions array type: ${typeof activeSessions}`);
+        console.log(`🔍 [TreeProvider] Sessions array isArray: ${Array.isArray(activeSessions)}`);
+        // Debug each session
+        activeSessions.forEach((session, index) => {
+            console.log(`🔍 [TreeProvider] Session ${index + 1}:`);
+            console.log(`  - File: ${session.fileName} (${session.filePath})`);
+            console.log(`  - Type: ${session.analysisType}`);
+            console.log(`  - ID: ${session.id}`);
+            console.log(`  - Created: ${session.created}`);
+        });
+        if (activeSessions.length === 0) {
+            console.log(`📝 [TreeProvider] No active sessions, showing placeholder message`);
+            return [
+                createErrorItem('No active analyses', 'No analyses are currently running. Start an analysis from the Files per Language section.')
+            ];
+        }
+        // Import ActiveAnalysisItem and create items for each session
+        console.log('🔍 [TreeProvider] Importing ActiveAnalysisItem...');
+        const { ActiveAnalysisItem } = await import('./analysisTreeItems.js');
+        console.log('🔍 [TreeProvider] ActiveAnalysisItem imported successfully');
+        const children = activeSessions.map((session, index) => {
+            console.log(`🎯 [TreeProvider] Creating tree item ${index + 1} for: ${session.fileName} (${session.analysisType})`);
+            const item = new ActiveAnalysisItem(session, context.extensionPath);
+            console.log(`🎯 [TreeProvider] Tree item created: ${item.label} (type: ${item.type})`);
+            return item;
+        });
+        console.log(`✅ [TreeProvider] Active analyses children created: ${children.length} items`);
+        console.log('🔍 [TreeProvider] === END GETTING ACTIVE ANALYSES CHILDREN ===');
+        return children;
+    }
+    catch (error) {
+        console.error('❌ [TreeProvider] Error getting active analyses children:', error);
+        return [
+            createErrorItem('Error loading active analyses', `Failed to load active analyses: ${error instanceof Error ? error.message : String(error)}`)
+        ];
+    }
 }
 //# sourceMappingURL=analysisTreeProvider.js.map

@@ -11,8 +11,8 @@ import { LocalServerProvider } from './ui/treeProvider';
 import { stopServer } from './server/serverManager';
 import { registerAnalysisCommands } from './commands/analysisCommands';
 import { registerPythonEnvCommands, checkAndSetupPythonEnvironment } from './pythonEnv';
-import { FileWatchManager } from './analysis/fileWatchManager';
-import { analysisDataManager } from './analysis/analysisDataManager';
+import { FileWatchManager } from './analysis/watchers/fileWatchManager';
+import { analysisDataManager } from './analysis/utils/dataManager';
 import { cleanupXRVisualizations } from './analysis/xr/xrAnalysisManager';
 import { cleanupDOMVisualizations } from './analysis/html/domVisualizationManager';
 
@@ -92,7 +92,7 @@ export async function deactivate() {
   console.log('🧹 Deactivating CodeXR extension...');
   
   // Clean up any stored data
-  analysisDataManager.clear();
+  analysisDataManager.clearAllData();
   
   // Clean up XR visualizations
   cleanupXRVisualizations();

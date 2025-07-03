@@ -53,7 +53,9 @@ export enum TreeItemType {
   BABIAXR_EXAMPLE = 'BABIAXR_EXAMPLE',
   BABIAXR_CONFIG_ITEM = 'BABIAXR_CONFIG_ITEM',
   DIMENSION_MAPPING = 'dimension_mapping',
-  DIMENSION_MAPPING_OPTION = 'dimension_mapping_option'
+  DIMENSION_MAPPING_OPTION = 'dimension_mapping_option',
+  ACTIVE_ANALYSES_SECTION = 'ACTIVE_ANALYSES_SECTION',
+  ACTIVE_ANALYSIS = 'ACTIVE_ANALYSIS'
 }
 
 /**
@@ -102,6 +104,7 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
    */
   public refresh(element?: TreeItem): void {
     console.log('🔄 LocalServerProvider: Refreshing main tree view...');
+    console.log(`🔄 LocalServerProvider: Refresh element type: ${element?.type || 'ROOT'}`);
     this._onDidChangeTreeData.fire(element);
     console.log('✅ LocalServerProvider: Main tree refresh event fired');
   }
@@ -117,8 +120,11 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
    * Gets the child elements of an element or root elements
    */
   public getChildren(element?: TreeItem): Thenable<TreeItem[]> {
+    console.log(`🔍 [LocalServerProvider] getChildren called for: ${element ? `${element.type} - "${element.label}"` : 'ROOT'}`);
+    
     // Root level items
     if (!element) {
+      console.log('🏠 [LocalServerProvider] Returning root level items');
       return Promise.resolve([
         this.serverTreeProvider.getServersSectionItem(),
         new TreeItem(
@@ -141,6 +147,7 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
       ]);
     }
     
+    console.log(`🔍 [LocalServerProvider] Handling element type: ${element.type}`);
     switch (element.type) {
       case TreeItemType.SERVERS_SECTION:
         return this.serverTreeProvider.getServersChildren();
@@ -161,9 +168,25 @@ export class LocalServerProvider implements vscode.TreeDataProvider<TreeItem> {
         return this.babiaTreeProvider.getBabiaXRConfigChildren();
       
       case TreeItemType.BABIAXR_EXAMPLES_CONTAINER:
+        console.log('🔍 [LocalServerProvider] Handling BABIAXR_EXAMPLES_CONTAINER, delegating to babiaTreeProvider');
         return this.babiaTreeProvider.getBabiaXRExamplesChildren();
       
+      case TreeItemType.BABIAXR_EXAMPLE_CATEGORY:
+        console.log('🔍 [LocalServerProvider] Handling BABIAXR_EXAMPLE_CATEGORY');
+        // If element has children array, return it directly
+        if (element.children && Array.isArray(element.children)) {
+          return Promise.resolve(element.children);
+        }
+        return Promise.resolve([]);
+      
       case TreeItemType.ANALYSIS_SECTION:
+        return this.analysisTreeProvider.getChildren(element);
+      
+      case TreeItemType.ACTIVE_ANALYSES_SECTION:
+        console.log('🔍 [LocalServerProvider] Handling ACTIVE_ANALYSES_SECTION, delegating to analysisTreeProvider');
+        return this.analysisTreeProvider.getChildren(element);
+      
+      case TreeItemType.ACTIVE_ANALYSIS:
         return this.analysisTreeProvider.getChildren(element);
       
       case TreeItemType.FILES_PER_LANGUAGE_CONTAINER:

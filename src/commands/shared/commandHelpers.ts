@@ -1,71 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { getLanguageName as getLanguageNameUtil } from '../../utils/languageUtils';
+
+/**
+ * Re-export language utility for backward compatibility
+ */
+export { getLanguageNameUtil as getLanguageName };
 
 /**
  * Shared helper functions for command operations
  */
-
-/**
- * Gets the language name based on file extension
- * @param filePath Path to the file
- * @returns Language name or 'Unknown' if not supported
- */
-export function getLanguageName(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
-  
-  const languageMap: Record<string, string> = {
-    '.js': 'JavaScript',
-    '.jsx': 'JavaScript',
-    '.ts': 'TypeScript',
-    '.tsx': 'TypeScript',
-    '.py': 'Python',
-    '.java': 'Java',
-    '.c': 'C',
-    '.cpp': 'C++',
-    '.cxx': 'C++',
-    '.cc': 'C++',
-    '.h': 'C/C++ Headers',
-    '.hpp': 'C/C++ Headers',
-    '.cs': 'C#',
-    '.php': 'PHP',
-    '.rb': 'Ruby',
-    '.go': 'Go',
-    '.rs': 'Rust',
-    '.swift': 'Swift',
-    '.kt': 'Kotlin',
-    '.kts': 'Kotlin',
-    '.html': 'HTML',
-    '.htm': 'HTML',
-    '.vue': 'Vue',
-    '.scala': 'Scala',
-    '.sc': 'Scala',
-    '.lua': 'Lua',
-    '.erl': 'Erlang',
-    '.hrl': 'Erlang',
-    '.zig': 'Zig',
-    '.pl': 'Perl',
-    '.pm': 'Perl',
-    '.pod': 'Perl',
-    '.t': 'Perl',
-    '.gd': 'GDScript',
-    '.sol': 'Solidity',
-    '.f': 'Fortran',
-    '.f77': 'Fortran',
-    '.f90': 'Fortran',
-    '.f95': 'Fortran',
-    '.f03': 'Fortran',
-    '.f08': 'Fortran',
-    '.for': 'Fortran',
-    '.ftn': 'Fortran',
-    '.ttcn3': 'TTCN-3',
-    '.ttcn': 'TTCN-3',
-    '.3mp': 'TTCN-3',
-    '.m': 'Objective-C',
-    '.mm': 'Objective-C'
-  };
-  
-  return languageMap[ext] || 'Unknown';
-}
 
 /**
  * Extracts file path from URI or active editor

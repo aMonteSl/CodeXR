@@ -33,21 +33,22 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CHART_TYPE_OPTIONS = exports.FilesPerLanguageContainer = exports.AnalysisResetItem = exports.AnalysisChartTypeOptionItem = exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = exports.AnalysisFileItem = void 0;
+exports.ActiveAnalysisItem = exports.ActiveAnalysesSection = exports.CHART_TYPE_OPTIONS = exports.FilesPerLanguageContainer = exports.AnalysisResetItem = exports.AnalysisChartTypeOptionItem = exports.AnalysisAutoOptionItem = exports.AnalysisDelayOptionItem = exports.AnalysisModeOptionItem = exports.AnalysisSettingsItem = exports.LanguageGroupItem = exports.AnalysisSectionItem = exports.AnalysisFileItem = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const baseItems_1 = require("../../ui/treeItems/baseItems");
 const treeProvider_1 = require("../../ui/treeProvider");
-const analysisDataManager_1 = require("../analysisDataManager");
+const dataManager_1 = require("../utils/dataManager");
 const analysisSettingsManager_1 = require("./analysisSettingsManager");
-const fileWatchManager_1 = require("../fileWatchManager"); // ✅ ADDED: Missing import
+const fileWatchManager_1 = require("../watchers/fileWatchManager");
+const analysisSessionManager_1 = require("../analysisSessionManager");
 /**
  * ✅ ENHANCED: Individual file item with countdown indicator
  */
 class AnalysisFileItem extends baseItems_1.TreeItem {
     constructor(filePath, relativePath, language, extensionPath) {
         const fileName = path.basename(filePath);
-        const isBeingAnalyzed = analysisDataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath);
+        const isBeingAnalyzed = dataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath);
         // ✅ FIXED: Now FileWatchManager is properly imported
         const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
         const watcherStatus = fileWatchManager?.getWatcherStatus();
@@ -77,7 +78,7 @@ class AnalysisFileItem extends baseItems_1.TreeItem {
         super(label, tooltip, treeProvider_1.TreeItemType.ANALYSIS_FILE, vscode.TreeItemCollapsibleState.None, {
             command: 'codexr.analyzeFileFromTree',
             title: 'Analyze File',
-            arguments: [filePath]
+            arguments: [vscode.Uri.file(filePath)]
         }, iconPath);
         this.resourceUri = vscode.Uri.file(filePath);
         this.description = description;
@@ -417,4 +418,49 @@ exports.CHART_TYPE_OPTIONS = [
     { value: 'pie', label: 'Pie Chart', description: 'Traditional pie chart in 3D' },
     { value: 'donut', label: 'Donut Chart', description: 'Donut/doughnut chart in 3D' }
 ];
+/**
+ * Section for active analyses with proper context and commands
+ */
+class ActiveAnalysesSection extends baseItems_1.TreeItem {
+    constructor(extensionPath) {
+        super('Active Analyses', 'Manage and view active analyses', treeProvider_1.TreeItemType.ACTIVE_ANALYSES_SECTION, vscode.TreeItemCollapsibleState.Expanded, undefined, new vscode.ThemeIcon('browser'));
+    }
+}
+exports.ActiveAnalysesSection = ActiveAnalysesSection;
+/**
+ * Item for individual active analysis
+ */
+class ActiveAnalysisItem extends baseItems_1.TreeItem {
+    session;
+    constructor(session, extensionPath) {
+        const label = `${session.fileName}`;
+        const description = `${session.analysisType} Analysis`;
+        const tooltip = `Active ${session.analysisType} analysis\n\nFile: ${session.filePath}\nStarted: ${session.created.toLocaleString()}\n\nClick to reopen • Right-click to close`;
+        // Choose appropriate icon based on analysis type
+        let icon;
+        switch (session.analysisType) {
+            case analysisSessionManager_1.AnalysisType.XR:
+                icon = new vscode.ThemeIcon('globe', new vscode.ThemeColor('charts.blue'));
+                break;
+            case analysisSessionManager_1.AnalysisType.STATIC:
+                icon = new vscode.ThemeIcon('graph-line', new vscode.ThemeColor('charts.green'));
+                break;
+            case analysisSessionManager_1.AnalysisType.DOM:
+                icon = new vscode.ThemeIcon('browser', new vscode.ThemeColor('charts.orange'));
+                break;
+            default:
+                icon = new vscode.ThemeIcon('file-code');
+        }
+        super(label, tooltip, treeProvider_1.TreeItemType.ACTIVE_ANALYSIS, vscode.TreeItemCollapsibleState.None, {
+            command: 'codexr.reopenAnalysis',
+            title: 'Reopen Analysis',
+            arguments: [session.filePath, session.analysisType]
+        }, icon);
+        this.session = session;
+        this.description = description;
+        // Add context menu for closing analysis
+        this.contextValue = 'activeAnalysis';
+    }
+}
+exports.ActiveAnalysisItem = ActiveAnalysisItem;
 //# sourceMappingURL=analysisTreeItems.js.map

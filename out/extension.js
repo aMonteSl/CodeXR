@@ -44,8 +44,8 @@ const treeProvider_1 = require("./ui/treeProvider");
 const serverManager_1 = require("./server/serverManager");
 const analysisCommands_1 = require("./commands/analysisCommands");
 const pythonEnv_1 = require("./pythonEnv");
-const fileWatchManager_1 = require("./analysis/fileWatchManager");
-const analysisDataManager_1 = require("./analysis/analysisDataManager");
+const fileWatchManager_1 = require("./analysis/watchers/fileWatchManager");
+const dataManager_1 = require("./analysis/utils/dataManager");
 const xrAnalysisManager_1 = require("./analysis/xr/xrAnalysisManager");
 const domVisualizationManager_1 = require("./analysis/html/domVisualizationManager");
 /**
@@ -110,7 +110,7 @@ async function activate(context) {
 async function deactivate() {
     console.log('🧹 Deactivating CodeXR extension...');
     // Clean up any stored data
-    analysisDataManager_1.analysisDataManager.clear();
+    dataManager_1.analysisDataManager.clearAllData();
     // Clean up XR visualizations
     (0, xrAnalysisManager_1.cleanupXRVisualizations)();
     // Clean up DOM visualizations

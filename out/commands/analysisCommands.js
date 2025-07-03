@@ -36,11 +36,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.REGISTERED_COMMANDS = exports.COMMAND_CATEGORIES = exports.getFilePathFromUri = exports.getLanguageName = exports.refreshTreeProvider = void 0;
 exports.registerAnalysisCommands = registerAnalysisCommands;
 exports.getRegisteredCommandCount = getRegisteredCommandCount;
+exports.registerDebugAnalysisCommand = registerDebugAnalysisCommand;
 const vscode = __importStar(require("vscode"));
 const fileAnalysisCommands_1 = require("./analysis/fileAnalysisCommands");
 const settingsCommands_1 = require("./analysis/settingsCommands");
 const treeDisplayCommands_1 = require("./analysis/treeDisplayCommands");
 const debugCommands_1 = require("./analysis/debugCommands");
+const analysisSessionCommands_1 = require("./analysisSessionCommands");
+const analysisSessionManager_1 = require("../analysis/analysisSessionManager");
 /**
  * Main entry point for all analysis-related commands
  *
@@ -77,6 +80,12 @@ function registerAnalysisCommands(context) {
         // Register debug commands (Diagnostics, troubleshooting)
         console.log('🐛 Registering debug commands...');
         disposables.push(...(0, debugCommands_1.registerDebugCommands)());
+        // Register analysis session commands (Active analyses management)
+        console.log('📊 Registering analysis session commands...');
+        disposables.push(...(0, analysisSessionCommands_1.registerAnalysisSessionCommands)(context));
+        // Register debug command for testing
+        console.log('🐛 Registering debug analysis command...');
+        disposables.push(registerDebugAnalysisCommand(context));
         console.log(`✅ Successfully registered ${disposables.length} analysis commands`);
     }
     catch (error) {
@@ -159,6 +168,28 @@ exports.REGISTERED_COMMANDS = {
     REFRESH_ANALYSIS_TREE: 'codexr.refreshAnalysisTree',
     FORCE_REFRESH_ANALYSIS_TREE: 'codexr.forceRefreshAnalysisTree',
     ANALYSIS_SYSTEM_STATUS: 'codexr.analysisSystemStatus',
-    CLEAR_ANALYSIS_CACHE: 'codexr.clearAnalysisCache'
+    CLEAR_ANALYSIS_CACHE: 'codexr.clearAnalysisCache',
+    // Debug Analysis Command
+    DEBUG_ANALYSIS_COMMAND: 'codexr.analysis.debug'
 };
+/**
+ * Debug command to manually trigger session registration and tree refresh for testing
+ */
+function registerDebugAnalysisCommand(context) {
+    return vscode.commands.registerCommand('codexr.analysis.debug', async () => {
+        console.log('🐛 [DEBUG] Manual debug command triggered');
+        // Get the session manager
+        const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+        // Debug current state
+        console.log('🐛 [DEBUG] Current session manager state:');
+        sessionManager.debugState();
+        // Manually add a test session
+        console.log('🐛 [DEBUG] Adding test session...');
+        const testSession = sessionManager.addSession('/home/adrian/CodeXR/test_analysis.py', analysisSessionManager_1.AnalysisType.STATIC, { dispose: () => console.log('Test panel disposed') });
+        console.log(`🐛 [DEBUG] Test session added with ID: ${testSession}`);
+        // Debug state after adding
+        sessionManager.debugState();
+        vscode.window.showInformationMessage('Debug analysis command executed - check console logs');
+    });
+}
 //# sourceMappingURL=analysisCommands.js.map

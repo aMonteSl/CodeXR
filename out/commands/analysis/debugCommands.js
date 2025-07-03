@@ -37,8 +37,8 @@ exports.registerDebugCommands = registerDebugCommands;
 exports.registerClearAnalysisCacheCommand = registerClearAnalysisCacheCommand;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
-const fileWatchManager_1 = require("../../analysis/fileWatchManager");
-const analysisDataManager_1 = require("../../analysis/analysisDataManager");
+const fileWatchManager_1 = require("../../analysis/watchers/fileWatchManager");
+const dataManager_1 = require("../../analysis/utils/dataManager");
 /**
  * Commands for debugging and troubleshooting analysis operations
  */
@@ -107,8 +107,8 @@ function registerDebugAnalysisWatchersCommand() {
                 return;
             }
             const watcherStatus = fileWatchManager.getWatcherStatus();
-            const managerStatus = analysisDataManager_1.analysisDataManager.getManagerStatus();
-            const filesBeingAnalyzed = analysisDataManager_1.analysisDataManager.getFilesBeingAnalyzed();
+            const managerStatus = dataManager_1.analysisDataManager.getManagerStatus();
+            const filesBeingAnalyzed = dataManager_1.analysisDataManager.getFilesBeingAnalyzed();
             // ✅ ENHANCED: Include countdown information
             const activeCountdowns = watcherStatus.activeTimerDetails.filter(detail => detail.hasCountdown);
             const debugInfo = `🔍 Analysis System Debug Info:
@@ -254,7 +254,7 @@ function registerAnalysisSystemStatusCommand() {
             const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
             const watcherStatus = fileWatchManager ? fileWatchManager.getWatcherStatus() : null;
             // Get data manager status
-            const managerStatus = analysisDataManager_1.analysisDataManager.getManagerStatus();
+            const managerStatus = dataManager_1.analysisDataManager.getManagerStatus();
             const statusInfo = `📊 CodeXR Analysis System Status:
 
 🔧 Configuration:
@@ -338,7 +338,7 @@ function registerClearAnalysisCacheCommand() {
             }, 'Clear Cache', 'Cancel');
             if (confirm === 'Clear Cache') {
                 // Clear analysis data manager cache
-                analysisDataManager_1.analysisDataManager.clearAllData();
+                dataManager_1.analysisDataManager.clearAllData();
                 // Stop all file watchers
                 const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
                 if (fileWatchManager) {

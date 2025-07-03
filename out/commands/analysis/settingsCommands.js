@@ -328,7 +328,7 @@ This action cannot be undone.`
 async function updateFileWatchManager(delay) {
     try {
         // ✅ FIXED: Use proper import syntax with .js extension
-        const { FileWatchManager } = await import('../../analysis/fileWatchManager.js');
+        const { FileWatchManager } = await import('../../analysis/watchers/fileWatchManager.js');
         const watchManager = FileWatchManager.getInstance();
         if (watchManager) {
             console.log(`⏰ Updating FileWatchManager debounce delay to ${delay}ms`);
@@ -366,7 +366,7 @@ async function updateFileWatchManager(delay) {
 async function updateAutoAnalysisSetting(enabled) {
     try {
         // ✅ FIXED: Use proper import syntax with .js extension
-        const { FileWatchManager } = await import('../../analysis/fileWatchManager.js');
+        const { FileWatchManager } = await import('../../analysis/watchers/fileWatchManager.js');
         const watchManager = FileWatchManager.getInstance();
         if (watchManager) {
             watchManager.setAutoAnalysis(enabled);

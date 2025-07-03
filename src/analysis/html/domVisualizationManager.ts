@@ -5,8 +5,9 @@ import { parseHTMLFile, prepareHTMLForTemplate, DOMAnalysisResult } from './html
 import { createServer, updateServerDisplayInfo, getActiveServers, stopServer } from '../../server/serverManager';
 import { ServerMode } from '../../server/models/serverModel';
 // ✅ NEW: Import FileWatchManager and AnalysisMode for DOM live-reload
-import { FileWatchManager } from '../fileWatchManager';
+import { FileWatchManager } from '../watchers/fileWatchManager';
 import { AnalysisMode } from '../model';
+import { AnalysisSessionManager, AnalysisType } from '../analysisSessionManager';
 
 // ✅ ADD: Track DOM visualization folders by filename (similar to XR analysis)
 const domVisualizationFolders: Map<string, string> = new Map();
@@ -102,6 +103,10 @@ export async function createDOMVisualization(
     const serverInfo = await createServer(visualizationDir, userServerMode, context);
     
     if (serverInfo) {
+      // ✅ Register the DOM analysis session
+      const sessionManager = AnalysisSessionManager.getInstance();
+      sessionManager.addSession(filePath, AnalysisType.DOM, serverInfo);
+      
       // Update server display info for DOM visualization
       const originalFileName = path.basename(filePath);
       const updated = updateServerDisplayInfo(serverInfo.id, {
@@ -202,4 +207,54 @@ async function processDOMVisualizationTemplate(
     .replace(/\$\{HTML_CONTENT\}/g, templateHTML);
   
   return template;
+}
+
+/**
+ * Shows DOM visualization for an HTML file analysis result
+ * @param analysisResult The analysis result containing DOM data
+ * @param context Extension context
+ */
+export async function showDOMVisualization(
+  analysisResult: any,
+  context: vscode.ExtensionContext
+): Promise<void> {
+  try {
+    const filePath = analysisResult.filePath;
+    const fileName = path.basename(filePath);
+    
+    console.log(`🌐 Starting DOM visualization for: ${fileName}`);
+    
+    // Parse the HTML file if it's an HTML file
+    let domResult;
+    if (fileName.toLowerCase().endsWith('.html')) {
+      domResult = await parseHTMLFile(filePath);
+    } else {
+      throw new Error('DOM visualization is only available for HTML files');
+    }
+    
+    // Create the visualization
+    const visualizationPath = await createDOMVisualization(filePath, context);
+    
+    if (visualizationPath) {
+      // Start a server for the visualization using the createServer function
+      const serverInfo = await createServer(path.dirname(visualizationPath), ServerMode.HTTP, context);
+      
+      if (serverInfo) {
+        // Update server info to show the HTML file
+        updateServerDisplayInfo(serverInfo.id, {
+          analysisFileName: fileName
+        });
+        
+        // Show success message
+        vscode.window.showInformationMessage(
+          `DOM visualization created for ${fileName}. Server running at: http://localhost:${serverInfo.port}`
+        );
+      } else {
+        vscode.window.showErrorMessage('Failed to start server for DOM visualization');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to show DOM visualization:', error);
+    throw error;
+  }
 }

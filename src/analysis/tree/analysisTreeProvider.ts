@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path'; // ✅ ADDED: Missing path import
 import { TreeItem } from '../../ui/treeItems/baseItems';
 import { TreeItemType } from '../../ui/treeProvider'; // ✅ ADDED: Missing TreeItemType import
-import { FileSystemWatcher } from './fileSystemWatcher';
-import { FileWatchManager } from '../fileWatchManager';
+import { FileSystemWatcher } from '../watchers/fileSystemWatcher';
+import { FileWatchManager } from '../watchers/fileWatchManager';
 // ✅ REMOVED: Circular imports - we'll import these inside functions where needed
 import { 
   AnalysisSettingsItem, 
@@ -13,6 +13,7 @@ import {
   AnalysisFileItem 
 } from './analysisTreeItems.js'; // ✅ ADDED: Direct imports with .js extension
 import { getTreeDisplayConfig, sortLanguageEntries, limitAndSortFiles } from './treeDisplayConfig.js'; // ✅ ADDED: Missing utility imports
+import { AnalysisSessionManager } from '../analysisSessionManager';
 
 /**
  * Tree data provider for analysis section
@@ -31,6 +32,15 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
     
     // ✅ NEW: Start countdown refresh timer for live updates
     this.startCountdownRefreshTimer();
+    
+    // ✅ NEW: Listen to analysis session changes
+    const sessionManager = AnalysisSessionManager.getInstance();
+    console.log(`🔗 [TreeProvider] Connecting to session manager...`);
+    sessionManager.onDidChangeTreeData(() => {
+      console.log('🔄 [TreeProvider] Analysis sessions changed, refreshing tree...');
+      this.refresh();
+    });
+    console.log(`✅ [TreeProvider] Connected to session manager events`);
   }
 
   /**
@@ -63,7 +73,14 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
 
   refresh(): void {
     console.log('🔄 AnalysisTreeProvider: Refreshing tree view...');
+    
+    // Debug session manager state
+    const sessionManager = AnalysisSessionManager.getInstance();
+    sessionManager.debugState();
+    
+    console.log('🔄 AnalysisTreeProvider: Firing onDidChangeTreeData event...');
     this._onDidChangeTreeData.fire();
+    console.log('✅ AnalysisTreeProvider: onDidChangeTreeData event fired!');
   }
 
   getTreeItem(element: TreeItem): vscode.TreeItem {
@@ -83,6 +100,10 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
       case TreeItemType.ANALYSIS_SECTION:
         console.log('📊 Getting analysis section children');
         return await getAnalysisChildren(this.context);
+      
+      case TreeItemType.ACTIVE_ANALYSES_SECTION:
+        console.log('🔍 Getting active analyses children');
+        return await getActiveAnalysesChildren(this.context);
       
       case TreeItemType.FILES_PER_LANGUAGE_CONTAINER:
         console.log('📁 Getting files per language children');
@@ -149,6 +170,10 @@ export async function getAnalysisChildren(context: vscode.ExtensionContext): Pro
     console.log('📊 Getting analysis children...');
     
     const children: TreeItem[] = [];
+    
+    // Add Active Analyses section first
+    const { ActiveAnalysesSection } = await import('./analysisTreeItems.js');
+    children.push(new ActiveAnalysesSection(context.extensionPath));
     
     // ✅ FIXED: Use imported class
     children.push(new AnalysisSettingsItem(context.extensionPath, context));
@@ -626,4 +651,66 @@ function shouldIncludeJavaFile(fileUri: vscode.Uri): boolean {
   
   // Exclude generated files (containing $ usually indicates inner classes)
   return !fileName.includes('$');
+}
+
+/**
+ * Gets child elements for the Active Analyses section
+ */
+export async function getActiveAnalysesChildren(context: vscode.ExtensionContext): Promise<TreeItem[]> {
+  try {
+    console.log('🔍 [TreeProvider] === GETTING ACTIVE ANALYSES CHILDREN ===');
+    
+    const sessionManager = AnalysisSessionManager.getInstance();
+    console.log('🔍 [TreeProvider] Session manager instance obtained');
+    
+    const activeSessions = sessionManager.getAllSessions();
+    console.log(`🔍 [TreeProvider] getAllSessions() returned: ${activeSessions}`);
+    console.log(`🔍 [TreeProvider] Sessions array length: ${activeSessions.length}`);
+    console.log(`🔍 [TreeProvider] Sessions array type: ${typeof activeSessions}`);
+    console.log(`🔍 [TreeProvider] Sessions array isArray: ${Array.isArray(activeSessions)}`);
+    
+    // Debug each session
+    activeSessions.forEach((session, index) => {
+      console.log(`🔍 [TreeProvider] Session ${index + 1}:`);
+      console.log(`  - File: ${session.fileName} (${session.filePath})`);
+      console.log(`  - Type: ${session.analysisType}`);
+      console.log(`  - ID: ${session.id}`);
+      console.log(`  - Created: ${session.created}`);
+    });
+    
+    if (activeSessions.length === 0) {
+      console.log(`📝 [TreeProvider] No active sessions, showing placeholder message`);
+      return [
+        createErrorItem(
+          'No active analyses',
+          'No analyses are currently running. Start an analysis from the Files per Language section.'
+        )
+      ];
+    }
+    
+    // Import ActiveAnalysisItem and create items for each session
+    console.log('🔍 [TreeProvider] Importing ActiveAnalysisItem...');
+    const { ActiveAnalysisItem } = await import('./analysisTreeItems.js');
+    console.log('🔍 [TreeProvider] ActiveAnalysisItem imported successfully');
+    
+    const children = activeSessions.map((session, index) => {
+      console.log(`🎯 [TreeProvider] Creating tree item ${index + 1} for: ${session.fileName} (${session.analysisType})`);
+      const item = new ActiveAnalysisItem(session, context.extensionPath);
+      console.log(`🎯 [TreeProvider] Tree item created: ${item.label} (type: ${item.type})`);
+      return item;
+    });
+    
+    console.log(`✅ [TreeProvider] Active analyses children created: ${children.length} items`);
+    console.log('🔍 [TreeProvider] === END GETTING ACTIVE ANALYSES CHILDREN ===');
+    return children;
+    
+  } catch (error) {
+    console.error('❌ [TreeProvider] Error getting active analyses children:', error);
+    return [
+      createErrorItem(
+        'Error loading active analyses',
+        `Failed to load active analyses: ${error instanceof Error ? error.message : String(error)}`
+      )
+    ];
+  }
 }

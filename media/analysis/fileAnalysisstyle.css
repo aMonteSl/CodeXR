@@ -50,8 +50,22 @@ h1 {
 
 h2 {
   color: var(--header-color);
-  font-weight: var(--vscode-font-weight, 500);
+  font-weight: 600;
+  font-size: 18px;
   margin: 10px 0 20px 0;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+  position: relative;
+}
+
+h2:before {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: var(--link-color);
 }
 
 h3 {
@@ -88,11 +102,15 @@ h3 {
   border-radius: 6px;
   background-color: var(--vscode-editor-lineHighlightBackground, rgba(255, 255, 255, 0.05));
   text-align: center;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
 }
 
 .metric:hover {
   background-color: var(--hover-background);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--border-color);
 }
 
 .metric-value {
@@ -161,38 +179,40 @@ h3 {
 
 /* Distribution grid */
 .distribution-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 15px;
-  margin-top: 20px;
+  flex: 0 0 auto;
+  min-width: 200px;
 }
 
 .distribution-item {
   text-align: center;
   padding: 15px;
-  border-radius: 4px;
+  border-radius: 6px;
   position: relative;
   border: 1px solid var(--border-color);
+  background: var(--section-background);
 }
 
 .distribution-item.simple {
   background-color: rgba(39, 174, 96, 0.1);
-  border-top: 3px solid var(--complexity-low);
+  border-left: 4px solid var(--complexity-low);
 }
 
 .distribution-item.moderate {
   background-color: rgba(243, 156, 18, 0.1);
-  border-top: 3px solid var(--complexity-medium);
+  border-left: 4px solid var(--complexity-medium);
 }
 
 .distribution-item.complex {
   background-color: rgba(230, 126, 34, 0.1);
-  border-top: 3px solid var(--complexity-high);
+  border-left: 4px solid var(--complexity-high);
 }
 
 .distribution-item.very-complex {
   background-color: rgba(231, 76, 60, 0.1);
-  border-top: 3px solid var(--complexity-critical);
+  border-left: 4px solid var(--complexity-critical);
 }
 
 .distribution-value {
@@ -218,6 +238,18 @@ table {
   font-size: var(--vscode-font-size, 13px);
 }
 
+.functions-table {
+  table-layout: fixed;
+}
+
+.functions-table th:nth-child(1) { width: 30%; } /* Function Name */
+.functions-table th:nth-child(2) { width: 10%; } /* Start Line */
+.functions-table th:nth-child(3) { width: 10%; } /* End Line */
+.functions-table th:nth-child(4) { width: 10%; } /* Length */
+.functions-table th:nth-child(5) { width: 12%; } /* Parameters */
+.functions-table th:nth-child(6) { width: 13%; } /* CCN */
+.functions-table th:nth-child(7) { width: 15%; } /* Density */
+
 thead {
   background-color: var(--table-header-background);
 }
@@ -228,8 +260,27 @@ th, td {
   border-bottom: 1px solid var(--border-color);
 }
 
+th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--vscode-foreground);
+}
+
 tr:hover {
   background-color: var(--hover-background);
+}
+
+.function-name {
+  font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
+  font-weight: 500;
+}
+
+/* Numeric cells alignment */
+td:nth-child(2), td:nth-child(3), td:nth-child(4), 
+td:nth-child(5), td:nth-child(6), td:nth-child(7) {
+  text-align: center;
 }
 
 /* Function/method link */
@@ -243,6 +294,22 @@ tr:hover {
 .function-link:hover {
   color: var(--link-hover-color);
   text-decoration-style: solid;
+}
+
+/* Clickable function names in table */
+.function-name.clickable {
+  cursor: pointer;
+  color: var(--link-color);
+  text-decoration: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  transition: all 0.2s ease;
+}
+
+.function-name.clickable:hover {
+  color: var(--link-hover-color);
+  background-color: var(--hover-background);
+  text-decoration: underline;
 }
 
 /* Complexity badges */
@@ -271,6 +338,50 @@ tr:hover {
   background-color: var(--complexity-critical);
 }
 
+/* Density threshold classes for table cells */
+.density-low {
+  background-color: rgba(39, 174, 96, 0.1);
+  color: var(--complexity-low);
+  font-weight: 600;
+}
+
+.density-medium {
+  background-color: rgba(243, 156, 18, 0.1);
+  color: var(--complexity-medium);
+  font-weight: 600;
+}
+
+.density-high {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--complexity-critical);
+  font-weight: 600;
+}
+
+/* Complexity threshold classes for table cells */
+.complexity.simple {
+  background-color: rgba(39, 174, 96, 0.1);
+  color: var(--complexity-low);
+  font-weight: 600;
+}
+
+.complexity.moderate {
+  background-color: rgba(243, 156, 18, 0.1);
+  color: var(--complexity-medium);
+  font-weight: 600;
+}
+
+.complexity.complex {
+  background-color: rgba(230, 126, 34, 0.1);
+  color: var(--complexity-high);
+  font-weight: 600;
+}
+
+.complexity.very-complex {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--complexity-critical);
+  font-weight: 600;
+}
+
 /* Messages and utilities */
 .message {
   text-align: center;
@@ -287,13 +398,113 @@ tr:hover {
   color: var(--vscode-descriptionForeground);
 }
 
-/* Responsive design */
+/* Chart and density visualization styles */
+.distribution-container {
+  display: flex;
+  gap: 40px;
+  align-items: stretch;
+  justify-content: space-between;
+  margin-top: 20px;
+  min-height: 300px;
+}
+
+.chart-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--section-background);
+  border-radius: 8px;
+  padding: 30px;
+  border: 1px solid var(--border-color);
+  min-height: 280px;
+}
+
+.chart-container canvas {
+  max-width: 280px;
+  max-height: 280px;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.density-container {
+  margin-top: 20px;
+}
+
+.density-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.density-label {
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.density-bar {
+  flex: 1;
+  height: 20px;
+  background: var(--vscode-progressBar-background, #333);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border-color);
+}
+
+.density-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--complexity-low) 0%, var(--complexity-medium) 50%, var(--complexity-high) 100%);
+  transition: width 0.3s ease;
+  border-radius: 10px 0 0 10px;
+}
+
+.density-value {
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
+}
+
 @media (max-width: 768px) {
-  .metrics-grid, .summary-grid, .distribution-grid {
+  .metrics-grid, .summary-grid {
     grid-template-columns: 1fr;
   }
   
   .section {
     padding: 15px;
+  }
+  
+  .distribution-container {
+    flex-direction: column;
+    gap: 20px;
+    min-height: auto;
+  }
+  
+  .distribution-grid {
+    min-width: 100%;
+  }
+  
+  .chart-container {
+    flex: none;
+    width: 100%;
+    min-height: 250px;
+    padding: 20px;
+  }
+  
+  .chart-container canvas {
+    max-width: 220px;
+    max-height: 220px;
+  }
+  
+  .density-bar-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .density-label,
+  .density-value {
+    text-align: center;
   }
 }

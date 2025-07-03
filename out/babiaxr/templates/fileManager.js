@@ -38,7 +38,7 @@ exports.exportVisualization = exportVisualization;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
-const fileWatchManager_1 = require("../../analysis/fileWatchManager");
+const fileWatchManager_1 = require("../../analysis/watchers/fileWatchManager");
 const liveReloadManager_1 = require("../../server/liveReloadManager");
 /**
  * Saves processed HTML content to a file and copies related data files

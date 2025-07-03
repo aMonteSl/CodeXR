@@ -27,21 +27,38 @@ def analyze_classes(file_path):
     class_details = []
 
     if ext == '.py':
-        # Python classes (including metaclasses, dataclasses, etc.)
-        patterns = [
-            r'^\s*class\s+(\w+)',
+        # Python classes (handle dataclasses separately to avoid double counting)
+        
+        # First, find all dataclass decorators and the class names they apply to
+        dataclass_classes = set()
+        dataclass_patterns = [
             r'^\s*@dataclass\s*\n\s*class\s+(\w+)',
             r'^\s*@dataclasses\.dataclass\s*\n\s*class\s+(\w+)'
         ]
-        for pattern in patterns:
+        
+        for pattern in dataclass_patterns:
             matches = re.finditer(pattern, content, re.MULTILINE)
             for match in matches:
                 class_name = match.group(1) if match.groups() else 'Unknown'
+                dataclass_classes.add(class_name)
+                class_details.append({
+                    'name': class_name,
+                    'type': 'dataclass',
+                    'line': content[:match.start()].count('\n') + 1
+                })
+        
+        # Then find regular classes, but exclude dataclasses
+        regular_class_pattern = r'^\s*class\s+(\w+)'
+        matches = re.finditer(regular_class_pattern, content, re.MULTILINE)
+        for match in matches:
+            class_name = match.group(1) if match.groups() else 'Unknown'
+            if class_name not in dataclass_classes:  # Don't double-count dataclasses
                 class_details.append({
                     'name': class_name,
                     'type': 'class',
                     'line': content[:match.start()].count('\n') + 1
                 })
+        
         class_count = len(class_details)
     
     elif ext in ['.js', '.ts', '.jsx', '.tsx']:

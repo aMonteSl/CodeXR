@@ -53,6 +53,7 @@ const requestHandler_1 = require("../server/requestHandler");
 const liveReloadManager_1 = require("../server/liveReloadManager");
 const statusBarManager_1 = require("../ui/statusBarManager");
 const portManager_1 = require("./portManager");
+const analysisSessionManager_1 = require("../analysis/analysisSessionManager");
 // List to store all server instances
 let activeServerList = [];
 exports.activeServerList = activeServerList;
@@ -133,6 +134,16 @@ function stopServer(serverId) {
         serverToStop.server.close(() => {
             console.log(`✅ Active server closed: ${serverToStop.info.url}`);
         });
+        // ✅ Remove analysis session if this server was used for analysis
+        const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+        const activeSessions = sessionManager.getAllSessions();
+        const analysisSession = activeSessions.find(session => (session.analysisType === analysisSessionManager_1.AnalysisType.XR || session.analysisType === analysisSessionManager_1.AnalysisType.DOM) &&
+            session.panelRef &&
+            session.panelRef.id === serverToStop.info.id);
+        if (analysisSession) {
+            console.log(`🗑️ Removing ${analysisSession.analysisType} analysis session for: ${analysisSession.filePath}`);
+            sessionManager.removeSession(analysisSession.id);
+        }
         // Remove from the active servers list
         const index = activeServerList.findIndex(entry => entry.info.id === serverToStop.info.id);
         if (index !== -1) {
@@ -154,6 +165,16 @@ function stopServer(serverId) {
             serverEntry.server.close(() => {
                 console.log(`✅ Specific server closed: ${serverEntry.info.url}`);
             });
+            // ✅ Remove analysis session if this server was used for analysis
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            const activeSessions = sessionManager.getAllSessions();
+            const analysisSession = activeSessions.find(session => (session.analysisType === analysisSessionManager_1.AnalysisType.XR || session.analysisType === analysisSessionManager_1.AnalysisType.DOM) &&
+                session.panelRef &&
+                session.panelRef.id === serverId);
+            if (analysisSession) {
+                console.log(`🗑️ Removing ${analysisSession.analysisType} analysis session for: ${analysisSession.filePath}`);
+                sessionManager.removeSession(analysisSession.id);
+            }
             // Remove from list
             const index = activeServerList.findIndex(entry => entry.info.id === serverId);
             if (index !== -1) {

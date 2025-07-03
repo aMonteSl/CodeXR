@@ -44,7 +44,7 @@ const dataCollector_1 = require("../babiaxr/visualization/dataCollector");
 const visualizationConfig_1 = require("../babiaxr/config/visualizationConfig");
 const serverModel_1 = require("../server/models/serverModel");
 const serverManager_1 = require("../server/serverManager");
-const fileWatchManager_1 = require("../analysis/fileWatchManager");
+const fileWatchManager_1 = require("../analysis/watchers/fileWatchManager");
 const workspaceUtils_1 = require("../utils/workspaceUtils");
 /**
  * Registers all BabiaXR-related commands
@@ -165,20 +165,21 @@ function registerBabiaCommands(context, treeDataProvider) {
     // Command to launch a BabiaXR example
     disposables.push(vscode.commands.registerCommand('codexr.launchBabiaXRExample', async (examplePath) => {
         try {
-            // First verify that the example file exists
+            // First verify that the example path is provided
             if (!examplePath) {
                 vscode.window.showErrorMessage('No example path provided');
+                console.error('❌ [launchBabiaXRExample] No example path provided');
                 return;
             }
-            console.log(`🚀 Attempting to launch example at: ${examplePath}`);
-            // ✅ VERIFICAR QUE EL ARCHIVO EXISTE
+            console.log(`🚀 [launchBabiaXRExample] Attempting to launch example at: ${examplePath}`);
+            // Verify that the example file exists
             if (!fs.existsSync(examplePath)) {
                 vscode.window.showErrorMessage(`Example file not found: ${examplePath}`);
-                console.error(`❌ File not found: ${examplePath}`);
-                // ✅ LISTAR ARCHIVOS DISPONIBLES PARA DEBUG
+                console.error(`❌ [launchBabiaXRExample] File not found: ${examplePath}`);
+                // List available files for debugging
                 const exampleDir = path.dirname(examplePath);
                 if (fs.existsSync(exampleDir)) {
-                    console.log(`📁 Available files in ${exampleDir}:`);
+                    console.log(`📁 [launchBabiaXRExample] Available files in ${exampleDir}:`);
                     try {
                         const files = fs.readdirSync(exampleDir);
                         files.forEach(file => console.log(`  - ${file}`));
@@ -192,49 +193,55 @@ function registerBabiaCommands(context, treeDataProvider) {
                 }
                 return;
             }
-            // ✅ USAR LA CARPETA DEL EJEMPLO COMO ROOT DEL SERVIDOR
+            // Use the directory of the example as the server root
             const exampleDir = path.dirname(examplePath);
             const fileName = path.basename(examplePath);
-            console.log(`📁 Using example directory as server root: ${exampleDir}`);
-            console.log(`📄 Example file name: ${fileName}`);
-            // ✅ VERIFICAR QUE EL DIRECTORIO EXISTE
+            console.log(`📁 [launchBabiaXRExample] Using example directory as server root: ${exampleDir}`);
+            console.log(`📄 [launchBabiaXRExample] Example file name: ${fileName}`);
+            // Verify that the directory exists
             if (!fs.existsSync(exampleDir)) {
                 vscode.window.showErrorMessage(`Example directory not found: ${exampleDir}`);
+                console.error(`❌ [launchBabiaXRExample] Directory not found: ${exampleDir}`);
                 return;
             }
-            // ✅ LISTAR CONTENIDO DEL DIRECTORIO PARA DEBUG
+            // List directory contents for debugging
             try {
                 const files = fs.readdirSync(exampleDir);
-                console.log(`📁 Example directory contains ${files.length} items:`);
+                console.log(`📁 [launchBabiaXRExample] Example directory contains ${files.length} items:`);
                 files.forEach(file => console.log(`  - ${file}`));
             }
             catch (err) {
-                console.error(`❌ Error reading example directory: ${err}`);
+                console.error(`❌ [launchBabiaXRExample] Error reading example directory: ${err}`);
                 return;
             }
-            // ✅ CREAR SERVIDOR CON EL DIRECTORIO DEL EJEMPLO COMO ROOT
-            const serverInfo = await (0, serverManager_1.createServer)(exampleDir, // ✅ USAR EL DIRECTORIO DEL EJEMPLO, NO EL ROOT DE EXAMPLES
-            serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS, context);
+            // Get the current server mode from settings
+            const serverMode = context.globalState.get('serverMode') || serverModel_1.ServerMode.HTTPS_DEFAULT_CERTS;
+            console.log(`🔧 [launchBabiaXRExample] Using server mode: ${serverMode}`);
+            // Create server with the example directory as root
+            const serverInfo = await (0, serverManager_1.createServer)(exampleDir, // Use the directory of the example, not the root of examples
+            serverMode, context);
             if (serverInfo) {
-                // ✅ LA URL ES SIMPLEMENTE EL NOMBRE DEL ARCHIVO HTML
-                const url = `${serverInfo.url}/${fileName}`;
-                console.log(`✅ Example server created successfully`);
-                console.log(`🌐 Opening example URL: ${url}`);
+                // The URL is the server URL plus the filename
+                const fullUrl = `${serverInfo.url}/${fileName}`;
+                console.log(`✅ [launchBabiaXRExample] Example server created successfully`);
+                console.log(`🌐 [launchBabiaXRExample] Opening example URL: ${fullUrl}`);
                 // Open the example in the default browser
-                await vscode.env.openExternal(vscode.Uri.parse(url));
+                await vscode.env.openExternal(vscode.Uri.parse(fullUrl));
                 // Show success message
-                vscode.window.showInformationMessage(`🚀 BabiaXR example "${path.basename(fileName, '.html')}" launched at ${url}`, 'View in Browser').then(selection => {
+                const exampleName = path.basename(fileName, '.html');
+                vscode.window.showInformationMessage(`🚀 BabiaXR example "${exampleName}" launched successfully`, 'View in Browser').then(selection => {
                     if (selection === 'View in Browser') {
-                        vscode.env.openExternal(vscode.Uri.parse(url));
+                        vscode.env.openExternal(vscode.Uri.parse(fullUrl));
                     }
                 });
             }
             else {
+                console.error('❌ [launchBabiaXRExample] Failed to create server for example');
                 vscode.window.showErrorMessage('Failed to start server for BabiaXR example');
             }
         }
         catch (error) {
-            console.error('❌ Error launching BabiaXR example:', error);
+            console.error('❌ [launchBabiaXRExample] Error launching BabiaXR example:', error);
             vscode.window.showErrorMessage(`Error launching example: ${error instanceof Error ? error.message : String(error)}`);
         }
     }));

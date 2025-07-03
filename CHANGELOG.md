@@ -5,6 +5,151 @@ The changelog follows a versioning system to document new features, improvements
 
 # CHANGELOG.md
 
+## [0.0.8] - 2025-01-03
+
+### 🚀 Version 0.0.8 - Major Analysis Engine Overhaul
+
+This release significantly enhances the analysis capabilities with comprehensive language support, improved visualizations, and better user experience.
+
+### Added
+- **Full Lizard-Compatible Language Support**: Enhanced analysis for all languages supported by Lizard
+  - JavaScript, TypeScript, Python, C/C++, C#, Java, Ruby, Go, PHP, Swift, Kotlin, Rust
+  - HTML, Vue.js, Scala, Lua, Erlang, Zig, Perl, Solidity, TTCN-3, Objective-C, Fortran, GDScript
+  - Accurate metrics extraction for complexity, lines of code, and function parameters across all languages
+- **New "Visualize DOM" Feature**: Comprehensive HTML file analysis
+  - DOM tree structure visualization with interactive navigation
+  - Automatic routing of HTML files to DOM analysis instead of Static/XR modes
+  - Real-time DOM tree exploration with element details and hierarchy
+- **XR Bubble Chart Visualization**: New 3D chart type for immersive data exploration
+  - Multi-dimensional bubble representations of code metrics
+  - Interactive 3D bubble charts with customizable sizing and color mapping
+  - Enhanced spatial understanding of code complexity relationships
+- **Active Analyses Management**: Real-time tracking of open visualizations
+  - Dedicated "Active Analyses" section in tree view
+  - Lists currently open Static, XR, and DOM visualizations
+  - Prevents duplicate analysis launches for the same file
+  - One-click access to reopen or close existing analyses
+- **Enhanced Static Analysis Panel**: Comprehensive metrics visualization improvements
+  - Added **Cyclomatic Density per function** for better complexity assessment
+  - Completely reworked **Complexity Distribution** chart with improved layout and readability
+  - Better visual organization of metrics with responsive design
+- **Advanced Tree View Features**: Improved file organization and sorting
+  - Sortable "Files by Language" section by name, lines of code, complexity, or function count
+  - Enhanced file filtering and organization capabilities
+  - Better visual indicators for file analysis status
+- **Debounce Time Customization**: Configurable analysis timing
+  - User-adjustable debounce delays for auto-analysis triggers
+  - Visual indicators for pending analysis operations
+  - Improved performance for large codebases with smart timing controls
+
+### Enhanced
+- **Revamped Comment Line Counter**: Accurate multi-language comment detection
+  - Precise handling of multi-line comments (/* */, =begin/=end, etc.)
+  - Accurate inline comment detection for C-style (//), Ruby (#), Fortran (!), GDScript (#)
+  - Language-specific string literal handling to avoid false positives
+  - Enhanced docstring detection for Python with tokenizer-based analysis
+- **Improved Class Detection**: Enhanced object-oriented code analysis
+  - Better class counting across multiple programming languages
+  - Accurate detection of nested classes and anonymous classes
+  - Enhanced inheritance hierarchy analysis
+- **HTML File Analysis Routing**: Intelligent file type handling
+  - HTML and HTM files automatically route to DOM visualization
+  - Added file extension detection to all analysis commands
+  - Ensures consistent behavior regardless of user's preferred analysis mode
+  - Case-insensitive extension matching for comprehensive file support
+- **Active Analyses Tree View**: Real-time session management
+  - Added comprehensive logging for session manager and tree provider events
+  - Enhanced tree refresh mechanisms for immediate updates
+  - Better error handling and debugging capabilities for analysis session tracking
+  - Improved state synchronization between analysis engines
+
+### Changed
+- **Internal Analysis Engine Refactor**: Unified architecture for better maintainability
+  - Shared component reuse between XR and Static analysis modes
+  - Centralized session management with consistent state tracking
+  - Improved data flow between analysis engines and visualization layers
+  - Enhanced modularity for easier feature additions and maintenance
+- **File Watcher Optimization**: Improved performance and reliability
+  - Enhanced file change detection with better debouncing
+  - Reduced resource usage with smarter watcher lifecycle management
+  - Improved error handling for file system events
+  - Better cleanup of watchers when analyses are closed
+
+### Fixed
+- **UI Synchronization Issues**: Resolved tree view and session management problems
+  - Fixed tree refresh mechanisms for real-time updates
+  - Corrected session registration and cleanup processes
+  - Improved synchronization between multiple analysis instances
+  - Enhanced error recovery for failed analysis sessions
+- **Language-Specific Analysis Bugs**: Comprehensive fixes across supported languages
+  - Corrected comment counting inconsistencies in various languages
+  - Fixed class detection issues in complex object-oriented structures
+  - Resolved analysis hanging during frequent auto-saves
+  - Improved handling of edge cases in code parsing
+- **Performance and Memory Optimization**: Enhanced resource management
+  - Better cleanup of temporary files and analysis artifacts
+  - Improved memory usage during large file analysis
+  - Enhanced garbage collection for visualization resources
+  - Optimized data structures for better performance
+
+### User Experience
+- **Streamlined Analysis Workflow**: Intuitive and efficient analysis process
+  - Automatic file type detection with appropriate analysis routing
+  - Clear visual feedback for analysis progress and completion
+  - Consistent behavior across all supported file types and analysis modes
+  - Enhanced error messages with actionable guidance
+- **Improved Visual Design**: Better organization and presentation
+  - Enhanced static analysis panel layout with better metric organization
+  - Improved tree view design with clearer visual hierarchy
+  - Better color coding and iconography for different analysis types
+  - Responsive design improvements for various screen sizes
+- **Enhanced Accessibility**: Better support for different user workflows
+  - Keyboard navigation improvements in tree views
+  - Better screen reader compatibility for analysis results
+  - Enhanced contrast and readability in visualization panels
+  - Improved tooltip information for all interactive elements
+
+### Technical Improvements
+- **Lizard Integration Enhancement**: Deeper integration with code analysis tools
+  - Improved Python environment setup for Lizard dependencies
+  - Better error handling for Lizard analysis failures
+  - Enhanced data extraction and processing from Lizard output
+  - Optimized analysis pipeline for better performance
+- **Session Management Architecture**: Robust state tracking system
+  - Centralized session manager with event-driven updates
+  - Better lifecycle management for analysis instances
+  - Enhanced persistence of analysis state across VS Code sessions
+  - Improved error recovery and cleanup mechanisms
+- **Code Quality Improvements**: Enhanced maintainability and reliability
+  - Comprehensive TypeScript type checking improvements
+  - Enhanced error handling throughout the codebase
+  - Better separation of concerns in analysis modules
+  - Improved testing coverage for critical components
+
+## Build Process Migration to ESBuild
+
+This version migrates the build process from Webpack to ESBuild for faster builds and improved development experience.
+
+### Changes Made:
+- **New Build Configuration**: `esbuild.config.mjs` with optimized settings
+- **Updated Scripts**: Build and watch scripts now use ESBuild
+- **Faster Builds**: Significantly reduced build times (from ~1000ms to ~20ms)
+- **Better Sourcemaps**: Improved debugging experience with accurate sourcemaps
+- **ES2020 Target**: Modern JavaScript output for better performance
+
+### Build Commands:
+- `npm run build`: One-time build using ESBuild
+- `npm run watch`: Watch mode for development (background process)
+- `npm run package`: Create VSIX package
+
+### Technical Details:
+- **Bundle Size**: ~420KB (optimized)
+- **External Dependencies**: VS Code API excluded from bundle
+- **Platform**: Node.js with CommonJS output
+- **Source Maps**: Enabled for debugging
+
+---
+
 ## [0.0.7] - 2025-06-01
 
 ### Added

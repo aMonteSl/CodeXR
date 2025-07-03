@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { FileWatchManager } from '../../analysis/fileWatchManager';
+import { FileWatchManager } from '../../analysis/watchers/fileWatchManager';
 import { injectVisualizationLiveReloadScript } from '../../server/liveReloadManager';
 
 /**

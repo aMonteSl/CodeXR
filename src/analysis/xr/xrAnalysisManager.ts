@@ -1,15 +1,16 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { FileAnalysisResult } from '../model';
+import { FileAnalysisResult, AnalysisMode } from '../model';
 import { transformAnalysisDataForXR } from './xrDataTransformer';
 import { generateXRAnalysisHTML } from './xrTemplateUtils';
 import { createServer, getActiveServers, stopServer, updateServerDisplayInfo } from '../../server/serverManager'; // ✅ AÑADIR updateServerDisplayInfo AL IMPORT ESTÁTICO
 import { ServerInfo, ServerMode } from '../../server/models/serverModel';
 import { formatXRDataForBabia } from './xrDataFormatter';
-import { FileWatchManager } from '../fileWatchManager';
+import { FileWatchManager } from '../watchers/fileWatchManager';
 import { portManager } from '../../server/portManager';
 import { defaultCertificatesExist } from '../../server/certificateManager';
+import { AnalysisSessionManager, AnalysisType } from '../analysisSessionManager';
 
 // Track visualization paths by file
 const visualizationFolders: Map<string, string> = new Map();
@@ -161,6 +162,10 @@ export async function createXRVisualization(
     const serverInfo = await createServer(visualizationDir, analysisServerMode, context);
     
     if (serverInfo) {
+      // ✅ Register the XR analysis session
+      const sessionManager = AnalysisSessionManager.getInstance();
+      sessionManager.addSession(analysisResult.filePath, AnalysisType.XR, serverInfo);
+      
       // ✅ USAR EL IMPORT ESTÁTICO EN LUGAR DEL DINÁMICO
       const customDisplayName = `${analysisResult.fileName}: ${serverInfo.port}`;
       
@@ -187,6 +192,12 @@ export async function createXRVisualization(
       
       // ✅ REFRESH TREE VIEW PARA MOSTRAR EL NOMBRE ACTUALIZADO
       vscode.commands.executeCommand('codexr.refreshView');
+      
+      // ✅ REGISTER FILE WATCHER FOR AUTO-ANALYSIS ON CHANGES
+      if (fileWatchManager) {
+        console.log(`📁 Registering file watcher for: ${analysisResult.filePath}`);
+        fileWatchManager.startWatching(analysisResult.filePath, AnalysisMode.XR);
+      }
       
       return htmlFilePath;
     } else {

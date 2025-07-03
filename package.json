@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -24,7 +24,10 @@
       "properties": {
         "codexr.analysisMode": {
           "type": "string",
-          "enum": ["Static", "XR"],
+          "enum": [
+            "Static",
+            "XR"
+          ],
           "default": "XR",
           "description": "Default mode for code analysis (Static or XR)"
         },
@@ -36,13 +39,19 @@
           "description": "Delay in milliseconds before auto-analysis is triggered after file changes"
         },
         "codexr.analysis.autoAnalysis": {
-          "type": "boolean", 
+          "type": "boolean",
           "default": true,
           "description": "Enable automatic analysis when files are saved"
         },
         "codexr.analysis.chartType": {
           "type": "string",
-          "enum": ["boats", "bars", "cylinders", "pie", "donut"],
+          "enum": [
+            "boats",
+            "bars",
+            "cylinders",
+            "pie",
+            "donut"
+          ],
           "default": "boats",
           "description": "Default chart type for XR analysis visualizations"
         },
@@ -55,25 +64,39 @@
         },
         "codexr.analysis.tree.languageSortMethod": {
           "type": "string",
-          "enum": ["alphabetical", "fileCount"],
+          "enum": [
+            "alphabetical",
+            "fileCount"
+          ],
           "default": "fileCount",
           "description": "Method for sorting language groups"
         },
         "codexr.analysis.tree.languageSortDirection": {
           "type": "string",
-          "enum": ["ascending", "descending"],
+          "enum": [
+            "ascending",
+            "descending"
+          ],
           "default": "descending",
           "description": "Direction for sorting language groups"
         },
         "codexr.analysis.tree.fileSortMethod": {
           "type": "string",
-          "enum": ["alphabetical", "fileSize", "modificationDate", "fileExtension"],
+          "enum": [
+            "alphabetical",
+            "fileSize",
+            "modificationDate",
+            "fileExtension"
+          ],
           "default": "alphabetical",
           "description": "Method for sorting files within language groups"
         },
         "codexr.analysis.tree.fileSortDirection": {
           "type": "string",
-          "enum": ["ascending", "descending"],
+          "enum": [
+            "ascending",
+            "descending"
+          ],
           "default": "ascending",
           "description": "Direction for sorting files within language groups"
         },
@@ -97,7 +120,7 @@
       },
       {
         "command": "codexr.stopLocalServer",
-        "title": "WebXR: Stop Local Server", 
+        "title": "WebXR: Stop Local Server",
         "icon": "$(stop)"
       },
       {
@@ -149,8 +172,6 @@
         "icon": "$(bug)",
         "category": "WebXR Server"
       },
-
-
       {
         "command": "codexr.createVisualization",
         "title": "WebXR: Create Data Visualization",
@@ -186,7 +207,6 @@
         "title": "WebXR: Launch BabiaXR Example",
         "icon": "$(rocket)"
       },
-
       {
         "command": "codexr.analyzeFile",
         "title": "CodeXR: Analyze File (Static)",
@@ -218,6 +238,12 @@
         "icon": "$(files)"
       },
       {
+        "command": "codexr.analysis.debug",
+        "title": "CodeXR: Debug Analysis Sessions",
+        "category": "Code Analysis",
+        "icon": "$(bug)"
+      },
+      {
         "command": "codexr.analyzeFolder",
         "title": "CodeXR: Analyze JavaScript/TypeScript Folder",
         "category": "Code Analysis",
@@ -229,8 +255,6 @@
         "category": "Code Analysis",
         "icon": "$(info)"
       },
-
-
       {
         "command": "codexr.setAnalysisMode",
         "title": "CodeXR: Set Default Analysis Mode",
@@ -267,15 +291,12 @@
         "category": "Analysis Settings",
         "icon": "$(refresh)"
       },
-
-      
       {
         "command": "codexr.setupPythonEnvironment",
         "title": "CodeXR: Setup Python Environment",
         "category": "Python Environment",
         "icon": "$(symbol-misc)"
       },
-
       {
         "command": "codexr.refreshView",
         "title": "CodeXR: Refresh Explorer View",
@@ -325,6 +346,18 @@
         "title": "Configure Tree Display",
         "category": "CodeXR",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "codexr.reopenAnalysis",
+        "title": "Reopen Analysis",
+        "category": "CodeXR",
+        "icon": "$(browser)"
+      },
+      {
+        "command": "codexr.closeAnalysis",
+        "title": "Close Analysis",
+        "category": "CodeXR",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -420,6 +453,11 @@
           "command": "codexr.launchBabiaXRExample",
           "when": "viewItem == babiaxr_example",
           "group": "navigation"
+        },
+        {
+          "command": "codexr.closeAnalysis",
+          "when": "viewItem == activeAnalysis",
+          "group": "inline"
         }
       ],
       "editor/context": [
@@ -493,10 +531,9 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "watch": "esbuild --watch --config=esbuild.config.mjs",
+    "build": "node esbuild.config.mjs",
+    "package": "vsce package"
   },
   "dependencies": {
     "get-port": "^7.1.0",
@@ -510,6 +547,7 @@
     "@typescript-eslint/parser": "^8.25.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.25.5",
     "eslint": "^9.21.0"
   },
   "files": [

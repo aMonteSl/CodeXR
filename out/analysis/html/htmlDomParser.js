@@ -37,27 +37,97 @@ exports.parseHTMLFile = parseHTMLFile;
 exports.prepareHTMLForTemplate = prepareHTMLForTemplate;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const vscode = __importStar(require("vscode"));
+const analysisUtils_1 = require("../utils/analysisUtils");
+const processUtils_1 = require("../../pythonEnv/utils/processUtils");
+const pathUtils_1 = require("../../pythonEnv/utils/pathUtils");
 /**
- * Parses HTML file and extracts DOM structure
+ * Calls the Python script to parse the HTML file and returns the analysis result.
+ * @param filePath Path to the HTML file
+ * @returns The result from the Python script
+ */
+async function callPythonDOMParser(filePath) {
+    // Create an output channel for debugging
+    const outputChannel = vscode.window.createOutputChannel('CodeXR DOM Analysis');
+    const pythonScriptPath = (0, analysisUtils_1.resolveAnalyzerScriptPath)('html_dom_parser.py', outputChannel);
+    outputChannel.appendLine(`Resolved script path: ${pythonScriptPath}`);
+    // Verify the script exists
+    if (!fs.existsSync(pythonScriptPath)) {
+        outputChannel.appendLine(`❌ Script does not exist at: ${pythonScriptPath}`);
+        throw new Error(`Python script not found at: ${pythonScriptPath}`);
+    }
+    // First try with system Python if virtual environment is not available
+    let pythonExecutable;
+    let usingVenv = false;
+    const venvPath = (0, pathUtils_1.getVenvPath)();
+    outputChannel.appendLine(`Virtual environment path: ${venvPath}`);
+    if (venvPath && fs.existsSync(venvPath)) {
+        const venvPython = (0, pathUtils_1.getPythonExecutable)(venvPath);
+        if (fs.existsSync(venvPython)) {
+            pythonExecutable = venvPython;
+            usingVenv = true;
+        }
+        else {
+            // Fallback to system Python
+            pythonExecutable = process.platform === 'win32' ? 'python.exe' : 'python3';
+        }
+    }
+    else {
+        // Use system Python
+        pythonExecutable = process.platform === 'win32' ? 'python.exe' : 'python3';
+    }
+    outputChannel.appendLine(`Using Python executable: ${pythonExecutable} (venv: ${usingVenv})`);
+    try {
+        const stdout = await (0, processUtils_1.executeCommand)(pythonExecutable, [pythonScriptPath, filePath], { showOutput: false });
+        outputChannel.appendLine(`✅ Python script executed successfully`);
+        return JSON.parse(stdout);
+    }
+    catch (error) {
+        outputChannel.appendLine(`❌ Error executing Python DOM parser: ${error}`);
+        // If virtual environment failed, try with system Python
+        if (usingVenv) {
+            outputChannel.appendLine('Retrying with system Python...');
+            try {
+                const systemPython = process.platform === 'win32' ? 'python.exe' : 'python3';
+                const stdout = await (0, processUtils_1.executeCommand)(systemPython, [pythonScriptPath, filePath], { showOutput: false });
+                outputChannel.appendLine(`✅ System Python executed successfully`);
+                return JSON.parse(stdout);
+            }
+            catch (systemError) {
+                outputChannel.appendLine(`❌ System Python also failed: ${systemError}`);
+                outputChannel.show(); // Show the output channel for debugging
+                throw new Error(`Failed to execute Python DOM parser script. Error: ${systemError}`);
+            }
+        }
+        else {
+            outputChannel.show(); // Show the output channel for debugging
+            throw new Error(`Failed to execute Python DOM parser script. Error: ${error}`);
+        }
+    }
+}
+/**
+ * Parses HTML file and extracts DOM structure using Python parser
  * @param filePath Path to the HTML file
  * @returns DOM analysis result
  */
 async function parseHTMLFile(filePath) {
     try {
-        // Read the HTML file
+        // Read the HTML file first for content
         const htmlContent = await fs.promises.readFile(filePath, 'utf-8');
         const fileName = path.basename(filePath);
-        // Parse the HTML content
-        const domTree = parseHTMLContent(htmlContent);
-        const analysis = analyzeDOM(domTree);
+        // Use Python script for DOM parsing
+        const pythonResult = await callPythonDOMParser(filePath);
+        if (pythonResult.error) {
+            throw new Error(pythonResult.error);
+        }
         const result = {
             fileName,
             filePath,
-            totalElements: analysis.totalElements,
-            maxDepth: analysis.maxDepth,
+            totalElements: pythonResult.totalElements,
+            maxDepth: pythonResult.maxDepth,
             htmlContent: htmlContent,
-            domTree: domTree,
-            elementCounts: analysis.elementCounts,
+            domTree: pythonResult.domTree,
+            elementCounts: pythonResult.elementCounts,
             timestamp: new Date().toISOString()
         };
         return result;
@@ -65,89 +135,6 @@ async function parseHTMLFile(filePath) {
     catch (error) {
         throw new Error(`Failed to parse HTML file: ${error instanceof Error ? error.message : String(error)}`);
     }
-}
-/**
- * Parses HTML content into DOM tree structure
- * @param htmlContent Raw HTML content
- * @returns Root DOM element
- */
-function parseHTMLContent(htmlContent, depth = 0) {
-    // Simple HTML parser - this is a basic implementation
-    // For production, you might want to use a proper HTML parser library
-    // Remove comments and clean up
-    const cleanedHTML = htmlContent
-        .replace(/<!--[\s\S]*?-->/g, '') // Remove comments
-        .replace(/\s+/g, ' ') // Normalize whitespace
-        .trim();
-    // Find the root element (usually <html> or first tag)
-    const rootMatch = cleanedHTML.match(/<(\w+)([^>]*)>/);
-    if (!rootMatch) {
-        // If no tags found, create a text node
-        return {
-            tagName: 'TEXT_NODE',
-            attributes: {},
-            children: [],
-            textContent: cleanedHTML,
-            depth: depth,
-            classes: []
-        };
-    }
-    const tagName = rootMatch[1].toLowerCase();
-    const attributesString = rootMatch[2];
-    // Parse attributes
-    const attributes = parseAttributes(attributesString);
-    const classes = attributes.class ? attributes.class.split(/\s+/).filter(c => c) : [];
-    const id = attributes.id;
-    // Create root element
-    const rootElement = {
-        tagName,
-        attributes,
-        children: [],
-        depth,
-        id,
-        classes
-    };
-    // For now, we'll create a simplified structure
-    // In a full implementation, you'd recursively parse child elements
-    return rootElement;
-}
-/**
- * Parses HTML attributes from attribute string
- * @param attributesString String containing HTML attributes
- * @returns Object with parsed attributes
- */
-function parseAttributes(attributesString) {
-    const attributes = {};
-    if (!attributesString.trim()) {
-        return attributes;
-    }
-    // Simple attribute parsing
-    const attrMatches = attributesString.matchAll(/(\w+)(?:\s*=\s*["']([^"']*)["'])?/g);
-    for (const match of attrMatches) {
-        const [, name, value] = match;
-        attributes[name.toLowerCase()] = value || name;
-    }
-    return attributes;
-}
-/**
- * Analyzes DOM tree to extract statistics
- * @param domTree Root DOM element
- * @returns Analysis statistics
- */
-function analyzeDOM(domTree) {
-    const elementCounts = {};
-    let totalElements = 0;
-    let maxDepth = 0;
-    function traverse(element) {
-        totalElements++;
-        maxDepth = Math.max(maxDepth, element.depth);
-        // Count element types
-        elementCounts[element.tagName] = (elementCounts[element.tagName] || 0) + 1;
-        // Traverse children
-        element.children.forEach(child => traverse(child));
-    }
-    traverse(domTree);
-    return { totalElements, maxDepth, elementCounts };
 }
 /**
  * Prepares HTML content for template injection

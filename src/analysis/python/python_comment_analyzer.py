@@ -11,6 +11,7 @@ Usage: python comment_analyzer.py <file_path>
 import sys
 import json
 import os
+import re
 import tokenize
 from io import BytesIO
 
@@ -47,10 +48,14 @@ def analyze_comments(file_path):
         comment_lines = analyze_python_comments(file_path, content)
     elif ext in ['.rb']:
         comment_lines = analyze_ruby_comments(content)
-    elif ext in ['.js', '.ts', '.jsx', '.tsx', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs', '.java']:
-        comment_lines = analyze_c_style_comments(content, ext)
+    elif ext in ['.js', '.ts', '.jsx', '.tsx', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs', '.java', '.sol', '.m', '.zig', '.ttcn', '.ttcn3']:
+        comment_lines = analyze_c_style_comments(content)
     elif ext == '.vue':
         comment_lines = analyze_vue_comments(content)
+    elif ext in ['.f90', '.f95', '.f03', '.f08']:  # Fortran
+        comment_lines = analyze_fortran_comments(content)
+    elif ext in ['.gd']:  # GDScript
+        comment_lines = analyze_hash_comments(content)
     else:
         print(json.dumps({"debug": f"Extension '{ext}' not supported"}), file=sys.stderr)
 
@@ -93,190 +98,120 @@ def analyze_python_comments(file_path, content):
     except Exception as e:
         print(json.dumps({"debug": f"Tokenizer failed: {e}, using fallback"}), file=sys.stderr)
         # Fallback to simple line scanning
-        comment_lines = analyze_python_comments_fallback(content)
+        comment_lines = analyze_hash_comments(content)
     
     return comment_lines
 
-def analyze_python_comments_fallback(content):
+def analyze_c_style_comments(content):
     """
-    Fallback Python comment analysis using line scanning
-    
-    Args:
-        content (str): File content
-        
-    Returns:
-        set: Set of line numbers containing comments
+    Analyzes C-style comments (//, /* ... */) using regex.
+    Supports: Java, JavaScript, C/C++, C#, Solidity, Objective-C, Zig, TTCN-3, etc.
     """
     comment_lines = set()
-    in_docstring = False
-    
+    # Remove string literals to avoid false positives
+    string_pattern = re.compile(r'(\"(\\.|[^"\\])*\"|\'(\\.|[^\'\\])*\')')
+    content_wo_strings = []
+    for line in content.split('\n'):
+        content_wo_strings.append(string_pattern.sub('', line))
+    content_wo_strings = '\n'.join(content_wo_strings)
+
+    # Find all multiline comments
+    multiline_pattern = re.compile(r'/\*.*?\*/', re.DOTALL)
+    for match in multiline_pattern.finditer(content_wo_strings):
+        start = content_wo_strings[:match.start()].count('\n') + 1
+        lines = match.group(0).split('\n')
+        for offset in range(len(lines)):
+            comment_lines.add(start + offset)
+
+    # Remove multiline comments to avoid double-counting single-line markers inside them
+    content_no_multiline = multiline_pattern.sub(lambda m: '\n' * m.group(0).count('\n'), content_wo_strings)
+
+    # Find all single-line comments
+    for i, line in enumerate(content_no_multiline.split('\n'), 1):
+        if re.search(r'//', line):
+            comment_lines.add(i)
+
+    return comment_lines
+
+def analyze_hash_comments(content):
+    """
+    Analyzes hash-style comments (single line with #)
+    Used for GDScript and fallback for Python
+    """
+    comment_lines = set()
+    string_pattern = re.compile(r'(\"(\\.|[^"\\])*\"|\'(\\.|[^\'\\])*\')')
     for i, line in enumerate(content.split('\n'), 1):
-        stripped_line = line.strip()
-        if not stripped_line:
-            continue
-        
-        if '#' in line and not in_docstring:
+        line_wo_strings = string_pattern.sub('', line)
+        if re.search(r'#', line_wo_strings):
             comment_lines.add(i)
-            continue
-        
-        if '"""' in line or "'''" in line:
+    return comment_lines
+
+def analyze_fortran_comments(content):
+    """
+    Analyzes Fortran comments (single line with !)
+    """
+    comment_lines = set()
+    string_pattern = re.compile(r'(\"(\\.|[^"\\])*\"|\'(\\.|[^\'\\])*\')')
+    for i, line in enumerate(content.split('\n'), 1):
+        line_wo_strings = string_pattern.sub('', line)
+        if re.search(r'!', line_wo_strings):
             comment_lines.add(i)
-            # Toggle docstring mode
-            tripledouble = line.count('"""')
-            triplesingle = line.count("'''")
-            if tripledouble % 2 == 1 or triplesingle % 2 == 1:
-                in_docstring = not in_docstring
-            continue
-        
-        if in_docstring:
-            comment_lines.add(i)
-    
     return comment_lines
 
 def analyze_ruby_comments(content):
     """
-    Analyzes Ruby comments
-    
-    Args:
-        content (str): File content
-        
-    Returns:
-        set: Set of line numbers containing comments
+    Analyzes Ruby comments:
+    - Single-line comments: '#'
+    - Multiline comments: =begin to =end
+    Ignores comment markers inside strings.
     """
     comment_lines = set()
     in_multiline = False
-    
-    for i, line in enumerate(content.split('\n'), 1):
-        stripped_line = line.strip()
-        
-        if stripped_line.startswith('=begin'):
-            in_multiline = True
-            comment_lines.add(i)
-        elif stripped_line.startswith('=end'):
-            in_multiline = False
-            comment_lines.add(i)
-        elif in_multiline or stripped_line.startswith('#'):
-            comment_lines.add(i)
-    
-    return comment_lines
+    string_pattern = re.compile(r'(\"(\\.|[^"\\])*\"|\'(\\.|[^\'\\])*\')')
 
-def analyze_c_style_comments(content, ext):
-    """
-    Analyzes C-style comments (includes Java, JavaScript, C/C++, C#)
-    
-    Args:
-        content (str): File content
-        ext (str): File extension
-        
-    Returns:
-        set: Set of line numbers containing comments
-    """
-    print(json.dumps({"debug": f"Processing C-style comments for {ext}"}), file=sys.stderr)
-    
-    comment_lines = set()
-    in_multiline = False
-    
     lines = content.split('\n')
-    
     for i, line in enumerate(lines, 1):
-        stripped_line = line.strip()
-        
-        # Count empty lines inside multiline comments
-        if not stripped_line:
-            if in_multiline:
-                comment_lines.add(i)
+        stripped = string_pattern.sub('', line.strip())
+
+        if not stripped:
             continue
-            
-        # If we're in a multiline comment, check for end
+
         if in_multiline:
             comment_lines.add(i)
-            if '*/' in stripped_line:
+            if re.match(r'^\s*=end\b', stripped):
                 in_multiline = False
             continue
-        
-        # Check for single-line comment (//)
-        if find_comment_outside_strings(stripped_line, '//'):
-            comment_lines.add(i)
-        
-        # Check for multi-line comment start (/* or /**)
-        multiline_pos = find_comment_outside_strings(stripped_line, '/*')
-        if multiline_pos >= 0:
-            comment_lines.add(i)
+
+        if re.match(r'^\s*=begin\b', stripped):
             in_multiline = True
-            
-            # Check if multi-line comment ends on same line
-            end_pos = stripped_line.find('*/', multiline_pos + 2)
-            if end_pos >= 0:
-                in_multiline = False
-    
+            comment_lines.add(i)
+            continue
+
+        if '#' in stripped:
+            comment_lines.add(i)
+
     return comment_lines
 
-def find_comment_outside_strings(line, comment_marker):
-    """
-    Finds comment markers that are not inside string literals
-    
-    Args:
-        line (str): Line to search
-        comment_marker (str): Comment marker to find ('//', '/*')
-        
-    Returns:
-        int: Position of comment marker, or -1 if not found outside strings
-    """
-    in_string = False
-    in_char = False
-    escaped = False
-    
-    for i, char in enumerate(line):
-        if escaped:
-            escaped = False
-            continue
-            
-        if char == '\\':
-            escaped = True
-            continue
-            
-        if char == '"' and not in_char:
-            in_string = not in_string
-        elif char == "'" and not in_string:
-            in_char = not in_char
-        elif not in_string and not in_char:
-            if line[i:i+len(comment_marker)] == comment_marker:
-                return i
-    
-    return -1
 
 def analyze_vue_comments(content):
     """
-    Analyzes Vue.js comments (HTML-style comments)
-    
-    Args:
-        content (str): File content
-        
-    Returns:
-        set: Set of line numbers containing comments
+    Analyzes Vue.js comments (HTML-style <!-- ... -->)
     """
     comment_lines = set()
-    in_html_comment = False
-    
-    for i, line in enumerate(content.split('\n'), 1):
-        stripped_line = line.strip()
-        
-        # Check for HTML comment start
-        if '<!--' in stripped_line and not in_html_comment:
-            comment_lines.add(i)
-            in_html_comment = True
-            # Check if comment ends on same line
-            if '-->' in stripped_line[stripped_line.find('<!--')+4:]:
-                in_html_comment = False
-            continue
-            
-        # If in HTML comment, add line and check for end
-        if in_html_comment:
-            comment_lines.add(i)
-            if '-->' in stripped_line:
-                in_html_comment = False
-            continue
-    
+    # Remove string literals to avoid false positives
+    string_pattern = re.compile(r'(\"(\\.|[^"\\])*\"|\'(\\.|[^\'\\])*\')')
+    content_wo_strings = []
+    for line in content.split('\n'):
+        content_wo_strings.append(string_pattern.sub('', line))
+    content_wo_strings = '\n'.join(content_wo_strings)
+
+    # Find all HTML comments
+    html_comment_pattern = re.compile(r'<!--.*?-->', re.DOTALL)
+    for match in html_comment_pattern.finditer(content_wo_strings):
+        start = content_wo_strings[:match.start()].count('\n') + 1
+        lines = match.group(0).split('\n')
+        for offset in range(len(lines)):
+            comment_lines.add(start + offset)
     return comment_lines
 
 def main():

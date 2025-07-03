@@ -21,7 +21,7 @@ export interface TreeDisplayConfig {
  * Available language sorting methods
  */
 export enum LanguageSortMethod {
-  ALPHABETICAL = 'alphabetical',
+  ALPHABETICAL = 'lang-alphabetical',
   FILE_COUNT = 'fileCount'
 }
 
@@ -29,7 +29,7 @@ export enum LanguageSortMethod {
  * Available file sorting methods
  */
 export enum FileSortMethod {
-  ALPHABETICAL = 'alphabetical',
+  ALPHABETICAL = 'file-alphabetical',
   FILE_SIZE = 'fileSize',
   MODIFICATION_DATE = 'modificationDate',
   FILE_EXTENSION = 'fileExtension'
@@ -246,6 +246,8 @@ export function getSortMethodDisplayText(method: LanguageSortMethod | FileSortMe
   
   switch (method) {
     case LanguageSortMethod.ALPHABETICAL:
+      methodText = 'Alphabetical';
+      break;
     case FileSortMethod.ALPHABETICAL:
       methodText = 'Alphabetical';
       break;

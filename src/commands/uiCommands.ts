@@ -32,11 +32,18 @@ export function registerUiCommands(context: vscode.ExtensionContext, treeDataPro
   // Make sure this command is properly registered and calls the panel update
   disposables.push(
     vscode.commands.registerCommand('codexr.updateAnalysisPanel', (analysisResult: AnalysisResult) => {
-      // Ensure we're calling the proper update method
-      AnalysisPanel.update(analysisResult);
-      
-      // Add debug logging to verify data flow
-      console.log('Analysis panel update triggered with latest data');
+      // Get the extension URI
+      const extension = vscode.extensions.getExtension('codexr.codexr');
+      if (extension) {
+        // Ensure we're calling the proper update method
+        AnalysisPanel.update(analysisResult, extension.extensionUri);
+        
+        // Add debug logging to verify data flow
+        console.log('Analysis panel update triggered with latest data');
+      } else {
+        console.error('Could not get extension URI for updateAnalysisPanel command');
+        vscode.window.showErrorMessage('Failed to update analysis panel: Extension not found');
+      }
     })
   );
   

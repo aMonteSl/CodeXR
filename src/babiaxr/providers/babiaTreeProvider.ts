@@ -115,6 +115,26 @@ export class BabiaTreeProvider {
   public getBabiaXRExamplesChildren(): Thenable<TreeItem[]> {
     try {
       const examplesPath = path.join(this.context.extensionPath, 'examples', 'charts');
+      console.log(`🔍 [BabiaTreeProvider] Looking for examples in: ${examplesPath}`);
+      
+      // First check if the examples directory exists
+      if (!fs.existsSync(examplesPath)) {
+        console.error(`❌ [BabiaTreeProvider] Examples directory not found: ${examplesPath}`);
+        return Promise.resolve([
+          new TreeItem(
+            "Examples directory not found",
+            `Expected path: ${examplesPath}`,
+            TreeItemType.BABIAXR_EXAMPLE,
+            vscode.TreeItemCollapsibleState.None,
+            undefined,
+            new vscode.ThemeIcon('error')
+          )
+        ]);
+      }
+      
+      // List what's actually in the directory
+      const dirContents = fs.readdirSync(examplesPath);
+      console.log(`📁 [BabiaTreeProvider] Examples directory contains: ${dirContents.join(', ')}`);
       
       const categories = [
         {
@@ -145,30 +165,48 @@ export class BabiaTreeProvider {
       const result: TreeItem[] = [];
       
       for (const category of categories) {
-        const categoryItem = new TreeItem(
-          category.name,
-          `Examples of ${category.name}`,
-          TreeItemType.BABIAXR_EXAMPLE_CATEGORY,
-          vscode.TreeItemCollapsibleState.Collapsed,
-          undefined,
-          new vscode.ThemeIcon('folder')
-        );
+        const categoryExamples: TreeItem[] = [];
         
-        categoryItem.children = category.examples.map(example => {
+        for (const example of category.examples) {
           const examplePath = path.join(examplesPath, example.dir, example.file);
+          console.log(`🔍 [BabiaTreeProvider] Checking example: ${examplePath}`);
           
           if (fs.existsSync(examplePath)) {
-            return new BabiaXRExampleItem(example.label, examplePath);
+            console.log(`✅ [BabiaTreeProvider] Found example: ${example.label}`);
+            categoryExamples.push(new BabiaXRExampleItem(example.label, examplePath));
+          } else {
+            console.log(`❌ [BabiaTreeProvider] Missing example: ${examplePath}`);
+            // List what's actually in that directory
+            const exampleDir = path.dirname(examplePath);
+            if (fs.existsSync(exampleDir)) {
+              const files = fs.readdirSync(exampleDir);
+              console.log(`📁 [BabiaTreeProvider] ${exampleDir} contains: ${files.join(', ')}`);
+            } else {
+              console.log(`📁 [BabiaTreeProvider] Directory does not exist: ${exampleDir}`);
+            }
           }
-          return null;
-        }).filter(Boolean) as TreeItem[];
+        }
         
-        if (categoryItem.children.length > 0) {
+        if (categoryExamples.length > 0) {
+          const categoryItem = new TreeItem(
+            category.name,
+            `Examples of ${category.name}`,
+            TreeItemType.BABIAXR_EXAMPLE_CATEGORY,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            undefined,
+            new vscode.ThemeIcon('folder')
+          );
+          
+          categoryItem.children = categoryExamples;
           result.push(categoryItem);
+          console.log(`✅ [BabiaTreeProvider] Added category '${category.name}' with ${categoryExamples.length} examples`);
+        } else {
+          console.log(`⚠️ [BabiaTreeProvider] Category '${category.name}' has no valid examples`);
         }
       }
       
       if (result.length === 0) {
+        console.log(`⚠️ [BabiaTreeProvider] No valid examples found in any category`);
         return Promise.resolve([
           new TreeItem(
             "No valid examples found",
@@ -181,9 +219,10 @@ export class BabiaTreeProvider {
         ]);
       }
       
+      console.log(`✅ [BabiaTreeProvider] Returning ${result.length} example categories`);
       return Promise.resolve(result);
     } catch (error) {
-      console.error("Error reading examples directory:", error);
+      console.error("❌ [BabiaTreeProvider] Error reading examples directory:", error);
       return Promise.resolve([
         new TreeItem(
           "Error loading examples",

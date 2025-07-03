@@ -38,6 +38,7 @@ exports.closeExistingDOMVisualizationServer = closeExistingDOMVisualizationServe
 exports.createDOMVisualization = createDOMVisualization;
 exports.cleanupDOMVisualizations = cleanupDOMVisualizations;
 exports.getDOMVisualizationFolder = getDOMVisualizationFolder;
+exports.showDOMVisualization = showDOMVisualization;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
@@ -45,8 +46,9 @@ const htmlDomParser_1 = require("./htmlDomParser");
 const serverManager_1 = require("../../server/serverManager");
 const serverModel_1 = require("../../server/models/serverModel");
 // ✅ NEW: Import FileWatchManager and AnalysisMode for DOM live-reload
-const fileWatchManager_1 = require("../fileWatchManager");
+const fileWatchManager_1 = require("../watchers/fileWatchManager");
 const model_1 = require("../model");
+const analysisSessionManager_1 = require("../analysisSessionManager");
 // ✅ ADD: Track DOM visualization folders by filename (similar to XR analysis)
 const domVisualizationFolders = new Map();
 /**
@@ -123,6 +125,9 @@ async function createDOMVisualization(filePath, context) {
         // Create and start server
         const serverInfo = await (0, serverManager_1.createServer)(visualizationDir, userServerMode, context);
         if (serverInfo) {
+            // ✅ Register the DOM analysis session
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            sessionManager.addSession(filePath, analysisSessionManager_1.AnalysisType.DOM, serverInfo);
             // Update server display info for DOM visualization
             const originalFileName = path.basename(filePath);
             const updated = (0, serverManager_1.updateServerDisplayInfo)(serverInfo.id, {
@@ -203,5 +208,46 @@ async function processDOMVisualizationTemplate(domAnalysis, templateHTML, contex
         .replace(/\$\{GROUND_COLOR\}/g, groundColor)
         .replace(/\$\{HTML_CONTENT\}/g, templateHTML);
     return template;
+}
+/**
+ * Shows DOM visualization for an HTML file analysis result
+ * @param analysisResult The analysis result containing DOM data
+ * @param context Extension context
+ */
+async function showDOMVisualization(analysisResult, context) {
+    try {
+        const filePath = analysisResult.filePath;
+        const fileName = path.basename(filePath);
+        console.log(`🌐 Starting DOM visualization for: ${fileName}`);
+        // Parse the HTML file if it's an HTML file
+        let domResult;
+        if (fileName.toLowerCase().endsWith('.html')) {
+            domResult = await (0, htmlDomParser_1.parseHTMLFile)(filePath);
+        }
+        else {
+            throw new Error('DOM visualization is only available for HTML files');
+        }
+        // Create the visualization
+        const visualizationPath = await createDOMVisualization(filePath, context);
+        if (visualizationPath) {
+            // Start a server for the visualization using the createServer function
+            const serverInfo = await (0, serverManager_1.createServer)(path.dirname(visualizationPath), serverModel_1.ServerMode.HTTP, context);
+            if (serverInfo) {
+                // Update server info to show the HTML file
+                (0, serverManager_1.updateServerDisplayInfo)(serverInfo.id, {
+                    analysisFileName: fileName
+                });
+                // Show success message
+                vscode.window.showInformationMessage(`DOM visualization created for ${fileName}. Server running at: http://localhost:${serverInfo.port}`);
+            }
+            else {
+                vscode.window.showErrorMessage('Failed to start server for DOM visualization');
+            }
+        }
+    }
+    catch (error) {
+        console.error('❌ Failed to show DOM visualization:', error);
+        throw error;
+    }
 }
 //# sourceMappingURL=domVisualizationManager.js.map

@@ -1,7 +1,7 @@
 (function() {
   // Get VSCode API
   const vscode = acquireVsCodeApi();
-  let functionData = null;
+  let functionData = window.functionData || null;
   
   // DOM elements
   const loadingEl = document.getElementById('loading');
@@ -66,6 +66,8 @@
     document.getElementById('line-count').textContent = functionData.function.lineCount || '-';
     document.getElementById('params-count').textContent = functionData.function.parameters || '-';
     document.getElementById('complexity').textContent = functionData.function.complexity || '-';
+    document.getElementById('cyclomatic-density').textContent = 
+      functionData.function.cyclomaticDensity ? functionData.function.cyclomaticDensity.toFixed(3) : '-';
     document.getElementById('token-count').textContent = functionData.function.tokenCount || '-';
     document.getElementById('nesting-depth').textContent = functionData.function.maxNestingDepth || '-';
     
@@ -97,7 +99,9 @@
   
   function updateComplexityGauge(complexity) {
     const gaugeFill = document.getElementById('complexity-gauge-fill');
-    if (!gaugeFill) return;
+    if (!gaugeFill) {
+      return;
+    }
     
     // Calculate percentage (max out at 30 for visual purposes)
     const maxComplexity = 30;
@@ -123,7 +127,9 @@
   
   function updateRecommendations(recommendations) {
     const recommendationsContainer = document.getElementById('recommendations');
-    if (!recommendationsContainer) return;
+    if (!recommendationsContainer) {
+      return;
+    }
     
     recommendationsContainer.innerHTML = '';
     

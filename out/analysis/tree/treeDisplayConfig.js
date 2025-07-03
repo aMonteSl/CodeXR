@@ -48,7 +48,7 @@ const path = __importStar(require("path"));
  */
 var LanguageSortMethod;
 (function (LanguageSortMethod) {
-    LanguageSortMethod["ALPHABETICAL"] = "alphabetical";
+    LanguageSortMethod["ALPHABETICAL"] = "lang-alphabetical";
     LanguageSortMethod["FILE_COUNT"] = "fileCount";
 })(LanguageSortMethod || (exports.LanguageSortMethod = LanguageSortMethod = {}));
 /**
@@ -56,7 +56,7 @@ var LanguageSortMethod;
  */
 var FileSortMethod;
 (function (FileSortMethod) {
-    FileSortMethod["ALPHABETICAL"] = "alphabetical";
+    FileSortMethod["ALPHABETICAL"] = "file-alphabetical";
     FileSortMethod["FILE_SIZE"] = "fileSize";
     FileSortMethod["MODIFICATION_DATE"] = "modificationDate";
     FileSortMethod["FILE_EXTENSION"] = "fileExtension";
@@ -236,6 +236,8 @@ function getSortMethodDisplayText(method, direction) {
     let methodText;
     switch (method) {
         case LanguageSortMethod.ALPHABETICAL:
+            methodText = 'Alphabetical';
+            break;
         case FileSortMethod.ALPHABETICAL:
             methodText = 'Alphabetical';
             break;

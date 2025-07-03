@@ -36,14 +36,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerFileAnalysisCommands = registerFileAnalysisCommands;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
-const analysisManager_1 = require("../../analysis/analysisManager");
-const xrAnalysisManager_1 = require("../../analysis/xr/xrAnalysisManager");
 const domVisualizationManager_1 = require("../../analysis/html/domVisualizationManager");
-const analysisDataManager_1 = require("../../analysis/analysisDataManager");
-const fileWatchManager_1 = require("../../analysis/fileWatchManager");
-const model_1 = require("../../analysis/model");
-const commandHelpers_1 = require("../shared/commandHelpers");
-const serverConflictHandler_1 = require("./serverConflictHandler");
+const staticVisualizationManager_1 = require("../../analysis/static/staticVisualizationManager");
+const index_1 = require("../../analysis/static/index");
+const dataManager_1 = require("../../analysis/utils/dataManager");
+const languageUtils_1 = require("../../utils/languageUtils");
+const analysisSessionManager_1 = require("../../analysis/analysisSessionManager");
+const analysisSessionCommands_1 = require("../analysisSessionCommands");
 /**
  * Commands for file analysis operations
  */
@@ -54,306 +53,467 @@ const serverConflictHandler_1 = require("./serverConflictHandler");
  */
 function registerFileAnalysisCommands(context) {
     const disposables = [];
-    // Static analysis command
-    disposables.push(registerStaticAnalysisCommand(context));
-    // XR analysis command
-    disposables.push(registerXRAnalysisCommand(context));
-    // Tree analysis command
-    disposables.push(registerTreeAnalysisCommand(context));
-    // Open and analyze command
-    disposables.push(registerOpenAndAnalyzeCommand());
-    // DOM visualization command
-    disposables.push(registerDOMVisualizationCommand(context));
+    // Analyze current file command
+    disposables.push(registerAnalyzeCurrentFileCommand(context));
+    // Analyze file command (from tree view)
+    disposables.push(registerAnalyzeFileCommand(context));
+    // Analyze file from tree command
+    disposables.push(registerAnalyzeFileFromTreeCommand(context));
+    // Analyze file 3D (XR) command
+    disposables.push(registerAnalyzeFile3DCommand(context));
+    // Open and analyze file command
+    disposables.push(registerOpenAndAnalyzeFileCommand(context));
+    // Analyze multiple files 3D command
+    disposables.push(registerAnalyzeMultipleFiles3DCommand(context));
+    // Analyze folder command
+    disposables.push(registerAnalyzeFolderCommand(context));
+    // Show DOM visualization command
+    disposables.push(registerShowDOMVisualizationCommand(context));
+    // Visualize DOM command
+    disposables.push(registerVisualizeDOMCommand(context));
+    // Clear file analysis command
+    disposables.push(registerClearFileAnalysisCommand());
     return disposables;
 }
 /**
- * Registers the static analysis command
+ * Registers the analyze current file command
  * @param context Extension context
  * @returns Command disposable
  */
-function registerStaticAnalysisCommand(context) {
-    return vscode.commands.registerCommand('codexr.analyzeFile', async (fileUri) => {
-        const filePath = (0, commandHelpers_1.getFilePathFromUri)(fileUri);
-        if (!filePath) {
-            return;
-        }
-        console.log(`🔍 Starting STATIC analysis of file: ${filePath}`);
-        // ✅ CHECK: Make sure file is not already being analyzed
-        if (analysisDataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath)) {
-            vscode.window.showWarningMessage(`File ${path.basename(filePath)} is already being analyzed. Please wait for the current analysis to complete.`);
-            return;
-        }
-        // ✅ IMMEDIATE FEEDBACK: Show that analysis is starting
-        vscode.window.showInformationMessage(`Starting analysis of ${path.basename(filePath)}...`, { modal: false });
-        await (0, commandHelpers_1.withProgressNotification)(`Analyzing ${path.basename(filePath)}...`, async (progress) => {
-            progress.report({ increment: 10, message: "Initializing analysis..." });
-            try {
-                // ✅ MARK FILE AS BEING ANALYZED IMMEDIATELY
-                analysisDataManager_1.analysisDataManager.setFileAnalyzing(filePath);
-                progress.report({ increment: 30, message: "Running code analysis..." });
-                const result = await (0, analysisManager_1.analyzeFile)(filePath, context);
-                if (!result) {
-                    vscode.window.showErrorMessage('Failed to analyze file.');
-                    return;
-                }
-                progress.report({ increment: 70, message: "Preparing visualization..." });
-                // Store result
-                analysisDataManager_1.analysisDataManager.setAnalysisResult(filePath, result);
-                // Show static webview
-                (0, analysisManager_1.showAnalysisWebView)(context, result);
-                // Configure file watcher for static analysis
-                configureFileWatcher(filePath, model_1.AnalysisMode.STATIC, context);
-                console.log(`✅ Static analysis completed for ${path.basename(filePath)}`);
-            }
-            catch (error) {
-                console.error('❌ Error in static analysis:', error);
-                vscode.window.showErrorMessage(`Error analyzing file: ${error instanceof Error ? error.message : String(error)}`);
-            }
-            finally {
-                // ✅ ALWAYS MARK AS COMPLETED
-                analysisDataManager_1.analysisDataManager.setFileAnalyzed(filePath);
-            }
-        });
-    });
-}
-/**
- * Registers the XR analysis command
- * @param context Extension context
- * @returns Command disposable
- */
-function registerXRAnalysisCommand(context) {
-    return vscode.commands.registerCommand('codexr.analyzeFile3D', async (fileUri) => {
-        const filePath = (0, commandHelpers_1.getFilePathFromUri)(fileUri);
-        if (!filePath) {
-            return;
-        }
-        const fileName = path.basename(filePath);
-        console.log(`🔮 Starting XR analysis of file: ${filePath}`);
-        // Check for existing server conflicts
-        const serverAction = await (0, serverConflictHandler_1.handleExistingServerConflict)(filePath, fileName);
-        if (serverAction === 'cancel' || serverAction === 'open') {
-            return;
-        }
-        // ✅ CHECK: Make sure file is not already being analyzed
-        if (analysisDataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath)) {
-            vscode.window.showWarningMessage(`File ${fileName} is already being analyzed. Please wait for the current analysis to complete.`);
-            return;
-        }
-        // ✅ IMMEDIATE FEEDBACK: Show that analysis is starting
-        vscode.window.showInformationMessage(`Starting XR analysis of ${fileName}...`, { modal: false });
-        await (0, commandHelpers_1.withProgressNotification)(`Creating XR visualization for ${fileName}...`, async (progress) => {
-            progress.report({ increment: 10, message: "Initializing XR analysis..." });
-            try {
-                // ✅ MARK FILE AS BEING ANALYZED IMMEDIATELY
-                analysisDataManager_1.analysisDataManager.setFileAnalyzing(filePath);
-                progress.report({ increment: 30, message: "Running code analysis..." });
-                const result = await (0, analysisManager_1.analyzeFile)(filePath, context);
-                if (!result) {
-                    vscode.window.showErrorMessage('Failed to analyze file.');
-                    return;
-                }
-                progress.report({ increment: 70, message: "Creating XR visualization..." });
-                // Store result
-                analysisDataManager_1.analysisDataManager.setAnalysisResult(filePath, result);
-                // Create XR visualization
-                const xrPath = await (0, xrAnalysisManager_1.createXRVisualization)(context, result);
-                if (!xrPath) {
-                    vscode.window.showErrorMessage('Failed to create XR visualization.');
-                    return;
-                }
-                // Configure file watcher for XR analysis
-                configureFileWatcher(filePath, model_1.AnalysisMode.XR, context);
-                console.log(`✅ XR analysis completed for ${fileName}`);
-            }
-            catch (error) {
-                console.error('❌ Error in XR analysis:', error);
-                vscode.window.showErrorMessage(`Error creating XR visualization: ${error instanceof Error ? error.message : String(error)}`);
-            }
-            finally {
-                // ✅ ALWAYS MARK AS COMPLETED
-                analysisDataManager_1.analysisDataManager.setFileAnalyzed(filePath);
-            }
-        });
-    });
-}
-/**
- * Registers the tree analysis command
- * @param context Extension context
- * @returns Command disposable
- */
-function registerTreeAnalysisCommand(context) {
-    return vscode.commands.registerCommand('codexr.analyzeFileFromTree', async (filePath) => {
-        console.log(`🌳 Analyzing file from tree: ${filePath}`);
-        const fileName = path.basename(filePath);
-        const fileExtension = path.extname(filePath).toLowerCase();
-        // ✅ VALIDATION: Check if filePath is valid
-        if (!filePath || typeof filePath !== 'string') {
-            vscode.window.showErrorMessage('Invalid file path provided for analysis');
-            return;
-        }
-        // ✅ CHECK: Make sure file exists
+function registerAnalyzeCurrentFileCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeCurrentFile', async () => {
         try {
-            await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-        }
-        catch {
-            vscode.window.showErrorMessage(`File not found: ${filePath}`);
-            return;
-        }
-        // ✅ CHECK: Make sure file is not already being analyzed
-        if (analysisDataManager_1.analysisDataManager.isFileBeingAnalyzed(filePath)) {
-            vscode.window.showWarningMessage(`File ${fileName} is already being analyzed. Please wait for the current analysis to complete.`);
-            return;
-        }
-        try {
-            // Special handling for HTML files - Always use DOM visualization
-            if (fileExtension === '.html' || fileExtension === '.htm') {
-                return await handleHTMLFileFromTree(filePath, fileName, context);
-            }
-            // Special handling for unknown files
-            const language = (0, commandHelpers_1.getLanguageName)(filePath);
-            if (language === 'Unknown') {
-                vscode.window.showInformationMessage(`File "${fileName}" has an unsupported extension (${fileExtension}). ` +
-                    `CodeXR currently supports programming languages and HTML files for analysis.`, 'OK');
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage('No active editor found');
                 return;
             }
-            // For supported files: Use configured analysis mode
-            await handleSupportedFileFromTree(filePath, fileName, context);
+            const filePath = editor.document.uri.fsPath;
+            const fileExtension = path.extname(filePath).toLowerCase();
+            // ✅ Special case: HTML files should always use DOM visualization
+            if (fileExtension === '.html' || fileExtension === '.htm') {
+                console.log(`🌐 HTML file detected in analyzeCurrentFile: ${filePath}, routing to DOM visualization`);
+                return vscode.commands.executeCommand('codexr.visualizeDOM', editor.document.uri);
+            }
+            const language = (0, languageUtils_1.getLanguageName)(filePath);
+            if (!isSupportedFileType(language)) {
+                vscode.window.showWarningMessage(`File type not supported for analysis: ${language}`);
+                return;
+            }
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Analyzing file...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0, message: path.basename(filePath) });
+                // Create static visualization (this performs analysis and shows results)
+                const visualizationPath = await (0, staticVisualizationManager_1.createStaticVisualization)(context, filePath);
+                if (visualizationPath) {
+                    // Show success message
+                    vscode.window.showInformationMessage(`Analysis complete: ${path.basename(filePath)}`);
+                    // Refresh tree view
+                    vscode.commands.executeCommand('codexr.refreshView');
+                }
+            });
         }
         catch (error) {
-            console.error('Error analyzing file from tree:', error);
-            vscode.window.showErrorMessage(`Error analyzing file: ${error instanceof Error ? error.message : String(error)}`);
+            vscode.window.showErrorMessage(`Failed to analyze file: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
 }
 /**
- * Registers the open and analyze command
- * @returns Command disposable
- */
-function registerOpenAndAnalyzeCommand() {
-    return vscode.commands.registerCommand('codexr.openAndAnalyzeFile', async (filePath) => {
-        console.log(`📂 Opening and analyzing file: ${filePath}`);
-        try {
-            // Open the file in editor first
-            const document = await vscode.workspace.openTextDocument(filePath);
-            await vscode.window.showTextDocument(document);
-            // Then run static analysis
-            await vscode.commands.executeCommand('codexr.analyzeFile', vscode.Uri.file(filePath));
-        }
-        catch (error) {
-            console.error('Error opening and analyzing file:', error);
-            vscode.window.showErrorMessage(`Error opening file: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    });
-}
-/**
- * Registers the DOM visualization command
+ * Registers the analyze file command (from tree view)
  * @param context Extension context
  * @returns Command disposable
  */
-function registerDOMVisualizationCommand(context) {
-    return vscode.commands.registerCommand('codexr.visualizeDOM', async (fileUri) => {
+function registerAnalyzeFileCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeFile', async (fileUri) => {
         try {
-            // Get file path from URI or active editor
-            let filePath;
-            if (fileUri) {
-                filePath = fileUri.fsPath;
+            if (!fileUri) {
+                vscode.window.showWarningMessage('No file selected');
+                return;
+            }
+            const filePath = fileUri.fsPath;
+            const fileExtension = path.extname(filePath).toLowerCase();
+            // ✅ Special case: HTML files should always use DOM visualization
+            if (fileExtension === '.html' || fileExtension === '.htm') {
+                console.log(`🌐 HTML file detected in analyzeFile: ${filePath}, routing to DOM visualization`);
+                return vscode.commands.executeCommand('codexr.visualizeDOM', fileUri);
+            }
+            const language = (0, languageUtils_1.getLanguageName)(filePath);
+            if (!isSupportedFileType(language)) {
+                vscode.window.showWarningMessage(`File type not supported for analysis: ${language}`);
+                return;
+            }
+            // ✅ Check for duplicate analysis
+            const duplicateAction = await (0, analysisSessionCommands_1.checkForDuplicateAnalysis)(filePath, analysisSessionManager_1.AnalysisType.STATIC);
+            if (duplicateAction === 'cancel') {
+                return; // User cancelled
+            }
+            if (duplicateAction === 'reopen') {
+                return; // Existing analysis reopened
+            }
+            // ✅ Automatically open the source file in the editor
+            try {
+                await vscode.window.showTextDocument(fileUri, { preview: false });
+            }
+            catch (error) {
+                console.warn('Could not open source file:', error);
+                // Continue with analysis even if file opening fails
+            }
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Analyzing file...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0, message: path.basename(filePath) });
+                // Create static visualization (this performs analysis and shows results)
+                const visualizationPath = await (0, staticVisualizationManager_1.createStaticVisualization)(context, filePath);
+                if (visualizationPath) {
+                    // Show success message
+                    vscode.window.showInformationMessage(`Analysis complete: ${path.basename(filePath)}`);
+                    // Refresh tree view
+                    vscode.commands.executeCommand('codexr.refreshView');
+                }
+            });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to analyze file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the analyze file from tree command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerAnalyzeFileFromTreeCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeFileFromTree', async (fileUriOrPath) => {
+        try {
+            let fileUri;
+            // Handle both Uri and string arguments for flexibility
+            if (typeof fileUriOrPath === 'string') {
+                fileUri = vscode.Uri.file(fileUriOrPath);
+            }
+            else if (fileUriOrPath && fileUriOrPath.fsPath) {
+                fileUri = fileUriOrPath;
             }
             else {
-                const editor = vscode.window.activeTextEditor;
-                if (editor) {
-                    filePath = editor.document.uri.fsPath;
-                }
-            }
-            if (!filePath) {
-                vscode.window.showErrorMessage('No HTML file selected');
+                vscode.window.showWarningMessage('No valid file selected for analysis');
                 return;
             }
-            // Verify it's an HTML file
+            const filePath = fileUri.fsPath;
             const fileExtension = path.extname(filePath).toLowerCase();
-            if (fileExtension !== '.html' && fileExtension !== '.htm') {
-                vscode.window.showErrorMessage('Please select an HTML file');
-                return;
+            // ✅ Special case: HTML files should always use DOM visualization
+            if (fileExtension === '.html' || fileExtension === '.htm') {
+                console.log(`🌐 HTML file detected: ${filePath}, routing to DOM visualization`);
+                return vscode.commands.executeCommand('codexr.visualizeDOM', fileUri);
             }
-            const fileName = path.basename(filePath);
-            // Check for existing server conflicts
-            const serverAction = await (0, serverConflictHandler_1.handleExistingServerConflict)(filePath, fileName);
-            if (serverAction === 'cancel' || serverAction === 'open') {
-                return;
+            // Get the user's preferred analysis mode for non-HTML files
+            const config = vscode.workspace.getConfiguration('codexr');
+            const analysisMode = config.get('analysisMode', 'XR');
+            // Route to appropriate analysis command based on mode
+            if (analysisMode === 'XR') {
+                return vscode.commands.executeCommand('codexr.analyzeFile3D', fileUri);
             }
-            // Show processing message
-            vscode.window.showInformationMessage(`Creating DOM visualization for: ${fileName}...`, 'OK');
-            // Create DOM visualization
-            const result = await (0, domVisualizationManager_1.createDOMVisualization)(filePath, context);
-            if (!result) {
-                vscode.window.showErrorMessage(`Failed to create DOM visualization for ${fileName}`);
+            else {
+                return vscode.commands.executeCommand('codexr.analyzeFile', fileUri);
             }
         }
         catch (error) {
-            vscode.window.showErrorMessage(`Error creating DOM visualization: ${error instanceof Error ? error.message : String(error)}`);
+            vscode.window.showErrorMessage(`Failed to analyze file from tree: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
 }
 /**
- * Handles HTML file analysis from tree
- * @param filePath Path to the HTML file
- * @param fileName Name of the file
+ * Registers the analyze file 3D (XR) command
  * @param context Extension context
+ * @returns Command disposable
  */
-async function handleHTMLFileFromTree(filePath, fileName, context) {
-    console.log(`🌐 HTML file detected: ${fileName}, launching DOM visualization`);
-    // Check for existing DOM visualization server conflicts
-    const serverAction = await (0, serverConflictHandler_1.handleExistingServerConflict)(filePath, fileName);
-    if (serverAction === 'cancel' || serverAction === 'open') {
-        return;
-    }
-    // Execute DOM visualization command directly
-    await vscode.commands.executeCommand('codexr.visualizeDOM', vscode.Uri.file(filePath));
-}
-/**
- * Handles supported file analysis from tree
- * @param filePath Path to the file
- * @param fileName Name of the file
- * @param context Extension context
- */
-async function handleSupportedFileFromTree(filePath, fileName, context) {
-    const config = vscode.workspace.getConfiguration();
-    const currentMode = config.get('codexr.analysisMode', 'XR'); // ✅ CHANGED: Default from 'Static' to 'XR'
-    console.log(`Using configured analysis mode: ${currentMode} for ${fileName}`);
-    if (currentMode === 'XR') {
-        // Check for existing server conflicts first
-        const serverAction = await (0, serverConflictHandler_1.handleExistingServerConflict)(filePath, fileName);
-        if (serverAction === 'cancel' || serverAction === 'open') {
-            return;
+function registerAnalyzeFile3DCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeFile3D', async (fileUri) => {
+        try {
+            let filePath;
+            let targetFileUri;
+            if (fileUri) {
+                filePath = fileUri.fsPath;
+                targetFileUri = fileUri;
+            }
+            else {
+                // Try to get from active editor
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor or file selected');
+                    return;
+                }
+                filePath = editor.document.uri.fsPath;
+                targetFileUri = editor.document.uri;
+            }
+            const fileExtension = path.extname(filePath).toLowerCase();
+            // ✅ Special case: HTML files should always use DOM visualization
+            if (fileExtension === '.html' || fileExtension === '.htm') {
+                console.log(`🌐 HTML file detected in analyzeFile3D: ${filePath}, routing to DOM visualization`);
+                return vscode.commands.executeCommand('codexr.visualizeDOM', targetFileUri);
+            }
+            const language = (0, languageUtils_1.getLanguageName)(filePath);
+            if (!isSupportedFileType(language)) {
+                vscode.window.showWarningMessage(`File type not supported for XR analysis: ${language}`);
+                return;
+            }
+            // ✅ Check for duplicate analysis
+            const duplicateAction = await (0, analysisSessionCommands_1.checkForDuplicateAnalysis)(filePath, analysisSessionManager_1.AnalysisType.XR);
+            if (duplicateAction === 'cancel') {
+                return; // User cancelled
+            }
+            if (duplicateAction === 'reopen') {
+                return; // Existing analysis reopened
+            }
+            // ✅ Automatically open the source file in the editor
+            try {
+                await vscode.window.showTextDocument(targetFileUri, { preview: false });
+            }
+            catch (error) {
+                console.warn('Could not open source file:', error);
+                // Continue with analysis even if file opening fails
+            }
+            // Show progress and perform XR analysis
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Creating XR Analysis...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0, message: path.basename(filePath) });
+                // Import XR analysis manager
+                const { createXRVisualization } = await import('../../analysis/xr/xrAnalysisManager.js');
+                // First analyze the file to get the analysis result
+                const analysisResult = await (0, index_1.analyzeFileStatic)(filePath, context);
+                if (!analysisResult) {
+                    throw new Error('Failed to analyze file for XR visualization');
+                }
+                // Create XR visualization
+                await createXRVisualization(context, analysisResult);
+                vscode.window.showInformationMessage(`XR Analysis created for ${path.basename(filePath)}`);
+            });
         }
-        // Execute XR analysis command directly
-        await vscode.commands.executeCommand('codexr.analyzeFile3D', vscode.Uri.file(filePath));
-    }
-    else {
-        // Execute static analysis command
-        await vscode.commands.executeCommand('codexr.analyzeFile', vscode.Uri.file(filePath));
-    }
-    // Configure file watcher for the analysis mode
-    configureFileWatcher(filePath, currentMode === 'XR' ? model_1.AnalysisMode.XR : model_1.AnalysisMode.STATIC, context);
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to create XR analysis: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
 }
 /**
- * Configures file watcher for analysis
- * @param filePath Path to the file
- * @param mode Analysis mode
+ * Registers the open and analyze file command
  * @param context Extension context
+ * @returns Command disposable
  */
-function configureFileWatcher(filePath, mode, context) {
-    const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
-    // ✅ FIXED: Complete the function implementation
-    if (fileWatchManager) {
-        console.log(`🔧 Configuring file watcher for ${path.basename(filePath)} in ${mode} mode`);
-        // Set the analysis mode for this file
-        fileWatchManager.setAnalysisMode(filePath, mode);
-        // Start watching the file
-        fileWatchManager.startWatching(filePath, mode);
-        console.log(`✅ File watcher configured successfully for ${path.basename(filePath)}`);
-    }
-    else {
-        console.warn('⚠️ FileWatchManager not available, skipping file watcher configuration');
-    }
+function registerOpenAndAnalyzeFileCommand(context) {
+    return vscode.commands.registerCommand('codexr.openAndAnalyzeFile', async (fileUri) => {
+        try {
+            if (!fileUri) {
+                vscode.window.showWarningMessage('No file selected');
+                return;
+            }
+            // Open the file first
+            const document = await vscode.workspace.openTextDocument(fileUri);
+            await vscode.window.showTextDocument(document);
+            // Then analyze it
+            await vscode.commands.executeCommand('codexr.analyzeFile', fileUri);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to open and analyze file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the analyze multiple files 3D command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerAnalyzeMultipleFiles3DCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeMultipleFiles3D', async () => {
+        try {
+            // Show file picker for multiple files
+            const fileUris = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectMany: true,
+                filters: {
+                    'Code Files': ['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'c', 'cpp', 'cs', 'vue', 'rb', 'go', 'php', 'swift', 'kt', 'rs']
+                }
+            });
+            if (!fileUris || fileUris.length === 0) {
+                return;
+            }
+            // Analyze each file
+            for (const fileUri of fileUris) {
+                await vscode.commands.executeCommand('codexr.analyzeFile3D', fileUri);
+            }
+            vscode.window.showInformationMessage(`XR Analysis created for ${fileUris.length} files`);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to analyze multiple files: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the analyze folder command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerAnalyzeFolderCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeFolder', async (folderUri) => {
+        try {
+            let folderPath;
+            if (folderUri) {
+                folderPath = folderUri.fsPath;
+            }
+            else {
+                // Show folder picker
+                const folderUris = await vscode.window.showOpenDialog({
+                    canSelectFiles: false,
+                    canSelectFolders: true,
+                    canSelectMany: false
+                });
+                if (!folderUris || folderUris.length === 0) {
+                    return;
+                }
+                folderPath = folderUris[0].fsPath;
+            }
+            // Show progress and analyze folder
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Analyzing Folder...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0, message: path.basename(folderPath) });
+                // Find all supported files in the folder
+                const pattern = new vscode.RelativePattern(folderPath, '**/*.{js,jsx,ts,tsx,py,java,c,cpp,cs,vue,rb,go,php,swift,kt,rs}');
+                const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**', 50); // Limit to 50 files
+                if (files.length === 0) {
+                    vscode.window.showWarningMessage('No supported files found in the selected folder');
+                    return;
+                }
+                // Analyze each file
+                for (let i = 0; i < files.length; i++) {
+                    progress.report({
+                        increment: (100 / files.length),
+                        message: `${i + 1}/${files.length}: ${path.basename(files[i].fsPath)}`
+                    });
+                    await vscode.commands.executeCommand('codexr.analyzeFile', files[i]);
+                }
+                vscode.window.showInformationMessage(`Analyzed ${files.length} files in folder: ${path.basename(folderPath)}`);
+            });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to analyze folder: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the show DOM visualization command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerShowDOMVisualizationCommand(context) {
+    return vscode.commands.registerCommand('codexr.showDOMVisualization', async (analysisResult) => {
+        try {
+            if (!analysisResult) {
+                // Try to get from current file
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor or analysis result');
+                    return;
+                }
+                const filePath = editor.document.uri.fsPath;
+                analysisResult = dataManager_1.analysisDataManager.getAnalysisResult(filePath);
+                if (!analysisResult) {
+                    vscode.window.showWarningMessage('No analysis result found for current file');
+                    return;
+                }
+            }
+            // Show DOM visualization - FIXED: correct parameter order
+            await (0, domVisualizationManager_1.showDOMVisualization)(analysisResult, context);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to show DOM visualization: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the visualize DOM command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerVisualizeDOMCommand(context) {
+    return vscode.commands.registerCommand('codexr.visualizeDOM', async (fileUri) => {
+        try {
+            let targetFile;
+            if (fileUri) {
+                targetFile = fileUri.fsPath;
+            }
+            else {
+                // Get the currently active file
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active HTML file to visualize');
+                    return;
+                }
+                targetFile = editor.document.uri.fsPath;
+            }
+            // Check if it's an HTML file
+            if (!targetFile.toLowerCase().endsWith('.html')) {
+                vscode.window.showWarningMessage('DOM visualization is only available for HTML files');
+                return;
+            }
+            // Create DOM visualization
+            await (0, domVisualizationManager_1.showDOMVisualization)({ filePath: targetFile }, context);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to visualize DOM: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the clear file analysis command
+ * @returns Command disposable
+ */
+function registerClearFileAnalysisCommand() {
+    return vscode.commands.registerCommand('codexr.clearFileAnalysis', async (fileUri) => {
+        try {
+            if (!fileUri) {
+                vscode.window.showWarningMessage('No file selected');
+                return;
+            }
+            const filePath = fileUri.fsPath;
+            const fileName = path.basename(filePath);
+            const confirm = await vscode.window.showWarningMessage(`Clear analysis data for ${fileName}?`, 'Clear', 'Cancel');
+            if (confirm === 'Clear') {
+                // Clear analysis data
+                dataManager_1.analysisDataManager.clearAnalysisResult(filePath);
+                // Clear function data if any
+                dataManager_1.analysisDataManager.clearFunctionData(filePath);
+                // Refresh tree view
+                vscode.commands.executeCommand('codexr.refreshView');
+                vscode.window.showInformationMessage(`Analysis data cleared for ${fileName}`);
+            }
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to clear analysis: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Checks if a file type is supported for analysis
+ * @param language Language/file type
+ * @returns true if supported
+ */
+function isSupportedFileType(language) {
+    const supportedTypes = [
+        'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
+        'Ruby', 'Go', 'PHP', 'Swift', 'Kotlin', 'Rust', 'HTML', 'Vue',
+        'Scala', 'Lua', 'Erlang', 'Zig', 'Perl', 'Solidity', 'TTCN-3',
+        'Objective-C', 'Objective-C++', 'Fortran', 'GDScript'
+    ];
+    return supportedTypes.includes(language);
 }
 //# sourceMappingURL=fileAnalysisCommands.js.map

@@ -2,10 +2,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TreeItem } from '../../ui/treeItems/baseItems';
 import { TreeItemType } from '../../ui/treeProvider';
-import { analysisDataManager } from '../analysisDataManager';
+import { analysisDataManager } from '../utils/dataManager';
 import { AnalysisSettingsManager } from './analysisSettingsManager';
 import { DimensionMappingItem } from './dimensionMappingTreeItem';
-import { FileWatchManager } from '../fileWatchManager'; // ✅ ADDED: Missing import
+import { FileWatchManager } from '../watchers/fileWatchManager';
+import { AnalysisSession, AnalysisType } from '../analysisSessionManager';
 
 /**
  * ✅ ENHANCED: Individual file item with countdown indicator
@@ -59,7 +60,7 @@ export class AnalysisFileItem extends TreeItem {
       {
         command: 'codexr.analyzeFileFromTree',
         title: 'Analyze File',
-        arguments: [filePath]
+        arguments: [vscode.Uri.file(filePath)]
       },
       iconPath
     );
@@ -494,3 +495,67 @@ export const CHART_TYPE_OPTIONS = [
   { value: 'pie', label: 'Pie Chart', description: 'Traditional pie chart in 3D' },
   { value: 'donut', label: 'Donut Chart', description: 'Donut/doughnut chart in 3D' }
 ];
+
+/**
+ * Section for active analyses with proper context and commands
+ */
+export class ActiveAnalysesSection extends TreeItem {
+  constructor(extensionPath: string) {
+    super(
+      'Active Analyses',
+      'Manage and view active analyses',
+      TreeItemType.ACTIVE_ANALYSES_SECTION,
+      vscode.TreeItemCollapsibleState.Expanded,
+      undefined,
+      new vscode.ThemeIcon('browser')
+    );
+  }
+}
+
+/**
+ * Item for individual active analysis
+ */
+export class ActiveAnalysisItem extends TreeItem {
+  constructor(
+    public readonly session: AnalysisSession,
+    extensionPath: string
+  ) {
+    const label = `${session.fileName}`;
+    const description = `${session.analysisType} Analysis`;
+    const tooltip = `Active ${session.analysisType} analysis\n\nFile: ${session.filePath}\nStarted: ${session.created.toLocaleString()}\n\nClick to reopen • Right-click to close`;
+
+    // Choose appropriate icon based on analysis type
+    let icon: vscode.ThemeIcon;
+    switch (session.analysisType) {
+      case AnalysisType.XR:
+        icon = new vscode.ThemeIcon('globe', new vscode.ThemeColor('charts.blue'));
+        break;
+      case AnalysisType.STATIC:
+        icon = new vscode.ThemeIcon('graph-line', new vscode.ThemeColor('charts.green'));
+        break;
+      case AnalysisType.DOM:
+        icon = new vscode.ThemeIcon('browser', new vscode.ThemeColor('charts.orange'));
+        break;
+      default:
+        icon = new vscode.ThemeIcon('file-code');
+    }
+
+    super(
+      label,
+      tooltip,
+      TreeItemType.ACTIVE_ANALYSIS,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.reopenAnalysis',
+        title: 'Reopen Analysis',
+        arguments: [session.filePath, session.analysisType]
+      },
+      icon
+    );
+    
+    this.description = description;
+    
+    // Add context menu for closing analysis
+    this.contextValue = 'activeAnalysis';
+  }
+}

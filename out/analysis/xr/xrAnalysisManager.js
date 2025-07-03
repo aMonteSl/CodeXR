@@ -41,13 +41,15 @@ exports.getVisualizationFolder = getVisualizationFolder;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
+const model_1 = require("../model");
 const xrDataTransformer_1 = require("./xrDataTransformer");
 const xrTemplateUtils_1 = require("./xrTemplateUtils");
 const serverManager_1 = require("../../server/serverManager"); // ✅ AÑADIR updateServerDisplayInfo AL IMPORT ESTÁTICO
 const serverModel_1 = require("../../server/models/serverModel");
 const xrDataFormatter_1 = require("./xrDataFormatter");
-const fileWatchManager_1 = require("../fileWatchManager");
+const fileWatchManager_1 = require("../watchers/fileWatchManager");
 const certificateManager_1 = require("../../server/certificateManager");
+const analysisSessionManager_1 = require("../analysisSessionManager");
 // Track visualization paths by file
 const visualizationFolders = new Map();
 /**
@@ -167,6 +169,9 @@ async function createXRVisualization(context, analysisResult) {
         console.log(`🚀 Creating new server for updated analysis...`);
         const serverInfo = await (0, serverManager_1.createServer)(visualizationDir, analysisServerMode, context);
         if (serverInfo) {
+            // ✅ Register the XR analysis session
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            sessionManager.addSession(analysisResult.filePath, analysisSessionManager_1.AnalysisType.XR, serverInfo);
             // ✅ USAR EL IMPORT ESTÁTICO EN LUGAR DEL DINÁMICO
             const customDisplayName = `${analysisResult.fileName}: ${serverInfo.port}`;
             (0, serverManager_1.updateServerDisplayInfo)(serverInfo.id, {
@@ -184,6 +189,11 @@ async function createXRVisualization(context, analysisResult) {
             vscode.window.showInformationMessage(`XR Analysis visualization opened at ${serverInfo.displayUrl}${isRelaunch}\n${protocolMessage}`);
             // ✅ REFRESH TREE VIEW PARA MOSTRAR EL NOMBRE ACTUALIZADO
             vscode.commands.executeCommand('codexr.refreshView');
+            // ✅ REGISTER FILE WATCHER FOR AUTO-ANALYSIS ON CHANGES
+            if (fileWatchManager) {
+                console.log(`📁 Registering file watcher for: ${analysisResult.filePath}`);
+                fileWatchManager.startWatching(analysisResult.filePath, model_1.AnalysisMode.XR);
+            }
             return htmlFilePath;
         }
         else {

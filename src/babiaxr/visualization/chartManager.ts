@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { startServer } from '../../server/serverManager';
+import { createServer } from '../../server/serverManager';
 import { 
   ChartType, 
   ChartData, 
@@ -86,16 +86,39 @@ export async function launchBabiaXRVisualization(
   filePath: string, 
   context: vscode.ExtensionContext
 ): Promise<void> {
-  // Get the currently configured server mode
-  const serverMode = context.globalState.get<ServerMode>('serverMode') || ServerMode.HTTPS_DEFAULT_CERTS;
-  
-  // Determine if HTTPS should be used based on user configuration
-  const useHttps = serverMode === ServerMode.HTTPS_DEFAULT_CERTS || 
-                  serverMode === ServerMode.HTTPS_CUSTOM_CERTS;
-  
-  // Determine if default certificates should be used
-  const useDefaultCerts = serverMode === ServerMode.HTTPS_DEFAULT_CERTS;
-  
-  // Start the server with the specified configuration
-  await startServer(filePath, context, useHttps, useDefaultCerts);
+  try {
+    console.log(`🚀 Launching BabiaXR visualization: ${filePath}`);
+    
+    // Get the currently configured server mode
+    const serverMode = context.globalState.get<ServerMode>('serverMode') || ServerMode.HTTPS_DEFAULT_CERTS;
+    
+    console.log(`🔧 Using server mode: ${serverMode}`);
+    
+    // Use the new createServer function from serverManager
+    const serverInfo = await createServer(filePath, serverMode, context);
+    
+    if (serverInfo) {
+      console.log(`✅ BabiaXR visualization server started successfully: ${serverInfo.url}`);
+      
+      // Open the visualization in the default browser
+      await vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+      
+      // Show success message
+      vscode.window.showInformationMessage(
+        `🚀 BabiaXR visualization launched at ${serverInfo.displayUrl}`,
+        'View in Browser'
+      ).then(selection => {
+        if (selection === 'View in Browser') {
+          vscode.env.openExternal(vscode.Uri.parse(serverInfo.url));
+        }
+      });
+    } else {
+      throw new Error('Failed to create server for BabiaXR visualization');
+    }
+  } catch (error) {
+    console.error('❌ Error launching BabiaXR visualization:', error);
+    vscode.window.showErrorMessage(
+      `Error launching visualization: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

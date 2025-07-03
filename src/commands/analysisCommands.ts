@@ -3,6 +3,8 @@ import { registerFileAnalysisCommands } from './analysis/fileAnalysisCommands';
 import { registerAnalysisSettingsCommands } from './analysis/settingsCommands';
 import { registerTreeDisplayCommands } from './analysis/treeDisplayCommands';
 import { registerDebugCommands } from './analysis/debugCommands';
+import { registerAnalysisSessionCommands } from './analysisSessionCommands';
+import { AnalysisSessionManager, AnalysisType } from '../analysis/analysisSessionManager';
 
 /**
  * Main entry point for all analysis-related commands
@@ -46,6 +48,14 @@ export function registerAnalysisCommands(context: vscode.ExtensionContext): vsco
     // Register debug commands (Diagnostics, troubleshooting)
     console.log('🐛 Registering debug commands...');
     disposables.push(...registerDebugCommands());
+    
+    // Register analysis session commands (Active analyses management)
+    console.log('📊 Registering analysis session commands...');
+    disposables.push(...registerAnalysisSessionCommands(context));
+    
+    // Register debug command for testing
+    console.log('🐛 Registering debug analysis command...');
+    disposables.push(registerDebugAnalysisCommand(context));
     
     console.log(`✅ Successfully registered ${disposables.length} analysis commands`);
     
@@ -137,6 +147,39 @@ export const REGISTERED_COMMANDS = {
   REFRESH_ANALYSIS_TREE: 'codexr.refreshAnalysisTree',
   FORCE_REFRESH_ANALYSIS_TREE: 'codexr.forceRefreshAnalysisTree',
   ANALYSIS_SYSTEM_STATUS: 'codexr.analysisSystemStatus',
-  CLEAR_ANALYSIS_CACHE: 'codexr.clearAnalysisCache'
+  CLEAR_ANALYSIS_CACHE: 'codexr.clearAnalysisCache',
+  
+  // Debug Analysis Command
+  DEBUG_ANALYSIS_COMMAND: 'codexr.analysis.debug'
 } as const;
+
+/**
+ * Debug command to manually trigger session registration and tree refresh for testing
+ */
+export function registerDebugAnalysisCommand(context: vscode.ExtensionContext): vscode.Disposable {
+  return vscode.commands.registerCommand('codexr.analysis.debug', async () => {
+    console.log('🐛 [DEBUG] Manual debug command triggered');
+    
+    // Get the session manager
+    const sessionManager = AnalysisSessionManager.getInstance();
+    
+    // Debug current state
+    console.log('🐛 [DEBUG] Current session manager state:');
+    sessionManager.debugState();
+    
+    // Manually add a test session
+    console.log('🐛 [DEBUG] Adding test session...');
+    const testSession = sessionManager.addSession(
+      '/home/adrian/CodeXR/test_analysis.py',
+      AnalysisType.STATIC,
+      { dispose: () => console.log('Test panel disposed') } as any
+    );
+    console.log(`🐛 [DEBUG] Test session added with ID: ${testSession}`);
+    
+    // Debug state after adding
+    sessionManager.debugState();
+    
+    vscode.window.showInformationMessage('Debug analysis command executed - check console logs');
+  });
+}
 
