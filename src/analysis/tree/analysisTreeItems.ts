@@ -7,6 +7,9 @@ import { AnalysisSettingsManager } from './analysisSettingsManager';
 import { DimensionMappingItem } from './dimensionMappingTreeItem';
 import { FileWatchManager } from '../watchers/fileWatchManager';
 import { AnalysisSession, AnalysisType } from '../analysisSessionManager';
+import { getActiveServers } from '../../server/serverManager';
+import { ServerInfo } from '../../server/models/serverModel';
+import { getAnalysisIcon, getAnalysisDescription } from './analysisIconUtils';
 
 /**
  * ✅ ENHANCED: Individual file item with countdown indicator
@@ -163,7 +166,7 @@ export class AnalysisSettingsItem extends TreeItem {
 export class AnalysisModeOptionItem extends TreeItem {
   constructor(currentMode: string, isSelected: boolean, extensionPath: string) {
     // ✅ CHANGED: Show current mode and make it clickable to change
-    const label = `Analysis Mode: ${currentMode}`;
+    const label = `Analysis Mode (Files): ${currentMode}`;
     const description = `Current: ${currentMode} - Click to change`;
     const tooltip = currentMode === 'Static' 
       ? 'Static analysis in webview panels. Click to switch to XR mode.'
@@ -180,6 +183,34 @@ export class AnalysisModeOptionItem extends TreeItem {
         arguments: []
       },
       new vscode.ThemeIcon(currentMode === 'Static' ? 'desktop-download' : 'globe')
+    );
+    
+    this.description = description;
+  }
+}
+
+/**
+ * ✅ NEW: Item for directory analysis mode setting option
+ */
+export class AnalysisDirectoryModeOptionItem extends TreeItem {
+  constructor(currentMode: string, extensionPath: string) {
+    const label = `Analysis Mode (Directories): ${currentMode}`;
+    const description = `Current: ${currentMode} - Click to change`;
+    const tooltip = currentMode === 'shallow' 
+      ? 'Shallow directory analysis shows only filenames. Click to switch to deep mode (full paths).'
+      : 'Deep directory analysis shows full file paths. Click to switch to shallow mode (filenames only).';
+
+    super(
+      label,
+      tooltip,
+      TreeItemType.ANALYSIS_SETTING_OPTION,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.toggleDirectoryAnalysisMode',
+        title: 'Toggle Directory Analysis Mode',
+        arguments: []
+      },
+      new vscode.ThemeIcon(currentMode === 'shallow' ? 'folder' : 'folder-library')
     );
     
     this.description = description;
@@ -500,9 +531,10 @@ export const CHART_TYPE_OPTIONS = [
  * Section for active analyses with proper context and commands
  */
 export class ActiveAnalysesSection extends TreeItem {
-  constructor(extensionPath: string) {
+  constructor(extensionPath: string, count?: number) {
+    const title = count !== undefined ? `Active Analyses (${count})` : 'Active Analyses';
     super(
-      'Active Analyses',
+      title,
       'Manage and view active analyses',
       TreeItemType.ACTIVE_ANALYSES_SECTION,
       vscode.TreeItemCollapsibleState.Expanded,
@@ -521,24 +553,14 @@ export class ActiveAnalysisItem extends TreeItem {
     extensionPath: string
   ) {
     const label = `${session.fileName}`;
-    const description = `${session.analysisType} Analysis`;
+    
+    // Generate description using shared utility
+    const description = getAnalysisDescription(session);
+    
     const tooltip = `Active ${session.analysisType} analysis\n\nFile: ${session.filePath}\nStarted: ${session.created.toLocaleString()}\n\nClick to reopen • Right-click to close`;
 
-    // Choose appropriate icon based on analysis type
-    let icon: vscode.ThemeIcon;
-    switch (session.analysisType) {
-      case AnalysisType.XR:
-        icon = new vscode.ThemeIcon('globe', new vscode.ThemeColor('charts.blue'));
-        break;
-      case AnalysisType.STATIC:
-        icon = new vscode.ThemeIcon('graph-line', new vscode.ThemeColor('charts.green'));
-        break;
-      case AnalysisType.DOM:
-        icon = new vscode.ThemeIcon('browser', new vscode.ThemeColor('charts.orange'));
-        break;
-      default:
-        icon = new vscode.ThemeIcon('file-code');
-    }
+    // Get appropriate icon using shared utility
+    const icon = getAnalysisIcon(session);
 
     super(
       label,
@@ -557,5 +579,377 @@ export class ActiveAnalysisItem extends TreeItem {
     
     // Add context menu for closing analysis
     this.contextValue = 'activeAnalysis';
+  }
+}
+
+/**
+ * Container item for Files by Directory section
+ * Now shows the workspace name as the root node
+ */
+export class FilesByDirectoryContainer extends TreeItem {
+  constructor(private rootPath: string, private extensionPath: string) {
+    const rootFolderName = path.basename(rootPath);
+    console.log(`DEPURATION: Creating FilesByDirectoryContainer for rootPath: ${rootPath}, rootFolderName: ${rootFolderName}`);
+    
+    // Use the workspace name as the label, not "Files by Directory"
+    const label = rootFolderName;
+    const tooltip = `Workspace: ${rootFolderName}\n\nBrowse files by directory structure\n\nPath: ${rootPath}`;
+
+    super(
+      label,
+      tooltip,
+      TreeItemType.FILES_BY_DIRECTORY_CONTAINER,
+      vscode.TreeItemCollapsibleState.Collapsed, // Changed from Expanded to Collapsed
+      undefined,
+      new vscode.ThemeIcon('folder-opened')
+    );
+    
+    console.log(`DEPURATION: FilesByDirectoryContainer created with label: ${label}`);
+  }
+
+  /**
+   * Get children for the workspace directory
+   */
+  async getChildren(): Promise<TreeItem[]> {
+    console.log(`DEPURATION: FilesByDirectoryContainer.getChildren() called for rootPath: ${this.rootPath}`);
+    
+    try {
+      // Create a DirectoryFolderItem for the root workspace directory
+      const { DirectoryFolderItem } = await import('./analysisTreeItems.js');
+      const rootItem = new DirectoryFolderItem(this.rootPath, '', this.extensionPath);
+      
+      // Return the children of the root directory directly (not the root item itself)
+      const children = await rootItem.getChildren();
+      console.log(`DEPURATION: FilesByDirectoryContainer returning ${children.length} children from root directory`);
+      return children;
+      
+    } catch (error) {
+      console.error(`DEPURATION: Error getting FilesByDirectoryContainer children:`, error);
+      return [];
+    }
+  }
+}
+
+/**
+ * Directory folder item - Enhanced with VS Code Explorer-like behavior
+ */
+export class DirectoryFolderItem extends TreeItem {
+  constructor(
+    public readonly folderPath: string,
+    public readonly parentPath: string,
+    public readonly extensionPath: string
+  ) {
+    const folderName = path.basename(folderPath);
+    const label = folderName;
+    const tooltip = `Folder: ${folderPath}\n\nClick to analyze directory`;
+
+    console.log(`DEPURATION: Creating DirectoryFolderItem for folderPath: ${folderPath}, folderName: ${folderName}`);
+
+    super(
+      label,
+      tooltip,
+      TreeItemType.DIRECTORY_FOLDER,
+      vscode.TreeItemCollapsibleState.Collapsed,
+      {
+        command: 'codexr.analyzeDirectoryFromTree',
+        title: 'Analyze Directory',
+        arguments: [folderPath]
+      },
+      new vscode.ThemeIcon('folder')
+    );
+    
+    this.contextValue = 'directoryFolder';
+    console.log(`DEPURATION: DirectoryFolderItem created with label: ${label}, contextValue: ${this.contextValue}`);
+  }
+
+  async getChildren(): Promise<TreeItem[]> {
+    const children: TreeItem[] = [];
+    
+    console.log(`DEPURATION: Getting children for directory: ${this.folderPath}`);
+    
+    try {
+      const items = await vscode.workspace.fs.readDirectory(vscode.Uri.file(this.folderPath));
+      console.log(`DEPURATION: Read ${items.length} items from directory: ${this.folderPath}`);
+      
+      // Apply filtering similar to VS Code Explorer
+      const filteredItems = items.filter(([name, type]) => {
+        console.log(`DEPURATION: Processing item: ${name}, type: ${type}`);
+        
+        // Get VS Code explorer settings
+        const filesConfig = vscode.workspace.getConfiguration('files');
+        const explorerConfig = vscode.workspace.getConfiguration('explorer');
+        
+        // Check if hidden files should be shown (like VS Code Explorer)
+        const excludePatterns = filesConfig.get<{[key: string]: boolean}>('exclude') || {};
+        const showHiddenFiles = !excludePatterns['**/.*'];
+        
+        // Handle hidden files based on VS Code settings
+        if (name.startsWith('.') && !showHiddenFiles) {
+          console.log(`DEPURATION: Skipping hidden item: ${name} (hidden files not shown in VS Code)`);
+          return false;
+        }
+        
+        // Check if item matches any exclude pattern
+        for (const [pattern, exclude] of Object.entries(excludePatterns)) {
+          if (exclude && this.matchesGlobPattern(name, pattern)) {
+            console.log(`DEPURATION: Skipping item: ${name} (matches exclude pattern: ${pattern})`);
+            return false;
+          }
+        }
+        
+        // Additional filtering for common build/temp directories (but respect VS Code settings)
+        const commonExcludes = ['node_modules', 'dist', 'build', 'out', 'target', 'bin', 'obj', '__pycache__', 'coverage'];
+        if (type === vscode.FileType.Directory && commonExcludes.includes(name) && !showHiddenFiles) {
+          console.log(`DEPURATION: Skipping common build directory: ${name}`);
+          return false;
+        }
+        
+        console.log(`DEPURATION: Including item: ${name}`);
+        return true;
+      });
+      
+      console.log(`DEPURATION: After filtering: ${filteredItems.length} items remain`);
+      
+      // Sort: folders first, then files, alphabetically within each group (like VS Code Explorer)
+      const sortedItems = filteredItems.sort((a, b) => {
+        const [nameA, typeA] = a;
+        const [nameB, typeB] = b;
+        
+        // Folders first
+        if (typeA !== typeB) {
+          return typeA === vscode.FileType.Directory ? -1 : 1;
+        }
+        
+        // Alphabetical within type (case-insensitive like VS Code)
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+      });
+      
+      console.log(`DEPURATION: Processing ${sortedItems.length} sorted items`);
+      
+      for (const [name, type] of sortedItems) {
+        const fullPath = path.join(this.folderPath, name);
+        console.log(`DEPURATION: Creating tree item for: ${name}, type: ${type}, fullPath: ${fullPath}`);
+        
+        if (type === vscode.FileType.Directory) {
+          const folderItem = new DirectoryFolderItem(fullPath, this.folderPath, this.extensionPath);
+          children.push(folderItem);
+          console.log(`DEPURATION: Added DirectoryFolderItem: ${name}`);
+        } else if (type === vscode.FileType.File) {
+          const fileItem = new DirectoryFileItem(fullPath, this.folderPath, this.extensionPath);
+          children.push(fileItem);
+          console.log(`DEPURATION: Added DirectoryFileItem: ${name}`);
+        } else if (type === vscode.FileType.SymbolicLink) {
+          // Handle symlinks like VS Code Explorer
+          try {
+            const stats = await vscode.workspace.fs.stat(vscode.Uri.file(fullPath));
+            if (stats.type === vscode.FileType.Directory) {
+              const folderItem = new DirectoryFolderItem(fullPath, this.folderPath, this.extensionPath);
+              children.push(folderItem);
+              console.log(`DEPURATION: Added DirectoryFolderItem (symlink): ${name}`);
+            } else {
+              const fileItem = new DirectoryFileItem(fullPath, this.folderPath, this.extensionPath);
+              children.push(fileItem);
+              console.log(`DEPURATION: Added DirectoryFileItem (symlink): ${name}`);
+            }
+          } catch (symlinkError) {
+            console.log(`DEPURATION: Error resolving symlink ${name}: ${symlinkError}`);
+            // Treat as file if we can't resolve it
+            const fileItem = new DirectoryFileItem(fullPath, this.folderPath, this.extensionPath);
+            children.push(fileItem);
+            console.log(`DEPURATION: Added DirectoryFileItem (unresolved symlink): ${name}`);
+          }
+        }
+      }
+      
+      console.log(`DEPURATION: Created ${children.length} child items for directory: ${this.folderPath}`);
+      
+    } catch (error) {
+      console.error(`DEPURATION: Error reading directory: ${this.folderPath}`, error);
+    }
+    
+    return children;
+  }
+  
+  /**
+   * Simple glob pattern matching for exclude patterns
+   */
+  private matchesGlobPattern(fileName: string, pattern: string): boolean {
+    // Simple implementation - convert glob to regex
+    const regexPattern = pattern
+      .replace(/\*\*/g, '.*')  // ** matches any number of directories
+      .replace(/\*/g, '[^/]*') // * matches any characters except /
+      .replace(/\?/g, '.')     // ? matches any single character
+      .replace(/\./g, '\\.');  // Escape literal dots
+    
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(fileName);
+  }
+}
+
+/**
+ * Directory file item - Enhanced with debug logging
+ */
+export class DirectoryFileItem extends TreeItem {
+  constructor(
+    public readonly filePath: string,
+    public readonly parentPath: string,
+    public readonly extensionPath: string
+  ) {
+    const fileName = path.basename(filePath);
+    const fileExtension = path.extname(filePath).toLowerCase();
+    const label = fileName;
+    const tooltip = `File: ${filePath}`;
+
+    console.log(`DEPURATION: Creating DirectoryFileItem for filePath: ${filePath}, fileName: ${fileName}, extension: ${fileExtension}`);
+
+    // Get appropriate icon based on file extension
+    const icon = getFileIcon(fileExtension, extensionPath);
+
+    super(
+      label,
+      tooltip,
+      TreeItemType.DIRECTORY_FILE,
+      vscode.TreeItemCollapsibleState.None,
+      {
+        command: 'codexr.analyzeFile',
+        title: 'Analyze File',
+        arguments: [vscode.Uri.file(filePath)]
+      },
+      icon
+    );
+    
+    this.contextValue = 'directoryFile';
+    console.log(`DEPURATION: DirectoryFileItem created with label: ${label}, contextValue: ${this.contextValue}, icon: ${icon.id || 'custom'}`);
+  }
+}
+
+/**
+ * Get appropriate icon for file based on extension using VS Code theme icons
+ */
+function getFileIcon(extension: string, extensionPath: string): vscode.ThemeIcon {
+  // Map file extensions to VS Code theme icons for consistency
+  const iconMap: { [key: string]: string } = {
+    '.js': 'file-code',
+    '.jsx': 'file-code', 
+    '.ts': 'file-code',
+    '.tsx': 'file-code',
+    '.py': 'file-code',
+    '.html': 'file-code',
+    '.htm': 'file-code',
+    '.css': 'file-code',
+    '.scss': 'file-code',
+    '.sass': 'file-code',
+    '.less': 'file-code',
+    '.json': 'json',
+    '.md': 'markdown',
+    '.java': 'file-code',
+    '.c': 'file-code',
+    '.h': 'file-code',
+    '.cpp': 'file-code',
+    '.cc': 'file-code',
+    '.cxx': 'file-code',
+    '.cs': 'file-code',
+    '.rb': 'file-code',
+    '.php': 'file-code',
+    '.go': 'file-code',
+    '.rs': 'file-code',
+    '.kt': 'file-code',
+    '.swift': 'file-code',
+    '.vue': 'file-code',
+    '.xml': 'file-code',
+    '.yaml': 'file-code',
+    '.yml': 'file-code',
+    '.sh': 'terminal',
+    '.bat': 'terminal',
+    '.ps1': 'terminal',
+    '.txt': 'file-text',
+    '.log': 'file-text',
+    '.sql': 'database',
+    '.gitignore': 'git-ignore',
+    '.dockerfile': 'file-docker',
+    '.png': 'file-media',
+    '.jpg': 'file-media',
+    '.jpeg': 'file-media',
+    '.gif': 'file-media',
+    '.svg': 'file-media',
+    '.ico': 'file-media'
+  };
+  
+  const iconName = iconMap[extension.toLowerCase()];
+  return new vscode.ThemeIcon(iconName || 'file');
+}
+
+/**
+ * Container item for Project Files section - integrates into analysis tree
+ */
+export class ProjectFileContainer extends TreeItem {
+  constructor(private rootPath: string, private extensionPath: string) {
+    const rootFolderName = path.basename(rootPath);
+    console.log(`DEPURATION: Creating ProjectFileContainer for rootPath: ${rootPath}, rootFolderName: ${rootFolderName}`);
+    
+    // Use "Project Files" as label with workspace name in description
+    const label = 'Project Files';
+    const description = rootFolderName;
+    const tooltip = `Browse project file structure\n\nWorkspace: ${rootFolderName}\nPath: ${rootPath}`;
+
+    super(
+      label,
+      tooltip,
+      TreeItemType.FILES_BY_DIRECTORY_CONTAINER, // Reuse existing type
+      vscode.TreeItemCollapsibleState.Collapsed,
+      undefined,
+      new vscode.ThemeIcon('folder-opened')
+    );
+    
+    this.description = description;
+    console.log(`DEPURATION: ProjectFileContainer created with label: ${label}, description: ${description}`);
+  }
+
+  /**
+   * Get children for the workspace directory by creating DirectoryFolderItem and DirectoryFileItem
+   */
+  async getChildren(): Promise<TreeItem[]> {
+    console.log(`DEPURATION: ProjectFileContainer.getChildren() called for rootPath: ${this.rootPath}`);
+    
+    try {
+      // Create a special workspace root folder item with project context menu commands
+      const workspaceRootItem = new WorkspaceRootFolderItem(this.rootPath, this.extensionPath);
+      
+      // Get just the workspace root contents (files and subdirectories)
+      const rootChildren = await workspaceRootItem.getChildren();
+      
+      // Return the workspace root folder as the first item, followed by its contents
+      const children = [workspaceRootItem, ...rootChildren];
+      
+      console.log(`DEPURATION: ProjectFileContainer returning ${children.length} children (workspace root + ${rootChildren.length} contents)`);
+      return children;
+      
+    } catch (error) {
+      console.error(`DEPURATION: Error getting ProjectFileContainer children:`, error);
+      return [];
+    }
+  }
+}
+
+/**
+ * ✅ ENHANCED: Special folder item for workspace root that shows project-level context menu commands
+ */
+export class WorkspaceRootFolderItem extends DirectoryFolderItem {
+  constructor(folderPath: string, extensionPath: string) {
+    super(folderPath, '', extensionPath);
+    
+    const folderName = path.basename(folderPath);
+    console.log(`DEPURATION: Creating WorkspaceRootFolderItem for workspace root: ${folderPath}, name: ${folderName}`);
+    
+    // Update properties for workspace root
+    this.label = folderName; // Show workspace name
+    this.description = 'Workspace Root';
+    this.tooltip = `Workspace Root: ${folderPath}\n\nRight-click to analyze entire project`;
+    this.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('tree.indentGuidesStroke'));
+    
+    // Special context value for workspace root to show project-level commands
+    this.contextValue = 'directoryFolder'; // Keep same contextValue for existing commands to work
+    
+    console.log(`DEPURATION: WorkspaceRootFolderItem created with label: ${this.label}, contextValue: ${this.contextValue}`);
   }
 }

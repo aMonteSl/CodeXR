@@ -1,5 +1,6 @@
 declare global {
   var treeDataProvider: any;
+  var codexrExtensionContext: vscode.ExtensionContext;
 }
 
 import * as vscode from 'vscode';
@@ -12,6 +13,8 @@ import { stopServer } from './server/serverManager';
 import { registerAnalysisCommands } from './commands/analysisCommands';
 import { registerPythonEnvCommands, checkAndSetupPythonEnvironment } from './pythonEnv';
 import { FileWatchManager } from './analysis/watchers/fileWatchManager';
+import { directoryWatchManager } from './analysis/watchers/directoryWatchManager';
+import { SharedDirectoryWatcherManager } from './analysis/utils/directoryWatcher';
 import { analysisDataManager } from './analysis/utils/dataManager';
 import { cleanupXRVisualizations } from './analysis/xr/xrAnalysisManager';
 import { cleanupDOMVisualizations } from './analysis/html/domVisualizationManager';
@@ -21,6 +24,9 @@ import { cleanupDOMVisualizations } from './analysis/html/domVisualizationManage
  */
 export async function activate(context: vscode.ExtensionContext) {
   console.log('🚀 Extension "CodeXR" is now active.');
+
+  // Store context globally for access by commands
+  global.codexrExtensionContext = context;
 
   // Initialize status bar manager
   const statusBarManager = getStatusBarManager(context);
@@ -34,6 +40,17 @@ export async function activate(context: vscode.ExtensionContext) {
   } else {
     console.error('❌ Failed to initialize FileWatchManager');
   }
+  
+  // ✅ CRITICAL: Initialize DirectoryWatchManager with proper settings
+  console.log('🔧 Initializing DirectoryWatchManager...');
+  directoryWatchManager.initialize(context);
+  console.log('✅ DirectoryWatchManager initialized successfully');
+  
+  // ✅ CRITICAL: Initialize SharedDirectoryWatcherManager for XR
+  console.log('🔧 Initializing SharedDirectoryWatcherManager...');
+  const sharedWatcherManager = SharedDirectoryWatcherManager.getInstance();
+  sharedWatcherManager.initialize(context);
+  console.log('✅ SharedDirectoryWatcherManager initialized successfully');
   
   // Register tree data provider for the unified view
   const treeDataProvider = new LocalServerProvider(context);

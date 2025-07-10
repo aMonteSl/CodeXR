@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { TreeItem } from './baseItems';
 import { TreeItemType } from '../treeProvider';
 import { ServerMode, ServerInfo } from '../../server/models/serverModel';
+import { ServerDisplayUtils } from '../../analysis/tree/analysisIconUtils';
 
 /**
  * Item to start the server
@@ -134,15 +135,22 @@ export class ActiveServersContainer extends TreeItem {
  */
 export class ActiveServerItem extends TreeItem {
   constructor(serverInfo: ServerInfo) {
-    // ✅ USE CUSTOM NAME IF IT'S AN XR ANALYSIS (including DOM visualization)
-    const displayName = serverInfo.analysisFileName 
-      ? `${serverInfo.analysisFileName}: ${serverInfo.port}`
-      : path.basename(serverInfo.filePath);
+    // ✅ CUSTOM FORMATTING FOR XR ANALYSIS (both file and directory)
+    let displayName: string;
+    let description: string;
+    let iconPath: vscode.ThemeIcon;
     
-    // ✅ CUSTOM DESCRIPTION FOR XR ANALYSIS (including DOM visualization)  
-    const description = serverInfo.analysisFileName
-      ? `XR Analysis - ${serverInfo.protocol.toUpperCase()}`
-      : serverInfo.url;
+    if (ServerDisplayUtils.isXRAnalysisServer(serverInfo.analysisFileName)) {
+      // This is an XR analysis server - use shared formatting utility
+      displayName = ServerDisplayUtils.formatXRServerDisplayName(serverInfo.analysisFileName!, serverInfo.port);
+      description = `XR Analysis - ${serverInfo.protocol.toUpperCase()}`;
+      iconPath = new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.purple'));
+    } else {
+      // Regular server
+      displayName = path.basename(serverInfo.filePath);
+      description = serverInfo.url;
+      iconPath = new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe');
+    }
     
     const tooltip = serverInfo.analysisFileName
       ? `XR Analysis Server
@@ -165,10 +173,7 @@ Click to see options`;
         title: 'Server Options',
         arguments: [serverInfo]
       },
-      // ✅ PURPLE ICON FOR XR ANALYSIS (including DOM visualization)
-      serverInfo.analysisFileName 
-        ? new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.purple'))
-        : new vscode.ThemeIcon(serverInfo.useHttps ? 'shield' : 'globe')
+      iconPath
     );
     
     this.description = description;

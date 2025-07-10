@@ -113,9 +113,10 @@ export function stopServer(serverId?: string): void {
     const sessionManager = AnalysisSessionManager.getInstance();
     const activeSessions = sessionManager.getAllSessions();
     const analysisSession = activeSessions.find(session => 
-      (session.analysisType === AnalysisType.XR || session.analysisType === AnalysisType.DOM) && 
-      session.panelRef && 
-      session.panelRef.id === serverToStop.info.id
+      (session.analysisType === AnalysisType.XR || 
+       session.analysisType === AnalysisType.DOM || 
+       session.analysisType === AnalysisType.DIRECTORY) && 
+      session.filePath === serverToStop.info.filePath
     );
     if (analysisSession) {
       console.log(`🗑️ Removing ${analysisSession.analysisType} analysis session for: ${analysisSession.filePath}`);
@@ -150,11 +151,37 @@ export function stopServer(serverId?: string): void {
       // ✅ Remove analysis session if this server was used for analysis
       const sessionManager = AnalysisSessionManager.getInstance();
       const activeSessions = sessionManager.getAllSessions();
-      const analysisSession = activeSessions.find(session => 
-        (session.analysisType === AnalysisType.XR || session.analysisType === AnalysisType.DOM) && 
-        session.panelRef && 
-        session.panelRef.id === serverId
-      );
+      
+      // Find matching analysis session using multiple strategies
+      const analysisSession = activeSessions.find(session => {
+        // Strategy 1: Direct file path match (for regular servers)
+        if (session.filePath === serverEntry.info.filePath) {
+          return true;
+        }
+        
+        // Strategy 2: For XR analyses, match by analysis file name
+        if ((session.analysisType === AnalysisType.XR || 
+             session.analysisType === AnalysisType.DOM || 
+             (session.analysisType === AnalysisType.DIRECTORY && session.metadata?.visualizationType === 'xr')) &&
+            serverEntry.info.analysisFileName) {
+          
+          // For file XR analysis
+          if (session.analysisType === AnalysisType.XR) {
+            const sessionFileName = path.basename(session.filePath, path.extname(session.filePath));
+            return serverEntry.info.analysisFileName === sessionFileName ||
+                   serverEntry.info.analysisFileName.includes(sessionFileName);
+          }
+          
+          // For directory XR analysis
+          if (session.analysisType === AnalysisType.DIRECTORY && serverEntry.info.analysisFileName.startsWith('DIR:')) {
+            const sessionDirName = path.basename(session.filePath);
+            const serverDirName = serverEntry.info.analysisFileName.substring(4); // Remove 'DIR:' prefix
+            return sessionDirName === serverDirName;
+          }
+        }
+        
+        return false;
+      });
       if (analysisSession) {
         console.log(`🗑️ Removing ${analysisSession.analysisType} analysis session for: ${analysisSession.filePath}`);
         sessionManager.removeSession(analysisSession.id);

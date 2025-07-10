@@ -51,6 +51,7 @@ function registerAnalysisSettingsCommands(context) {
     const settingsManager = new analysisSettingsManager_1.AnalysisSettingsManager(context);
     // Core settings commands
     disposables.push(registerToggleAnalysisModeCommand());
+    disposables.push(registerToggleDirectoryAnalysisModeCommand());
     disposables.push(registerSetAnalysisDebounceDelayCommand());
     disposables.push(registerToggleAutoAnalysisCommand());
     disposables.push(registerSetAnalysisChartTypeCommand(context));
@@ -82,6 +83,36 @@ function registerToggleAnalysisModeCommand() {
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error changing analysis mode: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the toggle directory analysis mode command
+ * @returns Command disposable
+ */
+function registerToggleDirectoryAnalysisModeCommand() {
+    return vscode.commands.registerCommand('codexr.toggleDirectoryAnalysisMode', async () => {
+        try {
+            const config = vscode.workspace.getConfiguration();
+            const currentMode = config.get('codexr.analysis.directoryMode', 'shallow');
+            // Toggle between modes
+            const newMode = currentMode === 'shallow' ? 'deep' : 'shallow';
+            // Update configuration
+            await config.update('codexr.analysis.directoryMode', newMode, vscode.ConfigurationTarget.Global);
+            // Show success message
+            const modeDescription = newMode === 'shallow'
+                ? 'Shows filenames only'
+                : 'Shows full file paths';
+            vscode.window.showInformationMessage(`✅ Directory analysis mode changed to: ${newMode} (${modeDescription})`, { modal: false });
+            // Refresh tree to show updated mode
+            const treeDataProvider = global.treeDataProvider;
+            if (treeDataProvider && typeof treeDataProvider.refresh === 'function') {
+                treeDataProvider.refresh();
+            }
+            console.log(`🔄 Directory analysis mode changed from ${currentMode} to ${newMode}`);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error changing directory analysis mode: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
 }

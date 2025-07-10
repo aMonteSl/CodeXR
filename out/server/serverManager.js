@@ -137,9 +137,10 @@ function stopServer(serverId) {
         // ✅ Remove analysis session if this server was used for analysis
         const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
         const activeSessions = sessionManager.getAllSessions();
-        const analysisSession = activeSessions.find(session => (session.analysisType === analysisSessionManager_1.AnalysisType.XR || session.analysisType === analysisSessionManager_1.AnalysisType.DOM) &&
-            session.panelRef &&
-            session.panelRef.id === serverToStop.info.id);
+        const analysisSession = activeSessions.find(session => (session.analysisType === analysisSessionManager_1.AnalysisType.XR ||
+            session.analysisType === analysisSessionManager_1.AnalysisType.DOM ||
+            session.analysisType === analysisSessionManager_1.AnalysisType.DIRECTORY) &&
+            session.filePath === serverToStop.info.filePath);
         if (analysisSession) {
             console.log(`🗑️ Removing ${analysisSession.analysisType} analysis session for: ${analysisSession.filePath}`);
             sessionManager.removeSession(analysisSession.id);
@@ -168,9 +169,32 @@ function stopServer(serverId) {
             // ✅ Remove analysis session if this server was used for analysis
             const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
             const activeSessions = sessionManager.getAllSessions();
-            const analysisSession = activeSessions.find(session => (session.analysisType === analysisSessionManager_1.AnalysisType.XR || session.analysisType === analysisSessionManager_1.AnalysisType.DOM) &&
-                session.panelRef &&
-                session.panelRef.id === serverId);
+            // Find matching analysis session using multiple strategies
+            const analysisSession = activeSessions.find(session => {
+                // Strategy 1: Direct file path match (for regular servers)
+                if (session.filePath === serverEntry.info.filePath) {
+                    return true;
+                }
+                // Strategy 2: For XR analyses, match by analysis file name
+                if ((session.analysisType === analysisSessionManager_1.AnalysisType.XR ||
+                    session.analysisType === analysisSessionManager_1.AnalysisType.DOM ||
+                    (session.analysisType === analysisSessionManager_1.AnalysisType.DIRECTORY && session.metadata?.visualizationType === 'xr')) &&
+                    serverEntry.info.analysisFileName) {
+                    // For file XR analysis
+                    if (session.analysisType === analysisSessionManager_1.AnalysisType.XR) {
+                        const sessionFileName = path.basename(session.filePath, path.extname(session.filePath));
+                        return serverEntry.info.analysisFileName === sessionFileName ||
+                            serverEntry.info.analysisFileName.includes(sessionFileName);
+                    }
+                    // For directory XR analysis
+                    if (session.analysisType === analysisSessionManager_1.AnalysisType.DIRECTORY && serverEntry.info.analysisFileName.startsWith('DIR:')) {
+                        const sessionDirName = path.basename(session.filePath);
+                        const serverDirName = serverEntry.info.analysisFileName.substring(4); // Remove 'DIR:' prefix
+                        return sessionDirName === serverDirName;
+                    }
+                }
+                return false;
+            });
             if (analysisSession) {
                 console.log(`🗑️ Removing ${analysisSession.analysisType} analysis session for: ${analysisSession.filePath}`);
                 sessionManager.removeSession(analysisSession.id);

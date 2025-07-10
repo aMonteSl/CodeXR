@@ -29,7 +29,16 @@
             "XR"
           ],
           "default": "XR",
-          "description": "Default mode for code analysis (Static or XR)"
+          "description": "Default mode for file analysis (Static or XR)"
+        },
+        "codexr.analysis.directoryMode": {
+          "type": "string",
+          "enum": [
+            "shallow",
+            "deep"
+          ],
+          "default": "shallow",
+          "description": "Default mode for directory analysis (shallow: filenames only, deep: full file paths)"
         },
         "codexr.analysis.debounceDelay": {
           "type": "number",
@@ -238,6 +247,54 @@
         "icon": "$(files)"
       },
       {
+        "command": "codexr.analyzeDirectoryStatic",
+        "title": "CodeXR: Analyze Directory (Static)",
+        "category": "Code Analysis",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "codexr.analyzeDirectoryDeepStatic",
+        "title": "CodeXR: Analyze Directory Deep (Static)",
+        "category": "Code Analysis",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "codexr.analyzeDirectoryXR",
+        "title": "CodeXR: Analyze Directory (XR)",
+        "category": "Code Analysis",
+        "icon": "$(vr)"
+      },
+      {
+        "command": "codexr.analyzeDirectoryXRDeep",
+        "title": "CodeXR: Analyze Directory Deep (XR)",
+        "category": "Code Analysis",
+        "icon": "$(vr)"
+      },
+      {
+        "command": "codexr.analyzeProjectStatic",
+        "title": "CodeXR: Analyze Project (Static)",
+        "category": "Code Analysis",
+        "icon": "$(project)"
+      },
+      {
+        "command": "codexr.analyzeProjectDeepStatic",
+        "title": "CodeXR: Analyze Project Deep (Static)",
+        "category": "Code Analysis",
+        "icon": "$(library)"
+      },
+      {
+        "command": "codexr.analyzeProjectXR",
+        "title": "CodeXR: Analyze Project (XR)",
+        "category": "Code Analysis",
+        "icon": "$(vr)"
+      },
+      {
+        "command": "codexr.analyzeProjectXRDeep",
+        "title": "CodeXR: Analyze Project Deep (XR)",
+        "category": "Code Analysis",
+        "icon": "$(vr)"
+      },
+      {
         "command": "codexr.analysis.debug",
         "title": "CodeXR: Debug Analysis Sessions",
         "category": "Code Analysis",
@@ -342,6 +399,12 @@
         "icon": "$(arrow-swap)"
       },
       {
+        "command": "codexr.toggleDirectoryAnalysisMode",
+        "title": "Toggle Directory Analysis Mode",
+        "category": "CodeXR",
+        "icon": "$(folder-arrow-swap)"
+      },
+      {
         "command": "codexr.configureTreeDisplay",
         "title": "Configure Tree Display",
         "category": "CodeXR",
@@ -420,6 +483,26 @@
           "group": "1_actions"
         },
         {
+          "command": "codexr.analyzeProjectStatic",
+          "when": "viewItem == directoryFolder",
+          "group": "1_project"
+        },
+        {
+          "command": "codexr.analyzeProjectDeepStatic",
+          "when": "viewItem == directoryFolder",
+          "group": "1_project"
+        },
+        {
+          "command": "codexr.analyzeProjectXR",
+          "when": "viewItem == directoryFolder",
+          "group": "1_project"
+        },
+        {
+          "command": "codexr.analyzeProjectXRDeep",
+          "when": "viewItem == directoryFolder",
+          "group": "1_project"
+        },
+        {
           "command": "codexr.setAnalysisMode",
           "when": "viewItem == analysis_setting_option && resourceLangId == mode",
           "group": "inline"
@@ -458,6 +541,26 @@
           "command": "codexr.closeAnalysis",
           "when": "viewItem == activeAnalysis",
           "group": "inline"
+        },
+        {
+          "command": "codexr.analyzeFile",
+          "when": "viewItem == projectFile",
+          "group": "navigation"
+        },
+        {
+          "command": "codexr.analyzeFile3D",
+          "when": "viewItem == projectFile",
+          "group": "navigation"
+        },
+        {
+          "command": "codexr.analyzeDirectoryStatic",
+          "when": "viewItem == projectFolder",
+          "group": "navigation"
+        },
+        {
+          "command": "codexr.analyzeDirectoryDeepStatic",
+          "when": "viewItem == projectFolder",
+          "group": "navigation"
         }
       ],
       "editor/context": [
@@ -487,6 +590,46 @@
           "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby || resourceLangId == java || resourceLangId == objective-c || resourceLangId == objective-cpp || resourceLangId == swift || resourceLangId == ttcn3 || resourceLangId == php || resourceLangId == scala || resourceLangId == gdscript || resourceLangId == go || resourceLangId == lua || resourceLangId == rust || resourceLangId == fortran || resourceLangId == kotlin || resourceLangId == solidity || resourceLangId == erlang || resourceLangId == zig || resourceLangId == perl",
           "command": "codexr.analyzeFile3D",
           "group": "CodeXR"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeDirectoryStatic",
+          "group": "CodeXR"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeDirectoryDeepStatic",
+          "group": "CodeXR"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeDirectoryXR",
+          "group": "CodeXR"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeDirectoryXRDeep",
+          "group": "CodeXR"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeProjectStatic",
+          "group": "CodeXR@1"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeProjectDeepStatic",
+          "group": "CodeXR@1"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeProjectXR",
+          "group": "CodeXR@1"
+        },
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "codexr.analyzeProjectXRDeep",
+          "group": "CodeXR@1"
         },
         {
           "command": "codexr.visualizeDOM",
@@ -531,7 +674,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "esbuild --watch --config=esbuild.config.mjs",
+    "watch": "tsc -watch -p ./",
     "build": "node esbuild.config.mjs",
     "package": "vsce package"
   },

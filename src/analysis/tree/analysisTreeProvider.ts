@@ -88,33 +88,50 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   async getChildren(element?: TreeItem): Promise<TreeItem[]> {
+    console.log(`DEPURATION: getChildren called with element:`, element ? `${element.type}:${element.label}` : 'ROOT');
+    
     if (!element) {
       // Root level: return analysis section
+      console.log('DEPURATION: Returning root analysis section');
       return [getAnalysisSectionItem(this.context.extensionPath)];
     }
 
     // ✅ FIXED: Handle different element types properly
-    console.log('🔍 Getting children for element type:', element.type, 'label:', element.label);
+    console.log('DEPURATION: Getting children for element type:', element.type, 'label:', element.label);
 
     switch (element.type) {
       case TreeItemType.ANALYSIS_SECTION:
-        console.log('📊 Getting analysis section children');
+        console.log('DEPURATION: Handling ANALYSIS_SECTION');
         return await getAnalysisChildren(this.context);
       
       case TreeItemType.ACTIVE_ANALYSES_SECTION:
-        console.log('🔍 Getting active analyses children');
+        console.log('DEPURATION: Handling ACTIVE_ANALYSES_SECTION');
         return await getActiveAnalysesChildren(this.context);
       
       case TreeItemType.FILES_PER_LANGUAGE_CONTAINER:
-        console.log('📁 Getting files per language children');
+        console.log('DEPURATION: Handling FILES_PER_LANGUAGE_CONTAINER');
         return await getFilesPerLanguageChildren(this.context);
       
+      case TreeItemType.FILES_BY_DIRECTORY_CONTAINER:
+        console.log('DEPURATION: Handling FILES_BY_DIRECTORY_CONTAINER');
+        // Check if the element has its own getChildren method
+        const { ProjectFileContainer } = await import('./analysisTreeItems.js');
+        if (element instanceof ProjectFileContainer) {
+          console.log('DEPURATION: Element is ProjectFileContainer, calling its getChildren() method');
+          return await element.getChildren();
+        }
+        return [];
+      
+      case TreeItemType.DIRECTORY_FOLDER:
+        console.log('DEPURATION: Handling DIRECTORY_FOLDER for:', element.label);
+        return await getDirectoryFolderChildren(element);
+      
       case TreeItemType.ANALYSIS_LANGUAGE_GROUP:
-        console.log('📂 Getting language group children for:', element.label);
+        console.log('DEPURATION: Handling ANALYSIS_LANGUAGE_GROUP for:', element.label);
         return await getLanguageGroupChildren(element, this.context);
       
       case TreeItemType.ANALYSIS_SETTINGS:
-        console.log('⚙️ Getting analysis settings children');
+        console.log('DEPURATION: Handling ANALYSIS_SETTINGS');
         // ✅ FIXED: Handle settings children properly
         if (element instanceof AnalysisSettingsItem) {
           return await element.getChildren();
@@ -122,7 +139,7 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
         return [];
       
       case TreeItemType.DIMENSION_MAPPING:
-        console.log('🔗 Getting dimension mapping children');
+        console.log('DEPURATION: Handling DIMENSION_MAPPING');
         // ✅ FIXED: Import and handle dimension mapping
         try {
           const { DimensionMappingItem } = await import('./dimensionMappingTreeItem.js');
@@ -135,7 +152,7 @@ export class AnalysisTreeProvider implements vscode.TreeDataProvider<TreeItem> {
         return [];
       
       default:
-        console.log('❓ Unknown element type:', element.type);
+        console.log('DEPURATION: Unknown element type:', element.type);
         return [];
     }
   }
@@ -171,9 +188,11 @@ export async function getAnalysisChildren(context: vscode.ExtensionContext): Pro
     
     const children: TreeItem[] = [];
     
-    // Add Active Analyses section first
+    // Add Active Analyses section first with count
     const { ActiveAnalysesSection } = await import('./analysisTreeItems.js');
-    children.push(new ActiveAnalysesSection(context.extensionPath));
+    const sessionManager = AnalysisSessionManager.getInstance();
+    const activeAnalysesCount = sessionManager.getSessionCount();
+    children.push(new ActiveAnalysesSection(context.extensionPath, activeAnalysesCount));
     
     // ✅ FIXED: Use imported class
     children.push(new AnalysisSettingsItem(context.extensionPath, context));
@@ -192,7 +211,22 @@ export async function getAnalysisChildren(context: vscode.ExtensionContext): Pro
       return children;
     }
     
-    // ✅ FIXED: Use imported class
+    // ✅ NEW: Add Project Files section for directory browsing
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+      const rootPath = workspaceFolders[0].uri.fsPath;
+      const rootName = path.basename(rootPath);
+      console.log(`DEPURATION: Creating ProjectFileContainer for workspace: ${rootName} at path: ${rootPath}`);
+      
+      const { ProjectFileContainer } = await import('./analysisTreeItems.js');
+      const projectFileContainer = new ProjectFileContainer(rootPath, context.extensionPath);
+      children.push(projectFileContainer);
+      console.log(`DEPURATION: Added ProjectFileContainer to children with label: ${projectFileContainer.label}`);
+    } else {
+      console.log(`DEPURATION: No workspace folders found, skipping ProjectFileContainer`);
+    }
+    
+    // ✅ MOVED: Add Files per Language section (main analysis tree functionality)
     children.push(new FilesPerLanguageContainer(languages.length, totalFiles, context.extensionPath));
     
     console.log(`✅ Analysis children created: ${children.length} items (${languages.length} languages, ${totalFiles} files)`);
@@ -710,6 +744,79 @@ export async function getActiveAnalysesChildren(context: vscode.ExtensionContext
       createErrorItem(
         'Error loading active analyses',
         `Failed to load active analyses: ${error instanceof Error ? error.message : String(error)}`
+      )
+    ];
+  }
+}
+
+/**
+ * Get children for Files by Directory container
+ */
+export async function getFilesByDirectoryChildren(context: vscode.ExtensionContext): Promise<TreeItem[]> {
+  try {
+    console.log('DEPURATION: Getting files by directory children...');
+    
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    console.log(`DEPURATION: Found ${workspaceFolders?.length || 0} workspace folders`);
+    
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      console.log('DEPURATION: No workspace folders found, returning error item');
+      return [
+        createErrorItem(
+          'No workspace open',
+          'Open a workspace or folder to browse files by directory'
+        )
+      ];
+    }
+    
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const rootName = path.basename(rootPath);
+    console.log(`DEPURATION: Using root workspace folder: ${rootPath} (name: ${rootName})`);
+    
+    const { DirectoryFolderItem } = await import('./analysisTreeItems.js');
+    
+    // Return a single root folder item that shows the workspace structure
+    const rootItem = new DirectoryFolderItem(rootPath, '', context.extensionPath);
+    console.log(`DEPURATION: Created root DirectoryFolderItem for: ${rootPath}`);
+    
+    return [rootItem];
+    
+  } catch (error) {
+    console.error('DEPURATION: Error getting files by directory children:', error);
+    return [
+      createErrorItem(
+        'Error loading directory structure',
+        `Failed to load directory structure: ${error}`
+      )
+    ];
+  }
+}
+
+/**
+ * Get children for a directory folder
+ */
+export async function getDirectoryFolderChildren(element: TreeItem): Promise<TreeItem[]> {
+  try {
+    console.log(`DEPURATION: Getting directory folder children for element: ${element.label}, type: ${element.type}`);
+    
+    const { DirectoryFolderItem } = await import('./analysisTreeItems.js');
+    
+    if (element instanceof DirectoryFolderItem) {
+      console.log(`DEPURATION: Element is DirectoryFolderItem, calling getChildren() for path: ${element.folderPath}`);
+      const children = await element.getChildren();
+      console.log(`DEPURATION: DirectoryFolderItem.getChildren() returned ${children.length} children`);
+      return children;
+    }
+    
+    console.log(`DEPURATION: Element is not DirectoryFolderItem, returning empty array`);
+    return [];
+    
+  } catch (error) {
+    console.error('DEPURATION: Error getting directory folder children:', error);
+    return [
+      createErrorItem(
+        'Error loading folder',
+        `Failed to load folder contents: ${error}`
       )
     ];
   }

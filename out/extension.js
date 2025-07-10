@@ -45,6 +45,8 @@ const serverManager_1 = require("./server/serverManager");
 const analysisCommands_1 = require("./commands/analysisCommands");
 const pythonEnv_1 = require("./pythonEnv");
 const fileWatchManager_1 = require("./analysis/watchers/fileWatchManager");
+const directoryWatchManager_1 = require("./analysis/watchers/directoryWatchManager");
+const directoryWatcher_1 = require("./analysis/utils/directoryWatcher");
 const dataManager_1 = require("./analysis/utils/dataManager");
 const xrAnalysisManager_1 = require("./analysis/xr/xrAnalysisManager");
 const domVisualizationManager_1 = require("./analysis/html/domVisualizationManager");
@@ -53,6 +55,8 @@ const domVisualizationManager_1 = require("./analysis/html/domVisualizationManag
  */
 async function activate(context) {
     console.log('🚀 Extension "CodeXR" is now active.');
+    // Store context globally for access by commands
+    global.codexrExtensionContext = context;
     // Initialize status bar manager
     const statusBarManager = (0, statusBarManager_1.getStatusBarManager)(context);
     // ✅ CRITICAL: Initialize FileWatchManager with proper settings
@@ -64,6 +68,15 @@ async function activate(context) {
     else {
         console.error('❌ Failed to initialize FileWatchManager');
     }
+    // ✅ CRITICAL: Initialize DirectoryWatchManager with proper settings
+    console.log('🔧 Initializing DirectoryWatchManager...');
+    directoryWatchManager_1.directoryWatchManager.initialize(context);
+    console.log('✅ DirectoryWatchManager initialized successfully');
+    // ✅ CRITICAL: Initialize SharedDirectoryWatcherManager for XR
+    console.log('🔧 Initializing SharedDirectoryWatcherManager...');
+    const sharedWatcherManager = directoryWatcher_1.SharedDirectoryWatcherManager.getInstance();
+    sharedWatcherManager.initialize(context);
+    console.log('✅ SharedDirectoryWatcherManager initialized successfully');
     // Register tree data provider for the unified view
     const treeDataProvider = new treeProvider_1.LocalServerProvider(context);
     const treeView = vscode.window.createTreeView('codexr.serverTreeView', {

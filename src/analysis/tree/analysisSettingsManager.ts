@@ -11,6 +11,7 @@ import {
 } from './treeDisplayConfig';
 import { 
   AnalysisModeOptionItem,
+  AnalysisDirectoryModeOptionItem,
   AnalysisDelayOptionItem,
   AnalysisAutoOptionItem,
   AnalysisChartTypeOptionItem,
@@ -22,6 +23,7 @@ import {
  */
 export interface AnalysisSettings {
   mode: string;
+  directoryMode: string;
   debounceDelay: number;
   autoAnalysis: boolean;
   chartType: string;
@@ -41,6 +43,7 @@ export class AnalysisSettingsManager {
     
     return {
       mode: config.get<string>('codexr.analysisMode', 'XR'), // ✅ CHANGED: Default from 'Static' to 'XR'
+      directoryMode: config.get<string>('codexr.analysis.directoryMode', 'shallow'),
       debounceDelay: config.get<number>('codexr.analysis.debounceDelay', 2000),
       autoAnalysis: config.get<boolean>('codexr.analysis.autoAnalysis', true),
       chartType: this.context.globalState.get<string>('codexr.analysis.chartType') || 
@@ -61,6 +64,12 @@ export class AnalysisSettingsManager {
     items.push(new AnalysisModeOptionItem(
       settings.mode,
       settings.mode === 'Static', // This will be used to show current selection
+      extensionPath
+    ));
+
+    // Directory Analysis Mode Setting
+    items.push(new AnalysisDirectoryModeOptionItem(
+      settings.directoryMode,
       extensionPath
     ));
 
@@ -123,6 +132,7 @@ export class AnalysisSettingsManager {
       
       // ✅ FIXED: Only reset registered VS Code configuration properties
       await config.update('codexr.analysisMode', 'XR', vscode.ConfigurationTarget.Global);
+      await config.update('codexr.analysis.directoryMode', 'shallow', vscode.ConfigurationTarget.Global);
       await config.update('codexr.analysis.debounceDelay', 2000, vscode.ConfigurationTarget.Global);
       await config.update('codexr.analysis.autoAnalysis', true, vscode.ConfigurationTarget.Global);
       await config.update('codexr.analysis.chartType', 'boats', vscode.ConfigurationTarget.Global);
@@ -143,7 +153,7 @@ export class AnalysisSettingsManager {
         await this.context.globalState.update(`codexr.analysis.dimensionMapping.${chartType}`, undefined);
       }
       
-      console.log('✅ All analysis settings reset to defaults (XR mode, 2000ms delay, auto-analysis enabled)');
+      console.log('✅ All analysis settings reset to defaults (XR mode, shallow directory mode, 2000ms delay, auto-analysis enabled)');
     } catch (error) {
       console.error('❌ Error resetting analysis settings:', error);
       throw error; // Re-throw to be handled by the command

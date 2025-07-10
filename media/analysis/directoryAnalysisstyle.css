@@ -1,0 +1,574 @@
+:root {
+  /* Theme-adaptive colors using VS Code variables */
+  --background-color: var(--vscode-editor-background);
+  --foreground-color: var(--vscode-editor-foreground);
+  --section-background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --border-color: var(--vscode-panel-border);
+  --header-color: var(--vscode-editor-foreground);
+  --link-color: var(--vscode-textLink-foreground);
+  --link-hover-color: var(--vscode-textLink-activeForeground);
+  --table-header-background: var(--vscode-editor-lineHighlightBackground);
+  --hover-background: var(--vscode-list-hoverBackground);
+  
+  /* Complexity colors - adaptive but still distinctive */
+  --complexity-low: var(--vscode-testing-iconPassed, #27ae60);
+  --complexity-medium: var(--vscode-editorWarning-foreground, #f39c12);
+  --complexity-high: var(--vscode-editorWarning-border, #e67e22);
+  --complexity-critical: var(--vscode-errorForeground, #e74c3c);
+  
+  /* Badge colors */
+  --badge-background: var(--vscode-badge-background);
+  --badge-foreground: var(--vscode-badge-foreground);
+}
+
+body {
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.6;
+  color: var(--foreground-color);
+  background-color: var(--background-color);
+  padding: 20px;
+  margin: 0;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 15px;
+  text-align: center;
+}
+
+.header h1 {
+  color: var(--header-color);
+  font-weight: var(--vscode-font-weight, 600);
+  margin-bottom: 10px;
+  font-size: 1.8em;
+}
+
+.subtitle {
+  margin: 10px 0;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 0.95em;
+}
+
+.analysis-info {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.analysis-info span {
+  background: var(--badge-background);
+  color: var(--badge-foreground);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+/* Section styles */
+.section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: var(--section-background);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.section h2 {
+  margin: 0 0 20px 0;
+  color: var(--header-color);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+  font-size: 1.3em;
+  font-weight: var(--vscode-font-weight, 600);
+}
+
+/* Metrics grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.metric {
+  text-align: center;
+  padding: 15px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.metric-value {
+  font-size: 1.8em;
+  font-weight: bold;
+  color: var(--vscode-charts-blue, #0078d4);
+  margin-bottom: 5px;
+  line-height: 1;
+}
+
+.metric-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.ccn-metric .metric-value {
+  color: var(--vscode-charts-orange, #ff8c00);
+}
+
+.analysis-metric .metric-value {
+  color: var(--vscode-charts-green, #28a745);
+}
+
+.not-analyzed-metric .metric-value {
+  color: var(--vscode-charts-gray, #6c757d);
+}
+
+/* Chart containers */
+.chart-container {
+  position: relative;
+  height: 300px;
+  margin: 20px auto;
+  background-color: var(--background-color);
+  border-radius: 6px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  max-width: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Specific styling for complexity distribution chart */
+#complexity-distribution .chart-container {
+  max-width: 500px;
+}
+
+#complexity-distribution-chart {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Stats grid for language distribution */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.stat-item {
+  padding: 12px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.stat-label {
+  font-weight: var(--vscode-font-weight, 600);
+  color: var(--foreground-color);
+  margin-bottom: 5px;
+  font-size: 0.9em;
+}
+
+.stat-value {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Complexity legend */
+.complexity-legend {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  font-size: 0.85em;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.legend-item.low {
+  background-color: var(--complexity-low);
+  color: white;
+}
+
+.legend-item.medium {
+  background-color: var(--complexity-medium);
+  color: white;
+}
+
+.legend-item.high {
+  background-color: var(--complexity-high);
+  color: white;
+}
+
+.legend-item.critical {
+  background-color: var(--complexity-critical);
+  color: white;
+}
+
+/* File list for top complex files */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background-color: var(--hover-background);
+  transform: translateX(2px);
+}
+
+.file-item.low {
+  border-left: 4px solid var(--complexity-low);
+}
+
+.file-item.medium {
+  border-left: 4px solid var(--complexity-medium);
+}
+
+.file-item.high {
+  border-left: 4px solid var(--complexity-high);
+}
+
+.file-item.critical {
+  border-left: 4px solid var(--complexity-critical);
+}
+
+.file-name {
+  font-weight: var(--vscode-font-weight, 500);
+  color: var(--foreground-color);
+  font-family: var(--vscode-editor-font-family, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace);
+  font-size: 0.9em;
+}
+
+/* Clickable file names */
+.file-name.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-name.clickable:hover {
+  background-color: rgba(0, 120, 212, 0.1);
+}
+
+.file-name-link {
+  color: var(--vscode-textLink-foreground, #0078d4);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.file-name.clickable:hover .file-name-link {
+  text-decoration-color: var(--vscode-textLink-foreground, #0078d4);
+}
+
+.file-details {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.complexity-badge {
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.8em;
+}
+
+.complexity-badge.low {
+  background-color: var(--complexity-low);
+  color: white;
+}
+
+.complexity-badge.medium {
+  background-color: var(--complexity-medium);
+  color: white;
+}
+
+.complexity-badge.high {
+  background-color: var(--complexity-high);
+  color: white;
+}
+
+.complexity-badge.critical {
+  background-color: var(--complexity-critical);
+  color: white;
+}
+
+/* Table controls */
+.table-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-input,
+.sort-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--background-color);
+  color: var(--foreground-color);
+  font-size: 0.9em;
+  font-family: inherit;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-input:focus,
+.sort-select:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder, #0078d4);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #0078d4);
+}
+
+/* Table styles */
+.table-container {
+  overflow-x: auto;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+#file-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--background-color);
+  font-size: 0.9em;
+}
+
+#file-table th {
+  background-color: var(--table-header-background);
+  color: var(--foreground-color);
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: var(--vscode-font-weight, 600);
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#file-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85em;
+}
+
+#file-table tr:hover {
+  background-color: var(--hover-background);
+}
+
+#file-table tr.low-complexity {
+  border-left: 3px solid var(--complexity-low);
+}
+
+#file-table tr.medium-complexity {
+  border-left: 3px solid var(--complexity-medium);
+}
+
+#file-table tr.high-complexity {
+  border-left: 3px solid var(--complexity-high);
+}
+
+#file-table tr.critical-complexity {
+  border-left: 3px solid var(--complexity-critical);
+}
+
+#file-table .file-name {
+  font-family: var(--vscode-editor-font-family, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace);
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Message styles */
+.message {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Distribution section styling */
+.distribution-stats {
+  margin-top: 20px;
+}
+
+.distribution-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.distribution-item {
+  text-align: center;
+  padding: 20px 15px;
+  border-radius: 6px;
+  position: relative;
+  border: 1px solid var(--border-color);
+  background: var(--section-background);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.distribution-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.distribution-item.simple {
+  background-color: rgba(39, 174, 96, 0.1);
+  border-left: 4px solid var(--complexity-low);
+}
+
+.distribution-item.moderate {
+  background-color: rgba(243, 156, 18, 0.1);
+  border-left: 4px solid var(--complexity-medium);
+}
+
+.distribution-item.complex {
+  background-color: rgba(230, 126, 34, 0.1);
+  border-left: 4px solid var(--complexity-high);
+}
+
+.distribution-item.very-complex {
+  background-color: rgba(231, 76, 60, 0.1);
+  border-left: 4px solid var(--complexity-critical);
+}
+
+.distribution-value {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.distribution-label {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .distribution-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 100%;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .analysis-info {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .file-details {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  
+  .table-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-input {
+    min-width: auto;
+  }
+
+  .complexity-legend {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .distribution-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  
+  .file-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  body {
+    padding: 15px;
+  }
+
+  .section {
+    padding: 15px;
+  }
+}
+
+.critical-complexity {
+  background-color: var(--complexity-critical);
+  color: white;
+}
+
+.critical-complexity:hover {
+  background-color: var(--complexity-critical);
+  opacity: 0.9;
+}

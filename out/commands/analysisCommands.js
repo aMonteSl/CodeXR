@@ -39,6 +39,7 @@ exports.getRegisteredCommandCount = getRegisteredCommandCount;
 exports.registerDebugAnalysisCommand = registerDebugAnalysisCommand;
 const vscode = __importStar(require("vscode"));
 const fileAnalysisCommands_1 = require("./analysis/fileAnalysisCommands");
+const directoryAnalysisCommands_1 = require("./analysis/directoryAnalysisCommands");
 const settingsCommands_1 = require("./analysis/settingsCommands");
 const treeDisplayCommands_1 = require("./analysis/treeDisplayCommands");
 const debugCommands_1 = require("./analysis/debugCommands");
@@ -71,6 +72,9 @@ function registerAnalysisCommands(context) {
         // Register file analysis commands (Static, XR, DOM, Tree analysis)
         console.log('📁 Registering file analysis commands...');
         disposables.push(...(0, fileAnalysisCommands_1.registerFileAnalysisCommands)(context));
+        // Register directory analysis commands (Static directory/project analysis)
+        console.log('📂 Registering directory analysis commands...');
+        disposables.push(...(0, directoryAnalysisCommands_1.registerDirectoryAnalysisCommands)(context));
         // Register analysis settings commands (Mode, delay, auto-analysis, etc.)
         console.log('⚙️ Registering analysis settings commands...');
         disposables.push(...(0, settingsCommands_1.registerAnalysisSettingsCommands)(context));
@@ -83,6 +87,9 @@ function registerAnalysisCommands(context) {
         // Register analysis session commands (Active analyses management)
         console.log('📊 Registering analysis session commands...');
         disposables.push(...(0, analysisSessionCommands_1.registerAnalysisSessionCommands)(context));
+        // Register tree interaction commands
+        console.log('🌳 Registering tree interaction commands...');
+        disposables.push(registerDirectoryAnalysisFromTreeCommand(context));
         // Register debug command for testing
         console.log('🐛 Registering debug analysis command...');
         disposables.push(registerDebugAnalysisCommand(context));
@@ -172,6 +179,32 @@ exports.REGISTERED_COMMANDS = {
     // Debug Analysis Command
     DEBUG_ANALYSIS_COMMAND: 'codexr.analysis.debug'
 };
+/**
+ * Register command for directory analysis triggered from tree view
+ */
+function registerDirectoryAnalysisFromTreeCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeDirectoryFromTree', async (directoryPath) => {
+        try {
+            console.log(`🔍 Tree-triggered directory analysis: ${directoryPath}`);
+            // Get the current directory analysis mode setting from VS Code configuration
+            const config = vscode.workspace.getConfiguration();
+            const currentMode = config.get('codexr.analysis.directoryMode', 'shallow');
+            const uri = vscode.Uri.file(directoryPath);
+            if (currentMode === 'deep') {
+                // Trigger deep directory analysis command
+                await vscode.commands.executeCommand('codexr.analyzeDirectoryDeepStatic', uri);
+            }
+            else {
+                // Trigger shallow directory analysis command
+                await vscode.commands.executeCommand('codexr.analyzeDirectoryStatic', uri);
+            }
+        }
+        catch (error) {
+            console.error('Error in directory analysis from tree:', error);
+            vscode.window.showErrorMessage(`Directory analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
 /**
  * Debug command to manually trigger session registration and tree refresh for testing
  */

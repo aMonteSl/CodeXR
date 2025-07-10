@@ -38,6 +38,7 @@ exports.closeExistingAnalysisServer = closeExistingAnalysisServer;
 exports.getActiveAnalysisServer = getActiveAnalysisServer;
 exports.cleanupXRVisualizations = cleanupXRVisualizations;
 exports.getVisualizationFolder = getVisualizationFolder;
+exports.cleanupVisualizationForFile = cleanupVisualizationForFile;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
@@ -311,5 +312,32 @@ function cleanupXRVisualizations() {
  */
 function getVisualizationFolder(fileName) {
     return visualizationFolders.get(fileName);
+}
+/**
+ * Cleanup visualization for a specific file (called when analysis session is closed)
+ */
+function cleanupVisualizationForFile(filePath) {
+    try {
+        console.log(`🧹 Cleaning up file XR visualization for: ${filePath}`);
+        // Extract file name without extension
+        const fileName = path.basename(filePath, path.extname(filePath));
+        // Stop file watcher
+        const fileWatchManager = fileWatchManager_1.FileWatchManager.getInstance();
+        if (fileWatchManager) {
+            console.log(`🛑 Stopping file watcher for: ${filePath}`);
+            fileWatchManager.stopWatching(filePath);
+        }
+        // Remove from tracking
+        if (visualizationFolders.has(fileName)) {
+            console.log(`🗑️ Removing visualization tracking for: ${fileName}`);
+            visualizationFolders.delete(fileName);
+        }
+        // Note: Server cleanup is handled by the session manager separately
+        // to avoid circular dependencies and ensure proper coordination
+        console.log(`✅ File XR visualization cleanup complete for: ${fileName}`);
+    }
+    catch (error) {
+        console.warn(`⚠️ Error during file XR visualization cleanup for ${filePath}:`, error);
+    }
 }
 //# sourceMappingURL=xrAnalysisManager.js.map
