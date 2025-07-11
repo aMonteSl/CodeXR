@@ -13,6 +13,6 @@ export * from './xrDataFormatter';
 // Template utilities
 export * from './xrTemplateUtils';
 
-// Dimension mapping and chart components
+// Dimension mapping and chart templates
 export * from './dimensionMapping';
-export * from './chartComponents';
+export * from './chartTemplates';

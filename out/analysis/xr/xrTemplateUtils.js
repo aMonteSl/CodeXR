@@ -36,7 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateXRAnalysisHTML = generateXRAnalysisHTML;
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
-const chartComponents_1 = require("./chartComponents"); // ✅ FIXED: Use the main function instead of legacy
+const chartTemplates_1 = require("./chartTemplates");
+const dimensionMapping_1 = require("./dimensionMapping");
 /**
  * Generates HTML content for XR analysis visualization
  */
@@ -55,13 +56,14 @@ async function generateXRAnalysisHTML(analysisResult, dataPath, context) {
     console.log(`   🎨 Background color: ${backgroundColor}`);
     console.log(`   🌍 Environment preset: ${environmentPreset}`);
     console.log(`   🏔️ Ground color: ${groundColor}`);
-    // ✅ TECHNICAL ENHANCEMENT: Generate chart component using dimension mapping system with context
-    const chartComponentHTML = (0, chartComponents_1.generateChartHTML)(chartType, context, `Code Complexity: ${analysisResult.fileName}`);
+    // ✅ TECHNICAL ENHANCEMENT: Generate chart component using new enhanced template system
+    const dimensionMapping = (0, dimensionMapping_1.getDimensionMapping)(chartType, context, 'File');
+    const chartComponentHTML = (0, chartTemplates_1.generateChartComponent)(chartType, dimensionMapping, analysisResult.fileName, 'file');
     // ✅ TECHNICAL IMPROVEMENT: Create icon path with proper fallback handling
     const iconPath = createIconPath(context);
     // ✅ TECHNICAL FIX: Define all template replacements with proper background color integration
     const replacements = {
-        '${TITLE}': `Code Complexity: ${analysisResult.fileName}`,
+        '${TITLE}': analysisResult.fileName, // ✅ FIXED: Use just the raw file name
         '${DATA_SOURCE}': dataPath,
         '${CHART_COMPONENT}': chartComponentHTML, // ✅ CRITICAL: Now contains actual chart HTML
         '${BACKGROUND_COLOR}': backgroundColor, // ✅ CRITICAL: Use user-selected background color instead of hardcoded value

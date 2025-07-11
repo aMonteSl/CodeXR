@@ -3,8 +3,10 @@ import {
   getChartDimensions, 
   getDimensionMapping, 
   setDimensionMapping, 
-  ANALYSIS_FIELDS 
+  getAnalysisFields,
+  getFilteredAnalysisFields
 } from '../../analysis/xr/dimensionMapping';
+import { getChartTemplatePickOptions } from '../../analysis/xr/chartTemplates';
 import { AnalysisSettingsManager } from '../../analysis/tree/analysisSettingsManager';
 import { refreshTreeProvider } from '../shared/commandHelpers';
 import { ChartTypeOption } from '../shared/types';
@@ -25,11 +27,13 @@ export function registerAnalysisSettingsCommands(context: vscode.ExtensionContex
   
   // Core settings commands
   disposables.push(registerToggleAnalysisModeCommand());
-  disposables.push(registerToggleDirectoryAnalysisModeCommand());
+  disposables.push(registerSelectDirectoryAnalysisModeCommand());
   disposables.push(registerSetAnalysisDebounceDelayCommand());
   disposables.push(registerToggleAutoAnalysisCommand());
   disposables.push(registerSetAnalysisChartTypeCommand(context));
+  disposables.push(registerSetDirectoryAnalysisChartTypeCommand(context));
   disposables.push(registerSetDimensionMappingCommand(context));
+  disposables.push(registerSetDirectoryDimensionMappingCommand(context));
   disposables.push(registerResetAnalysisDefaultsCommand(context, settingsManager));
   
   return disposables;
@@ -73,25 +77,72 @@ function registerToggleAnalysisModeCommand(): vscode.Disposable {
 }
 
 /**
- * Registers the toggle directory analysis mode command
+ * Registers the select directory analysis mode command (4 modes: static, static-deep, xr, xr-deep)
  * @returns Command disposable
  */
-function registerToggleDirectoryAnalysisModeCommand(): vscode.Disposable {
-  return vscode.commands.registerCommand('codexr.toggleDirectoryAnalysisMode', async () => {
+function registerSelectDirectoryAnalysisModeCommand(): vscode.Disposable {
+  return vscode.commands.registerCommand('codexr.selectDirectoryAnalysisMode', async () => {
     try {
       const config = vscode.workspace.getConfiguration();
-      const currentMode = config.get<string>('codexr.analysis.directoryMode', 'shallow');
+      const currentMode = config.get<string>('codexr.analysis.directoryMode', 'static');
       
-      // Toggle between modes
-      const newMode = currentMode === 'shallow' ? 'deep' : 'shallow';
+      // Create quick pick items for all 4 modes
+      const modeOptions = [
+        {
+          label: '$(folder) Static',
+          description: 'Static shallow directory analysis',
+          detail: 'Shows filenames only, webview panels',
+          value: 'static'
+        },
+        {
+          label: '$(folder-library) Static Deep',
+          description: 'Static deep directory analysis (recursive)',
+          detail: 'Shows full paths, webview panels',
+          value: 'static-deep'
+        },
+        {
+          label: '$(folder) XR',
+          description: 'XR shallow directory analysis',
+          detail: 'Shows filenames only, 3D visualization',
+          value: 'xr'
+        },
+        {
+          label: '$(folder-library) XR Deep',
+          description: 'XR deep directory analysis (recursive)',
+          detail: 'Shows full paths, 3D visualization',
+          value: 'xr-deep'
+        }
+      ];
+      
+      // Mark current selection
+      const currentOption = modeOptions.find(opt => opt.value === currentMode);
+      if (currentOption) {
+        currentOption.label = `${currentOption.label} $(check)`;
+        currentOption.description = `${currentOption.description} (Current)`;
+      }
+      
+      // Show quick pick
+      const selectedOption = await vscode.window.showQuickPick(modeOptions, {
+        title: 'Select Directory Analysis Mode',
+        placeHolder: `Current: ${currentMode}`,
+        canPickMany: false
+      });
+      
+      if (!selectedOption) {
+        return; // User cancelled
+      }
+      
+      const newMode = selectedOption.value;
+      
+      if (newMode === currentMode) {
+        return; // No change
+      }
       
       // Update configuration
       await config.update('codexr.analysis.directoryMode', newMode, vscode.ConfigurationTarget.Global);
       
       // Show success message
-      const modeDescription = newMode === 'shallow' 
-        ? 'Shows filenames only' 
-        : 'Shows full file paths';
+      const modeDescription = selectedOption.description.replace(' (Current)', '');
       
       vscode.window.showInformationMessage(
         `✅ Directory analysis mode changed to: ${newMode} (${modeDescription})`,
@@ -241,15 +292,8 @@ function registerToggleAutoAnalysisCommand(): vscode.Disposable {
 function registerSetAnalysisChartTypeCommand(context: vscode.ExtensionContext): vscode.Disposable {
   return vscode.commands.registerCommand('codexr.setAnalysisChartType', async () => {
     try {
-      const chartOptions: ChartTypeOption[] = [
-        { label: 'Boats Chart', value: 'boats', description: 'Area-based 3D boat-like visualization' },
-        { label: 'Bars Chart', value: 'bars', description: 'Traditional bar chart in 3D' },
-        { label: 'Cylinders Chart', value: 'cyls', description: 'Cylindrical bars with radius and height' },
-        { label: 'Bubbles Chart', value: 'bubbles', description: '3D bubbles with X/Z positioning and radius/height' },
-        { label: 'Barsmap Chart', value: 'barsmap', description: '3D bars with Z-axis grouping' },
-        { label: 'Pie Chart', value: 'pie', description: 'Circular sectors' },
-        { label: 'Donut Chart', value: 'donut', description: 'Circular with center hole' }
-      ];
+      // Use centralized chart templates for file analysis
+      const chartOptions = getChartTemplatePickOptions('file');
 
       const currentChartType = context.globalState.get<string>('codexr.analysis.chartType') || 'boats';
       
@@ -261,7 +305,8 @@ function registerSetAnalysisChartTypeCommand(context: vscode.ExtensionContext): 
       }));
 
       const selection = await vscode.window.showQuickPick(options, {
-        placeHolder: 'Select chart type for analysis visualizations',
+        placeHolder: 'Select chart type for file XR analysis visualizations',
+        title: 'File Analysis Chart Type',
         matchOnDescription: true
       });
 
@@ -269,7 +314,7 @@ function registerSetAnalysisChartTypeCommand(context: vscode.ExtensionContext): 
         await context.globalState.update('codexr.analysis.chartType', selection.value);
         
         vscode.window.showInformationMessage(
-          `Analysis chart type set to: ${selection.label.replace(' ✓', '')}`
+          `File analysis chart type set to: ${selection.label.replace(' ✓', '')}`
         );
         
         // Refresh tree to show updated settings
@@ -285,6 +330,51 @@ function registerSetAnalysisChartTypeCommand(context: vscode.ExtensionContext): 
 }
 
 /**
+ * Registers the set directory analysis chart type command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerSetDirectoryAnalysisChartTypeCommand(context: vscode.ExtensionContext): vscode.Disposable {
+  return vscode.commands.registerCommand('codexr.setDirectoryAnalysisChartType', async () => {
+    try {
+      // Use centralized chart templates for directory analysis
+      const chartOptions = getChartTemplatePickOptions('directory');
+
+      const currentChartType = context.globalState.get<string>('codexr.analysis.directoryChartType') || 'boats';
+      
+      // Mark current selection
+      const options = chartOptions.map(option => ({
+        label: `${option.label}${option.value === currentChartType ? ' ✓' : ''}`,
+        description: option.description,
+        value: option.value
+      }));
+
+      const selection = await vscode.window.showQuickPick(options, {
+        placeHolder: 'Select chart type for directory XR visualizations',
+        title: 'Directory Analysis Chart Type',
+        matchOnDescription: true
+      });
+
+      if (selection) {
+        await context.globalState.update('codexr.analysis.directoryChartType', selection.value);
+        
+        vscode.window.showInformationMessage(
+          `Directory analysis chart type set to: ${selection.label.replace(' ✓', '')}`
+        );
+        
+        // Refresh tree to show updated settings
+        const treeDataProvider = (global as any).treeDataProvider;
+        if (treeDataProvider && typeof treeDataProvider.refresh === 'function') {
+          treeDataProvider.refresh();
+        }
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Error setting directory chart type: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+}
+
+/**
  * Registers the set dimension mapping command
  * @param context Extension context
  * @returns Command disposable
@@ -295,8 +385,9 @@ function registerSetDimensionMappingCommand(context: vscode.ExtensionContext): v
     async (chartType: string, dimensionKey: string, dimensionLabel: string) => {
       console.log(`Setting dimension mapping for ${chartType}, ${dimensionKey}: ${dimensionLabel}`);
       
-      // Get available analysis fields
-      const fieldOptions = ANALYSIS_FIELDS.map(field => ({
+      // ✅ FIXED: Get filtered analysis fields based on chart type and dimension
+      const analysisFields = getFilteredAnalysisFields(chartType, dimensionKey, 'File');
+      const fieldOptions = analysisFields.map(field => ({
         label: field.displayName,
         description: field.description,
         value: field.key
@@ -304,15 +395,70 @@ function registerSetDimensionMappingCommand(context: vscode.ExtensionContext): v
       
       const selection = await vscode.window.showQuickPick(fieldOptions, {
         placeHolder: `Select data field for ${dimensionLabel}`,
-        title: `Dimension Mapping: ${dimensionLabel}`
+        title: `Dimension Mapping: ${dimensionLabel}${
+          ((chartType === 'pie' || chartType === 'donut') && dimensionKey === 'size') ||
+          ((chartType === 'bars' || chartType === 'barsmap') && dimensionKey === 'height') ||
+          ((chartType === 'cyls' || chartType === 'cylsmap' || chartType === 'bubbles') && (dimensionKey === 'height' || dimensionKey === 'radius'))
+            ? ' (Numeric fields only)' 
+            : chartType === 'boats' 
+              ? ' (All field types allowed)'
+              : ''
+        }`
       });
       
       if (selection) {
-        // Set the dimension mapping
-        setDimensionMapping(context, chartType, dimensionKey, selection.value);
+        // Set the dimension mapping for file analysis
+        setDimensionMapping(context, chartType, dimensionKey, selection.value, 'File');
         
         vscode.window.showInformationMessage(
           `${dimensionLabel} mapped to: ${selection.label}`
+        );
+        
+        // Refresh tree view
+        refreshTreeProvider();
+      }
+    }
+  );
+}
+
+/**
+ * Registers the set directory dimension mapping command
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerSetDirectoryDimensionMappingCommand(context: vscode.ExtensionContext): vscode.Disposable {
+  return vscode.commands.registerCommand(
+    'codexr.setDirectoryDimensionMapping',
+    async (chartType: string, dimensionKey: string, dimensionLabel: string, analysisType: string) => {
+      console.log(`Setting directory dimension mapping for ${chartType}, ${dimensionKey}: ${dimensionLabel}`);
+      
+      // ✅ FIXED: Get filtered analysis fields based on chart type and dimension
+      const analysisFields = getFilteredAnalysisFields(chartType, dimensionKey, 'Directory');
+      const fieldOptions = analysisFields.map(field => ({
+        label: field.displayName,
+        description: field.description,
+        value: field.key
+      }));
+      
+      const selection = await vscode.window.showQuickPick(fieldOptions, {
+        placeHolder: `Select data field for ${dimensionLabel}`,
+        title: `Directory Dimension Mapping: ${dimensionLabel}${
+          ((chartType === 'pie' || chartType === 'donut') && dimensionKey === 'size') ||
+          ((chartType === 'bars' || chartType === 'barsmap') && dimensionKey === 'height') ||
+          ((chartType === 'cyls' || chartType === 'cylsmap' || chartType === 'bubbles') && (dimensionKey === 'height' || dimensionKey === 'radius'))
+            ? ' (Numeric fields only)' 
+            : chartType === 'boats' 
+              ? ' (All field types allowed)'
+              : ''
+        }`
+      });
+      
+      if (selection) {
+        // Set the dimension mapping for directory analysis
+        setDimensionMapping(context, chartType, dimensionKey, selection.value, 'Directory');
+        
+        vscode.window.showInformationMessage(
+          `Directory ${dimensionLabel} mapped to: ${selection.label}`
         );
         
         // Refresh tree view

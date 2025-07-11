@@ -38,7 +38,6 @@ exports.registerCommands = registerCommands;
 const vscode = __importStar(require("vscode"));
 // Fix the import path
 const serverCommands_1 = require("./serverCommands");
-const babiaCommands_1 = require("./babiaCommands");
 const uiCommands_1 = require("./uiCommands"); // Fixed casing here
 /**
  * Refreshes the tree view
@@ -60,7 +59,8 @@ function registerCommands(context, treeDataProvider) {
     const disposables = [];
     // Register each group of commands
     disposables.push(...(0, serverCommands_1.registerServerCommands)(context, treeDataProvider));
-    disposables.push(...(0, babiaCommands_1.registerBabiaCommands)(context, treeDataProvider));
+    // DISABLED: Legacy babia commands that use old template system
+    // disposables.push(...registerBabiaCommands(context, treeDataProvider));
     disposables.push(...(0, uiCommands_1.registerUiCommands)(context, treeDataProvider)); // Fixed casing and added context parameter
     // Eliminar esta línea que registra el comando duplicado
     // disposables.push(registerSetAnalysisChartTypeCommand()); // Nuevo comando añadido

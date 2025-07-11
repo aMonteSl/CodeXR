@@ -5,10 +5,18 @@ exports.validateChartDimensions = validateChartDimensions;
 exports.getChartInfo = getChartInfo;
 exports.getChartComponentHTML = getChartComponentHTML;
 const dimensionMapping_1 = require("./dimensionMapping");
+const chartTemplates_1 = require("./chartTemplates");
 /**
  * Generates the complete HTML for a chart component with values already applied
  */
 function generateChartHTML(chartType, context, title = 'Code Analysis') {
+    // ✅ Use enhanced chart generation for pie and donut charts with proper title support
+    const normalizedType = normalizeChartType(chartType);
+    if (normalizedType === 'pie' || normalizedType === 'donut') {
+        console.log(`🥧 Using enhanced chart generation for ${normalizedType} with title: ${title}`);
+        const dimensionMapping = (0, dimensionMapping_1.getDimensionMapping)(chartType, context, 'File');
+        return (0, chartTemplates_1.generateChartComponent)(normalizedType, dimensionMapping, title, 'file');
+    }
     // ✅ ENHANCED DEBUG: Add extensive logging to trace the issue
     console.log('🎨 generateChartHTML called with:');
     console.log(`   📊 Original chartType: "${chartType}"`);

@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { loadTemplate } from '../../utils/templateUtils';
-import { generateNonce } from '../../utils/nonceUtils'; // Importar de nonceUtils en lugar de templateUtils
+import { generateNonce } from '../../utils/nonceUtils';
 import { FunctionAnalysisPanel } from './functionAnalysisPanel';
 
 /**

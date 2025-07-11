@@ -15,13 +15,13 @@ type ChartDimension = {
 export class DimensionMappingItem extends vscode.TreeItem {
   public type = TreeItemType.DIMENSION_MAPPING;
 
-  constructor(currentChartType: string, extensionPath: string, private context: vscode.ExtensionContext) {
+  constructor(currentChartType: string, extensionPath: string, private context: vscode.ExtensionContext, private analysisType: string = 'File') {
     super(
-      'Dimension Mapping',
+      `Dimension Mapping (${analysisType})`,
       vscode.TreeItemCollapsibleState.Collapsed
     );
     
-    this.description = `Configure field mapping for ${currentChartType} charts`;
+    this.description = `Configure field mapping for ${analysisType} ${currentChartType} charts`;
     this.iconPath = new vscode.ThemeIcon('symbol-misc');
     this.chartType = currentChartType;
   }
@@ -30,7 +30,7 @@ export class DimensionMappingItem extends vscode.TreeItem {
 
   async getChildren(): Promise<DimensionMappingOptionItem[]> {
     const dimensions = getChartDimensions(this.chartType);
-    const currentMapping = getDimensionMapping(this.chartType, this.context);
+    const currentMapping = getDimensionMapping(this.chartType, this.context, this.analysisType);
     
     return dimensions.map(dimension => {
       const currentField = currentMapping[dimension.key] || 'Not mapped';
@@ -40,7 +40,8 @@ export class DimensionMappingItem extends vscode.TreeItem {
         this.chartType,
         dimension,
         fieldLabel,
-        this.context
+        this.context,
+        this.analysisType
       );
     });
   }
@@ -56,10 +57,11 @@ export class DimensionMappingOptionItem extends vscode.TreeItem {
     private chartType: string,
     private dimension: ChartDimension, // ✅ USAR EL TIPO DEFINIDO
     private currentMapping: string,
-    private context: vscode.ExtensionContext
+    private context: vscode.ExtensionContext,
+    private analysisType: string = 'File'
   ) {
     // ✅ CALCULAR TODOS LOS VALORES ANTES DE LLAMAR A super()
-    const allMapping = getDimensionMapping(chartType, context);
+    const allMapping = getDimensionMapping(chartType, context, analysisType);
     const usedValues = Object.entries(allMapping)
       .filter(([key, value]) => key !== dimension.key)
       .map(([key, value]) => value);
@@ -80,9 +82,9 @@ export class DimensionMappingOptionItem extends vscode.TreeItem {
     this.description = description;
     this.iconPath = iconPath;
     this.command = {
-      command: 'codexr.setDimensionMapping',
-      title: 'Set Dimension Mapping',
-      arguments: [chartType, dimension.key, dimension.label]
+      command: analysisType === 'Directory' ? 'codexr.setDirectoryDimensionMapping' : 'codexr.setDimensionMapping',
+      title: `Set ${analysisType} Dimension Mapping`,
+      arguments: [chartType, dimension.key, dimension.label, analysisType]
     };
   }
 }

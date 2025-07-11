@@ -50,6 +50,8 @@ const serverModel_1 = require("../../server/models/serverModel");
 const certificateManager_1 = require("../../server/certificateManager");
 const liveReloadManager_1 = require("../../server/liveReloadManager");
 const directoryAnalysisProgress_1 = require("../shared/directoryAnalysisProgress");
+const chartTemplates_1 = require("./chartTemplates");
+const dimensionMapping_1 = require("./dimensionMapping");
 // Track visualization directories by directory path  
 const visualizationDirs = new Map();
 // Track active servers by directory path
@@ -496,12 +498,28 @@ async function createDirectoryXRVisualizationFolder(context, directoryPath, anal
  */
 async function copyDirectoryXRAssets(context, visualizationDir, analysisResult) {
     try {
+        // Get user's chart type and dimension mapping preferences for directory analyses
+        const config = vscode.workspace.getConfiguration();
+        const directoryChartType = context.globalState.get('codexr.analysis.directoryChartType') ||
+            config.get('codexr.analysis.directoryChartType', 'boats');
+        console.log(`📊 Using directory chart type: ${directoryChartType}`);
+        // Get the chart template
+        const chartTemplate = (0, chartTemplates_1.getChartTemplate)(directoryChartType);
+        if (!chartTemplate) {
+            console.warn(`⚠️ Unknown chart type: ${directoryChartType}, falling back to boats`);
+        }
+        // Get dimension mappings for the selected chart type
+        const dimensionMapping = (0, dimensionMapping_1.getDimensionMapping)(directoryChartType, context, 'Directory');
+        console.log(`📊 Using dimension mapping for ${directoryChartType}:`, dimensionMapping);
+        // Generate the chart component based on selected chart type and mappings
+        const dirName = path.basename(analysisResult.summary.directoryPath);
+        const chartTitle = dirName; // ✅ FIXED: Use just the raw directory name
+        const chartComponent = (0, chartTemplates_1.generateChartComponent)(directoryChartType, dimensionMapping, chartTitle, 'directory');
         // Copy the directory XR HTML template and adapt it for directory analysis
         const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'directory-xr-template.html');
         const htmlPath = path.join(visualizationDir, 'index.html');
         let htmlContent = await fs.readFile(templatePath, 'utf8');
         // Replace template variables for directory analysis
-        const dirName = path.basename(analysisResult.summary.directoryPath);
         htmlContent = htmlContent
             .replace(/\${TITLE}/g, `Directory XR Analysis - ${dirName}`)
             .replace(/\${DATA_SOURCE}/g, './data.json')
@@ -509,26 +527,7 @@ async function copyDirectoryXRAssets(context, visualizationDir, analysisResult) 
             .replace(/\${ENVIRONMENT_PRESET}/g, 'forest')
             .replace(/\${GROUND_COLOR}/g, '#2d5a27')
             .replace(/\${ICON_PATH}/g, '../../../resources/icon.svg')
-            .replace(/\${CHART_COMPONENT}/g, `
-        <!-- Directory XR Boats Visualization -->
-        <a-entity id="chart"
-                  babia-boats="from: data;
-                              legend: true;
-                              tooltip: true;
-                              palette: pearl;
-                              area: functionCount;
-                              height: totalLines;
-                              color: meanComplexity;
-                              tooltip_position: top;
-                              tooltip_show_always: false;
-                              tooltip_height: 0.3;
-                              heightMax: 20"
-                  position="0 1 -10"
-                  rotation="0 0 0"
-                  scale="1.5 1.5 1.5"
-                  class="babiaxraycasterclass">
-        </a-entity>
-      `);
+            .replace(/\${CHART_COMPONENT}/g, chartComponent);
         // Inject SSE live reload script for automatic updates
         htmlContent = (0, liveReloadManager_1.injectLiveReloadScript)(htmlContent);
         console.log(`🔄 Injected SSE live reload script for directory XR`);

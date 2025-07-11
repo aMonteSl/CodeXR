@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 
 // Import all command modules
-import { registerFileAnalysisCommands } from './analysis/fileAnalysisCommands';
-import { registerDirectoryAnalysisCommands } from './analysis/directoryAnalysisCommands';
-import { registerAnalysisSettingsCommands } from './analysis/settingsCommands';
-import { registerTreeDisplayCommands } from './analysis/treeDisplayCommands';
-import { registerDebugCommands } from './analysis/debugCommands';
-import { registerAnalysisSessionCommands } from './analysisSessionCommands';
+import { registerFileAnalysisCommands } from './fileAnalysisCommands';
+import { registerDirectoryAnalysisCommands } from './directoryAnalysisCommands';
+import { registerAnalysisSettingsCommands } from './settingsCommands';
+import { registerTreeDisplayCommands } from './treeDisplayCommands';
+import { registerDebugCommands } from './debugCommands';
+import { registerAnalysisSessionCommands } from '../analysisSessionCommands';
 
 /**
  * Central analysis command registry
@@ -115,7 +115,7 @@ function registerDebugAnalysisCommand(context: vscode.ExtensionContext): vscode.
       console.log('🐛 Debug analysis command triggered');
       
       // Get analysis session manager
-      const { AnalysisSessionManager } = await import('../analysis/analysisSessionManager.js');
+      const { AnalysisSessionManager } = await import('../../analysis/analysisSessionManager.js');
       const sessionManager = AnalysisSessionManager.getInstance();
       
       // Get active sessions

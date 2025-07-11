@@ -56,6 +56,10 @@ const directoryAnalysisProgress_1 = require("../../analysis/shared/directoryAnal
  */
 function registerDirectoryAnalysisCommands(context) {
     const disposables = [];
+    // Unified commands that respect user mode settings
+    disposables.push(registerAnalyzeDirectoryCommand(context));
+    disposables.push(registerAnalyzeProjectCommand(context));
+    // Specific commands for each mode
     // Analyze directory (static) command
     disposables.push(registerAnalyzeDirectoryStaticCommand(context));
     // Analyze directory deep (static) command
@@ -403,6 +407,80 @@ function registerAnalyzeProjectXRDeepCommand(context) {
         catch (error) {
             console.error('Error in project deep XR analysis:', error);
             vscode.window.showErrorMessage(`Failed to analyze project: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the unified analyze directory command that respects user mode settings
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerAnalyzeDirectoryCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeDirectory', async (uri) => {
+        try {
+            // Get user's preferred directory analysis mode
+            const config = vscode.workspace.getConfiguration();
+            const directoryMode = config.get('codexr.analysis.directoryMode', 'static');
+            console.log(`🔄 Unified directory analysis triggered with mode: ${directoryMode}`);
+            // Delegate to appropriate specific command based on mode
+            switch (directoryMode) {
+                case 'static':
+                    await vscode.commands.executeCommand('codexr.analyzeDirectoryStatic', uri);
+                    break;
+                case 'static-deep':
+                    await vscode.commands.executeCommand('codexr.analyzeDirectoryDeepStatic', uri);
+                    break;
+                case 'xr':
+                    await vscode.commands.executeCommand('codexr.analyzeDirectoryXR', uri);
+                    break;
+                case 'xr-deep':
+                    await vscode.commands.executeCommand('codexr.analyzeDirectoryXRDeep', uri);
+                    break;
+                default:
+                    console.warn(`Unknown directory mode: ${directoryMode}, falling back to static`);
+                    await vscode.commands.executeCommand('codexr.analyzeDirectoryStatic', uri);
+            }
+        }
+        catch (error) {
+            console.error('Error in unified directory analysis:', error);
+            vscode.window.showErrorMessage(`Directory analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+}
+/**
+ * Registers the unified analyze project command that respects user mode settings
+ * @param context Extension context
+ * @returns Command disposable
+ */
+function registerAnalyzeProjectCommand(context) {
+    return vscode.commands.registerCommand('codexr.analyzeProject', async () => {
+        try {
+            // Get user's preferred directory analysis mode
+            const config = vscode.workspace.getConfiguration();
+            const directoryMode = config.get('codexr.analysis.directoryMode', 'static');
+            console.log(`🔄 Unified project analysis triggered with mode: ${directoryMode}`);
+            // Delegate to appropriate specific command based on mode
+            switch (directoryMode) {
+                case 'static':
+                    await vscode.commands.executeCommand('codexr.analyzeProjectStatic');
+                    break;
+                case 'static-deep':
+                    await vscode.commands.executeCommand('codexr.analyzeProjectDeepStatic');
+                    break;
+                case 'xr':
+                    await vscode.commands.executeCommand('codexr.analyzeProjectXR');
+                    break;
+                case 'xr-deep':
+                    await vscode.commands.executeCommand('codexr.analyzeProjectXRDeep');
+                    break;
+                default:
+                    console.warn(`Unknown directory mode: ${directoryMode}, falling back to static`);
+                    await vscode.commands.executeCommand('codexr.analyzeProjectStatic');
+            }
+        }
+        catch (error) {
+            console.error('Error in unified project analysis:', error);
+            vscode.window.showErrorMessage(`Project analysis failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     });
 }

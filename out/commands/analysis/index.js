@@ -36,12 +36,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerAnalysisCommands = registerAnalysisCommands;
 const vscode = __importStar(require("vscode"));
 // Import all command modules
-const fileAnalysisCommands_1 = require("./analysis/fileAnalysisCommands");
-const directoryAnalysisCommands_1 = require("./analysis/directoryAnalysisCommands");
-const settingsCommands_1 = require("./analysis/settingsCommands");
-const treeDisplayCommands_1 = require("./analysis/treeDisplayCommands");
-const debugCommands_1 = require("./analysis/debugCommands");
-const analysisSessionCommands_1 = require("./analysisSessionCommands");
+const fileAnalysisCommands_1 = require("./fileAnalysisCommands");
+const directoryAnalysisCommands_1 = require("./directoryAnalysisCommands");
+const settingsCommands_1 = require("./settingsCommands");
+const treeDisplayCommands_1 = require("./treeDisplayCommands");
+const debugCommands_1 = require("./debugCommands");
+const analysisSessionCommands_1 = require("../analysisSessionCommands");
 /**
  * Central analysis command registry
  *
@@ -128,7 +128,7 @@ function registerDebugAnalysisCommand(context) {
         try {
             console.log('🐛 Debug analysis command triggered');
             // Get analysis session manager
-            const { AnalysisSessionManager } = await import('../analysis/analysisSessionManager.js');
+            const { AnalysisSessionManager } = await import('../../analysis/analysisSessionManager.js');
             const sessionManager = AnalysisSessionManager.getInstance();
             // Get active sessions
             const activeSessions = sessionManager.getAllSessions();
@@ -142,4 +142,4 @@ function registerDebugAnalysisCommand(context) {
         }
     });
 }
-//# sourceMappingURL=analysisCommands.js.map
+//# sourceMappingURL=index.js.map

@@ -30,7 +30,8 @@ export function registerCommands(
   
   // Register each group of commands
   disposables.push(...registerServerCommands(context, treeDataProvider));
-  disposables.push(...registerBabiaCommands(context, treeDataProvider));
+  // DISABLED: Legacy babia commands that use old template system
+  // disposables.push(...registerBabiaCommands(context, treeDataProvider));
   disposables.push(...registerUiCommands(context, treeDataProvider)); // Fixed casing and added context parameter
   
   // Eliminar esta línea que registra el comando duplicado

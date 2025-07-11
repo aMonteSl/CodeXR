@@ -38,7 +38,7 @@ exports.createAnalysisPanel = createAnalysisPanel;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
-const nonceUtils_1 = require("../../utils/nonceUtils"); // Importar de nonceUtils en lugar de templateUtils
+const nonceUtils_1 = require("../../utils/nonceUtils");
 const functionAnalysisPanel_1 = require("./functionAnalysisPanel");
 /**
  * Manages a panel that displays code analysis results

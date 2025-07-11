@@ -27,6 +27,7 @@ export interface AnalysisSettings {
   debounceDelay: number;
   autoAnalysis: boolean;
   chartType: string;
+  directoryChartType: string; // Separate chart type for directory XR analyses
 }
 
 /**
@@ -43,11 +44,13 @@ export class AnalysisSettingsManager {
     
     return {
       mode: config.get<string>('codexr.analysisMode', 'XR'), // ✅ CHANGED: Default from 'Static' to 'XR'
-      directoryMode: config.get<string>('codexr.analysis.directoryMode', 'shallow'),
+      directoryMode: config.get<string>('codexr.analysis.directoryMode', 'static'),
       debounceDelay: config.get<number>('codexr.analysis.debounceDelay', 2000),
       autoAnalysis: config.get<boolean>('codexr.analysis.autoAnalysis', true),
       chartType: this.context.globalState.get<string>('codexr.analysis.chartType') || 
-                config.get<string>('codexr.analysis.chartType', 'boats')
+                config.get<string>('codexr.analysis.chartType', 'boats'),
+      directoryChartType: this.context.globalState.get<string>('codexr.analysis.directoryChartType') || 
+                         config.get<string>('codexr.analysis.directoryChartType', 'boats')
     };
   }
 
@@ -67,7 +70,7 @@ export class AnalysisSettingsManager {
       extensionPath
     ));
 
-    // Directory Analysis Mode Setting
+    // Directory Analysis Mode Setting - Updated to support 4 modes
     items.push(new AnalysisDirectoryModeOptionItem(
       settings.directoryMode,
       extensionPath
@@ -85,17 +88,34 @@ export class AnalysisSettingsManager {
       extensionPath
     ));
 
-    // Chart Type Setting
+    // Chart Type Setting for File XR Analyses
     items.push(new AnalysisChartTypeOptionItem(
       settings.chartType,
-      extensionPath
+      extensionPath,
+      'File'  // Specify this is for file analyses
     ));
 
-    // Dimension Mapping Setting
+    // Chart Type Setting for Directory XR Analyses
+    items.push(new AnalysisChartTypeOptionItem(
+      settings.directoryChartType,
+      extensionPath,
+      'Directory'  // Specify this is for directory analyses
+    ));
+
+    // Dimension Mapping Setting for File XR Analyses
     items.push(new DimensionMappingItem(
       settings.chartType,
       extensionPath,
-      this.context
+      this.context,
+      'File'  // Specify this is for file analyses
+    ));
+
+    // Dimension Mapping Setting for Directory XR Analyses
+    items.push(new DimensionMappingItem(
+      settings.directoryChartType,
+      extensionPath,
+      this.context,
+      'Directory'  // Specify this is for directory analyses
     ));
 
     // Tree Display Configuration
@@ -132,10 +152,11 @@ export class AnalysisSettingsManager {
       
       // ✅ FIXED: Only reset registered VS Code configuration properties
       await config.update('codexr.analysisMode', 'XR', vscode.ConfigurationTarget.Global);
-      await config.update('codexr.analysis.directoryMode', 'shallow', vscode.ConfigurationTarget.Global);
+      await config.update('codexr.analysis.directoryMode', 'static', vscode.ConfigurationTarget.Global);
       await config.update('codexr.analysis.debounceDelay', 2000, vscode.ConfigurationTarget.Global);
       await config.update('codexr.analysis.autoAnalysis', true, vscode.ConfigurationTarget.Global);
       await config.update('codexr.analysis.chartType', 'boats', vscode.ConfigurationTarget.Global);
+      await config.update('codexr.analysis.directoryChartType', 'boats', vscode.ConfigurationTarget.Global);
       
       // ✅ FIXED: Reset tree display settings with registered configuration keys
       await config.update('codexr.analysis.tree.maxFilesPerLanguage', 0, vscode.ConfigurationTarget.Global);
@@ -146,14 +167,20 @@ export class AnalysisSettingsManager {
       
       // ✅ FIXED: Reset global state items (not VS Code configuration)
       await this.context.globalState.update('codexr.analysis.chartType', 'boats');
+      await this.context.globalState.update('codexr.analysis.directoryChartType', 'boats');
       
-      // ✅ FIXED: Reset dimension mappings for all chart types
+      // ✅ FIXED: Reset dimension mappings for all chart types and analysis types
       const chartTypes = ['boats', 'bars', 'cylinders', 'pie', 'donut', 'barsmap'];
+      const analysisTypes = ['file', 'directory'];
       for (const chartType of chartTypes) {
+        for (const analysisType of analysisTypes) {
+          await this.context.globalState.update(`codexr.analysis.dimensionMapping.${analysisType}.${chartType}`, undefined);
+        }
+        // Also clean up old format for backward compatibility
         await this.context.globalState.update(`codexr.analysis.dimensionMapping.${chartType}`, undefined);
       }
       
-      console.log('✅ All analysis settings reset to defaults (XR mode, shallow directory mode, 2000ms delay, auto-analysis enabled)');
+      console.log('✅ All analysis settings reset to defaults (XR mode, static directory mode, 2000ms delay, auto-analysis enabled)');
     } catch (error) {
       console.error('❌ Error resetting analysis settings:', error);
       throw error; // Re-throw to be handled by the command

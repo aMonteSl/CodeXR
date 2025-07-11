@@ -2,7 +2,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { FileAnalysisResult } from '../model';
-import { generateChartHTML } from './chartComponents'; // ✅ FIXED: Use the main function instead of legacy
+import { generateChartComponent } from './chartTemplates';
+import { getDimensionMapping } from './dimensionMapping';
 
 /**
  * Generates HTML content for XR analysis visualization
@@ -30,15 +31,16 @@ export async function generateXRAnalysisHTML(
   console.log(`   🌍 Environment preset: ${environmentPreset}`);
   console.log(`   🏔️ Ground color: ${groundColor}`);
   
-  // ✅ TECHNICAL ENHANCEMENT: Generate chart component using dimension mapping system with context
-  const chartComponentHTML = generateChartHTML(chartType, context, `Code Complexity: ${analysisResult.fileName}`);
+  // ✅ TECHNICAL ENHANCEMENT: Generate chart component using new enhanced template system
+  const dimensionMapping = getDimensionMapping(chartType, context, 'File');
+  const chartComponentHTML = generateChartComponent(chartType, dimensionMapping, analysisResult.fileName, 'file');
   
   // ✅ TECHNICAL IMPROVEMENT: Create icon path with proper fallback handling
   const iconPath = createIconPath(context);
   
   // ✅ TECHNICAL FIX: Define all template replacements with proper background color integration
   const replacements: Record<string, string> = {
-    '${TITLE}': `Code Complexity: ${analysisResult.fileName}`,
+    '${TITLE}': analysisResult.fileName, // ✅ FIXED: Use just the raw file name
     '${DATA_SOURCE}': dataPath,
     '${CHART_COMPONENT}': chartComponentHTML, // ✅ CRITICAL: Now contains actual chart HTML
     '${BACKGROUND_COLOR}': backgroundColor, // ✅ CRITICAL: Use user-selected background color instead of hardcoded value

@@ -1,4 +1,5 @@
 import { getDimensionMapping } from './dimensionMapping';
+import { generateChartComponent as generateEnhancedChartComponent } from './chartTemplates';
 import * as vscode from 'vscode';
 
 /**
@@ -9,6 +10,14 @@ export function generateChartHTML(
   context: vscode.ExtensionContext,
   title: string = 'Code Analysis'
 ): string {
+  // ✅ Use enhanced chart generation for pie and donut charts with proper title support
+  const normalizedType = normalizeChartType(chartType);
+  if (normalizedType === 'pie' || normalizedType === 'donut') {
+    console.log(`🥧 Using enhanced chart generation for ${normalizedType} with title: ${title}`);
+    const dimensionMapping = getDimensionMapping(chartType, context, 'File');
+    return generateEnhancedChartComponent(normalizedType, dimensionMapping, title, 'file');
+  }
+
   // ✅ ENHANCED DEBUG: Add extensive logging to trace the issue
   console.log('🎨 generateChartHTML called with:');
   console.log(`   📊 Original chartType: "${chartType}"`);

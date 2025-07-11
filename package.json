@@ -58,11 +58,27 @@
             "boats",
             "bars",
             "cylinders",
+            "bubbles",
+            "barsmap",
             "pie",
             "donut"
           ],
           "default": "boats",
-          "description": "Default chart type for XR analysis visualizations"
+          "description": "Default chart type for file XR analysis visualizations"
+        },
+        "codexr.analysis.directoryChartType": {
+          "type": "string",
+          "enum": [
+            "boats",
+            "bars",
+            "cylinders",
+            "bubbles",
+            "barsmap",
+            "pie",
+            "donut"
+          ],
+          "default": "boats",
+          "description": "Default chart type for directory XR analysis visualizations"
         },
         "codexr.analysis.tree.maxFilesPerLanguage": {
           "type": "number",
@@ -253,6 +269,12 @@
         "icon": "$(folder-opened)"
       },
       {
+        "command": "codexr.analyzeDirectory",
+        "title": "CodeXR: Analyze Directory",
+        "category": "Code Analysis",
+        "icon": "$(folder)"
+      },
+      {
         "command": "codexr.analyzeDirectoryDeepStatic",
         "title": "CodeXR: Analyze Directory Deep (Static)",
         "category": "Code Analysis",
@@ -277,6 +299,12 @@
         "icon": "$(project)"
       },
       {
+        "command": "codexr.analyzeProject",
+        "title": "CodeXR: Analyze Project",
+        "category": "Code Analysis",
+        "icon": "$(folder-library)"
+      },
+      {
         "command": "codexr.analyzeProjectDeepStatic",
         "title": "CodeXR: Analyze Project Deep (Static)",
         "category": "Code Analysis",
@@ -299,6 +327,12 @@
         "title": "CodeXR: Debug Analysis Sessions",
         "category": "Code Analysis",
         "icon": "$(bug)"
+      },
+      {
+        "command": "codexr.analyzeDirectoryFromTree",
+        "title": "CodeXR: Analyze Directory from Tree",
+        "category": "Code Analysis",
+        "icon": "$(search)"
       },
       {
         "command": "codexr.analyzeFolder",
@@ -397,6 +431,54 @@
         "title": "Toggle Analysis Mode",
         "category": "CodeXR",
         "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "codexr.selectDirectoryAnalysisMode",
+        "title": "Select Directory Analysis Mode",
+        "category": "CodeXR",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "codexr.setAnalysisChartType",
+        "title": "Set Analysis Chart Type",
+        "category": "CodeXR",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "codexr.setDirectoryAnalysisChartType",
+        "title": "Set Directory Analysis Chart Type",
+        "category": "CodeXR",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "codexr.setDimensionMapping",
+        "title": "Set Dimension Mapping",
+        "category": "CodeXR",
+        "icon": "$(symbol-property)"
+      },
+      {
+        "command": "codexr.setDirectoryDimensionMapping",
+        "title": "Set Directory Dimension Mapping",
+        "category": "CodeXR",
+        "icon": "$(symbol-property)"
+      },
+      {
+        "command": "codexr.resetAnalysisDefaults",
+        "title": "Reset Analysis Defaults",
+        "category": "CodeXR",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codexr.setAnalysisDebounceDelay",
+        "title": "Set Analysis Debounce Delay",
+        "category": "CodeXR",
+        "icon": "$(clock)"
+      },
+      {
+        "command": "codexr.toggleAutoAnalysis",
+        "title": "Toggle Auto Analysis",
+        "category": "CodeXR",
+        "icon": "$(sync)"
       },
       {
         "command": "codexr.toggleDirectoryAnalysisMode",

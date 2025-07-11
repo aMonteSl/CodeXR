@@ -18,6 +18,8 @@ import {
   logAnalysisComplete, 
   isInitialAnalysis 
 } from '../shared/directoryAnalysisProgress';
+import { getChartTemplate, CHART_TEMPLATES, generateChartComponent as generateEnhancedChartComponent } from './chartTemplates';
+import { getDimensionMapping } from './dimensionMapping';
 
 // Track visualization directories by directory path  
 const visualizationDirs: Map<string, string> = new Map();
@@ -569,6 +571,28 @@ async function copyDirectoryXRAssets(
   analysisResult: DirectoryAnalysisResult
 ): Promise<void> {
   try {
+    // Get user's chart type and dimension mapping preferences for directory analyses
+    const config = vscode.workspace.getConfiguration();
+    const directoryChartType = context.globalState.get<string>('codexr.analysis.directoryChartType') || 
+                              config.get<string>('codexr.analysis.directoryChartType', 'boats');
+    
+    console.log(`📊 Using directory chart type: ${directoryChartType}`);
+    
+    // Get the chart template
+    const chartTemplate = getChartTemplate(directoryChartType);
+    if (!chartTemplate) {
+      console.warn(`⚠️ Unknown chart type: ${directoryChartType}, falling back to boats`);
+    }
+    
+    // Get dimension mappings for the selected chart type
+    const dimensionMapping = getDimensionMapping(directoryChartType, context, 'Directory');
+    console.log(`📊 Using dimension mapping for ${directoryChartType}:`, dimensionMapping);
+    
+    // Generate the chart component based on selected chart type and mappings
+    const dirName = path.basename(analysisResult.summary.directoryPath);
+    const chartTitle = dirName; // ✅ FIXED: Use just the raw directory name
+    const chartComponent = generateEnhancedChartComponent(directoryChartType, dimensionMapping, chartTitle, 'directory');
+    
     // Copy the directory XR HTML template and adapt it for directory analysis
     const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'directory-xr-template.html');
     const htmlPath = path.join(visualizationDir, 'index.html');
@@ -576,7 +600,6 @@ async function copyDirectoryXRAssets(
     let htmlContent = await fs.readFile(templatePath, 'utf8');
     
     // Replace template variables for directory analysis
-    const dirName = path.basename(analysisResult.summary.directoryPath);
     htmlContent = htmlContent
       .replace(/\${TITLE}/g, `Directory XR Analysis - ${dirName}`)
       .replace(/\${DATA_SOURCE}/g, './data.json')
@@ -584,26 +607,7 @@ async function copyDirectoryXRAssets(
       .replace(/\${ENVIRONMENT_PRESET}/g, 'forest')
       .replace(/\${GROUND_COLOR}/g, '#2d5a27')
       .replace(/\${ICON_PATH}/g, '../../../resources/icon.svg')
-      .replace(/\${CHART_COMPONENT}/g, `
-        <!-- Directory XR Boats Visualization -->
-        <a-entity id="chart"
-                  babia-boats="from: data;
-                              legend: true;
-                              tooltip: true;
-                              palette: pearl;
-                              area: functionCount;
-                              height: totalLines;
-                              color: meanComplexity;
-                              tooltip_position: top;
-                              tooltip_show_always: false;
-                              tooltip_height: 0.3;
-                              heightMax: 20"
-                  position="0 1 -10"
-                  rotation="0 0 0"
-                  scale="1.5 1.5 1.5"
-                  class="babiaxraycasterclass">
-        </a-entity>
-      `);
+      .replace(/\${CHART_COMPONENT}/g, chartComponent);
     
     // Inject SSE live reload script for automatic updates
     htmlContent = injectLiveReloadScript(htmlContent);

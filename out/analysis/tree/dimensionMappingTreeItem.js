@@ -42,22 +42,24 @@ const dimensionMapping_1 = require("../xr/dimensionMapping");
  */
 class DimensionMappingItem extends vscode.TreeItem {
     context;
+    analysisType;
     type = treeProvider_1.TreeItemType.DIMENSION_MAPPING;
-    constructor(currentChartType, extensionPath, context) {
-        super('Dimension Mapping', vscode.TreeItemCollapsibleState.Collapsed);
+    constructor(currentChartType, extensionPath, context, analysisType = 'File') {
+        super(`Dimension Mapping (${analysisType})`, vscode.TreeItemCollapsibleState.Collapsed);
         this.context = context;
-        this.description = `Configure field mapping for ${currentChartType} charts`;
+        this.analysisType = analysisType;
+        this.description = `Configure field mapping for ${analysisType} ${currentChartType} charts`;
         this.iconPath = new vscode.ThemeIcon('symbol-misc');
         this.chartType = currentChartType;
     }
     chartType;
     async getChildren() {
         const dimensions = (0, dimensionMapping_1.getChartDimensions)(this.chartType);
-        const currentMapping = (0, dimensionMapping_1.getDimensionMapping)(this.chartType, this.context);
+        const currentMapping = (0, dimensionMapping_1.getDimensionMapping)(this.chartType, this.context, this.analysisType);
         return dimensions.map(dimension => {
             const currentField = currentMapping[dimension.key] || 'Not mapped';
             const fieldLabel = dimensionMapping_1.ANALYSIS_FIELDS.find(f => f.key === currentField)?.displayName || currentField;
-            return new DimensionMappingOptionItem(this.chartType, dimension, fieldLabel, this.context);
+            return new DimensionMappingOptionItem(this.chartType, dimension, fieldLabel, this.context, this.analysisType);
         });
     }
 }
@@ -70,11 +72,12 @@ class DimensionMappingOptionItem extends vscode.TreeItem {
     dimension;
     currentMapping;
     context;
+    analysisType;
     type = treeProvider_1.TreeItemType.DIMENSION_MAPPING_OPTION;
     constructor(chartType, dimension, // ✅ USAR EL TIPO DEFINIDO
-    currentMapping, context) {
+    currentMapping, context, analysisType = 'File') {
         // ✅ CALCULAR TODOS LOS VALORES ANTES DE LLAMAR A super()
-        const allMapping = (0, dimensionMapping_1.getDimensionMapping)(chartType, context);
+        const allMapping = (0, dimensionMapping_1.getDimensionMapping)(chartType, context, analysisType);
         const usedValues = Object.entries(allMapping)
             .filter(([key, value]) => key !== dimension.key)
             .map(([key, value]) => value);
@@ -92,13 +95,14 @@ class DimensionMappingOptionItem extends vscode.TreeItem {
         this.dimension = dimension;
         this.currentMapping = currentMapping;
         this.context = context;
+        this.analysisType = analysisType;
         // ✅ ASIGNAR PROPIEDADES DESPUÉS DE super()
         this.description = description;
         this.iconPath = iconPath;
         this.command = {
-            command: 'codexr.setDimensionMapping',
-            title: 'Set Dimension Mapping',
-            arguments: [chartType, dimension.key, dimension.label]
+            command: analysisType === 'Directory' ? 'codexr.setDirectoryDimensionMapping' : 'codexr.setDimensionMapping',
+            title: `Set ${analysisType} Dimension Mapping`,
+            arguments: [chartType, dimension.key, dimension.label, analysisType]
         };
     }
 }

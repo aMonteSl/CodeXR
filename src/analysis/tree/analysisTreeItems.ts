@@ -161,7 +161,7 @@ export class AnalysisSettingsItem extends TreeItem {
 }
 
 /**
- * ✅ UPDATED: Item for analysis mode setting option with proper mode switching
+ * ✅ UPDATED: Item for analysis mode setting option with dynamic icon colors
  */
 export class AnalysisModeOptionItem extends TreeItem {
   constructor(currentMode: string, isSelected: boolean, extensionPath: string) {
@@ -171,6 +171,12 @@ export class AnalysisModeOptionItem extends TreeItem {
     const tooltip = currentMode === 'Static' 
       ? 'Static analysis in webview panels. Click to switch to XR mode.'
       : 'XR analysis with 3D visualizations. Click to switch to Static mode.';
+
+    // ✅ NEW: Dynamic icon color based on mode
+    const iconName = 'file-code';
+    const iconColor = currentMode === 'Static' 
+      ? new vscode.ThemeColor('charts.green')  // Green for Static
+      : new vscode.ThemeColor('charts.purple'); // Purple for XR
 
     super(
       label,
@@ -182,7 +188,7 @@ export class AnalysisModeOptionItem extends TreeItem {
         title: 'Toggle Analysis Mode',
         arguments: []
       },
-      new vscode.ThemeIcon(currentMode === 'Static' ? 'desktop-download' : 'globe')
+      new vscode.ThemeIcon(iconName, iconColor)
     );
     
     this.description = description;
@@ -190,15 +196,45 @@ export class AnalysisModeOptionItem extends TreeItem {
 }
 
 /**
- * ✅ NEW: Item for directory analysis mode setting option
+ * ✅ UPDATED: Item for directory analysis mode setting option - now supports 4 modes with proper capitalization
  */
 export class AnalysisDirectoryModeOptionItem extends TreeItem {
   constructor(currentMode: string, extensionPath: string) {
-    const label = `Analysis Mode (Directories): ${currentMode}`;
-    const description = `Current: ${currentMode} - Click to change`;
-    const tooltip = currentMode === 'shallow' 
-      ? 'Shallow directory analysis shows only filenames. Click to switch to deep mode (full paths).'
-      : 'Deep directory analysis shows full file paths. Click to switch to shallow mode (filenames only).';
+    const formattedMode = formatDirectoryModeDisplay(currentMode);
+    const label = `Analysis Mode (Directories): ${formattedMode}`;
+    const description = `Current: ${formattedMode} - Click to change`;
+    
+    // Update tooltip based on current mode
+    let tooltip: string;
+    let iconName: string;
+    let iconColor: vscode.ThemeColor | undefined;
+    
+    switch(currentMode) {
+      case 'static':
+        tooltip = 'Static shallow directory analysis. Click to switch modes.';
+        iconName = 'folder';
+        iconColor = new vscode.ThemeColor('charts.green');
+        break;
+      case 'static-deep':
+        tooltip = 'Static deep directory analysis (recursive). Click to switch modes.';
+        iconName = 'folder-library';
+        iconColor = new vscode.ThemeColor('charts.green');
+        break;
+      case 'xr':
+        tooltip = 'XR shallow directory analysis with 3D visualization. Click to switch modes.';
+        iconName = 'folder';
+        iconColor = new vscode.ThemeColor('charts.purple');
+        break;
+      case 'xr-deep':
+        tooltip = 'XR deep directory analysis (recursive) with 3D visualization. Click to switch modes.';
+        iconName = 'folder-library';
+        iconColor = new vscode.ThemeColor('charts.purple');
+        break;
+      default:
+        tooltip = 'Directory analysis mode. Click to switch modes.';
+        iconName = 'folder';
+        iconColor = undefined;
+    }
 
     super(
       label,
@@ -206,11 +242,11 @@ export class AnalysisDirectoryModeOptionItem extends TreeItem {
       TreeItemType.ANALYSIS_SETTING_OPTION,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'codexr.toggleDirectoryAnalysisMode',
-        title: 'Toggle Directory Analysis Mode',
+        command: 'codexr.selectDirectoryAnalysisMode',
+        title: 'Select Directory Analysis Mode',
         arguments: []
       },
-      new vscode.ThemeIcon(currentMode === 'shallow' ? 'folder' : 'folder-library')
+      new vscode.ThemeIcon(iconName, iconColor)
     );
     
     this.description = description;
@@ -320,10 +356,10 @@ export class AnalysisAutoOptionItem extends TreeItem {
  * Item for setting chart type for analysis visualizations
  */
 export class AnalysisChartTypeOptionItem extends TreeItem {
-  constructor(currentChart: string, extensionPath: string) {
-    const label = `Chart Type: ${currentChart}`;
+  constructor(currentChart: string, extensionPath: string, analysisType: string = 'File') {
+    const label = `Chart Type (${analysisType}): ${currentChart}`;
     const description = `Current: ${currentChart} - Click to change`;
-    const tooltip = `Current chart type for XR analysis visualizations: ${currentChart}\n\nClick to select a different chart type for future XR analyses.`;
+    const tooltip = `Current chart type for ${analysisType} XR analysis visualizations: ${currentChart}\n\nClick to select a different chart type for future ${analysisType} XR analyses.`;
 
     super(
       label,
@@ -331,8 +367,8 @@ export class AnalysisChartTypeOptionItem extends TreeItem {
       TreeItemType.ANALYSIS_SETTING_OPTION,
       vscode.TreeItemCollapsibleState.None,
       {
-        command: 'codexr.setAnalysisChartType',
-        title: 'Set Chart Type',
+        command: analysisType === 'Directory' ? 'codexr.setDirectoryAnalysisChartType' : 'codexr.setAnalysisChartType',
+        title: `Set ${analysisType} Chart Type`,
         arguments: []
       },
       new vscode.ThemeIcon('graph')
@@ -951,5 +987,26 @@ export class WorkspaceRootFolderItem extends DirectoryFolderItem {
     this.contextValue = 'directoryFolder'; // Keep same contextValue for existing commands to work
     
     console.log(`DEPURATION: WorkspaceRootFolderItem created with label: ${this.label}, contextValue: ${this.contextValue}`);
+  }
+}
+
+/**
+ * ✅ HELPER: Format directory mode for display with proper capitalization
+ */
+function formatDirectoryModeDisplay(mode: string): string {
+  switch(mode) {
+    case 'static':
+      return 'Static';
+    case 'static-deep':
+      return 'Static Deep';
+    case 'xr':
+      return 'XR';
+    case 'xr-deep':
+      return 'XR Deep';
+    default:
+      // Fallback: capitalize first letter and handle XR specially
+      return mode.split('-')
+        .map(word => word === 'xr' ? 'XR' : word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
   }
 }

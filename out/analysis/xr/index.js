@@ -25,7 +25,7 @@ __exportStar(require("./xrDataTransformer"), exports);
 __exportStar(require("./xrDataFormatter"), exports);
 // Template utilities
 __exportStar(require("./xrTemplateUtils"), exports);
-// Dimension mapping and chart components
+// Dimension mapping and chart templates
 __exportStar(require("./dimensionMapping"), exports);
-__exportStar(require("./chartComponents"), exports);
+__exportStar(require("./chartTemplates"), exports);
 //# sourceMappingURL=index.js.map
