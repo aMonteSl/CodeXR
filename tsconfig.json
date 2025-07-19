@@ -4,15 +4,32 @@
 		"target": "ES2022",
 		"outDir": "out",
 		"lib": [
-			"ES2022"
+			"ES2022",
+			"DOM"
 		],
+		"types": ["mocha", "node", "vscode"],
 		"sourceMap": true,
 		"rootDir": "src",
 		"strict": true,   /* enable all strict type-checking options */
 		"esModuleInterop": true,
+		"downlevelIteration": true,
+		"moduleResolution": "Node16",
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true
 		/* Additional Checks */
 		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
 		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
 		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
 	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		"out",
+		"src/configuration/serverConfigurationManager.ts",
+		"src/test/integration/analysisTreeViewSimple.test.ts",
+		"test_dimension_mapping.ts",
+		"test_visualization.ts"
+	]
 }

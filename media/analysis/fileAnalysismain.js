@@ -1,75 +1,418 @@
+/**
+ * Modern Static Analysis Viewer JavaScript
+ * Loads data.json and renders interactive analysis dashboard
+ */
+
 (function() {
-  // Get VSCode API if available (for potential future use)
-  let vscode;
-  try {
-    vscode = acquireVsCodeApi();
-  } catch (e) {
-    // Running outside VSCode context
-    console.warn('VSCode API not available - running in browser mode');
-  }
+  'use strict';
   
-  // ✅ CRITICAL FIX: Use injected data instead of fetch
-  let analysisData = window.analysisData || null;
+  // Global state
+  let analysisData = null;
+  let complexityChart = null;
+  let currentTheme = 'light';
   
-  // DOM elements
-  const noDataEl = document.getElementById('no-data');
-  const resultsEl = document.getElementById('results');
+  // DOM elements cache
+  const elements = {
+    noData: null,
+    results: null,
+    subtitle: null,
+    themeIcon: null
+  };
   
   // Initialize when DOM is ready
-  document.addEventListener('DOMContentLoaded', () => {
-    // Check if we have data available
-    if (analysisData) {
-      renderAnalysisData();
-    } else {
-      // Fallback: listen for postMessage (for backward compatibility)
-      if (vscode) {
-        window.addEventListener('message', event => {
-          const message = event.data;
-          if (message.command === 'setAnalysisData') {
-            analysisData = message.data;
-            renderAnalysisData();
-          }
-        });
-      } else {
-        showError('No analysis data available');
-      }
-    }
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('ANALYSIS_VIEWER: Initializing static analysis viewer...');
+    
+    // Cache DOM elements
+    cacheElements();
+    
+    // Initialize theme
+    initializeTheme();
+    
+    // Initialize SSE for live updates
+    initializeSSE();
+    
+    // Try to load analysis data
+    loadAnalysisData();
   });
   
-  function showError(message) {
-    if (noDataEl) {
-      noDataEl.innerHTML = `<p>Error: ${message}</p>`;
-      noDataEl.style.display = 'block';
+  /**
+   * Initialize theme from window.initialTheme or localStorage
+   */
+  function initializeTheme() {
+    // Try to get theme from injected window data first
+    if (window.initialTheme) {
+      currentTheme = window.initialTheme;
+      console.log('ANALYSIS_VIEWER: Using injected theme:', currentTheme);
+    } else {
+      // Fallback to localStorage
+      currentTheme = localStorage.getItem('analysisViewerTheme') || 'light';
+      console.log('ANALYSIS_VIEWER: Using localStorage theme:', currentTheme);
     }
-    if (resultsEl) {
-      resultsEl.style.display = 'none';
-    }
+    
+    // Apply the theme
+    applyTheme(currentTheme);
   }
   
-  function renderAnalysisData() {
-    if (!analysisData) {
+  /**
+   * Apply theme to the document
+   */
+  function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    currentTheme = theme;
+    
+    // Update theme icon
+    if (elements.themeIcon) {
+      elements.themeIcon.textContent = theme === 'light' ? '🌙' : '☀️';
+    }
+    
+    console.log('ANALYSIS_VIEWER: Theme applied:', theme);
+  }
+  
+  /**
+   * Toggle between light and dark themes
+   */
+  function toggleTheme() {
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    applyTheme(newTheme);
+    
+    // Save to localStorage for persistence within static mode
+    localStorage.setItem('analysisViewerTheme', newTheme);
+    
+    // Try to send update back to VS Code extension if available
+    // This would require additional implementation for live sync
+    if (window.vscode && window.vscode.postMessage) {
+      window.vscode.postMessage({
+        command: 'updateTheme',
+        theme: newTheme
+      });
+    }
+    
+    console.log('ANALYSIS_VIEWER: Theme toggled to:', newTheme);
+  }
+  
+  // Make toggleTheme available globally for onclick handler
+  window.toggleTheme = toggleTheme;
+  
+  /**
+   * Cache frequently used DOM elements
+   */
+  function cacheElements() {
+    elements.noData = document.getElementById('no-data');
+    elements.results = document.getElementById('results');
+    elements.subtitle = document.querySelector('.subtitle');
+    elements.themeIcon = document.getElementById('theme-icon');
+  }
+  
+  /**
+   * Load analysis data from multiple sources
+   */
+  function loadAnalysisData() {
+    // First try: Use injected window.analysisData (preferred for static mode)
+    if (window.analysisData) {
+      console.log('ANALYSIS_VIEWER: Using injected analysis data');
+      analysisData = window.analysisData;
+      renderAnalysisData();
       return;
     }
     
-    console.log('Rendering analysis data:', analysisData);
+    // Second try: Load from data.json file
+    console.log('ANALYSIS_VIEWER: Loading data from data.json...');
+    fetch('./data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('ANALYSIS_VIEWER: Successfully loaded data.json', data);
+        analysisData = data;
+        renderAnalysisData();
+      })
+      .catch(error => {
+        console.error('ANALYSIS_VIEWER: Failed to load data.json:', error);
+        showError('Failed to load analysis data: ' + error.message);
+      });
+  }
+  
+  /**
+   * Show error message to user
+   */
+  function showError(message) {
+    console.error('ANALYSIS_VIEWER:', message);
     
-    // Update page title and hide the no-data message
-    if (document.querySelector('.subtitle')) {
-      document.querySelector('.subtitle').textContent = 
-        `${analysisData.fileName} (${analysisData.language}) - Analyzed on ${analysisData.timestamp}`;
+    if (elements.noData) {
+      elements.noData.innerHTML = `<p>Error: ${message}</p>`;
+      elements.noData.style.display = 'block';
+      elements.noData.classList.remove('hidden');
     }
     
-    if (noDataEl) {
-      noDataEl.classList.add('hidden');
-      noDataEl.style.display = 'none';
+    if (elements.results) {
+      elements.results.style.display = 'none';
+      elements.results.classList.add('hidden');
     }
-    if (resultsEl) {
-      resultsEl.classList.remove('hidden');
-      resultsEl.style.display = 'block';
+  }
+
+  /**
+   * Initialize Server-Sent Events for live updates
+   */
+  function initializeSSE() {
+    console.log('ANALYSIS_VIEWER: Initializing SSE for live updates...');
+    
+    try {
+      // Connect to the /events endpoint on the current server
+      const eventSource = new EventSource('/events');
+      
+      eventSource.onopen = function(event) {
+        console.log('ANALYSIS_VIEWER: SSE connection opened');
+        showSSEStatus('connected');
+      };
+      
+      eventSource.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('ANALYSIS_VIEWER: SSE message received:', data);
+          handleSSEMessage(data);
+        } catch (error) {
+          console.error('ANALYSIS_VIEWER: Error parsing SSE message:', error);
+        }
+      };
+      
+      eventSource.onerror = function(event) {
+        console.error('ANALYSIS_VIEWER: SSE connection error:', event);
+        showSSEStatus('error');
+        
+        // Note: EventSource will automatically try to reconnect
+      };
+      
+      // Store reference for potential cleanup
+      window.analysisSSE = eventSource;
+      
+    } catch (error) {
+      console.error('ANALYSIS_VIEWER: Failed to initialize SSE:', error);
+      showSSEStatus('error');
+    }
+  }
+
+  /**
+   * Handle incoming SSE messages
+   */
+  function handleSSEMessage(data) {
+    switch (data.type) {
+      case 'connected':
+        console.log('ANALYSIS_VIEWER: SSE connected for file:', data.fileUri);
+        showSSEStatus('connected');
+        break;
+        
+      case 'analysis-updated':
+        console.log('ANALYSIS_VIEWER: Analysis updated for file:', data.fileUri);
+        showUpdateNotification();
+        reloadAnalysisData();
+        break;
+        
+      case 'heartbeat':
+        // Keep-alive message, no action needed
+        break;
+        
+      default:
+        console.log('ANALYSIS_VIEWER: Unknown SSE message type:', data.type);
+    }
+  }
+
+  /**
+   * Reload analysis data after SSE update notification
+   */
+  function reloadAnalysisData() {
+    console.log('ANALYSIS_VIEWER: Reloading analysis data due to SSE update...');
+    
+    // Add cache busting to ensure fresh data
+    fetch('./data.json?t=' + Date.now())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('ANALYSIS_VIEWER: Successfully reloaded data.json via SSE');
+        analysisData = data;
+        renderAnalysisData();
+        showReloadNotification();
+      })
+      .catch(error => {
+        console.error('ANALYSIS_VIEWER: Failed to reload data.json:', error);
+        showError('Failed to reload analysis data: ' + error.message);
+      });
+  }
+
+  /**
+   * Show SSE connection status
+   */
+  function showSSEStatus(status) {
+    // Create or update status indicator
+    let statusElement = document.getElementById('sse-status');
+    if (!statusElement) {
+      statusElement = document.createElement('div');
+      statusElement.id = 'sse-status';
+      statusElement.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+        transition: all 0.3s ease;
+        font-family: inherit;
+      `;
+      document.body.appendChild(statusElement);
     }
     
-    // Update basic metrics
-    const basicMetrics = {
+    switch (status) {
+      case 'connected':
+        statusElement.textContent = '🟢 Live Updates';
+        statusElement.style.backgroundColor = '#10b981';
+        statusElement.style.color = 'white';
+        break;
+      case 'error':
+        statusElement.textContent = '🔴 Disconnected';
+        statusElement.style.backgroundColor = '#ef4444';
+        statusElement.style.color = 'white';
+        break;
+    }
+  }
+
+  /**
+   * Show update notification
+   */
+  function showUpdateNotification() {
+    showNotification('Analysis updated! Refreshing data...', '#3b82f6', 3000);
+  }
+
+  /**
+   * Show reload completion notification
+   */
+  function showReloadNotification() {
+    showNotification('Data refreshed successfully!', '#10b981', 2000);
+  }
+
+  /**
+   * Show a temporary notification
+   */
+  function showNotification(message, backgroundColor = '#3b82f6', duration = 3000) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 50px;
+      right: 10px;
+      background: ${backgroundColor};
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 1001;
+      font-family: inherit;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after specified duration
+    setTimeout(() => {
+      notification.remove();
+    }, duration);
+  }
+
+  // Add CSS for animations if not already present
+  if (!document.getElementById('sse-animations')) {
+    const style = document.createElement('style');
+    style.id = 'sse-animations';
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  /**
+   * Main rendering function
+   */
+  function renderAnalysisData() {
+    if (!analysisData) {
+      showError('No analysis data available');
+      return;
+    }
+    
+    console.log('ANALYSIS_VIEWER: Rendering analysis data...');
+    
+    try {
+      // Update page header
+      updateHeader();
+      
+      // Show results, hide no-data message
+      showResults();
+      
+      // Render all sections
+      renderBasicMetrics();
+      renderComplexityMetrics();
+      renderComplexitySummary();
+      renderFunctionsTable();
+      renderDistributionMetrics();
+      renderComplexityChart();
+      renderDensityVisualization();
+      
+      console.log('ANALYSIS_VIEWER: Analysis data rendered successfully');
+      
+    } catch (error) {
+      console.error('ANALYSIS_VIEWER: Error rendering analysis:', error);
+      showError('Error rendering analysis: ' + error.message);
+    }
+  }
+  
+  /**
+   * Update page header with file information
+   */
+  function updateHeader() {
+    if (elements.subtitle && analysisData.fileName) {
+      const fileName = analysisData.fileName || 'Unknown File';
+      const language = analysisData.language || 'Unknown';
+      const timestamp = analysisData.timestamp || 'Unknown Time';
+      
+      elements.subtitle.textContent = `${fileName} (${language}) - Analyzed on ${timestamp}`;
+    }
+  }
+  
+  /**
+   * Show results section and hide no-data message
+   */
+  function showResults() {
+    if (elements.noData) {
+      elements.noData.style.display = 'none';
+      elements.noData.classList.add('hidden');
+    }
+    
+    if (elements.results) {
+      elements.results.style.display = 'block';
+      elements.results.classList.remove('hidden');
+    }
+  }
+  
+  /**
+   * Render basic file metrics
+   */
+  function renderBasicMetrics() {
+    const metrics = {
       'total-lines': analysisData.totalLines || 0,
       'code-lines': analysisData.codeLines || 0,
       'comment-lines': analysisData.commentLines || 0,
@@ -78,260 +421,357 @@
       'class-count': analysisData.classCount || 0
     };
     
-    Object.entries(basicMetrics).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.textContent = value.toString();
-      }
+    Object.entries(metrics).forEach(([id, value]) => {
+      updateElementText(id, value);
     });
-    
-    // Update complexity metrics
+  }
+  
+  /**
+   * Render complexity metrics
+   */
+  function renderComplexityMetrics() {
     const complexity = analysisData.complexity || {};
     const functions = analysisData.functions || [];
     
-    // Calculate high complexity count
+    // Calculate high complexity function count
     const highComplexityCount = functions.filter(f => (f.complexity || 0) > 10).length;
     
     const complexityMetrics = {
       'avg-complexity': (complexity.averageComplexity || 0).toFixed(2),
-      'max-complexity': complexity.maxComplexity || 0
+      'max-complexity': complexity.maxComplexity || 0,
+      'high-complexity-count-summary': highComplexityCount,
+      'high-complexity-count-ccn': highComplexityCount
     };
     
     Object.entries(complexityMetrics).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.textContent = value.toString();
-      }
+      updateElementText(id, value);
     });
-    
-    // ✅ FIXED: Update both high complexity count elements with unique IDs
-    const summaryCountEl = document.getElementById('high-complexity-count-summary');
-    if (summaryCountEl) {
-      summaryCountEl.textContent = highComplexityCount.toString();
-    }
-    
-    const ccnCountEl = document.getElementById('high-complexity-count-ccn');
-    if (ccnCountEl) {
-      ccnCountEl.textContent = highComplexityCount.toString();
-    }
-    
-    // Update complexity summary
-    updateComplexitySummary(functions);
-    
-    // Update functions table
-    updateFunctionsTable(functions);
-    
-    // Update complexity distribution
-    updateComplexityDistribution(functions);
-    
-    // Create complexity chart
-    createComplexityChart(functions);
-    
-    // Update density visualization
-    updateDensityVisualization(functions);
-    
-    console.log('Analysis data rendered successfully');
   }
   
-  function updateComplexitySummary(functions) {
+  /**
+   * Render complexity summary section
+   */
+  function renderComplexitySummary() {
+    const functions = analysisData.functions || [];
+    
     if (functions.length === 0) {
+      updateElementText('highest-ccn-function', 'No functions found');
+      updateElementText('highest-ccn-value', '-');
+      updateElementText('lowest-ccn-function', '-');
+      updateElementText('lowest-ccn-value', '-');
+      updateElementText('high-complexity-warning', 'No functions to analyze');
       return;
     }
     
+    // Sort functions by complexity
     const sortedByComplexity = [...functions].sort((a, b) => (b.complexity || 0) - (a.complexity || 0));
     const highest = sortedByComplexity[0];
     const lowest = sortedByComplexity[sortedByComplexity.length - 1];
     const highCount = functions.filter(f => (f.complexity || 0) > 10).length;
     
-    const summaryElements = {
-      'highest-ccn-function': highest?.name || '-',
-      'highest-ccn-value': highest ? `CCN: ${highest.complexity}` : '-',
-      'lowest-ccn-function': lowest?.name || '-',
-      'lowest-ccn-value': lowest ? `CCN: ${lowest.complexity}` : '-',
-      'high-complexity-warning': highCount > 0 ? `${highCount} function(s) need attention` : 'All functions are low complexity'
+    const summaryData = {
+      'highest-ccn-function': highest?.name || 'Unknown',
+      'highest-ccn-value': highest ? `CCN: ${highest.complexity || 0}` : '-',
+      'lowest-ccn-function': lowest?.name || 'Unknown',
+      'lowest-ccn-value': lowest ? `CCN: ${lowest.complexity || 0}` : '-',
+      'high-complexity-warning': highCount > 0 
+        ? `${highCount} function(s) need attention` 
+        : 'All functions have low complexity'
     };
     
-    Object.entries(summaryElements).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.textContent = value;
-      }
+    Object.entries(summaryData).forEach(([id, value]) => {
+      updateElementText(id, value);
     });
   }
   
-  function updateFunctionsTable(functions) {
+  /**
+   * Render functions table
+   */
+  function renderFunctionsTable() {
     const tbody = document.getElementById('functions-body');
     if (!tbody) {
       return;
     }
     
+    const functions = analysisData.functions || [];
+    
     if (functions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="no-data">No functions found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="no-data">No functions found in this file</td></tr>';
       return;
     }
     
-    tbody.innerHTML = functions.map((func, index) => {
-      const complexityClass = getComplexityClass(func.complexity || 0);
-      const density = func.cyclomaticDensity || 0;
+    const rows = functions.map((func, index) => {
+      const complexity = func.complexity || 0;
+      const complexityClass = getComplexityClass(complexity);
+      const density = func.cyclomaticDensity || (func.complexity || 0) / Math.max(func.lineCount || 1, 1);
       const densityClass = getDensityClass(density);
-      const densityFormatted = density.toFixed(3);
       
       return `
         <tr>
-          <td class="function-name clickable" data-function-index="${index}">${func.name || 'Unknown'}</td>
-          <td>${func.lineStart || 0}</td>
-          <td>${func.lineEnd || 0}</td>
-          <td>${func.lineCount || 0}</td>
-          <td>${func.parameters || 0}</td>
-          <td class="complexity ${complexityClass}">${func.complexity || 0}</td>
-          <td class="density ${densityClass}">${densityFormatted}</td>
+          <td class="function-name">${escapeHtml(func.name || 'Unknown')}</td>
+          <td>${func.lineStart || func.startLine || 0}</td>
+          <td>${func.lineEnd || func.endLine || 0}</td>
+          <td>${func.lineCount || func.length || 0}</td>
+          <td>${func.parameters || func.parameterCount || 0}</td>
+          <td class="complexity ${complexityClass}">${complexity}</td>
+          <td class="density ${densityClass}">${density.toFixed(3)}</td>
         </tr>
       `;
-    }).join('');
-    
-    // Add click event listeners to function names
-    const functionNameCells = tbody.querySelectorAll('.function-name.clickable');
-    functionNameCells.forEach(cell => {
-      cell.addEventListener('click', (event) => {
-        const functionIndex = parseInt(event.target.dataset.functionIndex);
-        const functionData = functions[functionIndex];
-        if (functionData) {
-          openFunctionDetails(functionData);
-        }
-      });
     });
+    
+    tbody.innerHTML = rows.join('');
   }
   
-  function updateComplexityDistribution(functions) {
+  /**
+   * Render distribution metrics
+   */
+  function renderDistributionMetrics() {
+    const functions = analysisData.functions || [];
+    
+    // Calculate distribution
     const distribution = {
-      simple: 0,    // 1-5
-      moderate: 0,  // 6-10
-      complex: 0,   // 11-20
-      veryComplex: 0 // 21+
+      simple: functions.filter(f => (f.complexity || 0) >= 1 && (f.complexity || 0) <= 5).length,
+      moderate: functions.filter(f => (f.complexity || 0) >= 6 && (f.complexity || 0) <= 10).length,
+      complex: functions.filter(f => (f.complexity || 0) >= 11 && (f.complexity || 0) <= 20).length,
+      'very-complex': functions.filter(f => (f.complexity || 0) >= 21).length
     };
     
-    functions.forEach(func => {
-      const ccn = func.complexity || 0;
-      if (ccn <= 5) {
-        distribution.simple++;
-      } else if (ccn <= 10) {
-        distribution.moderate++;
-      } else if (ccn <= 20) {
-        distribution.complex++;
-      } else {
-        distribution.veryComplex++;
-      }
-    });
-    
-    const distributionElements = {
-      'simple-count': distribution.simple,
-      'moderate-count': distribution.moderate,
-      'complex-count': distribution.complex,
-      'very-complex-count': distribution.veryComplex
-    };
-    
-    Object.entries(distributionElements).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.textContent = value.toString();
-      }
+    Object.entries(distribution).forEach(([level, count]) => {
+      updateElementText(`${level}-count`, count);
     });
   }
   
-  function createComplexityChart(functions) {
+  /**
+   * Create complexity chart using Chart.js
+   */
+  function renderComplexityChart() {
     const canvas = document.getElementById('complexityChart');
-    if (!canvas || !window.Chart) {
-      console.log('Chart.js not available or canvas not found');
+    if (!canvas) {
       return;
     }
     
+    const functions = analysisData.functions || [];
     const distribution = {
-      simple: 0,    // 1-5
-      moderate: 0,  // 6-10
-      complex: 0,   // 11-20
-      veryComplex: 0 // 21+
+      'Simple (1-5)': functions.filter(f => (f.complexity || 0) >= 1 && (f.complexity || 0) <= 5).length,
+      'Moderate (6-10)': functions.filter(f => (f.complexity || 0) >= 6 && (f.complexity || 0) <= 10).length,
+      'Complex (11-20)': functions.filter(f => (f.complexity || 0) >= 11 && (f.complexity || 0) <= 20).length,
+      'Very Complex (21+)': functions.filter(f => (f.complexity || 0) >= 21).length
     };
     
-    functions.forEach(func => {
-      const ccn = func.complexity || 0;
-      if (ccn <= 5) {
-        distribution.simple++;
-      } else if (ccn <= 10) {
-        distribution.moderate++;
-      } else if (ccn <= 20) {
-        distribution.complex++;
-      } else {
-        distribution.veryComplex++;
-      }
-    });
+    const colors = [
+      '#28a745', // Simple - Green
+      '#ffc107', // Moderate - Yellow
+      '#fd7e14', // Complex - Orange
+      '#dc3545'  // Very Complex - Red
+    ];
     
-    const data = {
-      labels: ['Simple (1-5)', 'Moderate (6-10)', 'Complex (11-20)', 'Very Complex (21+)'],
-      datasets: [{
-        data: [distribution.simple, distribution.moderate, distribution.complex, distribution.veryComplex],
-        backgroundColor: [
-          '#27ae60', // Simple - green
-          '#f39c12', // Moderate - orange
-          '#e67e22', // Complex - dark orange
-          '#e74c3c'  // Very Complex - red
-        ],
-        borderWidth: 2,
-        borderColor: '#2c3e50'
-      }]
-    };
+    // Destroy existing chart if it exists
+    if (complexityChart) {
+      complexityChart.destroy();
+    }
     
-    new Chart(canvas, {
+    const ctx = canvas.getContext('2d');
+    complexityChart = new Chart(ctx, {
       type: 'doughnut',
-      data: data,
+      data: {
+        labels: Object.keys(distribution),
+        datasets: [{
+          data: Object.values(distribution),
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
       options: {
         responsive: true,
         maintainAspectRatio: true,
+        aspectRatio: 1,
+        layout: {
+          padding: 10
+        },
         plugins: {
           legend: {
-            position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              padding: 15
-            }
+            display: false // We'll create custom legend
           },
           tooltip: {
             callbacks: {
               label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0.0';
-                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                return `${label}: ${value} functions (${percentage}%)`;
               }
             }
           }
+        },
+        onResize: function(chart, size) {
+          console.log('ANALYSIS_VIEWER: Chart resized to:', size);
         }
       }
     });
+    
+    // Generate custom legend
+    generateCustomLegend(distribution, colors);
   }
   
-  function updateDensityVisualization(functions) {
-    if (functions.length === 0) {
+  /**
+   * Generate custom legend for the chart
+   */
+  function generateCustomLegend(distribution, colors) {
+    const legendContainer = document.getElementById('chart-legend');
+    if (!legendContainer) {
       return;
     }
     
-    // Calculate average cyclomatic density
-    const densities = functions.map(f => f.cyclomaticDensity || 0).filter(d => d > 0);
-    const avgDensity = densities.length > 0 ? 
-      densities.reduce((sum, d) => sum + d, 0) / densities.length : 0;
+    const labels = Object.keys(distribution);
+    const values = Object.values(distribution);
+    const total = values.reduce((a, b) => a + b, 0);
     
-    const densityValue = document.getElementById('density-value');
-    const densityFill = document.getElementById('density-fill');
+    const legendItems = labels.map((label, index) => {
+      const value = values[index];
+      const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+      const color = colors[index];
+      
+      return `
+        <div class="chart-legend-item">
+          <div class="chart-legend-color" style="background-color: ${color}"></div>
+          <span>${label}: ${value} (${percentage}%)</span>
+        </div>
+      `;
+    }).join('');
     
-    if (densityValue) {
-      densityValue.textContent = avgDensity.toFixed(3);
+    legendContainer.innerHTML = legendItems;
+  }
+  
+  /**
+   * Render density visualization
+   */
+  function renderDensityVisualization() {
+    const functions = analysisData.functions || [];
+    
+    if (functions.length === 0) {
+      updateElementText('density-value', '0.00');
+      const densityFill = document.getElementById('density-fill');
+      if (densityFill) {
+        densityFill.style.width = '0%';
+      }
+      return;
     }
     
+    // Calculate densities for each function
+    const functionDensities = functions.map(f => {
+      const complexity = f.complexity || 0;
+      const lines = f.lineCount || f.length || 1;
+      return {
+        name: f.name || 'Unknown',
+        density: lines > 0 ? complexity / lines : 0,
+        complexity: complexity,
+        lines: lines
+      };
+    });
+    
+    // Calculate average density
+    const totalComplexity = functions.reduce((sum, f) => sum + (f.complexity || 0), 0);
+    const totalLines = functions.reduce((sum, f) => sum + (f.lineCount || f.length || 1), 0);
+    const avgDensity = totalLines > 0 ? totalComplexity / totalLines : 0;
+    
+    // Update density display
+    updateElementText('density-value', avgDensity.toFixed(3));
+    
+    // Update density bar (scale to max reasonable value of 1.0)
+    const densityFill = document.getElementById('density-fill');
     if (densityFill) {
-      // Scale density to percentage (assuming max density of 1.0 = 100%)
       const percentage = Math.min(avgDensity * 100, 100);
       densityFill.style.width = `${percentage}%`;
     }
+    
+    // Update density summary
+    renderDensitySummary(functionDensities);
+    
+    // Update density distribution
+    renderDensityDistribution(functionDensities);
   }
   
+  /**
+   * Render density summary (highest, lowest, high density count)
+   */
+  function renderDensitySummary(functionDensities) {
+    if (functionDensities.length === 0) {
+      return;
+    }
+    
+    // Sort by density
+    const sortedByDensity = [...functionDensities].sort((a, b) => b.density - a.density);
+    
+    // Highest density function
+    const highest = sortedByDensity[0];
+    updateElementText('highest-density-function', highest.name);
+    updateElementText('highest-density-value', `${highest.density.toFixed(3)}`);
+    
+    // Lowest density function
+    const lowest = sortedByDensity[sortedByDensity.length - 1];
+    updateElementText('lowest-density-function', lowest.name);
+    updateElementText('lowest-density-value', `${lowest.density.toFixed(3)}`);
+    
+    // High density functions (> 0.5)
+    const highDensityFunctions = functionDensities.filter(f => f.density > 0.5);
+    updateElementText('high-density-count', highDensityFunctions.length.toString());
+    
+    const warningText = highDensityFunctions.length > 0 ? 
+      `${highDensityFunctions.length} function${highDensityFunctions.length === 1 ? '' : 's'} need${highDensityFunctions.length === 1 ? 's' : ''} attention` : 
+      'All functions have acceptable density';
+    updateElementText('high-density-warning', warningText);
+  }
+  
+  /**
+   * Render density distribution legend
+   */
+  function renderDensityDistribution(functionDensities) {
+    if (functionDensities.length === 0) {
+      return;
+    }
+    
+    // Count functions by density range
+    const counts = {
+      low: 0,      // 0.0-0.1
+      medium: 0,   // 0.1-0.3
+      high: 0,     // 0.3-0.5
+      veryHigh: 0  // 0.5+
+    };
+    
+    functionDensities.forEach(f => {
+      if (f.density <= 0.1) {
+        counts.low++;
+      } else if (f.density <= 0.3) {
+        counts.medium++;
+      } else if (f.density <= 0.5) {
+        counts.high++;
+      } else {
+        counts.veryHigh++;
+      }
+    });
+    
+    // Update distribution counts
+    updateElementText('density-simple-count', counts.low.toString());
+    updateElementText('density-moderate-count', counts.medium.toString());
+    updateElementText('density-high-count', counts.high.toString());
+    updateElementText('density-very-high-count', counts.veryHigh.toString());
+  }
+  
+  /**
+   * Utility function to update element text content
+   */
+  function updateElementText(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+      element.textContent = value.toString();
+    }
+  }
+  
+  /**
+   * Get CSS class for complexity level
+   */
   function getComplexityClass(complexity) {
     if (complexity <= 5) {
       return 'simple';
@@ -342,39 +782,39 @@
     if (complexity <= 20) {
       return 'complex';
     }
-    return 'very-complex';
+    return 'critical';
   }
   
+  /**
+   * Get CSS class for density level
+   */
   function getDensityClass(density) {
-    if (density <= 0.25) {
-      return 'density-low';
+    if (density <= 0.1) {
+      return 'low';
+    }
+    if (density <= 0.3) {
+      return 'medium';
     }
     if (density <= 0.5) {
-      return 'density-medium';
+      return 'high';
     }
-    return 'density-high';
+    return 'very-high';
   }
-
-  function openFunctionDetails(functionData) {
-    console.log('Opening function details for:', functionData.name);
-    
-    // Send message to extension to open function details panel
-    if (vscode) {
-      vscode.postMessage({
-        command: 'openFunctionDetails',
-        data: {
-          function: functionData,
-          fileName: analysisData ? analysisData.fileName : 'Unknown',
-          filePath: analysisData ? analysisData.filePath : '',
-          language: analysisData ? analysisData.language : 'Unknown'
-        }
-      });
-    } else {
-      console.warn('VSCode API not available - simulating function details open');
-      // For browser testing, show an alert
-      const complexity = functionData.complexity || 0;
-      const density = functionData.cyclomaticDensity ? functionData.cyclomaticDensity.toFixed(3) : '0.000';
-      alert(`Function Details for: ${functionData.name}\n\nMetrics:\n- Complexity: ${complexity}\n- Density: ${density}\n- Lines: ${functionData.lineCount || 0}\n- Parameters: ${functionData.parameters || 0}\n\nIn VS Code, this would open a detailed analysis panel.`);
-    }
+  
+  /**
+   * Escape HTML to prevent XSS
+   */
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
+  
+  // Export for debugging
+  window.AnalysisViewer = {
+    data: () => analysisData,
+    reload: loadAnalysisData,
+    render: renderAnalysisData
+  };
+  
 })();

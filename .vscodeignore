@@ -1,5 +1,6 @@
 .vscode/**
 .vscode-test/**
+out/**
 src/**
 !src/analysis/python/**/*.py
 .gitignore
@@ -7,6 +8,7 @@ src/**
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/eslint.config.mjs
+**/webpack.config.js
 **/*.map
 **/*.ts
 **/.vscode-test.*

@@ -1,1 +1,0 @@
-{"version":3,"file":"templateManager.js","sourceRoot":"","sources":["../../../src/babiaxr/templates/templateManager.ts"],"names":[],"mappings":";AAAA,gDAAgD;AAChD,gFAAgF;;AAEhF,0CAOC;AAPM,KAAK,UAAU,eAAe,CAAC,OAAY,EAAE,SAAc;IAChE,OAAO,CAAC,IAAI,CAAC,kCAAkC,CAAC,CAAC;IACjD,OAAO;QACL,IAAI,EAAE,mDAAmD;QACzD,gBAAgB,EAAE,EAAE;QACpB,YAAY,EAAE,KAAK;KACpB,CAAC;AACJ,CAAC"}

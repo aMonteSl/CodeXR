@@ -17,769 +17,257 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "CodeXR",
-      "properties": {
-        "codexr.analysisMode": {
-          "type": "string",
-          "enum": [
-            "Static",
-            "XR"
-          ],
-          "default": "XR",
-          "description": "Default mode for file analysis (Static or XR)"
-        },
-        "codexr.analysis.directoryMode": {
-          "type": "string",
-          "enum": [
-            "shallow",
-            "deep"
-          ],
-          "default": "shallow",
-          "description": "Default mode for directory analysis (shallow: filenames only, deep: full file paths)"
-        },
-        "codexr.analysis.debounceDelay": {
-          "type": "number",
-          "default": 2000,
-          "minimum": 100,
-          "maximum": 10000,
-          "description": "Delay in milliseconds before auto-analysis is triggered after file changes"
-        },
-        "codexr.analysis.autoAnalysis": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable automatic analysis when files are saved"
-        },
-        "codexr.analysis.chartType": {
-          "type": "string",
-          "enum": [
-            "boats",
-            "bars",
-            "cylinders",
-            "bubbles",
-            "barsmap",
-            "pie",
-            "donut"
-          ],
-          "default": "boats",
-          "description": "Default chart type for file XR analysis visualizations"
-        },
-        "codexr.analysis.directoryChartType": {
-          "type": "string",
-          "enum": [
-            "boats",
-            "bars",
-            "cylinders",
-            "bubbles",
-            "barsmap",
-            "pie",
-            "donut"
-          ],
-          "default": "boats",
-          "description": "Default chart type for directory XR analysis visualizations"
-        },
-        "codexr.analysis.tree.maxFilesPerLanguage": {
-          "type": "number",
-          "default": 0,
-          "minimum": 0,
-          "maximum": 1000,
-          "description": "Maximum number of files to show per language group (0 = unlimited)"
-        },
-        "codexr.analysis.tree.languageSortMethod": {
-          "type": "string",
-          "enum": [
-            "alphabetical",
-            "fileCount"
-          ],
-          "default": "fileCount",
-          "description": "Method for sorting language groups"
-        },
-        "codexr.analysis.tree.languageSortDirection": {
-          "type": "string",
-          "enum": [
-            "ascending",
-            "descending"
-          ],
-          "default": "descending",
-          "description": "Direction for sorting language groups"
-        },
-        "codexr.analysis.tree.fileSortMethod": {
-          "type": "string",
-          "enum": [
-            "alphabetical",
-            "fileSize",
-            "modificationDate",
-            "fileExtension"
-          ],
-          "default": "alphabetical",
-          "description": "Method for sorting files within language groups"
-        },
-        "codexr.analysis.tree.fileSortDirection": {
-          "type": "string",
-          "enum": [
-            "ascending",
-            "descending"
-          ],
-          "default": "ascending",
-          "description": "Direction for sorting files within language groups"
-        },
-        "codexr.analysis.pythonPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to Python executable (leave empty for auto-detection)"
-        },
-        "codexr.analysis.autoSetupPython": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically set up Python environment if not found"
-        }
-      }
-    },
     "commands": [
       {
-        "command": "codexr.startLocalServer",
-        "title": "WebXR: Start Local Server",
-        "icon": "$(play)"
+        "command": "CodeXR.helloWorld",
+        "title": "Hello World"
       },
       {
-        "command": "codexr.stopLocalServer",
-        "title": "WebXR: Stop Local Server",
-        "icon": "$(stop)"
+        "command": "codexr.server.launch",
+        "title": "Start Local Server"
       },
       {
-        "command": "codexr.startServerWithConfig",
-        "title": "WebXR: Start Server with Configuration",
-        "icon": "$(run)"
+        "command": "codexr.server.configure",
+        "title": "Server Configuration"
       },
       {
-        "command": "codexr.serverOptions",
-        "title": "WebXR: Server Options",
-        "icon": "$(gear)"
+        "command": "codexr.server.config.httpMode",
+        "title": "Configure HTTP Mode"
       },
       {
-        "command": "codexr.serverStatusActions",
-        "title": "WebXR: Active Server Actions",
-        "icon": "$(server-process)"
+        "command": "codexr.server.config.port",
+        "title": "Configure Default Port"
       },
       {
-        "command": "codexr.changeServerMode",
-        "title": "WebXR: Change Server Mode",
-        "icon": "$(settings)"
+        "command": "codexr.server.config.autoOpen",
+        "title": "Toggle Auto-Open"
       },
       {
-        "command": "codexr.checkCertificates",
-        "title": "WebXR: Check SSL Certificates Status",
-        "icon": "$(shield)"
+        "command": "codexr.server.config.openMode",
+        "title": "Configure Open Mode"
       },
       {
-        "command": "codexr.stopAllServers",
-        "title": "WebXR: Stop All Servers",
-        "icon": "$(stop-circle)",
-        "category": "WebXR Server"
+        "command": "codeXR.activeServers.showActions",
+        "title": "Show Server Actions",
+        "icon": "$(menu)"
       },
       {
-        "command": "codexr.stopAllServersFromTree",
-        "title": "WebXR: Stop All Servers from Tree",
-        "icon": "$(stop-circle)",
-        "category": "WebXR Server"
+        "command": "codeXR.activeServers.openInBrowser",
+        "title": "Open in Browser",
+        "icon": "$(browser)"
       },
       {
-        "command": "codexr.showPortStatus",
-        "title": "WebXR: Show Port Status",
-        "icon": "$(ports-view-icon)",
-        "category": "WebXR Server"
+        "command": "codeXR.activeServers.openInPanel",
+        "title": "Open in Panel",
+        "icon": "$(layout-panel)"
       },
       {
-        "command": "codexr.debugServerStatus",
-        "title": "WebXR: Debug Server Status",
-        "icon": "$(bug)",
-        "category": "WebXR Server"
+        "command": "codeXR.activeServers.copyUrl",
+        "title": "Copy URL",
+        "icon": "$(copy)"
       },
       {
-        "command": "codexr.createVisualization",
-        "title": "WebXR: Create Data Visualization",
-        "icon": "$(graph)"
+        "command": "codeXR.activeServers.stopServer",
+        "title": "Stop Server",
+        "icon": "$(stop-circle)"
       },
       {
-        "command": "codexr.showTemplates",
-        "title": "WebXR: Browse Templates",
-        "icon": "$(template)"
-      },
-      {
-        "command": "codexr.setBackgroundColor",
-        "title": "WebXR: Set Background Color",
-        "icon": "$(color-mode)"
-      },
-      {
-        "command": "codexr.setEnvironmentPreset",
-        "title": "WebXR: Set Environment Preset",
-        "icon": "$(globe)"
-      },
-      {
-        "command": "codexr.setGroundColor",
-        "title": "WebXR: Set Ground Color",
-        "icon": "$(paintcan)"
-      },
-      {
-        "command": "codexr.setChartPalette",
-        "title": "WebXR: Set Chart Palette",
-        "icon": "$(symbol-color)"
-      },
-      {
-        "command": "codexr.launchBabiaXRExample",
-        "title": "WebXR: Launch BabiaXR Example",
-        "icon": "$(rocket)"
-      },
-      {
-        "command": "codexr.analyzeFile",
-        "title": "CodeXR: Analyze File (Static)",
-        "category": "Code Analysis",
-        "icon": "$(microscope)"
-      },
-      {
-        "command": "codexr.analyzeFile3D",
-        "title": "CodeXR: Analyze File (XR)",
-        "category": "Code Analysis",
-        "icon": "$(cube)"
-      },
-      {
-        "command": "codexr.analyzeFileFromTree",
-        "title": "CodeXR: Analyze File",
-        "category": "Code Analysis",
-        "icon": "$(search)"
-      },
-      {
-        "command": "codexr.openAndAnalyzeFile",
-        "title": "CodeXR: Open and Analyze File",
-        "category": "Code Analysis",
-        "icon": "$(file-code)"
-      },
-      {
-        "command": "codexr.analyzeMultipleFiles3D",
-        "title": "CodeXR: Analyze Multiple Files in XR",
-        "category": "Code Analysis",
-        "icon": "$(files)"
-      },
-      {
-        "command": "codexr.analyzeDirectoryStatic",
-        "title": "CodeXR: Analyze Directory (Static)",
-        "category": "Code Analysis",
-        "icon": "$(folder-opened)"
-      },
-      {
-        "command": "codexr.analyzeDirectory",
-        "title": "CodeXR: Analyze Directory",
-        "category": "Code Analysis",
-        "icon": "$(folder)"
-      },
-      {
-        "command": "codexr.analyzeDirectoryDeepStatic",
-        "title": "CodeXR: Analyze Directory Deep (Static)",
-        "category": "Code Analysis",
-        "icon": "$(folder-library)"
-      },
-      {
-        "command": "codexr.analyzeDirectoryXR",
-        "title": "CodeXR: Analyze Directory (XR)",
-        "category": "Code Analysis",
-        "icon": "$(vr)"
-      },
-      {
-        "command": "codexr.analyzeDirectoryXRDeep",
-        "title": "CodeXR: Analyze Directory Deep (XR)",
-        "category": "Code Analysis",
-        "icon": "$(vr)"
-      },
-      {
-        "command": "codexr.analyzeProjectStatic",
-        "title": "CodeXR: Analyze Project (Static)",
-        "category": "Code Analysis",
-        "icon": "$(project)"
-      },
-      {
-        "command": "codexr.analyzeProject",
-        "title": "CodeXR: Analyze Project",
-        "category": "Code Analysis",
-        "icon": "$(folder-library)"
-      },
-      {
-        "command": "codexr.analyzeProjectDeepStatic",
-        "title": "CodeXR: Analyze Project Deep (Static)",
-        "category": "Code Analysis",
-        "icon": "$(library)"
-      },
-      {
-        "command": "codexr.analyzeProjectXR",
-        "title": "CodeXR: Analyze Project (XR)",
-        "category": "Code Analysis",
-        "icon": "$(vr)"
-      },
-      {
-        "command": "codexr.analyzeProjectXRDeep",
-        "title": "CodeXR: Analyze Project Deep (XR)",
-        "category": "Code Analysis",
-        "icon": "$(vr)"
-      },
-      {
-        "command": "codexr.analysis.debug",
-        "title": "CodeXR: Debug Analysis Sessions",
-        "category": "Code Analysis",
-        "icon": "$(bug)"
-      },
-      {
-        "command": "codexr.analyzeDirectoryFromTree",
-        "title": "CodeXR: Analyze Directory from Tree",
-        "category": "Code Analysis",
-        "icon": "$(search)"
-      },
-      {
-        "command": "codexr.analyzeFolder",
-        "title": "CodeXR: Analyze JavaScript/TypeScript Folder",
-        "category": "Code Analysis",
-        "icon": "$(folder)"
-      },
-      {
-        "command": "codexr.showJSMetricsDetails",
-        "title": "CodeXR: Show JavaScript Metrics Details",
-        "category": "Code Analysis",
+        "command": "codeXR.activeServers.showDetails",
+        "title": "Show Details",
         "icon": "$(info)"
       },
       {
-        "command": "codexr.setAnalysisMode",
-        "title": "CodeXR: Set Default Analysis Mode",
-        "category": "Analysis Settings",
+        "command": "codeXR.activeServers.stopAllServers",
+        "title": "Stop All Servers",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "codeXR.activeServers.refreshServers",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codeXR.activeServers.openView",
+        "title": "Open Active Servers"
+      },
+      {
+        "command": "codeXR.babiaExamples.launchExample",
+        "title": "Launch Example",
+        "icon": "$(play)"
+      },
+      {
+        "command": "codeXR.babiaExamples.refresh",
+        "title": "Refresh Examples",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codeXR.babiaExamples.openFolder",
+        "title": "Open Examples Folder",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "codeXR.babiaExamples.showDetails",
+        "title": "Show Example Details",
+        "icon": "$(info)"
+      },
+      {
+        "command": "codeXR.babiaExamples.openView",
+        "title": "Open Babia Examples"
+      },
+      {
+        "command": "codeXR.visualizeData.chartType",
+        "title": "Select Chart Type",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "codeXR.visualizeData.selectJson",
+        "title": "Select JSON File",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "codeXR.visualizeData.dimensionMapping",
+        "title": "Configure Dimension Mapping",
         "icon": "$(settings-gear)"
       },
       {
-        "command": "codexr.setAnalysisDebounceDelay",
-        "title": "CodeXR: Set Analysis Delay",
-        "category": "Analysis Settings",
-        "icon": "$(clock)"
+        "command": "codeXR.visualizeData.launchVisualization",
+        "title": "Launch Visualization",
+        "icon": "$(play)"
       },
       {
-        "command": "codexr.toggleAutoAnalysis",
-        "title": "CodeXR: Toggle Auto Analysis",
-        "category": "Analysis Settings",
-        "icon": "$(sync)"
+        "command": "codeXR.pythonEnv.create",
+        "title": "Create Python Environment",
+        "icon": "$(add)"
       },
       {
-        "command": "codexr.setAnalysisChartType",
-        "title": "CodeXR: Set Chart Type",
-        "category": "Analysis Settings",
-        "icon": "$(graph)"
+        "command": "codeXR.pythonEnv.delete",
+        "title": "Delete Python Environment",
+        "icon": "$(trash)"
       },
       {
-        "command": "codexr.setDimensionMapping",
-        "title": "CodeXR: Set Dimension Mapping",
-        "category": "Analysis Settings",
-        "icon": "$(symbol-parameter)"
+        "command": "codeXR.pythonEnv.status",
+        "title": "Python Environment Status",
+        "icon": "$(info)"
       },
       {
-        "command": "codexr.resetAnalysisDefaults",
-        "title": "CodeXR: Reset Analysis Defaults",
-        "category": "Analysis Settings",
+        "command": "codeXR.pythonEnv.installPackage",
+        "title": "Install Python Package",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codeXR.pythonEnv.reinitialize",
+        "title": "Reinitialize Python Environment",
         "icon": "$(refresh)"
       },
       {
-        "command": "codexr.setupPythonEnvironment",
-        "title": "CodeXR: Setup Python Environment",
-        "category": "Python Environment",
-        "icon": "$(symbol-misc)"
+        "command": "codexr.analysis.fileStatic",
+        "title": "Analyze File (Static)",
+        "icon": "$(file)"
       },
       {
-        "command": "codexr.refreshView",
-        "title": "CodeXR: Refresh Explorer View",
-        "icon": "$(refresh)"
+        "command": "codexr.analysis.fileXR",
+        "title": "Analyze File (XR)",
+        "icon": "$(file)"
       },
       {
-        "command": "codexr.refreshServerView",
-        "title": "CodeXR: Refresh Server View",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "codexr.refreshTreeView",
-        "title": "CodeXR: Refresh Tree View",
-        "category": "CodeXR",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "codexr.refreshAnalysisTree",
-        "title": "CodeXR: Refresh Analysis Tree",
-        "category": "Analysis Settings",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "codexr.updateAnalysisPanel",
-        "title": "CodeXR: Update Analysis Panel",
-        "category": "CodeXR"
-      },
-      {
-        "command": "codexr.debugWatchers",
-        "title": "CodeXR: Debug File Watchers",
-        "category": "Code Analysis",
-        "icon": "$(bug)"
-      },
-      {
-        "command": "codexr.visualizeDOM",
-        "title": "CodeXR: Visualize DOM",
-        "icon": "$(browser)"
-      },
-      {
-        "command": "codexr.toggleAnalysisMode",
-        "title": "Toggle Analysis Mode",
-        "category": "CodeXR",
-        "icon": "$(arrow-swap)"
-      },
-      {
-        "command": "codexr.selectDirectoryAnalysisMode",
-        "title": "Select Directory Analysis Mode",
-        "category": "CodeXR",
-        "icon": "$(folder-library)"
-      },
-      {
-        "command": "codexr.setAnalysisChartType",
-        "title": "Set Analysis Chart Type",
-        "category": "CodeXR",
-        "icon": "$(graph)"
-      },
-      {
-        "command": "codexr.setDirectoryAnalysisChartType",
-        "title": "Set Directory Analysis Chart Type",
-        "category": "CodeXR",
-        "icon": "$(graph)"
-      },
-      {
-        "command": "codexr.setDimensionMapping",
-        "title": "Set Dimension Mapping",
-        "category": "CodeXR",
-        "icon": "$(symbol-property)"
-      },
-      {
-        "command": "codexr.setDirectoryDimensionMapping",
-        "title": "Set Directory Dimension Mapping",
-        "category": "CodeXR",
-        "icon": "$(symbol-property)"
-      },
-      {
-        "command": "codexr.resetAnalysisDefaults",
-        "title": "Reset Analysis Defaults",
-        "category": "CodeXR",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "codexr.setAnalysisDebounceDelay",
-        "title": "Set Analysis Debounce Delay",
-        "category": "CodeXR",
-        "icon": "$(clock)"
-      },
-      {
-        "command": "codexr.toggleAutoAnalysis",
-        "title": "Toggle Auto Analysis",
-        "category": "CodeXR",
-        "icon": "$(sync)"
-      },
-      {
-        "command": "codexr.toggleDirectoryAnalysisMode",
-        "title": "Toggle Directory Analysis Mode",
-        "category": "CodeXR",
-        "icon": "$(folder-arrow-swap)"
-      },
-      {
-        "command": "codexr.configureTreeDisplay",
-        "title": "Configure Tree Display",
-        "category": "CodeXR",
-        "icon": "$(settings-gear)"
-      },
-      {
-        "command": "codexr.reopenAnalysis",
-        "title": "Reopen Analysis",
-        "category": "CodeXR",
-        "icon": "$(browser)"
-      },
-      {
-        "command": "codexr.closeAnalysis",
-        "title": "Close Analysis",
-        "category": "CodeXR",
-        "icon": "$(close)"
+        "command": "codexr.activeAnalysis.stopAnalysis",
+        "title": "Stop Analysis",
+        "icon": "$(stop-circle)"
       }
     ],
-    "menus": {
-      "view/title": [
-        {
-          "command": "codexr.refreshView",
-          "when": "view == codexr.serverTreeView",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.startServerWithConfig",
-          "when": "view == codexr.serverTreeView",
-          "group": "navigation"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "codexr.startLocalServer",
-          "when": "viewItem == servers-section",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.stopLocalServer",
-          "when": "viewItem == active-server",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.serverOptions",
-          "when": "viewItem == activeServer",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.serverOptions",
-          "when": "viewItem == activeXRAnalysisServer",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.createVisualization",
-          "when": "viewItem == babiaxr-section",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.stopAllServers",
-          "when": "view == codexr.serverTreeView && viewItem == serverContainer",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.stopAllServers",
-          "when": "view == codexr.serverTreeView && viewItem == serverContainer",
-          "group": "1_actions"
-        },
-        {
-          "command": "codexr.analyzeFileFromTree",
-          "when": "viewItem == analysis_file",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.openAndAnalyzeFile",
-          "when": "viewItem == analysis_file",
-          "group": "1_actions"
-        },
-        {
-          "command": "codexr.analyzeProjectStatic",
-          "when": "viewItem == directoryFolder",
-          "group": "1_project"
-        },
-        {
-          "command": "codexr.analyzeProjectDeepStatic",
-          "when": "viewItem == directoryFolder",
-          "group": "1_project"
-        },
-        {
-          "command": "codexr.analyzeProjectXR",
-          "when": "viewItem == directoryFolder",
-          "group": "1_project"
-        },
-        {
-          "command": "codexr.analyzeProjectXRDeep",
-          "when": "viewItem == directoryFolder",
-          "group": "1_project"
-        },
-        {
-          "command": "codexr.setAnalysisMode",
-          "when": "viewItem == analysis_setting_option && resourceLangId == mode",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.setAnalysisDebounceDelay",
-          "when": "viewItem == analysis_setting_option && resourceLangId == delay",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.toggleAutoAnalysis",
-          "when": "viewItem == analysis_setting_option && resourceLangId == auto",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.setAnalysisChartType",
-          "when": "viewItem == analysis_setting_option && resourceLangId == chartType",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.setDimensionMapping",
-          "when": "viewItem == analysis_setting_option && resourceLangId == dimensionMapping",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.resetAnalysisDefaults",
-          "when": "viewItem == analysis_reset",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.launchBabiaXRExample",
-          "when": "viewItem == babiaxr_example",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.closeAnalysis",
-          "when": "viewItem == activeAnalysis",
-          "group": "inline"
-        },
-        {
-          "command": "codexr.analyzeFile",
-          "when": "viewItem == projectFile",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.analyzeFile3D",
-          "when": "viewItem == projectFile",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.analyzeDirectoryStatic",
-          "when": "viewItem == projectFolder",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.analyzeDirectoryDeepStatic",
-          "when": "viewItem == projectFolder",
-          "group": "navigation"
-        }
-      ],
-      "editor/context": [
-        {
-          "command": "codexr.analyzeFile",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb|java|m|mm|swift|ttcn3|ttcn|3mp|php|phtml|php3|php4|php5|phps|scala|sc|gd|go|lua|rs|f|f77|f90|f95|f03|f08|for|ftn|kt|kts|sol|erl|hrl|zig|pl|pm|pod|t)$/",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.analyzeFile3D",
-          "when": "resourceExtname =~ /\\.(js|jsx|ts|tsx|py|c|h|cpp|cc|cxx|cs|vue|rb|java|m|mm|swift|ttcn3|ttcn|3mp|php|phtml|php3|php4|php5|phps|scala|sc|gd|go|lua|rs|f|f77|f90|f95|f03|f08|for|ftn|kt|kts|sol|erl|hrl|zig|pl|pm|pod|t)$/",
-          "group": "navigation"
-        },
-        {
-          "command": "codexr.visualizeDOM",
-          "when": "resourceExtname == .html",
-          "group": "codexr@3"
-        }
-      ],
-      "explorer/context": [
-        {
-          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby || resourceLangId == java || resourceLangId == objective-c || resourceLangId == objective-cpp || resourceLangId == swift || resourceLangId == ttcn3 || resourceLangId == php || resourceLangId == scala || resourceLangId == gdscript || resourceLangId == go || resourceLangId == lua || resourceLangId == rust || resourceLangId == fortran || resourceLangId == kotlin || resourceLangId == solidity || resourceLangId == erlang || resourceLangId == zig || resourceLangId == perl",
-          "command": "codexr.analyzeFile",
-          "group": "CodeXR"
-        },
-        {
-          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python || resourceLangId == c || resourceLangId == cpp || resourceLangId == csharp || resourceLangId == vue || resourceLangId == ruby || resourceLangId == java || resourceLangId == objective-c || resourceLangId == objective-cpp || resourceLangId == swift || resourceLangId == ttcn3 || resourceLangId == php || resourceLangId == scala || resourceLangId == gdscript || resourceLangId == go || resourceLangId == lua || resourceLangId == rust || resourceLangId == fortran || resourceLangId == kotlin || resourceLangId == solidity || resourceLangId == erlang || resourceLangId == zig || resourceLangId == perl",
-          "command": "codexr.analyzeFile3D",
-          "group": "CodeXR"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeDirectoryStatic",
-          "group": "CodeXR"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeDirectoryDeepStatic",
-          "group": "CodeXR"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeDirectoryXR",
-          "group": "CodeXR"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeDirectoryXRDeep",
-          "group": "CodeXR"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeProjectStatic",
-          "group": "CodeXR@1"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeProjectDeepStatic",
-          "group": "CodeXR@1"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeProjectXR",
-          "group": "CodeXR@1"
-        },
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "codexr.analyzeProjectXRDeep",
-          "group": "CodeXR@1"
-        },
-        {
-          "command": "codexr.visualizeDOM",
-          "when": "resourceExtname == .html",
-          "group": "codexr@3"
-        }
-      ]
-    },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "codexr-explorer",
-          "title": "CodeXR",
+          "id": "codexr",
+          "title": "CODEXR",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "codexr-explorer": [
+      "codexr": [
         {
-          "id": "codexr.serverTreeView",
-          "name": "CodeXR",
-          "icon": "resources/icon.svg"
+          "id": "codexrTree",
+          "name": "CODEXR",
+          "when": "true",
+          "icon": "$(server-environment)"
         }
       ]
     },
-    "keybindings": [
-      {
-        "command": "codexr.refreshView",
-        "key": "ctrl+shift+r",
-        "mac": "cmd+shift+r",
-        "when": "focusedView == codexr.serverTreeView"
-      },
-      {
-        "command": "codexr.startServerWithConfig",
-        "key": "ctrl+shift+s",
-        "mac": "cmd+shift+s",
-        "when": "focusedView == codexr.serverTreeView"
-      }
-    ]
+    "menus": {
+      "view/title": [
+        {
+          "command": "codeXR.activeServers.refreshServers",
+          "when": "view == codexrTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codeXR.activeServers.stopAllServers",
+          "when": "view == codexrTree",
+          "group": "navigation@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codexr.analysis.fileStatic",
+          "when": "resourceExtname =~ /\\.(js|ts|jsx|tsx|py|java|c|cpp|cs|go|rs|php|rb|swift|kt|kts|scala|sc|dart|vue|html|css|scss|less|sol|m|mm|zig|ttcn|ttcn3|erl|hrl|lua|pl|pm|pod|t|f90|f95|f03|f08|gd)$/",
+          "group": "codexr@1"
+        },
+        {
+          "command": "codexr.analysis.fileXR",
+          "when": "resourceExtname =~ /\\.(js|ts|jsx|tsx|py|java|c|cpp|cs|go|rs|php|rb|swift|kt|kts|scala|sc|dart|vue|html|css|scss|less|sol|m|mm|zig|ttcn|ttcn3|erl|hrl|lua|pl|pm|pod|t|f90|f95|f03|f08|gd)$/",
+          "group": "codexr@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "codexr.analysis.fileStatic",
+          "when": "resourceExtname =~ /\\.(js|ts|jsx|tsx|py|java|c|cpp|cs|go|rs|php|rb|swift|kt|kts|scala|sc|dart|vue|html|css|scss|less|sol|m|mm|zig|ttcn|ttcn3|erl|hrl|lua|pl|pm|pod|t|f90|f95|f03|f08|gd)$/",
+          "group": "codexr@1"
+        },
+        {
+          "command": "codexr.analysis.fileXR",
+          "when": "resourceExtname =~ /\\.(js|ts|jsx|tsx|py|java|c|cpp|cs|go|rs|php|rb|swift|kt|kts|scala|sc|dart|vue|html|css|scss|less|sol|m|mm|zig|ttcn|ttcn3|erl|hrl|lua|pl|pm|pod|t|f90|f95|f03|f08|gd)$/",
+          "group": "codexr@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codexr.activeAnalysis.stopAnalysis",
+          "when": "view == codexrTree && viewItem =~ /^active-analysis-(running|completed|failed|paused)$/",
+          "group": "codexr@1"
+        }
+      ]
+    }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "build": "node esbuild.config.mjs",
-    "package": "vsce package"
-  },
-  "dependencies": {
-    "get-port": "^7.1.0",
-    "typescript": "^5.8.3"
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.98.0",
-    "@typescript-eslint/eslint-plugin": "^8.25.0",
-    "@typescript-eslint/parser": "^8.25.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "esbuild": "^0.25.5",
-    "eslint": "^9.21.0"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.100.2",
+    "webpack-cli": "^6.0.1"
   },
-  "files": [
-    "out/**/*",
-    "src/analysis/python/**/*.py",
-    "templates/**/*",
-    "media/**/*",
-    "resources/**/*"
-  ]
+  "dependencies": {
+    "get-port": "^7.1.0"
+  }
 }

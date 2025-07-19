@@ -1,152 +1,134 @@
-declare global {
-  var treeDataProvider: any;
-  var codexrExtensionContext: vscode.ExtensionContext;
-}
-
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { registerCommands } from './commands';
-import { getStatusBarManager } from './ui/statusBarManager';
-import { LocalServerProvider } from './ui/treeProvider';
-import { stopServer } from './server/serverManager';
-import { registerAnalysisCommands } from './commands/analysisCommands';
-import { registerPythonEnvCommands, checkAndSetupPythonEnvironment } from './pythonEnv';
-import { FileWatchManager } from './analysis/watchers/fileWatchManager';
-import { directoryWatchManager } from './analysis/watchers/directoryWatchManager';
-import { SharedDirectoryWatcherManager } from './analysis/utils/directoryWatcher';
-import { analysisDataManager } from './analysis/utils/dataManager';
-import { cleanupXRVisualizations } from './analysis/xr/xrAnalysisManager';
-import { cleanupDOMVisualizations } from './analysis/html/domVisualizationManager';
+import { registerAllCommands } from './commands/index';
+import { ModularTreeDataProvider } from './views';
+import { CommonCommands } from './utils/commonCommands';
+import { ServerSettingsManager } from './servers/storage/serverSettingsManager';
+import { getActiveServerRegistry } from './active_servers/registry/activeServerRegistry';
+import { registerVisualizationSettingsCommands } from './visualization_settings/index';
+import { VisualizeDataModel } from './visualize_data/model/visualizeDataModel';
+import { cleanupAnalysisTemp } from './code_analysis/utils/tempStorageManager';
+import { FileWatcherManager } from './code_analysis/runtime/fileWatcherManager';
+import { StatusBarDelayTimer } from './code_analysis/runtime/statusBarDelayTimer';
+import { sseManager } from './servers/runtime/sse/SSEManager';
+import { fileToServerMap } from './utils/fileToServerMap';
 
-/**
- * This function is executed when the extension is activated
- */
+// Global context reference for cleanup
+let extensionContext: vscode.ExtensionContext;
+
+// This method is called when your extension is activated
+// Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-  console.log('🚀 Extension "CodeXR" is now active.');
+	
+	// Store context globally for cleanup
+	extensionContext = context;
 
-  // Store context globally for access by commands
-  global.codexrExtensionContext = context;
+	// Use the console to output diagnostic information (console.log) and errors (console.error)
+	// This line of code will only be executed once when your extension is activated
+	console.log('Congratulations, your extension "CodeXR" is now active!');
 
-  // Initialize status bar manager
-  const statusBarManager = getStatusBarManager(context);
-  
-  // ✅ CRITICAL: Initialize FileWatchManager with proper settings
-  console.log('🔧 Initializing FileWatchManager...');
-  const fileWatchManager = FileWatchManager.initialize(context);
-  
-  if (fileWatchManager) {
-    console.log('✅ FileWatchManager initialized successfully');
-  } else {
-    console.error('❌ Failed to initialize FileWatchManager');
-  }
-  
-  // ✅ CRITICAL: Initialize DirectoryWatchManager with proper settings
-  console.log('🔧 Initializing DirectoryWatchManager...');
-  directoryWatchManager.initialize(context);
-  console.log('✅ DirectoryWatchManager initialized successfully');
-  
-  // ✅ CRITICAL: Initialize SharedDirectoryWatcherManager for XR
-  console.log('🔧 Initializing SharedDirectoryWatcherManager...');
-  const sharedWatcherManager = SharedDirectoryWatcherManager.getInstance();
-  sharedWatcherManager.initialize(context);
-  console.log('✅ SharedDirectoryWatcherManager initialized successfully');
-  
-  // Register tree data provider for the unified view
-  const treeDataProvider = new LocalServerProvider(context);
-  const treeView = vscode.window.createTreeView('codexr.serverTreeView', {
-    treeDataProvider: treeDataProvider
-  });
-  context.subscriptions.push(treeView);
+	try {
+		// Step 1: Initialize server settings manager and restore settings FIRST
+		console.log('SERVER: Initializing server settings manager');
+		const settingsManager = ServerSettingsManager.getInstance(context);
+		await settingsManager.restoreServerSettings();
+		console.log('SERVER: Settings restoration completed');
 
-  // Register tree data provider disposal
-  context.subscriptions.push({
-    dispose: () => {
-      console.log('🧹 Disposing tree data provider...');
-      treeDataProvider.dispose();
-    }
-  });
+		// Step 2: Initialize active servers registry
+		console.log('ACTIVE_SERVERS: Initializing active servers registry');
+		const activeServerRegistry = getActiveServerRegistry();
+		console.log('ACTIVE_SERVERS: Registry initialized');
 
-  // Expose the treeDataProvider globally for updates
-  global.treeDataProvider = treeDataProvider;
+		// Step 3: Register the modular tree view AFTER settings are restored
+		console.log('MODULAR_TREE: Registering modular tree view with all sections');
+		const modularTreeDataProvider = new ModularTreeDataProvider(context);
+		const modularTreeView = vscode.window.createTreeView('codexrTree', {
+			treeDataProvider: modularTreeDataProvider,
+			showCollapseAll: true,
+			canSelectMany: false
+		});
 
-  // Register all commands ONCE
-  console.log('📝 Registering server/UI commands...');
-  const commandDisposables = registerCommands(context, treeDataProvider);
-  context.subscriptions.push(...commandDisposables);
-  
-  // Register Python environment commands ONCE
-  console.log('🐍 Registering Python environment commands...');
-  const pythonEnvDisposables = registerPythonEnvCommands(context);
-  context.subscriptions.push(...pythonEnvDisposables);
-  
-  // Register all analysis commands
-  console.log('🔬 Registering analysis commands...');
-  const analysisDisposables = registerAnalysisCommands(context);
-  context.subscriptions.push(...analysisDisposables);
-  
-  console.log(`✅ Registered ${commandDisposables.length + pythonEnvDisposables.length + analysisDisposables.length} commands total`);
-  
-  // Check for Python environment at startup (after short delay to not block activation)
-  setTimeout(() => {
-    console.log('🔍 Checking Python environment...');
-    checkAndSetupPythonEnvironment();
-  }, 2000);
+		context.subscriptions.push(modularTreeView);
+		console.log('MODULAR_TREE: Tree view registered successfully with all sections');
 
-  // Log file system watcher status after initialization
-  setTimeout(() => {
-    const watcherStatus = treeDataProvider.getFileSystemWatcherStatus();
-    console.log('📊 File System Watcher Status:', watcherStatus);
-  }, 3000);
-  
-  console.log('🎉 CodeXR extension activation completed!');
+		// Step 3.5: Set up common commands with the modular tree provider
+		console.log('COMMON_COMMANDS: Setting up common commands with modular tree provider');
+		CommonCommands.setModularTreeProvider(modularTreeDataProvider);
+		console.log('COMMON_COMMANDS: Common commands configured');
+
+		// Step 3.6: Code Analysis will start background scanning automatically when provider is created
+		console.log('CODE_ANALYSIS: Background file scanning will start automatically');
+
+		// Step 4: Register all commands after tree views are created
+		registerAllCommands(context, modularTreeDataProvider, undefined);
+		
+		// Step 5: Register visualization settings commands
+		console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands');
+		registerVisualizationSettingsCommands(context);
+		console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
+
+		// Step 6: Reset Visualize Data state to ensure clean UI/model synchronization
+		console.log('VISUALIZE-DATA: Resetting state to ensure clean UI/model synchronization');
+		VisualizeDataModel.resetVisualizeDataState(context);
+		console.log('VISUALIZE-DATA: State reset completed');
+
+		// Step 7: Trigger initial refresh to ensure UI reflects loaded settings
+		console.log('MODULAR_TREE: Triggering initial tree view refresh with loaded settings');
+		vscode.commands.executeCommand('codexr.tree.refresh');
+		
+		console.log('MODULAR_TREE: Extension activation completed successfully');
+	} catch (error) {
+		console.error('MODULAR_TREE: Error during extension activation:', error);
+		vscode.window.showErrorMessage(`CodeXR activation failed: ${error}`);
+	}
 }
 
-/**
- * This function is executed when the extension is deactivated
- */
+// This method is called when your extension is deactivated
 export async function deactivate() {
-  console.log('🧹 Deactivating CodeXR extension...');
-  
-  // Clean up any stored data
-  analysisDataManager.clearAllData();
-  
-  // Clean up XR visualizations
-  cleanupXRVisualizations();
-  
-  // Clean up DOM visualizations
-  cleanupDOMVisualizations();
-  
-  // Stop all servers when extension is deactivated
-  stopServer();
-  
-  // Clean up visualization files
-  try {
-    // Get the path to the visualizations directory
-    const visualizationsDir = path.join(__dirname, '..', 'visualizations');
-    
-    // Check if the directory exists
-    try {
-      await fs.access(visualizationsDir);
-      
-      // Read all entries in the directory
-      const entries = await fs.readdir(visualizationsDir);
-      
-      // Delete each entry recursively
-      for (const entry of entries) {
-        const entryPath = path.join(visualizationsDir, entry);
-        console.log(`Cleaning up visualization files: ${entryPath}`);
-        await fs.rm(entryPath, { recursive: true, force: true });
-      }
-      
-      console.log('All visualization files cleaned up successfully');
-    } catch (err) {
-      // Directory doesn't exist, nothing to clean up
-      console.log('No visualizations directory found, nothing to clean up');
-    }
-  } catch (error) {
-    console.error('Error during cleanup of visualization files:', error);
-  }
-  
-  console.log('✅ CodeXR extension deactivated successfully');
+	console.log('MODULAR_TREE: CodeXR extension deactivated');
+	
+	// Cleanup active servers registry
+	try {
+		console.log('ACTIVE_SERVERS: Cleaning up active servers registry');
+		const registry = getActiveServerRegistry();
+		const cleanedCount = registry.cleanupInactiveServers();
+		console.log(`ACTIVE_SERVERS: Registry cleanup completed - removed ${cleanedCount} inactive servers`);
+	} catch (error) {
+		console.error('ACTIVE_SERVERS: Error during registry cleanup:', error);
+	}
+	
+	// Cleanup file watcher manager and status bar timers
+	try {
+		console.log('CODE_ANALYSIS: Cleaning up file watchers and status bar timers');
+		
+		const fileWatcherManager = FileWatcherManager.getInstance();
+		fileWatcherManager.dispose();
+		
+		const statusBarTimer = StatusBarDelayTimer.getInstance();
+		statusBarTimer.dispose();
+		
+		console.log('CODE_ANALYSIS: File watcher and timer cleanup completed');
+	} catch (error) {
+		console.error('CODE_ANALYSIS: Error during cleanup:', error);
+	}
+	
+	// Cleanup analysis temporary storage
+	try {
+		console.log('ANALYSIS_STORAGE: Cleaning up temporary analysis files');
+		await cleanupAnalysisTemp(extensionContext);
+		console.log('ANALYSIS_STORAGE: Temporary analysis cleanup completed');
+	} catch (error) {
+		console.error('ANALYSIS_STORAGE: Error during analysis temp cleanup:', error);
+	}
+	
+	// Cleanup SSE manager and file-to-server mapping
+	try {
+		console.log('SSE: Cleaning up SSE manager and file mappings');
+		
+		sseManager.dispose();
+		fileToServerMap.clearAll();
+		
+		console.log('SSE: SSE and file mapping cleanup completed');
+	} catch (error) {
+		console.error('SSE: Error during SSE cleanup:', error);
+	}
 }

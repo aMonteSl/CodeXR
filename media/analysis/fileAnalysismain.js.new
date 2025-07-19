@@ -1,0 +1,428 @@
+/**
+ * Modern Static Analysis Viewer JavaScript
+ * Loads data.json and renders interactive analysis dashboard
+ */
+
+(function() {
+  'use strict';
+  
+  // Global state
+  let analysisData = null;
+  let complexityChart = null;
+  
+  // DOM elements cache
+  const elements = {
+    noData: null,
+    results: null,
+    subtitle: null
+  };
+  
+  // Initialize when DOM is ready
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('ANALYSIS_VIEWER: Initializing static analysis viewer...');
+    
+    // Cache DOM elements
+    cacheElements();
+    
+    // Try to load analysis data
+    loadAnalysisData();
+  });
+  
+  /**
+   * Cache frequently used DOM elements
+   */
+  function cacheElements() {
+    elements.noData = document.getElementById('no-data');
+    elements.results = document.getElementById('results');
+    elements.subtitle = document.querySelector('.subtitle');
+  }
+  
+  /**
+   * Load analysis data from multiple sources
+   */
+  function loadAnalysisData() {
+    // First try: Use injected window.analysisData (preferred for static mode)
+    if (window.analysisData) {
+      console.log('ANALYSIS_VIEWER: Using injected analysis data');
+      analysisData = window.analysisData;
+      renderAnalysisData();
+      return;
+    }
+    
+    // Second try: Load from data.json file
+    console.log('ANALYSIS_VIEWER: Loading data from data.json...');
+    fetch('./data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('ANALYSIS_VIEWER: Successfully loaded data.json', data);
+        analysisData = data;
+        renderAnalysisData();
+      })
+      .catch(error => {
+        console.error('ANALYSIS_VIEWER: Failed to load data.json:', error);
+        showError('Failed to load analysis data: ' + error.message);
+      });
+  }
+  
+  /**
+   * Show error message to user
+   */
+  function showError(message) {
+    console.error('ANALYSIS_VIEWER:', message);
+    
+    if (elements.noData) {
+      elements.noData.innerHTML = `<p>Error: ${message}</p>`;
+      elements.noData.style.display = 'block';
+      elements.noData.classList.remove('hidden');
+    }
+    
+    if (elements.results) {
+      elements.results.style.display = 'none';
+      elements.results.classList.add('hidden');
+    }
+  }
+  
+  /**
+   * Main rendering function
+   */
+  function renderAnalysisData() {
+    if (!analysisData) {
+      showError('No analysis data available');
+      return;
+    }
+    
+    console.log('ANALYSIS_VIEWER: Rendering analysis data...');
+    
+    try {
+      // Update page header
+      updateHeader();
+      
+      // Show results, hide no-data message
+      showResults();
+      
+      // Render all sections
+      renderBasicMetrics();
+      renderComplexityMetrics();
+      renderComplexitySummary();
+      renderFunctionsTable();
+      renderDistributionMetrics();
+      renderComplexityChart();
+      renderDensityVisualization();
+      
+      console.log('ANALYSIS_VIEWER: Analysis data rendered successfully');
+      
+    } catch (error) {
+      console.error('ANALYSIS_VIEWER: Error rendering analysis:', error);
+      showError('Error rendering analysis: ' + error.message);
+    }
+  }
+  
+  /**
+   * Update page header with file information
+   */
+  function updateHeader() {
+    if (elements.subtitle && analysisData.fileName) {
+      const fileName = analysisData.fileName || 'Unknown File';
+      const language = analysisData.language || 'Unknown';
+      const timestamp = analysisData.timestamp || 'Unknown Time';
+      
+      elements.subtitle.textContent = `${fileName} (${language}) - Analyzed on ${timestamp}`;
+    }
+  }
+  
+  /**
+   * Show results section and hide no-data message
+   */
+  function showResults() {
+    if (elements.noData) {
+      elements.noData.style.display = 'none';
+      elements.noData.classList.add('hidden');
+    }
+    
+    if (elements.results) {
+      elements.results.style.display = 'block';
+      elements.results.classList.remove('hidden');
+    }
+  }
+  
+  /**
+   * Render basic file metrics
+   */
+  function renderBasicMetrics() {
+    const metrics = {
+      'total-lines': analysisData.totalLines || 0,
+      'code-lines': analysisData.codeLines || 0,
+      'comment-lines': analysisData.commentLines || 0,
+      'blank-lines': analysisData.blankLines || 0,
+      'function-count': analysisData.functionCount || 0,
+      'class-count': analysisData.classCount || 0
+    };
+    
+    Object.entries(metrics).forEach(([id, value]) => {
+      updateElementText(id, value);
+    });
+  }
+  
+  /**
+   * Render complexity metrics
+   */
+  function renderComplexityMetrics() {
+    const complexity = analysisData.complexity || {};
+    const functions = analysisData.functions || [];
+    
+    // Calculate high complexity function count
+    const highComplexityCount = functions.filter(f => (f.complexity || 0) > 10).length;
+    
+    const complexityMetrics = {
+      'avg-complexity': (complexity.averageComplexity || 0).toFixed(2),
+      'max-complexity': complexity.maxComplexity || 0,
+      'high-complexity-count-summary': highComplexityCount,
+      'high-complexity-count-ccn': highComplexityCount
+    };
+    
+    Object.entries(complexityMetrics).forEach(([id, value]) => {
+      updateElementText(id, value);
+    });
+  }
+  
+  /**
+   * Render complexity summary section
+   */
+  function renderComplexitySummary() {
+    const functions = analysisData.functions || [];
+    
+    if (functions.length === 0) {
+      updateElementText('highest-ccn-function', 'No functions found');
+      updateElementText('highest-ccn-value', '-');
+      updateElementText('lowest-ccn-function', '-');
+      updateElementText('lowest-ccn-value', '-');
+      updateElementText('high-complexity-warning', 'No functions to analyze');
+      return;
+    }
+    
+    // Sort functions by complexity
+    const sortedByComplexity = [...functions].sort((a, b) => (b.complexity || 0) - (a.complexity || 0));
+    const highest = sortedByComplexity[0];
+    const lowest = sortedByComplexity[sortedByComplexity.length - 1];
+    const highCount = functions.filter(f => (f.complexity || 0) > 10).length;
+    
+    const summaryData = {
+      'highest-ccn-function': highest?.name || 'Unknown',
+      'highest-ccn-value': highest ? `CCN: ${highest.complexity || 0}` : '-',
+      'lowest-ccn-function': lowest?.name || 'Unknown',
+      'lowest-ccn-value': lowest ? `CCN: ${lowest.complexity || 0}` : '-',
+      'high-complexity-warning': highCount > 0 
+        ? `${highCount} function(s) need attention` 
+        : 'All functions have low complexity'
+    };
+    
+    Object.entries(summaryData).forEach(([id, value]) => {
+      updateElementText(id, value);
+    });
+  }
+  
+  /**
+   * Render functions table
+   */
+  function renderFunctionsTable() {
+    const tbody = document.getElementById('functions-body');
+    if (!tbody) return;
+    
+    const functions = analysisData.functions || [];
+    
+    if (functions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="no-data">No functions found in this file</td></tr>';
+      return;
+    }
+    
+    const rows = functions.map((func, index) => {
+      const complexity = func.complexity || 0;
+      const complexityClass = getComplexityClass(complexity);
+      const density = func.cyclomaticDensity || (func.complexity || 0) / Math.max(func.lineCount || 1, 1);
+      const densityClass = getDensityClass(density);
+      
+      return `
+        <tr>
+          <td class="function-name">${escapeHtml(func.name || 'Unknown')}</td>
+          <td>${func.lineStart || func.startLine || 0}</td>
+          <td>${func.lineEnd || func.endLine || 0}</td>
+          <td>${func.lineCount || func.length || 0}</td>
+          <td>${func.parameters || func.parameterCount || 0}</td>
+          <td class="complexity ${complexityClass}">${complexity}</td>
+          <td class="density ${densityClass}">${density.toFixed(3)}</td>
+        </tr>
+      `;
+    });
+    
+    tbody.innerHTML = rows.join('');
+  }
+  
+  /**
+   * Render distribution metrics
+   */
+  function renderDistributionMetrics() {
+    const functions = analysisData.functions || [];
+    
+    // Calculate distribution
+    const distribution = {
+      simple: functions.filter(f => (f.complexity || 0) >= 1 && (f.complexity || 0) <= 5).length,
+      moderate: functions.filter(f => (f.complexity || 0) >= 6 && (f.complexity || 0) <= 10).length,
+      complex: functions.filter(f => (f.complexity || 0) >= 11 && (f.complexity || 0) <= 20).length,
+      'very-complex': functions.filter(f => (f.complexity || 0) >= 21).length
+    };
+    
+    Object.entries(distribution).forEach(([level, count]) => {
+      updateElementText(`${level}-count`, count);
+    });
+  }
+  
+  /**
+   * Create complexity chart using Chart.js
+   */
+  function renderComplexityChart() {
+    const canvas = document.getElementById('complexityChart');
+    if (!canvas) return;
+    
+    const functions = analysisData.functions || [];
+    const distribution = {
+      'Simple (1-5)': functions.filter(f => (f.complexity || 0) >= 1 && (f.complexity || 0) <= 5).length,
+      'Moderate (6-10)': functions.filter(f => (f.complexity || 0) >= 6 && (f.complexity || 0) <= 10).length,
+      'Complex (11-20)': functions.filter(f => (f.complexity || 0) >= 11 && (f.complexity || 0) <= 20).length,
+      'Very Complex (21+)': functions.filter(f => (f.complexity || 0) >= 21).length
+    };
+    
+    // Destroy existing chart if it exists
+    if (complexityChart) {
+      complexityChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    complexityChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(distribution),
+        datasets: [{
+          data: Object.values(distribution),
+          backgroundColor: [
+            '#28a745', // Simple - Green
+            '#ffc107', // Moderate - Yellow
+            '#fd7e14', // Complex - Orange
+            '#dc3545'  // Very Complex - Red
+          ],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 15,
+              usePointStyle: true,
+              font: {
+                size: 12
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  /**
+   * Render density visualization
+   */
+  function renderDensityVisualization() {
+    const functions = analysisData.functions || [];
+    
+    if (functions.length === 0) {
+      updateElementText('density-value', '0.00');
+      const densityFill = document.getElementById('density-fill');
+      if (densityFill) {
+        densityFill.style.width = '0%';
+      }
+      return;
+    }
+    
+    // Calculate average density
+    const totalComplexity = functions.reduce((sum, f) => sum + (f.complexity || 0), 0);
+    const totalLines = functions.reduce((sum, f) => sum + (f.lineCount || f.length || 1), 0);
+    const avgDensity = totalLines > 0 ? totalComplexity / totalLines : 0;
+    
+    // Update density display
+    updateElementText('density-value', avgDensity.toFixed(3));
+    
+    // Update density bar (scale to max reasonable value of 1.0)
+    const densityFill = document.getElementById('density-fill');
+    if (densityFill) {
+      const percentage = Math.min(avgDensity * 100, 100);
+      densityFill.style.width = `${percentage}%`;
+    }
+  }
+  
+  /**
+   * Utility function to update element text content
+   */
+  function updateElementText(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+      element.textContent = value.toString();
+    }
+  }
+  
+  /**
+   * Get CSS class for complexity level
+   */
+  function getComplexityClass(complexity) {
+    if (complexity <= 5) return 'simple';
+    if (complexity <= 10) return 'moderate';
+    if (complexity <= 20) return 'complex';
+    return 'critical';
+  }
+  
+  /**
+   * Get CSS class for density level
+   */
+  function getDensityClass(density) {
+    if (density <= 0.1) return 'low';
+    if (density <= 0.3) return 'medium';
+    if (density <= 0.5) return 'high';
+    return 'very-high';
+  }
+  
+  /**
+   * Escape HTML to prevent XSS
+   */
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Export for debugging
+  window.AnalysisViewer = {
+    data: () => analysisData,
+    reload: loadAnalysisData,
+    render: renderAnalysisData
+  };
+  
+})();

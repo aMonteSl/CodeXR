@@ -33,40 +33,37 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerRefreshTreeViewCommand = registerRefreshTreeViewCommand;
-exports.registerCommands = registerCommands;
+exports.registerAllCommands = registerAllCommands;
 const vscode = __importStar(require("vscode"));
-// Fix the import path
-const serverCommands_1 = require("./serverCommands");
-const uiCommands_1 = require("./uiCommands"); // Fixed casing here
+const serverCommands_1 = require("./servers/serverCommands");
+const activeServersCommands_1 = require("./active_servers/activeServersCommands");
+const babiaExamplesCommands_1 = require("./babia_examples/babiaExamplesCommands");
+const visualizeDataCommands_1 = require("./visualize_data/visualizeDataCommands");
+const analysisCommands_1 = require("./code_analysis/analysisCommands");
+const generalCommands_1 = require("./common/generalCommands");
+const pythonEnv = __importStar(require("../python_env"));
 /**
- * Refreshes the tree view
+ * Entry point that registers all extension commands
  */
-function registerRefreshTreeViewCommand(treeDataProvider) {
-    return vscode.commands.registerCommand('codexr.refreshTreeView', () => {
-        if (treeDataProvider && typeof treeDataProvider.refresh === 'function') {
-            treeDataProvider.refresh();
-        }
+function registerAllCommands(context, treeDataProvider, babiaExamplesTreeDataProvider) {
+    // Register general/common commands first
+    (0, generalCommands_1.registerGeneralCommands)(context);
+    // Register server commands
+    (0, serverCommands_1.registerServerCommands)(context);
+    // Register active servers commands with any refreshable tree data provider
+    (0, activeServersCommands_1.registerActiveServersCommands)(context, treeDataProvider);
+    // Always register Babia examples commands (they work independently now)
+    (0, babiaExamplesCommands_1.registerBabiaExamplesCommands)(context, babiaExamplesTreeDataProvider);
+    // Register visualize data commands
+    (0, visualizeDataCommands_1.registerVisualizeDataCommands)(context);
+    // Register code analysis commands
+    (0, analysisCommands_1.registerCodeAnalysisCommands)(context);
+    // Register Python environment commands
+    pythonEnv.register(context);
+    // Register the existing hello world command
+    const helloWorldCommand = vscode.commands.registerCommand('CodeXR.helloWorld', () => {
+        vscode.window.showInformationMessage('Hello World from Code-XR!');
     });
-}
-/**
- * Registers all commands for the extension
- * @param context Extension context for storage
- * @param treeDataProvider The main tree data provider
- * @returns Array of disposables for all registered commands
- */
-function registerCommands(context, treeDataProvider) {
-    const disposables = [];
-    // Register each group of commands
-    disposables.push(...(0, serverCommands_1.registerServerCommands)(context, treeDataProvider));
-    // DISABLED: Legacy babia commands that use old template system
-    // disposables.push(...registerBabiaCommands(context, treeDataProvider));
-    disposables.push(...(0, uiCommands_1.registerUiCommands)(context, treeDataProvider)); // Fixed casing and added context parameter
-    // Eliminar esta línea que registra el comando duplicado
-    // disposables.push(registerSetAnalysisChartTypeCommand()); // Nuevo comando añadido
-    // We no longer register analysis commands here since they are registered in extension.ts
-    // Add the refresh command
-    disposables.push(registerRefreshTreeViewCommand(treeDataProvider));
-    return disposables;
+    context.subscriptions.push(helloWorldCommand);
 }
 //# sourceMappingURL=index.js.map

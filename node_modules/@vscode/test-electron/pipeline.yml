@@ -26,14 +26,28 @@ extends:
       - name: test-electron
         ghCreateTag: false
         buildSteps:
-          - script: yarn --frozen-lockfile
+          - script: npm ci
             displayName: Install dependencies
+
+        testPlatforms:
+          - name: Linux
+            nodeVersions:
+              - 20.x
+          - name: MacOS
+            nodeVersions:
+              - 20.x
+          - name: Windows
+            nodeVersions:
+              - 20.x
 
         testSteps:
-          - script: yarn --frozen-lockfile
+          - script: npm ci
             displayName: Install dependencies
 
-          - script: yarn --cwd=sample --frozen-lockfile
+          - script: npm test
+            displayName: Run own tests
+
+          - script: cd sample && npm ci
             displayName: Install dependencies (fs-provider)
 
           - bash: |
@@ -47,7 +61,7 @@ extends:
             inputs:
               versionSpec: 16.x
 
-          - script: yarn --cwd=sample test
+          - script: cd sample && npm run test
             displayName: Test package
             env:
               DISPLAY: ':99.0'

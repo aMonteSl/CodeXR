@@ -148,9 +148,170 @@
     recommendationsContainer.appendChild(list);
   }
   
+  /**
+   * Initialize Server-Sent Events for live updates
+   */
+  function initializeSSE() {
+    console.log('FUNCTION_ANALYSIS: Initializing SSE for live updates...');
+    
+    try {
+      // Connect to the /events endpoint on the current server
+      const eventSource = new EventSource('/events');
+      
+      eventSource.onopen = function(event) {
+        console.log('FUNCTION_ANALYSIS: SSE connection opened');
+        showSSEStatus('connected');
+      };
+      
+      eventSource.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('FUNCTION_ANALYSIS: SSE message received:', data);
+          handleSSEMessage(data);
+        } catch (error) {
+          console.error('FUNCTION_ANALYSIS: Error parsing SSE message:', error);
+        }
+      };
+      
+      eventSource.onerror = function(event) {
+        console.error('FUNCTION_ANALYSIS: SSE connection error:', event);
+        showSSEStatus('error');
+        
+        // Note: EventSource will automatically try to reconnect
+      };
+      
+      // Store reference for potential cleanup
+      window.analysisSSE = eventSource;
+      
+    } catch (error) {
+      console.error('FUNCTION_ANALYSIS: Failed to initialize SSE:', error);
+      showSSEStatus('error');
+    }
+  }
+
+  /**
+   * Handle incoming SSE messages
+   */
+  function handleSSEMessage(data) {
+    switch (data.type) {
+      case 'connected':
+        console.log('FUNCTION_ANALYSIS: SSE connected for file:', data.fileUri);
+        showSSEStatus('connected');
+        break;
+        
+      case 'analysis-updated':
+        console.log('FUNCTION_ANALYSIS: Analysis updated for file:', data.fileUri);
+        showUpdateNotification();
+        // For function analysis, we might need to refresh the function data
+        break;
+        
+      case 'heartbeat':
+        // Keep-alive message, no action needed
+        break;
+        
+      default:
+        console.log('FUNCTION_ANALYSIS: Unknown SSE message type:', data.type);
+    }
+  }
+
+  /**
+   * Show SSE connection status
+   */
+  function showSSEStatus(status) {
+    // Create or update status indicator
+    let statusElement = document.getElementById('sse-status');
+    if (!statusElement) {
+      statusElement = document.createElement('div');
+      statusElement.id = 'sse-status';
+      statusElement.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+        transition: all 0.3s ease;
+        font-family: inherit;
+      `;
+      document.body.appendChild(statusElement);
+    }
+    
+    switch (status) {
+      case 'connected':
+        statusElement.textContent = '🟢 Live Updates';
+        statusElement.style.backgroundColor = '#10b981';
+        statusElement.style.color = 'white';
+        break;
+      case 'error':
+        statusElement.textContent = '🔴 Disconnected';
+        statusElement.style.backgroundColor = '#ef4444';
+        statusElement.style.color = 'white';
+        break;
+    }
+  }
+
+  /**
+   * Show update notification
+   */
+  function showUpdateNotification() {
+    showNotification('Analysis updated!', '#3b82f6', 2000);
+  }
+
+  /**
+   * Show a temporary notification
+   */
+  function showNotification(message, backgroundColor = '#3b82f6', duration = 3000) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 50px;
+      right: 10px;
+      background: ${backgroundColor};
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 1001;
+      font-family: inherit;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after specified duration
+    setTimeout(() => {
+      notification.remove();
+    }, duration);
+  }
+
+  // Add CSS for animations if not already present
+  if (!document.getElementById('sse-animations')) {
+    const style = document.createElement('style');
+    style.id = 'sse-animations';
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 Function analysis page loaded');
+    
+    // Initialize SSE for live updates
+    initializeSSE();
     
     // If we already have data, render it
     if (functionData) {

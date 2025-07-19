@@ -103,6 +103,216 @@ function loadAnalysisData(data) {
   }
 }
 
+/**
+ * Initialize Server-Sent Events for live updates
+ */
+function initializeSSE() {
+  console.log('DIRECTORY_ANALYSIS: Initializing SSE for live updates...');
+  
+  try {
+    // Connect to the /events endpoint on the current server
+    const eventSource = new EventSource('/events');
+    
+    eventSource.onopen = function(event) {
+      console.log('DIRECTORY_ANALYSIS: SSE connection opened');
+      showSSEStatus('connected');
+    };
+    
+    eventSource.onmessage = function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('DIRECTORY_ANALYSIS: SSE message received:', data);
+        handleSSEMessage(data);
+      } catch (error) {
+        console.error('DIRECTORY_ANALYSIS: Error parsing SSE message:', error);
+      }
+    };
+    
+    eventSource.onerror = function(event) {
+      console.error('DIRECTORY_ANALYSIS: SSE connection error:', event);
+      showSSEStatus('error');
+      
+      // Note: EventSource will automatically try to reconnect
+    };
+    
+    // Store reference for potential cleanup
+    window.analysisSSE = eventSource;
+    
+  } catch (error) {
+    console.error('DIRECTORY_ANALYSIS: Failed to initialize SSE:', error);
+    showSSEStatus('error');
+  }
+}
+
+/**
+ * Handle incoming SSE messages
+ */
+function handleSSEMessage(data) {
+  switch (data.type) {
+    case 'connected':
+      console.log('DIRECTORY_ANALYSIS: SSE connected for file:', data.fileUri);
+      showSSEStatus('connected');
+      break;
+      
+    case 'analysis-updated':
+      console.log('DIRECTORY_ANALYSIS: Analysis updated for file:', data.fileUri);
+      showUpdateNotification();
+      reloadAnalysisData();
+      break;
+      
+    case 'heartbeat':
+      // Keep-alive message, no action needed
+      break;
+      
+    default:
+      console.log('DIRECTORY_ANALYSIS: Unknown SSE message type:', data.type);
+  }
+}
+
+/**
+ * Reload analysis data after SSE update notification
+ */
+function reloadAnalysisData() {
+  console.log('DIRECTORY_ANALYSIS: Reloading analysis data due to SSE update...');
+  
+  // Add cache busting to ensure fresh data
+  fetch('./data.json?t=' + Date.now())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('DIRECTORY_ANALYSIS: Successfully reloaded data.json via SSE');
+      loadAnalysisData(data);
+      showReloadNotification();
+    })
+    .catch(error => {
+      console.error('DIRECTORY_ANALYSIS: Failed to reload data.json:', error);
+      // Show error in a user-friendly way
+      const errorDiv = document.createElement('div');
+      errorDiv.style.cssText = `
+        position: fixed;
+        top: 50px;
+        right: 10px;
+        background: #ef4444;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 1001;
+        font-family: inherit;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      `;
+      errorDiv.textContent = 'Failed to reload analysis data: ' + error.message;
+      document.body.appendChild(errorDiv);
+      
+      setTimeout(() => {
+        errorDiv.remove();
+      }, 5000);
+    });
+}
+
+/**
+ * Show SSE connection status
+ */
+function showSSEStatus(status) {
+  // Create or update status indicator
+  let statusElement = document.getElementById('sse-status');
+  if (!statusElement) {
+    statusElement = document.createElement('div');
+    statusElement.id = 'sse-status';
+    statusElement.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    `;
+    document.body.appendChild(statusElement);
+  }
+  
+  switch (status) {
+    case 'connected':
+      statusElement.textContent = '🟢 Live Updates';
+      statusElement.style.backgroundColor = '#10b981';
+      statusElement.style.color = 'white';
+      break;
+    case 'error':
+      statusElement.textContent = '🔴 Disconnected';
+      statusElement.style.backgroundColor = '#ef4444';
+      statusElement.style.color = 'white';
+      break;
+  }
+}
+
+/**
+ * Show update notification
+ */
+function showUpdateNotification() {
+  showNotification('Analysis updated! Refreshing data...', '#3b82f6', 3000);
+}
+
+/**
+ * Show reload completion notification
+ */
+function showReloadNotification() {
+  showNotification('Data refreshed successfully!', '#10b981', 2000);
+}
+
+/**
+ * Show a temporary notification
+ */
+function showNotification(message, backgroundColor = '#3b82f6', duration = 3000) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    background: ${backgroundColor};
+    color: white;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 14px;
+    z-index: 1001;
+    font-family: inherit;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    animation: slideIn 0.3s ease;
+  `;
+  notification.textContent = message;
+  
+  document.body.appendChild(notification);
+  
+  // Remove notification after specified duration
+  setTimeout(() => {
+    notification.remove();
+  }, duration);
+}
+
+// Add CSS for animations if not already present
+if (!document.getElementById('sse-animations')) {
+  const style = document.createElement('style');
+  style.id = 'sse-animations';
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Update summary metrics
 function updateSummary() {
   if (!analysisData.summary) {
@@ -788,6 +998,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }, 100);
   }
+  
+  // ✅ NEW: Initialize Server-Sent Events for live updates
+  initializeSSE();
   
   // ✅ NEW: Set up a backup polling mechanism to check for data.json updates
   // This provides a fallback if the message system fails
