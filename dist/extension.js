@@ -43,12 +43,12 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
 const index_1 = __webpack_require__(2);
-const views_1 = __webpack_require__(89);
-const commonCommands_1 = __webpack_require__(85);
+const views_1 = __webpack_require__(86);
+const commonCommands_1 = __webpack_require__(82);
 const serverSettingsManager_1 = __webpack_require__(16);
 const activeServerRegistry_1 = __webpack_require__(11);
-const index_2 = __webpack_require__(70);
-const visualizeDataModel_1 = __webpack_require__(120);
+const index_2 = __webpack_require__(76);
+const visualizeDataModel_1 = __webpack_require__(117);
 const tempStorageManager_1 = __webpack_require__(65);
 const fileWatcherManager_1 = __webpack_require__(57);
 const statusBarDelayTimer_1 = __webpack_require__(58);
@@ -205,12 +205,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerAllCommands = registerAllCommands;
 const vscode = __importStar(__webpack_require__(1));
 const serverCommands_1 = __webpack_require__(3);
-const activeServersCommands_1 = __webpack_require__(74);
-const babiaExamplesCommands_1 = __webpack_require__(76);
-const visualizeDataCommands_1 = __webpack_require__(79);
-const analysisCommands_1 = __webpack_require__(83);
-const generalCommands_1 = __webpack_require__(84);
-const pythonEnv = __importStar(__webpack_require__(86));
+const activeServersCommands_1 = __webpack_require__(67);
+const babiaExamplesCommands_1 = __webpack_require__(69);
+const visualizeDataCommands_1 = __webpack_require__(72);
+const analysisCommands_1 = __webpack_require__(80);
+const generalCommands_1 = __webpack_require__(81);
+const pythonEnv = __importStar(__webpack_require__(83));
 /**
  * Entry point that registers all extension commands
  */
@@ -2706,7 +2706,7 @@ class PortManager {
         }
         try {
             // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 121))).default;
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 118))).default;
             // Create a range array for get-port - limit to reasonable range for performance
             const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
             const ports = [];
@@ -12543,7 +12543,7 @@ const tempStorageManager_1 = __webpack_require__(65);
 const activeAnalysisRegistry_1 = __webpack_require__(53);
 const activeAnalysisModel_1 = __webpack_require__(54);
 const chartRegistry_1 = __webpack_require__(49);
-const xrTemplateRenderer_1 = __webpack_require__(67);
+const xrTemplateRenderer_1 = __webpack_require__(121);
 /**
  * Code Analysis Commands
  * Handles all command registrations for the code analysis functionality
@@ -13973,7 +13973,7 @@ const nonceGenerator_1 = __webpack_require__(17);
 const index_1 = __webpack_require__(38);
 const analysisSettingsStorage_1 = __webpack_require__(48);
 const fileToServerMap_1 = __webpack_require__(22);
-const xrTemplateRenderer_1 = __webpack_require__(67);
+const xrTemplateRenderer_1 = __webpack_require__(121);
 /**
  * Temporary Storage Manager for Analysis Results
  *
@@ -14341,1342 +14341,13 @@ module.exports = require("fs/promises");
 
 /***/ }),
 /* 67 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.XRTemplateRenderer = void 0;
-const path = __importStar(__webpack_require__(5));
-const analysisSettingsStorage_1 = __webpack_require__(48);
-const templateProcessor_1 = __webpack_require__(68);
-/**
- * XR Template Renderer for File Analysis
- * Delegates to centralized TemplateProcessor for HTML generation
- */
-class XRTemplateRenderer {
-    /**
-     * Generate and save index.html for XR file analysis using centralized TemplateProcessor
-     *
-     * @param context - VS Code extension context
-     * @param analysisFolder - URI of the analysis folder (contains data.json)
-     * @param filePath - Original file path being analyzed
-     * @param analysisData - Analysis data object
-     */
-    static async generateXRVisualization(context, analysisFolder, filePath, analysisData) {
-        console.log(`[XR_TEMPLATE_RENDERER] Generating XR visualization for ${path.basename(filePath)} using centralized TemplateProcessor`);
-        try {
-            // Get current chart configuration
-            const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
-            const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
-            console.log(`[XR_TEMPLATE_RENDERER] Using chart type: ${chartType}`);
-            console.log(`[XR_TEMPLATE_RENDERER] Dimension mappings:`, dimensionMappings);
-            // Convert field names to XR format if needed
-            const mappings = dimensionMappings.map(mapping => ({
-                dimension: mapping.dimension,
-                dataField: this.convertToXRFieldName(mapping.dataField),
-                label: mapping.label
-            }));
-            // Prepare output path for index.html
-            const indexHtmlPath = path.join(analysisFolder.fsPath, 'index.html');
-            // Use centralized TemplateProcessor to generate the complete XR visualization
-            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(chartType, mappings, `File Analysis: ${path.basename(filePath)}`, './data.json', context, indexHtmlPath);
-            if (!result.success) {
-                console.error(`[XR_TEMPLATE_RENDERER] TemplateProcessor failed:`, result.error);
-                throw new Error(`Template processing failed: ${result.error}`);
-            }
-            console.log(`[XR_TEMPLATE_RENDERER] Successfully generated index.html using TemplateProcessor at: ${indexHtmlPath}`);
-        }
-        catch (error) {
-            console.error(`[XR_TEMPLATE_RENDERER] Failed to generate XR visualization:`, error);
-            throw error;
-        }
-    }
-    /**
-     * Convert field names from static analysis format to XR format
-     * Maps legacy field names to standardized XR field names
-     */
-    static convertToXRFieldName(fieldName) {
-        const fieldMappings = {
-            'ccn': 'complexity',
-            'lines_count': 'lineCount',
-            'line_start': 'lineStart',
-            'line_end': 'lineEnd',
-            'function_name': 'fileName',
-            'nloc': 'lineCount',
-            'parameters': 'parameters',
-            'max_nesting_depth': 'maxNestingDepth',
-            'cyclomatic_density': 'cyclomaticDensity'
-        };
-        return fieldMappings[fieldName] || fieldName;
-    }
-}
-exports.XRTemplateRenderer = XRTemplateRenderer;
-
-
-/***/ }),
-/* 68 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TemplateProcessor = void 0;
-const dimensionValidator_1 = __webpack_require__(69);
-const templateCharts_1 = __webpack_require__(50);
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-/**
- * BabiaXR Template Processor
- * Main and centralized processor for generating XR visualization HTML files
- * Handles template processing, placeholder replacement, and HTML generation
- */
-class TemplateProcessor {
-    /**
-     * Main method to generate complete XR visualization index.html
-     * This is the centralized method that both visualize data and XR analysis should use
-     */
-    static async generateXRVisualization(chartId, mappings, title, dataSource, context, outputPath) {
-        try {
-            console.log('TEMPLATE_PROCESSOR: Starting XR visualization generation');
-            console.log('TEMPLATE_PROCESSOR: Chart ID:', chartId);
-            console.log('TEMPLATE_PROCESSOR: Mappings:', mappings);
-            console.log('TEMPLATE_PROCESSOR: Title:', title);
-            console.log('TEMPLATE_PROCESSOR: Data source:', dataSource);
-            // Find the chart template
-            const chart = templateCharts_1.chartTemplates.find(c => c.id === chartId);
-            if (!chart) {
-                return { success: false, error: `Chart type '${chartId}' not found` };
-            }
-            // Get visualization settings
-            const visualizationSettings = await this.getVisualizationSettings();
-            console.log('TEMPLATE_PROCESSOR: Using visualization settings:', visualizationSettings);
-            // Load XR base template
-            const xrTemplate = await this.loadXRTemplate(context);
-            if (!xrTemplate) {
-                return { success: false, error: 'Failed to load XR template' };
-            }
-            // Generate chart component HTML
-            const chartComponent = await this.generateChartComponent(chart, mappings, title, visualizationSettings.palette);
-            // Replace all placeholders in the XR template
-            const finalHtml = this.replaceXRTemplatePlaceholders(xrTemplate, {
-                title,
-                dataSource,
-                chartComponent,
-                ...visualizationSettings
-            });
-            // Write the final HTML file
-            fs.writeFileSync(outputPath, finalHtml, 'utf8');
-            console.log('TEMPLATE_PROCESSOR: Generated XR visualization HTML at:', outputPath);
-            return { success: true };
-        }
-        catch (error) {
-            console.error('TEMPLATE_PROCESSOR: Error generating XR visualization:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error)
-            };
-        }
-    }
-    /**
-     * Get visualization settings (palette, environment, colors)
-     */
-    static async getVisualizationSettings() {
-        // Import visualization settings functions directly (no dynamic import needed)
-        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(70);
-        return {
-            palette: await getSelectedPalette(),
-            environment: await getSelectedEnvironment(),
-            backgroundColor: await getSelectedBackgroundColor(),
-            groundColor: await getSelectedGroundColor()
-        };
-    }
-    /**
-     * Load XR base template from templates/xr/xr-visualization.html
-     */
-    static async loadXRTemplate(context) {
-        try {
-            const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'xr-visualization.html');
-            if (!fs.existsSync(templatePath)) {
-                console.error('TEMPLATE_PROCESSOR: XR template not found at:', templatePath);
-                return null;
-            }
-            const template = fs.readFileSync(templatePath, 'utf8');
-            console.log('TEMPLATE_PROCESSOR: Loaded XR template from:', templatePath);
-            return template;
-        }
-        catch (error) {
-            console.error('TEMPLATE_PROCESSOR: Error loading XR template:', error);
-            return null;
-        }
-    }
-    /**
-     * Generate chart component HTML using the chart template
-     */
-    static async generateChartComponent(chart, mappings, title, palette) {
-        console.log('TEMPLATE_PROCESSOR: Generating chart component for:', chart.id);
-        // Create configuration for chart processing
-        const config = {
-            chartType: chart.id,
-            title: title,
-            dataFilePath: 'data.json',
-            dimensionMappings: mappings,
-            options: {
-                palette: palette
-            }
-        };
-        // Process the chart template
-        const result = await this.processTemplate(chart, mappings, config);
-        if (!result.success) {
-            console.error('TEMPLATE_PROCESSOR: Chart component generation failed:', result.error);
-            return `<!-- Chart generation error: ${result.error || 'Unknown error'} -->`;
-        }
-        console.log('TEMPLATE_PROCESSOR: Chart component generated successfully');
-        return result.html || '';
-    }
-    /**
-     * Replace all placeholders in the XR template
-     */
-    static replaceXRTemplatePlaceholders(template, values) {
-        console.log('TEMPLATE_PROCESSOR: Replacing XR template placeholders');
-        let result = template;
-        // Define placeholder replacements
-        const replacements = {
-            'TITLE': values.title,
-            'DATA_SOURCE': values.dataSource,
-            'CHART_COMPONENT': values.chartComponent,
-            'CHART_PALETTE': values.palette,
-            'ENVIRONMENT_PRESET': values.environment,
-            'BACKGROUND_COLOR': values.backgroundColor,
-            'GROUND_COLOR': values.groundColor,
-            'TREE_BUILDER': '', // Not needed for basic charts
-            'ICON_PATH': '' // Optional
-        };
-        // Replace all placeholders
-        for (const [placeholder, value] of Object.entries(replacements)) {
-            const patterns = [
-                new RegExp(`\\$\\{${this.escapeRegex(placeholder)}\\}`, 'g'),
-                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g')
-            ];
-            for (const pattern of patterns) {
-                result = result.replace(pattern, value);
-            }
-        }
-        console.log('TEMPLATE_PROCESSOR: XR template placeholders replaced');
-        return result;
-    }
-    /**
-     * Process a chart template with given configuration and mappings
-     */
-    static async processTemplate(chart, mappings, config) {
-        // Validate dimensions first
-        const validation = dimensionValidator_1.DimensionValidator.validateMappings(chart, mappings);
-        if (!validation.isValid) {
-            return {
-                success: false,
-                html: '',
-                error: validation.errors.join('; '),
-                warnings: validation.warnings
-            };
-        }
-        try {
-            // Start with the base template
-            let html = chart.htmlTemplate;
-            // Create placeholder replacements map
-            const replacements = this.createPlaceholderReplacements(chart, mappings, config);
-            // Replace all placeholders
-            html = this.replacePlaceholders(html, replacements);
-            // Validate final HTML
-            const htmlValidation = this.validateGeneratedHtml(html);
-            if (!htmlValidation.isValid) {
-                return {
-                    success: false,
-                    html: '',
-                    error: htmlValidation.error || 'Generated HTML is invalid',
-                    warnings: validation.warnings
-                };
-            }
-            return {
-                success: true,
-                html: html,
-                warnings: validation.warnings
-            };
-        }
-        catch (error) {
-            return {
-                success: false,
-                html: '',
-                error: `Template processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                warnings: validation.warnings
-            };
-        }
-    }
-    /**
-     * Create map of placeholder replacements based on mappings and config
-     */
-    static createPlaceholderReplacements(chart, mappings, config) {
-        const replacements = new Map();
-        // Add basic configuration replacements
-        replacements.set('TITLE', config.title || chart.name);
-        replacements.set('DATA_SOURCE', config.dataFilePath || 'data.json');
-        replacements.set('CHART_ID', `chart-${chart.id}-${Date.now()}`);
-        // Add dimension-specific replacements
-        for (const mapping of mappings) {
-            const dimension = chart.dimensions.find(d => d.name === mapping.dimension);
-            if (dimension) {
-                // Create various placeholder formats for the dimension
-                const upperDimension = mapping.dimension.toUpperCase();
-                const fieldName = mapping.dataField;
-                replacements.set(`${upperDimension}_FIELD`, fieldName);
-                replacements.set(`${mapping.dimension}_field`, fieldName);
-                replacements.set(mapping.dimension, fieldName);
-                // Special common dimension mappings
-                switch (mapping.dimension.toLowerCase()) {
-                    case 'key':
-                    case 'category':
-                        replacements.set('KEY_FIELD', fieldName);
-                        replacements.set('CATEGORY_FIELD', fieldName);
-                        break;
-                    case 'size':
-                    case 'value':
-                        replacements.set('SIZE_FIELD', fieldName);
-                        replacements.set('VALUE_FIELD', fieldName);
-                        break;
-                    case 'height':
-                        replacements.set('HEIGHT_FIELD', fieldName);
-                        break;
-                    case 'color':
-                        replacements.set('COLOR_FIELD', fieldName);
-                        break;
-                }
-            }
-        }
-        // Add chart-specific attributes
-        if (config.options) {
-            for (const [key, value] of Object.entries(config.options)) {
-                replacements.set(key.toUpperCase(), String(value));
-                replacements.set(key, String(value));
-            }
-        }
-        return replacements;
-    }
-    /**
-     * Replace placeholders in template with actual values
-     */
-    static replacePlaceholders(template, replacements) {
-        let result = template;
-        // Replace {{PLACEHOLDER}} format
-        for (const [placeholder, value] of replacements) {
-            const patterns = [
-                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g'),
-                new RegExp(`\\$\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}`, 'g')
-            ];
-            for (const pattern of patterns) {
-                result = result.replace(pattern, value);
-            }
-        }
-        // Check for remaining unresolved placeholders and warn
-        const unresolvedPlaceholders = result.match(/\{\{[^}]+\}\}|\$\{[^}]+\}/g);
-        if (unresolvedPlaceholders) {
-            console.warn('Unresolved placeholders found:', unresolvedPlaceholders);
-        }
-        return result;
-    }
-    /**
-     * Escape special regex characters
-     */
-    static escapeRegex(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-    /**
-     * Basic validation of generated HTML
-     */
-    static validateGeneratedHtml(html) {
-        // Check for basic HTML structure
-        if (!html || html.trim() === '') {
-            return { isValid: false, error: 'Generated HTML is empty' };
-        }
-        // Check for remaining unresolved placeholders
-        const unresolvedPlaceholders = html.match(/\{\{[^}]+\}\}/g);
-        if (unresolvedPlaceholders && unresolvedPlaceholders.length > 0) {
-            return {
-                isValid: false,
-                error: `Unresolved placeholders: ${unresolvedPlaceholders.join(', ')}`
-            };
-        }
-        // Check for BabiaXR components
-        if (!html.includes('babia-') && !html.includes('a-entity')) {
-            return {
-                isValid: false,
-                error: 'Generated HTML does not contain BabiaXR components'
-            };
-        }
-        return { isValid: true };
-    }
-    /**
-     * Get available placeholders for a chart
-     */
-    static getAvailablePlaceholders(chart) {
-        const placeholders = [
-            'TITLE',
-            'DATA_SOURCE',
-            'CHART_ID'
-        ];
-        // Add dimension-based placeholders
-        for (const dimension of chart.dimensions) {
-            const upperDimension = dimension.name.toUpperCase();
-            placeholders.push(`${upperDimension}_FIELD`);
-        }
-        return placeholders;
-    }
-    /**
-     * Preview template with sample data for testing
-     */
-    static async previewTemplate(chart, sampleMappings) {
-        const defaultMappings = sampleMappings || chart.dimensions.map(dim => ({
-            dimension: dim.name,
-            dataField: `sample_${dim.name}`
-        }));
-        const defaultConfig = {
-            chartType: chart.id,
-            title: `Sample ${chart.name}`,
-            dataFilePath: 'sample-data.json',
-            dimensionMappings: defaultMappings
-        };
-        const result = await this.processTemplate(chart, defaultMappings, defaultConfig);
-        return result.success ? (result.html || '') : `<!-- Error: ${result.error || 'Unknown error'} -->`;
-    }
-}
-exports.TemplateProcessor = TemplateProcessor;
-
-
-/***/ }),
-/* 69 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DimensionValidator = void 0;
-/**
- * BabiaXR Dimension Validator
- * Validates dimension mappings against chart requirements
- */
-class DimensionValidator {
-    /**
-     * Validate dimension mappings for a given chart
-     */
-    static validateMappings(chart, mappings) {
-        const result = {
-            isValid: true,
-            errors: [],
-            warnings: []
-        };
-        // Check for required dimensions
-        const requiredDimensions = chart.dimensions.filter(d => d.required);
-        const mappedDimensions = new Set(mappings.map(m => m.dimension));
-        for (const requiredDim of requiredDimensions) {
-            if (!mappedDimensions.has(requiredDim.name)) {
-                result.errors.push(`Required dimension '${requiredDim.name}' (${requiredDim.label}) is not mapped`);
-                result.isValid = false;
-            }
-        }
-        // Check for invalid dimension names
-        const validDimensionNames = new Set(chart.dimensions.map(d => d.name));
-        for (const mapping of mappings) {
-            if (!validDimensionNames.has(mapping.dimension)) {
-                result.errors.push(`Unknown dimension '${mapping.dimension}' for chart type '${chart.name}'`);
-                result.isValid = false;
-            }
-        }
-        // Check for duplicate mappings
-        const dimensionCounts = new Map();
-        for (const mapping of mappings) {
-            const count = dimensionCounts.get(mapping.dimension) || 0;
-            dimensionCounts.set(mapping.dimension, count + 1);
-        }
-        for (const [dimension, count] of dimensionCounts) {
-            if (count > 1) {
-                result.errors.push(`Dimension '${dimension}' is mapped multiple times`);
-                result.isValid = false;
-            }
-        }
-        // Check for empty data fields
-        for (const mapping of mappings) {
-            if (!mapping.dataField || mapping.dataField.trim() === '') {
-                result.errors.push(`Dimension '${mapping.dimension}' has no data field specified`);
-                result.isValid = false;
-            }
-        }
-        // Add warnings for optional dimensions that are not mapped
-        const optionalDimensions = chart.dimensions.filter(d => !d.required);
-        for (const optionalDim of optionalDimensions) {
-            if (!mappedDimensions.has(optionalDim.name)) {
-                result.warnings.push(`Optional dimension '${optionalDim.name}' (${optionalDim.label}) is not mapped`);
-            }
-        }
-        return result;
-    }
-    /**
-     * Validate a specific data field against dimension requirements
-     */
-    static validateDataField(dimensionName, dataField, chart) {
-        const dimension = chart.dimensions.find(d => d.name === dimensionName);
-        if (!dimension) {
-            return {
-                isValid: false,
-                error: `Dimension '${dimensionName}' does not exist for chart type '${chart.name}'`
-            };
-        }
-        if (!dataField || dataField.trim() === '') {
-            return {
-                isValid: false,
-                error: `Data field for dimension '${dimensionName}' cannot be empty`
-            };
-        }
-        // Additional validation can be added here for data type checking
-        // when we have access to actual data structure
-        return { isValid: true };
-    }
-    /**
-     * Get missing required dimensions
-     */
-    static getMissingRequiredDimensions(chart, mappings) {
-        const requiredDimensions = chart.dimensions.filter(d => d.required);
-        const mappedDimensions = new Set(mappings.map(m => m.dimension));
-        return requiredDimensions
-            .filter(d => !mappedDimensions.has(d.name))
-            .map(d => d.name);
-    }
-    /**
-     * Check if all required dimensions are mapped
-     */
-    static areAllRequiredDimensionsMapped(chart, mappings) {
-        return this.getMissingRequiredDimensions(chart, mappings).length === 0;
-    }
-}
-exports.DimensionValidator = DimensionValidator;
-
-
-/***/ }),
-/* 70 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Visualization Settings Module
- * Main entry point for visualization configuration management
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
-exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
-var settingsModel_1 = __webpack_require__(41);
-Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
-var settingsStorage_1 = __webpack_require__(43);
-Object.defineProperty(exports, "VisualizationSettingsStorage", ({ enumerable: true, get: function () { return settingsStorage_1.VisualizationSettingsStorage; } }));
-var visualizationSettingsItems_1 = __webpack_require__(40);
-Object.defineProperty(exports, "VisualizationSettingsItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsItemFactory; } }));
-Object.defineProperty(exports, "VisualizationSettingsTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsTreeItem; } }));
-var handleSettingsInteraction_1 = __webpack_require__(71);
-Object.defineProperty(exports, "VisualizationSettingsInteractionHandler", ({ enumerable: true, get: function () { return handleSettingsInteraction_1.VisualizationSettingsInteractionHandler; } }));
-// Export settings accessors for babia-templates integration
-var settingsAccessors_1 = __webpack_require__(73);
-Object.defineProperty(exports, "initializeSettingsAccessors", ({ enumerable: true, get: function () { return settingsAccessors_1.initializeSettingsAccessors; } }));
-Object.defineProperty(exports, "getSelectedBackgroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedBackgroundColor; } }));
-Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedGroundColor; } }));
-Object.defineProperty(exports, "getSelectedEnvironment", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedEnvironment; } }));
-Object.defineProperty(exports, "getSelectedPalette", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedPalette; } }));
-Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, get: function () { return settingsAccessors_1.getAllSelectedSettings; } }));
-const vscode = __importStar(__webpack_require__(1));
-const handleSettingsInteraction_2 = __webpack_require__(71);
-const settingsAccessors_2 = __webpack_require__(73);
-/**
- * Register visualization settings commands
- */
-function registerVisualizationSettingsCommands(context) {
-    console.log('VISUALIZATION-SETTINGS: Registering commands...');
-    // Initialize settings accessors for global use
-    (0, settingsAccessors_2.initializeSettingsAccessors)(context);
-    // Initialize the interaction handler
-    const interactionHandler = new handleSettingsInteraction_2.VisualizationSettingsInteractionHandler(context);
-    // Command: Configure setting
-    const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
-        try {
-            console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
-            await interactionHandler.handleSettingConfiguration(settingKey);
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
-            vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    });
-    // Register commands with the extension context
-    context.subscriptions.push(configureSettingCmd);
-    // Store interaction handler for cleanup
-    context.subscriptions.push({
-        dispose: () => interactionHandler.dispose()
-    });
-    console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
-}
-
-
-/***/ }),
-/* 71 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizationSettingsInteractionHandler = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(41);
-const settingsStorage_1 = __webpack_require__(43);
-const colorPickerUtils_1 = __webpack_require__(72);
-const dynamicColorIconGenerator_1 = __webpack_require__(42);
-/**
- * Handle Visualization Settings Interactions
- * Manages user interactions with visualization settings items
- */
-class VisualizationSettingsInteractionHandler {
-    context;
-    storage;
-    constructor(context) {
-        this.context = context;
-        console.log('VISUALIZATION-SETTINGS: Interaction handler initialized');
-        this.storage = new settingsStorage_1.VisualizationSettingsStorage(context);
-    }
-    /**
-     * Handle configuration of a specific setting field
-     */
-    async handleSettingConfiguration(settingKey) {
-        console.log(`VISUALIZATION-SETTINGS: Configuring setting '${settingKey}'`);
-        try {
-            switch (settingKey) {
-                case 'backgroundColor':
-                case 'groundColor':
-                    await this.handleColorConfiguration(settingKey);
-                    break;
-                case 'environmentPreset':
-                    await this.handleEnvironmentPresetConfiguration();
-                    break;
-                case 'chartPalette':
-                    await this.handleChartPaletteConfiguration();
-                    break;
-                default:
-                    throw new Error(`Unknown setting key: ${settingKey}`);
-            }
-        }
-        catch (error) {
-            console.error(`VISUALIZATION-SETTINGS: Error configuring ${settingKey}:`, error);
-            vscode.window.showErrorMessage(`Failed to configure ${settingKey}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Handle color configuration (background or ground color) using HTML-based color picker
-     */
-    async handleColorConfiguration(colorType) {
-        console.log(`VISUALIZATION-SETTINGS: Configuring ${colorType} with HTML color picker`);
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings[colorType];
-        try {
-            // Prepare color picker options
-            const fieldName = colorType === 'backgroundColor' ? 'Background Color' : 'Ground Color';
-            const options = {
-                fieldName,
-                currentColor: colorPickerUtils_1.ColorPickerUtils.normalizeColor(currentValue)
-            };
-            // Create webview panel
-            const panel = colorPickerUtils_1.ColorPickerUtils.createColorPickerWebview(this.context, options);
-            // Load and set HTML content
-            const htmlContent = await colorPickerUtils_1.ColorPickerUtils.loadColorPickerTemplate(this.context, options);
-            panel.webview.html = htmlContent;
-            // Handle messages from the webview
-            const messageDisposable = panel.webview.onDidReceiveMessage(async (message) => {
-                switch (message.type) {
-                    case 'colorPicker.confirm':
-                        const newColor = colorPickerUtils_1.ColorPickerUtils.normalizeColor(message.color);
-                        console.log(`VISUALIZATION-SETTINGS: Color confirmed for ${colorType}: ${newColor}`);
-                        console.log(`COLOR-PICKER: Generating new icon for ${colorType} with color ${newColor}`);
-                        try {
-                            // Generate new color icon
-                            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
-                            console.log(`COLOR-PICKER: Successfully generated icon for ${colorType}: ${iconUri.toString()}`);
-                            // Clean up old icons
-                            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
-                        }
-                        catch (iconError) {
-                            console.error(`COLOR-PICKER: Error generating icon for ${colorType}:`, iconError);
-                            // Continue with setting update even if icon generation fails
-                        }
-                        // Update the setting
-                        await this.storage.updateSetting(colorType, newColor);
-                        // Refresh the tree view to show new icon
-                        vscode.commands.executeCommand('codexr.servers.refresh');
-                        vscode.window.showInformationMessage(`${fieldName} set to: ${newColor}`);
-                        // Close the panel
-                        panel.dispose();
-                        break;
-                    case 'colorPicker.cancel':
-                        console.log(`VISUALIZATION-SETTINGS: Color picker cancelled for ${colorType}`);
-                        panel.dispose();
-                        break;
-                }
-            });
-            // Clean up when panel is disposed
-            panel.onDidDispose(() => {
-                messageDisposable.dispose();
-                console.log(`VISUALIZATION-SETTINGS: Color picker panel disposed for ${colorType}`);
-            });
-        }
-        catch (error) {
-            console.error(`VISUALIZATION-SETTINGS: Error opening color picker for ${colorType}:`, error);
-            vscode.window.showErrorMessage(`Failed to open color picker: ${error}`);
-            // Fallback to the original QuickPick method
-            await this.handleColorConfigurationFallback(colorType);
-        }
-    }
-    /**
-     * Fallback color configuration using QuickPick (in case HTML color picker fails)
-     */
-    async handleColorConfigurationFallback(colorType) {
-        console.log(`VISUALIZATION-SETTINGS: Using fallback QuickPick for ${colorType}`);
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings[colorType];
-        // Create QuickPick options
-        const colorOptions = [
-            ...settingsModel_1.PREDEFINED_COLORS.map(color => ({
-                label: color.label,
-                value: color.value,
-                picked: color.value === currentValue
-            })),
-            {
-                label: 'Pick a custom color...',
-                value: 'custom',
-                picked: false
-            }
-        ];
-        const selectedOption = await vscode.window.showQuickPick(colorOptions, {
-            placeHolder: `Select ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
-            title: `Configure ${colorType.replace(/([A-Z])/g, ' $1')}`,
-            matchOnDescription: true
-        });
-        if (!selectedOption) {
-            console.log(`VISUALIZATION-SETTINGS: ${colorType} configuration cancelled`);
-            return;
-        }
-        let newColor;
-        if (selectedOption.value === 'custom') {
-            const customColor = await this.getCustomColorInput(colorType, currentValue);
-            if (!customColor) {
-                return; // User cancelled custom color input
-            }
-            newColor = customColor;
-        }
-        else {
-            newColor = selectedOption.value;
-        }
-        // Generate color icon before updating setting
-        try {
-            console.log(`COLOR-PICKER: Generating fallback icon for ${colorType} with color ${newColor}`);
-            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
-            console.log(`COLOR-PICKER: Successfully generated fallback icon for ${colorType}: ${iconUri.toString()}`);
-            // Clean up old icons
-            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
-        }
-        catch (iconError) {
-            console.error(`COLOR-PICKER: Error generating fallback icon for ${colorType}:`, iconError);
-            // Continue with setting update even if icon generation fails
-        }
-        // Update the setting
-        await this.storage.updateSetting(colorType, newColor);
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-        console.log(`VISUALIZATION-SETTINGS: ${colorType} updated to '${newColor}'`);
-        vscode.window.showInformationMessage(`${colorType.replace(/([A-Z])/g, ' $1')} set to: ${newColor}`);
-    }
-    /**
-     * Get custom color input from user
-     */
-    async getCustomColorInput(colorType, currentValue) {
-        let attempts = 0;
-        const maxAttempts = 3;
-        while (attempts < maxAttempts) {
-            const customColor = await vscode.window.showInputBox({
-                prompt: `Enter hex color for ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()} (e.g., #FF5733)`,
-                value: currentValue,
-                validateInput: (value) => {
-                    if (!value) {
-                        return 'Color value is required';
-                    }
-                    if (!(0, settingsModel_1.isValidHexColor)(value)) {
-                        return 'Invalid hex color format. Use format: #RRGGBB (e.g., #FF5733)';
-                    }
-                    return null;
-                }
-            });
-            if (customColor === undefined) {
-                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled`);
-                return undefined;
-            }
-            if ((0, settingsModel_1.isValidHexColor)(customColor)) {
-                console.log(`VISUALIZATION-SETTINGS: Valid custom ${colorType} entered: ${customColor}`);
-                return customColor;
-            }
-            attempts++;
-            console.log(`VISUALIZATION-SETTINGS: Invalid ${colorType} format attempt ${attempts}/${maxAttempts}: ${customColor}`);
-            if (attempts < maxAttempts) {
-                const retry = await vscode.window.showErrorMessage(`Invalid hex color format: ${customColor}. Please use format #RRGGBB (e.g., #FF5733)`, 'Try Again', 'Cancel');
-                if (retry !== 'Try Again') {
-                    console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled after ${attempts} attempts`);
-                    return undefined;
-                }
-            }
-            else {
-                vscode.window.showErrorMessage(`Failed to set ${colorType} after ${maxAttempts} attempts. Please try again later.`);
-                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input failed after ${maxAttempts} attempts`);
-                return undefined;
-            }
-        }
-        return undefined;
-    }
-    /**
-     * Handle environment preset configuration
-     */
-    async handleEnvironmentPresetConfiguration() {
-        console.log('VISUALIZATION-SETTINGS: Configuring environment preset');
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings.environmentPreset;
-        const presetOptions = settingsModel_1.ENVIRONMENT_PRESETS.map(preset => ({
-            label: preset.label,
-            description: preset.description,
-            value: preset.value,
-            picked: preset.value === currentValue
-        }));
-        const selectedPreset = await vscode.window.showQuickPick(presetOptions, {
-            placeHolder: 'Select environment preset',
-            title: 'Configure Environment Preset',
-            matchOnDescription: true
-        });
-        if (!selectedPreset) {
-            console.log('VISUALIZATION-SETTINGS: Environment preset configuration cancelled');
-            return;
-        }
-        // Update the setting
-        await this.storage.updateSetting('environmentPreset', selectedPreset.value);
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-        console.log(`VISUALIZATION-SETTINGS: Environment preset updated to '${selectedPreset.value}'`);
-        vscode.window.showInformationMessage(`Environment preset set to: ${selectedPreset.label} - ${selectedPreset.description}`);
-    }
-    /**
-     * Handle chart palette configuration
-     */
-    async handleChartPaletteConfiguration() {
-        console.log('VISUALIZATION-SETTINGS: Configuring chart palette');
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings.chartPalette;
-        const paletteOptions = settingsModel_1.CHART_PALETTES.map(palette => ({
-            label: palette.label,
-            description: palette.description,
-            value: palette.value,
-            picked: palette.value === currentValue
-        }));
-        const selectedPalette = await vscode.window.showQuickPick(paletteOptions, {
-            placeHolder: 'Select chart palette',
-            title: 'Configure Chart Palette',
-            matchOnDescription: true
-        });
-        if (!selectedPalette) {
-            console.log('VISUALIZATION-SETTINGS: Chart palette configuration cancelled');
-            return;
-        }
-        // Update the setting
-        await this.storage.updateSetting('chartPalette', selectedPalette.value);
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-        console.log(`VISUALIZATION-SETTINGS: Chart palette updated to '${selectedPalette.value}'`);
-        vscode.window.showInformationMessage(`Chart palette set to: ${selectedPalette.label} - ${selectedPalette.description}`);
-    }
-    /**
-     * Get current storage instance for external access
-     */
-    getStorage() {
-        return this.storage;
-    }
-    /**
-     * Cleanup resources
-     */
-    dispose() {
-        console.log('VISUALIZATION-SETTINGS: Interaction handler disposed');
-    }
-}
-exports.VisualizationSettingsInteractionHandler = VisualizationSettingsInteractionHandler;
-
-
-/***/ }),
-/* 72 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ColorPickerUtils = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-class ColorPickerUtils {
-    static TEMPLATE_PATH = 'templates/utils/color-picker.html';
-    /**
-     * Load and process the color picker HTML template
-     */
-    static async loadColorPickerTemplate(context, options) {
-        try {
-            const templatePath = path.join(context.extensionPath, this.TEMPLATE_PATH);
-            let templateContent = fs.readFileSync(templatePath, 'utf8');
-            // Replace placeholders
-            templateContent = templateContent
-                .replace(/\$\{FIELD_NAME\}/g, options.fieldName)
-                .replace(/\$\{CURRENT_COLOR\}/g, options.currentColor);
-            return templateContent;
-        }
-        catch (error) {
-            console.error('[VISUALIZATION-SETTINGS] Error loading color picker template:', error);
-            throw new Error(`Failed to load color picker template: ${error}`);
-        }
-    }
-    /**
-     * Create and configure a webview for the color picker
-     */
-    static createColorPickerWebview(context, options) {
-        const panel = vscode.window.createWebviewPanel('colorPicker', `Color Picker - ${options.fieldName}`, vscode.ViewColumn.One, {
-            enableScripts: true,
-            retainContextWhenHidden: true,
-            localResourceRoots: [
-                vscode.Uri.file(path.join(context.extensionPath, 'templates'))
-            ]
-        });
-        // Set the icon for the panel
-        panel.iconPath = {
-            light: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')),
-            dark: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg'))
-        };
-        return panel;
-    }
-    /**
-     * Validate hex color format
-     */
-    static validateHexColor(color) {
-        return /^#[0-9a-fA-F]{6}$/.test(color);
-    }
-    /**
-     * Normalize color to uppercase hex format
-     */
-    static normalizeColor(color) {
-        if (this.validateHexColor(color)) {
-            return color.toUpperCase();
-        }
-        return '#FFFFFF'; // Default fallback
-    }
-    /**
-     * Get predefined colors for fallback
-     */
-    static getPredefinedColors() {
-        return [
-            '#FFFFFF', // White
-            '#000000', // Black
-            '#B10DC9', // Purple
-            '#FF4081', // Pink
-            '#F44336', // Red
-            '#FF9800', // Orange
-            '#FFEB3B', // Yellow
-            '#4CAF50', // Green
-            '#2196F3', // Blue
-            '#9C27B0', // Violet
-            '#607D8B', // Blue Grey
-            '#795548' // Brown
-        ];
-    }
-}
-exports.ColorPickerUtils = ColorPickerUtils;
-
-
-/***/ }),
-/* 73 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.initializeSettingsAccessors = initializeSettingsAccessors;
-exports.getSelectedBackgroundColor = getSelectedBackgroundColor;
-exports.getSelectedGroundColor = getSelectedGroundColor;
-exports.getSelectedEnvironment = getSelectedEnvironment;
-exports.getSelectedPalette = getSelectedPalette;
-exports.getAllSelectedSettings = getAllSelectedSettings;
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(41);
-/**
- * Settings Accessors
- * Clean utility functions to access visualization settings for babia-templates integration
- */
-// Module-level cache for context
-let extensionContext = null;
-/**
- * Initialize the settings accessors with extension context
- * Must be called during extension activation
- */
-function initializeSettingsAccessors(context) {
-    extensionContext = context;
-    console.log('VISUALIZATION-SETTINGS: Settings accessors initialized');
-}
-/**
- * Get the visualization configuration directory path
- */
-function getConfigDirectory() {
-    if (!extensionContext) {
-        throw new Error('Settings accessors not initialized. Call initializeSettingsAccessors() first.');
-    }
-    const globalStorageUri = extensionContext.globalStorageUri;
-    return path.join(globalStorageUri.fsPath, 'visualization-configuration');
-}
-/**
- * Get the settings file path
- */
-function getSettingsFilePath() {
-    return path.join(getConfigDirectory(), 'visualization-settings.json');
-}
-/**
- * Read settings from the JSON file
- */
-function readSettingsFromFile() {
-    try {
-        const settingsFilePath = getSettingsFilePath();
-        if (fs.existsSync(settingsFilePath)) {
-            const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
-            const jsonSettings = JSON.parse(fileContent);
-            console.log('VISUALIZATION-SETTINGS: Read settings from file:', jsonSettings);
-            return jsonSettings;
-        }
-    }
-    catch (error) {
-        console.error('VISUALIZATION-SETTINGS: Error reading settings file:', error);
-    }
-    return null;
-}
-/**
- * Get current background color from file storage or globalState fallback
- */
-async function getBackgroundColorFromStorage() {
-    try {
-        // First try to read from JSON file
-        const fileSettings = readSettingsFromFile();
-        if (fileSettings && fileSettings.backgroundColor) {
-            return fileSettings.backgroundColor;
-        }
-        // Fallback to globalState for backward compatibility
-        if (extensionContext) {
-            const legacySettings = extensionContext.globalState.get('visualizationSettings');
-            if (legacySettings && legacySettings.backgroundColor) {
-                return legacySettings.backgroundColor;
-            }
-        }
-    }
-    catch (error) {
-        console.error('VISUALIZATION-SETTINGS: Error reading background color from storage:', error);
-    }
-    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.backgroundColor;
-}
-/**
- * Get current ground color from file storage or globalState fallback
- */
-async function getGroundColorFromStorage() {
-    try {
-        // First try to read from JSON file
-        const fileSettings = readSettingsFromFile();
-        if (fileSettings && fileSettings.groundColor) {
-            return fileSettings.groundColor;
-        }
-        // Fallback to globalState for backward compatibility
-        if (extensionContext) {
-            const legacySettings = extensionContext.globalState.get('visualizationSettings');
-            if (legacySettings && legacySettings.groundColor) {
-                return legacySettings.groundColor;
-            }
-        }
-    }
-    catch (error) {
-        console.error('VISUALIZATION-SETTINGS: Error reading ground color from storage:', error);
-    }
-    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.groundColor;
-}
-/**
- * Get the currently selected background color
- * @returns Promise<string> Hex color value (e.g., "#B10DC9")
- */
-async function getSelectedBackgroundColor() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected background color');
-    const color = await getBackgroundColorFromStorage();
-    console.log(`VISUALIZATION-SETTINGS: Background color: ${color}`);
-    return color;
-}
-/**
- * Get the currently selected ground color
- * @returns Promise<string> Hex color value (e.g., "#FFFFFF")
- */
-async function getSelectedGroundColor() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected ground color');
-    const color = await getGroundColorFromStorage();
-    console.log(`VISUALIZATION-SETTINGS: Ground color: ${color}`);
-    return color;
-}
-/**
- * Get the currently selected environment preset
- * @returns Promise<string> Environment preset name (e.g., "forest")
- */
-async function getSelectedEnvironment() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected environment');
-    const settings = readSettingsFromFile();
-    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
-    console.log(`VISUALIZATION-SETTINGS: Environment: ${environment}`);
-    return environment;
-}
-/**
- * Get the currently selected chart palette
- * @returns Promise<string> Chart palette name (e.g., "ubuntu")
- */
-async function getSelectedPalette() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected chart palette');
-    const settings = readSettingsFromFile();
-    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
-    console.log(`VISUALIZATION-SETTINGS: Palette: ${palette}`);
-    return palette;
-}
-/**
- * Get all current settings in a single call (for efficiency)
- * @returns Promise<object> Object containing all current settings
- */
-async function getAllSelectedSettings() {
-    console.log('VISUALIZATION-SETTINGS: Getting all selected settings');
-    const [backgroundColor, groundColor] = await Promise.all([
-        getSelectedBackgroundColor(),
-        getSelectedGroundColor()
-    ]);
-    const settings = readSettingsFromFile();
-    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
-    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
-    const allSettings = {
-        backgroundColor,
-        groundColor,
-        environment,
-        palette
-    };
-    console.log('VISUALIZATION-SETTINGS: All settings:', allSettings);
-    return allSettings;
-}
-
-
-/***/ }),
-/* 74 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerActiveServersCommands = registerActiveServersCommands;
 exports.getActiveServersCommandIds = getActiveServersCommandIds;
-const activeServersCommands_1 = __webpack_require__(75);
+const activeServersCommands_1 = __webpack_require__(68);
 /**
  * Active Servers Commands Wrapper
  * Re-exports active servers commands for centralized command registration
@@ -15699,7 +14370,7 @@ function getActiveServersCommandIds() {
 
 
 /***/ }),
-/* 75 */
+/* 68 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15856,13 +14527,13 @@ exports.ActiveServersCommands = ActiveServersCommands;
 
 
 /***/ }),
-/* 76 */
+/* 69 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerBabiaExamplesCommands = registerBabiaExamplesCommands;
-const babiaExamplesCommands_1 = __webpack_require__(77);
+const babiaExamplesCommands_1 = __webpack_require__(70);
 /**
  * Register Babia Examples Commands
  * Entry point for registering all Babia examples related commands
@@ -15875,7 +14546,7 @@ function registerBabiaExamplesCommands(context, treeDataProvider) {
 
 
 /***/ }),
-/* 77 */
+/* 70 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15915,7 +14586,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const handleExampleClicks_1 = __webpack_require__(78);
+const handleExampleClicks_1 = __webpack_require__(71);
 /**
  * Babia Examples Commands
  * VS Code command definitions for Babia examples functionality
@@ -16049,7 +14720,7 @@ exports.BabiaExamplesCommands = BabiaExamplesCommands;
 
 
 /***/ }),
-/* 78 */
+/* 71 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16222,13 +14893,13 @@ exports.ExampleClickHandler = ExampleClickHandler;
 
 
 /***/ }),
-/* 79 */
+/* 72 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerVisualizeDataCommands = registerVisualizeDataCommands;
-const visualizeDataCommands_1 = __webpack_require__(80);
+const visualizeDataCommands_1 = __webpack_require__(73);
 /**
  * Register Visualize Data Commands
  * Entry point for registering all visualize data related commands
@@ -16241,7 +14912,7 @@ function registerVisualizeDataCommands(context) {
 
 
 /***/ }),
-/* 80 */
+/* 73 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16281,7 +14952,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationLauncher_1 = __webpack_require__(81);
+const visualizationLauncher_1 = __webpack_require__(74);
 const visualizationRestorer_1 = __webpack_require__(37);
 /**
  * Visualize Data Commands
@@ -16421,7 +15092,7 @@ exports.VisualizeDataCommands = VisualizeDataCommands;
 
 
 /***/ }),
-/* 81 */
+/* 74 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16465,9 +15136,9 @@ const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
 const chartRegistry_1 = __webpack_require__(49);
 const visualizeDataState_1 = __webpack_require__(36);
-const jsonFieldAnalyzer_1 = __webpack_require__(82);
+const jsonFieldAnalyzer_1 = __webpack_require__(75);
 const nonceGenerator_1 = __webpack_require__(17);
-const templateProcessor_1 = __webpack_require__(68);
+const templateProcessor_1 = __webpack_require__(122);
 const index_1 = __webpack_require__(38);
 /**
  * Visualization Launcher
@@ -16891,7 +15562,7 @@ exports.VisualizationLauncher = VisualizationLauncher;
 
 
 /***/ }),
-/* 82 */
+/* 75 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17105,7 +15776,754 @@ exports.JsonFieldAnalyzer = JsonFieldAnalyzer;
 
 
 /***/ }),
-/* 83 */
+/* 76 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Visualization Settings Module
+ * Main entry point for visualization configuration management
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
+exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
+var settingsModel_1 = __webpack_require__(41);
+Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
+var settingsStorage_1 = __webpack_require__(43);
+Object.defineProperty(exports, "VisualizationSettingsStorage", ({ enumerable: true, get: function () { return settingsStorage_1.VisualizationSettingsStorage; } }));
+var visualizationSettingsItems_1 = __webpack_require__(40);
+Object.defineProperty(exports, "VisualizationSettingsItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsItemFactory; } }));
+Object.defineProperty(exports, "VisualizationSettingsTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsTreeItem; } }));
+var handleSettingsInteraction_1 = __webpack_require__(77);
+Object.defineProperty(exports, "VisualizationSettingsInteractionHandler", ({ enumerable: true, get: function () { return handleSettingsInteraction_1.VisualizationSettingsInteractionHandler; } }));
+// Export settings accessors for babia-templates integration
+var settingsAccessors_1 = __webpack_require__(79);
+Object.defineProperty(exports, "initializeSettingsAccessors", ({ enumerable: true, get: function () { return settingsAccessors_1.initializeSettingsAccessors; } }));
+Object.defineProperty(exports, "getSelectedBackgroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedBackgroundColor; } }));
+Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedGroundColor; } }));
+Object.defineProperty(exports, "getSelectedEnvironment", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedEnvironment; } }));
+Object.defineProperty(exports, "getSelectedPalette", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedPalette; } }));
+Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, get: function () { return settingsAccessors_1.getAllSelectedSettings; } }));
+const vscode = __importStar(__webpack_require__(1));
+const handleSettingsInteraction_2 = __webpack_require__(77);
+const settingsAccessors_2 = __webpack_require__(79);
+/**
+ * Register visualization settings commands
+ */
+function registerVisualizationSettingsCommands(context) {
+    console.log('VISUALIZATION-SETTINGS: Registering commands...');
+    // Initialize settings accessors for global use
+    (0, settingsAccessors_2.initializeSettingsAccessors)(context);
+    // Initialize the interaction handler
+    const interactionHandler = new handleSettingsInteraction_2.VisualizationSettingsInteractionHandler(context);
+    // Command: Configure setting
+    const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
+        try {
+            console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
+            await interactionHandler.handleSettingConfiguration(settingKey);
+        }
+        catch (error) {
+            console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
+            vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // Register commands with the extension context
+    context.subscriptions.push(configureSettingCmd);
+    // Store interaction handler for cleanup
+    context.subscriptions.push({
+        dispose: () => interactionHandler.dispose()
+    });
+    console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
+}
+
+
+/***/ }),
+/* 77 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizationSettingsInteractionHandler = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const settingsModel_1 = __webpack_require__(41);
+const settingsStorage_1 = __webpack_require__(43);
+const colorPickerUtils_1 = __webpack_require__(78);
+const dynamicColorIconGenerator_1 = __webpack_require__(42);
+/**
+ * Handle Visualization Settings Interactions
+ * Manages user interactions with visualization settings items
+ */
+class VisualizationSettingsInteractionHandler {
+    context;
+    storage;
+    constructor(context) {
+        this.context = context;
+        console.log('VISUALIZATION-SETTINGS: Interaction handler initialized');
+        this.storage = new settingsStorage_1.VisualizationSettingsStorage(context);
+    }
+    /**
+     * Handle configuration of a specific setting field
+     */
+    async handleSettingConfiguration(settingKey) {
+        console.log(`VISUALIZATION-SETTINGS: Configuring setting '${settingKey}'`);
+        try {
+            switch (settingKey) {
+                case 'backgroundColor':
+                case 'groundColor':
+                    await this.handleColorConfiguration(settingKey);
+                    break;
+                case 'environmentPreset':
+                    await this.handleEnvironmentPresetConfiguration();
+                    break;
+                case 'chartPalette':
+                    await this.handleChartPaletteConfiguration();
+                    break;
+                default:
+                    throw new Error(`Unknown setting key: ${settingKey}`);
+            }
+        }
+        catch (error) {
+            console.error(`VISUALIZATION-SETTINGS: Error configuring ${settingKey}:`, error);
+            vscode.window.showErrorMessage(`Failed to configure ${settingKey}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle color configuration (background or ground color) using HTML-based color picker
+     */
+    async handleColorConfiguration(colorType) {
+        console.log(`VISUALIZATION-SETTINGS: Configuring ${colorType} with HTML color picker`);
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings[colorType];
+        try {
+            // Prepare color picker options
+            const fieldName = colorType === 'backgroundColor' ? 'Background Color' : 'Ground Color';
+            const options = {
+                fieldName,
+                currentColor: colorPickerUtils_1.ColorPickerUtils.normalizeColor(currentValue)
+            };
+            // Create webview panel
+            const panel = colorPickerUtils_1.ColorPickerUtils.createColorPickerWebview(this.context, options);
+            // Load and set HTML content
+            const htmlContent = await colorPickerUtils_1.ColorPickerUtils.loadColorPickerTemplate(this.context, options);
+            panel.webview.html = htmlContent;
+            // Handle messages from the webview
+            const messageDisposable = panel.webview.onDidReceiveMessage(async (message) => {
+                switch (message.type) {
+                    case 'colorPicker.confirm':
+                        const newColor = colorPickerUtils_1.ColorPickerUtils.normalizeColor(message.color);
+                        console.log(`VISUALIZATION-SETTINGS: Color confirmed for ${colorType}: ${newColor}`);
+                        console.log(`COLOR-PICKER: Generating new icon for ${colorType} with color ${newColor}`);
+                        try {
+                            // Generate new color icon
+                            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
+                            console.log(`COLOR-PICKER: Successfully generated icon for ${colorType}: ${iconUri.toString()}`);
+                            // Clean up old icons
+                            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
+                        }
+                        catch (iconError) {
+                            console.error(`COLOR-PICKER: Error generating icon for ${colorType}:`, iconError);
+                            // Continue with setting update even if icon generation fails
+                        }
+                        // Update the setting
+                        await this.storage.updateSetting(colorType, newColor);
+                        // Refresh the tree view to show new icon
+                        vscode.commands.executeCommand('codexr.servers.refresh');
+                        vscode.window.showInformationMessage(`${fieldName} set to: ${newColor}`);
+                        // Close the panel
+                        panel.dispose();
+                        break;
+                    case 'colorPicker.cancel':
+                        console.log(`VISUALIZATION-SETTINGS: Color picker cancelled for ${colorType}`);
+                        panel.dispose();
+                        break;
+                }
+            });
+            // Clean up when panel is disposed
+            panel.onDidDispose(() => {
+                messageDisposable.dispose();
+                console.log(`VISUALIZATION-SETTINGS: Color picker panel disposed for ${colorType}`);
+            });
+        }
+        catch (error) {
+            console.error(`VISUALIZATION-SETTINGS: Error opening color picker for ${colorType}:`, error);
+            vscode.window.showErrorMessage(`Failed to open color picker: ${error}`);
+            // Fallback to the original QuickPick method
+            await this.handleColorConfigurationFallback(colorType);
+        }
+    }
+    /**
+     * Fallback color configuration using QuickPick (in case HTML color picker fails)
+     */
+    async handleColorConfigurationFallback(colorType) {
+        console.log(`VISUALIZATION-SETTINGS: Using fallback QuickPick for ${colorType}`);
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings[colorType];
+        // Create QuickPick options
+        const colorOptions = [
+            ...settingsModel_1.PREDEFINED_COLORS.map(color => ({
+                label: color.label,
+                value: color.value,
+                picked: color.value === currentValue
+            })),
+            {
+                label: 'Pick a custom color...',
+                value: 'custom',
+                picked: false
+            }
+        ];
+        const selectedOption = await vscode.window.showQuickPick(colorOptions, {
+            placeHolder: `Select ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
+            title: `Configure ${colorType.replace(/([A-Z])/g, ' $1')}`,
+            matchOnDescription: true
+        });
+        if (!selectedOption) {
+            console.log(`VISUALIZATION-SETTINGS: ${colorType} configuration cancelled`);
+            return;
+        }
+        let newColor;
+        if (selectedOption.value === 'custom') {
+            const customColor = await this.getCustomColorInput(colorType, currentValue);
+            if (!customColor) {
+                return; // User cancelled custom color input
+            }
+            newColor = customColor;
+        }
+        else {
+            newColor = selectedOption.value;
+        }
+        // Generate color icon before updating setting
+        try {
+            console.log(`COLOR-PICKER: Generating fallback icon for ${colorType} with color ${newColor}`);
+            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
+            console.log(`COLOR-PICKER: Successfully generated fallback icon for ${colorType}: ${iconUri.toString()}`);
+            // Clean up old icons
+            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
+        }
+        catch (iconError) {
+            console.error(`COLOR-PICKER: Error generating fallback icon for ${colorType}:`, iconError);
+            // Continue with setting update even if icon generation fails
+        }
+        // Update the setting
+        await this.storage.updateSetting(colorType, newColor);
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+        console.log(`VISUALIZATION-SETTINGS: ${colorType} updated to '${newColor}'`);
+        vscode.window.showInformationMessage(`${colorType.replace(/([A-Z])/g, ' $1')} set to: ${newColor}`);
+    }
+    /**
+     * Get custom color input from user
+     */
+    async getCustomColorInput(colorType, currentValue) {
+        let attempts = 0;
+        const maxAttempts = 3;
+        while (attempts < maxAttempts) {
+            const customColor = await vscode.window.showInputBox({
+                prompt: `Enter hex color for ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()} (e.g., #FF5733)`,
+                value: currentValue,
+                validateInput: (value) => {
+                    if (!value) {
+                        return 'Color value is required';
+                    }
+                    if (!(0, settingsModel_1.isValidHexColor)(value)) {
+                        return 'Invalid hex color format. Use format: #RRGGBB (e.g., #FF5733)';
+                    }
+                    return null;
+                }
+            });
+            if (customColor === undefined) {
+                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled`);
+                return undefined;
+            }
+            if ((0, settingsModel_1.isValidHexColor)(customColor)) {
+                console.log(`VISUALIZATION-SETTINGS: Valid custom ${colorType} entered: ${customColor}`);
+                return customColor;
+            }
+            attempts++;
+            console.log(`VISUALIZATION-SETTINGS: Invalid ${colorType} format attempt ${attempts}/${maxAttempts}: ${customColor}`);
+            if (attempts < maxAttempts) {
+                const retry = await vscode.window.showErrorMessage(`Invalid hex color format: ${customColor}. Please use format #RRGGBB (e.g., #FF5733)`, 'Try Again', 'Cancel');
+                if (retry !== 'Try Again') {
+                    console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled after ${attempts} attempts`);
+                    return undefined;
+                }
+            }
+            else {
+                vscode.window.showErrorMessage(`Failed to set ${colorType} after ${maxAttempts} attempts. Please try again later.`);
+                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input failed after ${maxAttempts} attempts`);
+                return undefined;
+            }
+        }
+        return undefined;
+    }
+    /**
+     * Handle environment preset configuration
+     */
+    async handleEnvironmentPresetConfiguration() {
+        console.log('VISUALIZATION-SETTINGS: Configuring environment preset');
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings.environmentPreset;
+        const presetOptions = settingsModel_1.ENVIRONMENT_PRESETS.map(preset => ({
+            label: preset.label,
+            description: preset.description,
+            value: preset.value,
+            picked: preset.value === currentValue
+        }));
+        const selectedPreset = await vscode.window.showQuickPick(presetOptions, {
+            placeHolder: 'Select environment preset',
+            title: 'Configure Environment Preset',
+            matchOnDescription: true
+        });
+        if (!selectedPreset) {
+            console.log('VISUALIZATION-SETTINGS: Environment preset configuration cancelled');
+            return;
+        }
+        // Update the setting
+        await this.storage.updateSetting('environmentPreset', selectedPreset.value);
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+        console.log(`VISUALIZATION-SETTINGS: Environment preset updated to '${selectedPreset.value}'`);
+        vscode.window.showInformationMessage(`Environment preset set to: ${selectedPreset.label} - ${selectedPreset.description}`);
+    }
+    /**
+     * Handle chart palette configuration
+     */
+    async handleChartPaletteConfiguration() {
+        console.log('VISUALIZATION-SETTINGS: Configuring chart palette');
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings.chartPalette;
+        const paletteOptions = settingsModel_1.CHART_PALETTES.map(palette => ({
+            label: palette.label,
+            description: palette.description,
+            value: palette.value,
+            picked: palette.value === currentValue
+        }));
+        const selectedPalette = await vscode.window.showQuickPick(paletteOptions, {
+            placeHolder: 'Select chart palette',
+            title: 'Configure Chart Palette',
+            matchOnDescription: true
+        });
+        if (!selectedPalette) {
+            console.log('VISUALIZATION-SETTINGS: Chart palette configuration cancelled');
+            return;
+        }
+        // Update the setting
+        await this.storage.updateSetting('chartPalette', selectedPalette.value);
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+        console.log(`VISUALIZATION-SETTINGS: Chart palette updated to '${selectedPalette.value}'`);
+        vscode.window.showInformationMessage(`Chart palette set to: ${selectedPalette.label} - ${selectedPalette.description}`);
+    }
+    /**
+     * Get current storage instance for external access
+     */
+    getStorage() {
+        return this.storage;
+    }
+    /**
+     * Cleanup resources
+     */
+    dispose() {
+        console.log('VISUALIZATION-SETTINGS: Interaction handler disposed');
+    }
+}
+exports.VisualizationSettingsInteractionHandler = VisualizationSettingsInteractionHandler;
+
+
+/***/ }),
+/* 78 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ColorPickerUtils = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+class ColorPickerUtils {
+    static TEMPLATE_PATH = 'templates/utils/color-picker.html';
+    /**
+     * Load and process the color picker HTML template
+     */
+    static async loadColorPickerTemplate(context, options) {
+        try {
+            const templatePath = path.join(context.extensionPath, this.TEMPLATE_PATH);
+            let templateContent = fs.readFileSync(templatePath, 'utf8');
+            // Replace placeholders
+            templateContent = templateContent
+                .replace(/\$\{FIELD_NAME\}/g, options.fieldName)
+                .replace(/\$\{CURRENT_COLOR\}/g, options.currentColor);
+            return templateContent;
+        }
+        catch (error) {
+            console.error('[VISUALIZATION-SETTINGS] Error loading color picker template:', error);
+            throw new Error(`Failed to load color picker template: ${error}`);
+        }
+    }
+    /**
+     * Create and configure a webview for the color picker
+     */
+    static createColorPickerWebview(context, options) {
+        const panel = vscode.window.createWebviewPanel('colorPicker', `Color Picker - ${options.fieldName}`, vscode.ViewColumn.One, {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [
+                vscode.Uri.file(path.join(context.extensionPath, 'templates'))
+            ]
+        });
+        // Set the icon for the panel
+        panel.iconPath = {
+            light: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')),
+            dark: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg'))
+        };
+        return panel;
+    }
+    /**
+     * Validate hex color format
+     */
+    static validateHexColor(color) {
+        return /^#[0-9a-fA-F]{6}$/.test(color);
+    }
+    /**
+     * Normalize color to uppercase hex format
+     */
+    static normalizeColor(color) {
+        if (this.validateHexColor(color)) {
+            return color.toUpperCase();
+        }
+        return '#FFFFFF'; // Default fallback
+    }
+    /**
+     * Get predefined colors for fallback
+     */
+    static getPredefinedColors() {
+        return [
+            '#FFFFFF', // White
+            '#000000', // Black
+            '#B10DC9', // Purple
+            '#FF4081', // Pink
+            '#F44336', // Red
+            '#FF9800', // Orange
+            '#FFEB3B', // Yellow
+            '#4CAF50', // Green
+            '#2196F3', // Blue
+            '#9C27B0', // Violet
+            '#607D8B', // Blue Grey
+            '#795548' // Brown
+        ];
+    }
+}
+exports.ColorPickerUtils = ColorPickerUtils;
+
+
+/***/ }),
+/* 79 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.initializeSettingsAccessors = initializeSettingsAccessors;
+exports.getSelectedBackgroundColor = getSelectedBackgroundColor;
+exports.getSelectedGroundColor = getSelectedGroundColor;
+exports.getSelectedEnvironment = getSelectedEnvironment;
+exports.getSelectedPalette = getSelectedPalette;
+exports.getAllSelectedSettings = getAllSelectedSettings;
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const settingsModel_1 = __webpack_require__(41);
+/**
+ * Settings Accessors
+ * Clean utility functions to access visualization settings for babia-templates integration
+ */
+// Module-level cache for context
+let extensionContext = null;
+/**
+ * Initialize the settings accessors with extension context
+ * Must be called during extension activation
+ */
+function initializeSettingsAccessors(context) {
+    extensionContext = context;
+    console.log('VISUALIZATION-SETTINGS: Settings accessors initialized');
+}
+/**
+ * Get the visualization configuration directory path
+ */
+function getConfigDirectory() {
+    if (!extensionContext) {
+        throw new Error('Settings accessors not initialized. Call initializeSettingsAccessors() first.');
+    }
+    const globalStorageUri = extensionContext.globalStorageUri;
+    return path.join(globalStorageUri.fsPath, 'visualization-configuration');
+}
+/**
+ * Get the settings file path
+ */
+function getSettingsFilePath() {
+    return path.join(getConfigDirectory(), 'visualization-settings.json');
+}
+/**
+ * Read settings from the JSON file
+ */
+function readSettingsFromFile() {
+    try {
+        const settingsFilePath = getSettingsFilePath();
+        if (fs.existsSync(settingsFilePath)) {
+            const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
+            const jsonSettings = JSON.parse(fileContent);
+            console.log('VISUALIZATION-SETTINGS: Read settings from file:', jsonSettings);
+            return jsonSettings;
+        }
+    }
+    catch (error) {
+        console.error('VISUALIZATION-SETTINGS: Error reading settings file:', error);
+    }
+    return null;
+}
+/**
+ * Get current background color from file storage or globalState fallback
+ */
+async function getBackgroundColorFromStorage() {
+    try {
+        // First try to read from JSON file
+        const fileSettings = readSettingsFromFile();
+        if (fileSettings && fileSettings.backgroundColor) {
+            return fileSettings.backgroundColor;
+        }
+        // Fallback to globalState for backward compatibility
+        if (extensionContext) {
+            const legacySettings = extensionContext.globalState.get('visualizationSettings');
+            if (legacySettings && legacySettings.backgroundColor) {
+                return legacySettings.backgroundColor;
+            }
+        }
+    }
+    catch (error) {
+        console.error('VISUALIZATION-SETTINGS: Error reading background color from storage:', error);
+    }
+    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.backgroundColor;
+}
+/**
+ * Get current ground color from file storage or globalState fallback
+ */
+async function getGroundColorFromStorage() {
+    try {
+        // First try to read from JSON file
+        const fileSettings = readSettingsFromFile();
+        if (fileSettings && fileSettings.groundColor) {
+            return fileSettings.groundColor;
+        }
+        // Fallback to globalState for backward compatibility
+        if (extensionContext) {
+            const legacySettings = extensionContext.globalState.get('visualizationSettings');
+            if (legacySettings && legacySettings.groundColor) {
+                return legacySettings.groundColor;
+            }
+        }
+    }
+    catch (error) {
+        console.error('VISUALIZATION-SETTINGS: Error reading ground color from storage:', error);
+    }
+    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.groundColor;
+}
+/**
+ * Get the currently selected background color
+ * @returns Promise<string> Hex color value (e.g., "#B10DC9")
+ */
+async function getSelectedBackgroundColor() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected background color');
+    const color = await getBackgroundColorFromStorage();
+    console.log(`VISUALIZATION-SETTINGS: Background color: ${color}`);
+    return color;
+}
+/**
+ * Get the currently selected ground color
+ * @returns Promise<string> Hex color value (e.g., "#FFFFFF")
+ */
+async function getSelectedGroundColor() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected ground color');
+    const color = await getGroundColorFromStorage();
+    console.log(`VISUALIZATION-SETTINGS: Ground color: ${color}`);
+    return color;
+}
+/**
+ * Get the currently selected environment preset
+ * @returns Promise<string> Environment preset name (e.g., "forest")
+ */
+async function getSelectedEnvironment() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected environment');
+    const settings = readSettingsFromFile();
+    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
+    console.log(`VISUALIZATION-SETTINGS: Environment: ${environment}`);
+    return environment;
+}
+/**
+ * Get the currently selected chart palette
+ * @returns Promise<string> Chart palette name (e.g., "ubuntu")
+ */
+async function getSelectedPalette() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected chart palette');
+    const settings = readSettingsFromFile();
+    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
+    console.log(`VISUALIZATION-SETTINGS: Palette: ${palette}`);
+    return palette;
+}
+/**
+ * Get all current settings in a single call (for efficiency)
+ * @returns Promise<object> Object containing all current settings
+ */
+async function getAllSelectedSettings() {
+    console.log('VISUALIZATION-SETTINGS: Getting all selected settings');
+    const [backgroundColor, groundColor] = await Promise.all([
+        getSelectedBackgroundColor(),
+        getSelectedGroundColor()
+    ]);
+    const settings = readSettingsFromFile();
+    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
+    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
+    const allSettings = {
+        backgroundColor,
+        groundColor,
+        environment,
+        palette
+    };
+    console.log('VISUALIZATION-SETTINGS: All settings:', allSettings);
+    return allSettings;
+}
+
+
+/***/ }),
+/* 80 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -17124,7 +16542,7 @@ function registerCodeAnalysisCommands(context) {
 
 
 /***/ }),
-/* 84 */
+/* 81 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17164,7 +16582,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerGeneralCommands = registerGeneralCommands;
 const vscode = __importStar(__webpack_require__(1));
-const commonCommands_1 = __webpack_require__(85);
+const commonCommands_1 = __webpack_require__(82);
 /**
  * Register general/common commands used throughout the extension
  */
@@ -17192,7 +16610,7 @@ function registerGeneralCommands(context) {
 
 
 /***/ }),
-/* 85 */
+/* 82 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17278,7 +16696,7 @@ exports.CommonCommands = CommonCommands;
 
 
 /***/ }),
-/* 86 */
+/* 83 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17320,7 +16738,7 @@ exports.register = register;
 exports.getPythonEnvCommands = getPythonEnvCommands;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
-const pythonEnvCommands_1 = __webpack_require__(87);
+const pythonEnvCommands_1 = __webpack_require__(84);
 /**
  * Entry point for the Python environment module
  */
@@ -17365,7 +16783,7 @@ function deactivate() {
 
 
 /***/ }),
-/* 87 */
+/* 84 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17405,7 +16823,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const venvManager_1 = __webpack_require__(88);
+const venvManager_1 = __webpack_require__(85);
 /**
  * Python environment command registration and handlers
  */
@@ -17662,7 +17080,7 @@ exports.PythonEnvCommands = PythonEnvCommands;
 
 
 /***/ }),
-/* 88 */
+/* 85 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18079,7 +17497,7 @@ exports.VenvManager = VenvManager;
 
 
 /***/ }),
-/* 89 */
+/* 86 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18104,22 +17522,22 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 // Main modular tree provider
-var ModularTreeDataProvider_1 = __webpack_require__(90);
+var ModularTreeDataProvider_1 = __webpack_require__(87);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
-__exportStar(__webpack_require__(91), exports);
-__exportStar(__webpack_require__(119), exports);
+__exportStar(__webpack_require__(88), exports);
+__exportStar(__webpack_require__(116), exports);
 // Section providers
-__exportStar(__webpack_require__(92), exports);
-__exportStar(__webpack_require__(96), exports);
-__exportStar(__webpack_require__(100), exports);
-__exportStar(__webpack_require__(104), exports);
-__exportStar(__webpack_require__(108), exports);
-__exportStar(__webpack_require__(115), exports);
+__exportStar(__webpack_require__(89), exports);
+__exportStar(__webpack_require__(93), exports);
+__exportStar(__webpack_require__(97), exports);
+__exportStar(__webpack_require__(101), exports);
+__exportStar(__webpack_require__(105), exports);
+__exportStar(__webpack_require__(112), exports);
 
 
 /***/ }),
-/* 90 */
+/* 87 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18159,13 +17577,13 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const baseInterfaces_1 = __webpack_require__(91);
-const servers_1 = __webpack_require__(92);
-const active_servers_1 = __webpack_require__(96);
-const babia_examples_1 = __webpack_require__(100);
-const visualize_data_1 = __webpack_require__(104);
-const code_analysis_1 = __webpack_require__(108);
-const visualization_settings_1 = __webpack_require__(115);
+const baseInterfaces_1 = __webpack_require__(88);
+const servers_1 = __webpack_require__(89);
+const active_servers_1 = __webpack_require__(93);
+const babia_examples_1 = __webpack_require__(97);
+const visualize_data_1 = __webpack_require__(101);
+const code_analysis_1 = __webpack_require__(105);
+const visualization_settings_1 = __webpack_require__(112);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -18316,32 +17734,32 @@ class ModularTreeDataProvider {
         switch (sectionName) {
             case 'SERVERS':
                 // Import and create ServerTreeItem
-                const { ServerTreeItem } = __webpack_require__(94);
+                const { ServerTreeItem } = __webpack_require__(91);
                 const serverItem = new ServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.serverItemType || 'config-option', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return serverItem;
             case 'activeServers':
                 // Import and create ActiveServerTreeItem
-                const { ActiveServerTreeItem } = __webpack_require__(98);
+                const { ActiveServerTreeItem } = __webpack_require__(95);
                 const activeServerItem = new ActiveServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.activeServerItemType || 'server-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.activeServer);
                 return activeServerItem;
             case 'babiaExamples':
                 // Import and create BabiaExampleTreeItem
-                const { BabiaExampleTreeItem } = __webpack_require__(102);
+                const { BabiaExampleTreeItem } = __webpack_require__(99);
                 const babiaItem = new BabiaExampleTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.babiaItemType || 'example-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.babiaExample);
                 return babiaItem;
             case 'visualizeData':
                 // Import and create VisualizeDataModularTreeItem
-                const { VisualizeDataModularTreeItem } = __webpack_require__(106);
+                const { VisualizeDataModularTreeItem } = __webpack_require__(103);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
             case 'codeAnalysis':
                 // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(110);
+                const { CodeAnalysisModularTreeItem } = __webpack_require__(107);
                 const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
                 return codeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(117);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(114);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -18399,7 +17817,7 @@ exports.ModularTreeDataProvider = ModularTreeDataProvider;
 
 
 /***/ }),
-/* 91 */
+/* 88 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18501,7 +17919,7 @@ exports.TreeViewUtils = TreeViewUtils;
 
 
 /***/ }),
-/* 92 */
+/* 89 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18512,19 +17930,19 @@ exports.TreeViewUtils = TreeViewUtils;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerClickHandler = exports.ServerItemFactory = exports.ServerTreeItem = exports.ServersSectionProvider = void 0;
 // Section Provider
-var ServersSectionProvider_1 = __webpack_require__(93);
+var ServersSectionProvider_1 = __webpack_require__(90);
 Object.defineProperty(exports, "ServersSectionProvider", ({ enumerable: true, get: function () { return ServersSectionProvider_1.ServersSectionProvider; } }));
 // Items
-var serverItems_1 = __webpack_require__(94);
+var serverItems_1 = __webpack_require__(91);
 Object.defineProperty(exports, "ServerTreeItem", ({ enumerable: true, get: function () { return serverItems_1.ServerTreeItem; } }));
 Object.defineProperty(exports, "ServerItemFactory", ({ enumerable: true, get: function () { return serverItems_1.ServerItemFactory; } }));
 // Interactions
-var handleServerClicks_1 = __webpack_require__(95);
+var handleServerClicks_1 = __webpack_require__(92);
 Object.defineProperty(exports, "ServerClickHandler", ({ enumerable: true, get: function () { return handleServerClicks_1.ServerClickHandler; } }));
 
 
 /***/ }),
-/* 93 */
+/* 90 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18564,8 +17982,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverItems_1 = __webpack_require__(94);
-const handleServerClicks_1 = __webpack_require__(95);
+const serverItems_1 = __webpack_require__(91);
+const handleServerClicks_1 = __webpack_require__(92);
 const serverSettingsManager_1 = __webpack_require__(16);
 /**
  * Servers section provider for the modular tree view architecture
@@ -18698,7 +18116,7 @@ exports.ServersSectionProvider = ServersSectionProvider;
 
 
 /***/ }),
-/* 94 */
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18816,7 +18234,7 @@ exports.ServerItemFactory = ServerItemFactory;
 
 
 /***/ }),
-/* 95 */
+/* 92 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18914,7 +18332,7 @@ exports.ServerClickHandler = ServerClickHandler;
 
 
 /***/ }),
-/* 96 */
+/* 93 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18925,19 +18343,19 @@ exports.ServerClickHandler = ServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = exports.ActiveServerItemFactory = exports.ActiveServerTreeItem = exports.ActiveServersSectionProvider = void 0;
 // Section Provider
-var ActiveServersSectionProvider_1 = __webpack_require__(97);
+var ActiveServersSectionProvider_1 = __webpack_require__(94);
 Object.defineProperty(exports, "ActiveServersSectionProvider", ({ enumerable: true, get: function () { return ActiveServersSectionProvider_1.ActiveServersSectionProvider; } }));
 // Items
-var activeServerItems_1 = __webpack_require__(98);
+var activeServerItems_1 = __webpack_require__(95);
 Object.defineProperty(exports, "ActiveServerTreeItem", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerTreeItem; } }));
 Object.defineProperty(exports, "ActiveServerItemFactory", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerItemFactory; } }));
 // Interactions
-var handleActiveServerClicks_1 = __webpack_require__(99);
+var handleActiveServerClicks_1 = __webpack_require__(96);
 Object.defineProperty(exports, "ActiveServerClickHandler", ({ enumerable: true, get: function () { return handleActiveServerClicks_1.ActiveServerClickHandler; } }));
 
 
 /***/ }),
-/* 97 */
+/* 94 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18977,8 +18395,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerItems_1 = __webpack_require__(98);
-const handleActiveServerClicks_1 = __webpack_require__(99);
+const activeServerItems_1 = __webpack_require__(95);
+const handleActiveServerClicks_1 = __webpack_require__(96);
 const activeServerRegistry_1 = __webpack_require__(11);
 /**
  * Active Servers section provider - manages running servers display and control
@@ -19075,7 +18493,7 @@ exports.ActiveServersSectionProvider = ActiveServersSectionProvider;
 
 
 /***/ }),
-/* 98 */
+/* 95 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19243,7 +18661,7 @@ exports.ActiveServerItemFactory = ActiveServerItemFactory;
 
 
 /***/ }),
-/* 99 */
+/* 96 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19359,7 +18777,7 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 
 
 /***/ }),
-/* 100 */
+/* 97 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19370,19 +18788,19 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = exports.BabiaExamplesSectionProvider = void 0;
 // Section Provider
-var BabiaExamplesSectionProvider_1 = __webpack_require__(101);
+var BabiaExamplesSectionProvider_1 = __webpack_require__(98);
 Object.defineProperty(exports, "BabiaExamplesSectionProvider", ({ enumerable: true, get: function () { return BabiaExamplesSectionProvider_1.BabiaExamplesSectionProvider; } }));
 // Items
-var babiaExampleItems_1 = __webpack_require__(102);
+var babiaExampleItems_1 = __webpack_require__(99);
 Object.defineProperty(exports, "BabiaExampleTreeItem", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleTreeItem; } }));
 Object.defineProperty(exports, "BabiaExampleItemFactory", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleItemFactory; } }));
 // Interactions
-var handleBabiaExampleClicks_1 = __webpack_require__(103);
+var handleBabiaExampleClicks_1 = __webpack_require__(100);
 Object.defineProperty(exports, "BabiaExampleClickHandler", ({ enumerable: true, get: function () { return handleBabiaExampleClicks_1.BabiaExampleClickHandler; } }));
 
 
 /***/ }),
-/* 101 */
+/* 98 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19422,8 +18840,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const babiaExampleItems_1 = __webpack_require__(102);
-const handleBabiaExampleClicks_1 = __webpack_require__(103);
+const babiaExampleItems_1 = __webpack_require__(99);
+const handleBabiaExampleClicks_1 = __webpack_require__(100);
 const exampleLauncher_1 = __webpack_require__(12);
 /**
  * Babia Examples section provider - manages example loading and launching
@@ -19504,7 +18922,7 @@ exports.BabiaExamplesSectionProvider = BabiaExamplesSectionProvider;
 
 
 /***/ }),
-/* 102 */
+/* 99 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19626,7 +19044,7 @@ exports.BabiaExampleItemFactory = BabiaExampleItemFactory;
 
 
 /***/ }),
-/* 103 */
+/* 100 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19805,7 +19223,7 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 
 
 /***/ }),
-/* 104 */
+/* 101 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19816,19 +19234,19 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataClickHandler = exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = exports.VisualizeDataSectionProvider = void 0;
 // Section Provider
-var VisualizeDataSectionProvider_1 = __webpack_require__(105);
+var VisualizeDataSectionProvider_1 = __webpack_require__(102);
 Object.defineProperty(exports, "VisualizeDataSectionProvider", ({ enumerable: true, get: function () { return VisualizeDataSectionProvider_1.VisualizeDataSectionProvider; } }));
 // Items
-var visualizeDataItems_1 = __webpack_require__(106);
+var visualizeDataItems_1 = __webpack_require__(103);
 Object.defineProperty(exports, "VisualizeDataModularTreeItem", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizeDataModularItemFactory", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularItemFactory; } }));
 // Interactions
-var handleVisualizeDataClicks_1 = __webpack_require__(107);
+var handleVisualizeDataClicks_1 = __webpack_require__(104);
 Object.defineProperty(exports, "VisualizeDataClickHandler", ({ enumerable: true, get: function () { return handleVisualizeDataClicks_1.VisualizeDataClickHandler; } }));
 
 
 /***/ }),
-/* 105 */
+/* 102 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19868,8 +19286,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(106);
-const handleVisualizeDataClicks_1 = __webpack_require__(107);
+const visualizeDataItems_1 = __webpack_require__(103);
+const handleVisualizeDataClicks_1 = __webpack_require__(104);
 const visualizeDataState_1 = __webpack_require__(36);
 /**
  * Visualize Data section provider - manages data visualization configuration and launch
@@ -19975,7 +19393,7 @@ exports.VisualizeDataSectionProvider = VisualizeDataSectionProvider;
 
 
 /***/ }),
-/* 106 */
+/* 103 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20134,7 +19552,7 @@ exports.VisualizeDataModularItemFactory = VisualizeDataModularItemFactory;
 
 
 /***/ }),
-/* 107 */
+/* 104 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20333,7 +19751,7 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 
 /***/ }),
-/* 108 */
+/* 105 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20344,19 +19762,19 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
 // Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(109);
+var CodeAnalysisSectionProvider_1 = __webpack_require__(106);
 Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
 // Items
-var codeAnalysisItems_1 = __webpack_require__(110);
+var codeAnalysisItems_1 = __webpack_require__(107);
 Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
 Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
 // Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(111);
+var handleCodeAnalysisClicks_1 = __webpack_require__(108);
 Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
 
 
 /***/ }),
-/* 109 */
+/* 106 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20396,10 +19814,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(110);
-const handleCodeAnalysisClicks_1 = __webpack_require__(111);
+const codeAnalysisItems_1 = __webpack_require__(107);
+const handleCodeAnalysisClicks_1 = __webpack_require__(108);
 const codeAnalysisTreeView_1 = __webpack_require__(44);
-const projectStructureAdapter_1 = __webpack_require__(112);
+const projectStructureAdapter_1 = __webpack_require__(109);
 /**
  * Code Analysis section provider - manages code analysis and file organization
  */
@@ -20544,7 +19962,7 @@ exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 110 */
+/* 107 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20707,7 +20125,7 @@ exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
 
 
 /***/ }),
-/* 111 */
+/* 108 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20922,7 +20340,7 @@ exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
 
 
 /***/ }),
-/* 112 */
+/* 109 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20962,7 +20380,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureModularAdapter = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(113);
+const projectStructureTreeView_1 = __webpack_require__(110);
 const analysisTreeItems_1 = __webpack_require__(45);
 const fileDisplayUtils_1 = __webpack_require__(46);
 /**
@@ -21104,7 +20522,7 @@ exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
 
 
 /***/ }),
-/* 113 */
+/* 110 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21145,8 +20563,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
 exports.createProjectStructureModularItem = createProjectStructureModularItem;
 const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(114);
-const baseInterfaces_1 = __webpack_require__(91);
+const directoryScanner_1 = __webpack_require__(111);
+const baseInterfaces_1 = __webpack_require__(88);
 const fileDisplayUtils_1 = __webpack_require__(46);
 /**
  * Tree data provider for the Project Directory Tree View
@@ -21485,7 +20903,7 @@ exports.ProjectStructureCommands = ProjectStructureCommands;
 
 
 /***/ }),
-/* 114 */
+/* 111 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21860,7 +21278,7 @@ exports.DirectoryScanner = DirectoryScanner;
 
 
 /***/ }),
-/* 115 */
+/* 112 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -21871,19 +21289,19 @@ exports.DirectoryScanner = DirectoryScanner;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(116);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(113);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(117);
+var visualizationSettingsItems_1 = __webpack_require__(114);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(118);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(115);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 116 */
+/* 113 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21923,8 +21341,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(117);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(118);
+const visualizationSettingsItems_1 = __webpack_require__(114);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(115);
 const settingsStorage_1 = __webpack_require__(43);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
@@ -22013,7 +21431,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 117 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22106,7 +21524,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 118 */
+/* 115 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22289,7 +21707,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 119 */
+/* 116 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -22450,7 +21868,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 120 */
+/* 117 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22593,17 +22011,599 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 121 */,
-/* 122 */
+/* 118 */,
+/* 119 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 123 */
+/* 120 */
 /***/ ((module) => {
 
 module.exports = require("node:os");
+
+/***/ }),
+/* 121 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.XRTemplateRenderer = void 0;
+const path = __importStar(__webpack_require__(5));
+const analysisSettingsStorage_1 = __webpack_require__(48);
+const templateProcessor_1 = __webpack_require__(122);
+/**
+ * XR Template Renderer for File Analysis
+ * Delegates to centralized TemplateProcessor for HTML generation
+ */
+class XRTemplateRenderer {
+    /**
+     * Generate and save index.html for XR file analysis using centralized TemplateProcessor
+     *
+     * @param context - VS Code extension context
+     * @param analysisFolder - URI of the analysis folder (contains data.json)
+     * @param filePath - Original file path being analyzed
+     * @param analysisData - Analysis data object
+     */
+    static async generateXRVisualization(context, analysisFolder, filePath, analysisData) {
+        console.log(`[XR_TEMPLATE_RENDERER] Generating XR visualization for ${path.basename(filePath)} using centralized TemplateProcessor`);
+        try {
+            // Get current chart configuration
+            const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
+            const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
+            console.log(`[XR_TEMPLATE_RENDERER] Using chart type: ${chartType}`);
+            console.log(`[XR_TEMPLATE_RENDERER] Dimension mappings:`, dimensionMappings);
+            // Convert field names to XR format if needed
+            const mappings = dimensionMappings.map(mapping => ({
+                dimension: mapping.dimension,
+                dataField: this.convertToXRFieldName(mapping.dataField),
+                label: mapping.label
+            }));
+            // Prepare output path for index.html
+            const indexHtmlPath = path.join(analysisFolder.fsPath, 'index.html');
+            // Use centralized TemplateProcessor to generate the complete XR visualization
+            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(chartType, mappings, `File Analysis: ${path.basename(filePath)}`, './data.json', context, indexHtmlPath);
+            if (!result.success) {
+                console.error(`[XR_TEMPLATE_RENDERER] TemplateProcessor failed:`, result.error);
+                throw new Error(`Template processing failed: ${result.error}`);
+            }
+            console.log(`[XR_TEMPLATE_RENDERER] Successfully generated index.html using TemplateProcessor at: ${indexHtmlPath}`);
+        }
+        catch (error) {
+            console.error(`[XR_TEMPLATE_RENDERER] Failed to generate XR visualization:`, error);
+            throw error;
+        }
+    }
+    /**
+     * Convert field names from static analysis format to XR format
+     * Maps legacy field names to standardized XR field names
+     */
+    static convertToXRFieldName(fieldName) {
+        const fieldMappings = {
+            'ccn': 'complexity',
+            'lines_count': 'lineCount',
+            'line_start': 'lineStart',
+            'line_end': 'lineEnd',
+            'function_name': 'fileName',
+            'nloc': 'lineCount',
+            'parameters': 'parameters',
+            'max_nesting_depth': 'maxNestingDepth',
+            'cyclomatic_density': 'cyclomaticDensity'
+        };
+        return fieldMappings[fieldName] || fieldName;
+    }
+}
+exports.XRTemplateRenderer = XRTemplateRenderer;
+
+
+/***/ }),
+/* 122 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TemplateProcessor = void 0;
+const dimensionValidator_1 = __webpack_require__(123);
+const templateCharts_1 = __webpack_require__(50);
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+/**
+ * BabiaXR Template Processor
+ * Main and centralized processor for generating XR visualization HTML files
+ * Handles template processing, placeholder replacement, and HTML generation
+ */
+class TemplateProcessor {
+    /**
+     * Main method to generate complete XR visualization index.html
+     * This is the centralized method that both visualize data and XR analysis should use
+     */
+    static async generateXRVisualization(chartId, mappings, title, dataSource, context, outputPath) {
+        try {
+            console.log('TEMPLATE_PROCESSOR: Starting XR visualization generation');
+            console.log('TEMPLATE_PROCESSOR: Chart ID:', chartId);
+            console.log('TEMPLATE_PROCESSOR: Mappings:', mappings);
+            console.log('TEMPLATE_PROCESSOR: Title:', title);
+            console.log('TEMPLATE_PROCESSOR: Data source:', dataSource);
+            // Find the chart template
+            const chart = templateCharts_1.chartTemplates.find(c => c.id === chartId);
+            if (!chart) {
+                return { success: false, error: `Chart type '${chartId}' not found` };
+            }
+            // Get visualization settings
+            const visualizationSettings = await this.getVisualizationSettings();
+            console.log('TEMPLATE_PROCESSOR: Using visualization settings:', visualizationSettings);
+            // Load XR base template
+            const xrTemplate = await this.loadXRTemplate(context);
+            if (!xrTemplate) {
+                return { success: false, error: 'Failed to load XR template' };
+            }
+            // Generate chart component HTML
+            const chartComponent = await this.generateChartComponent(chart, mappings, title, visualizationSettings.palette);
+            // Replace all placeholders in the XR template
+            const finalHtml = this.replaceXRTemplatePlaceholders(xrTemplate, {
+                title,
+                dataSource,
+                chartComponent,
+                ...visualizationSettings
+            });
+            // Write the final HTML file
+            fs.writeFileSync(outputPath, finalHtml, 'utf8');
+            console.log('TEMPLATE_PROCESSOR: Generated XR visualization HTML at:', outputPath);
+            return { success: true };
+        }
+        catch (error) {
+            console.error('TEMPLATE_PROCESSOR: Error generating XR visualization:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Get visualization settings (palette, environment, colors)
+     */
+    static async getVisualizationSettings() {
+        // Import visualization settings functions directly (no dynamic import needed)
+        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(76);
+        return {
+            palette: await getSelectedPalette(),
+            environment: await getSelectedEnvironment(),
+            backgroundColor: await getSelectedBackgroundColor(),
+            groundColor: await getSelectedGroundColor()
+        };
+    }
+    /**
+     * Load XR base template from templates/xr/xr-visualization.html
+     */
+    static async loadXRTemplate(context) {
+        try {
+            const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'xr-visualization.html');
+            if (!fs.existsSync(templatePath)) {
+                console.error('TEMPLATE_PROCESSOR: XR template not found at:', templatePath);
+                return null;
+            }
+            const template = fs.readFileSync(templatePath, 'utf8');
+            console.log('TEMPLATE_PROCESSOR: Loaded XR template from:', templatePath);
+            return template;
+        }
+        catch (error) {
+            console.error('TEMPLATE_PROCESSOR: Error loading XR template:', error);
+            return null;
+        }
+    }
+    /**
+     * Generate chart component HTML using the chart template
+     */
+    static async generateChartComponent(chart, mappings, title, palette) {
+        console.log('TEMPLATE_PROCESSOR: Generating chart component for:', chart.id);
+        // Create configuration for chart processing
+        const config = {
+            chartType: chart.id,
+            title: title,
+            dataFilePath: 'data.json',
+            dimensionMappings: mappings,
+            options: {
+                palette: palette
+            }
+        };
+        // Process the chart template
+        const result = await this.processTemplate(chart, mappings, config);
+        if (!result.success) {
+            console.error('TEMPLATE_PROCESSOR: Chart component generation failed:', result.error);
+            return `<!-- Chart generation error: ${result.error || 'Unknown error'} -->`;
+        }
+        console.log('TEMPLATE_PROCESSOR: Chart component generated successfully');
+        return result.html || '';
+    }
+    /**
+     * Replace all placeholders in the XR template
+     */
+    static replaceXRTemplatePlaceholders(template, values) {
+        console.log('TEMPLATE_PROCESSOR: Replacing XR template placeholders');
+        let result = template;
+        // Define placeholder replacements
+        const replacements = {
+            'TITLE': values.title,
+            'DATA_SOURCE': values.dataSource,
+            'CHART_COMPONENT': values.chartComponent,
+            'CHART_PALETTE': values.palette,
+            'ENVIRONMENT_PRESET': values.environment,
+            'BACKGROUND_COLOR': values.backgroundColor,
+            'GROUND_COLOR': values.groundColor,
+            'TREE_BUILDER': '', // Not needed for basic charts
+            'ICON_PATH': '' // Optional
+        };
+        // Replace all placeholders
+        for (const [placeholder, value] of Object.entries(replacements)) {
+            const patterns = [
+                new RegExp(`\\$\\{${this.escapeRegex(placeholder)}\\}`, 'g'),
+                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g')
+            ];
+            for (const pattern of patterns) {
+                result = result.replace(pattern, value);
+            }
+        }
+        console.log('TEMPLATE_PROCESSOR: XR template placeholders replaced');
+        return result;
+    }
+    /**
+     * Process a chart template with given configuration and mappings
+     */
+    static async processTemplate(chart, mappings, config) {
+        // Validate dimensions first
+        const validation = dimensionValidator_1.DimensionValidator.validateMappings(chart, mappings);
+        if (!validation.isValid) {
+            return {
+                success: false,
+                html: '',
+                error: validation.errors.join('; '),
+                warnings: validation.warnings
+            };
+        }
+        try {
+            // Start with the base template
+            let html = chart.htmlTemplate;
+            // Create placeholder replacements map
+            const replacements = this.createPlaceholderReplacements(chart, mappings, config);
+            // Replace all placeholders
+            html = this.replacePlaceholders(html, replacements);
+            // Validate final HTML
+            const htmlValidation = this.validateGeneratedHtml(html);
+            if (!htmlValidation.isValid) {
+                return {
+                    success: false,
+                    html: '',
+                    error: htmlValidation.error || 'Generated HTML is invalid',
+                    warnings: validation.warnings
+                };
+            }
+            return {
+                success: true,
+                html: html,
+                warnings: validation.warnings
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                html: '',
+                error: `Template processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                warnings: validation.warnings
+            };
+        }
+    }
+    /**
+     * Create map of placeholder replacements based on mappings and config
+     */
+    static createPlaceholderReplacements(chart, mappings, config) {
+        const replacements = new Map();
+        // Add basic configuration replacements
+        replacements.set('TITLE', config.title || chart.name);
+        replacements.set('DATA_SOURCE', config.dataFilePath || 'data.json');
+        replacements.set('CHART_ID', `chart-${chart.id}-${Date.now()}`);
+        // Add dimension-specific replacements
+        for (const mapping of mappings) {
+            const dimension = chart.dimensions.find(d => d.name === mapping.dimension);
+            if (dimension) {
+                // Create various placeholder formats for the dimension
+                const upperDimension = mapping.dimension.toUpperCase();
+                const fieldName = mapping.dataField;
+                replacements.set(`${upperDimension}_FIELD`, fieldName);
+                replacements.set(`${mapping.dimension}_field`, fieldName);
+                replacements.set(mapping.dimension, fieldName);
+                // Special common dimension mappings
+                switch (mapping.dimension.toLowerCase()) {
+                    case 'key':
+                    case 'category':
+                        replacements.set('KEY_FIELD', fieldName);
+                        replacements.set('CATEGORY_FIELD', fieldName);
+                        break;
+                    case 'size':
+                    case 'value':
+                        replacements.set('SIZE_FIELD', fieldName);
+                        replacements.set('VALUE_FIELD', fieldName);
+                        break;
+                    case 'height':
+                        replacements.set('HEIGHT_FIELD', fieldName);
+                        break;
+                    case 'color':
+                        replacements.set('COLOR_FIELD', fieldName);
+                        break;
+                }
+            }
+        }
+        // Add chart-specific attributes
+        if (config.options) {
+            for (const [key, value] of Object.entries(config.options)) {
+                replacements.set(key.toUpperCase(), String(value));
+                replacements.set(key, String(value));
+            }
+        }
+        return replacements;
+    }
+    /**
+     * Replace placeholders in template with actual values
+     */
+    static replacePlaceholders(template, replacements) {
+        let result = template;
+        // Replace {{PLACEHOLDER}} format
+        for (const [placeholder, value] of replacements) {
+            const patterns = [
+                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g'),
+                new RegExp(`\\$\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}`, 'g')
+            ];
+            for (const pattern of patterns) {
+                result = result.replace(pattern, value);
+            }
+        }
+        // Check for remaining unresolved placeholders and warn
+        const unresolvedPlaceholders = result.match(/\{\{[^}]+\}\}|\$\{[^}]+\}/g);
+        if (unresolvedPlaceholders) {
+            console.warn('Unresolved placeholders found:', unresolvedPlaceholders);
+        }
+        return result;
+    }
+    /**
+     * Escape special regex characters
+     */
+    static escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    /**
+     * Basic validation of generated HTML
+     */
+    static validateGeneratedHtml(html) {
+        // Check for basic HTML structure
+        if (!html || html.trim() === '') {
+            return { isValid: false, error: 'Generated HTML is empty' };
+        }
+        // Check for remaining unresolved placeholders
+        const unresolvedPlaceholders = html.match(/\{\{[^}]+\}\}/g);
+        if (unresolvedPlaceholders && unresolvedPlaceholders.length > 0) {
+            return {
+                isValid: false,
+                error: `Unresolved placeholders: ${unresolvedPlaceholders.join(', ')}`
+            };
+        }
+        // Check for BabiaXR components
+        if (!html.includes('babia-') && !html.includes('a-entity')) {
+            return {
+                isValid: false,
+                error: 'Generated HTML does not contain BabiaXR components'
+            };
+        }
+        return { isValid: true };
+    }
+    /**
+     * Get available placeholders for a chart
+     */
+    static getAvailablePlaceholders(chart) {
+        const placeholders = [
+            'TITLE',
+            'DATA_SOURCE',
+            'CHART_ID'
+        ];
+        // Add dimension-based placeholders
+        for (const dimension of chart.dimensions) {
+            const upperDimension = dimension.name.toUpperCase();
+            placeholders.push(`${upperDimension}_FIELD`);
+        }
+        return placeholders;
+    }
+    /**
+     * Preview template with sample data for testing
+     */
+    static async previewTemplate(chart, sampleMappings) {
+        const defaultMappings = sampleMappings || chart.dimensions.map(dim => ({
+            dimension: dim.name,
+            dataField: `sample_${dim.name}`
+        }));
+        const defaultConfig = {
+            chartType: chart.id,
+            title: `Sample ${chart.name}`,
+            dataFilePath: 'sample-data.json',
+            dimensionMappings: defaultMappings
+        };
+        const result = await this.processTemplate(chart, defaultMappings, defaultConfig);
+        return result.success ? (result.html || '') : `<!-- Error: ${result.error || 'Unknown error'} -->`;
+    }
+}
+exports.TemplateProcessor = TemplateProcessor;
+
+
+/***/ }),
+/* 123 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionValidator = void 0;
+/**
+ * BabiaXR Dimension Validator
+ * Validates dimension mappings against chart requirements
+ */
+class DimensionValidator {
+    /**
+     * Validate dimension mappings for a given chart
+     */
+    static validateMappings(chart, mappings) {
+        const result = {
+            isValid: true,
+            errors: [],
+            warnings: []
+        };
+        // Check for required dimensions
+        const requiredDimensions = chart.dimensions.filter(d => d.required);
+        const mappedDimensions = new Set(mappings.map(m => m.dimension));
+        for (const requiredDim of requiredDimensions) {
+            if (!mappedDimensions.has(requiredDim.name)) {
+                result.errors.push(`Required dimension '${requiredDim.name}' (${requiredDim.label}) is not mapped`);
+                result.isValid = false;
+            }
+        }
+        // Check for invalid dimension names
+        const validDimensionNames = new Set(chart.dimensions.map(d => d.name));
+        for (const mapping of mappings) {
+            if (!validDimensionNames.has(mapping.dimension)) {
+                result.errors.push(`Unknown dimension '${mapping.dimension}' for chart type '${chart.name}'`);
+                result.isValid = false;
+            }
+        }
+        // Check for duplicate mappings
+        const dimensionCounts = new Map();
+        for (const mapping of mappings) {
+            const count = dimensionCounts.get(mapping.dimension) || 0;
+            dimensionCounts.set(mapping.dimension, count + 1);
+        }
+        for (const [dimension, count] of dimensionCounts) {
+            if (count > 1) {
+                result.errors.push(`Dimension '${dimension}' is mapped multiple times`);
+                result.isValid = false;
+            }
+        }
+        // Check for empty data fields
+        for (const mapping of mappings) {
+            if (!mapping.dataField || mapping.dataField.trim() === '') {
+                result.errors.push(`Dimension '${mapping.dimension}' has no data field specified`);
+                result.isValid = false;
+            }
+        }
+        // Add warnings for optional dimensions that are not mapped
+        const optionalDimensions = chart.dimensions.filter(d => !d.required);
+        for (const optionalDim of optionalDimensions) {
+            if (!mappedDimensions.has(optionalDim.name)) {
+                result.warnings.push(`Optional dimension '${optionalDim.name}' (${optionalDim.label}) is not mapped`);
+            }
+        }
+        return result;
+    }
+    /**
+     * Validate a specific data field against dimension requirements
+     */
+    static validateDataField(dimensionName, dataField, chart) {
+        const dimension = chart.dimensions.find(d => d.name === dimensionName);
+        if (!dimension) {
+            return {
+                isValid: false,
+                error: `Dimension '${dimensionName}' does not exist for chart type '${chart.name}'`
+            };
+        }
+        if (!dataField || dataField.trim() === '') {
+            return {
+                isValid: false,
+                error: `Data field for dimension '${dimensionName}' cannot be empty`
+            };
+        }
+        // Additional validation can be added here for data type checking
+        // when we have access to actual data structure
+        return { isValid: true };
+    }
+    /**
+     * Get missing required dimensions
+     */
+    static getMissingRequiredDimensions(chart, mappings) {
+        const requiredDimensions = chart.dimensions.filter(d => d.required);
+        const mappedDimensions = new Set(mappings.map(m => m.dimension));
+        return requiredDimensions
+            .filter(d => !mappedDimensions.has(d.name))
+            .map(d => d.name);
+    }
+    /**
+     * Check if all required dimensions are mapped
+     */
+    static areAllRequiredDimensionsMapped(chart, mappings) {
+        return this.getMissingRequiredDimensions(chart, mappings).length === 0;
+    }
+}
+exports.DimensionValidator = DimensionValidator;
+
 
 /***/ })
 /******/ 	]);
