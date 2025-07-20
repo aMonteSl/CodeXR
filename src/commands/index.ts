@@ -4,9 +4,10 @@ import { registerActiveServersCommands } from './active_servers/activeServersCom
 import { registerBabiaExamplesCommands } from './babia_examples/babiaExamplesCommands';
 import { registerVisualizeDataCommands } from './visualize_data/visualizeDataCommands';
 import { registerCodeAnalysisCommands } from './code_analysis/analysisCommands';
+import { registerPythonEnvCommands } from './python_env/pythonEnvCommands';
+import { registerVisualizationSettingsCommands } from './visualization_settings/visualizationSettingsCommands';
 import { registerGeneralCommands } from './common/generalCommands';
 import { BabiaExamplesTreeDataProvider } from '../babia_examples/views/babiaExamplesTreeView';
-import * as pythonEnv from '../python_env';
 
 /**
  * Interface for tree data providers that support refresh
@@ -42,7 +43,10 @@ export function registerAllCommands(
     registerCodeAnalysisCommands(context);
     
     // Register Python environment commands
-    pythonEnv.register(context);
+    registerPythonEnvCommands(context);
+    
+    // Register visualization settings commands
+    registerVisualizationSettingsCommands(context);
     
     // Register the existing hello world command
     const helloWorldCommand = vscode.commands.registerCommand('CodeXR.helloWorld', () => {

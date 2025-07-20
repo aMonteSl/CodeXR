@@ -47,7 +47,6 @@ const views_1 = __webpack_require__(76);
 const commonCommands_1 = __webpack_require__(72);
 const serverSettingsManager_1 = __webpack_require__(11);
 const activeServerRegistry_1 = __webpack_require__(17);
-const index_2 = __webpack_require__(48);
 const visualizeDataModel_1 = __webpack_require__(120);
 const tempStorageManager_1 = __webpack_require__(66);
 const fileWatcherManager_1 = __webpack_require__(110);
@@ -92,11 +91,7 @@ async function activate(context) {
         console.log('CODE_ANALYSIS: Background file scanning will start automatically');
         // Step 4: Register all commands after tree views are created
         (0, index_1.registerAllCommands)(context, modularTreeDataProvider, undefined);
-        // Step 5: Register visualization settings commands
-        console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands');
-        (0, index_2.registerVisualizationSettingsCommands)(context);
-        console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
-        // Step 6: Reset Visualize Data state to ensure clean UI/model synchronization
+        // Step 5: Reset Visualize Data state to ensure clean UI/model synchronization
         console.log('VISUALIZE-DATA: Resetting state to ensure clean UI/model synchronization');
         visualizeDataModel_1.VisualizeDataModel.resetVisualizeDataState(context);
         console.log('VISUALIZE-DATA: State reset completed');
@@ -209,8 +204,9 @@ const activeServersCommands_1 = __webpack_require__(33);
 const babiaExamplesCommands_1 = __webpack_require__(35);
 const visualizeDataCommands_1 = __webpack_require__(39);
 const analysisCommands_1 = __webpack_require__(58);
+const pythonEnvCommands_1 = __webpack_require__(73);
+const visualizationSettingsCommands_1 = __webpack_require__(124);
 const generalCommands_1 = __webpack_require__(71);
-const pythonEnv = __importStar(__webpack_require__(73));
 /**
  * Entry point that registers all extension commands
  */
@@ -228,7 +224,9 @@ function registerAllCommands(context, treeDataProvider, babiaExamplesTreeDataPro
     // Register code analysis commands
     (0, analysisCommands_1.registerCodeAnalysisCommands)(context);
     // Register Python environment commands
-    pythonEnv.register(context);
+    (0, pythonEnvCommands_1.registerPythonEnvCommands)(context);
+    // Register visualization settings commands
+    (0, visualizationSettingsCommands_1.registerVisualizationSettingsCommands)(context);
     // Register the existing hello world command
     const helloWorldCommand = vscode.commands.registerCommand('CodeXR.helloWorld', () => {
         vscode.window.showInformationMessage('Hello World from Code-XR!');
@@ -9330,49 +9328,15 @@ exports.DimensionValidator = DimensionValidator;
 
 /***/ }),
 /* 48 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 /**
  * Visualization Settings Module
  * Main entry point for visualization configuration management
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
-exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
 var settingsModel_1 = __webpack_require__(49);
 Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
 var settingsStorage_1 = __webpack_require__(50);
@@ -9390,37 +9354,6 @@ Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, ge
 Object.defineProperty(exports, "getSelectedEnvironment", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedEnvironment; } }));
 Object.defineProperty(exports, "getSelectedPalette", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedPalette; } }));
 Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, get: function () { return settingsAccessors_1.getAllSelectedSettings; } }));
-const vscode = __importStar(__webpack_require__(1));
-const handleSettingsInteraction_2 = __webpack_require__(53);
-const settingsAccessors_2 = __webpack_require__(55);
-/**
- * Register visualization settings commands
- */
-function registerVisualizationSettingsCommands(context) {
-    console.log('VISUALIZATION-SETTINGS: Registering commands...');
-    // Initialize settings accessors for global use
-    (0, settingsAccessors_2.initializeSettingsAccessors)(context);
-    // Initialize the interaction handler
-    const interactionHandler = new handleSettingsInteraction_2.VisualizationSettingsInteractionHandler(context);
-    // Command: Configure setting
-    const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
-        try {
-            console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
-            await interactionHandler.handleSettingConfiguration(settingKey);
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
-            vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    });
-    // Register commands with the extension context
-    context.subscriptions.push(configureSettingCmd);
-    // Store interaction handler for cleanup
-    context.subscriptions.push({
-        dispose: () => interactionHandler.dispose()
-    });
-    console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
-}
 
 
 /***/ }),
@@ -13928,20 +13861,21 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.register = register;
+exports.registerPythonEnvCommands = registerPythonEnvCommands;
 exports.getPythonEnvCommands = getPythonEnvCommands;
-exports.deactivate = deactivate;
+exports.deactivatePythonEnvCommands = deactivatePythonEnvCommands;
 const vscode = __importStar(__webpack_require__(1));
 const pythonEnvCommands_1 = __webpack_require__(74);
 /**
- * Entry point for the Python environment module
+ * Python Environment Commands Wrapper
+ * Re-exports python environment commands for centralized command registration
  */
 let pythonEnvCommands;
 /**
- * Register Python environment functionality
+ * Registers all Python environment related commands
  */
-function register(context) {
-    console.log('PYTHON_ENV: Registering Python environment module...');
+function registerPythonEnvCommands(context) {
+    console.log('PYTHON_ENV: Registering Python environment commands...');
     try {
         // Initialize commands
         pythonEnvCommands = new pythonEnvCommands_1.PythonEnvCommands(context);
@@ -13949,16 +13883,16 @@ function register(context) {
         // Initialize environment on startup
         pythonEnvCommands.initializeOnStartup()
             .then(() => {
-            console.log('PYTHON_ENV: Module registration and initialization completed successfully');
+            console.log('PYTHON_ENV: Commands registration and initialization completed successfully');
         })
             .catch((error) => {
-            console.error('PYTHON_ENV: Initialization failed during registration:', error);
+            console.error('PYTHON_ENV: Initialization failed during command registration:', error);
         });
-        console.log('PYTHON_ENV: Python environment module registered successfully');
+        console.log('PYTHON_ENV: Python environment commands registered successfully');
     }
     catch (error) {
-        console.error('PYTHON_ENV: Failed to register Python environment module:', error);
-        vscode.window.showErrorMessage(`Failed to initialize Python environment module: ${error}`);
+        console.error('PYTHON_ENV: Failed to register Python environment commands:', error);
+        vscode.window.showErrorMessage(`Failed to initialize Python environment commands: ${error}`);
     }
 }
 /**
@@ -13970,8 +13904,8 @@ function getPythonEnvCommands() {
 /**
  * Clean up resources when extension is deactivated
  */
-function deactivate() {
-    console.log('PYTHON_ENV: Deactivating Python environment module');
+function deactivatePythonEnvCommands() {
+    console.log('PYTHON_ENV: Deactivating Python environment commands');
     pythonEnvCommands = undefined;
 }
 
@@ -22194,6 +22128,128 @@ module.exports = require("node:net");
 /***/ ((module) => {
 
 module.exports = require("node:os");
+
+/***/ }),
+/* 124 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
+const visualizationSettingsCommands_1 = __webpack_require__(125);
+/**
+ * Visualization Settings Commands Wrapper
+ * Re-exports visualization settings commands for centralized command registration
+ */
+/**
+ * Registers all visualization settings related commands
+ */
+function registerVisualizationSettingsCommands(context) {
+    console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands...');
+    visualizationSettingsCommands_1.VisualizationSettingsCommands.registerCommands(context);
+    console.log('VISUALIZATION-SETTINGS: Visualization settings commands registration complete');
+}
+
+
+/***/ }),
+/* 125 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizationSettingsCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const handleSettingsInteraction_1 = __webpack_require__(53);
+const settingsAccessors_1 = __webpack_require__(55);
+/**
+ * Visualization Settings Commands Class
+ * Defines what each visualization settings command does
+ */
+class VisualizationSettingsCommands {
+    context;
+    interactionHandler;
+    constructor(context) {
+        this.context = context;
+        console.log('VISUALIZATION-SETTINGS: Initializing visualization settings commands...');
+        // Initialize settings accessors for global use
+        (0, settingsAccessors_1.initializeSettingsAccessors)(context);
+        // Initialize the interaction handler
+        this.interactionHandler = new handleSettingsInteraction_1.VisualizationSettingsInteractionHandler(context);
+    }
+    /**
+     * Register all visualization settings commands
+     */
+    static registerCommands(context) {
+        console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands...');
+        const commandsInstance = new VisualizationSettingsCommands(context);
+        commandsInstance.registerAllCommands();
+        console.log('VISUALIZATION-SETTINGS: Visualization settings commands registration complete');
+    }
+    /**
+     * Register individual commands
+     */
+    registerAllCommands() {
+        // Command: Configure setting
+        const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
+            try {
+                console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
+                await this.interactionHandler.handleSettingConfiguration(settingKey);
+            }
+            catch (error) {
+                console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
+                vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Register commands with the extension context
+        this.context.subscriptions.push(configureSettingCmd);
+        // Store interaction handler for cleanup
+        this.context.subscriptions.push({
+            dispose: () => this.interactionHandler.dispose()
+        });
+        console.log('VISUALIZATION-SETTINGS: All commands registered successfully');
+    }
+    /**
+     * Dispose of resources
+     */
+    dispose() {
+        this.interactionHandler.dispose();
+    }
+}
+exports.VisualizationSettingsCommands = VisualizationSettingsCommands;
+
 
 /***/ })
 /******/ 	]);

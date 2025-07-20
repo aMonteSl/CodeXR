@@ -4,7 +4,6 @@ import { ModularTreeDataProvider } from './views';
 import { CommonCommands } from './utils/commonCommands';
 import { ServerSettingsManager } from './servers/storage/serverSettingsManager';
 import { getActiveServerRegistry } from './active_servers/registry/activeServerRegistry';
-import { registerVisualizationSettingsCommands } from './visualization_settings/index';
 import { VisualizeDataModel } from './visualize_data/model/visualizeDataModel';
 import { cleanupAnalysisTemp } from './code_analysis/utils/tempStorageManager';
 import { FileWatcherManager } from './code_analysis/runtime/fileWatcherManager';
@@ -60,13 +59,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		// Step 4: Register all commands after tree views are created
 		registerAllCommands(context, modularTreeDataProvider, undefined);
-		
-		// Step 5: Register visualization settings commands
-		console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands');
-		registerVisualizationSettingsCommands(context);
-		console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
 
-		// Step 6: Reset Visualize Data state to ensure clean UI/model synchronization
+		// Step 5: Reset Visualize Data state to ensure clean UI/model synchronization
 		console.log('VISUALIZE-DATA: Resetting state to ensure clean UI/model synchronization');
 		VisualizeDataModel.resetVisualizeDataState(context);
 		console.log('VISUALIZE-DATA: State reset completed');
