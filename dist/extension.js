@@ -43,17 +43,17 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
 const index_1 = __webpack_require__(2);
-const views_1 = __webpack_require__(86);
-const commonCommands_1 = __webpack_require__(82);
-const serverSettingsManager_1 = __webpack_require__(16);
-const activeServerRegistry_1 = __webpack_require__(11);
-const index_2 = __webpack_require__(76);
-const visualizeDataModel_1 = __webpack_require__(117);
-const tempStorageManager_1 = __webpack_require__(65);
-const fileWatcherManager_1 = __webpack_require__(57);
-const statusBarDelayTimer_1 = __webpack_require__(58);
-const SSEManager_1 = __webpack_require__(23);
-const fileToServerMap_1 = __webpack_require__(22);
+const views_1 = __webpack_require__(76);
+const commonCommands_1 = __webpack_require__(72);
+const serverSettingsManager_1 = __webpack_require__(11);
+const activeServerRegistry_1 = __webpack_require__(17);
+const index_2 = __webpack_require__(48);
+const visualizeDataModel_1 = __webpack_require__(120);
+const tempStorageManager_1 = __webpack_require__(66);
+const fileWatcherManager_1 = __webpack_require__(110);
+const statusBarDelayTimer_1 = __webpack_require__(111);
+const SSEManager_1 = __webpack_require__(22);
+const fileToServerMap_1 = __webpack_require__(21);
 // Global context reference for cleanup
 let extensionContext;
 // This method is called when your extension is activated
@@ -205,12 +205,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerAllCommands = registerAllCommands;
 const vscode = __importStar(__webpack_require__(1));
 const serverCommands_1 = __webpack_require__(3);
-const activeServersCommands_1 = __webpack_require__(67);
-const babiaExamplesCommands_1 = __webpack_require__(69);
-const visualizeDataCommands_1 = __webpack_require__(72);
-const analysisCommands_1 = __webpack_require__(80);
-const generalCommands_1 = __webpack_require__(81);
-const pythonEnv = __importStar(__webpack_require__(83));
+const activeServersCommands_1 = __webpack_require__(33);
+const babiaExamplesCommands_1 = __webpack_require__(35);
+const visualizeDataCommands_1 = __webpack_require__(39);
+const analysisCommands_1 = __webpack_require__(58);
+const generalCommands_1 = __webpack_require__(71);
+const pythonEnv = __importStar(__webpack_require__(73));
 /**
  * Entry point that registers all extension commands
  */
@@ -352,9 +352,9 @@ const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
 const handleConfigurationClicks_1 = __webpack_require__(7);
-const multiServerLauncher_1 = __webpack_require__(13);
-const serverSettingsManager_1 = __webpack_require__(16);
-const previewRenderer_1 = __webpack_require__(25);
+const multiServerLauncher_1 = __webpack_require__(14);
+const serverSettingsManager_1 = __webpack_require__(11);
+const previewRenderer_1 = __webpack_require__(24);
 let currentServerConfig = {
     mode: 'HTTPS (default certificates)',
     description: 'HTTPS with default certificates'
@@ -878,7 +878,7 @@ exports.createConfigurationItems = createConfigurationItems;
 const vscode = __importStar(__webpack_require__(1));
 const unifiedServersTreeView_1 = __webpack_require__(9);
 const serverNodeIcons_1 = __webpack_require__(10);
-const serverSettingsManager_1 = __webpack_require__(16);
+const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Get current server configuration
  */
@@ -902,23 +902,23 @@ function createConfigurationItems() {
         ? serverNodeIcons_1.ServerNodeIcons.httpModeUnsecure
         : serverNodeIcons_1.ServerNodeIcons.httpModeSecure;
     return [
-        new unifiedServersTreeView_1.UnifiedServerTreeItem(`HTTP Mode: ${config.httpMode}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
+        new unifiedServersTreeView_1.ServerTreeItem(`HTTP Mode: ${config.httpMode}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
             command: 'codexr.server.config.httpMode',
             title: 'Configure HTTP Mode'
         }, serverNodeIcons_1.ServerNodeIcons.httpMode, `Click to change server mode (currently: ${config.httpMode})`),
-        new unifiedServersTreeView_1.UnifiedServerTreeItem(`Default Port: ${config.port}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
+        new unifiedServersTreeView_1.ServerTreeItem(`Default Port: ${config.port}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
             command: 'codexr.server.config.port',
             title: 'Configure Port'
         }, serverNodeIcons_1.ServerNodeIcons.defaultPort, `Click to change default port (currently: ${config.port})`),
-        new unifiedServersTreeView_1.UnifiedServerTreeItem(`Auto-Open: ${config.autoOpen ? 'Enabled' : 'Disabled'}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
+        new unifiedServersTreeView_1.ServerTreeItem(`Auto-Open: ${config.autoOpen ? 'Enabled' : 'Disabled'}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
             command: 'codexr.server.config.autoOpen',
             title: 'Toggle Auto-Open'
         }, serverNodeIcons_1.ServerNodeIcons.autoOpen, `Click to toggle auto-open (currently: ${config.autoOpen ? 'enabled' : 'disabled'})`),
-        new unifiedServersTreeView_1.UnifiedServerTreeItem(`Open Mode: ${config.openMode}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
+        new unifiedServersTreeView_1.ServerTreeItem(`Open Mode: ${config.openMode}`, vscode.TreeItemCollapsibleState.None, 'config-option', {
             command: 'codexr.server.config.openMode',
             title: 'Configure Open Mode'
         }, serverNodeIcons_1.ServerNodeIcons.openMode, `Click to change open mode (currently: ${config.openMode})`),
-        new unifiedServersTreeView_1.UnifiedServerTreeItem('Reset to Default', vscode.TreeItemCollapsibleState.None, 'config-option', {
+        new unifiedServersTreeView_1.ServerTreeItem('Reset to Default', vscode.TreeItemCollapsibleState.None, 'config-option', {
             command: 'codexr.server.config.resetToDefault',
             title: 'Reset to Default Settings'
         }, serverNodeIcons_1.ServerNodeIcons.reset, 'Reset all server configuration to default values')
@@ -965,24 +965,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UnifiedServersTreeDataProvider = exports.UnifiedServerTreeItem = void 0;
+exports.ServersTreeDataProvider = exports.ServerTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const configurationItems_1 = __webpack_require__(8);
+const configurationItems_2 = __webpack_require__(8);
 const serverNodeIcons_1 = __webpack_require__(10);
-const activeServerRegistry_1 = __webpack_require__(11);
-const exampleLauncher_1 = __webpack_require__(12);
-const exampleItems_1 = __webpack_require__(34);
-const visualizeDataItems_1 = __webpack_require__(35);
-const visualizeDataState_1 = __webpack_require__(36);
-const visualizationRestorer_1 = __webpack_require__(37);
-const visualizationItem_1 = __webpack_require__(39);
-const visualizationSettingsItems_1 = __webpack_require__(40);
-const settingsStorage_1 = __webpack_require__(43);
-const codeAnalysisTreeView_1 = __webpack_require__(44);
 /**
- * Unified tree item that represents server configuration, active servers, Babia examples, visualize data, code analysis, and visualization settings
+ * Server tree item that represents server configuration and launch options
+ * This class is specific to the servers section only
  */
-class UnifiedServerTreeItem extends vscode.TreeItem {
+class ServerTreeItem extends vscode.TreeItem {
     label;
     collapsibleState;
     type;
@@ -991,12 +983,7 @@ class UnifiedServerTreeItem extends vscode.TreeItem {
     tooltip;
     description;
     contextValue;
-    activeServer;
-    babiaExample;
-    visualizeDataItem;
-    visualizationSettingsItem;
-    codeAnalysisItem;
-    constructor(label, collapsibleState, type, command, iconPath, tooltip, description, contextValue, activeServer, babiaExample, visualizeDataItem, visualizationSettingsItem, codeAnalysisItem) {
+    constructor(label, collapsibleState, type, command, iconPath, tooltip, description, contextValue) {
         super(label, collapsibleState);
         this.label = label;
         this.collapsibleState = collapsibleState;
@@ -1006,73 +993,44 @@ class UnifiedServerTreeItem extends vscode.TreeItem {
         this.tooltip = tooltip;
         this.description = description;
         this.contextValue = contextValue;
-        this.activeServer = activeServer;
-        this.babiaExample = babiaExample;
-        this.visualizeDataItem = visualizeDataItem;
-        this.visualizationSettingsItem = visualizationSettingsItem;
-        this.codeAnalysisItem = codeAnalysisItem;
         this.tooltip = tooltip || this.label;
         this.iconPath = iconPath;
         this.description = description;
         this.contextValue = contextValue;
     }
 }
-exports.UnifiedServerTreeItem = UnifiedServerTreeItem;
+exports.ServerTreeItem = ServerTreeItem;
 /**
- * Unified tree data provider that combines SERVERS, ACTIVE SERVERS, BABIA EXAMPLES, VISUALIZE DATA, CODE ANALYSIS, and VISUALIZATION SETTINGS sections
+ * Servers tree data provider that handles only the SERVERS section
  *
  * Architecture Notes:
- * - This view is read-only from the active servers registry
- * - Server launches are handled by launcher services that use ServerRegistrar
- * - Registry changes trigger UI updates via event listeners
- * - UI does not directly modify server state or call server launch functions
+ * - This view is specific to server configuration and launch
+ * - Follows the modular architecture pattern with items/ and interactions/ directories
+ * - Delegates to appropriate handlers for user interactions
  */
-class UnifiedServersTreeDataProvider {
+class ServersTreeDataProvider {
     context;
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
-    exampleLauncher;
-    visualizationSettingsStorage;
-    visualizationRestorer;
-    codeAnalysisProvider;
     constructor(context) {
         this.context = context;
-        console.log('UNIFIED_SERVERS: Unified tree data provider initialized');
-        // Initialize example launcher
-        this.exampleLauncher = new exampleLauncher_1.ExampleLauncher(context);
-        console.log('UNIFIED_SERVERS: Example launcher initialized');
-        // Initialize visualization settings storage
-        this.visualizationSettingsStorage = new settingsStorage_1.VisualizationSettingsStorage(context);
-        console.log('UNIFIED_SERVERS: Visualization settings storage initialized');
-        // Initialize visualization restorer
-        this.visualizationRestorer = new visualizationRestorer_1.VisualizationRestorer(context);
-        console.log('UNIFIED_SERVERS: Visualization restorer initialized');
-        // Initialize code analysis provider
-        this.codeAnalysisProvider = new codeAnalysisTreeView_1.CodeAnalysisTreeDataProvider(context);
-        console.log('UNIFIED_SERVERS: Code analysis provider initialized');
-        // Listen to registry changes for active servers
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        console.log(`UNIFIED_SERVERS: Connected to active server registry, current servers: ${registry.getAllServers().length}`);
-        registry.onRegistryChange(() => {
-            console.log('UNIFIED_SERVERS: Active servers registry changed, refreshing tree view');
-            this.refresh();
-        });
+        console.log('SERVERS_TREE: Servers tree data provider initialized');
         // Register refresh command (only if not already registered)
         try {
-            vscode.commands.registerCommand('codexr.servers.refresh', () => {
+            vscode.commands.registerCommand('codexr.servers.refreshServers', () => {
                 this.refresh();
             });
         }
         catch (error) {
             // Command might already be registered, ignore this error
-            console.log('UNIFIED_SERVERS: Refresh command already registered');
+            console.log('SERVERS_TREE: Refresh servers command already registered');
         }
     }
     /**
      * Refresh the tree view
      */
     refresh() {
-        console.log('UNIFIED_SERVERS: Refreshing unified tree view');
+        console.log('SERVERS_TREE: Refreshing servers tree view');
         this._onDidChangeTreeData.fire();
     }
     /**
@@ -1086,23 +1044,10 @@ class UnifiedServersTreeDataProvider {
      */
     getChildren(element) {
         if (!element) {
-            // Root level - return the main sections including CODE ANALYSIS
-            console.log('UNIFIED_SERVERS: Loading root sections including Babia Examples, Visualize Data, Code Analysis, and Visualization Settings');
-            // Get active server count for dynamic title
-            const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-            const activeServers = registry.getAllServers();
-            const runningCount = activeServers.filter(server => server.status === 'running').length;
-            const activeServersTitle = runningCount > 0
-                ? `ACTIVE SERVERS (${runningCount} running)`
-                : 'ACTIVE SERVERS';
+            // Root level - return the SERVERS section
+            console.log('SERVERS_TREE: Loading root SERVERS section');
             return Promise.resolve([
-                new UnifiedServerTreeItem('SERVERS', vscode.TreeItemCollapsibleState.Expanded, 'section', undefined, new vscode.ThemeIcon('server-environment'), 'Server configuration and launch options'),
-                new UnifiedServerTreeItem(activeServersTitle, vscode.TreeItemCollapsibleState.Expanded, 'section', undefined, new vscode.ThemeIcon('server-process'), 'Currently running servers'),
-                new UnifiedServerTreeItem('BABIA EXAMPLES', vscode.TreeItemCollapsibleState.Collapsed, 'section', undefined, new vscode.ThemeIcon('library'), 'Interactive visualization examples'),
-                new UnifiedServerTreeItem('VISUALIZE DATA', vscode.TreeItemCollapsibleState.Collapsed, 'section', undefined, new vscode.ThemeIcon('chart-scatter'), 'Data visualization configuration and launch'),
-                new UnifiedServerTreeItem('CODE ANALYSIS', vscode.TreeItemCollapsibleState.Expanded, // ✅ Expanded by default
-                'section', undefined, new vscode.ThemeIcon('search-details'), 'Code analysis tools and metrics'),
-                new UnifiedServerTreeItem('VISUALIZATION SETTINGS', vscode.TreeItemCollapsibleState.Collapsed, 'section', undefined, new vscode.ThemeIcon('settings-gear'), 'Configure visualization rendering preferences')
+                new ServerTreeItem('SERVERS', vscode.TreeItemCollapsibleState.Expanded, 'section', undefined, new vscode.ThemeIcon('server-environment'), 'Server configuration and launch options')
             ]);
         }
         switch (element.type) {
@@ -1110,41 +1055,10 @@ class UnifiedServersTreeDataProvider {
                 if (element.label === 'SERVERS') {
                     return this.getServersChildren();
                 }
-                else if (element.label?.includes('ACTIVE SERVERS')) {
-                    return this.getActiveServersChildren();
-                }
-                else if (element.label === 'BABIA EXAMPLES') {
-                    return this.getBabiaExamplesChildren();
-                }
-                else if (element.label === 'VISUALIZE DATA') {
-                    return this.getVisualizeDataChildren();
-                }
-                else if (element.label === 'CODE ANALYSIS') {
-                    return this.getCodeAnalysisChildren();
-                }
-                else if (element.label === 'VISUALIZATION SETTINGS') {
-                    return this.getVisualizationSettingsChildren();
-                }
                 break;
             case 'config-group':
                 if (element.label === 'Server Configuration') {
                     return this.getServerConfigChildren();
-                }
-                break;
-            case 'visualize-data-dimension-mapping':
-                if (element.label === 'Dimension Mapping') {
-                    return this.getDimensionMappingChildren();
-                }
-                break;
-            case 'visualize-data-browse-visualizations':
-                if (element.label === 'Browse Visualizations') {
-                    return this.getBrowseVisualizationsChildren();
-                }
-                break;
-            case 'code-analysis-item':
-                // Delegate to the code analysis provider for sub-items
-                if (element.codeAnalysisItem) {
-                    return this.getCodeAnalysisSubItems(element.codeAnalysisItem);
                 }
                 break;
             default:
@@ -1156,11 +1070,11 @@ class UnifiedServersTreeDataProvider {
      * Get children for the SERVERS section
      */
     getServersChildren() {
-        console.log('UNIFIED_SERVERS: Loading servers section children');
+        console.log('SERVERS_TREE: Loading servers section children');
         const config = (0, configurationItems_1.getServerConfig)();
         return Promise.resolve([
-            new UnifiedServerTreeItem('Server Configuration', vscode.TreeItemCollapsibleState.Collapsed, 'config-group', undefined, serverNodeIcons_1.ServerNodeIcons.configuration, 'Configure server settings'),
-            new UnifiedServerTreeItem('Start Local Server', vscode.TreeItemCollapsibleState.None, 'option', {
+            new ServerTreeItem('Server Configuration', vscode.TreeItemCollapsibleState.Collapsed, 'config-group', undefined, serverNodeIcons_1.ServerNodeIcons.configuration, 'Configure server settings'),
+            new ServerTreeItem('Start Local Server', vscode.TreeItemCollapsibleState.None, 'launch-option', {
                 command: 'codexr.server.launch',
                 title: 'Start Local Server'
             }, serverNodeIcons_1.ServerNodeIcons.startServer, `Start server on port ${config.port} (${config.httpMode})`)
@@ -1170,337 +1084,13 @@ class UnifiedServersTreeDataProvider {
      * Get children for the server configuration group
      */
     getServerConfigChildren() {
-        console.log('UNIFIED_SERVERS: Loading server configuration children');
-        const configItems = (0, configurationItems_1.createConfigurationItems)();
-        const children = configItems.map(item => new UnifiedServerTreeItem(item.label, vscode.TreeItemCollapsibleState.None, 'config-option', item.command, item.iconPath, item.tooltip, item.description));
+        console.log('SERVERS_TREE: Loading server configuration children');
+        const configItems = (0, configurationItems_2.createConfigurationItems)();
+        const children = configItems.map(item => new ServerTreeItem(item.label, vscode.TreeItemCollapsibleState.None, 'config-option', item.command, item.iconPath, item.tooltip, item.description));
         return Promise.resolve(children);
-    }
-    /**
-     * Get children for the ACTIVE SERVERS section
-     */
-    getActiveServersChildren() {
-        console.log('UNIFIED_SERVERS: Loading active servers section children');
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const activeServers = registry.getAllServers();
-        const runningServers = activeServers.filter(server => server.status === 'running');
-        console.log(`UNIFIED_SERVERS: Found ${activeServers.length} total servers, ${runningServers.length} running`);
-        if (activeServers.length === 0) {
-            console.log('UNIFIED_SERVERS: No servers found, showing "No active servers" message');
-            return Promise.resolve([
-                new UnifiedServerTreeItem('No active servers', vscode.TreeItemCollapsibleState.None, 'option', undefined, new vscode.ThemeIcon('info'), 'No servers are currently running')
-            ]);
-        }
-        const children = [];
-        // Add "Stop All Servers" option if there are 2 or more running servers
-        if (runningServers.length >= 2) {
-            console.log(`UNIFIED_SERVERS: Adding "Stop All Servers" option for ${runningServers.length} running servers`);
-            children.push(new UnifiedServerTreeItem('Stop All Servers', vscode.TreeItemCollapsibleState.None, 'option', {
-                command: 'codeXR.activeServers.stopAllServers',
-                title: 'Stop All Servers'
-            }, serverNodeIcons_1.ServerNodeIcons.stopAll, `Stop all ${runningServers.length} running servers`, undefined, 'stopAllServers'));
-        }
-        // Add individual server items - create directly as UnifiedServerTreeItems
-        console.log(`UNIFIED_SERVERS: Creating ${activeServers.length} individual server items`);
-        const serverItems = activeServers.map(server => {
-            // Use custom name if provided, otherwise fallback to localhost:port
-            const label = server.customName?.trim() || `localhost:${server.port}`;
-            console.log(`UNIFIED_SERVERS: Creating server item with label: "${label}" (customName: "${server.customName}", port: ${server.port})`);
-            const description = this.getServerDescription(server);
-            const icon = this.getServerIcon(server);
-            const tooltip = this.getServerTooltip(server);
-            console.log(`UNIFIED_SERVERS: Creating server item: ${label} (${description})`);
-            // Create command to show server actions on left-click
-            const command = {
-                command: 'codeXR.activeServers.showActions',
-                title: 'Show Server Actions',
-                arguments: [server.id]
-            };
-            // Set context value based on certificate mode for conditional menu items
-            const contextValue = server.certMode === 'http' ? 'activeServerHttp' : 'activeServerHttps';
-            return new UnifiedServerTreeItem(label, vscode.TreeItemCollapsibleState.None, 'active-server', command, icon, tooltip, description, contextValue, // Context value for menu items
-            server);
-        });
-        children.push(...serverItems);
-        console.log(`UNIFIED_SERVERS: Returning ${children.length} children for ACTIVE SERVERS section`);
-        return Promise.resolve(children);
-    }
-    /**
-     * Get server description based on launch mode
-     * @private
-     */
-    getServerDescription(server) {
-        const mode = server.launchMode === 'browser' ? 'Browser' : 'Panel';
-        const status = server.status === 'running' ? '' : ` (${server.status})`;
-        return `${mode}${status}`;
-    }
-    /**
-     * Get server icon based on certificate mode and status
-     * @private
-     */
-    getServerIcon(server) {
-        // Base icon selection based on cert mode
-        let iconName;
-        switch (server.certMode) {
-            case 'https-default':
-            case 'https-custom':
-                iconName = 'shield';
-                break;
-            case 'http':
-            default:
-                iconName = 'globe';
-                break;
-        }
-        // Add status indicator if not running
-        if (server.status !== 'running') {
-            iconName = 'error';
-        }
-        return new vscode.ThemeIcon(iconName);
-    }
-    /**
-     * Get server tooltip with detailed information
-     * @private
-     */
-    getServerTooltip(server) {
-        const protocol = server.certMode === 'http' ? 'HTTP' : 'HTTPS';
-        const mode = server.launchMode === 'browser' ? 'Browser' : 'Panel';
-        const status = server.status.charAt(0).toUpperCase() + server.status.slice(1);
-        let tooltip = `${protocol} Server (${status})
-URL: ${server.url}
-Mode: ${mode}
-Port: ${server.port}`;
-        if (server.htmlFile) {
-            const fileName = (__webpack_require__(5).basename)(server.htmlFile);
-            tooltip += `\nFile: ${fileName}`;
-        }
-        if (server.metadata) {
-            const metadata = server.metadata; // Type assertion for dynamic metadata
-            if (metadata.serverType) {
-                tooltip += `\nType: ${metadata.serverType}`;
-            }
-            if (metadata.portChanged) {
-                tooltip += `\nOriginal port was in use`;
-            }
-            if (metadata.httpsOverridden) {
-                tooltip += `\nHTTPS overridden for panel mode`;
-            }
-        }
-        tooltip += `\n\nClick to show details`;
-        return tooltip;
-    }
-    /**
-     * Get children for the Babia Examples section
-     */
-    async getBabiaExamplesChildren() {
-        console.log('UNIFIED_SERVERS: Loading Babia examples children');
-        try {
-            const examples = await this.exampleLauncher.getExamples();
-            if (examples.length === 0) {
-                return [new UnifiedServerTreeItem('No examples found', vscode.TreeItemCollapsibleState.None, 'babia-example', undefined, new vscode.ThemeIcon('warning'), 'No Babia examples are available')];
-            }
-            // Sort examples by category and name
-            const sortedExamples = examples.sort((a, b) => {
-                if (a.category !== b.category) {
-                    return a.category.localeCompare(b.category);
-                }
-                return a.name.localeCompare(b.name);
-            });
-            console.log(`UNIFIED_SERVERS: Creating tree items for ${sortedExamples.length} examples`);
-            const children = sortedExamples.map(example => {
-                const icon = this.getExampleIcon(example);
-                const statusSuffix = example.isValid ? '' : ' (Invalid)';
-                return new UnifiedServerTreeItem(`${example.name}${statusSuffix}`, vscode.TreeItemCollapsibleState.None, 'babia-example', example.isValid ? {
-                    command: 'codeXR.babiaExamples.launchExample',
-                    title: 'Launch Example',
-                    arguments: [example]
-                } : undefined, icon, example.isValid ?
-                    `${example.category} example - Click to launch` :
-                    `${example.category} example - Invalid configuration`, example.category, 'babia-example', undefined, example);
-            });
-            return children;
-        }
-        catch (error) {
-            console.error('UNIFIED_SERVERS: Error loading Babia examples:', error);
-            return [new UnifiedServerTreeItem('Error loading examples', vscode.TreeItemCollapsibleState.None, 'babia-example', undefined, new vscode.ThemeIcon('error'), 'Failed to load Babia examples')];
-        }
-    }
-    /**
-     * Get the appropriate icon for a Babia example
-     */
-    getExampleIcon(example) {
-        // Use the existing ExampleIcons mapping
-        return exampleItems_1.ExampleIcons.getExampleIcon(example.category);
-    }
-    /**
-     * Get children for the Visualize Data section
-     */
-    getVisualizeDataChildren() {
-        console.log('UNIFIED_SERVERS: Loading visualize data children');
-        try {
-            const visualizeDataItems = visualizeDataItems_1.VisualizeDataItemFactory.createVisualizeDataItems(this.context);
-            const children = visualizeDataItems.map(item => {
-                // Handle collapsible dimension mapping and browse visualizations
-                let collapsibleState = vscode.TreeItemCollapsibleState.None;
-                let itemType = 'visualize-data-item';
-                if (item.type === 'dimension-mapping' && item.collapsibleState === vscode.TreeItemCollapsibleState.Collapsed) {
-                    collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-                    itemType = 'visualize-data-dimension-mapping';
-                }
-                else if (item.type === 'browse-visualizations' && item.collapsibleState === vscode.TreeItemCollapsibleState.Collapsed) {
-                    collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-                    itemType = 'visualize-data-browse-visualizations';
-                }
-                return new UnifiedServerTreeItem(item.label, collapsibleState, itemType, item.command, item.iconPath, item.tooltip, item.description, item.contextValue, undefined, undefined, item);
-            });
-            console.log(`UNIFIED_SERVERS: Created ${children.length} visualize data items`);
-            return Promise.resolve(children);
-        }
-        catch (error) {
-            console.error('UNIFIED_SERVERS: Error loading visualize data items:', error);
-            return Promise.resolve([new UnifiedServerTreeItem('Error loading visualize data', vscode.TreeItemCollapsibleState.None, 'visualize-data-item', undefined, new vscode.ThemeIcon('error'), 'Failed to load visualize data items')]);
-        }
-    }
-    /**
-     * Get children for the Dimension Mapping section
-     */
-    getDimensionMappingChildren() {
-        console.log('UNIFIED_SERVERS: Loading dimension mapping children');
-        try {
-            // Get state manager and current state
-            if (!visualizeDataState_1.VisualizeDataStateManager.hasInstance()) {
-                console.log('UNIFIED_SERVERS: State manager not initialized for dimension mapping');
-                return Promise.resolve([]);
-            }
-            const stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(this.context);
-            const state = stateManager.getState();
-            // Create dimension items
-            const dimensionItems = visualizeDataItems_1.VisualizeDataItemFactory.createDimensionItems(state);
-            const children = dimensionItems.map(item => {
-                return new UnifiedServerTreeItem(item.label, vscode.TreeItemCollapsibleState.None, 'visualize-data-dimension-item', item.command, item.iconPath, item.tooltip, item.description, item.contextValue, undefined, undefined, item);
-            });
-            console.log(`UNIFIED_SERVERS: Created ${children.length} dimension mapping items`);
-            return Promise.resolve(children);
-        }
-        catch (error) {
-            console.error('UNIFIED_SERVERS: Error loading dimension mapping items:', error);
-            return Promise.resolve([new UnifiedServerTreeItem('Error loading dimensions', vscode.TreeItemCollapsibleState.None, 'visualize-data-dimension-item', undefined, new vscode.ThemeIcon('error'), 'Failed to load dimension items')]);
-        }
-    }
-    /**
-     * Get children for the Visualization Settings section
-     */
-    async getVisualizationSettingsChildren() {
-        console.log('UNIFIED_SERVERS: Loading visualization settings children with dynamic color icons');
-        try {
-            const currentSettings = this.visualizationSettingsStorage.getSettings();
-            console.log(`COLOR-PICKER: Loading settings for dynamic icons: ${JSON.stringify(currentSettings)}`);
-            const settingsItems = await visualizationSettingsItems_1.VisualizationSettingsItemFactory.createVisualizationSettingsItems(currentSettings, this.context);
-            const children = settingsItems.map(item => {
-                return new UnifiedServerTreeItem(item.label, vscode.TreeItemCollapsibleState.None, 'visualization-settings-item', item.command, item.iconPath, item.tooltip, item.description, item.contextValue, undefined, undefined, undefined, item);
-            });
-            console.log(`UNIFIED_SERVERS: Created ${children.length} visualization settings items with dynamic icons`);
-            console.log(`COLOR-PICKER: Successfully loaded ${children.length} settings items with color icons`);
-            return children;
-        }
-        catch (error) {
-            console.error('UNIFIED_SERVERS: Error loading visualization settings items:', error);
-            return Promise.resolve([new UnifiedServerTreeItem('Error loading settings', vscode.TreeItemCollapsibleState.None, 'visualization-settings-item', undefined, new vscode.ThemeIcon('error'), 'Failed to load visualization settings')]);
-        }
-    }
-    /**
-     * Get children for Browse Visualizations section
-     */
-    async getBrowseVisualizationsChildren() {
-        console.log('UNIFIED_SERVERS: Loading browse visualizations children');
-        try {
-            // Scan for stored visualizations
-            const visualizations = await this.visualizationRestorer.scanStoredVisualizations();
-            // Create items for visualizations
-            const visualizationItems = visualizationItem_1.BrowseVisualizationItemFactory.createStoredVisualizationItems(visualizations);
-            // Add reset button if there are visualizations
-            if (visualizations.length > 0) {
-                visualizationItems.push(visualizationItem_1.BrowseVisualizationItemFactory.createResetAllItem());
-            }
-            // Convert to UnifiedServerTreeItem
-            const children = visualizationItems.map(item => {
-                return new UnifiedServerTreeItem(item.label, vscode.TreeItemCollapsibleState.None, 'visualize-data-item', item.command, item.iconPath, item.tooltip, item.description, item.contextValue);
-            });
-            console.log(`UNIFIED_SERVERS: Created ${children.length} browse visualization items`);
-            return children;
-        }
-        catch (error) {
-            console.error('UNIFIED_SERVERS: Error loading browse visualizations:', error);
-            return Promise.resolve([new UnifiedServerTreeItem('Error loading visualizations', vscode.TreeItemCollapsibleState.None, 'visualize-data-item', undefined, new vscode.ThemeIcon('error'), 'Failed to load stored visualizations')]);
-        }
-    }
-    /**
-     * Get children for the Code Analysis section
-     */
-    async getCodeAnalysisChildren() {
-        console.log('[CODE_ANALYSIS] Loading code analysis children from unified view');
-        try {
-            const analysisItems = this.codeAnalysisProvider.getCodeAnalysisSections();
-            const children = analysisItems.map(item => {
-                // Handle iconPath type conversion
-                const iconPath = typeof item.iconPath === 'string'
-                    ? new vscode.ThemeIcon(item.iconPath)
-                    : item.iconPath;
-                // Handle tooltip type conversion
-                const tooltip = typeof item.tooltip === 'string'
-                    ? item.tooltip
-                    : item.tooltip?.value || undefined;
-                // Handle description type conversion
-                const description = typeof item.description === 'string'
-                    ? item.description
-                    : undefined;
-                return new UnifiedServerTreeItem(typeof item.label === 'string' ? item.label : item.label?.label || 'Unknown', item.collapsibleState || vscode.TreeItemCollapsibleState.None, 'code-analysis-item', item.command, iconPath, tooltip, description, item.contextValue, undefined, undefined, undefined, undefined, item);
-            });
-            console.log(`[CODE_ANALYSIS] Created ${children.length} code analysis items for unified view`);
-            return children;
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error loading code analysis items:', error);
-            return Promise.resolve([new UnifiedServerTreeItem('Error loading code analysis', vscode.TreeItemCollapsibleState.None, 'code-analysis-item', undefined, new vscode.ThemeIcon('error'), 'Failed to load code analysis items')]);
-        }
-    }
-    /**
-     * Get children for code analysis sub-items (delegate to CodeAnalysisTreeDataProvider)
-     */
-    async getCodeAnalysisSubItems(codeAnalysisItem) {
-        console.log(`[CODE_ANALYSIS] Getting sub-items for code analysis item: ${codeAnalysisItem.label}`);
-        try {
-            // Delegate to the code analysis provider
-            const subItems = await this.codeAnalysisProvider.getChildren(codeAnalysisItem);
-            const children = subItems.map(item => {
-                // Handle iconPath type conversion
-                const iconPath = typeof item.iconPath === 'string'
-                    ? new vscode.ThemeIcon(item.iconPath)
-                    : item.iconPath;
-                // Handle tooltip type conversion
-                const tooltip = typeof item.tooltip === 'string'
-                    ? item.tooltip
-                    : item.tooltip?.value || undefined;
-                // Handle description type conversion
-                const description = typeof item.description === 'string'
-                    ? item.description
-                    : undefined;
-                return new UnifiedServerTreeItem(typeof item.label === 'string' ? item.label : item.label?.label || 'Unknown', item.collapsibleState || vscode.TreeItemCollapsibleState.None, 'code-analysis-item', item.command, iconPath, tooltip, description, item.contextValue, undefined, undefined, undefined, undefined, item);
-            });
-            console.log(`[CODE_ANALYSIS] Created ${children.length} sub-items for unified view`);
-            return children;
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error loading code analysis sub-items:', error);
-            return Promise.resolve([new UnifiedServerTreeItem('Error loading sub-items', vscode.TreeItemCollapsibleState.None, 'code-analysis-item', undefined, new vscode.ThemeIcon('error'), 'Failed to load code analysis sub-items')]);
-        }
-    }
-    /**
-     * Get the code analysis provider instance
-     */
-    getCodeAnalysisProvider() {
-        return this.codeAnalysisProvider;
     }
 }
-exports.UnifiedServersTreeDataProvider = UnifiedServersTreeDataProvider;
+exports.ServersTreeDataProvider = ServersTreeDataProvider;
 
 
 /***/ }),
@@ -1604,534 +1194,358 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveServerRegistry = void 0;
-exports.getActiveServerRegistry = getActiveServerRegistry;
-exports.registerActiveServer = registerActiveServer;
+exports.ServerSettingsManager = exports.DEFAULT_SERVER_SETTINGS = void 0;
 const vscode = __importStar(__webpack_require__(1));
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const nonceGenerator_1 = __webpack_require__(12);
 /**
- * Active Server Registry
- * Centralized tracking and management of all active servers
+ * Default server settings
  */
-class ActiveServerRegistry {
-    static instance = null;
-    servers = new Map();
-    eventEmitter = new vscode.EventEmitter();
-    /** Event fired when registry changes */
-    onRegistryChange = this.eventEmitter.event;
-    constructor() {
-        console.log('ACTIVE_SERVERS: Registry initialized');
+exports.DEFAULT_SERVER_SETTINGS = {
+    mode: 'HTTPS',
+    https: {
+        certSource: 'default',
+        certPath: '',
+        keyPath: ''
+    },
+    defaultPort: 3000,
+    launch: {
+        autoOpen: true,
+        openMode: 'browser'
+    },
+    configNonce: (0, nonceGenerator_1.generateNonce)(),
+    version: '1.0.0'
+};
+/**
+ * Server Settings Manager
+ * Handles structured storage and retrieval of server configuration using file system
+ */
+class ServerSettingsManager {
+    static instance;
+    settings;
+    context;
+    SETTINGS_FILENAME = 'server-settings.json';
+    settingsFilePath;
+    constructor(context) {
+        this.context = context;
+        this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
+        this.settingsFilePath = path.join(context.globalStorageUri.fsPath, this.SETTINGS_FILENAME);
+        this.ensureStorageDirectory();
+    }
+    /**
+     * Ensure the global storage directory exists
+     */
+    ensureStorageDirectory() {
+        const storageDir = path.dirname(this.settingsFilePath);
+        if (!fs.existsSync(storageDir)) {
+            fs.mkdirSync(storageDir, { recursive: true });
+            console.log(`SERVER: Created storage directory: ${storageDir}`);
+        }
     }
     /**
      * Get singleton instance
      */
-    static getInstance() {
-        if (!ActiveServerRegistry.instance) {
-            ActiveServerRegistry.instance = new ActiveServerRegistry();
+    static getInstance(context) {
+        if (!ServerSettingsManager.instance) {
+            if (!context) {
+                throw new Error('SERVER: Context required for first initialization');
+            }
+            ServerSettingsManager.instance = new ServerSettingsManager(context);
         }
-        return ActiveServerRegistry.instance;
+        return ServerSettingsManager.instance;
     }
     /**
-     * Register a new active server
+     * Get current server settings
      */
-    registerServer(config) {
-        console.log('SERVER: registerServer called with config:', {
-            port: config.port,
-            htmlFile: config.htmlFile,
-            customName: config.customName,
-            url: config.url
-        });
-        const serverId = this.generateServerId(config.port, config.timestamp);
-        const server = {
-            id: serverId,
-            port: config.port,
-            url: config.url,
-            launchMode: config.launchMode,
-            certMode: config.certMode,
-            timestamp: config.timestamp,
-            status: 'running',
-            htmlFile: config.htmlFile,
-            customName: config.customName,
-            serverInstance: config.serverInstance,
-            metadata: config.metadata
-        };
-        this.servers.set(serverId, server);
-        // Enhanced logging for custom names
-        console.log(`ACTIVE_SERVERS: Registered server ${serverId} at ${config.url} (${config.certMode}/${config.launchMode})`);
-        if (config.customName && config.customName.trim().length > 0) {
-            console.log(`ACTIVE_SERVERS: Received custom name from launcher: ${config.customName}`);
-            console.log(`ACTIVE_SERVERS: Registering server with name: ${config.customName}`);
-        }
-        else {
-            const fallbackName = `localhost:${config.port}`;
-            console.log(`ACTIVE_SERVERS: No custom name provided. Using default name: ${fallbackName}`);
-        }
-        this.emitEvent('serverAdded', serverId, server);
-        return server;
+    getServerSettings() {
+        return { ...this.settings };
     }
     /**
-     * Remove a server from the registry
+     * Get extension context
      */
-    unregisterServer(serverId) {
-        const server = this.servers.get(serverId);
-        if (!server) {
-            console.warn(`ACTIVE_SERVERS: Attempted to unregister non-existent server: ${serverId}`);
-            return false;
-        }
-        this.servers.delete(serverId);
-        console.log(`ACTIVE_SERVERS: Unregistered server ${serverId} (${server.url})`);
-        this.emitEvent('serverRemoved', serverId, server);
-        return true;
+    getExtensionContext() {
+        return this.context;
     }
     /**
-     * Update server status
+     * Update server settings
      */
-    updateServerStatus(serverId, status) {
-        const server = this.servers.get(serverId);
-        if (!server) {
-            console.warn(`ACTIVE_SERVERS: Attempted to update status of non-existent server: ${serverId}`);
-            return false;
-        }
-        server.status = status;
-        console.log(`ACTIVE_SERVERS: Updated server ${serverId} status to ${status}`);
-        this.emitEvent('serverUpdated', serverId, server);
-        return true;
+    async updateServerSettings(updates) {
+        console.log('SERVER: Updating server settings', updates);
+        // Deep merge the updates
+        this.settings = this.deepMerge(this.settings, updates);
+        this.settings.configNonce = (0, nonceGenerator_1.generateNonce)();
+        // Persist to file system asynchronously
+        await this.persistSettings();
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
     }
     /**
-     * Get server by ID
+     * Restore server settings from file system
      */
-    getServer(serverId) {
-        return this.servers.get(serverId);
-    }
-    /**
-     * Get all active servers
-     */
-    getAllServers() {
-        return Array.from(this.servers.values());
-    }
-    /**
-     * Get servers by status
-     */
-    getServersByStatus(status) {
-        return this.getAllServers().filter(server => server.status === status);
-    }
-    /**
-     * Get servers by port
-     */
-    getServerByPort(port) {
-        return this.getAllServers().find(server => server.port === port);
-    }
-    /**
-     * Check if a server is registered
-     */
-    hasServer(serverId) {
-        return this.servers.has(serverId);
-    }
-    /**
-     * Get count of active servers
-     */
-    getServerCount() {
-        return this.servers.size;
-    }
-    /**
-     * Get count of running servers
-     */
-    getRunningServerCount() {
-        return this.getServersByStatus('running').length;
-    }
-    /**
-     * Clear all servers from registry
-     */
-    clearAll() {
-        const count = this.servers.size;
-        this.servers.clear();
-        console.log(`ACTIVE_SERVERS: Cleared all servers (${count} removed)`);
-        this.emitEvent('registryCleared');
-    }
-    /**
-     * Cleanup stopped/error servers
-     */
-    cleanupInactiveServers() {
-        const inactiveServers = this.getAllServers().filter(server => server.status === 'stopped' || server.status === 'error');
-        let removedCount = 0;
-        for (const server of inactiveServers) {
-            if (this.unregisterServer(server.id)) {
-                removedCount++;
+    async restoreServerSettings() {
+        console.log('SERVER: Restoring server settings from file system');
+        console.log('SERVER: Settings file path:', this.settingsFilePath);
+        try {
+            if (fs.existsSync(this.settingsFilePath)) {
+                console.log('SERVER: Settings file exists, reading content...');
+                const fileContent = await fs.promises.readFile(this.settingsFilePath, 'utf8');
+                const savedSettings = JSON.parse(fileContent);
+                console.log('SERVER: Loaded settings from file:', savedSettings);
+                // Validate and merge with defaults to ensure all required fields exist
+                this.settings = this.deepMerge(exports.DEFAULT_SERVER_SETTINGS, savedSettings);
+                // Regenerate nonce on restore for security
+                this.settings.configNonce = (0, nonceGenerator_1.generateNonce)();
+                console.log('SERVER: Settings merged with defaults and nonce regenerated');
+                console.log('SERVER: Final restored settings:', this.settings);
+                // Persist the updated settings with new nonce
+                await this.persistSettings();
+                console.log('SERVER: Settings successfully restored from file system');
+            }
+            else {
+                console.log('SERVER: No saved settings file found at:', this.settingsFilePath);
+                console.log('SERVER: Using default settings and creating initial file');
+                this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
+                await this.persistSettings();
+                console.log('SERVER: Default settings applied and file created');
             }
         }
-        if (removedCount > 0) {
-            console.log(`ACTIVE_SERVERS: Cleaned up ${removedCount} inactive servers`);
+        catch (error) {
+            console.error('SERVER: Error restoring settings from file system:', error);
+            console.log('SERVER: Falling back to default settings');
+            this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
+            await this.persistSettings();
         }
-        return removedCount;
     }
     /**
-     * Get registry statistics
+     * Persist settings to file system
      */
-    getStats() {
-        const servers = this.getAllServers();
-        const stats = {
-            total: servers.length,
-            running: 0,
-            stopped: 0,
-            error: 0,
-            byMode: {},
-            byCertMode: {}
-        };
-        for (const server of servers) {
-            // Count by status
-            stats[server.status]++;
-            // Count by launch mode
-            stats.byMode[server.launchMode] = (stats.byMode[server.launchMode] || 0) + 1;
-            // Count by cert mode
-            stats.byCertMode[server.certMode] = (stats.byCertMode[server.certMode] || 0) + 1;
+    async persistSettings() {
+        try {
+            this.ensureStorageDirectory();
+            const settingsJson = JSON.stringify(this.settings, null, 2);
+            await fs.promises.writeFile(this.settingsFilePath, settingsJson, 'utf8');
+            console.log(`SERVER: Settings persisted to file system: ${this.settingsFilePath}`);
         }
-        return stats;
+        catch (error) {
+            console.error('SERVER: Error persisting settings to file system', error);
+            throw error;
+        }
     }
     /**
-     * Dispose of the registry
+     * Reset settings to defaults
      */
-    dispose() {
-        this.eventEmitter.dispose();
-        this.clearAll();
-        console.log('ACTIVE_SERVERS: Registry disposed');
+    async resetSettings() {
+        console.log('SERVER: Resetting settings to defaults');
+        this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
+        this.settings.configNonce = (0, nonceGenerator_1.generateNonce)();
+        await this.persistSettings();
+        vscode.commands.executeCommand('codexr.servers.refresh');
     }
     /**
-     * Generate unique server ID
-     * @private
+     * Get the path to the settings file
      */
-    generateServerId(port, timestamp) {
-        return `server-${port}-${timestamp}`;
+    getSettingsFilePath() {
+        return this.settingsFilePath;
     }
     /**
-     * Emit registry event
-     * @private
+     * Deep merge utility for partial updates
      */
-    emitEvent(type, serverId, server) {
-        const event = {
-            type,
-            serverId,
-            server,
-            timestamp: Date.now()
+    deepMerge(target, source) {
+        const result = { ...target };
+        for (const key in source) {
+            if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                result[key] = this.deepMerge(target[key] || {}, source[key]);
+            }
+            else {
+                result[key] = source[key];
+            }
+        }
+        return result;
+    }
+    /**
+     * Get settings in legacy format for UI compatibility
+     */
+    getLegacyConfig() {
+        let httpModeDisplay;
+        if (this.settings.mode === 'HTTP') {
+            httpModeDisplay = 'HTTP';
+        }
+        else {
+            // HTTPS mode
+            if (this.settings.https.certSource === 'default') {
+                httpModeDisplay = 'HTTPS (default certificates)';
+            }
+            else {
+                // Custom certificates - show paths if available for debugging
+                const certInfo = this.settings.https.certPath && this.settings.https.keyPath
+                    ? ` [Cert: ${this.settings.https.certPath}, Key: ${this.settings.https.keyPath}]`
+                    : ' [Paths not configured]';
+                httpModeDisplay = `HTTPS (custom certificates)${certInfo}`;
+                console.log('SERVER: Custom HTTPS certificate status:', {
+                    certPath: this.settings.https.certPath,
+                    keyPath: this.settings.https.keyPath,
+                    certSource: this.settings.https.certSource
+                });
+            }
+        }
+        const openModeDisplay = this.settings.launch.openMode === 'browser' ? 'Browser' : 'Lateral Panel';
+        const config = {
+            httpMode: httpModeDisplay,
+            port: this.settings.defaultPort,
+            autoOpen: this.settings.launch.autoOpen,
+            openMode: openModeDisplay
         };
-        this.eventEmitter.fire(event);
+        console.log('SERVER: Legacy config generated:', config);
+        return config;
+    }
+    /**
+     * Update settings from legacy format
+     */
+    async updateFromLegacyConfig(updates) {
+        const newUpdates = {};
+        // Handle HTTP mode changes
+        if (updates.httpMode) {
+            if (updates.httpMode === 'HTTP') {
+                newUpdates.mode = 'HTTP';
+            }
+            else if (updates.httpMode === 'HTTPS (default certificates)') {
+                newUpdates.mode = 'HTTPS';
+                newUpdates.https = {
+                    ...this.settings.https,
+                    certSource: 'default'
+                };
+            }
+            else if (updates.httpMode === 'HTTPS (custom certificates)') {
+                newUpdates.mode = 'HTTPS';
+                newUpdates.https = {
+                    ...this.settings.https,
+                    certSource: 'custom'
+                };
+            }
+        }
+        // Handle certificate and key path updates
+        // Merge these into the existing https object to avoid overwriting
+        if (updates.customCertPath !== undefined || updates.customKeyPath !== undefined) {
+            const currentHttps = newUpdates.https || this.settings.https;
+            newUpdates.https = {
+                ...currentHttps,
+                ...(updates.customCertPath !== undefined && { certPath: updates.customCertPath }),
+                ...(updates.customKeyPath !== undefined && { keyPath: updates.customKeyPath })
+            };
+            console.log('SERVER: Updating HTTPS certificate paths', {
+                certPath: newUpdates.https.certPath,
+                keyPath: newUpdates.https.keyPath,
+                certSource: newUpdates.https.certSource
+            });
+        }
+        // Handle port updates
+        if (updates.port !== undefined) {
+            newUpdates.defaultPort = updates.port;
+        }
+        // Handle launch configuration updates
+        if (updates.autoOpen !== undefined || updates.openMode !== undefined) {
+            newUpdates.launch = {
+                ...this.settings.launch,
+                ...(updates.autoOpen !== undefined && { autoOpen: updates.autoOpen }),
+                ...(updates.openMode !== undefined && {
+                    openMode: updates.openMode === 'Browser' ? 'browser' : 'lateralPanel'
+                })
+            };
+        }
+        console.log('SERVER: Legacy config update merged:', newUpdates);
+        await this.updateServerSettings(newUpdates);
     }
 }
-exports.ActiveServerRegistry = ActiveServerRegistry;
-/**
- * Convenience function to get the registry instance
- */
-function getActiveServerRegistry() {
-    return ActiveServerRegistry.getInstance();
-}
-/**
- * Convenience function to register a server
- */
-function registerActiveServer(config) {
-    return getActiveServerRegistry().registerServer(config);
-}
+exports.ServerSettingsManager = ServerSettingsManager;
 
 
 /***/ }),
 /* 12 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExampleLauncher = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const fs = __importStar(__webpack_require__(6));
-const multiServerLauncher_1 = __webpack_require__(13);
+exports.generateNonce = generateNonce;
+exports.generateTimestampedNonce = generateTimestampedNonce;
+exports.validateNonce = validateNonce;
+exports.validateTimestampedNonce = validateTimestampedNonce;
+const crypto_1 = __webpack_require__(13);
 /**
- * Example Launcher
- * Responsible for launching Babia examples using the existing server infrastructure
+ * Generates a cryptographically secure nonce (number used once) for configuration tracking.
+ * Uses Node.js crypto module to create unpredictable random values.
+ *
+ * @param length - The length of the nonce in bytes (default: 16 bytes = 128 bits)
+ * @returns A hex-encoded string representing the nonce
  */
-class ExampleLauncher {
-    context;
-    multiServerLauncher;
-    examplesCache = [];
-    lastScanTime = 0;
-    CACHE_DURATION = 30000; // 30 seconds
-    constructor(context) {
-        this.context = context;
-        this.multiServerLauncher = new multiServerLauncher_1.MultiServerLauncher(context);
-        console.log('EXAMPLES: Example launcher initialized');
-    }
-    /**
-     * Scan for Babia examples in the charts directory
-     * @returns Promise<ExampleScanResult>
-     */
-    async scanExamples() {
-        console.log('EXAMPLES: Scanning for Babia examples...');
-        const result = {
-            examples: [],
-            validCount: 0,
-            invalidCount: 0,
-            errors: []
-        };
-        try {
-            // First, try to use the extension's own path to find CodeXR directory
-            let workspaceRoot;
-            // Method 1: Use extension context to find CodeXR directory
-            const extensionPath = this.context.extensionPath;
-            console.log(`EXAMPLES: Extension path: ${extensionPath}`);
-            if (extensionPath.includes('CodeXR')) {
-                // Extract CodeXR root from extension path
-                const codeXRPath = extensionPath.substring(0, extensionPath.lastIndexOf('CodeXR') + 6);
-                workspaceRoot = codeXRPath;
-                console.log(`EXAMPLES: Found CodeXR from extension path: ${workspaceRoot}`);
-            }
-            else {
-                // Method 2: Force use the known CodeXR path
-                workspaceRoot = '/home/adrian/CodeXR';
-                console.log(`EXAMPLES: Using hardcoded CodeXR path: ${workspaceRoot}`);
-            }
-            // Verify the path exists and has examples/charts
-            let chartsPath = path.join(workspaceRoot, 'examples', 'charts');
-            if (!fs.existsSync(chartsPath)) {
-                // Method 3: Try to find from VS Code workspace folders as fallback
-                const workspaceRoots = vscode.workspace.workspaceFolders;
-                if (workspaceRoots && workspaceRoots.length > 0) {
-                    const potentialCodeXRRoot = workspaceRoots.find(folder => folder.name === 'CodeXR' ||
-                        folder.uri.fsPath.includes('CodeXR') ||
-                        fs.existsSync(path.join(folder.uri.fsPath, 'examples', 'charts')));
-                    if (potentialCodeXRRoot) {
-                        workspaceRoot = potentialCodeXRRoot.uri.fsPath;
-                        chartsPath = path.join(workspaceRoot, 'examples', 'charts');
-                        console.log(`EXAMPLES: Found CodeXR from workspace folders: ${workspaceRoot}`);
-                    }
-                    else {
-                        result.errors.push('Could not find CodeXR directory with examples/charts');
-                        return result;
-                    }
-                }
-                else {
-                    result.errors.push('No workspace folder open and CodeXR path not found');
-                    return result;
-                }
-            }
-            console.log(`EXAMPLES: Using workspace root: ${workspaceRoot}`);
-            console.log(`EXAMPLES: Scanning charts directory: ${chartsPath}`);
-            if (!fs.existsSync(chartsPath)) {
-                result.errors.push(`Charts directory not found: ${chartsPath}`);
-                return result;
-            }
-            const chartDirectories = fs.readdirSync(chartsPath)
-                .filter(item => {
-                const itemPath = path.join(chartsPath, item);
-                return fs.statSync(itemPath).isDirectory();
-            });
-            console.log(`EXAMPLES: Found ${chartDirectories.length} chart directories`);
-            for (const chartDir of chartDirectories) {
-                const chartPath = path.join(chartsPath, chartDir);
-                const example = await this.processExampleDirectory(chartPath, chartDir);
-                if (example) {
-                    console.log(`EXAMPLES: FOUND chart ${chartDir} example`);
-                    result.examples.push(example);
-                    if (example.isValid) {
-                        result.validCount++;
-                    }
-                    else {
-                        result.invalidCount++;
-                    }
-                }
-            }
-            // Update cache
-            this.examplesCache = result.examples;
-            this.lastScanTime = Date.now();
-            console.log(`EXAMPLES: total found ${result.examples.length}`);
-            console.log(`EXAMPLES: Scan complete. Found ${result.validCount} valid and ${result.invalidCount} invalid examples`);
-        }
-        catch (error) {
-            const errorMsg = `Failed to scan examples: ${error instanceof Error ? error.message : String(error)}`;
-            console.error('EXAMPLES:', errorMsg);
-            result.errors.push(errorMsg);
-        }
-        return result;
-    }
-    /**
-     * Get cached examples or scan if cache is stale
-     * @returns Promise<BabiaExample[]>
-     */
-    async getExamples() {
-        const now = Date.now();
-        if (this.examplesCache.length === 0 || (now - this.lastScanTime) > this.CACHE_DURATION) {
-            console.log('EXAMPLES: Cache is stale, rescanning...');
-            const result = await this.scanExamples();
-            return result.examples;
-        }
-        console.log(`EXAMPLES: Using cached examples (${this.examplesCache.length} items)`);
-        return this.examplesCache;
-    }
-    /**
-     * Launch a specific Babia example
-     * @param example The example to launch
-     * @returns Promise<MultiServerLaunchResult>
-     */
-    async launchExample(example) {
-        console.log(`EXAMPLES: Launching example "${example.name}" from ${example.htmlFilePath}`);
-        try {
-            if (!example.isValid) {
-                throw new Error(`Example "${example.name}" is not valid - missing HTML file`);
-            }
-            if (!fs.existsSync(example.htmlFilePath)) {
-                throw new Error(`HTML file not found: ${example.htmlFilePath}`);
-            }
-            console.log(`EXAMPLES: Delegating launch to multi-server launcher with user configuration`);
-            // Create custom name in format "ExampleName" (already ends with proper format from scanning)
-            const customName = example.name; // e.g., "DonutExample", "BarsExample"
-            console.log(`SERVER: Using custom name '${customName}' for example server`);
-            // Delegate everything to the multi-server launcher
-            // This will handle:
-            // - Reading current user configuration (HTTP mode, port, auto-open, lateral panel vs browser)
-            // - Launching server with correct settings
-            // - Auto-opening in the configured mode (if enabled)
-            // - Registering in Active Servers
-            const result = await this.multiServerLauncher.launchServer(example.htmlFilePath, customName);
-            if (result.success) {
-                console.log(`EXAMPLES: Successfully launched example "${example.name}" on port ${result.port}`);
-                console.log(`EXAMPLES: Server configuration and auto-opening handled by shared infrastructure`);
-            }
-            else {
-                console.error(`EXAMPLES: Failed to launch example "${example.name}":`, result.error);
-                vscode.window.showErrorMessage(`Failed to launch example "${example.name}": ${result.error}`);
-            }
-            return result;
-        }
-        catch (error) {
-            const errorMsg = `Failed to launch example "${example.name}": ${error instanceof Error ? error.message : String(error)}`;
-            console.error('EXAMPLES:', errorMsg);
-            vscode.window.showErrorMessage(errorMsg);
-            return {
-                success: false,
-                error: errorMsg
-            };
-        }
-    }
-    /**
-     * Process a single example directory
-     * @private
-     */
-    async processExampleDirectory(directoryPath, categoryName) {
-        try {
-            console.log(`EXAMPLES: Processing directory: ${directoryPath}`);
-            // Look for HTML files in the directory
-            const files = fs.readdirSync(directoryPath);
-            const htmlFiles = files.filter(file => file.toLowerCase().endsWith('.html'));
-            console.log(`EXAMPLES: Found ${htmlFiles.length} HTML files in ${categoryName}: ${htmlFiles.join(', ')}`);
-            if (htmlFiles.length === 0) {
-                console.log(`EXAMPLES: No HTML files found in ${categoryName}`);
-                return {
-                    id: this.generateExampleId(categoryName, 'no-html'),
-                    name: categoryName,
-                    htmlFilePath: '',
-                    directory: directoryPath,
-                    category: categoryName,
-                    description: 'No HTML files found',
-                    isValid: false
-                };
-            }
-            // Prefer index.html, then first HTML file
-            let selectedFile = htmlFiles.find(file => file.toLowerCase() === 'index.html') || htmlFiles[0];
-            const htmlFilePath = path.join(directoryPath, selectedFile);
-            const stats = fs.statSync(htmlFilePath);
-            const example = {
-                id: this.generateExampleId(categoryName, selectedFile),
-                name: this.formatExampleName(categoryName),
-                htmlFilePath: htmlFilePath,
-                directory: directoryPath,
-                category: categoryName,
-                description: this.generateDescription(categoryName, selectedFile),
-                isValid: true,
-                lastModified: stats.mtime.getTime()
-            };
-            console.log(`EXAMPLES: Created example: ${example.name} (${example.id})`);
-            return example;
-        }
-        catch (error) {
-            console.error(`EXAMPLES: Error processing directory ${directoryPath}:`, error);
-            return null;
-        }
-    }
-    /**
-     * Generate a unique ID for an example
-     * @private
-     */
-    generateExampleId(category, filename) {
-        return `example_${category}_${filename}`.replace(/[^a-zA-Z0-9_]/g, '_');
-    }
-    /**
-     * Format example name for display
-     * @private
-     */
-    formatExampleName(category) {
-        // Convert kebab-case or snake_case to Title Case
-        return category
-            .split(/[-_]/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-    }
-    /**
-     * Generate description for example
-     * @private
-     */
-    generateDescription(category, filename) {
-        const formattedCategory = this.formatExampleName(category);
-        if (filename.toLowerCase() === 'index.html') {
-            return `${formattedCategory} visualization example`;
-        }
-        else {
-            const formattedFilename = filename.replace('.html', '').replace(/[-_]/g, ' ');
-            return `${formattedCategory} - ${formattedFilename}`;
-        }
-    }
-    /**
-     * Cleanup method
-     */
-    async cleanup() {
-        console.log('EXAMPLES: Cleaning up example launcher...');
-        // The MultiServerLauncher will handle its own cleanup
-        this.examplesCache = [];
-        this.lastScanTime = 0;
-    }
+function generateNonce(length = 16) {
+    return (0, crypto_1.randomBytes)(length).toString('hex');
 }
-exports.ExampleLauncher = ExampleLauncher;
+/**
+ * Generates a timestamped nonce that includes both time and random components.
+ * Useful for scenarios where temporal ordering is important alongside uniqueness.
+ *
+ * @param length - The length of the random component in bytes (default: 8 bytes)
+ * @returns A hex-encoded string with timestamp prefix and random suffix
+ */
+function generateTimestampedNonce(length = 8) {
+    const timestamp = Date.now().toString(16);
+    const random = (0, crypto_1.randomBytes)(length).toString('hex');
+    return `${timestamp}-${random}`;
+}
+/**
+ * Validates that a nonce has the expected format and length.
+ *
+ * @param nonce - The nonce to validate
+ * @param expectedLength - Expected length in bytes (default: 16)
+ * @returns True if the nonce is valid, false otherwise
+ */
+function validateNonce(nonce, expectedLength = 16) {
+    if (typeof nonce !== 'string') {
+        return false;
+    }
+    // Check if it's a hex string of expected length
+    const expectedHexLength = expectedLength * 2;
+    // Special case: zero length is valid if we expect zero length
+    if (expectedHexLength === 0) {
+        return nonce.length === 0;
+    }
+    // Check non-empty nonce
+    if (!nonce) {
+        return false;
+    }
+    const hexPattern = /^[0-9a-f]+$/i;
+    return nonce.length === expectedHexLength && hexPattern.test(nonce);
+}
+/**
+ * Validates timestamped nonce format.
+ *
+ * @param nonce - The timestamped nonce to validate
+ * @returns True if the nonce has valid timestamped format, false otherwise
+ */
+function validateTimestampedNonce(nonce) {
+    if (!nonce || typeof nonce !== 'string') {
+        return false;
+    }
+    // Check format: timestamp-random
+    const parts = nonce.split('-');
+    if (parts.length !== 2) {
+        return false;
+    }
+    const [timestampHex, randomHex] = parts;
+    const hexPattern = /^[0-9a-f]+$/i;
+    return hexPattern.test(timestampHex) && hexPattern.test(randomHex);
+}
 
 
 /***/ }),
 /* 13 */
+/***/ ((module) => {
+
+module.exports = require("crypto");
+
+/***/ }),
+/* 14 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2171,11 +1585,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MultiServerLauncher = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const portManager_1 = __webpack_require__(14);
-const serverSettingsManager_1 = __webpack_require__(16);
-const activeServerRegistry_1 = __webpack_require__(11);
-const handleServerActions_1 = __webpack_require__(19);
-const serverRegistrar_1 = __webpack_require__(26);
+const portManager_1 = __webpack_require__(15);
+const serverSettingsManager_1 = __webpack_require__(11);
+const activeServerRegistry_1 = __webpack_require__(17);
+const handleServerActions_1 = __webpack_require__(18);
+const serverRegistrar_1 = __webpack_require__(25);
 /**
  * Multi-Server Launcher
  * Manages multiple HTTP/HTTPS servers running concurrently with dynamic port allocation
@@ -2460,7 +1874,7 @@ class MultiServerLauncher {
      */
     async launchServerByType(serverType, settings, port, host, htmlFile) {
         // Import the original server launcher logic
-        const { ServerLauncher } = __webpack_require__(27);
+        const { ServerLauncher } = __webpack_require__(26);
         // Create a temporary launcher instance to use the existing server creation logic
         const tempLauncher = new ServerLauncher(this.context);
         // Use reflection to access private methods - this is a bridge solution
@@ -2614,7 +2028,7 @@ exports.MultiServerLauncher = MultiServerLauncher;
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2653,7 +2067,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PortManager = void 0;
-const net = __importStar(__webpack_require__(15));
+const net = __importStar(__webpack_require__(16));
 /**
  * Port availability checker and manager
  * Provides utilities to find available ports starting from a given port number
@@ -2706,7 +2120,7 @@ class PortManager {
         }
         try {
             // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 118))).default;
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 121))).default;
             // Create a range array for get-port - limit to reasonable range for performance
             const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
             const ports = [];
@@ -2822,13 +2236,13 @@ exports.PortManager = PortManager;
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ ((module) => {
 
 module.exports = require("net");
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2866,358 +2280,234 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerSettingsManager = exports.DEFAULT_SERVER_SETTINGS = void 0;
+exports.ActiveServerRegistry = void 0;
+exports.getActiveServerRegistry = getActiveServerRegistry;
+exports.registerActiveServer = registerActiveServer;
 const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-const nonceGenerator_1 = __webpack_require__(17);
 /**
- * Default server settings
+ * Active Server Registry
+ * Centralized tracking and management of all active servers
  */
-exports.DEFAULT_SERVER_SETTINGS = {
-    mode: 'HTTPS',
-    https: {
-        certSource: 'default',
-        certPath: '',
-        keyPath: ''
-    },
-    defaultPort: 3000,
-    launch: {
-        autoOpen: true,
-        openMode: 'browser'
-    },
-    configNonce: (0, nonceGenerator_1.generateNonce)(),
-    version: '1.0.0'
-};
-/**
- * Server Settings Manager
- * Handles structured storage and retrieval of server configuration using file system
- */
-class ServerSettingsManager {
-    static instance;
-    settings;
-    context;
-    SETTINGS_FILENAME = 'server-settings.json';
-    settingsFilePath;
-    constructor(context) {
-        this.context = context;
-        this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
-        this.settingsFilePath = path.join(context.globalStorageUri.fsPath, this.SETTINGS_FILENAME);
-        this.ensureStorageDirectory();
-    }
-    /**
-     * Ensure the global storage directory exists
-     */
-    ensureStorageDirectory() {
-        const storageDir = path.dirname(this.settingsFilePath);
-        if (!fs.existsSync(storageDir)) {
-            fs.mkdirSync(storageDir, { recursive: true });
-            console.log(`SERVER: Created storage directory: ${storageDir}`);
-        }
+class ActiveServerRegistry {
+    static instance = null;
+    servers = new Map();
+    eventEmitter = new vscode.EventEmitter();
+    /** Event fired when registry changes */
+    onRegistryChange = this.eventEmitter.event;
+    constructor() {
+        console.log('ACTIVE_SERVERS: Registry initialized');
     }
     /**
      * Get singleton instance
      */
-    static getInstance(context) {
-        if (!ServerSettingsManager.instance) {
-            if (!context) {
-                throw new Error('SERVER: Context required for first initialization');
-            }
-            ServerSettingsManager.instance = new ServerSettingsManager(context);
+    static getInstance() {
+        if (!ActiveServerRegistry.instance) {
+            ActiveServerRegistry.instance = new ActiveServerRegistry();
         }
-        return ServerSettingsManager.instance;
+        return ActiveServerRegistry.instance;
     }
     /**
-     * Get current server settings
+     * Register a new active server
      */
-    getServerSettings() {
-        return { ...this.settings };
-    }
-    /**
-     * Get extension context
-     */
-    getExtensionContext() {
-        return this.context;
-    }
-    /**
-     * Update server settings
-     */
-    async updateServerSettings(updates) {
-        console.log('SERVER: Updating server settings', updates);
-        // Deep merge the updates
-        this.settings = this.deepMerge(this.settings, updates);
-        this.settings.configNonce = (0, nonceGenerator_1.generateNonce)();
-        // Persist to file system asynchronously
-        await this.persistSettings();
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-    }
-    /**
-     * Restore server settings from file system
-     */
-    async restoreServerSettings() {
-        console.log('SERVER: Restoring server settings from file system');
-        console.log('SERVER: Settings file path:', this.settingsFilePath);
-        try {
-            if (fs.existsSync(this.settingsFilePath)) {
-                console.log('SERVER: Settings file exists, reading content...');
-                const fileContent = await fs.promises.readFile(this.settingsFilePath, 'utf8');
-                const savedSettings = JSON.parse(fileContent);
-                console.log('SERVER: Loaded settings from file:', savedSettings);
-                // Validate and merge with defaults to ensure all required fields exist
-                this.settings = this.deepMerge(exports.DEFAULT_SERVER_SETTINGS, savedSettings);
-                // Regenerate nonce on restore for security
-                this.settings.configNonce = (0, nonceGenerator_1.generateNonce)();
-                console.log('SERVER: Settings merged with defaults and nonce regenerated');
-                console.log('SERVER: Final restored settings:', this.settings);
-                // Persist the updated settings with new nonce
-                await this.persistSettings();
-                console.log('SERVER: Settings successfully restored from file system');
-            }
-            else {
-                console.log('SERVER: No saved settings file found at:', this.settingsFilePath);
-                console.log('SERVER: Using default settings and creating initial file');
-                this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
-                await this.persistSettings();
-                console.log('SERVER: Default settings applied and file created');
-            }
-        }
-        catch (error) {
-            console.error('SERVER: Error restoring settings from file system:', error);
-            console.log('SERVER: Falling back to default settings');
-            this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
-            await this.persistSettings();
-        }
-    }
-    /**
-     * Persist settings to file system
-     */
-    async persistSettings() {
-        try {
-            this.ensureStorageDirectory();
-            const settingsJson = JSON.stringify(this.settings, null, 2);
-            await fs.promises.writeFile(this.settingsFilePath, settingsJson, 'utf8');
-            console.log(`SERVER: Settings persisted to file system: ${this.settingsFilePath}`);
-        }
-        catch (error) {
-            console.error('SERVER: Error persisting settings to file system', error);
-            throw error;
-        }
-    }
-    /**
-     * Reset settings to defaults
-     */
-    async resetSettings() {
-        console.log('SERVER: Resetting settings to defaults');
-        this.settings = { ...exports.DEFAULT_SERVER_SETTINGS };
-        this.settings.configNonce = (0, nonceGenerator_1.generateNonce)();
-        await this.persistSettings();
-        vscode.commands.executeCommand('codexr.servers.refresh');
-    }
-    /**
-     * Get the path to the settings file
-     */
-    getSettingsFilePath() {
-        return this.settingsFilePath;
-    }
-    /**
-     * Deep merge utility for partial updates
-     */
-    deepMerge(target, source) {
-        const result = { ...target };
-        for (const key in source) {
-            if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                result[key] = this.deepMerge(target[key] || {}, source[key]);
-            }
-            else {
-                result[key] = source[key];
-            }
-        }
-        return result;
-    }
-    /**
-     * Get settings in legacy format for UI compatibility
-     */
-    getLegacyConfig() {
-        let httpModeDisplay;
-        if (this.settings.mode === 'HTTP') {
-            httpModeDisplay = 'HTTP';
+    registerServer(config) {
+        console.log('SERVER: registerServer called with config:', {
+            port: config.port,
+            htmlFile: config.htmlFile,
+            customName: config.customName,
+            url: config.url
+        });
+        const serverId = this.generateServerId(config.port, config.timestamp);
+        const server = {
+            id: serverId,
+            port: config.port,
+            url: config.url,
+            launchMode: config.launchMode,
+            certMode: config.certMode,
+            timestamp: config.timestamp,
+            status: 'running',
+            htmlFile: config.htmlFile,
+            customName: config.customName,
+            serverInstance: config.serverInstance,
+            metadata: config.metadata
+        };
+        this.servers.set(serverId, server);
+        // Enhanced logging for custom names
+        console.log(`ACTIVE_SERVERS: Registered server ${serverId} at ${config.url} (${config.certMode}/${config.launchMode})`);
+        if (config.customName && config.customName.trim().length > 0) {
+            console.log(`ACTIVE_SERVERS: Received custom name from launcher: ${config.customName}`);
+            console.log(`ACTIVE_SERVERS: Registering server with name: ${config.customName}`);
         }
         else {
-            // HTTPS mode
-            if (this.settings.https.certSource === 'default') {
-                httpModeDisplay = 'HTTPS (default certificates)';
-            }
-            else {
-                // Custom certificates - show paths if available for debugging
-                const certInfo = this.settings.https.certPath && this.settings.https.keyPath
-                    ? ` [Cert: ${this.settings.https.certPath}, Key: ${this.settings.https.keyPath}]`
-                    : ' [Paths not configured]';
-                httpModeDisplay = `HTTPS (custom certificates)${certInfo}`;
-                console.log('SERVER: Custom HTTPS certificate status:', {
-                    certPath: this.settings.https.certPath,
-                    keyPath: this.settings.https.keyPath,
-                    certSource: this.settings.https.certSource
-                });
-            }
+            const fallbackName = `localhost:${config.port}`;
+            console.log(`ACTIVE_SERVERS: No custom name provided. Using default name: ${fallbackName}`);
         }
-        const openModeDisplay = this.settings.launch.openMode === 'browser' ? 'Browser' : 'Lateral Panel';
-        const config = {
-            httpMode: httpModeDisplay,
-            port: this.settings.defaultPort,
-            autoOpen: this.settings.launch.autoOpen,
-            openMode: openModeDisplay
-        };
-        console.log('SERVER: Legacy config generated:', config);
-        return config;
+        this.emitEvent('serverAdded', serverId, server);
+        return server;
     }
     /**
-     * Update settings from legacy format
+     * Remove a server from the registry
      */
-    async updateFromLegacyConfig(updates) {
-        const newUpdates = {};
-        // Handle HTTP mode changes
-        if (updates.httpMode) {
-            if (updates.httpMode === 'HTTP') {
-                newUpdates.mode = 'HTTP';
+    unregisterServer(serverId) {
+        const server = this.servers.get(serverId);
+        if (!server) {
+            console.warn(`ACTIVE_SERVERS: Attempted to unregister non-existent server: ${serverId}`);
+            return false;
+        }
+        this.servers.delete(serverId);
+        console.log(`ACTIVE_SERVERS: Unregistered server ${serverId} (${server.url})`);
+        this.emitEvent('serverRemoved', serverId, server);
+        return true;
+    }
+    /**
+     * Update server status
+     */
+    updateServerStatus(serverId, status) {
+        const server = this.servers.get(serverId);
+        if (!server) {
+            console.warn(`ACTIVE_SERVERS: Attempted to update status of non-existent server: ${serverId}`);
+            return false;
+        }
+        server.status = status;
+        console.log(`ACTIVE_SERVERS: Updated server ${serverId} status to ${status}`);
+        this.emitEvent('serverUpdated', serverId, server);
+        return true;
+    }
+    /**
+     * Get server by ID
+     */
+    getServer(serverId) {
+        return this.servers.get(serverId);
+    }
+    /**
+     * Get all active servers
+     */
+    getAllServers() {
+        return Array.from(this.servers.values());
+    }
+    /**
+     * Get servers by status
+     */
+    getServersByStatus(status) {
+        return this.getAllServers().filter(server => server.status === status);
+    }
+    /**
+     * Get servers by port
+     */
+    getServerByPort(port) {
+        return this.getAllServers().find(server => server.port === port);
+    }
+    /**
+     * Check if a server is registered
+     */
+    hasServer(serverId) {
+        return this.servers.has(serverId);
+    }
+    /**
+     * Get count of active servers
+     */
+    getServerCount() {
+        return this.servers.size;
+    }
+    /**
+     * Get count of running servers
+     */
+    getRunningServerCount() {
+        return this.getServersByStatus('running').length;
+    }
+    /**
+     * Clear all servers from registry
+     */
+    clearAll() {
+        const count = this.servers.size;
+        this.servers.clear();
+        console.log(`ACTIVE_SERVERS: Cleared all servers (${count} removed)`);
+        this.emitEvent('registryCleared');
+    }
+    /**
+     * Cleanup stopped/error servers
+     */
+    cleanupInactiveServers() {
+        const inactiveServers = this.getAllServers().filter(server => server.status === 'stopped' || server.status === 'error');
+        let removedCount = 0;
+        for (const server of inactiveServers) {
+            if (this.unregisterServer(server.id)) {
+                removedCount++;
             }
-            else if (updates.httpMode === 'HTTPS (default certificates)') {
-                newUpdates.mode = 'HTTPS';
-                newUpdates.https = {
-                    ...this.settings.https,
-                    certSource: 'default'
-                };
-            }
-            else if (updates.httpMode === 'HTTPS (custom certificates)') {
-                newUpdates.mode = 'HTTPS';
-                newUpdates.https = {
-                    ...this.settings.https,
-                    certSource: 'custom'
-                };
-            }
         }
-        // Handle certificate and key path updates
-        // Merge these into the existing https object to avoid overwriting
-        if (updates.customCertPath !== undefined || updates.customKeyPath !== undefined) {
-            const currentHttps = newUpdates.https || this.settings.https;
-            newUpdates.https = {
-                ...currentHttps,
-                ...(updates.customCertPath !== undefined && { certPath: updates.customCertPath }),
-                ...(updates.customKeyPath !== undefined && { keyPath: updates.customKeyPath })
-            };
-            console.log('SERVER: Updating HTTPS certificate paths', {
-                certPath: newUpdates.https.certPath,
-                keyPath: newUpdates.https.keyPath,
-                certSource: newUpdates.https.certSource
-            });
+        if (removedCount > 0) {
+            console.log(`ACTIVE_SERVERS: Cleaned up ${removedCount} inactive servers`);
         }
-        // Handle port updates
-        if (updates.port !== undefined) {
-            newUpdates.defaultPort = updates.port;
+        return removedCount;
+    }
+    /**
+     * Get registry statistics
+     */
+    getStats() {
+        const servers = this.getAllServers();
+        const stats = {
+            total: servers.length,
+            running: 0,
+            stopped: 0,
+            error: 0,
+            byMode: {},
+            byCertMode: {}
+        };
+        for (const server of servers) {
+            // Count by status
+            stats[server.status]++;
+            // Count by launch mode
+            stats.byMode[server.launchMode] = (stats.byMode[server.launchMode] || 0) + 1;
+            // Count by cert mode
+            stats.byCertMode[server.certMode] = (stats.byCertMode[server.certMode] || 0) + 1;
         }
-        // Handle launch configuration updates
-        if (updates.autoOpen !== undefined || updates.openMode !== undefined) {
-            newUpdates.launch = {
-                ...this.settings.launch,
-                ...(updates.autoOpen !== undefined && { autoOpen: updates.autoOpen }),
-                ...(updates.openMode !== undefined && {
-                    openMode: updates.openMode === 'Browser' ? 'browser' : 'lateralPanel'
-                })
-            };
-        }
-        console.log('SERVER: Legacy config update merged:', newUpdates);
-        await this.updateServerSettings(newUpdates);
+        return stats;
+    }
+    /**
+     * Dispose of the registry
+     */
+    dispose() {
+        this.eventEmitter.dispose();
+        this.clearAll();
+        console.log('ACTIVE_SERVERS: Registry disposed');
+    }
+    /**
+     * Generate unique server ID
+     * @private
+     */
+    generateServerId(port, timestamp) {
+        return `server-${port}-${timestamp}`;
+    }
+    /**
+     * Emit registry event
+     * @private
+     */
+    emitEvent(type, serverId, server) {
+        const event = {
+            type,
+            serverId,
+            server,
+            timestamp: Date.now()
+        };
+        this.eventEmitter.fire(event);
     }
 }
-exports.ServerSettingsManager = ServerSettingsManager;
-
-
-/***/ }),
-/* 17 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateNonce = generateNonce;
-exports.generateTimestampedNonce = generateTimestampedNonce;
-exports.validateNonce = validateNonce;
-exports.validateTimestampedNonce = validateTimestampedNonce;
-const crypto_1 = __webpack_require__(18);
+exports.ActiveServerRegistry = ActiveServerRegistry;
 /**
- * Generates a cryptographically secure nonce (number used once) for configuration tracking.
- * Uses Node.js crypto module to create unpredictable random values.
- *
- * @param length - The length of the nonce in bytes (default: 16 bytes = 128 bits)
- * @returns A hex-encoded string representing the nonce
+ * Convenience function to get the registry instance
  */
-function generateNonce(length = 16) {
-    return (0, crypto_1.randomBytes)(length).toString('hex');
+function getActiveServerRegistry() {
+    return ActiveServerRegistry.getInstance();
 }
 /**
- * Generates a timestamped nonce that includes both time and random components.
- * Useful for scenarios where temporal ordering is important alongside uniqueness.
- *
- * @param length - The length of the random component in bytes (default: 8 bytes)
- * @returns A hex-encoded string with timestamp prefix and random suffix
+ * Convenience function to register a server
  */
-function generateTimestampedNonce(length = 8) {
-    const timestamp = Date.now().toString(16);
-    const random = (0, crypto_1.randomBytes)(length).toString('hex');
-    return `${timestamp}-${random}`;
-}
-/**
- * Validates that a nonce has the expected format and length.
- *
- * @param nonce - The nonce to validate
- * @param expectedLength - Expected length in bytes (default: 16)
- * @returns True if the nonce is valid, false otherwise
- */
-function validateNonce(nonce, expectedLength = 16) {
-    if (typeof nonce !== 'string') {
-        return false;
-    }
-    // Check if it's a hex string of expected length
-    const expectedHexLength = expectedLength * 2;
-    // Special case: zero length is valid if we expect zero length
-    if (expectedHexLength === 0) {
-        return nonce.length === 0;
-    }
-    // Check non-empty nonce
-    if (!nonce) {
-        return false;
-    }
-    const hexPattern = /^[0-9a-f]+$/i;
-    return nonce.length === expectedHexLength && hexPattern.test(nonce);
-}
-/**
- * Validates timestamped nonce format.
- *
- * @param nonce - The timestamped nonce to validate
- * @returns True if the nonce has valid timestamped format, false otherwise
- */
-function validateTimestampedNonce(nonce) {
-    if (!nonce || typeof nonce !== 'string') {
-        return false;
-    }
-    // Check format: timestamp-random
-    const parts = nonce.split('-');
-    if (parts.length !== 2) {
-        return false;
-    }
-    const [timestampHex, randomHex] = parts;
-    const hexPattern = /^[0-9a-f]+$/i;
-    return hexPattern.test(timestampHex) && hexPattern.test(randomHex);
+function registerActiveServer(config) {
+    return getActiveServerRegistry().registerServer(config);
 }
 
 
 /***/ }),
 /* 18 */
-/***/ ((module) => {
-
-module.exports = require("crypto");
-
-/***/ }),
-/* 19 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3257,9 +2547,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerActionHandlers = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerRegistry_1 = __webpack_require__(11);
-const serverControl_1 = __webpack_require__(20);
-const previewRenderer_1 = __webpack_require__(25);
+const activeServerRegistry_1 = __webpack_require__(17);
+const serverControl_1 = __webpack_require__(19);
+const previewRenderer_1 = __webpack_require__(24);
 /**
  * Server Action Handlers
  * Handle user interactions with active servers
@@ -3579,7 +2869,7 @@ exports.ServerActionHandlers = ServerActionHandlers;
 
 
 /***/ }),
-/* 20 */
+/* 19 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3619,10 +2909,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerControl = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerRegistry_1 = __webpack_require__(11);
-const panelManager_1 = __webpack_require__(21);
-const fileToServerMap_1 = __webpack_require__(22);
-const SSEManager_1 = __webpack_require__(23);
+const activeServerRegistry_1 = __webpack_require__(17);
+const panelManager_1 = __webpack_require__(20);
+const fileToServerMap_1 = __webpack_require__(21);
+const SSEManager_1 = __webpack_require__(22);
 /**
  * Server Control
  * Runtime operations for managing active servers
@@ -3858,7 +3148,7 @@ exports.ServerControl = ServerControl;
 
 
 /***/ }),
-/* 21 */
+/* 20 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4017,7 +3307,7 @@ function getPanelManager() {
 
 
 /***/ }),
-/* 22 */
+/* 21 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4156,14 +3446,14 @@ exports.fileToServerMap = FileToServerMapping.getInstance();
 
 
 /***/ }),
-/* 23 */
+/* 22 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.sseManager = exports.SSEManager = void 0;
-const sseClientRegistry_1 = __webpack_require__(24);
-const fileToServerMap_1 = __webpack_require__(22);
+const sseClientRegistry_1 = __webpack_require__(23);
+const fileToServerMap_1 = __webpack_require__(21);
 /**
  * SSE Manager
  * Central module for managing Server-Sent Events for analysis updates
@@ -4354,7 +3644,7 @@ exports.sseManager = SSEManager.getInstance();
 
 
 /***/ }),
-/* 24 */
+/* 23 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4555,7 +3845,7 @@ exports.SSEClientRegistry = SSEClientRegistry;
 
 
 /***/ }),
-/* 25 */
+/* 24 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4596,7 +3886,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PreviewRenderer = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const panelManager_1 = __webpack_require__(21);
+const panelManager_1 = __webpack_require__(20);
 /**
  * Preview Renderer
  * Handles opening HTML content in browser or VS Code webview panel
@@ -4878,14 +4168,14 @@ exports.PreviewRenderer = PreviewRenderer;
 
 
 /***/ }),
-/* 26 */
+/* 25 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerRegistrar = void 0;
 exports.getServerRegistrar = getServerRegistrar;
-const activeServerRegistry_1 = __webpack_require__(11);
+const activeServerRegistry_1 = __webpack_require__(17);
 /**
  * Server Registrar Service
  * Centralized service for registering servers with the active servers registry
@@ -4971,7 +4261,7 @@ function getServerRegistrar() {
 
 
 /***/ }),
-/* 27 */
+/* 26 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5012,13 +4302,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerLauncher = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const httpServer_1 = __webpack_require__(28);
-const httpsDefaultServer_1 = __webpack_require__(31);
-const httpsCustomServer_1 = __webpack_require__(33);
-const portManager_1 = __webpack_require__(14);
-const serverSettingsManager_1 = __webpack_require__(16);
-const activeServerRegistry_1 = __webpack_require__(11);
-const serverRegistrar_1 = __webpack_require__(26);
+const httpServer_1 = __webpack_require__(27);
+const httpsDefaultServer_1 = __webpack_require__(30);
+const httpsCustomServer_1 = __webpack_require__(32);
+const portManager_1 = __webpack_require__(15);
+const serverSettingsManager_1 = __webpack_require__(11);
+const activeServerRegistry_1 = __webpack_require__(17);
+const serverRegistrar_1 = __webpack_require__(25);
 /**
  * Server Launcher
  * Main entry point for launching HTTP/HTTPS servers based on saved settings
@@ -5644,7 +4934,7 @@ exports.ServerLauncher = ServerLauncher;
 
 
 /***/ }),
-/* 28 */
+/* 27 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5683,12 +4973,12 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpServer = void 0;
-const http = __importStar(__webpack_require__(29));
+const http = __importStar(__webpack_require__(28));
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const url_1 = __webpack_require__(30);
-const SSEManager_1 = __webpack_require__(23);
-const fileToServerMap_1 = __webpack_require__(22);
+const url_1 = __webpack_require__(29);
+const SSEManager_1 = __webpack_require__(22);
+const fileToServerMap_1 = __webpack_require__(21);
 /**
  * HTTP Server instance
  * Provides basic HTTP server functionality for CodeXR
@@ -6129,19 +5419,19 @@ exports.HttpServer = HttpServer;
 
 
 /***/ }),
-/* 29 */
+/* 28 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 30 */
+/* 29 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 31 */
+/* 30 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6180,10 +5470,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpsDefaultServer = void 0;
-const https = __importStar(__webpack_require__(32));
+const https = __importStar(__webpack_require__(31));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const httpServer_1 = __webpack_require__(28);
+const httpServer_1 = __webpack_require__(27);
 /**
  * HTTPS Server with default certificates
  * Extends HTTP server functionality with SSL/TLS support using default certificates
@@ -6486,13 +5776,13 @@ exports.HttpsDefaultServer = HttpsDefaultServer;
 
 
 /***/ }),
-/* 32 */
+/* 31 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 33 */
+/* 32 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6531,11 +5821,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpsCustomServer = void 0;
-const https = __importStar(__webpack_require__(32));
+const https = __importStar(__webpack_require__(31));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 const vscode = __importStar(__webpack_require__(1));
-const httpServer_1 = __webpack_require__(28);
+const httpServer_1 = __webpack_require__(27);
 /**
  * HTTPS Server with custom user-selected certificates
  * Extends HTTP server functionality with SSL/TLS support using user-provided certificates
@@ -7014,6 +6304,36 @@ exports.HttpsCustomServer = HttpsCustomServer;
 
 
 /***/ }),
+/* 33 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerActiveServersCommands = registerActiveServersCommands;
+exports.getActiveServersCommandIds = getActiveServersCommandIds;
+const activeServersCommands_1 = __webpack_require__(34);
+/**
+ * Active Servers Commands Wrapper
+ * Re-exports active servers commands for centralized command registration
+ */
+/**
+ * Register all active servers commands
+ * @param context VS Code extension context
+ * @param treeDataProvider Any tree data provider that supports refresh operations
+ */
+function registerActiveServersCommands(context, treeDataProvider) {
+    console.log('COMMANDS: Registering active servers commands');
+    activeServersCommands_1.ActiveServersCommands.registerCommands(context, treeDataProvider);
+}
+/**
+ * Get active servers command IDs for external reference
+ */
+function getActiveServersCommandIds() {
+    return activeServersCommands_1.ActiveServersCommands.getCommandIds();
+}
+
+
+/***/ }),
 /* 34 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -7052,130 +6372,145 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExampleIcons = exports.ExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
+exports.ActiveServersCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
+const handleServerActions_1 = __webpack_require__(18);
 /**
- * Tree item for Babia examples display
+ * Active Servers Commands
+ * VS Code command definitions for active servers functionality
  */
-class BabiaExampleTreeItem extends vscode.TreeItem {
-    label;
-    collapsibleState;
-    type;
-    command;
-    iconPath;
-    tooltip;
-    description;
-    contextValue;
-    example;
-    constructor(label, collapsibleState, type, command, iconPath, tooltip, description, contextValue, example) {
-        super(label, collapsibleState);
-        this.label = label;
-        this.collapsibleState = collapsibleState;
-        this.type = type;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip;
-        this.description = description;
-        this.contextValue = contextValue;
-        this.example = example;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip;
-        this.description = description;
-        this.contextValue = contextValue;
-    }
-}
-exports.BabiaExampleTreeItem = BabiaExampleTreeItem;
-/**
- * Example item factory for creating tree items
- */
-class ExampleItemFactory {
+class ActiveServersCommands {
+    // Store tree data provider reference for refresh operations
+    static treeDataProvider;
     /**
-     * Create tree item for a Babia example
+     * Register all active servers commands
      */
-    static createExampleItem(example) {
-        const command = {
-            command: 'codeXR.babiaExamples.launchExample',
-            title: 'Launch Example',
-            arguments: [example]
-        };
-        const icon = ExampleIcons.getExampleIcon(example.category);
-        const tooltip = ExampleItemFactory.createTooltip(example);
-        const description = example.isValid ? undefined : '(Invalid)';
-        return new BabiaExampleTreeItem(example.name, vscode.TreeItemCollapsibleState.None, 'example', command, icon, tooltip, description, example.isValid ? 'validExample' : 'invalidExample', example);
+    static registerCommands(context, treeDataProvider) {
+        console.log('ACTIVE_SERVER: Registering active servers commands');
+        // Store the tree data provider reference
+        this.treeDataProvider = treeDataProvider;
+        // Command: Show server actions (from tree item click)
+        const showServerActionsCmd = vscode.commands.registerCommand('codeXR.activeServers.showActions', async (serverId) => {
+            await handleServerActions_1.ServerActionHandlers.showServerActions(serverId);
+        });
+        // Command: Open server in browser
+        const openInBrowserCmd = vscode.commands.registerCommand('codeXR.activeServers.openInBrowser', async (treeItem) => {
+            const serverId = this.extractServerIdFromTreeItem(treeItem);
+            if (serverId) {
+                await handleServerActions_1.ServerActionHandlers.openInBrowser(serverId);
+            }
+        });
+        // Command: Open server in lateral panel
+        const openInPanelCmd = vscode.commands.registerCommand('codeXR.activeServers.openInPanel', async (treeItem) => {
+            const serverId = this.extractServerIdFromTreeItem(treeItem);
+            if (serverId) {
+                await handleServerActions_1.ServerActionHandlers.openInPanel(serverId);
+            }
+        });
+        // Command: Copy server URL to clipboard
+        const copyUrlCmd = vscode.commands.registerCommand('codeXR.activeServers.copyUrl', async (treeItem) => {
+            const serverId = this.extractServerIdFromTreeItem(treeItem);
+            if (serverId) {
+                await handleServerActions_1.ServerActionHandlers.copyUrl(serverId);
+            }
+        });
+        // Command: Stop specific server
+        const stopServerCmd = vscode.commands.registerCommand('codeXR.activeServers.stopServer', async (treeItem) => {
+            const serverId = this.extractServerIdFromTreeItem(treeItem);
+            if (serverId) {
+                await handleServerActions_1.ServerActionHandlers.stopServer(serverId);
+            }
+        });
+        // Command: Show server details
+        const showDetailsCmd = vscode.commands.registerCommand('codeXR.activeServers.showDetails', async (treeItem) => {
+            const serverId = this.extractServerIdFromTreeItem(treeItem);
+            if (serverId) {
+                await handleServerActions_1.ServerActionHandlers.showServerDetails(serverId);
+            }
+        });
+        // Command: Stop all servers
+        const stopAllServersCmd = vscode.commands.registerCommand('codeXR.activeServers.stopAllServers', async () => {
+            await handleServerActions_1.ServerActionHandlers.stopAllServers();
+        });
+        // Command: Refresh server statuses
+        const refreshServersCmd = vscode.commands.registerCommand('codeXR.activeServers.refreshServers', async () => {
+            // Use the unified tree data provider if available
+            if (this.treeDataProvider && this.treeDataProvider.refresh) {
+                console.log('ACTIVE_SERVER: Refreshing unified tree view');
+                this.treeDataProvider.refresh();
+            }
+            else {
+                console.log('ACTIVE_SERVER: Using fallback refresh handler');
+                vscode.commands.executeCommand('codexr.tree.refresh');
+            }
+        });
+        // Command: Open active servers view 
+        const openViewCmd = vscode.commands.registerCommand('codeXR.activeServers.openView', async () => {
+            await vscode.commands.executeCommand('codexrTree.focus');
+        });
+        // Register all commands with the extension context
+        context.subscriptions.push(showServerActionsCmd, openInBrowserCmd, openInPanelCmd, copyUrlCmd, stopServerCmd, showDetailsCmd, stopAllServersCmd, refreshServersCmd, openViewCmd);
+        console.log('ACTIVE_SERVER: Registered 9 active servers commands');
     }
     /**
-     * Create "No examples found" item
-     */
-    static createNoExamplesItem() {
-        return new BabiaExampleTreeItem('No examples found', vscode.TreeItemCollapsibleState.None, 'noExamples', undefined, new vscode.ThemeIcon('info'), 'No Babia examples were found in examples/charts/', undefined, 'noExamples');
-    }
-    /**
-     * Create loading item
-     */
-    static createLoadingItem() {
-        return new BabiaExampleTreeItem('Loading examples...', vscode.TreeItemCollapsibleState.None, 'loading', undefined, new vscode.ThemeIcon('loading~spin'), 'Scanning for Babia examples', undefined, 'loading');
-    }
-    /**
-     * Create tooltip for example
+     * Extract server ID from tree item context
      * @private
      */
-    static createTooltip(example) {
-        const lines = [
-            `Example: ${example.name}`,
-            `Category: ${example.category}`,
-            `File: ${example.htmlFilePath}`
-        ];
-        if (example.description) {
-            lines.push(`Description: ${example.description}`);
+    static extractServerIdFromTreeItem(treeItem) {
+        // Handle different tree item formats
+        if (treeItem && treeItem.server && treeItem.server.id) {
+            console.log(`ACTIVE_SERVER: Extracted server ID from tree item: ${treeItem.server.id}`);
+            return treeItem.server.id;
         }
-        if (!example.isValid) {
-            lines.push('⚠️ This example has issues and may not work properly');
+        // Fallback: if treeItem is a string, use it directly (for backward compatibility)
+        if (typeof treeItem === 'string') {
+            console.log(`ACTIVE_SERVER: Using direct server ID: ${treeItem}`);
+            return treeItem;
         }
-        else {
-            lines.push('✅ Click to launch this example');
-        }
-        return lines.join('\\n');
-    }
-}
-exports.ExampleItemFactory = ExampleItemFactory;
-/**
- * Example icons utility
- */
-class ExampleIcons {
-    /**
-     * Get appropriate icon for example category
-     */
-    static getExampleIcon(category) {
-        switch (category.toLowerCase()) {
-            case 'pie':
-                return new vscode.ThemeIcon('pie-chart');
-            case 'bar-chart':
-            case 'barsmap':
-                return new vscode.ThemeIcon('graph');
-            case 'bubble-chart':
-                return new vscode.ThemeIcon('circle-large-outline');
-            case 'cylinder-chart':
-            case 'cylindermap-chart':
-                return new vscode.ThemeIcon('package');
-            case 'mix':
-                return new vscode.ThemeIcon('combine');
-            default:
-                return new vscode.ThemeIcon('file-code');
-        }
+        console.error('ACTIVE_SERVER: Could not extract server ID from tree item:', treeItem);
+        return null;
     }
     /**
-     * Get section icon
+     * Get all command IDs for external reference
      */
-    static getSectionIcon() {
-        return new vscode.ThemeIcon('library');
+    static getCommandIds() {
+        return {
+            showActions: 'codeXR.activeServers.showActions',
+            openInBrowser: 'codeXR.activeServers.openInBrowser',
+            openInPanel: 'codeXR.activeServers.openInPanel',
+            copyUrl: 'codeXR.activeServers.copyUrl',
+            stopServer: 'codeXR.activeServers.stopServer',
+            showDetails: 'codeXR.activeServers.showDetails',
+            stopAllServers: 'codeXR.activeServers.stopAllServers',
+            refreshServers: 'codeXR.activeServers.refreshServers',
+            openView: 'codeXR.activeServers.openView'
+        };
     }
 }
-exports.ExampleIcons = ExampleIcons;
+exports.ActiveServersCommands = ActiveServersCommands;
 
 
 /***/ }),
 /* 35 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerBabiaExamplesCommands = registerBabiaExamplesCommands;
+const babiaExamplesCommands_1 = __webpack_require__(36);
+/**
+ * Register Babia Examples Commands
+ * Entry point for registering all Babia examples related commands
+ */
+function registerBabiaExamplesCommands(context, treeDataProvider) {
+    console.log('EXAMPLES: Registering Babia examples commands...');
+    babiaExamplesCommands_1.BabiaExamplesCommands.registerCommands(context, treeDataProvider);
+    console.log('EXAMPLES: Babia examples commands registration complete');
+}
+
+
+/***/ }),
+/* 36 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7213,230 +6548,1732 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizeDataIcons = exports.VisualizeDataItemFactory = exports.VisualizeDataTreeItem = void 0;
+exports.BabiaExamplesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataState_1 = __webpack_require__(36);
+const handleExampleClicks_1 = __webpack_require__(37);
 /**
- * Tree item for visualize data items
+ * Babia Examples Commands
+ * VS Code command definitions for Babia examples functionality
  */
-class VisualizeDataTreeItem extends vscode.TreeItem {
-    label;
-    collapsibleState;
-    type;
-    command;
-    iconPath;
-    tooltip;
-    description;
-    contextValue;
-    constructor(label, collapsibleState, type, command, iconPath, tooltip, description, contextValue) {
-        super(label, collapsibleState);
-        this.label = label;
-        this.collapsibleState = collapsibleState;
-        this.type = type;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip;
-        this.description = description;
-        this.contextValue = contextValue;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip;
-        this.description = description;
-        this.contextValue = contextValue;
-    }
-}
-exports.VisualizeDataTreeItem = VisualizeDataTreeItem;
-/**
- * Factory for creating visualize data items
- */
-class VisualizeDataItemFactory {
+class BabiaExamplesCommands {
     /**
-     * Create all visualize data items with current state
+     * Register all Babia examples commands
      */
-    static createVisualizeDataItems(context) {
-        console.log('BABIA-TEMPLATES: Creating visualize data items...');
-        // Get current state if context is available and state manager exists
-        let stateManager;
-        let state;
-        try {
-            if (context && visualizeDataState_1.VisualizeDataStateManager.hasInstance()) {
-                stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(context);
-                state = stateManager.getState();
-                console.log('BABIA-TEMPLATES: Retrieved state from manager', {
-                    hasChart: !!state.selectedChart,
-                    chartName: state.selectedChart?.name,
-                    hasJson: !!state.selectedJsonName,
-                    jsonName: state.selectedJsonName
-                });
+    static registerCommands(context, treeDataProvider) {
+        console.log('EXAMPLES: Registering Babia examples commands...');
+        // Initialize the click handler
+        const clickHandler = new handleExampleClicks_1.ExampleClickHandler(context);
+        // Command: Launch example
+        const launchExampleCmd = vscode.commands.registerCommand('codeXR.babiaExamples.launchExample', async (example) => {
+            try {
+                console.log(`EXAMPLES: Launch command triggered for "${example.name}"`);
+                await clickHandler.handleExampleClick(example);
             }
-            else if (context) {
-                // Try to initialize state manager if context is available
-                stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(context);
-                state = stateManager.getState();
-                console.log('BABIA-TEMPLATES: Initialized new state manager');
+            catch (error) {
+                console.error('EXAMPLES: Error in launch command:', error);
+                vscode.window.showErrorMessage(`Failed to launch example: ${error instanceof Error ? error.message : String(error)}`);
             }
-            else {
-                console.log('BABIA-TEMPLATES: No context available, using default state');
-            }
-        }
-        catch (error) {
-            // State manager not initialized yet, use default values
-            console.log('BABIA-TEMPLATES: Error accessing state manager, using defaults:', error);
-        }
-        const chartDescription = state?.selectedChart
-            ? `Selected: ${state.selectedChart.name}`
-            : 'No chart selected';
-        const jsonDescription = state?.selectedJsonName
-            ? `Selected: ${state.selectedJsonName}`
-            : 'No file selected';
-        const dimensionDescription = state?.isDimensionMappingConfigured
-            ? 'Configured'
-            : 'Not configured';
-        const launchDescription = state?.isReadyToLaunch
-            ? 'Ready to launch'
-            : 'Configure required settings';
-        console.log('BABIA-TEMPLATES: Item descriptions:', {
-            chart: chartDescription,
-            json: jsonDescription,
-            dimension: dimensionDescription,
-            launch: launchDescription
         });
-        return [
-            // Chart Type
-            new VisualizeDataTreeItem('Chart Type', vscode.TreeItemCollapsibleState.None, 'chart-type', {
-                command: 'codeXR.visualizeData.chartType',
-                title: 'Select Chart Type'
-            }, new vscode.ThemeIcon('graph'), 'Select visualization chart type', chartDescription, 'visualize-data-chart-type'),
-            // Select JSON File
-            new VisualizeDataTreeItem('Select JSON File', vscode.TreeItemCollapsibleState.None, 'select-json', {
-                command: 'codeXR.visualizeData.selectJson',
-                title: 'Select JSON File'
-            }, new vscode.ThemeIcon('file-code'), 'Select JSON data file for visualization', jsonDescription, 'visualize-data-select-json'),
-            // Dimension Mapping
-            VisualizeDataItemFactory.createDimensionMappingItem(state),
-            // Launch Visualization - Icon changes based on readiness
-            new VisualizeDataTreeItem('Launch Visualization', vscode.TreeItemCollapsibleState.None, 'launch-visualization', {
-                command: 'codeXR.visualizeData.launchVisualization',
-                title: 'Launch Visualization'
-            }, state?.isReadyToLaunch
-                ? new vscode.ThemeIcon('rocket') // Ready to launch - rocket icon
-                : new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow')), // Not ready - yellow warning
-            'Launch the configured visualization', launchDescription, 'visualize-data-launch'),
-            // Browse Visualizations
-            new VisualizeDataTreeItem('Browse Visualizations', vscode.TreeItemCollapsibleState.Collapsed, 'browse-visualizations', undefined, // No command - expandable section
-            new vscode.ThemeIcon('folder-opened'), 'Browse and launch previously generated visualizations', undefined, 'visualize-data-browse-visualizations')
-        ];
-    }
-    /**
-     * Create dimension mapping item with collapsible state
-     */
-    static createDimensionMappingItem(state) {
-        if (!state?.selectedChart || !state?.jsonAnalysis) {
-            return new VisualizeDataTreeItem('Dimension Mapping', vscode.TreeItemCollapsibleState.None, 'dimension-mapping', undefined, new vscode.ThemeIcon('settings-gear'), 'Select chart type and JSON file first', 'Not available', 'visualize-data-dimension-mapping');
+        // Command: Refresh examples (only register if tree data provider is available)
+        if (treeDataProvider) {
+            const refreshExamplesCmd = vscode.commands.registerCommand('codeXR.babiaExamples.refresh', async () => {
+                try {
+                    console.log('EXAMPLES: Refresh command triggered');
+                    await treeDataProvider.rescan();
+                    vscode.window.showInformationMessage('Babia examples refreshed');
+                }
+                catch (error) {
+                    console.error('EXAMPLES: Error in refresh command:', error);
+                    vscode.window.showErrorMessage(`Failed to refresh examples: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            });
+            context.subscriptions.push(refreshExamplesCmd);
         }
-        const requiredCount = state.selectedChart.dimensions.filter(d => d.required).length;
-        const mappedCount = state.dimensionMappings.length;
-        const isConfigured = this.areRequiredDimensionsMapped(state);
-        const description = isConfigured
-            ? `Configured (${mappedCount}/${state.selectedChart.dimensions.length})`
-            : `${mappedCount}/${requiredCount} required`;
-        return new VisualizeDataTreeItem('Dimension Mapping', vscode.TreeItemCollapsibleState.Collapsed, 'dimension-mapping', undefined, // Remove command to allow expand/collapse behavior
-        isConfigured
-            ? new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'))
-            : new vscode.ThemeIcon('settings-gear'), 'Configure dimension mapping for visualization - Click to expand/collapse', description, 'visualize-data-dimension-mapping');
-    }
-    /**
-     * Create dimension items for collapsible dimension mapping
-     */
-    static createDimensionItems(state) {
-        if (!state.selectedChart) {
-            return [];
-        }
-        return state.selectedChart.dimensions.map(dimension => this.createDimensionItem(dimension, state));
-    }
-    /**
-     * Create individual dimension tree item
-     */
-    static createDimensionItem(dimension, state) {
-        const currentMapping = state.dimensionMappings.find(m => m.dimension === dimension.name);
-        const isRequired = dimension.required;
-        // Check for duplicate field usage
-        const isDuplicateField = currentMapping && this.isFieldUsedInOtherMappings(currentMapping.dataField, dimension.name, state);
-        // Create label with status
-        let label = `${dimension.name}`; // Use actual dimension name (key, size)
-        let description = '';
-        let tooltip = `${dimension.name}`;
-        // Add field mapping status
-        if (currentMapping) {
-            description = `→ ${currentMapping.dataField}`;
-            tooltip += `\nMapped to: ${currentMapping.dataField}`;
-            if (isDuplicateField) {
-                description += ' (duplicate)';
-                tooltip += '\n⚠️ Warning: This field is used in multiple mappings';
-                console.log(`DIMENSION-MAPPING: Duplicate field usage detected - '${currentMapping.dataField}' is used for multiple dimensions`);
+        // Command: Open examples folder
+        const openExamplesFolderCmd = vscode.commands.registerCommand('codeXR.babiaExamples.openFolder', async () => {
+            try {
+                console.log('EXAMPLES: Open folder command triggered');
+                const workspaceRoots = vscode.workspace.workspaceFolders;
+                if (!workspaceRoots || workspaceRoots.length === 0) {
+                    vscode.window.showWarningMessage('No workspace folder is open');
+                    return;
+                }
+                const examplesPath = vscode.Uri.joinPath(workspaceRoots[0].uri, 'examples', 'charts');
+                await vscode.commands.executeCommand('vscode.openFolder', examplesPath, { forceNewWindow: false });
             }
-        }
-        else {
-            description = 'Not Mapped';
-            tooltip += '\nNot mapped - Click to select field';
-        }
-        // Add data type suffix
-        const dataTypeSuffix = dimension.dataType === 'numeric' ? ' (numeric only)' : ' (any value)';
-        description += dataTypeSuffix;
-        tooltip += `\nData type: ${dimension.dataType === 'numeric' ? 'numeric only' : 'any value'}`;
-        // Set icon based on mapping status and requirement
-        let iconPath;
-        if (currentMapping && isDuplicateField) {
-            iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.red'));
-        }
-        else if (currentMapping) {
-            iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
-        }
-        else if (isRequired) {
-            iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.orange'));
-        }
-        else {
-            iconPath = new vscode.ThemeIcon('circle-outline');
-        }
-        return new VisualizeDataTreeItem(label, vscode.TreeItemCollapsibleState.None, 'dimension-item', {
-            command: 'codeXR.visualizeData.mapDimensionField',
-            title: 'Map Dimension Field',
-            arguments: [dimension.name]
-        }, iconPath, tooltip, description, 'visualize-data-dimension-item');
-    }
-    /**
-     * Check if all required dimensions are mapped
-     */
-    static areRequiredDimensionsMapped(state) {
-        if (!state.selectedChart) {
-            return false;
-        }
-        const requiredDimensions = state.selectedChart.dimensions.filter(d => d.required);
-        return requiredDimensions.every(dimension => state.dimensionMappings.some(mapping => mapping.dimension === dimension.name));
-    }
-    /**
-     * Check if a field is used in other dimension mappings
-     */
-    static isFieldUsedInOtherMappings(fieldName, currentDimensionName, state) {
-        return state.dimensionMappings.some(mapping => mapping.dataField === fieldName && mapping.dimension !== currentDimensionName);
+            catch (error) {
+                console.error('EXAMPLES: Error in open folder command:', error);
+                vscode.window.showErrorMessage(`Failed to open examples folder: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Show example details
+        const showExampleDetailsCmd = vscode.commands.registerCommand('codeXR.babiaExamples.showDetails', async (example) => {
+            try {
+                console.log(`EXAMPLES: Show details command triggered for "${example.name}"`);
+                const details = [
+                    `# Babia Example: ${example.name}`,
+                    '',
+                    `**Category:** ${example.category}`,
+                    `**Valid:** ${example.isValid ? 'Yes' : 'No'}`,
+                    `**Directory:** ${example.directory}`,
+                    `**HTML File:** ${example.htmlFilePath || 'Not found'}`,
+                    ''
+                ];
+                if (example.description) {
+                    details.push(`**Description:** ${example.description}`);
+                    details.push('');
+                }
+                if (example.lastModified) {
+                    const lastModified = new Date(example.lastModified).toLocaleString();
+                    details.push(`**Last Modified:** ${lastModified}`);
+                    details.push('');
+                }
+                if (!example.isValid) {
+                    details.push('## Issues');
+                    details.push('- No valid HTML file found in the example directory');
+                    details.push('');
+                }
+                details.push('## Actions');
+                if (example.isValid) {
+                    details.push('- Click the example in the tree to launch it');
+                }
+                else {
+                    details.push('- Fix the HTML file issue to make this example launchable');
+                }
+                const content = details.join('\\n');
+                // Create and show a new untitled document with the details
+                const doc = await vscode.workspace.openTextDocument({
+                    content: content,
+                    language: 'markdown'
+                });
+                await vscode.window.showTextDocument(doc);
+            }
+            catch (error) {
+                console.error('EXAMPLES: Error in show details command:', error);
+                vscode.window.showErrorMessage(`Failed to show example details: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Open examples view
+        const openExamplesViewCmd = vscode.commands.registerCommand('codeXR.babiaExamples.openView', async () => {
+            try {
+                console.log('EXAMPLES: Open view command triggered');
+                await vscode.commands.executeCommand('codeXR.babiaExamplesView.focus');
+            }
+            catch (error) {
+                console.error('EXAMPLES: Error in open view command:', error);
+                // Don't show error message for this, it's likely the view isn't registered yet
+            }
+        });
+        // Register commands that don't require tree data provider
+        const commandsToRegister = [
+            launchExampleCmd,
+            openExamplesFolderCmd,
+            showExampleDetailsCmd,
+            openExamplesViewCmd
+        ];
+        // Register all commands with the extension context
+        context.subscriptions.push(...commandsToRegister);
+        // Store click handler for cleanup
+        context.subscriptions.push({
+            dispose: () => clickHandler.cleanup()
+        });
+        console.log(`EXAMPLES: Registered ${commandsToRegister.length} Babia examples commands`);
     }
 }
-exports.VisualizeDataItemFactory = VisualizeDataItemFactory;
-/**
- * Icons for visualize data items
- */
-class VisualizeDataIcons {
-    static chartType = new vscode.ThemeIcon('graph');
-    static selectJson = new vscode.ThemeIcon('file-code');
-    static dimensionMapping = new vscode.ThemeIcon('settings-gear');
-    static launchVisualization = new vscode.ThemeIcon('play');
-    static section = new vscode.ThemeIcon('chart-scatter');
-}
-exports.VisualizeDataIcons = VisualizeDataIcons;
+exports.BabiaExamplesCommands = BabiaExamplesCommands;
 
 
 /***/ }),
-/* 36 */
+/* 37 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExampleClickHandler = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const exampleLauncher_1 = __webpack_require__(38);
+/**
+ * Handle Example Clicks
+ * Manages user interactions with Babia examples in the tree view
+ */
+class ExampleClickHandler {
+    exampleLauncher;
+    constructor(context) {
+        this.exampleLauncher = new exampleLauncher_1.ExampleLauncher(context);
+        console.log('EXAMPLES: Example click handler initialized');
+    }
+    /**
+     * Handle click on an example to launch it
+     * @param example The example to launch
+     */
+    async handleExampleClick(example) {
+        console.log(`EXAMPLES: User clicked on example "${example.name}"`);
+        try {
+            if (!example.isValid) {
+                await this.handleInvalidExample(example);
+                return;
+            }
+            // Show launching message
+            const launchingMessage = vscode.window.setStatusBarMessage(`$(loading~spin) Launching Babia example "${example.name}"...`);
+            try {
+                const result = await this.exampleLauncher.launchExample(example);
+                if (result.success) {
+                    console.log(`EXAMPLES: Successfully launched "${example.name}" on port ${result.port}`);
+                }
+                else {
+                    console.error(`EXAMPLES: Failed to launch "${example.name}":`, result.error);
+                }
+            }
+            finally {
+                launchingMessage.dispose();
+            }
+        }
+        catch (error) {
+            const errorMsg = `Failed to handle example click: ${error instanceof Error ? error.message : String(error)}`;
+            console.error('EXAMPLES:', errorMsg);
+            vscode.window.showErrorMessage(errorMsg);
+        }
+    }
+    /**
+     * Handle click on invalid example
+     * @private
+     */
+    async handleInvalidExample(example) {
+        console.log(`EXAMPLES: User clicked on invalid example "${example.name}"`);
+        const action = await vscode.window.showWarningMessage(`Example "${example.name}" is not valid and cannot be launched.`, 'Show Details', 'Rescan Examples');
+        switch (action) {
+            case 'Show Details':
+                await this.showExampleDetails(example);
+                break;
+            case 'Rescan Examples':
+                await this.rescanExamples();
+                break;
+        }
+    }
+    /**
+     * Show example details
+     * @private
+     */
+    async showExampleDetails(example) {
+        const details = [
+            `Example: ${example.name}`,
+            `Category: ${example.category}`,
+            `Directory: ${example.directory}`,
+            `HTML File: ${example.htmlFilePath || 'Not found'}`,
+            `Valid: ${example.isValid ? 'Yes' : 'No'}`,
+            ''
+        ];
+        if (example.description) {
+            details.push(`Description: ${example.description}`);
+        }
+        if (!example.isValid) {
+            details.push('Issues:');
+            details.push('- No valid HTML file found in the example directory');
+        }
+        const content = details.join('\\n');
+        // Create and show a new untitled document with the details
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: 'plaintext'
+        });
+        await vscode.window.showTextDocument(doc);
+    }
+    /**
+     * Rescan examples
+     * @private
+     */
+    async rescanExamples() {
+        console.log('EXAMPLES: User requested example rescan');
+        const scanning = vscode.window.setStatusBarMessage('$(loading~spin) Scanning Babia examples...');
+        try {
+            const result = await this.exampleLauncher.scanExamples();
+            console.log(`EXAMPLES: Rescan complete. Found ${result.validCount} valid, ${result.invalidCount} invalid examples`);
+            // Refresh the tree view
+            vscode.commands.executeCommand('codeXR.babiaExamples.refresh');
+            // Show result message
+            if (result.errors.length > 0) {
+                vscode.window.showWarningMessage(`Rescan complete: ${result.validCount} valid, ${result.invalidCount} invalid examples. ${result.errors.length} errors occurred.`);
+            }
+            else {
+                vscode.window.showInformationMessage(`Rescan complete: Found ${result.validCount} valid and ${result.invalidCount} invalid examples.`);
+            }
+        }
+        catch (error) {
+            console.error('EXAMPLES: Error during rescan:', error);
+            vscode.window.showErrorMessage(`Failed to rescan examples: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        finally {
+            scanning.dispose();
+        }
+    }
+    /**
+     * Get the example launcher instance
+     */
+    getExampleLauncher() {
+        return this.exampleLauncher;
+    }
+    /**
+     * Cleanup method
+     */
+    async cleanup() {
+        console.log('EXAMPLES: Cleaning up example click handler...');
+        await this.exampleLauncher.cleanup();
+    }
+}
+exports.ExampleClickHandler = ExampleClickHandler;
+
+
+/***/ }),
+/* 38 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExampleLauncher = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const multiServerLauncher_1 = __webpack_require__(14);
+/**
+ * Example Launcher
+ * Responsible for launching Babia examples using the existing server infrastructure
+ */
+class ExampleLauncher {
+    context;
+    multiServerLauncher;
+    examplesCache = [];
+    lastScanTime = 0;
+    CACHE_DURATION = 30000; // 30 seconds
+    constructor(context) {
+        this.context = context;
+        this.multiServerLauncher = new multiServerLauncher_1.MultiServerLauncher(context);
+        console.log('EXAMPLES: Example launcher initialized');
+    }
+    /**
+     * Scan for Babia examples in the charts directory
+     * @returns Promise<ExampleScanResult>
+     */
+    async scanExamples() {
+        console.log('EXAMPLES: Scanning for Babia examples...');
+        const result = {
+            examples: [],
+            validCount: 0,
+            invalidCount: 0,
+            errors: []
+        };
+        try {
+            // First, try to use the extension's own path to find CodeXR directory
+            let workspaceRoot;
+            // Method 1: Use extension context to find CodeXR directory
+            const extensionPath = this.context.extensionPath;
+            console.log(`EXAMPLES: Extension path: ${extensionPath}`);
+            if (extensionPath.includes('CodeXR')) {
+                // Extract CodeXR root from extension path
+                const codeXRPath = extensionPath.substring(0, extensionPath.lastIndexOf('CodeXR') + 6);
+                workspaceRoot = codeXRPath;
+                console.log(`EXAMPLES: Found CodeXR from extension path: ${workspaceRoot}`);
+            }
+            else {
+                // Method 2: Force use the known CodeXR path
+                workspaceRoot = '/home/adrian/CodeXR';
+                console.log(`EXAMPLES: Using hardcoded CodeXR path: ${workspaceRoot}`);
+            }
+            // Verify the path exists and has examples/charts
+            let chartsPath = path.join(workspaceRoot, 'examples', 'charts');
+            if (!fs.existsSync(chartsPath)) {
+                // Method 3: Try to find from VS Code workspace folders as fallback
+                const workspaceRoots = vscode.workspace.workspaceFolders;
+                if (workspaceRoots && workspaceRoots.length > 0) {
+                    const potentialCodeXRRoot = workspaceRoots.find(folder => folder.name === 'CodeXR' ||
+                        folder.uri.fsPath.includes('CodeXR') ||
+                        fs.existsSync(path.join(folder.uri.fsPath, 'examples', 'charts')));
+                    if (potentialCodeXRRoot) {
+                        workspaceRoot = potentialCodeXRRoot.uri.fsPath;
+                        chartsPath = path.join(workspaceRoot, 'examples', 'charts');
+                        console.log(`EXAMPLES: Found CodeXR from workspace folders: ${workspaceRoot}`);
+                    }
+                    else {
+                        result.errors.push('Could not find CodeXR directory with examples/charts');
+                        return result;
+                    }
+                }
+                else {
+                    result.errors.push('No workspace folder open and CodeXR path not found');
+                    return result;
+                }
+            }
+            console.log(`EXAMPLES: Using workspace root: ${workspaceRoot}`);
+            console.log(`EXAMPLES: Scanning charts directory: ${chartsPath}`);
+            if (!fs.existsSync(chartsPath)) {
+                result.errors.push(`Charts directory not found: ${chartsPath}`);
+                return result;
+            }
+            const chartDirectories = fs.readdirSync(chartsPath)
+                .filter(item => {
+                const itemPath = path.join(chartsPath, item);
+                return fs.statSync(itemPath).isDirectory();
+            });
+            console.log(`EXAMPLES: Found ${chartDirectories.length} chart directories`);
+            for (const chartDir of chartDirectories) {
+                const chartPath = path.join(chartsPath, chartDir);
+                const example = await this.processExampleDirectory(chartPath, chartDir);
+                if (example) {
+                    console.log(`EXAMPLES: FOUND chart ${chartDir} example`);
+                    result.examples.push(example);
+                    if (example.isValid) {
+                        result.validCount++;
+                    }
+                    else {
+                        result.invalidCount++;
+                    }
+                }
+            }
+            // Update cache
+            this.examplesCache = result.examples;
+            this.lastScanTime = Date.now();
+            console.log(`EXAMPLES: total found ${result.examples.length}`);
+            console.log(`EXAMPLES: Scan complete. Found ${result.validCount} valid and ${result.invalidCount} invalid examples`);
+        }
+        catch (error) {
+            const errorMsg = `Failed to scan examples: ${error instanceof Error ? error.message : String(error)}`;
+            console.error('EXAMPLES:', errorMsg);
+            result.errors.push(errorMsg);
+        }
+        return result;
+    }
+    /**
+     * Get cached examples or scan if cache is stale
+     * @returns Promise<BabiaExample[]>
+     */
+    async getExamples() {
+        const now = Date.now();
+        if (this.examplesCache.length === 0 || (now - this.lastScanTime) > this.CACHE_DURATION) {
+            console.log('EXAMPLES: Cache is stale, rescanning...');
+            const result = await this.scanExamples();
+            return result.examples;
+        }
+        console.log(`EXAMPLES: Using cached examples (${this.examplesCache.length} items)`);
+        return this.examplesCache;
+    }
+    /**
+     * Launch a specific Babia example
+     * @param example The example to launch
+     * @returns Promise<MultiServerLaunchResult>
+     */
+    async launchExample(example) {
+        console.log(`EXAMPLES: Launching example "${example.name}" from ${example.htmlFilePath}`);
+        try {
+            if (!example.isValid) {
+                throw new Error(`Example "${example.name}" is not valid - missing HTML file`);
+            }
+            if (!fs.existsSync(example.htmlFilePath)) {
+                throw new Error(`HTML file not found: ${example.htmlFilePath}`);
+            }
+            console.log(`EXAMPLES: Delegating launch to multi-server launcher with user configuration`);
+            // Create custom name in format "ExampleName" (already ends with proper format from scanning)
+            const customName = example.name; // e.g., "DonutExample", "BarsExample"
+            console.log(`SERVER: Using custom name '${customName}' for example server`);
+            // Delegate everything to the multi-server launcher
+            // This will handle:
+            // - Reading current user configuration (HTTP mode, port, auto-open, lateral panel vs browser)
+            // - Launching server with correct settings
+            // - Auto-opening in the configured mode (if enabled)
+            // - Registering in Active Servers
+            const result = await this.multiServerLauncher.launchServer(example.htmlFilePath, customName);
+            if (result.success) {
+                console.log(`EXAMPLES: Successfully launched example "${example.name}" on port ${result.port}`);
+                console.log(`EXAMPLES: Server configuration and auto-opening handled by shared infrastructure`);
+            }
+            else {
+                console.error(`EXAMPLES: Failed to launch example "${example.name}":`, result.error);
+                vscode.window.showErrorMessage(`Failed to launch example "${example.name}": ${result.error}`);
+            }
+            return result;
+        }
+        catch (error) {
+            const errorMsg = `Failed to launch example "${example.name}": ${error instanceof Error ? error.message : String(error)}`;
+            console.error('EXAMPLES:', errorMsg);
+            vscode.window.showErrorMessage(errorMsg);
+            return {
+                success: false,
+                error: errorMsg
+            };
+        }
+    }
+    /**
+     * Process a single example directory
+     * @private
+     */
+    async processExampleDirectory(directoryPath, categoryName) {
+        try {
+            console.log(`EXAMPLES: Processing directory: ${directoryPath}`);
+            // Look for HTML files in the directory
+            const files = fs.readdirSync(directoryPath);
+            const htmlFiles = files.filter(file => file.toLowerCase().endsWith('.html'));
+            console.log(`EXAMPLES: Found ${htmlFiles.length} HTML files in ${categoryName}: ${htmlFiles.join(', ')}`);
+            if (htmlFiles.length === 0) {
+                console.log(`EXAMPLES: No HTML files found in ${categoryName}`);
+                return {
+                    id: this.generateExampleId(categoryName, 'no-html'),
+                    name: categoryName,
+                    htmlFilePath: '',
+                    directory: directoryPath,
+                    category: categoryName,
+                    description: 'No HTML files found',
+                    isValid: false
+                };
+            }
+            // Prefer index.html, then first HTML file
+            let selectedFile = htmlFiles.find(file => file.toLowerCase() === 'index.html') || htmlFiles[0];
+            const htmlFilePath = path.join(directoryPath, selectedFile);
+            const stats = fs.statSync(htmlFilePath);
+            const example = {
+                id: this.generateExampleId(categoryName, selectedFile),
+                name: this.formatExampleName(categoryName),
+                htmlFilePath: htmlFilePath,
+                directory: directoryPath,
+                category: categoryName,
+                description: this.generateDescription(categoryName, selectedFile),
+                isValid: true,
+                lastModified: stats.mtime.getTime()
+            };
+            console.log(`EXAMPLES: Created example: ${example.name} (${example.id})`);
+            return example;
+        }
+        catch (error) {
+            console.error(`EXAMPLES: Error processing directory ${directoryPath}:`, error);
+            return null;
+        }
+    }
+    /**
+     * Generate a unique ID for an example
+     * @private
+     */
+    generateExampleId(category, filename) {
+        return `example_${category}_${filename}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    }
+    /**
+     * Format example name for display
+     * @private
+     */
+    formatExampleName(category) {
+        // Convert kebab-case or snake_case to Title Case
+        return category
+            .split(/[-_]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+    /**
+     * Generate description for example
+     * @private
+     */
+    generateDescription(category, filename) {
+        const formattedCategory = this.formatExampleName(category);
+        if (filename.toLowerCase() === 'index.html') {
+            return `${formattedCategory} visualization example`;
+        }
+        else {
+            const formattedFilename = filename.replace('.html', '').replace(/[-_]/g, ' ');
+            return `${formattedCategory} - ${formattedFilename}`;
+        }
+    }
+    /**
+     * Cleanup method
+     */
+    async cleanup() {
+        console.log('EXAMPLES: Cleaning up example launcher...');
+        // The MultiServerLauncher will handle its own cleanup
+        this.examplesCache = [];
+        this.lastScanTime = 0;
+    }
+}
+exports.ExampleLauncher = ExampleLauncher;
+
+
+/***/ }),
+/* 39 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerVisualizeDataCommands = registerVisualizeDataCommands;
+const visualizeDataCommands_1 = __webpack_require__(40);
+/**
+ * Register Visualize Data Commands
+ * Entry point for registering all visualize data related commands
+ */
+function registerVisualizeDataCommands(context) {
+    console.log('VISUALIZE_DATA: Registering visualize data commands...');
+    visualizeDataCommands_1.VisualizeDataCommands.registerCommands(context);
+    console.log('VISUALIZE_DATA: Visualize data commands registration complete');
+}
+
+
+/***/ }),
+/* 40 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizeDataCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const visualizationLauncher_1 = __webpack_require__(41);
+const visualizationRestorer_1 = __webpack_require__(57);
+/**
+ * Visualize Data Commands
+ * VS Code command definitions for visualize data functionality
+ */
+class VisualizeDataCommands {
+    /**
+     * Register all visualize data commands
+     */
+    static registerCommands(context) {
+        console.log('VISUALIZE_DATA: Registering visualize data commands...');
+        // Command: Chart Type selection
+        const chartTypeCmd = vscode.commands.registerCommand('codeXR.visualizeData.chartType', async () => {
+            try {
+                console.log('VISUALIZE_DATA: Chart Type command triggered');
+                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
+                await launcher.handleChartType();
+                launcher.cleanup();
+            }
+            catch (error) {
+                console.error('VISUALIZE_DATA: Error in chart type command:', error);
+                vscode.window.showErrorMessage(`Failed to handle chart type: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Select JSON File
+        const selectJsonCmd = vscode.commands.registerCommand('codeXR.visualizeData.selectJson', async () => {
+            try {
+                console.log('VISUALIZE_DATA: Select JSON command triggered');
+                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
+                await launcher.handleSelectJson();
+                launcher.cleanup();
+            }
+            catch (error) {
+                console.error('VISUALIZE_DATA: Error in select JSON command:', error);
+                vscode.window.showErrorMessage(`Failed to select JSON: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Dimension Mapping
+        const dimensionMappingCmd = vscode.commands.registerCommand('codeXR.visualizeData.dimensionMapping', async () => {
+            try {
+                console.log('VISUALIZE_DATA: Dimension Mapping command triggered');
+                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
+                await launcher.handleDimensionMapping();
+                launcher.cleanup();
+            }
+            catch (error) {
+                console.error('VISUALIZE_DATA: Error in dimension mapping command:', error);
+                vscode.window.showErrorMessage(`Failed to handle dimension mapping: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Map Dimension Field
+        const mapDimensionFieldCmd = vscode.commands.registerCommand('codeXR.visualizeData.mapDimensionField', async (dimensionName) => {
+            try {
+                console.log(`VISUALIZE_DATA: Map Dimension Field command triggered for: ${dimensionName}`);
+                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
+                await launcher.handleDimensionFieldMapping(dimensionName);
+                launcher.cleanup();
+            }
+            catch (error) {
+                console.error('VISUALIZE_DATA: Error in map dimension field command:', error);
+                vscode.window.showErrorMessage(`Failed to map dimension field: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Launch Visualization
+        const launchVisualizationCmd = vscode.commands.registerCommand('codeXR.visualizeData.launchVisualization', async () => {
+            try {
+                console.log('VISUALIZE_DATA: Launch Visualization command triggered');
+                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
+                await launcher.handleLaunchVisualization();
+                launcher.cleanup();
+            }
+            catch (error) {
+                console.error('VISUALIZE_DATA: Error in launch visualization command:', error);
+                vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Diagnostic - Show current state (for debugging)
+        const debugStateCmd = vscode.commands.registerCommand('codeXR.visualizeData.debugState', async () => {
+            try {
+                console.log('VISUALIZE_DATA: Debug State command triggered');
+                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
+                await launcher.handleDebugState();
+                launcher.cleanup();
+            }
+            catch (error) {
+                console.error('VISUALIZE_DATA: Error in debug state command:', error);
+                vscode.window.showErrorMessage(`Failed to show debug state: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Launch stored visualization
+        const launchStoredVisualizationCmd = vscode.commands.registerCommand('codeXR.browseVisualizations.launch', async (visualization) => {
+            try {
+                console.log('BROWSE-VISUALIZATIONS: Launch command triggered for:', visualization.name);
+                const restorer = new visualizationRestorer_1.VisualizationRestorer(context);
+                await restorer.launchVisualization(visualization);
+            }
+            catch (error) {
+                console.error('BROWSE-VISUALIZATIONS: Error launching visualization:', error);
+                vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Command: Reset all visualizations
+        const resetAllVisualizationsCmd = vscode.commands.registerCommand('codeXR.browseVisualizations.resetAll', async () => {
+            try {
+                console.log('BROWSE-VISUALIZATIONS: Reset all command triggered');
+                const restorer = new visualizationRestorer_1.VisualizationRestorer(context);
+                await restorer.resetAllVisualizations();
+            }
+            catch (error) {
+                console.error('BROWSE-VISUALIZATIONS: Error resetting visualizations:', error);
+                vscode.window.showErrorMessage(`Failed to reset visualizations: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Register commands with the extension context
+        const commandsToRegister = [
+            chartTypeCmd,
+            selectJsonCmd,
+            dimensionMappingCmd,
+            mapDimensionFieldCmd,
+            launchVisualizationCmd,
+            debugStateCmd,
+            launchStoredVisualizationCmd,
+            resetAllVisualizationsCmd
+        ];
+        context.subscriptions.push(...commandsToRegister);
+        // Store action handler for cleanup
+        context.subscriptions.push({
+            dispose: () => {
+                // No longer needed since we create instances on demand
+                console.log('VISUALIZE_DATA: Commands cleanup complete');
+            }
+        });
+        console.log(`VISUALIZE_DATA: Registered ${commandsToRegister.length} visualize data commands`);
+    }
+}
+exports.VisualizeDataCommands = VisualizeDataCommands;
+
+
+/***/ }),
+/* 41 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizationLauncher = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const chartRegistry_1 = __webpack_require__(42);
+const visualizeDataState_1 = __webpack_require__(44);
+const jsonFieldAnalyzer_1 = __webpack_require__(45);
+const nonceGenerator_1 = __webpack_require__(12);
+const templateProcessor_1 = __webpack_require__(46);
+const index_1 = __webpack_require__(56);
+/**
+ * Visualization Launcher
+ * Manages visualization creation and launching using centralized template processing
+ */
+class VisualizationLauncher {
+    context;
+    stateManager;
+    constructor(context) {
+        this.context = context;
+        console.log('VISUALIZE_DATA: Action handler initialized');
+        this.stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(context);
+    }
+    /**
+     * Handle chart type selection
+     */
+    async handleChartType() {
+        console.log('VISUALIZE_DATA: Chart type action triggered');
+        try {
+            // Get available charts from BabiaXR registry
+            const chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
+            const availableCharts = chartRegistry.getAllCharts();
+            if (availableCharts.length === 0) {
+                console.error('BABIA-TEMPLATES: No chart types found in registry');
+                vscode.window.showErrorMessage('No chart templates available');
+                return;
+            }
+            // Create quick pick items for available charts
+            const quickPickItems = availableCharts.map(chart => ({
+                label: chart.name,
+                description: chart.description,
+                detail: `Category: ${chart.category} | Dimensions: ${chart.dimensions.map(d => d.name).join(', ')}`,
+                chart: chart
+            }));
+            // Show quick pick
+            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+                placeHolder: 'Select a chart type for visualization',
+                title: 'BabiaXR Chart Type Selection'
+            });
+            if (selectedItem && selectedItem.chart) {
+                const selectedChart = selectedItem.chart;
+                // Update state with selected chart
+                this.stateManager.updateSelectedChart(selectedChart);
+                // Trigger tree refresh to update display
+                vscode.commands.executeCommand('codexr.servers.refresh');
+                console.log(`BABIA-TEMPLATES: Chart type selected: ${selectedChart.name}`);
+                vscode.window.showInformationMessage(`Chart type selected: ${selectedChart.name}`);
+            }
+            else {
+                console.log('BABIA-TEMPLATES: Chart type selection cancelled');
+            }
+        }
+        catch (error) {
+            console.error('VISUALIZE_DATA: Error in chart type action:', error);
+            vscode.window.showErrorMessage(`Failed to handle chart type: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle JSON file selection
+     */
+    async handleSelectJson() {
+        console.log('VISUALIZE_DATA: Select JSON action triggered');
+        try {
+            const options = {
+                canSelectMany: false,
+                openLabel: 'Select JSON File',
+                filters: {
+                    'JSON files': ['json']
+                },
+                title: 'Select JSON Data File for Visualization'
+            };
+            const fileUri = await vscode.window.showOpenDialog(options);
+            if (fileUri && fileUri[0]) {
+                const filePath = fileUri[0].fsPath;
+                const fileName = path.basename(filePath);
+                // Analyze JSON file to extract field information
+                console.log(`BABIA-TEMPLATES: Starting JSON analysis for ${fileName}`);
+                const jsonAnalysis = await jsonFieldAnalyzer_1.JsonFieldAnalyzer.analyzeJsonFile(filePath);
+                if (jsonAnalysis.success) {
+                    console.log(`BABIA-TEMPLATES: JSON analysis successful - found ${jsonAnalysis.fields.length} fields`);
+                    // Update state with selected JSON and analysis
+                    this.stateManager.updateSelectedJson(filePath, fileName);
+                    this.stateManager.updateJsonAnalysis(jsonAnalysis);
+                    // Trigger tree refresh to update display
+                    vscode.commands.executeCommand('codexr.servers.refresh');
+                    console.log(`BABIA-TEMPLATES: JSON file selected: ${fileName} (${filePath})`);
+                    vscode.window.showInformationMessage(`JSON file selected: ${fileName} (${jsonAnalysis.fields.length} fields found)`);
+                }
+                else {
+                    console.error(`BABIA-TEMPLATES: JSON analysis failed: ${jsonAnalysis.error}`);
+                    vscode.window.showErrorMessage(`Failed to analyze JSON file: ${jsonAnalysis.error}`);
+                }
+            }
+            else {
+                console.log('BABIA-TEMPLATES: No JSON file selected');
+            }
+        }
+        catch (error) {
+            console.error('VISUALIZE_DATA: Error in select JSON action:', error);
+            vscode.window.showErrorMessage(`Failed to select JSON file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle dimension mapping configuration (informational only)
+     */
+    async handleDimensionMapping() {
+        console.log('DIMENSION-MAPPING: Dimension mapping overview requested');
+        try {
+            const state = this.stateManager.getState();
+            if (!state.selectedChart) {
+                vscode.window.showWarningMessage('Please select a chart type first');
+                return;
+            }
+            if (!state.jsonAnalysis) {
+                vscode.window.showWarningMessage('Please select a JSON file first');
+                return;
+            }
+            // Show dimension mapping status overview
+            const requiredDimensions = state.selectedChart.dimensions.filter(d => d.required);
+            const mappedDimensions = state.dimensionMappings.length;
+            const totalDimensions = state.selectedChart.dimensions.length;
+            let message = `Chart: ${state.selectedChart.name}\n`;
+            message += `Dimensions: ${mappedDimensions}/${totalDimensions} configured\n`;
+            message += `Required: ${requiredDimensions.map(d => d.name).join(', ')}\n`;
+            message += `Available fields: ${state.jsonAnalysis.fields.length}`;
+            // Check for duplicate fields
+            const duplicateFields = this.findDuplicateFields(state);
+            if (duplicateFields.length > 0) {
+                message += `\n⚠️ Duplicate field usage: ${duplicateFields.join(', ')}`;
+            }
+            vscode.window.showInformationMessage(`Dimension Mapping Status:\n${message}`);
+        }
+        catch (error) {
+            console.error('DIMENSION-MAPPING: Error in dimension mapping overview:', error);
+            vscode.window.showErrorMessage(`Failed to show dimension mapping overview: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Find fields that are used in multiple dimension mappings
+     */
+    findDuplicateFields(state) {
+        const fieldCounts = new Map();
+        state.dimensionMappings.forEach((mapping) => {
+            const count = fieldCounts.get(mapping.dataField) || 0;
+            fieldCounts.set(mapping.dataField, count + 1);
+        });
+        return Array.from(fieldCounts.entries())
+            .filter(([_, count]) => count > 1)
+            .map(([field, _]) => field);
+    }
+    /**
+     * Handle dimension field mapping for a specific dimension
+     */
+    async handleDimensionFieldMapping(dimensionName) {
+        console.log(`DIMENSION-MAPPING: Field mapping for dimension '${dimensionName}' triggered`);
+        try {
+            const state = this.stateManager.getState();
+            if (!state.selectedChart || !state.jsonAnalysis) {
+                vscode.window.showWarningMessage('Please select a chart type and JSON file first');
+                return;
+            }
+            // Find the dimension definition
+            const dimension = state.selectedChart.dimensions.find(d => d.name === dimensionName);
+            if (!dimension) {
+                vscode.window.showErrorMessage(`Dimension '${dimensionName}' not found in chart`);
+                return;
+            }
+            // Get available fields for this dimension type
+            const availableFields = jsonFieldAnalyzer_1.JsonFieldAnalyzer.getFieldsForDimensionType(state.jsonAnalysis, dimension.dataType);
+            if (availableFields.length === 0) {
+                const typeInfo = dimension.dataType === 'numeric' ? 'numeric fields' : 'fields';
+                vscode.window.showWarningMessage(`No ${typeInfo} available for dimension '${dimension.name}'`);
+                return;
+            }
+            // Create QuickPick items with duplicate field indicators
+            const quickPickItems = availableFields.map(field => {
+                const displayInfo = jsonFieldAnalyzer_1.JsonFieldAnalyzer.formatFieldForDisplay(field);
+                const isAlreadyUsed = state.dimensionMappings.some(mapping => mapping.dataField === field.name && mapping.dimension !== dimensionName);
+                let label = displayInfo.label;
+                let description = displayInfo.description;
+                if (isAlreadyUsed) {
+                    label += ' ⚠️';
+                    description += ' (already used in another dimension)';
+                }
+                return {
+                    label: label,
+                    description: description,
+                    detail: displayInfo.detail,
+                    field: field
+                };
+            });
+            // Show QuickPick
+            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+                placeHolder: `Select field for ${dimension.name} (${dimension.dataType === 'numeric' ? 'numeric only' : 'any value'})`,
+                title: `Map Dimension: ${dimension.name}`,
+                matchOnDescription: true,
+                matchOnDetail: true
+            });
+            if (selectedItem) {
+                // Check if field is already used and warn user
+                const isAlreadyUsed = state.dimensionMappings.some(mapping => mapping.dataField === selectedItem.field.name && mapping.dimension !== dimensionName);
+                if (isAlreadyUsed) {
+                    const existingMapping = state.dimensionMappings.find(mapping => mapping.dataField === selectedItem.field.name && mapping.dimension !== dimensionName);
+                    console.log(`DIMENSION-MAPPING: Warning - Field '${selectedItem.field.name}' is already mapped to dimension '${existingMapping?.dimension}'`);
+                    const proceed = await vscode.window.showWarningMessage(`Field '${selectedItem.field.name}' is already used for dimension '${existingMapping?.dimension}'. Continue?`, 'Yes, Continue', 'Cancel');
+                    if (proceed !== 'Yes, Continue') {
+                        console.log(`DIMENSION-MAPPING: Duplicate field mapping cancelled by user`);
+                        return;
+                    }
+                }
+                // Update dimension mapping
+                this.stateManager.updateSingleDimensionMapping(dimensionName, selectedItem.field.name);
+                // Trigger tree refresh
+                vscode.commands.executeCommand('codexr.servers.refresh');
+                console.log(`DIMENSION-MAPPING: Mapped dimension '${dimensionName}' to field '${selectedItem.field.name}'`);
+                vscode.window.showInformationMessage(`Mapped ${dimension.name} to field: ${selectedItem.field.name}`);
+            }
+            else {
+                console.log(`DIMENSION-MAPPING: Field mapping for dimension '${dimensionName}' cancelled`);
+            }
+        }
+        catch (error) {
+            console.error(`DIMENSION-MAPPING: Error in field mapping for dimension '${dimensionName}':`, error);
+            vscode.window.showErrorMessage(`Failed to map dimension field: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle visualization launch
+     */
+    async handleLaunchVisualization() {
+        console.log('VISUALIZE_DATA: Launch visualization action triggered');
+        try {
+            const state = this.stateManager.getState();
+            // Check if ready to launch (icon should already be showing correct state)
+            if (!state.isReadyToLaunch) {
+                const missingItems = [];
+                if (!state.selectedChart) {
+                    missingItems.push('Chart Type');
+                }
+                if (!state.selectedJsonPath) {
+                    missingItems.push('JSON File');
+                }
+                if (!state.isDimensionMappingConfigured) {
+                    missingItems.push('Dimension Mapping');
+                }
+                vscode.window.showWarningMessage(`Cannot launch visualization. Please configure: ${missingItems.join(', ')}`);
+                return;
+            }
+            // Get visualization name from user
+            const visualizationName = await vscode.window.showInputBox({
+                prompt: 'Enter a name for your visualization',
+                placeHolder: 'e.g., ventas, sales_analysis',
+                value: 'my_visualization',
+                validateInput: (value) => {
+                    if (!value || value.trim().length === 0) {
+                        return 'Visualization name cannot be empty';
+                    }
+                    if (!/^[a-zA-Z0-9_-]+$/.test(value.trim())) {
+                        return 'Name can only contain letters, numbers, underscores, and dashes';
+                    }
+                    return null;
+                }
+            });
+            if (!visualizationName) {
+                console.log('VISUALIZE_DATA: User cancelled visualization name input');
+                return;
+            }
+            // Generate secure unique name
+            const nonce = (0, nonceGenerator_1.generateNonce)(8); // 8 bytes = 16 hex characters
+            const uniqueName = `${visualizationName.trim()}_${nonce}`;
+            console.log('VISUALIZE_DATA: Creating visualization:', uniqueName);
+            // Prepare visualization directory
+            const visualizationDir = await this.prepareVisualizationDirectory(uniqueName);
+            // Generate visualization files
+            const result = await this.generateVisualizationFiles(state, visualizationDir, visualizationName.trim());
+            if (!result.success) {
+                vscode.window.showErrorMessage(`Failed to generate visualization: ${result.error}`);
+                return;
+            }
+            // Launch the server with custom name
+            const indexHtmlPath = path.join(visualizationDir, 'index.html');
+            console.log('VISUALIZE_DATA: Launching server with file:', indexHtmlPath);
+            console.log(`SERVER: Using custom name '${visualizationName.trim()}' for visualization server`);
+            const launchResult = await (0, index_1.launchServerWithFile)(this.context, indexHtmlPath, visualizationName.trim());
+            if (launchResult.success && launchResult.serverUrl) {
+                vscode.window.showInformationMessage(`🚀 Visualization '${visualizationName}' launched successfully!`, 'View in Browser').then(selection => {
+                    if (selection === 'View in Browser' && launchResult.serverUrl) {
+                        vscode.env.openExternal(vscode.Uri.parse(launchResult.serverUrl));
+                    }
+                });
+            }
+            else {
+                vscode.window.showErrorMessage(`Failed to launch visualization server: ${launchResult.error || 'Unknown error'}`);
+            }
+        }
+        catch (error) {
+            console.error('VISUALIZE_DATA: Error in launch visualization action:', error);
+            vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Prepare the visualization directory structure
+     */
+    async prepareVisualizationDirectory(uniqueName) {
+        const globalStorageUri = this.context.globalStorageUri;
+        const visualizeDataDir = path.join(globalStorageUri.fsPath, 'visualize-data');
+        const visualizationDir = path.join(visualizeDataDir, uniqueName);
+        // Ensure directories exist
+        if (!fs.existsSync(visualizeDataDir)) {
+            fs.mkdirSync(visualizeDataDir, { recursive: true });
+            console.log('VISUALIZE_DATA: Created visualize-data directory:', visualizeDataDir);
+        }
+        if (!fs.existsSync(visualizationDir)) {
+            fs.mkdirSync(visualizationDir, { recursive: true });
+            console.log('VISUALIZE_DATA: Created visualization directory:', visualizationDir);
+        }
+        return visualizationDir;
+    }
+    /**
+     * Generate visualization files using centralized TemplateProcessor
+     */
+    async generateVisualizationFiles(state, visualizationDir, userVisualizationName) {
+        try {
+            if (!state.selectedChart || !state.selectedJsonPath) {
+                return { success: false, error: 'Missing chart or JSON file configuration' };
+            }
+            console.log('VISUALIZATION_LAUNCHER: Using centralized TemplateProcessor for HTML generation');
+            // Copy JSON file as data.json
+            const dataJsonPath = path.join(visualizationDir, 'data.json');
+            fs.copyFileSync(state.selectedJsonPath, dataJsonPath);
+            console.log('VISUALIZATION_LAUNCHER: Copied data file to:', dataJsonPath);
+            // Prepare output path for index.html
+            const indexHtmlPath = path.join(visualizationDir, 'index.html');
+            // Use centralized TemplateProcessor to generate the complete XR visualization
+            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(state.selectedChart.id, state.dimensionMappings, userVisualizationName, './data.json', this.context, indexHtmlPath);
+            if (!result.success) {
+                console.error('VISUALIZATION_LAUNCHER: TemplateProcessor failed:', result.error);
+                return {
+                    success: false,
+                    error: `Template processing failed: ${result.error}`
+                };
+            }
+            console.log('VISUALIZATION_LAUNCHER: Successfully generated index.html using TemplateProcessor');
+            return { success: true };
+        }
+        catch (error) {
+            console.error('VISUALIZATION_LAUNCHER: Error generating visualization files:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Handle debug state command (for troubleshooting)
+     */
+    async handleDebugState() {
+        console.log('VISUALIZE_DATA: Debug state action triggered');
+        try {
+            const state = this.stateManager.getState();
+            // Validate file path existence
+            const fileExists = state.selectedJsonPath ? fs.existsSync(state.selectedJsonPath) : false;
+            // Prepare state information
+            const stateInfo = {
+                selectedChart: state.selectedChart?.name || 'None',
+                selectedJsonPath: state.selectedJsonPath || 'None',
+                selectedJsonName: state.selectedJsonName || 'None',
+                fileExists: fileExists,
+                jsonAnalysisPresent: !!state.jsonAnalysis,
+                jsonAnalysisFields: state.jsonAnalysis ? state.jsonAnalysis.fields.map(f => f.name) : [],
+                dimensionMappingsCount: state.dimensionMappings.length,
+                isDimensionMappingConfigured: state.isDimensionMappingConfigured,
+                isReadyToLaunch: state.isReadyToLaunch,
+                requiredDimensions: state.selectedChart?.dimensions.map(d => d.name) || [],
+                mappedDimensions: state.dimensionMappings.map(m => `${m.dimension}: ${m.dataField}`)
+            };
+            // Create diagnostic message
+            const message = [
+                'Visualize Data State Diagnostic:',
+                '',
+                `Chart: ${stateInfo.selectedChart}`,
+                `Required Dimensions: [${stateInfo.requiredDimensions.join(', ')}]`,
+                '',
+                `JSON File: ${stateInfo.selectedJsonName}`,
+                `Path: ${stateInfo.selectedJsonPath}`,
+                `File Exists: ${stateInfo.fileExists}`,
+                `Analysis Present: ${stateInfo.jsonAnalysisPresent}`,
+                `Available Fields: [${stateInfo.jsonAnalysisFields.join(', ')}]`,
+                '',
+                `Mapped Dimensions: ${stateInfo.mappedDimensions.length}`,
+                ...stateInfo.mappedDimensions.map(mapping => `  - ${mapping}`),
+                '',
+                `Configuration Complete: ${stateInfo.isDimensionMappingConfigured}`,
+                `Ready to Launch: ${stateInfo.isReadyToLaunch}`
+            ].join('\n');
+            console.log('VISUALIZE_DATA: State diagnostic:', stateInfo);
+            // Show diagnostic information
+            await vscode.window.showInformationMessage('Visualize Data state diagnostic sent to console. Check Output > Log (Extension Host) for details.', { modal: false });
+            console.log('VISUALIZE_DATA: Full state diagnostic:\n' + message);
+        }
+        catch (error) {
+            console.error('VISUALIZE_DATA: Error generating debug state:', error);
+            vscode.window.showErrorMessage(`Debug state failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+        console.log('VISUALIZE_DATA: Action handler cleanup');
+        // Note: We don't dispose the state manager here as it may be used by other components
+    }
+    /**
+     * Get state manager instance
+     */
+    getStateManager() {
+        return this.stateManager;
+    }
+}
+exports.VisualizationLauncher = VisualizationLauncher;
+
+
+/***/ }),
+/* 42 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BabiaChartRegistry = void 0;
+const templateCharts_1 = __webpack_require__(43);
+/**
+ * BabiaXR Chart Registry
+ * Central registry for available chart types and their metadata
+ */
+class BabiaChartRegistry {
+    static instance;
+    charts = new Map();
+    constructor() {
+        this.initializeCharts();
+    }
+    /**
+     * Get the singleton instance
+     */
+    static getInstance() {
+        if (!BabiaChartRegistry.instance) {
+            BabiaChartRegistry.instance = new BabiaChartRegistry();
+        }
+        return BabiaChartRegistry.instance;
+    }
+    /**
+     * Initialize all chart definitions from templates
+     */
+    initializeCharts() {
+        // Register all chart templates
+        for (const chartTemplate of templateCharts_1.chartTemplates) {
+            this.charts.set(chartTemplate.id, chartTemplate);
+        }
+        console.log('BABIA_TEMPLATES: Initialized chart registry with chart templates');
+    }
+    /**
+     * Register a new chart type
+     */
+    registerChart(chart) {
+        this.charts.set(chart.id, chart);
+        console.log(`BABIA_TEMPLATES: Registered chart type '${chart.id}'`);
+    }
+    /**
+     * Get a chart by ID
+     */
+    getChart(chartId) {
+        return this.charts.get(chartId);
+    }
+    /**
+     * Get all available charts
+     */
+    getAllCharts() {
+        return Array.from(this.charts.values());
+    }
+    /**
+     * Get charts by category
+     */
+    getChartsByCategory(category) {
+        return Array.from(this.charts.values()).filter(chart => chart.category === category);
+    }
+    /**
+     * Check if a chart type exists
+     */
+    hasChart(chartId) {
+        return this.charts.has(chartId);
+    }
+    /**
+     * Get all available chart IDs
+     */
+    getChartIds() {
+        return Array.from(this.charts.keys());
+    }
+    /**
+     * Get chart names for display
+     */
+    getChartNames() {
+        return Array.from(this.charts.values()).map(chart => ({
+            id: chart.id,
+            name: chart.name,
+            description: chart.description
+        }));
+    }
+}
+exports.BabiaChartRegistry = BabiaChartRegistry;
+
+
+/***/ }),
+/* 43 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.chartTemplates = void 0;
+/**
+ * BabiaXR Chart Templates
+ * Defines all available chart types with their metadata and simplified HTML templates
+ */
+exports.chartTemplates = [
+    // Bar Chart Template
+    {
+        id: 'bars',
+        name: 'Bar Chart',
+        description: '3D vertical bars representing data values',
+        category: 'linear',
+        dimensions: [
+            {
+                name: 'x_axis',
+                label: 'Categories (X-Axis)',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names for x-axis'
+            },
+            {
+                name: 'height',
+                label: 'Height Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for bar heights'
+            }
+        ],
+        htmlTemplate: `<!-- Bar Chart -->
+                <a-entity id="chart"
+                    babia-bars="from: data;
+                                title: {{TITLE}};
+                                legend: true;
+                                palette: {{PALETTE}};
+                                x_axis: {{X_AXIS_FIELD}};
+                                height: {{HEIGHT_FIELD}};
+                                axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Barsmap Chart Template
+    {
+        id: 'barsmap',
+        name: 'Barsmap Chart',
+        description: '3D bar map with multiple axes representing data relationships',
+        category: 'linear',
+        dimensions: [
+            {
+                name: 'x_axis',
+                label: 'X-Axis Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names for x-axis'
+            },
+            {
+                name: 'z_axis',
+                label: 'Z-Axis Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names for z-axis'
+            },
+            {
+                name: 'height',
+                label: 'Height Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for bar heights'
+            }
+        ],
+        htmlTemplate: `<!-- Barsmap Chart -->
+                <a-entity id="chart"
+                    babia-barsmap="from: data;
+                                   title: {{TITLE}};
+                                   legend: true;
+                                   palette: {{PALETTE}};
+                                   x_axis: {{X_AXIS_FIELD}};
+                                   z_axis: {{Z_AXIS_FIELD}};
+                                   height: {{HEIGHT_FIELD}};
+                                   axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Cyls Chart Template
+    {
+        id: 'cyls',
+        name: 'Cyls Chart',
+        description: '3D cylinders representing data values with configurable radius',
+        category: 'cylindrical',
+        dimensions: [
+            {
+                name: 'x_axis',
+                label: 'Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names for x-axis'
+            },
+            {
+                name: 'height',
+                label: 'Height Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for cylinder heights'
+            },
+            {
+                name: 'radius',
+                label: 'Radius Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for cylinder radius'
+            }
+        ],
+        htmlTemplate: `<!-- Cyls Chart -->
+                <a-entity id="chart"
+                    babia-cyls="from: data;
+                                title: {{TITLE}};
+                                legend: true;
+                                palette: {{PALETTE}};
+                                x_axis: {{X_AXIS_FIELD}};
+                                height: {{HEIGHT_FIELD}};
+                                radius: {{RADIUS_FIELD}};
+                                axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Cylsmap Chart Template
+    {
+        id: 'cylsmap',
+        name: 'Cylsmap Chart',
+        description: '3D cylinder map with multiple axes representing data relationships',
+        category: 'cylindrical',
+        dimensions: [
+            {
+                name: 'x_axis',
+                label: 'X-Axis Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names for x-axis'
+            },
+            {
+                name: 'z_axis',
+                label: 'Z-Axis Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names for z-axis'
+            },
+            {
+                name: 'height',
+                label: 'Height Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for cylinder heights'
+            },
+            {
+                name: 'radius',
+                label: 'Radius Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for cylinder radius'
+            }
+        ],
+        htmlTemplate: `<!-- Cylsmap Chart -->
+                <a-entity id="chart"
+                    babia-cylsmap="from: data;
+                                   title: {{TITLE}};
+                                   legend: true;
+                                   palette: {{PALETTE}};
+                                   x_axis: {{X_AXIS_FIELD}};
+                                   z_axis: {{Z_AXIS_FIELD}};
+                                   height: {{HEIGHT_FIELD}};
+                                   radius: {{RADIUS_FIELD}};
+                                   axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Donut Chart Template
+    {
+        id: 'donut',
+        name: 'Donut Chart',
+        description: 'A circular chart with a hole in the center, ideal for showing proportional data',
+        category: 'circular',
+        dimensions: [
+            {
+                name: 'key',
+                label: 'Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names'
+            },
+            {
+                name: 'size',
+                label: 'Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for each category'
+            }
+        ],
+        htmlTemplate: `<!-- Donut Chart -->
+                <a-entity id="chart"
+                    babia-donut="from: data;
+                                 title: {{TITLE}};
+                                 legend: true;
+                                 palette: {{PALETTE}};
+                                 key: {{KEY_FIELD}};
+                                 size: {{SIZE_FIELD}};
+                                 axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Pie Chart Template
+    {
+        id: 'pie',
+        name: 'Pie Chart',
+        description: 'Circular chart divided into sectors representing proportional data',
+        category: 'circular',
+        dimensions: [
+            {
+                name: 'key',
+                label: 'Categories',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing category names'
+            },
+            {
+                name: 'size',
+                label: 'Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for each sector'
+            }
+        ],
+        htmlTemplate: `<!-- Pie Chart -->
+                <a-entity id="chart"
+                    babia-pie="from: data;
+                               title: {{TITLE}};
+                               legend: true;
+                               palette: {{PALETTE}};
+                               key: {{KEY_FIELD}};
+                               size: {{SIZE_FIELD}};
+                               axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Bubbles Chart Template
+    {
+        id: 'bubbles',
+        name: 'Bubbles Chart',
+        description: '3D bubbles representing data values with variable size and position',
+        category: 'scatter',
+        dimensions: [
+            {
+                name: 'x_axis',
+                label: 'X-Axis Values',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing values for x-axis positioning'
+            },
+            {
+                name: 'z_axis',
+                label: 'Z-Axis Values',
+                dataType: 'any',
+                required: true,
+                description: 'Field containing values for z-axis positioning'
+            },
+            {
+                name: 'height',
+                label: 'Height Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for bubble height positioning'
+            },
+            {
+                name: 'radius',
+                label: 'Radius Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for bubble radius/size'
+            }
+        ],
+        htmlTemplate: `<!-- Bubbles Chart -->
+                <a-entity id="chart"
+                    babia-bubbles="from: data;
+                                   title: {{TITLE}};
+                                   legend: true;
+                                   palette: {{PALETTE}};
+                                   x_axis: {{X_AXIS_FIELD}};
+                                   z_axis: {{Z_AXIS_FIELD}};
+                                   height: {{HEIGHT_FIELD}};
+                                   radius: {{RADIUS_FIELD}};
+                                   axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    },
+    // Boats Chart Template
+    {
+        id: 'boats',
+        name: 'Boats Chart',
+        description: '3D boat-shaped visualizations representing data with area, height, and color mapping',
+        category: 'geometric',
+        dimensions: [
+            {
+                name: 'area',
+                label: 'Area Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for boat area size (e.g., parameters, function count)'
+            },
+            {
+                name: 'height',
+                label: 'Height Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for boat height (e.g., lines count, complexity)'
+            },
+            {
+                name: 'color',
+                label: 'Color Values',
+                dataType: 'numeric',
+                required: true,
+                description: 'Field containing numeric values for color mapping (e.g., complexity, density)'
+            }
+        ],
+        htmlTemplate: `<!-- Boats Chart -->
+                <a-entity id="chart"
+                    babia-boats="from: data;
+                                 title: {{TITLE}};
+                                 legend: true;
+                                 palette: {{PALETTE}};
+                                 area: {{AREA_FIELD}};
+                                 height: {{HEIGHT_FIELD}};
+                                 color: {{COLOR_FIELD}};
+                                 axis_name: true"
+                    position="0 2 -10"
+                    rotation="0 0 0"
+                    scale="1.5 1.5 1.5">
+                </a-entity>`
+    }
+];
+
+
+/***/ }),
+/* 44 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7803,7 +8640,7 @@ exports.VisualizeDataStateManager = VisualizeDataStateManager;
 
 
 /***/ }),
-/* 37 */
+/* 45 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7841,243 +8678,858 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizationRestorer = void 0;
-const vscode = __importStar(__webpack_require__(1));
+exports.JsonFieldAnalyzer = void 0;
+const fs = __importStar(__webpack_require__(6));
+/**
+ * JSON Field Analyzer
+ * Analyzes JSON files to extract available fields and their types
+ */
+class JsonFieldAnalyzer {
+    /**
+     * Analyze a JSON file and extract field information
+     */
+    static async analyzeJsonFile(filePath) {
+        console.log(`DIMENSION-MAPPING: Analyzing JSON file: ${filePath}`);
+        try {
+            // Read and parse JSON file
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            const jsonData = JSON.parse(fileContent);
+            console.log(`DIMENSION-MAPPING: JSON parsed successfully`);
+            // Analyze the data structure
+            const analysisResult = this.analyzeDataStructure(jsonData, filePath);
+            console.log(`DIMENSION-MAPPING: Found ${analysisResult.fields.length} fields in ${analysisResult.recordCount} records`);
+            analysisResult.fields.forEach(field => {
+                console.log(`DIMENSION-MAPPING: Field '${field.name}' - Type: ${field.type}, Numeric: ${field.isNumeric}, Values: ${field.valueCount}`);
+            });
+            return analysisResult;
+        }
+        catch (error) {
+            console.error(`DIMENSION-MAPPING: Error analyzing JSON file:`, error);
+            return {
+                success: false,
+                fields: [],
+                error: `Failed to analyze JSON file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                recordCount: 0,
+                filePath
+            };
+        }
+    }
+    /**
+     * Analyze data structure and extract field information
+     */
+    static analyzeDataStructure(data, filePath) {
+        const fields = new Map();
+        let recordCount = 0;
+        // Handle different data structures
+        if (Array.isArray(data)) {
+            // Array of objects
+            recordCount = data.length;
+            data.forEach((record, index) => {
+                if (typeof record === 'object' && record !== null) {
+                    this.analyzeRecord(record, fields, index < 10); // Only collect samples from first 10 records
+                }
+            });
+        }
+        else if (typeof data === 'object' && data !== null) {
+            // Single object
+            recordCount = 1;
+            this.analyzeRecord(data, fields, true);
+        }
+        else {
+            throw new Error('JSON data must be an object or array of objects');
+        }
+        return {
+            success: true,
+            fields: Array.from(fields.values()),
+            recordCount,
+            filePath
+        };
+    }
+    /**
+     * Analyze a single record and update field information
+     */
+    static analyzeRecord(record, fields, collectSamples) {
+        for (const [fieldName, value] of Object.entries(record)) {
+            let fieldInfo = fields.get(fieldName);
+            if (!fieldInfo) {
+                fieldInfo = {
+                    name: fieldName,
+                    type: 'unknown',
+                    isNumeric: false,
+                    sampleValues: [],
+                    valueCount: 0
+                };
+                fields.set(fieldName, fieldInfo);
+            }
+            // Skip null/undefined values
+            if (value === null || value === undefined) {
+                return;
+            }
+            fieldInfo.valueCount++;
+            // Determine field type
+            const valueType = this.getValueType(value);
+            if (fieldInfo.type === 'unknown') {
+                fieldInfo.type = valueType;
+            }
+            else if (fieldInfo.type !== valueType) {
+                // Mixed types - mark as string by default
+                fieldInfo.type = 'string';
+            }
+            // Check if numeric
+            if (this.isNumericValue(value)) {
+                fieldInfo.isNumeric = true;
+            }
+            // Collect sample values
+            if (collectSamples && fieldInfo.sampleValues.length < 5) {
+                fieldInfo.sampleValues.push(value);
+            }
+        }
+    }
+    /**
+     * Get the type of a value
+     */
+    static getValueType(value) {
+        if (typeof value === 'string') {
+            return 'string';
+        }
+        if (typeof value === 'number') {
+            return 'number';
+        }
+        if (typeof value === 'boolean') {
+            return 'boolean';
+        }
+        if (Array.isArray(value)) {
+            return 'array';
+        }
+        if (typeof value === 'object') {
+            return 'object';
+        }
+        if (value === null) {
+            return 'null';
+        }
+        return 'unknown';
+    }
+    /**
+     * Check if a value is numeric
+     */
+    static isNumericValue(value) {
+        if (typeof value === 'number') {
+            return !isNaN(value) && isFinite(value);
+        }
+        if (typeof value === 'string') {
+            const num = parseFloat(value);
+            return !isNaN(num) && isFinite(num) && value.trim() !== '';
+        }
+        return false;
+    }
+    /**
+     * Get fields suitable for a specific dimension type
+     */
+    static getFieldsForDimensionType(analysisResult, dimensionDataType) {
+        if (!analysisResult.success) {
+            return [];
+        }
+        if (dimensionDataType === 'numeric') {
+            return analysisResult.fields.filter(field => field.isNumeric);
+        }
+        // For 'any' type, return all fields
+        return analysisResult.fields;
+    }
+    /**
+     * Format field for display in QuickPick
+     */
+    static formatFieldForDisplay(field) {
+        const typeInfo = field.isNumeric ? `${field.type} (numeric)` : field.type;
+        const sampleText = field.sampleValues.length > 0
+            ? `Samples: ${field.sampleValues.slice(0, 3).map(v => JSON.stringify(v)).join(', ')}`
+            : '';
+        return {
+            label: field.name,
+            description: typeInfo,
+            detail: `${field.valueCount} values${sampleText ? ' • ' + sampleText : ''}`
+        };
+    }
+}
+exports.JsonFieldAnalyzer = JsonFieldAnalyzer;
+
+
+/***/ }),
+/* 46 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TemplateProcessor = void 0;
+const dimensionValidator_1 = __webpack_require__(47);
+const templateCharts_1 = __webpack_require__(43);
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const index_1 = __webpack_require__(38);
-const activeServerRegistry_1 = __webpack_require__(11);
 /**
- * Visualization Restorer
- * Responsible for scanning and relaunching stored visualizations
+ * BabiaXR Template Processor
+ * Main and centralized processor for generating XR visualization HTML files
+ * Handles template processing, placeholder replacement, and HTML generation
  */
-class VisualizationRestorer {
-    context;
-    visualizeDataPath;
-    constructor(context) {
-        this.context = context;
-        this.visualizeDataPath = path.join(context.globalStorageUri.fsPath, 'visualize-data');
-        console.log('BROWSE-VISUALIZATIONS: Restorer initialized with path:', this.visualizeDataPath);
+class TemplateProcessor {
+    /**
+     * Main method to generate complete XR visualization index.html
+     * This is the centralized method that both visualize data and XR analysis should use
+     */
+    static async generateXRVisualization(chartId, mappings, title, dataSource, context, outputPath) {
+        try {
+            console.log('TEMPLATE_PROCESSOR: Starting XR visualization generation');
+            console.log('TEMPLATE_PROCESSOR: Chart ID:', chartId);
+            console.log('TEMPLATE_PROCESSOR: Mappings:', mappings);
+            console.log('TEMPLATE_PROCESSOR: Title:', title);
+            console.log('TEMPLATE_PROCESSOR: Data source:', dataSource);
+            // Find the chart template
+            const chart = templateCharts_1.chartTemplates.find(c => c.id === chartId);
+            if (!chart) {
+                return { success: false, error: `Chart type '${chartId}' not found` };
+            }
+            // Get visualization settings
+            const visualizationSettings = await this.getVisualizationSettings();
+            console.log('TEMPLATE_PROCESSOR: Using visualization settings:', visualizationSettings);
+            // Load XR base template
+            const xrTemplate = await this.loadXRTemplate(context);
+            if (!xrTemplate) {
+                return { success: false, error: 'Failed to load XR template' };
+            }
+            // Generate chart component HTML
+            const chartComponent = await this.generateChartComponent(chart, mappings, title, visualizationSettings.palette);
+            // Replace all placeholders in the XR template
+            const finalHtml = this.replaceXRTemplatePlaceholders(xrTemplate, {
+                title,
+                dataSource,
+                chartComponent,
+                ...visualizationSettings
+            });
+            // Write the final HTML file
+            fs.writeFileSync(outputPath, finalHtml, 'utf8');
+            console.log('TEMPLATE_PROCESSOR: Generated XR visualization HTML at:', outputPath);
+            return { success: true };
+        }
+        catch (error) {
+            console.error('TEMPLATE_PROCESSOR: Error generating XR visualization:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
     }
     /**
-     * Scan the visualize-data directory for stored visualizations
+     * Get visualization settings (palette, environment, colors)
      */
-    async scanStoredVisualizations() {
-        console.log('BROWSE-VISUALIZATIONS: Scanning for stored visualizations...');
-        const visualizations = [];
+    static async getVisualizationSettings() {
+        // Import visualization settings functions directly (no dynamic import needed)
+        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(48);
+        return {
+            palette: await getSelectedPalette(),
+            environment: await getSelectedEnvironment(),
+            backgroundColor: await getSelectedBackgroundColor(),
+            groundColor: await getSelectedGroundColor()
+        };
+    }
+    /**
+     * Load XR base template from templates/xr/xr-visualization.html
+     */
+    static async loadXRTemplate(context) {
         try {
-            // Ensure the visualize-data directory exists
-            if (!fs.existsSync(this.visualizeDataPath)) {
-                console.log('BROWSE-VISUALIZATIONS: visualize-data directory does not exist yet');
-                return visualizations;
+            const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'xr-visualization.html');
+            if (!fs.existsSync(templatePath)) {
+                console.error('TEMPLATE_PROCESSOR: XR template not found at:', templatePath);
+                return null;
             }
-            // Read directory contents
-            const entries = await fs.promises.readdir(this.visualizeDataPath, { withFileTypes: true });
-            const folders = entries.filter(entry => entry.isDirectory());
-            console.log(`BROWSE-VISUALIZATIONS: Found ${folders.length} folders in visualize-data directory`);
-            for (const folder of folders) {
-                const folderName = folder.name;
-                const folderPath = path.join(this.visualizeDataPath, folderName);
-                // Extract name from folder name (everything before the last underscore)
-                const lastUnderscoreIndex = folderName.lastIndexOf('_');
-                const name = lastUnderscoreIndex > 0 ? folderName.substring(0, lastUnderscoreIndex) : folderName;
-                // Check for required files
-                const indexPath = path.join(folderPath, 'index.html');
-                const dataPath = path.join(folderPath, 'data.json');
-                const indexExists = fs.existsSync(indexPath);
-                const dataExists = fs.existsSync(dataPath);
-                const isValid = indexExists && dataExists;
-                const visualization = {
-                    name,
-                    folderName,
-                    folderPath,
-                    indexPath,
-                    dataPath,
-                    isValid
+            const template = fs.readFileSync(templatePath, 'utf8');
+            console.log('TEMPLATE_PROCESSOR: Loaded XR template from:', templatePath);
+            return template;
+        }
+        catch (error) {
+            console.error('TEMPLATE_PROCESSOR: Error loading XR template:', error);
+            return null;
+        }
+    }
+    /**
+     * Generate chart component HTML using the chart template
+     */
+    static async generateChartComponent(chart, mappings, title, palette) {
+        console.log('TEMPLATE_PROCESSOR: Generating chart component for:', chart.id);
+        // Create configuration for chart processing
+        const config = {
+            chartType: chart.id,
+            title: title,
+            dataFilePath: 'data.json',
+            dimensionMappings: mappings,
+            options: {
+                palette: palette
+            }
+        };
+        // Process the chart template
+        const result = await this.processTemplate(chart, mappings, config);
+        if (!result.success) {
+            console.error('TEMPLATE_PROCESSOR: Chart component generation failed:', result.error);
+            return `<!-- Chart generation error: ${result.error || 'Unknown error'} -->`;
+        }
+        console.log('TEMPLATE_PROCESSOR: Chart component generated successfully');
+        return result.html || '';
+    }
+    /**
+     * Replace all placeholders in the XR template
+     */
+    static replaceXRTemplatePlaceholders(template, values) {
+        console.log('TEMPLATE_PROCESSOR: Replacing XR template placeholders');
+        let result = template;
+        // Define placeholder replacements
+        const replacements = {
+            'TITLE': values.title,
+            'DATA_SOURCE': values.dataSource,
+            'CHART_COMPONENT': values.chartComponent,
+            'CHART_PALETTE': values.palette,
+            'ENVIRONMENT_PRESET': values.environment,
+            'BACKGROUND_COLOR': values.backgroundColor,
+            'GROUND_COLOR': values.groundColor,
+            'TREE_BUILDER': '', // Not needed for basic charts
+            'ICON_PATH': '' // Optional
+        };
+        // Replace all placeholders
+        for (const [placeholder, value] of Object.entries(replacements)) {
+            const patterns = [
+                new RegExp(`\\$\\{${this.escapeRegex(placeholder)}\\}`, 'g'),
+                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g')
+            ];
+            for (const pattern of patterns) {
+                result = result.replace(pattern, value);
+            }
+        }
+        console.log('TEMPLATE_PROCESSOR: XR template placeholders replaced');
+        return result;
+    }
+    /**
+     * Process a chart template with given configuration and mappings
+     */
+    static async processTemplate(chart, mappings, config) {
+        // Validate dimensions first
+        const validation = dimensionValidator_1.DimensionValidator.validateMappings(chart, mappings);
+        if (!validation.isValid) {
+            return {
+                success: false,
+                html: '',
+                error: validation.errors.join('; '),
+                warnings: validation.warnings
+            };
+        }
+        try {
+            // Start with the base template
+            let html = chart.htmlTemplate;
+            // Create placeholder replacements map
+            const replacements = this.createPlaceholderReplacements(chart, mappings, config);
+            // Replace all placeholders
+            html = this.replacePlaceholders(html, replacements);
+            // Validate final HTML
+            const htmlValidation = this.validateGeneratedHtml(html);
+            if (!htmlValidation.isValid) {
+                return {
+                    success: false,
+                    html: '',
+                    error: htmlValidation.error || 'Generated HTML is invalid',
+                    warnings: validation.warnings
                 };
-                visualizations.push(visualization);
-                console.log(`BROWSE-VISUALIZATIONS: Found visualization "${name}" (${folderName}), valid: ${isValid}`);
-                if (!isValid) {
-                    console.warn(`BROWSE-VISUALIZATIONS: Invalid visualization - index.html exists: ${indexExists}, data.json exists: ${dataExists}`);
-                }
             }
+            return {
+                success: true,
+                html: html,
+                warnings: validation.warnings
+            };
         }
         catch (error) {
-            console.error('BROWSE-VISUALIZATIONS: Error scanning visualizations:', error);
-            vscode.window.showErrorMessage(`Failed to scan visualizations: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        console.log(`BROWSE-VISUALIZATIONS: Scan completed, found ${visualizations.length} visualizations`);
-        return visualizations;
-    }
-    /**
-     * Launch a stored visualization
-     */
-    async launchVisualization(visualization) {
-        console.log(`BROWSE-VISUALIZATIONS: Launching visualization "${visualization.name}"`);
-        try {
-            if (!visualization.isValid) {
-                throw new Error(`Visualization "${visualization.name}" is missing required files`);
-            }
-            // Check if visualization is already running
-            const activeRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-            const activeServers = activeRegistry.getAllServers();
-            // Check by custom name or by path
-            const alreadyActive = activeServers.some((server) => server.customName === visualization.name ||
-                server.filePath === visualization.indexPath);
-            if (alreadyActive) {
-                console.log(`BROWSE-VISUALIZATIONS: Visualization "${visualization.name}" is already active`);
-                vscode.window.showInformationMessage(`Visualization "${visualization.name}" is already running`);
-                return;
-            }
-            // Launch the visualization using the existing server launcher
-            console.log(`BROWSE-VISUALIZATIONS: Launching server for visualization "${visualization.name}" with file: ${visualization.indexPath}`);
-            await (0, index_1.launchServerWithFile)(this.context, visualization.indexPath, visualization.name // Use the extracted name as customName
-            );
-            console.log(`BROWSE-VISUALIZATIONS: Successfully launched visualization "${visualization.name}"`);
-            vscode.window.showInformationMessage(`Launched visualization: ${visualization.name}`);
-        }
-        catch (error) {
-            console.error(`BROWSE-VISUALIZATIONS: Error launching visualization "${visualization.name}":`, error);
-            vscode.window.showErrorMessage(`Failed to launch visualization "${visualization.name}": ${error instanceof Error ? error.message : String(error)}`);
+            return {
+                success: false,
+                html: '',
+                error: `Template processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                warnings: validation.warnings
+            };
         }
     }
     /**
-     * Delete all stored visualizations (Reset All)
+     * Create map of placeholder replacements based on mappings and config
      */
-    async resetAllVisualizations() {
-        console.log('BROWSE-VISUALIZATIONS: Resetting all visualizations...');
-        try {
-            if (!fs.existsSync(this.visualizeDataPath)) {
-                console.log('BROWSE-VISUALIZATIONS: No visualize-data directory to reset');
-                return;
-            }
-            // Get list of folders to delete
-            const entries = await fs.promises.readdir(this.visualizeDataPath, { withFileTypes: true });
-            const folders = entries.filter(entry => entry.isDirectory());
-            if (folders.length === 0) {
-                console.log('BROWSE-VISUALIZATIONS: No visualizations to reset');
-                vscode.window.showInformationMessage('No stored visualizations to reset');
-                return;
-            }
-            // Confirm deletion
-            const confirmResult = await vscode.window.showWarningMessage(`Delete all ${folders.length} stored visualizations? This action cannot be undone.`, { modal: true }, 'Delete All', 'Cancel');
-            if (confirmResult !== 'Delete All') {
-                console.log('BROWSE-VISUALIZATIONS: Reset cancelled by user');
-                return;
-            }
-            // Delete each folder
-            for (const folder of folders) {
-                const folderPath = path.join(this.visualizeDataPath, folder.name);
-                console.log(`BROWSE-VISUALIZATIONS: Deleting folder: ${folderPath}`);
-                try {
-                    await fs.promises.rm(folderPath, { recursive: true, force: true });
+    static createPlaceholderReplacements(chart, mappings, config) {
+        const replacements = new Map();
+        // Add basic configuration replacements
+        replacements.set('TITLE', config.title || chart.name);
+        replacements.set('DATA_SOURCE', config.dataFilePath || 'data.json');
+        replacements.set('CHART_ID', `chart-${chart.id}-${Date.now()}`);
+        // Add dimension-specific replacements
+        for (const mapping of mappings) {
+            const dimension = chart.dimensions.find(d => d.name === mapping.dimension);
+            if (dimension) {
+                // Create various placeholder formats for the dimension
+                const upperDimension = mapping.dimension.toUpperCase();
+                const fieldName = mapping.dataField;
+                replacements.set(`${upperDimension}_FIELD`, fieldName);
+                replacements.set(`${mapping.dimension}_field`, fieldName);
+                replacements.set(mapping.dimension, fieldName);
+                // Special common dimension mappings
+                switch (mapping.dimension.toLowerCase()) {
+                    case 'key':
+                    case 'category':
+                        replacements.set('KEY_FIELD', fieldName);
+                        replacements.set('CATEGORY_FIELD', fieldName);
+                        break;
+                    case 'size':
+                    case 'value':
+                        replacements.set('SIZE_FIELD', fieldName);
+                        replacements.set('VALUE_FIELD', fieldName);
+                        break;
+                    case 'height':
+                        replacements.set('HEIGHT_FIELD', fieldName);
+                        break;
+                    case 'color':
+                        replacements.set('COLOR_FIELD', fieldName);
+                        break;
                 }
-                catch (deleteError) {
-                    console.error(`BROWSE-VISUALIZATIONS: Error deleting folder ${folderPath}:`, deleteError);
-                }
             }
-            console.log(`BROWSE-VISUALIZATIONS: Reset completed, deleted ${folders.length} visualizations`);
-            vscode.window.showInformationMessage(`Deleted ${folders.length} stored visualizations`);
-            // Trigger refresh of the tree view
-            vscode.commands.executeCommand('codexr.servers.refresh');
         }
-        catch (error) {
-            console.error('BROWSE-VISUALIZATIONS: Error during reset:', error);
-            vscode.window.showErrorMessage(`Failed to reset visualizations: ${error instanceof Error ? error.message : String(error)}`);
+        // Add chart-specific attributes
+        if (config.options) {
+            for (const [key, value] of Object.entries(config.options)) {
+                replacements.set(key.toUpperCase(), String(value));
+                replacements.set(key, String(value));
+            }
         }
+        return replacements;
     }
     /**
-     * Get the visualize-data directory path
+     * Replace placeholders in template with actual values
      */
-    getVisualizeDataPath() {
-        return this.visualizeDataPath;
+    static replacePlaceholders(template, replacements) {
+        let result = template;
+        // Replace {{PLACEHOLDER}} format
+        for (const [placeholder, value] of replacements) {
+            const patterns = [
+                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g'),
+                new RegExp(`\\$\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}`, 'g')
+            ];
+            for (const pattern of patterns) {
+                result = result.replace(pattern, value);
+            }
+        }
+        // Check for remaining unresolved placeholders and warn
+        const unresolvedPlaceholders = result.match(/\{\{[^}]+\}\}|\$\{[^}]+\}/g);
+        if (unresolvedPlaceholders) {
+            console.warn('Unresolved placeholders found:', unresolvedPlaceholders);
+        }
+        return result;
+    }
+    /**
+     * Escape special regex characters
+     */
+    static escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    /**
+     * Basic validation of generated HTML
+     */
+    static validateGeneratedHtml(html) {
+        // Check for basic HTML structure
+        if (!html || html.trim() === '') {
+            return { isValid: false, error: 'Generated HTML is empty' };
+        }
+        // Check for remaining unresolved placeholders
+        const unresolvedPlaceholders = html.match(/\{\{[^}]+\}\}/g);
+        if (unresolvedPlaceholders && unresolvedPlaceholders.length > 0) {
+            return {
+                isValid: false,
+                error: `Unresolved placeholders: ${unresolvedPlaceholders.join(', ')}`
+            };
+        }
+        // Check for BabiaXR components
+        if (!html.includes('babia-') && !html.includes('a-entity')) {
+            return {
+                isValid: false,
+                error: 'Generated HTML does not contain BabiaXR components'
+            };
+        }
+        return { isValid: true };
+    }
+    /**
+     * Get available placeholders for a chart
+     */
+    static getAvailablePlaceholders(chart) {
+        const placeholders = [
+            'TITLE',
+            'DATA_SOURCE',
+            'CHART_ID'
+        ];
+        // Add dimension-based placeholders
+        for (const dimension of chart.dimensions) {
+            const upperDimension = dimension.name.toUpperCase();
+            placeholders.push(`${upperDimension}_FIELD`);
+        }
+        return placeholders;
+    }
+    /**
+     * Preview template with sample data for testing
+     */
+    static async previewTemplate(chart, sampleMappings) {
+        const defaultMappings = sampleMappings || chart.dimensions.map(dim => ({
+            dimension: dim.name,
+            dataField: `sample_${dim.name}`
+        }));
+        const defaultConfig = {
+            chartType: chart.id,
+            title: `Sample ${chart.name}`,
+            dataFilePath: 'sample-data.json',
+            dimensionMappings: defaultMappings
+        };
+        const result = await this.processTemplate(chart, defaultMappings, defaultConfig);
+        return result.success ? (result.html || '') : `<!-- Error: ${result.error || 'Unknown error'} -->`;
     }
 }
-exports.VisualizationRestorer = VisualizationRestorer;
+exports.TemplateProcessor = TemplateProcessor;
 
 
 /***/ }),
-/* 38 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/* 47 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionValidator = void 0;
+/**
+ * BabiaXR Dimension Validator
+ * Validates dimension mappings against chart requirements
+ */
+class DimensionValidator {
+    /**
+     * Validate dimension mappings for a given chart
+     */
+    static validateMappings(chart, mappings) {
+        const result = {
+            isValid: true,
+            errors: [],
+            warnings: []
+        };
+        // Check for required dimensions
+        const requiredDimensions = chart.dimensions.filter(d => d.required);
+        const mappedDimensions = new Set(mappings.map(m => m.dimension));
+        for (const requiredDim of requiredDimensions) {
+            if (!mappedDimensions.has(requiredDim.name)) {
+                result.errors.push(`Required dimension '${requiredDim.name}' (${requiredDim.label}) is not mapped`);
+                result.isValid = false;
+            }
+        }
+        // Check for invalid dimension names
+        const validDimensionNames = new Set(chart.dimensions.map(d => d.name));
+        for (const mapping of mappings) {
+            if (!validDimensionNames.has(mapping.dimension)) {
+                result.errors.push(`Unknown dimension '${mapping.dimension}' for chart type '${chart.name}'`);
+                result.isValid = false;
+            }
+        }
+        // Check for duplicate mappings
+        const dimensionCounts = new Map();
+        for (const mapping of mappings) {
+            const count = dimensionCounts.get(mapping.dimension) || 0;
+            dimensionCounts.set(mapping.dimension, count + 1);
+        }
+        for (const [dimension, count] of dimensionCounts) {
+            if (count > 1) {
+                result.errors.push(`Dimension '${dimension}' is mapped multiple times`);
+                result.isValid = false;
+            }
+        }
+        // Check for empty data fields
+        for (const mapping of mappings) {
+            if (!mapping.dataField || mapping.dataField.trim() === '') {
+                result.errors.push(`Dimension '${mapping.dimension}' has no data field specified`);
+                result.isValid = false;
+            }
+        }
+        // Add warnings for optional dimensions that are not mapped
+        const optionalDimensions = chart.dimensions.filter(d => !d.required);
+        for (const optionalDim of optionalDimensions) {
+            if (!mappedDimensions.has(optionalDim.name)) {
+                result.warnings.push(`Optional dimension '${optionalDim.name}' (${optionalDim.label}) is not mapped`);
+            }
+        }
+        return result;
+    }
+    /**
+     * Validate a specific data field against dimension requirements
+     */
+    static validateDataField(dimensionName, dataField, chart) {
+        const dimension = chart.dimensions.find(d => d.name === dimensionName);
+        if (!dimension) {
+            return {
+                isValid: false,
+                error: `Dimension '${dimensionName}' does not exist for chart type '${chart.name}'`
+            };
+        }
+        if (!dataField || dataField.trim() === '') {
+            return {
+                isValid: false,
+                error: `Data field for dimension '${dimensionName}' cannot be empty`
+            };
+        }
+        // Additional validation can be added here for data type checking
+        // when we have access to actual data structure
+        return { isValid: true };
+    }
+    /**
+     * Get missing required dimensions
+     */
+    static getMissingRequiredDimensions(chart, mappings) {
+        const requiredDimensions = chart.dimensions.filter(d => d.required);
+        const mappedDimensions = new Set(mappings.map(m => m.dimension));
+        return requiredDimensions
+            .filter(d => !mappedDimensions.has(d.name))
+            .map(d => d.name);
+    }
+    /**
+     * Check if all required dimensions are mapped
+     */
+    static areAllRequiredDimensionsMapped(chart, mappings) {
+        return this.getMissingRequiredDimensions(chart, mappings).length === 0;
+    }
+}
+exports.DimensionValidator = DimensionValidator;
+
+
+/***/ }),
+/* 48 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- * Server Runtime Module
- *
- * This module provides the complete server runtime infrastructure for the CodeXR extension.
- * It includes HTTP/HTTPS servers, port management, and a unified launcher system.
+ * Visualization Settings Module
+ * Main entry point for visualization configuration management
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
+exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
+var settingsModel_1 = __webpack_require__(49);
+Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
+var settingsStorage_1 = __webpack_require__(50);
+Object.defineProperty(exports, "VisualizationSettingsStorage", ({ enumerable: true, get: function () { return settingsStorage_1.VisualizationSettingsStorage; } }));
+var visualizationSettingsItems_1 = __webpack_require__(51);
+Object.defineProperty(exports, "VisualizationSettingsItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsItemFactory; } }));
+Object.defineProperty(exports, "VisualizationSettingsTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsTreeItem; } }));
+var handleSettingsInteraction_1 = __webpack_require__(53);
+Object.defineProperty(exports, "VisualizationSettingsInteractionHandler", ({ enumerable: true, get: function () { return handleSettingsInteraction_1.VisualizationSettingsInteractionHandler; } }));
+// Export settings accessors for babia-templates integration
+var settingsAccessors_1 = __webpack_require__(55);
+Object.defineProperty(exports, "initializeSettingsAccessors", ({ enumerable: true, get: function () { return settingsAccessors_1.initializeSettingsAccessors; } }));
+Object.defineProperty(exports, "getSelectedBackgroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedBackgroundColor; } }));
+Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedGroundColor; } }));
+Object.defineProperty(exports, "getSelectedEnvironment", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedEnvironment; } }));
+Object.defineProperty(exports, "getSelectedPalette", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedPalette; } }));
+Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, get: function () { return settingsAccessors_1.getAllSelectedSettings; } }));
+const vscode = __importStar(__webpack_require__(1));
+const handleSettingsInteraction_2 = __webpack_require__(53);
+const settingsAccessors_2 = __webpack_require__(55);
+/**
+ * Register visualization settings commands
+ */
+function registerVisualizationSettingsCommands(context) {
+    console.log('VISUALIZATION-SETTINGS: Registering commands...');
+    // Initialize settings accessors for global use
+    (0, settingsAccessors_2.initializeSettingsAccessors)(context);
+    // Initialize the interaction handler
+    const interactionHandler = new handleSettingsInteraction_2.VisualizationSettingsInteractionHandler(context);
+    // Command: Configure setting
+    const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
+        try {
+            console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
+            await interactionHandler.handleSettingConfiguration(settingKey);
+        }
+        catch (error) {
+            console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
+            vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    // Register commands with the extension context
+    context.subscriptions.push(configureSettingCmd);
+    // Store interaction handler for cleanup
+    context.subscriptions.push({
+        dispose: () => interactionHandler.dispose()
+    });
+    console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
+}
+
+
+/***/ }),
+/* 49 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Visualization Settings Model
+ * Defines the structure and interfaces for visualization configuration
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.MultiServerLauncher = exports.PortManager = exports.HttpsCustomServer = exports.HttpsDefaultServer = exports.HttpServer = void 0;
-exports.createServerLauncher = createServerLauncher;
-exports.launchServerWithFile = launchServerWithFile;
-exports.isPortAvailable = isPortAvailable;
-exports.findAvailablePort = findAvailablePort;
-exports.getSuggestedPorts = getSuggestedPorts;
-// Core server implementations
-var httpServer_1 = __webpack_require__(28);
-Object.defineProperty(exports, "HttpServer", ({ enumerable: true, get: function () { return httpServer_1.HttpServer; } }));
-var httpsDefaultServer_1 = __webpack_require__(31);
-Object.defineProperty(exports, "HttpsDefaultServer", ({ enumerable: true, get: function () { return httpsDefaultServer_1.HttpsDefaultServer; } }));
-var httpsCustomServer_1 = __webpack_require__(33);
-Object.defineProperty(exports, "HttpsCustomServer", ({ enumerable: true, get: function () { return httpsCustomServer_1.HttpsCustomServer; } }));
-// Utility classes
-var portManager_1 = __webpack_require__(14);
-Object.defineProperty(exports, "PortManager", ({ enumerable: true, get: function () { return portManager_1.PortManager; } }));
-// Main launcher and types
-var multiServerLauncher_1 = __webpack_require__(13);
-Object.defineProperty(exports, "MultiServerLauncher", ({ enumerable: true, get: function () { return multiServerLauncher_1.MultiServerLauncher; } }));
-// Import for use in utility functions
-const multiServerLauncher_2 = __webpack_require__(13);
-const portManager_2 = __webpack_require__(14);
+exports.SETTING_FIELDS = exports.HEX_COLOR_REGEX = exports.CHART_PALETTES = exports.ENVIRONMENT_PRESETS = exports.PREDEFINED_COLORS = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
+exports.isValidHexColor = isValidHexColor;
 /**
- * Create a new multi-server launcher instance
- * @param context - VS Code extension context
- * @returns MultiServerLauncher instance
+ * Default visualization settings
  */
-function createServerLauncher(context) {
-    return new multiServerLauncher_2.MultiServerLauncher(context);
+exports.DEFAULT_VISUALIZATION_SETTINGS = {
+    backgroundColor: '#FFFFFF',
+    groundColor: '#000000',
+    environmentPreset: 'default',
+    chartPalette: 'ubuntu'
+};
+/**
+ * Predefined color options for quick selection
+ */
+exports.PREDEFINED_COLORS = [
+    { label: '#FFFFFF (white)', value: '#FFFFFF' },
+    { label: '#000000 (black)', value: '#000000' },
+    { label: '#B10DC9 (pink)', value: '#B10DC9' }
+];
+/**
+ * Available environment preset options with descriptions
+ */
+exports.ENVIRONMENT_PRESETS = [
+    { label: 'none', value: 'none', description: 'No environment, just a sky' },
+    { label: 'default', value: 'default', description: 'Default environment with hills and sky' },
+    { label: 'forest', value: 'forest', description: 'A forest with trees and directional light' },
+    { label: 'egypt', value: 'egypt', description: 'Egyptian landscape with sand and pyramids' },
+    { label: 'dream', value: 'dream', description: 'Surreal dreamlike environment' },
+    { label: 'volcano', value: 'volcano', description: 'Volcanic terrain with lava and smoke' },
+    { label: 'arches', value: 'arches', description: 'Desert with rock arches' },
+    { label: 'tron', value: 'tron', description: 'Futuristic Tron-like environment' },
+    { label: 'japan', value: 'japan', description: 'Stylized Japanese landscape' },
+    { label: 'threetowers', value: 'threetowers', description: 'Fantasy environment with three towers' },
+    { label: 'poison', value: 'poison', description: 'Toxic environment with green fog' },
+    { label: 'contact', value: 'contact', description: 'Sci-fi environment with landing pad' }
+];
+/**
+ * Available chart palette options with descriptions
+ */
+exports.CHART_PALETTES = [
+    { label: 'ubuntu', value: 'ubuntu', description: 'Ubuntu style colors (default)' },
+    { label: 'blues', value: 'blues', description: 'Variations of blue colors' },
+    { label: 'bussiness', value: 'bussiness', description: 'Professional business colors' },
+    { label: 'commerce', value: 'commerce', description: 'E-commerce friendly palette' },
+    { label: 'flat', value: 'flat', description: 'Flat design color scheme' },
+    { label: 'foxy', value: 'foxy', description: 'FireFox palette with oranges and blues' },
+    { label: 'icecream', value: 'icecream', description: 'Sweet pastel colors' },
+    { label: 'pearl', value: 'pearl', description: 'Pearlescent subtle colors' },
+    { label: 'sunset', value: 'sunset', description: 'Warm sunset color gradients' }
+];
+/**
+ * Validation for hex color format
+ */
+exports.HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
+/**
+ * Validate hex color format
+ */
+function isValidHexColor(color) {
+    return exports.HEX_COLOR_REGEX.test(color);
 }
 /**
- * Launch server with a specific HTML file
- * @param context - VS Code extension context
- * @param htmlFilePath - Path to HTML file to serve
- * @param customName - Optional custom display name for the server
- * @returns Promise<MultiServerLaunchResult>
+ * Configuration for all setting fields
  */
-async function launchServerWithFile(context, htmlFilePath, customName) {
-    const launcher = new multiServerLauncher_2.MultiServerLauncher(context);
-    return launcher.launchServer(htmlFilePath, customName);
-}
-/**
- * Utility function to check if a port is available
- * @param port - Port number to check
- * @returns Promise<boolean> - True if port is available
- */
-async function isPortAvailable(port) {
-    return portManager_2.PortManager.isPortAvailable(port);
-}
-/**
- * Utility function to find an available port
- * @param startPort - Port to start searching from
- * @param endPort - Maximum port to check (optional)
- * @returns Promise<number> - First available port found
- */
-async function findAvailablePort(startPort, endPort) {
-    return portManager_2.PortManager.findAvailablePort(startPort, endPort);
-}
-/**
- * Get suggested ports for a service type
- * @param serviceType - Type of service ('http', 'https', 'dev')
- * @returns number[] - Array of suggested ports
- */
-function getSuggestedPorts(serviceType) {
-    return portManager_2.PortManager.getSuggestedPorts(serviceType);
-}
+exports.SETTING_FIELDS = [
+    {
+        key: 'backgroundColor',
+        label: 'Background Color',
+        type: 'color',
+        description: 'Set the background color for the visualization scene',
+        icon: 'color-mode'
+    },
+    {
+        key: 'groundColor',
+        label: 'Ground Color',
+        type: 'color',
+        description: 'Set the ground color for the visualization scene',
+        icon: 'symbol-color'
+    },
+    {
+        key: 'environmentPreset',
+        label: 'Environment Preset',
+        type: 'preset',
+        description: 'Choose an environment preset for the scene',
+        icon: 'globe'
+    },
+    {
+        key: 'chartPalette',
+        label: 'Chart Palette',
+        type: 'palette',
+        description: 'Select color palette for chart visualization',
+        icon: 'symbol-misc'
+    }
+];
 
 
 /***/ }),
-/* 39 */
+/* 50 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8115,89 +9567,184 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BrowseVisualizationItemFactory = exports.BrowseVisualizationTreeItem = void 0;
-const vscode = __importStar(__webpack_require__(1));
+exports.VisualizationSettingsStorage = void 0;
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const settingsModel_1 = __webpack_require__(49);
 /**
- * Tree item for browse visualizations
+ * Visualization Settings Storage
+ * Manages persistent storage and retrieval of visualization configuration using file system
  */
-class BrowseVisualizationTreeItem extends vscode.TreeItem {
-    label;
-    collapsibleState;
-    type;
-    visualization;
-    command;
-    iconPath;
-    tooltip;
-    description;
-    contextValue;
-    constructor(label, collapsibleState, type, visualization, command, iconPath, tooltip, description, contextValue) {
-        super(label, collapsibleState);
-        this.label = label;
-        this.collapsibleState = collapsibleState;
-        this.type = type;
-        this.visualization = visualization;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip;
-        this.description = description;
-        this.contextValue = contextValue;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip;
-        this.description = description;
-        this.contextValue = contextValue;
-    }
-}
-exports.BrowseVisualizationTreeItem = BrowseVisualizationTreeItem;
-/**
- * Factory for creating browse visualization items
- */
-class BrowseVisualizationItemFactory {
-    /**
-     * Create browse visualizations section
-     */
-    static createBrowseVisualizationsSection() {
-        return new BrowseVisualizationTreeItem('Browse Visualizations', vscode.TreeItemCollapsibleState.Expanded, 'browse-section', undefined, undefined, new vscode.ThemeIcon('folder-opened'), 'Browse previously generated visualizations', undefined, 'browse-visualizations-section');
+class VisualizationSettingsStorage {
+    static VISUALIZATION_CONFIG_DIR = 'visualization-configuration';
+    static SETTINGS_FILE = 'visualization-settings.json';
+    static LEGACY_STORAGE_KEY = 'visualizationSettings'; // For migration
+    context;
+    constructor(context) {
+        this.context = context;
+        console.log('VISUALIZATION-SETTINGS: Storage manager initialized with file-based storage');
     }
     /**
-     * Create items for stored visualizations
+     * Get the visualization configuration directory path
      */
-    static createStoredVisualizationItems(visualizations) {
-        if (visualizations.length === 0) {
-            return [
-                new BrowseVisualizationTreeItem('No visualizations found', vscode.TreeItemCollapsibleState.None, 'stored-visualization', undefined, undefined, new vscode.ThemeIcon('info'), 'No stored visualizations available. Generate some visualizations first.', undefined, 'no-visualizations')
-            ];
+    getConfigDirectory() {
+        const globalStorageUri = this.context.globalStorageUri;
+        return path.join(globalStorageUri.fsPath, VisualizationSettingsStorage.VISUALIZATION_CONFIG_DIR);
+    }
+    /**
+     * Get the settings file path
+     */
+    getSettingsFilePath() {
+        return path.join(this.getConfigDirectory(), VisualizationSettingsStorage.SETTINGS_FILE);
+    }
+    /**
+     * Ensure the configuration directory exists
+     */
+    ensureConfigDirectory() {
+        const configDir = this.getConfigDirectory();
+        try {
+            if (!fs.existsSync(configDir)) {
+                console.log(`VISUALIZATION-SETTINGS: Creating configuration directory: ${configDir}`);
+                fs.mkdirSync(configDir, { recursive: true });
+            }
         }
-        return visualizations.map(visualization => {
-            const isValid = visualization.isValid;
-            const icon = isValid ? new vscode.ThemeIcon('play') : new vscode.ThemeIcon('warning');
-            const tooltip = isValid
-                ? `Launch visualization: ${visualization.name}\nPath: ${visualization.folderPath}`
-                : `Invalid visualization: ${visualization.name}\nMissing required files in: ${visualization.folderPath}`;
-            const description = isValid ? undefined : '⚠️ Invalid';
-            return new BrowseVisualizationTreeItem(visualization.name, vscode.TreeItemCollapsibleState.None, 'stored-visualization', visualization, isValid ? {
-                command: 'codeXR.browseVisualizations.launch',
-                title: 'Launch Visualization',
-                arguments: [visualization]
-            } : undefined, icon, tooltip, description, 'stored-visualization');
-        });
+        catch (error) {
+            console.error('VISUALIZATION-SETTINGS: Error creating configuration directory:', error);
+            throw new Error(`Failed to create configuration directory: ${error}`);
+        }
     }
     /**
-     * Create reset all visualizations item
+     * Migrate legacy settings from globalState to file system
      */
-    static createResetAllItem() {
-        return new BrowseVisualizationTreeItem('Reset All Visualizations', vscode.TreeItemCollapsibleState.None, 'stored-visualization', undefined, {
-            command: 'codeXR.browseVisualizations.resetAll',
-            title: 'Reset All Visualizations',
-            arguments: []
-        }, new vscode.ThemeIcon('trash'), 'Delete all stored visualizations', undefined, 'reset-all-visualizations');
+    migrateLegacySettings() {
+        try {
+            const legacySettings = this.context.globalState.get(VisualizationSettingsStorage.LEGACY_STORAGE_KEY);
+            if (legacySettings && !fs.existsSync(this.getSettingsFilePath())) {
+                console.log('VISUALIZATION-SETTINGS: Migrating legacy settings to file system');
+                const settingsFilePath = this.getSettingsFilePath();
+                const jsonSettings = {
+                    backgroundColor: legacySettings.backgroundColor,
+                    groundColor: legacySettings.groundColor,
+                    environment: legacySettings.environmentPreset,
+                    palette: legacySettings.chartPalette
+                };
+                fs.writeFileSync(settingsFilePath, JSON.stringify(jsonSettings, null, 2), 'utf8');
+                console.log('VISUALIZATION-SETTINGS: Legacy settings migration completed with all settings');
+            }
+        }
+        catch (error) {
+            console.error('VISUALIZATION-SETTINGS: Error during legacy migration:', error);
+            // Don't throw - migration failure shouldn't prevent normal operation
+        }
+    }
+    /**
+     * Get current visualization settings from file system
+     */
+    getSettings() {
+        try {
+            // Ensure directory exists and migrate legacy settings if needed
+            this.ensureConfigDirectory();
+            this.migrateLegacySettings();
+            const settingsFilePath = this.getSettingsFilePath();
+            if (fs.existsSync(settingsFilePath)) {
+                const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
+                const jsonSettings = JSON.parse(fileContent);
+                // Build complete settings from JSON with fallbacks to defaults
+                const settings = {
+                    backgroundColor: jsonSettings.backgroundColor || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.backgroundColor,
+                    groundColor: jsonSettings.groundColor || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.groundColor,
+                    environmentPreset: jsonSettings.environment,
+                    chartPalette: jsonSettings.palette
+                };
+                console.log('VISUALIZATION-SETTINGS: Loaded settings from file', settings);
+                return settings;
+            }
+        }
+        catch (error) {
+            console.error('VISUALIZATION-SETTINGS: Failed to load settings from file:', error);
+        }
+        console.log('VISUALIZATION-SETTINGS: Using default settings');
+        return { ...settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS };
+    }
+    /**
+     * Save visualization settings to file system
+     */
+    async saveSettings(settings) {
+        try {
+            this.ensureConfigDirectory();
+            const settingsFilePath = this.getSettingsFilePath();
+            // Create settings object for JSON file (all four settings)
+            const jsonSettings = {
+                backgroundColor: settings.backgroundColor,
+                groundColor: settings.groundColor,
+                environment: settings.environmentPreset,
+                palette: settings.chartPalette
+            };
+            // Save to JSON file
+            fs.writeFileSync(settingsFilePath, JSON.stringify(jsonSettings, null, 2), 'utf8');
+            // Also save complete settings to globalState for backward compatibility
+            await this.context.globalState.update(VisualizationSettingsStorage.LEGACY_STORAGE_KEY, settings);
+            console.log('VISUALIZATION-SETTINGS: Settings saved to file and globalState', settings);
+        }
+        catch (error) {
+            console.error('VISUALIZATION-SETTINGS: Failed to save settings:', error);
+            throw new Error(`Failed to save visualization settings: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Update a single setting field
+     */
+    async updateSetting(key, value) {
+        const currentSettings = this.getSettings();
+        const updatedSettings = {
+            ...currentSettings,
+            [key]: value
+        };
+        await this.saveSettings(updatedSettings);
+        console.log(`VISUALIZATION-SETTINGS: Updated ${key} to '${value}'`);
+    }
+    /**
+     * Reset settings to defaults
+     */
+    async resetSettings() {
+        await this.saveSettings({ ...settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS });
+        console.log('VISUALIZATION-SETTINGS: Settings reset to defaults');
+    }
+    /**
+     * Check if settings exist in storage
+     */
+    hasStoredSettings() {
+        const settingsFilePath = this.getSettingsFilePath();
+        return fs.existsSync(settingsFilePath);
+    }
+    /**
+     * Get formatted settings for display
+     */
+    getFormattedSettings() {
+        const settings = this.getSettings();
+        return {
+            backgroundColor: settings.backgroundColor,
+            groundColor: settings.groundColor,
+            environmentPreset: settings.environmentPreset,
+            chartPalette: settings.chartPalette
+        };
+    }
+    /**
+     * Validate settings structure
+     */
+    validateSettings(settings) {
+        return (typeof settings === 'object' &&
+            typeof settings.backgroundColor === 'string' &&
+            typeof settings.groundColor === 'string' &&
+            typeof settings.environmentPreset === 'string' &&
+            typeof settings.chartPalette === 'string');
     }
 }
-exports.BrowseVisualizationItemFactory = BrowseVisualizationItemFactory;
+exports.VisualizationSettingsStorage = VisualizationSettingsStorage;
 
 
 /***/ }),
-/* 40 */
+/* 51 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8237,8 +9784,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsIcons = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(41);
-const dynamicColorIconGenerator_1 = __webpack_require__(42);
+const settingsModel_1 = __webpack_require__(49);
+const dynamicColorIconGenerator_1 = __webpack_require__(52);
 /**
  * Tree item for visualization settings
  */
@@ -8345,112 +9892,7 @@ exports.VisualizationSettingsIcons = VisualizationSettingsIcons;
 
 
 /***/ }),
-/* 41 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-/**
- * Visualization Settings Model
- * Defines the structure and interfaces for visualization configuration
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.SETTING_FIELDS = exports.HEX_COLOR_REGEX = exports.CHART_PALETTES = exports.ENVIRONMENT_PRESETS = exports.PREDEFINED_COLORS = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
-exports.isValidHexColor = isValidHexColor;
-/**
- * Default visualization settings
- */
-exports.DEFAULT_VISUALIZATION_SETTINGS = {
-    backgroundColor: '#FFFFFF',
-    groundColor: '#000000',
-    environmentPreset: 'default',
-    chartPalette: 'ubuntu'
-};
-/**
- * Predefined color options for quick selection
- */
-exports.PREDEFINED_COLORS = [
-    { label: '#FFFFFF (white)', value: '#FFFFFF' },
-    { label: '#000000 (black)', value: '#000000' },
-    { label: '#B10DC9 (pink)', value: '#B10DC9' }
-];
-/**
- * Available environment preset options with descriptions
- */
-exports.ENVIRONMENT_PRESETS = [
-    { label: 'none', value: 'none', description: 'No environment, just a sky' },
-    { label: 'default', value: 'default', description: 'Default environment with hills and sky' },
-    { label: 'forest', value: 'forest', description: 'A forest with trees and directional light' },
-    { label: 'egypt', value: 'egypt', description: 'Egyptian landscape with sand and pyramids' },
-    { label: 'dream', value: 'dream', description: 'Surreal dreamlike environment' },
-    { label: 'volcano', value: 'volcano', description: 'Volcanic terrain with lava and smoke' },
-    { label: 'arches', value: 'arches', description: 'Desert with rock arches' },
-    { label: 'tron', value: 'tron', description: 'Futuristic Tron-like environment' },
-    { label: 'japan', value: 'japan', description: 'Stylized Japanese landscape' },
-    { label: 'threetowers', value: 'threetowers', description: 'Fantasy environment with three towers' },
-    { label: 'poison', value: 'poison', description: 'Toxic environment with green fog' },
-    { label: 'contact', value: 'contact', description: 'Sci-fi environment with landing pad' }
-];
-/**
- * Available chart palette options with descriptions
- */
-exports.CHART_PALETTES = [
-    { label: 'ubuntu', value: 'ubuntu', description: 'Ubuntu style colors (default)' },
-    { label: 'blues', value: 'blues', description: 'Variations of blue colors' },
-    { label: 'bussiness', value: 'bussiness', description: 'Professional business colors' },
-    { label: 'commerce', value: 'commerce', description: 'E-commerce friendly palette' },
-    { label: 'flat', value: 'flat', description: 'Flat design color scheme' },
-    { label: 'foxy', value: 'foxy', description: 'FireFox palette with oranges and blues' },
-    { label: 'icecream', value: 'icecream', description: 'Sweet pastel colors' },
-    { label: 'pearl', value: 'pearl', description: 'Pearlescent subtle colors' },
-    { label: 'sunset', value: 'sunset', description: 'Warm sunset color gradients' }
-];
-/**
- * Validation for hex color format
- */
-exports.HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
-/**
- * Validate hex color format
- */
-function isValidHexColor(color) {
-    return exports.HEX_COLOR_REGEX.test(color);
-}
-/**
- * Configuration for all setting fields
- */
-exports.SETTING_FIELDS = [
-    {
-        key: 'backgroundColor',
-        label: 'Background Color',
-        type: 'color',
-        description: 'Set the background color for the visualization scene',
-        icon: 'color-mode'
-    },
-    {
-        key: 'groundColor',
-        label: 'Ground Color',
-        type: 'color',
-        description: 'Set the ground color for the visualization scene',
-        icon: 'symbol-color'
-    },
-    {
-        key: 'environmentPreset',
-        label: 'Environment Preset',
-        type: 'preset',
-        description: 'Choose an environment preset for the scene',
-        icon: 'globe'
-    },
-    {
-        key: 'chartPalette',
-        label: 'Chart Palette',
-        type: 'palette',
-        description: 'Select color palette for chart visualization',
-        icon: 'symbol-misc'
-    }
-];
-
-
-/***/ }),
-/* 42 */
+/* 52 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8666,2438 +10108,6 @@ exports.DynamicColorIconGenerator = DynamicColorIconGenerator;
 
 
 /***/ }),
-/* 43 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizationSettingsStorage = void 0;
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(41);
-/**
- * Visualization Settings Storage
- * Manages persistent storage and retrieval of visualization configuration using file system
- */
-class VisualizationSettingsStorage {
-    static VISUALIZATION_CONFIG_DIR = 'visualization-configuration';
-    static SETTINGS_FILE = 'visualization-settings.json';
-    static LEGACY_STORAGE_KEY = 'visualizationSettings'; // For migration
-    context;
-    constructor(context) {
-        this.context = context;
-        console.log('VISUALIZATION-SETTINGS: Storage manager initialized with file-based storage');
-    }
-    /**
-     * Get the visualization configuration directory path
-     */
-    getConfigDirectory() {
-        const globalStorageUri = this.context.globalStorageUri;
-        return path.join(globalStorageUri.fsPath, VisualizationSettingsStorage.VISUALIZATION_CONFIG_DIR);
-    }
-    /**
-     * Get the settings file path
-     */
-    getSettingsFilePath() {
-        return path.join(this.getConfigDirectory(), VisualizationSettingsStorage.SETTINGS_FILE);
-    }
-    /**
-     * Ensure the configuration directory exists
-     */
-    ensureConfigDirectory() {
-        const configDir = this.getConfigDirectory();
-        try {
-            if (!fs.existsSync(configDir)) {
-                console.log(`VISUALIZATION-SETTINGS: Creating configuration directory: ${configDir}`);
-                fs.mkdirSync(configDir, { recursive: true });
-            }
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Error creating configuration directory:', error);
-            throw new Error(`Failed to create configuration directory: ${error}`);
-        }
-    }
-    /**
-     * Migrate legacy settings from globalState to file system
-     */
-    migrateLegacySettings() {
-        try {
-            const legacySettings = this.context.globalState.get(VisualizationSettingsStorage.LEGACY_STORAGE_KEY);
-            if (legacySettings && !fs.existsSync(this.getSettingsFilePath())) {
-                console.log('VISUALIZATION-SETTINGS: Migrating legacy settings to file system');
-                const settingsFilePath = this.getSettingsFilePath();
-                const jsonSettings = {
-                    backgroundColor: legacySettings.backgroundColor,
-                    groundColor: legacySettings.groundColor,
-                    environment: legacySettings.environmentPreset,
-                    palette: legacySettings.chartPalette
-                };
-                fs.writeFileSync(settingsFilePath, JSON.stringify(jsonSettings, null, 2), 'utf8');
-                console.log('VISUALIZATION-SETTINGS: Legacy settings migration completed with all settings');
-            }
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Error during legacy migration:', error);
-            // Don't throw - migration failure shouldn't prevent normal operation
-        }
-    }
-    /**
-     * Get current visualization settings from file system
-     */
-    getSettings() {
-        try {
-            // Ensure directory exists and migrate legacy settings if needed
-            this.ensureConfigDirectory();
-            this.migrateLegacySettings();
-            const settingsFilePath = this.getSettingsFilePath();
-            if (fs.existsSync(settingsFilePath)) {
-                const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
-                const jsonSettings = JSON.parse(fileContent);
-                // Build complete settings from JSON with fallbacks to defaults
-                const settings = {
-                    backgroundColor: jsonSettings.backgroundColor || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.backgroundColor,
-                    groundColor: jsonSettings.groundColor || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.groundColor,
-                    environmentPreset: jsonSettings.environment,
-                    chartPalette: jsonSettings.palette
-                };
-                console.log('VISUALIZATION-SETTINGS: Loaded settings from file', settings);
-                return settings;
-            }
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Failed to load settings from file:', error);
-        }
-        console.log('VISUALIZATION-SETTINGS: Using default settings');
-        return { ...settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS };
-    }
-    /**
-     * Save visualization settings to file system
-     */
-    async saveSettings(settings) {
-        try {
-            this.ensureConfigDirectory();
-            const settingsFilePath = this.getSettingsFilePath();
-            // Create settings object for JSON file (all four settings)
-            const jsonSettings = {
-                backgroundColor: settings.backgroundColor,
-                groundColor: settings.groundColor,
-                environment: settings.environmentPreset,
-                palette: settings.chartPalette
-            };
-            // Save to JSON file
-            fs.writeFileSync(settingsFilePath, JSON.stringify(jsonSettings, null, 2), 'utf8');
-            // Also save complete settings to globalState for backward compatibility
-            await this.context.globalState.update(VisualizationSettingsStorage.LEGACY_STORAGE_KEY, settings);
-            console.log('VISUALIZATION-SETTINGS: Settings saved to file and globalState', settings);
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Failed to save settings:', error);
-            throw new Error(`Failed to save visualization settings: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Update a single setting field
-     */
-    async updateSetting(key, value) {
-        const currentSettings = this.getSettings();
-        const updatedSettings = {
-            ...currentSettings,
-            [key]: value
-        };
-        await this.saveSettings(updatedSettings);
-        console.log(`VISUALIZATION-SETTINGS: Updated ${key} to '${value}'`);
-    }
-    /**
-     * Reset settings to defaults
-     */
-    async resetSettings() {
-        await this.saveSettings({ ...settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS });
-        console.log('VISUALIZATION-SETTINGS: Settings reset to defaults');
-    }
-    /**
-     * Check if settings exist in storage
-     */
-    hasStoredSettings() {
-        const settingsFilePath = this.getSettingsFilePath();
-        return fs.existsSync(settingsFilePath);
-    }
-    /**
-     * Get formatted settings for display
-     */
-    getFormattedSettings() {
-        const settings = this.getSettings();
-        return {
-            backgroundColor: settings.backgroundColor,
-            groundColor: settings.groundColor,
-            environmentPreset: settings.environmentPreset,
-            chartPalette: settings.chartPalette
-        };
-    }
-    /**
-     * Validate settings structure
-     */
-    validateSettings(settings) {
-        return (typeof settings === 'object' &&
-            typeof settings.backgroundColor === 'string' &&
-            typeof settings.groundColor === 'string' &&
-            typeof settings.environmentPreset === 'string' &&
-            typeof settings.chartPalette === 'string');
-    }
-}
-exports.VisualizationSettingsStorage = VisualizationSettingsStorage;
-
-
-/***/ }),
-/* 44 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisTreeDataProvider = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(45);
-const fileScanner_1 = __webpack_require__(51);
-const activeAnalysesTreeView_1 = __webpack_require__(52);
-const activeAnalysesCommands_1 = __webpack_require__(56);
-const fileWatcherManager_1 = __webpack_require__(57);
-/**
- * Code Analysis tree data provider that manages the analysis sections
- *
- * Architecture Notes:
- * - This view provides code analysis functionality
- * - Displays active analyses, settings, and file organization
- * - Follows the same patterns as other sections in the unified view
- */
-class CodeAnalysisTreeDataProvider {
-    context;
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    filesByLanguage = null;
-    isScanning = false;
-    activeAnalysesProvider;
-    activeAnalysesCommands;
-    fileWatcherManager;
-    constructor(context) {
-        this.context = context;
-        console.log('[CODE_ANALYSIS] Code analysis tree data provider initialized');
-        // Initialize the active analyses provider and commands
-        this.activeAnalysesProvider = new activeAnalysesTreeView_1.ActiveAnalysesTreeDataProvider(context);
-        this.activeAnalysesCommands = new activeAnalysesCommands_1.ActiveAnalysesCommands(context);
-        this.fileWatcherManager = fileWatcherManager_1.FileWatcherManager.getInstance(context);
-        // Listen to Active Analyses changes to refresh the main tree
-        this.activeAnalysesProvider.onDidChangeTreeData(() => {
-            console.log('[CODE_ANALYSIS] 🔄 Active Analyses changed, refreshing main tree view');
-            this.refresh();
-        });
-        // Start file scanning in the background for better UX
-        this.initializeFileScanning();
-    }
-    /**
-     * Initialize file scanning in background for better user experience
-     */
-    async initializeFileScanning() {
-        try {
-            console.log('[CODE_ANALYSIS] Starting initial background file scanning...');
-            this.isScanning = true;
-            // Scan files in background
-            this.filesByLanguage = await fileScanner_1.FileScanner.scanWorkspaceFiles();
-            this.isScanning = false;
-            const status = this.getScanningStatus();
-            console.log(`[CODE_ANALYSIS] Initial background file scan completed - Found ${status.fileCount} files in ${status.languageCount} languages`);
-            // Refresh the tree to show updated counts
-            this.refresh();
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error during initial background file scanning:', error);
-            this.isScanning = false;
-        }
-    }
-    /**
-     * Force refresh file scan data (clears existing data and rescans)
-     */
-    async forceRefreshFilesScan() {
-        console.log('[CODE_ANALYSIS] Force refreshing files scan');
-        this.filesByLanguage = null;
-        this.isScanning = false;
-        // Trigger a new scan
-        await this.initializeFileScanning();
-    }
-    /**
-     * Get current scanning status
-     */
-    isCurrentlyScanning() {
-        return this.isScanning;
-    }
-    /**
-     * Check if files have been scanned
-     */
-    hasScannedFiles() {
-        return this.filesByLanguage !== null;
-    }
-    /**
-     * Get scanning status for debugging
-     */
-    getScanningStatus() {
-        const fileCount = this.filesByLanguage ?
-            Object.values(this.filesByLanguage).reduce((total, files) => total + files.length, 0) : 0;
-        const languageCount = this.filesByLanguage ? Object.keys(this.filesByLanguage).length : 0;
-        return {
-            isScanning: this.isScanning,
-            hasData: this.filesByLanguage !== null,
-            fileCount,
-            languageCount
-        };
-    }
-    /**
-     * Refresh the tree view
-     */
-    refresh() {
-        console.log('[CODE_ANALYSIS] Refreshing code analysis tree view');
-        this._onDidChangeTreeData.fire();
-    }
-    /**
-     * Get tree item representation
-     */
-    getTreeItem(element) {
-        return element;
-    }
-    /**
-     * Get children for the tree view
-     */
-    getChildren(element) {
-        if (!element) {
-            // Root level - return the main analysis sections with file counts if available
-            console.log('[CODE_ANALYSIS] Loading root analysis sections');
-            return Promise.resolve(analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(this.filesByLanguage || undefined, this.isScanning, this.activeAnalysesProvider.getActiveAnalysesSummary()));
-        }
-        // Handle expanding sections
-        switch (element.type) {
-            case 'active-analyses':
-                console.log('[CODE_ANALYSIS] Loading Active Analyses children');
-                return Promise.resolve(this.activeAnalysesProvider.getActiveAnalysesTreeItems());
-            case 'analysis-settings':
-                console.log('[CODE_ANALYSIS] Loading Analysis Settings children');
-                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('analysis-settings', this.context);
-            case 'project-structure':
-                console.log('[CODE_ANALYSIS] Loading Project Structure children');
-                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('project-structure', this.context);
-            case 'files-by-language':
-                console.log('[CODE_ANALYSIS] Loading Files by Language children');
-                return this.getFilesByLanguageChildren();
-            case 'language-group':
-                console.log(`[CODE_ANALYSIS] Loading files for language: ${element.languageName}`);
-                return this.getLanguageGroupChildren(element.languageName);
-            case 'dimension-mapping-file':
-                console.log('[CODE_ANALYSIS] Loading Dimension Mapping (File) children');
-                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('dimension-mapping-file', this.context);
-            default:
-                console.log('[CODE_ANALYSIS] No children available for this item type');
-                return Promise.resolve([]);
-        }
-    }
-    /**
-     * Get the main code analysis sections for integration with unified view
-     */
-    getCodeAnalysisSections() {
-        console.log('[CODE_ANALYSIS] Getting code analysis sections for unified view');
-        return analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(this.filesByLanguage || undefined, this.isScanning, this.activeAnalysesProvider.getActiveAnalysesSummary());
-    }
-    /**
-     * Get children for a specific section type (used by unified view)
-     */
-    getSectionChildren(sectionType) {
-        console.log(`[CODE_ANALYSIS] Getting children for section: ${sectionType}`);
-        if (sectionType === 'files-by-language') {
-            return this.getFilesByLanguageChildren();
-        }
-        if (sectionType === 'project-structure') {
-            return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('project-structure', this.context);
-        }
-        if (sectionType === 'dimension-mapping-file') {
-            return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('dimension-mapping-file', this.context);
-        }
-        return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems(sectionType, this.context);
-    }
-    /**
-     * Get children for Files by Language section - triggers file scanning
-     */
-    async getFilesByLanguageChildren() {
-        console.log('[CODE_ANALYSIS] Getting Files by Language children');
-        // Prevent multiple concurrent scans
-        if (this.isScanning) {
-            console.log('[CODE_ANALYSIS] Scan already in progress, returning scanning indicator');
-            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Scanning files...', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('loading~spin'), 'File scan in progress', 'Please wait', 'scanning')];
-        }
-        try {
-            // Trigger file scan if not already done
-            if (!this.filesByLanguage) {
-                console.log('ANALYSIS: Scanning files for language analysis...');
-                this.isScanning = true;
-                this.filesByLanguage = await fileScanner_1.FileScanner.scanWorkspaceFiles();
-                this.isScanning = false;
-                console.log('[CODE_ANALYSIS] File scan completed, refreshing tree view');
-                // Refresh the entire tree to update the root label with counts
-                this.refresh();
-            }
-            // Create language group items
-            const languageItems = analysisTreeItems_1.CodeAnalysisItemFactory.createLanguageGroupItems(this.filesByLanguage, this.context);
-            if (languageItems.length === 0) {
-                return [new analysisTreeItems_1.CodeAnalysisTreeItem('No files found', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('info'), 'No files detected in workspace', '', 'no-files')];
-            }
-            console.log(`[CODE_ANALYSIS] Returning ${languageItems.length} language groups`);
-            return languageItems;
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error getting Files by Language children:', error);
-            this.isScanning = false;
-            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Error scanning files', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), `Failed to scan workspace files: ${error}`, 'Error', 'scan-error')];
-        }
-    }
-    /**
-     * Get children for a specific language group
-     */
-    getLanguageGroupChildren(languageName) {
-        console.log(`[CODE_ANALYSIS] Getting children for language group: ${languageName}`);
-        if (!this.filesByLanguage) {
-            console.warn('[CODE_ANALYSIS] No file data available for language group');
-            return Promise.resolve([]);
-        }
-        // ✅ Pass context for colored language icons
-        const fileItems = analysisTreeItems_1.CodeAnalysisItemFactory.createFileItems(languageName, this.filesByLanguage, this.context);
-        return Promise.resolve(fileItems);
-    }
-    /**
-     * Legacy method for backward compatibility - use forceRefreshFilesScan instead
-     * @deprecated Use forceRefreshFilesScan() instead
-     */
-    async refreshFilesScan() {
-        console.log('[CODE_ANALYSIS] Legacy refreshFilesScan called, delegating to forceRefreshFilesScan');
-        await this.forceRefreshFilesScan();
-    }
-    /**
-     * Get the active analyses provider for external access
-     */
-    getActiveAnalysesProvider() {
-        return this.activeAnalysesProvider;
-    }
-    /**
-     * Get the file watcher manager for external access
-     */
-    getFileWatcherManager() {
-        return this.fileWatcherManager;
-    }
-    /**
-     * Start tracking a file analysis
-     */
-    startFileAnalysis(filePath, mode, language) {
-        console.log(`[CODE_ANALYSIS] Starting file analysis tracking for ${filePath}`);
-        return this.activeAnalysesProvider.startFileAnalysis(filePath, mode, language);
-    }
-    /**
-     * Start tracking a directory analysis
-     */
-    startDirectoryAnalysis(directoryPath, mode) {
-        console.log(`[CODE_ANALYSIS] Starting directory analysis tracking for ${directoryPath}`);
-        return this.activeAnalysesProvider.startDirectoryAnalysis(directoryPath, mode);
-    }
-    /**
-     * Complete an analysis
-     */
-    completeAnalysis(analysisId, metadata) {
-        this.activeAnalysesProvider.completeAnalysis(analysisId, metadata);
-    }
-    /**
-     * Fail an analysis
-     */
-    failAnalysis(analysisId, error) {
-        this.activeAnalysesProvider.failAnalysis(analysisId, error);
-    }
-}
-exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
-
-
-/***/ }),
-/* 45 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const fileDisplayUtils_1 = __webpack_require__(46);
-const analysisSettingsStorage_1 = __webpack_require__(48);
-const chartRegistry_1 = __webpack_require__(49);
-/**
- * Get user-friendly display name for data field
- */
-function getFieldDisplayName(fieldName) {
-    const fieldNames = {
-        'parameters': 'Parameters',
-        'lines_count': 'Lines Count',
-        'ccn': 'CCN (Complexity)',
-        'function_name': 'Function Name',
-        'ccn_density': 'CCN Density'
-    };
-    return fieldNames[fieldName] || fieldName;
-}
-/**
- * Code Analysis tree item that represents different analysis sections and items
- */
-class CodeAnalysisTreeItem extends vscode.TreeItem {
-    // Declare properties explicitly (iconPath is inherited from TreeItem)
-    type;
-    fileInfo;
-    languageName;
-    constructor(labelOrUri, collapsibleState, type, command, iconPath, tooltip, description, contextValue, fileInfo, languageName) {
-        // Call super() FIRST with the appropriate arguments
-        if (labelOrUri instanceof vscode.Uri) {
-            super(labelOrUri, collapsibleState);
-            // After super(), we can set the label
-            this.label = path.basename(labelOrUri.fsPath);
-        }
-        else {
-            super(labelOrUri, collapsibleState);
-        }
-        // NOW assign all properties after super() has been called
-        this.type = type;
-        // Only assign iconPath if it's defined
-        if (iconPath !== undefined) {
-            this.iconPath = iconPath;
-        }
-        // Assign other properties
-        if (command !== undefined) {
-            this.command = command;
-        }
-        if (tooltip !== undefined) {
-            this.tooltip = tooltip;
-        }
-        if (description !== undefined) {
-            this.description = description;
-        }
-        if (contextValue !== undefined) {
-            this.contextValue = contextValue;
-        }
-        this.fileInfo = fileInfo;
-        this.languageName = languageName;
-    }
-}
-exports.CodeAnalysisTreeItem = CodeAnalysisTreeItem;
-/**
- * Factory for creating Code Analysis tree items
- */
-class CodeAnalysisItemFactory {
-    /**
-     * Create the main code analysis sections
-     */
-    static createCodeAnalysisSections() {
-        console.log('[CODE_ANALYSIS] Creating main analysis sections');
-        return [
-            new CodeAnalysisTreeItem('Active Analyses', vscode.TreeItemCollapsibleState.Collapsed, 'active-analyses', {
-                command: 'codeXR.codeAnalysis.showActiveAnalyses',
-                title: 'Show Active Analyses'
-            }, new vscode.ThemeIcon('pulse'), 'View currently running analyses', '', 'active-analyses'),
-            new CodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-settings', {
-                command: 'codeXR.codeAnalysis.showAnalysisSettings',
-                title: 'Show Analysis Settings'
-            }, new vscode.ThemeIcon('gear'), 'Configure analysis parameters', '', 'analysis-settings'),
-            new CodeAnalysisTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'project-structure', {
-                command: 'codexr.codeanalysis.refreshProjectStructure',
-                title: 'Refresh Project Structure'
-            }, new vscode.ThemeIcon('folder-library'), 'Browse complete project directory structure', '', 'project-structure'),
-            new CodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'files-by-language', undefined, // No command - let tree expansion handle the scanning
-            new vscode.ThemeIcon('files'), 'Browse project files grouped by language', '', 'files-by-language')
-        ];
-    }
-    /**
-     * Create the main code analysis sections with file counts
-     */
-    static createCodeAnalysisSectionsWithCounts(filesByLanguage, isScanning = false, activeAnalysesSummary) {
-        console.log('[CODE_ANALYSIS] Creating main analysis sections with file counts');
-        // Calculate file summary if data is available, excluding "Unknown Files"
-        let filesByLanguageDescription = '';
-        if (isScanning) {
-            filesByLanguageDescription = 'Scanning project files...';
-            console.log('[CODE_ANALYSIS] Scanning in progress, showing scanning message');
-        }
-        else if (filesByLanguage && Object.keys(filesByLanguage).length > 0) {
-            // Filter out "Unknown Files" from the count
-            const analyzableLanguages = Object.entries(filesByLanguage)
-                .filter(([languageName]) => languageName !== 'Unknown Files');
-            const languageCount = analyzableLanguages.length;
-            const totalAnalyzableFiles = analyzableLanguages.reduce((total, [, files]) => total + files.length, 0);
-            if (languageCount > 0 && totalAnalyzableFiles > 0) {
-                // Create descriptive text
-                const languageText = languageCount === 1 ? 'language' : 'languages';
-                const fileText = totalAnalyzableFiles === 1 ? 'file' : 'files';
-                filesByLanguageDescription = `${languageCount} ${languageText}, ${totalAnalyzableFiles} ${fileText} (analyzable)`;
-                console.log(`[CODE_ANALYSIS] Updated description: ${filesByLanguageDescription}`);
-            }
-            else {
-                filesByLanguageDescription = 'No analyzable files found';
-                console.log('[CODE_ANALYSIS] No analyzable files found in project');
-            }
-        }
-        else {
-            filesByLanguageDescription = 'Ready to analyze';
-            console.log('[CODE_ANALYSIS] No file data available, showing ready message');
-        }
-        // Use the provided active analyses summary or default
-        const activeAnalysesLabel = activeAnalysesSummary || 'Active Analyses';
-        return [
-            new CodeAnalysisTreeItem(activeAnalysesLabel, vscode.TreeItemCollapsibleState.Collapsed, 'active-analyses', {
-                command: 'codeXR.codeAnalysis.showActiveAnalyses',
-                title: 'Show Active Analyses'
-            }, new vscode.ThemeIcon('pulse'), 'View currently running analyses', '', 'active-analyses'),
-            new CodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-settings', {
-                command: 'codeXR.codeAnalysis.showAnalysisSettings',
-                title: 'Show Analysis Settings'
-            }, new vscode.ThemeIcon('gear'), 'Configure analysis parameters', '', 'analysis-settings'),
-            new CodeAnalysisTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'project-structure', {
-                command: 'codexr.codeanalysis.refreshProjectStructure',
-                title: 'Refresh Project Structure'
-            }, new vscode.ThemeIcon('folder-library'), 'Browse complete project directory structure', 'Hierarchical file explorer', 'project-structure'),
-            new CodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'files-by-language', undefined, // No command - let tree expansion handle the scanning
-            new vscode.ThemeIcon('files'), 'Browse project files grouped by language', filesByLanguageDescription, 'files-by-language')
-        ];
-    }
-    /**
-     * Create placeholder items for when sections are expanded
-     */
-    static async createPlaceholderItems(sectionKey, context) {
-        const placeholders = [];
-        switch (sectionKey) {
-            case 'analysis-settings':
-                // Get current analysis mode from storage
-                const currentMode = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
-                    'Static';
-                const modeItem = new CodeAnalysisTreeItem(`Analysis Mode: ${currentMode}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
-                    command: 'codexr.analysis.toggleMode',
-                    title: 'Toggle Analysis Mode',
-                    arguments: []
-                });
-                // Set icon based on current mode - use the returned ThemeIcon directly
-                const modeIcon = analysisSettingsStorage_1.AnalysisSettingsStorage.getAnalysisModeIcon(currentMode);
-                modeItem.iconPath = modeIcon;
-                modeItem.tooltip = `Current analysis mode: ${currentMode}. Click to toggle between XR and Static modes.`;
-                modeItem.description = `${currentMode === 'XR' ? 'VR/AR visualization' : 'Standard visualization'}`;
-                placeholders.push(modeItem);
-                // Get current theme from storage
-                const currentTheme = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentTheme(context) :
-                    'light';
-                const themeItem = new CodeAnalysisTreeItem(`Viewer Theme: ${currentTheme}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
-                    command: 'codexr.analysis.toggleTheme',
-                    title: 'Toggle Viewer Theme',
-                    arguments: []
-                });
-                // Set icon based on current theme
-                themeItem.iconPath = currentTheme === 'light' ?
-                    new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('foreground')) :
-                    new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('charts.orange'));
-                themeItem.tooltip = `Current viewer theme: ${currentTheme}. Click to toggle between light and dark themes.`;
-                themeItem.description = `${currentTheme === 'light' ? 'Light appearance' : 'Dark appearance'}`;
-                placeholders.push(themeItem);
-                // Get current auto-analysis delay from storage
-                const currentDelay = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelay(context) :
-                    0;
-                const delayItem = new CodeAnalysisTreeItem(`Auto-Analysis Delay: ${analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayLabel(currentDelay)}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
-                    command: 'codexr.analysis.setAutoAnalysisDelay',
-                    title: 'Set Auto-Analysis Delay',
-                    arguments: []
-                });
-                // Set icon for delay setting
-                delayItem.iconPath = new vscode.ThemeIcon('clock', new vscode.ThemeColor('charts.blue'));
-                delayItem.tooltip = `Current auto-analysis delay: ${analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayLabel(currentDelay)}. Click to change the delay before re-analyzing changed files.`;
-                delayItem.description = `${currentDelay === 0 ? 'Immediate analysis' : 'Delayed analysis'}`;
-                placeholders.push(delayItem);
-                // Get current chart type for file analysis
-                const currentChartType = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context) :
-                    'donut';
-                const chartTypeItem = new CodeAnalysisTreeItem(`Chart Type (File): ${currentChartType}`, vscode.TreeItemCollapsibleState.None, 'chart-type-file', {
-                    command: 'codexr.analysis.selectChartTypeFile',
-                    title: 'Select Chart Type for File Analysis',
-                    arguments: []
-                });
-                // Set icon for chart type setting - match analysis mode color
-                const chartCurrentMode = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
-                    'XR';
-                const chartModeColor = chartCurrentMode === 'XR' ? 'charts.purple' : 'charts.green';
-                chartTypeItem.iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(chartModeColor));
-                chartTypeItem.tooltip = `Current chart type for file analysis: ${currentChartType}. Click to select a different chart type.`;
-                chartTypeItem.description = `${currentChartType} chart visualization`;
-                placeholders.push(chartTypeItem);
-                // Add reset to defaults option
-                const resetItem = new CodeAnalysisTreeItem('Reset to default values', vscode.TreeItemCollapsibleState.None, 'reset-settings', {
-                    command: 'codexr.analysis.resetSettings',
-                    title: 'Reset Analysis Settings to Default Values',
-                    arguments: []
-                });
-                resetItem.iconPath = new vscode.ThemeIcon('refresh', new vscode.ThemeColor('charts.red'));
-                resetItem.tooltip = 'Reset all analysis settings to their default values (chart type: boats, default dimension mappings, etc.)';
-                resetItem.description = 'Restore defaults';
-                placeholders.push(resetItem);
-                // Get current dimension mappings for file analysis
-                const currentDimensionMappings = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context) :
-                    [];
-                const mappedCount = currentDimensionMappings.length;
-                const dimensionMappingItem = new CodeAnalysisTreeItem(`Dimension Mapping (File)`, vscode.TreeItemCollapsibleState.Collapsed, 'dimension-mapping-file', undefined, // No command - expandable section
-                undefined, // Will be set below based on mapping status
-                `Configure dimension mapping for file analysis visualization`, `${mappedCount} mapped`);
-                // Set icon based on mapping status - match analysis mode color
-                const dimCurrentMode = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
-                    'XR';
-                const dimModeColor = dimCurrentMode === 'XR' ? 'charts.purple' : 'charts.green';
-                dimensionMappingItem.iconPath = mappedCount > 0 ?
-                    new vscode.ThemeIcon('settings-gear', new vscode.ThemeColor(dimModeColor)) :
-                    new vscode.ThemeIcon('settings-gear', new vscode.ThemeColor('charts.orange'));
-                placeholders.push(dimensionMappingItem);
-                break;
-            case 'dimension-mapping-file':
-                // Create dimension items based on the current chart type
-                if (context) {
-                    const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
-                    const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
-                    // Get chart metadata from the registry
-                    const chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
-                    const chartMetadata = chartRegistry.getChart(chartType);
-                    if (chartMetadata) {
-                        // Create dimension items for the current chart
-                        for (const dimension of chartMetadata.dimensions) {
-                            const currentMapping = dimensionMappings.find(m => m.dimension === dimension.name);
-                            let description = 'Not mapped';
-                            let tooltip = `${dimension.label} - ${dimension.description}`;
-                            let iconPath;
-                            // Add data type information to tooltip
-                            if (dimension.dataType === 'numeric') {
-                                tooltip += '\n(numeric values only)';
-                            }
-                            else {
-                                tooltip += '\n(any value type)';
-                            }
-                            if (currentMapping) {
-                                // Get user-friendly field name
-                                const fieldDisplayName = getFieldDisplayName(currentMapping.dataField);
-                                description = `→ ${fieldDisplayName}`;
-                                tooltip += `\nMapped to: ${fieldDisplayName}`;
-                                iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
-                            }
-                            else {
-                                tooltip += '\nNot mapped - Click to select field';
-                                iconPath = dimension.required
-                                    ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.orange'))
-                                    : new vscode.ThemeIcon('circle-outline');
-                            }
-                            const dimensionItem = new CodeAnalysisTreeItem(dimension.label || dimension.name, vscode.TreeItemCollapsibleState.None, 'dimension-item-file', {
-                                command: 'codexr.analysis.mapDimensionFile',
-                                title: 'Map Dimension for File Analysis',
-                                arguments: [dimension.name, dimension.dataType, dimension.required]
-                            }, iconPath, tooltip, description);
-                            placeholders.push(dimensionItem);
-                        }
-                    }
-                    else {
-                        // Chart type not found - show placeholder
-                        placeholders.push(new CodeAnalysisTreeItem(`Unknown chart type: ${chartType}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), 'Chart type not found in registry'));
-                    }
-                }
-                else {
-                    // No context - show placeholder
-                    placeholders.push(new CodeAnalysisTreeItem('Placeholder dimensions (TODO1, TODO2, TODO3)', vscode.TreeItemCollapsibleState.None, 'dimension-item-file', undefined, new vscode.ThemeIcon('circle-outline'), 'Placeholder dimension mapping'));
-                }
-                break;
-            default:
-                // Generic placeholder for other sections
-                placeholders.push(new CodeAnalysisTreeItem("Configuration options", vscode.TreeItemCollapsibleState.None, 'analysis-item'));
-                break;
-        }
-        return placeholders;
-    } /**
-     * Create language group items from scanned files
-     */
-    static createLanguageGroupItems(filesByLanguage, context) {
-        console.log('[CODE_ANALYSIS] Creating language group items from scanned files');
-        const languageItems = [];
-        // Sort languages by file count (descending), but keep "Unknown Files" at the end
-        const sortedLanguages = Object.entries(filesByLanguage)
-            .sort(([nameA, filesA], [nameB, filesB]) => {
-            // Always put "Unknown Files" at the end
-            if (nameA === 'Unknown Files') {
-                return 1;
-            }
-            if (nameB === 'Unknown Files') {
-                return -1;
-            }
-            // Sort others by file count (descending)
-            return filesB.length - filesA.length;
-        });
-        sortedLanguages.forEach(([languageName, files]) => {
-            const fileCount = files.length;
-            const languageInfo = files.length > 0 ? files[0].language : null;
-            // Use shared utility for consistent icon display
-            let iconPath;
-            if (languageName === 'Unknown Files') {
-                iconPath = new vscode.ThemeIcon('question');
-            }
-            else {
-                iconPath = fileDisplayUtils_1.FileDisplayUtils.getFileIcon(languageInfo, context);
-            }
-            const languageItem = new CodeAnalysisTreeItem(languageName, vscode.TreeItemCollapsibleState.Collapsed, 'language-group', undefined, // No command for language groups
-            iconPath, `${languageName} - ${fileCount} files found`, `${fileCount} files`, 'language-group', undefined, languageName);
-            languageItems.push(languageItem);
-        });
-        console.log(`[CODE_ANALYSIS] Created ${languageItems.length} language group items`);
-        return languageItems;
-    }
-    /**
-     * Create file items for a specific language using shared utility for consistent display
-     */
-    static createFileItems(languageName, filesByLanguage, context) {
-        console.log(`[ANALYSIS] Creating file items for language: ${languageName}`);
-        const files = filesByLanguage[languageName] || [];
-        return files.map(fileInfo => {
-            const fileUri = vscode.Uri.file(fileInfo.fullPath);
-            // Use shared utility for consistent file display
-            const fileProperties = fileDisplayUtils_1.FileDisplayUtils.createFileTreeItemProperties(fileInfo.fileName, fileInfo.fullPath, 'language', // Use 'language' view type for relative path description
-            undefined, // No file size needed for language view
-            context, {
-                command: 'codeXR.codeAnalysis.fileClicked',
-                title: 'Open File',
-                arguments: [fileUri]
-            });
-            console.log(`[ANALYSIS] File icon setup - Path: ${fileUri.fsPath}, Language: ${fileInfo.language?.name || 'unknown'}`);
-            // Create tree item with unified display properties
-            const treeItem = new CodeAnalysisTreeItem(path.basename(fileInfo.fileName), vscode.TreeItemCollapsibleState.None, 'file-item', fileProperties.command, fileProperties.iconPath, fileProperties.tooltip, fileProperties.description, // Will show relative path
-            'file-item', fileInfo);
-            // Set the resource URI for context menu and other VS Code features
-            treeItem.resourceUri = fileUri;
-            return treeItem;
-        });
-    }
-}
-exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
-
-
-/***/ }),
-/* 46 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileDisplayUtils = void 0;
-exports.getFileIcon = getFileIcon;
-exports.getFileDescription = getFileDescription;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(47);
-/**
- * Shared utility for consistent file display across Code Analysis views
- */
-class FileDisplayUtils {
-    /**
-     * Get the appropriate icon for a file based on its language or extension
-     * @param filePathOrLanguage - File path, extension, or language info
-     * @param context - VS Code extension context for accessing resources
-     * @returns vscode.Uri for colored icon or vscode.ThemeIcon for default
-     */
-    static getFileIcon(filePathOrLanguage, context) {
-        if (!context) {
-            console.log('FILE_RENDER: No context available — using default icon');
-            return vscode.ThemeIcon.File;
-        }
-        let languageInfo = null;
-        // Determine language info from input
-        if (typeof filePathOrLanguage === 'string') {
-            // If it's a file path, detect language
-            languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePathOrLanguage);
-        }
-        else if (filePathOrLanguage && typeof filePathOrLanguage === 'object') {
-            // If it's already a LanguageInfo object
-            languageInfo = filePathOrLanguage;
-        }
-        if (!languageInfo) {
-            console.log('FILE_RENDER: No language detected — using default icon');
-            return vscode.ThemeIcon.File;
-        }
-        // Map language names to colored SVG icon filenames
-        const iconMapping = {
-            'C': 'c.svg',
-            'C++': 'cplusplus.svg',
-            'C#': 'csharp.svg',
-            'Erlang': 'erlang.svg',
-            'Fortran': 'fortran.svg',
-            'GDScript': 'godot.svg',
-            'Go': 'go.svg',
-            'HTML': 'html5.svg',
-            'Java': 'java.svg',
-            'JavaScript': 'javascript.svg',
-            'Kotlin': 'kotlin.svg',
-            'Lua': 'lua.svg',
-            'Objective-C': 'objectivec.svg',
-            'Perl': 'perl.svg',
-            'PHP': 'php.svg',
-            'Python': 'python.svg',
-            'Ruby': 'ruby.svg',
-            'Rust': 'rust.svg',
-            'Scala': 'scala.svg',
-            'Solidity': 'solidity.svg',
-            'Swift': 'swift.svg',
-            'TTCN-3': 'ttcn3.svg',
-            'TypeScript': 'typescript.svg',
-            'Vue': 'vuejs.svg',
-            'Zig': 'zig.svg'
-        };
-        const iconFileName = iconMapping[languageInfo.name];
-        if (iconFileName) {
-            const iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'languages_icons', 'color', iconFileName);
-            console.log(`FILE_RENDER: Using colored icon for ${languageInfo.name}: ${iconFileName}`);
-            return iconPath;
-        }
-        console.log(`FILE_RENDER: No colored icon found for ${languageInfo.name} — using default icon`);
-        return vscode.ThemeIcon.File;
-    }
-    /**
-     * Get context-appropriate description for a file
-     * @param filePath - Full file path
-     * @param viewType - Type of view requesting the description
-     * @param fileSize - Optional file size in bytes (for project view)
-     * @returns Formatted description string
-     */
-    static getFileDescription(filePath, viewType, fileSize) {
-        if (viewType === 'project' && fileSize !== undefined) {
-            const formattedSize = this.formatFileSize(fileSize);
-            console.log(`FILE_RENDER: Project view description for ${path.basename(filePath)}: ${formattedSize}`);
-            return formattedSize;
-        }
-        if (viewType === 'language') {
-            // Get relative path from workspace root
-            let relativePath = filePath;
-            if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-                const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                if (filePath.startsWith(workspaceRoot)) {
-                    relativePath = path.relative(workspaceRoot, filePath);
-                }
-            }
-            console.log(`FILE_RENDER: Language view description for ${path.basename(filePath)}: ${relativePath}`);
-            return relativePath;
-        }
-        console.log(`FILE_RENDER: No description for ${path.basename(filePath)} in view type ${viewType}`);
-        return '';
-    }
-    /**
-     * Format file size in human-readable format
-     * @param bytes - File size in bytes
-     * @returns Formatted size string (e.g., "12.4 KB")
-     */
-    static formatFileSize(bytes) {
-        if (bytes === 0) {
-            return '0 B';
-        }
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-    /**
-     * Create a complete file tree item with unified display logic
-     * @param fileName - Name of the file
-     * @param filePath - Full path to the file
-     * @param viewType - Type of view for context-specific description
-     * @param fileSize - Optional file size in bytes
-     * @param context - VS Code extension context
-     * @param command - Optional command to execute on click
-     * @returns Configured vscode.TreeItem properties
-     */
-    static createFileTreeItemProperties(fileName, filePath, viewType, fileSize, context, command) {
-        const iconPath = this.getFileIcon(filePath, context);
-        const description = this.getFileDescription(filePath, viewType, fileSize);
-        // Create detailed tooltip
-        const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
-        const tooltipLines = [];
-        tooltipLines.push(`**${fileName}**`);
-        tooltipLines.push(`Path: ${filePath}`);
-        if (languageInfo) {
-            tooltipLines.push(`Language: ${languageInfo.name}`);
-        }
-        if (fileSize !== undefined) {
-            tooltipLines.push(`Size: ${this.formatFileSize(fileSize)}`);
-        }
-        // Add default file open command if none provided
-        const finalCommand = command || {
-            command: 'vscode.open',
-            title: 'Open File',
-            arguments: [vscode.Uri.file(filePath)]
-        };
-        console.log(`FILE_RENDER: Created tree item properties for ${fileName} in ${viewType} view`);
-        return {
-            iconPath,
-            description,
-            tooltip: tooltipLines.join('\n'),
-            command: finalCommand
-        };
-    }
-    /**
-     * Check if a colored icon exists for a given language
-     * @param languageName - Name of the programming language
-     * @param context - VS Code extension context
-     * @returns true if a colored icon is available
-     */
-    static hasColoredIcon(languageName, context) {
-        if (!context) {
-            return false;
-        }
-        const iconMapping = {
-            'C': 'c.svg',
-            'C++': 'cplusplus.svg',
-            'C#': 'csharp.svg',
-            'Erlang': 'erlang.svg',
-            'Fortran': 'fortran.svg',
-            'GDScript': 'godot.svg',
-            'Go': 'go.svg',
-            'HTML': 'html5.svg',
-            'Java': 'java.svg',
-            'JavaScript': 'javascript.svg',
-            'Kotlin': 'kotlin.svg',
-            'Lua': 'lua.svg',
-            'Objective-C': 'objectivec.svg',
-            'Perl': 'perl.svg',
-            'PHP': 'php.svg',
-            'Python': 'python.svg',
-            'Ruby': 'ruby.svg',
-            'Rust': 'rust.svg',
-            'Scala': 'scala.svg',
-            'Solidity': 'solidity.svg',
-            'Swift': 'swift.svg',
-            'TTCN-3': 'ttcn3.svg',
-            'TypeScript': 'typescript.svg',
-            'Vue': 'vuejs.svg',
-            'Zig': 'zig.svg'
-        };
-        return iconMapping[languageName] !== undefined;
-    }
-    /**
-     * Get all supported languages with colored icons
-     * @returns Array of language names that have colored icons
-     */
-    static getSupportedColoredLanguages() {
-        return [
-            'C', 'C++', 'C#', 'Erlang', 'Fortran', 'GDScript', 'Go', 'HTML',
-            'Java', 'JavaScript', 'Kotlin', 'Lua', 'Objective-C', 'Perl',
-            'PHP', 'Python', 'Ruby', 'Rust', 'Scala', 'Solidity', 'Swift',
-            'TTCN-3', 'TypeScript', 'Vue', 'Zig'
-        ];
-    }
-}
-exports.FileDisplayUtils = FileDisplayUtils;
-/**
- * Legacy compatibility - re-export for backwards compatibility
- * @deprecated Use FileDisplayUtils.getFileIcon instead
- */
-function getFileIcon(filePathOrLanguage, context) {
-    console.log('FILE_RENDER: Using deprecated getFileIcon function, please use FileDisplayUtils.getFileIcon');
-    return FileDisplayUtils.getFileIcon(filePathOrLanguage, context);
-}
-/**
- * Legacy compatibility - re-export for backwards compatibility
- * @deprecated Use FileDisplayUtils.getFileDescription instead
- */
-function getFileDescription(filePath, viewType, fileSize) {
-    console.log('FILE_RENDER: Using deprecated getFileDescription function, please use FileDisplayUtils.getFileDescription');
-    return FileDisplayUtils.getFileDescription(filePath, viewType, fileSize);
-}
-
-
-/***/ }),
-/* 47 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-/**
- * Language metadata for file detection and visualization
- * Maps file extensions to language information including VS Code icons
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExtensionToLanguageMap = exports.SupportedLanguages = void 0;
-exports.getLanguageForFile = getLanguageForFile;
-exports.getAllLanguageNames = getAllLanguageNames;
-exports.isLanguageSupported = isLanguageSupported;
-/**
- * Supported languages with their file extensions and VS Code icon IDs
- */
-exports.SupportedLanguages = [
-    { name: "HTML", extensions: [".html", ".htm"], iconId: "html" },
-    { name: "JavaScript", extensions: [".js", ".mjs"], iconId: "javascript" },
-    { name: "Python", extensions: [".py", ".pyw"], iconId: "python" },
-    { name: "Ruby", extensions: [".rb", ".rbw"], iconId: "ruby" },
-    { name: "C", extensions: [".c", ".h"], iconId: "c" },
-    { name: "Go", extensions: [".go"], iconId: "go" },
-    { name: "Kotlin", extensions: [".kt", ".kts"], iconId: "kotlin" },
-    { name: "Objective-C", extensions: [".m", ".mm"], iconId: "objective-c" },
-    { name: "Perl", extensions: [".pl", ".pm"], iconId: "perl" },
-    { name: "PHP", extensions: [".php", ".phtml"], iconId: "php" },
-    { name: "Scala", extensions: [".scala", ".sc"], iconId: "scala" },
-    { name: "Solidity", extensions: [".sol"], iconId: "solidity" },
-    { name: "Zig", extensions: [".zig"], iconId: "zig" },
-    { name: "C#", extensions: [".cs"], iconId: "csharp" },
-    { name: "C++", extensions: [".cpp", ".cxx", ".cc", ".c++", ".hpp", ".hxx", ".hh", ".h++"], iconId: "cpp" },
-    { name: "Erlang", extensions: [".erl", ".hrl"], iconId: "erlang" },
-    { name: "Fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], iconId: "fortran" },
-    { name: "GDScript", extensions: [".gd"], iconId: "gdscript" },
-    { name: "Java", extensions: [".java"], iconId: "java" },
-    { name: "Lua", extensions: [".lua"], iconId: "lua" },
-    { name: "Swift", extensions: [".swift"], iconId: "swift" },
-    { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
-    { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
-    { name: "Vue", extensions: [".vue"], iconId: "vue" },
-    { name: "JSON", extensions: [".json"], iconId: "json" },
-    { name: "XML", extensions: [".xml"], iconId: "xml" },
-    { name: "CSS", extensions: [".css"], iconId: "css" },
-    { name: "Markdown", extensions: [".md", ".markdown"], iconId: "markdown" }
-];
-/**
- * Create a map from file extension to language info for fast lookup
- */
-exports.ExtensionToLanguageMap = new Map();
-// Initialize the extension map
-exports.SupportedLanguages.forEach(lang => {
-    lang.extensions.forEach(ext => {
-        exports.ExtensionToLanguageMap.set(ext.toLowerCase(), lang);
-    });
-});
-/**
- * Get language info for a file path based on its extension
- * @param filePath The file path to analyze
- * @returns Language info or null if not recognized
- */
-function getLanguageForFile(filePath) {
-    const extension = getFileExtension(filePath);
-    return exports.ExtensionToLanguageMap.get(extension) || null;
-}
-/**
- * Extract file extension from a file path
- * @param filePath The file path
- * @returns The lowercase extension including the dot (e.g., ".js")
- */
-function getFileExtension(filePath) {
-    const lastDot = filePath.lastIndexOf('.');
-    if (lastDot === -1 || lastDot === filePath.length - 1) {
-        return '';
-    }
-    return filePath.substring(lastDot).toLowerCase();
-}
-/**
- * Get all supported language names
- */
-function getAllLanguageNames() {
-    return exports.SupportedLanguages.map(lang => lang.name);
-}
-/**
- * Check if a language is supported
- */
-function isLanguageSupported(languageName) {
-    return exports.SupportedLanguages.some(lang => lang.name === languageName);
-}
-
-
-/***/ }),
-/* 48 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisSettingsStorage = exports.AUTO_ANALYSIS_DELAYS = void 0;
-const vscode = __importStar(__webpack_require__(1));
-/**
- * Auto-analysis delay presets in milliseconds
- */
-exports.AUTO_ANALYSIS_DELAYS = {
-    REAL_TIME: 0,
-    HALF_SECOND: 500,
-    ONE_SECOND: 1000,
-    THREE_SECONDS: 3000,
-    FIVE_SECONDS: 5000,
-    TEN_SECONDS: 10000
-};
-/**
- * Default analysis configuration
- */
-const DEFAULT_CONFIG = {
-    analysisModeFile: 'XR',
-    theme: 'light',
-    autoAnalysisDelay: exports.AUTO_ANALYSIS_DELAYS.REAL_TIME,
-    // Default chart and dimension mapping for file analysis - using boats chart with XR field names
-    chartTypeFile: 'boats', // Default to boats chart for file analysis
-    dimensionMappingFile: [
-        {
-            dimension: 'area',
-            dataField: 'parameters' // Same in XR format
-        },
-        {
-            dimension: 'height',
-            dataField: 'lineCount' // Updated to XR field name
-        },
-        {
-            dimension: 'color',
-            dataField: 'complexity' // Updated to XR field name (was 'ccn')
-        }
-    ]
-};
-/**
- * Utility class for managing analysis settings storage
- * Stores configuration in globalStorage/codexr_analysis/configuration.json
- */
-class AnalysisSettingsStorage {
-    static STORAGE_FOLDER = 'codexr_analysis';
-    static CONFIG_FILE = 'configuration.json';
-    /**
-     * Get the full path to the configuration file
-     */
-    static getConfigPath(context) {
-        return vscode.Uri.joinPath(context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
-    }
-    /**
-     * Load analysis configuration from storage
-     */
-    static async loadConfiguration(context) {
-        try {
-            const configPath = this.getConfigPath(context);
-            console.log(`ANALYSIS: Loading configuration from ${configPath.fsPath}`);
-            const configData = await vscode.workspace.fs.readFile(configPath);
-            const configString = Buffer.from(configData).toString('utf8');
-            const loadedConfig = JSON.parse(configString);
-            // Validate and merge with defaults
-            const config = {
-                analysisModeFile: loadedConfig.analysisModeFile || DEFAULT_CONFIG.analysisModeFile,
-                theme: loadedConfig.theme || DEFAULT_CONFIG.theme,
-                autoAnalysisDelay: loadedConfig.autoAnalysisDelay !== undefined ? loadedConfig.autoAnalysisDelay : DEFAULT_CONFIG.autoAnalysisDelay,
-                chartTypeFile: loadedConfig.chartTypeFile || DEFAULT_CONFIG.chartTypeFile,
-                dimensionMappingFile: loadedConfig.dimensionMappingFile || DEFAULT_CONFIG.dimensionMappingFile
-            };
-            console.log(`ANALYSIS: Loaded configuration:`, config);
-            return config;
-        }
-        catch (error) {
-            console.log(`ANALYSIS: Could not load configuration, using defaults:`, error);
-            // Try to detect theme from VS Code when config is not available
-            const detectedTheme = this.getDefaultThemeFromVscode();
-            console.log(`ANALYSIS: Detected VS Code theme: ${detectedTheme}`);
-            return {
-                ...DEFAULT_CONFIG,
-                theme: detectedTheme
-            };
-        }
-    }
-    /**
-     * Save analysis configuration to storage
-     */
-    static async saveConfiguration(context, config) {
-        try {
-            const configPath = this.getConfigPath(context);
-            console.log(`ANALYSIS: Saving configuration to ${configPath.fsPath}:`, config);
-            // Ensure the storage folder exists
-            const storageFolder = vscode.Uri.joinPath(context.globalStorageUri, this.STORAGE_FOLDER);
-            try {
-                await vscode.workspace.fs.createDirectory(storageFolder);
-            }
-            catch (error) {
-                // Directory might already exist, that's fine
-            }
-            // Save configuration
-            const configString = JSON.stringify(config, null, 2);
-            const configData = Buffer.from(configString, 'utf8');
-            await vscode.workspace.fs.writeFile(configPath, configData);
-            console.log(`ANALYSIS: Configuration saved successfully`);
-        }
-        catch (error) {
-            console.error(`ANALYSIS: Failed to save configuration:`, error);
-            vscode.window.showErrorMessage(`Failed to save analysis configuration: ${error}`);
-        }
-    }
-    /**
-     * Get the current analysis mode
-     */
-    static async getCurrentAnalysisMode(context) {
-        const config = await this.loadConfiguration(context);
-        return config.analysisModeFile;
-    }
-    /**
-     * Set the analysis mode and save configuration
-     */
-    static async setAnalysisMode(context, mode) {
-        console.log(`ANALYSIS: Setting analysis mode to: ${mode}`);
-        const config = await this.loadConfiguration(context);
-        config.analysisModeFile = mode;
-        await this.saveConfiguration(context, config);
-        // Show confirmation message
-        const modeDisplay = mode === 'XR' ? 'XR Analysis Mode' : 'Static Analysis Mode';
-        vscode.window.showInformationMessage(`Switched to ${modeDisplay}`);
-    }
-    /**
-     * Toggle between XR and Static analysis modes
-     */
-    static async toggleAnalysisMode(context) {
-        const currentMode = await this.getCurrentAnalysisMode(context);
-        const newMode = currentMode === 'XR' ? 'Static' : 'XR';
-        await this.setAnalysisMode(context, newMode);
-        return newMode;
-    }
-    /**
-     * Get icon for analysis mode
-     */
-    static getAnalysisModeIcon(mode) {
-        switch (mode) {
-            case 'XR':
-                return new vscode.ThemeIcon('file', new vscode.ThemeColor('charts.purple'));
-            case 'Static':
-                return new vscode.ThemeIcon('file', new vscode.ThemeColor('charts.green'));
-            default:
-                return new vscode.ThemeIcon('file');
-        }
-    }
-    /**
-     * Get display label for analysis mode
-     */
-    static getAnalysisModeLabel(mode) {
-        return `Analysis Mode (${mode})`;
-    }
-    /**
-     * Get the current theme mode
-     */
-    static async getCurrentTheme(context) {
-        const config = await this.loadConfiguration(context);
-        return config.theme;
-    }
-    /**
-     * Set the theme mode and save configuration
-     */
-    static async setTheme(context, theme) {
-        console.log(`ANALYSIS: Setting theme to: ${theme}`);
-        const config = await this.loadConfiguration(context);
-        config.theme = theme;
-        await this.saveConfiguration(context, config);
-        console.log(`ANALYSIS: Theme updated to ${theme}`);
-    }
-    /**
-     * Toggle between light and dark themes
-     */
-    static async toggleTheme(context) {
-        const currentTheme = await this.getCurrentTheme(context);
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        await this.setTheme(context, newTheme);
-        return newTheme;
-    }
-    /**
-     * Get default theme from VS Code's active color theme
-     */
-    static getDefaultThemeFromVscode() {
-        const theme = vscode.window.activeColorTheme.kind;
-        if (theme === vscode.ColorThemeKind.Dark || theme === vscode.ColorThemeKind.HighContrast) {
-            return 'dark';
-        }
-        return 'light';
-    }
-    /**
-     * Get the current auto-analysis delay
-     */
-    static async getAutoAnalysisDelay(context) {
-        const config = await this.loadConfiguration(context);
-        return config.autoAnalysisDelay;
-    }
-    /**
-     * Set the auto-analysis delay and save configuration
-     */
-    static async setAutoAnalysisDelay(context, delay) {
-        console.log(`ANALYSIS: Setting auto-analysis delay to: ${delay}ms`);
-        const config = await this.loadConfiguration(context);
-        config.autoAnalysisDelay = delay;
-        await this.saveConfiguration(context, config);
-        // Show confirmation message
-        const delayDisplay = delay === 0 ? 'Real Time' : `${delay}ms`;
-        vscode.window.showInformationMessage(`Auto-analysis delay set to ${delayDisplay}`);
-    }
-    /**
-     * Get display label for auto-analysis delay
-     */
-    static getAutoAnalysisDelayLabel(delay) {
-        switch (delay) {
-            case exports.AUTO_ANALYSIS_DELAYS.REAL_TIME:
-                return 'Real Time (0s)';
-            case exports.AUTO_ANALYSIS_DELAYS.HALF_SECOND:
-                return '0.5s';
-            case exports.AUTO_ANALYSIS_DELAYS.ONE_SECOND:
-                return '1s';
-            case exports.AUTO_ANALYSIS_DELAYS.THREE_SECONDS:
-                return '3s';
-            case exports.AUTO_ANALYSIS_DELAYS.FIVE_SECONDS:
-                return '5s';
-            case exports.AUTO_ANALYSIS_DELAYS.TEN_SECONDS:
-                return '10s';
-            default:
-                return `${delay}ms (Custom)`;
-        }
-    }
-    /**
-     * Get preset delay options for UI
-     */
-    static getAutoAnalysisDelayOptions() {
-        return [
-            { label: 'Real Time (0s)', value: exports.AUTO_ANALYSIS_DELAYS.REAL_TIME },
-            { label: '0.5s', value: exports.AUTO_ANALYSIS_DELAYS.HALF_SECOND },
-            { label: '1s', value: exports.AUTO_ANALYSIS_DELAYS.ONE_SECOND },
-            { label: '3s', value: exports.AUTO_ANALYSIS_DELAYS.THREE_SECONDS },
-            { label: '5s', value: exports.AUTO_ANALYSIS_DELAYS.FIVE_SECONDS },
-            { label: '10s', value: exports.AUTO_ANALYSIS_DELAYS.TEN_SECONDS },
-            { label: 'Custom...', value: -1 } // Special value to indicate custom input
-        ];
-    }
-    /**
-     * Get the current chart type for file analysis
-     */
-    static async getChartTypeFile(context) {
-        const config = await this.loadConfiguration(context);
-        return config.chartTypeFile;
-    }
-    /**
-     * Set the chart type for file analysis and save configuration
-     */
-    static async setChartTypeFile(context, chartType) {
-        console.log(`ANALYSIS: Setting chart type for file analysis to: ${chartType}`);
-        const config = await this.loadConfiguration(context);
-        config.chartTypeFile = chartType;
-        // Reset dimension mappings when chart type changes
-        config.dimensionMappingFile = [];
-        await this.saveConfiguration(context, config);
-        vscode.window.showInformationMessage(`Chart type set to ${chartType}`);
-    }
-    /**
-     * Get the current dimension mapping for file analysis
-     */
-    static async getDimensionMappingFile(context) {
-        const config = await this.loadConfiguration(context);
-        return config.dimensionMappingFile;
-    }
-    /**
-     * Set the dimension mapping for file analysis and save configuration
-     */
-    static async setDimensionMappingFile(context, dimensionMappings) {
-        console.log(`ANALYSIS: Setting dimension mapping for file analysis:`, dimensionMappings);
-        const config = await this.loadConfiguration(context);
-        config.dimensionMappingFile = dimensionMappings;
-        await this.saveConfiguration(context, config);
-        const mappedCount = dimensionMappings.length;
-        vscode.window.showInformationMessage(`${mappedCount} dimension mappings configured`);
-    }
-    /**
-     * Update a single dimension mapping for file analysis
-     */
-    static async updateDimensionMappingFile(context, dimensionName, dataField) {
-        const config = await this.loadConfiguration(context);
-        // Remove any existing mapping for this dimension
-        config.dimensionMappingFile = config.dimensionMappingFile.filter(m => m.dimension !== dimensionName);
-        // Add the new mapping
-        config.dimensionMappingFile.push({
-            dimension: dimensionName,
-            dataField: dataField
-        });
-        await this.saveConfiguration(context, config);
-        console.log(`ANALYSIS: Updated dimension mapping: ${dimensionName} → ${dataField}`);
-    }
-    /**
-     * Reset all settings to default values
-     */
-    static async resetToDefaults(context) {
-        console.log('[ANALYSIS] Resetting all settings to default values...');
-        await this.saveConfiguration(context, DEFAULT_CONFIG);
-        console.log('[ANALYSIS] Settings reset to defaults successfully');
-    }
-}
-exports.AnalysisSettingsStorage = AnalysisSettingsStorage;
-
-
-/***/ }),
-/* 49 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BabiaChartRegistry = void 0;
-const templateCharts_1 = __webpack_require__(50);
-/**
- * BabiaXR Chart Registry
- * Central registry for available chart types and their metadata
- */
-class BabiaChartRegistry {
-    static instance;
-    charts = new Map();
-    constructor() {
-        this.initializeCharts();
-    }
-    /**
-     * Get the singleton instance
-     */
-    static getInstance() {
-        if (!BabiaChartRegistry.instance) {
-            BabiaChartRegistry.instance = new BabiaChartRegistry();
-        }
-        return BabiaChartRegistry.instance;
-    }
-    /**
-     * Initialize all chart definitions from templates
-     */
-    initializeCharts() {
-        // Register all chart templates
-        for (const chartTemplate of templateCharts_1.chartTemplates) {
-            this.charts.set(chartTemplate.id, chartTemplate);
-        }
-        console.log('BABIA_TEMPLATES: Initialized chart registry with chart templates');
-    }
-    /**
-     * Register a new chart type
-     */
-    registerChart(chart) {
-        this.charts.set(chart.id, chart);
-        console.log(`BABIA_TEMPLATES: Registered chart type '${chart.id}'`);
-    }
-    /**
-     * Get a chart by ID
-     */
-    getChart(chartId) {
-        return this.charts.get(chartId);
-    }
-    /**
-     * Get all available charts
-     */
-    getAllCharts() {
-        return Array.from(this.charts.values());
-    }
-    /**
-     * Get charts by category
-     */
-    getChartsByCategory(category) {
-        return Array.from(this.charts.values()).filter(chart => chart.category === category);
-    }
-    /**
-     * Check if a chart type exists
-     */
-    hasChart(chartId) {
-        return this.charts.has(chartId);
-    }
-    /**
-     * Get all available chart IDs
-     */
-    getChartIds() {
-        return Array.from(this.charts.keys());
-    }
-    /**
-     * Get chart names for display
-     */
-    getChartNames() {
-        return Array.from(this.charts.values()).map(chart => ({
-            id: chart.id,
-            name: chart.name,
-            description: chart.description
-        }));
-    }
-}
-exports.BabiaChartRegistry = BabiaChartRegistry;
-
-
-/***/ }),
-/* 50 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.chartTemplates = void 0;
-/**
- * BabiaXR Chart Templates
- * Defines all available chart types with their metadata and simplified HTML templates
- */
-exports.chartTemplates = [
-    // Bar Chart Template
-    {
-        id: 'bars',
-        name: 'Bar Chart',
-        description: '3D vertical bars representing data values',
-        category: 'linear',
-        dimensions: [
-            {
-                name: 'x_axis',
-                label: 'Categories (X-Axis)',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names for x-axis'
-            },
-            {
-                name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for bar heights'
-            }
-        ],
-        htmlTemplate: `<!-- Bar Chart -->
-                <a-entity id="chart"
-                    babia-bars="from: data;
-                                title: {{TITLE}};
-                                legend: true;
-                                palette: {{PALETTE}};
-                                x_axis: {{X_AXIS_FIELD}};
-                                height: {{HEIGHT_FIELD}};
-                                axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Barsmap Chart Template
-    {
-        id: 'barsmap',
-        name: 'Barsmap Chart',
-        description: '3D bar map with multiple axes representing data relationships',
-        category: 'linear',
-        dimensions: [
-            {
-                name: 'x_axis',
-                label: 'X-Axis Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names for x-axis'
-            },
-            {
-                name: 'z_axis',
-                label: 'Z-Axis Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names for z-axis'
-            },
-            {
-                name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for bar heights'
-            }
-        ],
-        htmlTemplate: `<!-- Barsmap Chart -->
-                <a-entity id="chart"
-                    babia-barsmap="from: data;
-                                   title: {{TITLE}};
-                                   legend: true;
-                                   palette: {{PALETTE}};
-                                   x_axis: {{X_AXIS_FIELD}};
-                                   z_axis: {{Z_AXIS_FIELD}};
-                                   height: {{HEIGHT_FIELD}};
-                                   axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Cyls Chart Template
-    {
-        id: 'cyls',
-        name: 'Cyls Chart',
-        description: '3D cylinders representing data values with configurable radius',
-        category: 'cylindrical',
-        dimensions: [
-            {
-                name: 'x_axis',
-                label: 'Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names for x-axis'
-            },
-            {
-                name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for cylinder heights'
-            },
-            {
-                name: 'radius',
-                label: 'Radius Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for cylinder radius'
-            }
-        ],
-        htmlTemplate: `<!-- Cyls Chart -->
-                <a-entity id="chart"
-                    babia-cyls="from: data;
-                                title: {{TITLE}};
-                                legend: true;
-                                palette: {{PALETTE}};
-                                x_axis: {{X_AXIS_FIELD}};
-                                height: {{HEIGHT_FIELD}};
-                                radius: {{RADIUS_FIELD}};
-                                axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Cylsmap Chart Template
-    {
-        id: 'cylsmap',
-        name: 'Cylsmap Chart',
-        description: '3D cylinder map with multiple axes representing data relationships',
-        category: 'cylindrical',
-        dimensions: [
-            {
-                name: 'x_axis',
-                label: 'X-Axis Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names for x-axis'
-            },
-            {
-                name: 'z_axis',
-                label: 'Z-Axis Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names for z-axis'
-            },
-            {
-                name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for cylinder heights'
-            },
-            {
-                name: 'radius',
-                label: 'Radius Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for cylinder radius'
-            }
-        ],
-        htmlTemplate: `<!-- Cylsmap Chart -->
-                <a-entity id="chart"
-                    babia-cylsmap="from: data;
-                                   title: {{TITLE}};
-                                   legend: true;
-                                   palette: {{PALETTE}};
-                                   x_axis: {{X_AXIS_FIELD}};
-                                   z_axis: {{Z_AXIS_FIELD}};
-                                   height: {{HEIGHT_FIELD}};
-                                   radius: {{RADIUS_FIELD}};
-                                   axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Donut Chart Template
-    {
-        id: 'donut',
-        name: 'Donut Chart',
-        description: 'A circular chart with a hole in the center, ideal for showing proportional data',
-        category: 'circular',
-        dimensions: [
-            {
-                name: 'key',
-                label: 'Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names'
-            },
-            {
-                name: 'size',
-                label: 'Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for each category'
-            }
-        ],
-        htmlTemplate: `<!-- Donut Chart -->
-                <a-entity id="chart"
-                    babia-donut="from: data;
-                                 title: {{TITLE}};
-                                 legend: true;
-                                 palette: {{PALETTE}};
-                                 key: {{KEY_FIELD}};
-                                 size: {{SIZE_FIELD}};
-                                 axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Pie Chart Template
-    {
-        id: 'pie',
-        name: 'Pie Chart',
-        description: 'Circular chart divided into sectors representing proportional data',
-        category: 'circular',
-        dimensions: [
-            {
-                name: 'key',
-                label: 'Categories',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing category names'
-            },
-            {
-                name: 'size',
-                label: 'Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for each sector'
-            }
-        ],
-        htmlTemplate: `<!-- Pie Chart -->
-                <a-entity id="chart"
-                    babia-pie="from: data;
-                               title: {{TITLE}};
-                               legend: true;
-                               palette: {{PALETTE}};
-                               key: {{KEY_FIELD}};
-                               size: {{SIZE_FIELD}};
-                               axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Bubbles Chart Template
-    {
-        id: 'bubbles',
-        name: 'Bubbles Chart',
-        description: '3D bubbles representing data values with variable size and position',
-        category: 'scatter',
-        dimensions: [
-            {
-                name: 'x_axis',
-                label: 'X-Axis Values',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing values for x-axis positioning'
-            },
-            {
-                name: 'z_axis',
-                label: 'Z-Axis Values',
-                dataType: 'any',
-                required: true,
-                description: 'Field containing values for z-axis positioning'
-            },
-            {
-                name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for bubble height positioning'
-            },
-            {
-                name: 'radius',
-                label: 'Radius Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for bubble radius/size'
-            }
-        ],
-        htmlTemplate: `<!-- Bubbles Chart -->
-                <a-entity id="chart"
-                    babia-bubbles="from: data;
-                                   title: {{TITLE}};
-                                   legend: true;
-                                   palette: {{PALETTE}};
-                                   x_axis: {{X_AXIS_FIELD}};
-                                   z_axis: {{Z_AXIS_FIELD}};
-                                   height: {{HEIGHT_FIELD}};
-                                   radius: {{RADIUS_FIELD}};
-                                   axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    },
-    // Boats Chart Template
-    {
-        id: 'boats',
-        name: 'Boats Chart',
-        description: '3D boat-shaped visualizations representing data with area, height, and color mapping',
-        category: 'geometric',
-        dimensions: [
-            {
-                name: 'area',
-                label: 'Area Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for boat area size (e.g., parameters, function count)'
-            },
-            {
-                name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for boat height (e.g., lines count, complexity)'
-            },
-            {
-                name: 'color',
-                label: 'Color Values',
-                dataType: 'numeric',
-                required: true,
-                description: 'Field containing numeric values for color mapping (e.g., complexity, density)'
-            }
-        ],
-        htmlTemplate: `<!-- Boats Chart -->
-                <a-entity id="chart"
-                    babia-boats="from: data;
-                                 title: {{TITLE}};
-                                 legend: true;
-                                 palette: {{PALETTE}};
-                                 area: {{AREA_FIELD}};
-                                 height: {{HEIGHT_FIELD}};
-                                 color: {{COLOR_FIELD}};
-                                 axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
-    }
-];
-
-
-/***/ }),
-/* 51 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileScanner = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(47);
-/**
- * Scanner for analyzing workspace files and grouping them by programming language
- */
-class FileScanner {
-    /**
-     * Scan all workspace folders and group files by language
-     * @returns Promise with files grouped by language
-     */
-    static async scanWorkspaceFiles() {
-        console.log('ANALYSIS: Starting workspace file scan');
-        const startTime = Date.now();
-        const filesByLanguage = {};
-        try {
-            // Find all files in the workspace, excluding common build/cache directories and dot folders
-            console.log('ANALYSIS: Searching for files using vscode.workspace.findFiles');
-            const files = await vscode.workspace.findFiles('**/*', '{**/node_modules/**,**/.venv/**,**/.git/**,**/.svn/**,**/.hg/**,**/.*/**,**/build/**,**/dist/**,**/out/**,**/bin/**,**/__pycache__/**,**/.pytest_cache/**,**/.mypy_cache/**,**/.tox/**,**/.coverage/**}');
-            console.log(`ANALYSIS: Found ${files.length} files to analyze`);
-            // Filter out directories and process each file
-            let processedCount = 0;
-            let skippedCount = 0;
-            for (const fileUri of files) {
-                try {
-                    // Get file stats to check if it's a directory
-                    const stat = await vscode.workspace.fs.stat(fileUri);
-                    // Skip directories
-                    if (stat.type === vscode.FileType.Directory) {
-                        skippedCount++;
-                        continue;
-                    }
-                    // Process the file
-                    const fileInfo = this.createFileInfo(fileUri);
-                    this.addFileToLanguageGroup(filesByLanguage, fileInfo);
-                    processedCount++;
-                    // Log progress for large workspaces
-                    if (processedCount % 100 === 0) {
-                        console.log(`ANALYSIS: Processed ${processedCount} files so far...`);
-                    }
-                }
-                catch (error) {
-                    console.warn(`ANALYSIS: Error processing file ${fileUri.fsPath}:`, error);
-                    skippedCount++;
-                }
-            }
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            console.log(`ANALYSIS: File scan completed in ${duration}ms`);
-            console.log(`ANALYSIS: Processed ${processedCount} files, skipped ${skippedCount} items`);
-            console.log(`ANALYSIS: Found files in ${Object.keys(filesByLanguage).length} different languages`);
-            // Log language distribution
-            this.logLanguageDistribution(filesByLanguage);
-            return filesByLanguage;
-        }
-        catch (error) {
-            console.error('ANALYSIS: Error during workspace file scan:', error);
-            throw error;
-        }
-    }
-    /**
-     * Create file info object from VS Code URI
-     */
-    static createFileInfo(fileUri) {
-        const fullPath = fileUri.fsPath;
-        const fileName = path.basename(fullPath);
-        // Get relative path from workspace root
-        let relativePath = fullPath;
-        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-            const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-            if (fullPath.startsWith(workspaceRoot)) {
-                relativePath = path.relative(workspaceRoot, fullPath);
-            }
-        }
-        // Determine language based on file extension
-        const language = (0, languageMetadata_1.getLanguageForFile)(fullPath);
-        return {
-            fileName,
-            relativePath,
-            fullPath,
-            language
-        };
-    }
-    /**
-     * Add file to the appropriate language group
-     */
-    static addFileToLanguageGroup(filesByLanguage, fileInfo) {
-        const languageName = fileInfo.language?.name || 'Unknown Files';
-        if (!filesByLanguage[languageName]) {
-            filesByLanguage[languageName] = [];
-        }
-        filesByLanguage[languageName].push(fileInfo);
-    }
-    /**
-     * Log the distribution of files by language
-     */
-    static logLanguageDistribution(filesByLanguage) {
-        console.log('ANALYSIS: File distribution by language:');
-        // Sort languages by file count (descending)
-        const sortedLanguages = Object.entries(filesByLanguage)
-            .sort(([, filesA], [, filesB]) => filesB.length - filesA.length);
-        sortedLanguages.forEach(([language, files]) => {
-            console.log(`ANALYSIS: Detected ${files.length} files of ${language}`);
-        });
-        const totalLanguages = sortedLanguages.length;
-        const totalFiles = sortedLanguages.reduce((sum, [, files]) => sum + files.length, 0);
-        console.log(`ANALYSIS: Total: ${totalLanguages} languages, ${totalFiles} files detected`);
-    }
-    /**
-     * Get files for a specific language
-     */
-    static getFilesForLanguage(filesByLanguage, languageName) {
-        return filesByLanguage[languageName] || [];
-    }
-    /**
-     * Get all detected languages sorted by file count
-     */
-    static getLanguagesSortedByCount(filesByLanguage) {
-        return Object.entries(filesByLanguage)
-            .sort(([, filesA], [, filesB]) => filesB.length - filesA.length)
-            .map(([language]) => language);
-    }
-    /**
-     * Get total file count across all languages
-     */
-    static getTotalFileCount(filesByLanguage) {
-        return Object.values(filesByLanguage)
-            .reduce((total, files) => total + files.length, 0);
-    }
-}
-exports.FileScanner = FileScanner;
-
-
-/***/ }),
-/* 52 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysesTreeDataProvider = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisRegistry_1 = __webpack_require__(53);
-const activeAnalysisItems_1 = __webpack_require__(55);
-const analysisTreeItems_1 = __webpack_require__(45);
-/**
- * Tree data provider for the Active Analyses section
- * This handles the rendering and management of the Active Analyses tree view
- */
-class ActiveAnalysesTreeDataProvider {
-    context;
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    registry;
-    constructor(context) {
-        this.context = context;
-        console.log('[ACTIVE_ANALYSES_TREE] Initializing Active Analyses tree data provider');
-        // Get the registry instance
-        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-        // Listen for changes in the registry
-        this.registry.onDidChangeAnalyses(() => {
-            console.log('[ACTIVE_ANALYSES_TREE] Registry changed, refreshing tree view');
-            this.refresh();
-        });
-    }
-    /**
-     * Refresh the tree view
-     */
-    refresh() {
-        console.log('[ACTIVE_ANALYSES_TREE] Refreshing active analyses tree view');
-        this._onDidChangeTreeData.fire();
-    }
-    /**
-     * Get tree item representation
-     */
-    getTreeItem(element) {
-        return element;
-    }
-    /**
-     * Get children for the tree view
-     */
-    getChildren(element) {
-        console.log('[ACTIVE_ANALYSES_TREE_VIEW] 🌲 getChildren called, element:', element?.label);
-        if (!element) {
-            // Root level - return all active analyses
-            const allAnalyses = this.registry.getAllAnalyses();
-            console.log('[ACTIVE_ANALYSES_TREE_VIEW] 📊 Retrieved analyses from registry:', allAnalyses.length);
-            const treeItems = activeAnalysisItems_1.ActiveAnalysisItemFactory.createActiveAnalysisItems(allAnalyses);
-            console.log('[ACTIVE_ANALYSES_TREE_VIEW] 🔄 Created tree items:', treeItems.length);
-            return treeItems;
-        }
-        // No children for individual analysis items
-        return [];
-    }
-    /**
-     * Get the active analyses items for display
-     */
-    getActiveAnalysesItems() {
-        const analyses = this.registry.getAllAnalyses();
-        console.log(`[ACTIVE_ANALYSES_TREE] Found ${analyses.length} active analyses`);
-        // Create items for each analysis
-        return activeAnalysisItems_1.ActiveAnalysisItemFactory.createActiveAnalysisItems(analyses);
-    }
-    /**
-     * Get summary of active analyses for the parent tree view
-     */
-    getActiveAnalysesSummary() {
-        const summary = this.registry.getSummary();
-        if (summary.total === 0) {
-            return 'Active Analyses';
-        }
-        if (summary.running > 0) {
-            return `Active Analyses (${summary.running} running)`;
-        }
-        return `Active Analyses (${summary.total} total)`;
-    }
-    /**
-     * Get the tree items that should be displayed when this section is expanded
-     * This method is called by the parent code analysis tree view
-     * Returns CodeAnalysisTreeItem for compatibility with parent tree
-     */
-    getActiveAnalysesTreeItems() {
-        const activeAnalysisItems = this.getActiveAnalysesItems();
-        // Convert ActiveAnalysisTreeItem to CodeAnalysisTreeItem for compatibility
-        return activeAnalysisItems.map(item => {
-            return new analysisTreeItems_1.CodeAnalysisTreeItem(item.label, item.collapsibleState || vscode.TreeItemCollapsibleState.None, 'analysis-item', // Use generic analysis-item type for compatibility
-            item.command, item.iconPath, item.tooltip, item.description, item.contextValue);
-        });
-    }
-    /**
-     * Check if there are any active analyses
-     */
-    hasActiveAnalyses() {
-        return this.registry.getAllAnalyses().length > 0;
-    }
-    /**
-     * Get count of running analyses
-     */
-    getRunningCount() {
-        return this.registry.getActiveCount();
-    }
-    /**
-     * Get count of total analyses
-     */
-    getTotalCount() {
-        return this.registry.getAllAnalyses().length;
-    }
-    /**
-     * Start tracking a new file analysis
-     */
-    startFileAnalysis(filePath, mode, language) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Starting file analysis for ${filePath} in ${mode} mode`);
-        return this.registry.startFileAnalysis(filePath, mode, language);
-    }
-    /**
-     * Start tracking a new directory analysis
-     */
-    startDirectoryAnalysis(directoryPath, mode) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Starting directory analysis for ${directoryPath} in ${mode} mode`);
-        return this.registry.startDirectoryAnalysis(directoryPath, mode);
-    }
-    /**
-     * Complete an analysis
-     */
-    completeAnalysis(analysisId, metadata) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Completing analysis ${analysisId}`);
-        this.registry.completeAnalysis(analysisId, metadata);
-    }
-    /**
-     * Fail an analysis
-     */
-    failAnalysis(analysisId, error) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Failing analysis ${analysisId}: ${error}`);
-        this.registry.failAnalysis(analysisId, error);
-    }
-    /**
-     * Remove an analysis from tracking
-     */
-    removeAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Removing analysis ${analysisId}`);
-        this.registry.unregisterAnalysis(analysisId);
-    }
-    /**
-     * Clear all analyses
-     */
-    clearAllAnalyses() {
-        console.log('[ACTIVE_ANALYSES_TREE] Clearing all analyses');
-        this.registry.clearAll();
-    }
-}
-exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
-
-
-/***/ }),
 /* 53 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -11136,344 +10146,409 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysisRegistry = void 0;
+exports.VisualizationSettingsInteractionHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisModel_1 = __webpack_require__(54);
-const activeServerRegistry_1 = __webpack_require__(11);
-const fileToServerMap_1 = __webpack_require__(22);
-const SSEManager_1 = __webpack_require__(23);
+const settingsModel_1 = __webpack_require__(49);
+const settingsStorage_1 = __webpack_require__(50);
+const colorPickerUtils_1 = __webpack_require__(54);
+const dynamicColorIconGenerator_1 = __webpack_require__(52);
 /**
- * Registry that manages currently tracked active analyses
- * This is a singleton that maintains the state of all active analyses
+ * Handle Visualization Settings Interactions
+ * Manages user interactions with visualization settings items
  */
-class ActiveAnalysisRegistry {
-    static instance = null;
-    activeAnalyses = new Map();
-    _onDidChangeAnalyses = new vscode.EventEmitter();
-    serverEventSubscription = null;
-    /**
-     * Event fired when the registry of active analyses changes
-     */
-    onDidChangeAnalyses = this._onDidChangeAnalyses.event;
-    constructor() {
-        console.log('[ACTIVE_ANALYSIS_REGISTRY] Initializing active analysis registry');
-        this.setupServerEventIntegration();
+class VisualizationSettingsInteractionHandler {
+    context;
+    storage;
+    constructor(context) {
+        this.context = context;
+        console.log('VISUALIZATION-SETTINGS: Interaction handler initialized');
+        this.storage = new settingsStorage_1.VisualizationSettingsStorage(context);
     }
     /**
-     * Set up integration with server events to auto-unregister analyses when servers stop
+     * Handle configuration of a specific setting field
      */
-    setupServerEventIntegration() {
+    async handleSettingConfiguration(settingKey) {
+        console.log(`VISUALIZATION-SETTINGS: Configuring setting '${settingKey}'`);
         try {
-            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-            // Subscribe to server registry changes
-            this.serverEventSubscription = serverRegistry.onRegistryChange((event) => {
-                console.log('[ACTIVE_ANALYSIS_REGISTRY] 📡 Received server registry event:', event.type);
-                if (event.type === 'serverRemoved' && event.server) {
-                    console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔌 Server removed: ${event.server.url} (port ${event.server.port})`);
-                    // Use file-to-server mapping to find associated analysis
-                    const fileUri = fileToServerMap_1.fileToServerMap.findFileByPort(event.server.port);
-                    let removedAnalysis = false;
-                    if (fileUri) {
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🎯 Found analysis file via mapping: ${fileUri}`);
-                        // Find and remove the analysis for this file
-                        let foundAnalysisId = null;
-                        for (const [id, analysis] of this.activeAnalyses.entries()) {
-                            if (analysis.path === fileUri) {
-                                foundAnalysisId = id;
-                                console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis: ${id}`);
-                                break;
-                            }
-                        }
-                        if (foundAnalysisId) {
-                            this.unregisterAnalysis(foundAnalysisId);
-                            removedAnalysis = true;
-                            console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🗑️ Auto-removed analysis via file mapping: ${foundAnalysisId}`);
-                        }
-                        // Clean up SSE clients for this file
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🧹 Cleaning up SSE clients for: ${fileUri}`);
-                        SSEManager_1.sseManager.removeAllClients(fileUri);
-                        // Remove the mapping
-                        fileToServerMap_1.fileToServerMap.unregisterMapping(fileUri);
-                    }
-                    // Fallback to the old smart matching logic if mapping didn't work
-                    if (!removedAnalysis && event.server.customName) {
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔍 Direct path match failed, trying smart matching for server: ${event.server.customName}`);
-                        // Extract filename from custom name (e.g., "Analysis Static tryCodeXr.kt" -> "tryCodeXr.kt")
-                        const customNameParts = event.server.customName.split(' ');
-                        const possibleFileName = customNameParts[customNameParts.length - 1]; // Last part is usually the filename
-                        if (possibleFileName) {
-                            console.log(`[ACTIVE_ANALYSIS_REGISTRY] � Looking for analysis with filename: ${possibleFileName}`);
-                            // Find analysis by matching filename
-                            let foundAnalysisId = null;
-                            for (const [id, analysis] of this.activeAnalyses.entries()) {
-                                const analysisFileName = analysis.path.split('/').pop() || analysis.path.split('\\').pop();
-                                if (analysisFileName === possibleFileName) {
-                                    foundAnalysisId = id;
-                                    console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis by filename: ${id}`);
-                                    break;
-                                }
-                            }
-                            if (foundAnalysisId) {
-                                this.unregisterAnalysis(foundAnalysisId);
-                                removedAnalysis = true;
-                                console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🗑️ Auto-removed analysis via smart matching: ${foundAnalysisId}`);
-                            }
-                        }
-                    }
-                    if (!removedAnalysis) {
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Could not find associated analysis for stopped server: ${event.server.url}`);
-                    }
-                }
-            });
-            console.log('[ACTIVE_ANALYSIS_REGISTRY] 🔗 Server event integration setup complete');
-        }
-        catch (error) {
-            console.warn('[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Error setting up server integration:', error);
-        }
-    }
-    /**
-     * Dispose of resources
-     */
-    dispose() {
-        if (this.serverEventSubscription) {
-            this.serverEventSubscription.dispose();
-            this.serverEventSubscription = null;
-            console.log('[ACTIVE_ANALYSIS_REGISTRY] 🧹 Disposed server event subscription');
-        }
-    }
-    /**
-     * Get the singleton instance of the registry
-     */
-    static getInstance() {
-        if (!ActiveAnalysisRegistry.instance) {
-            ActiveAnalysisRegistry.instance = new ActiveAnalysisRegistry();
-        }
-        return ActiveAnalysisRegistry.instance;
-    }
-    /**
-     * Register a new analysis
-     */
-    registerAnalysis(analysis) {
-        const analysisId = `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const newAnalysis = {
-            ...analysis,
-            id: analysisId
-        };
-        console.log('[ACTIVE_ANALYSES_REGISTRY] 🔥 Registering new analysis:', {
-            id: analysisId,
-            mode: analysis.mode,
-            path: analysis.path,
-            status: analysis.status,
-            language: analysis.language
-        });
-        this.activeAnalyses.set(analysisId, newAnalysis);
-        console.log('[ACTIVE_ANALYSES_REGISTRY] 📊 Total analyses in registry:', this.activeAnalyses.size);
-        console.log('[ACTIVE_ANALYSES_REGISTRY] 🔔 Firing onDidChangeAnalyses event');
-        this._onDidChangeAnalyses.fire();
-        return analysisId;
-    }
-    /**
-     * Update an existing analysis
-     */
-    updateAnalysis(analysisId, status, progress, error, metadata) {
-        const analysis = this.activeAnalyses.get(analysisId);
-        if (analysis) {
-            console.log('[ACTIVE_ANALYSES_REGISTRY] 🔄 Updating analysis:', {
-                id: analysisId,
-                oldStatus: analysis.status,
-                newStatus: status,
-                progress: progress,
-                error: error,
-                metadata: metadata
-            });
-            const updatedAnalysis = activeAnalysisModel_1.ActiveAnalysisFactory.updateAnalysisStatus(analysis, status, progress, error, metadata);
-            this.activeAnalyses.set(analysisId, updatedAnalysis);
-            console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Updated analysis ${analysisId} status to ${status}`);
-            console.log('[ACTIVE_ANALYSES_REGISTRY] 🔔 Firing onDidChangeAnalyses event');
-            this._onDidChangeAnalyses.fire();
-        }
-        else {
-            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Analysis ${analysisId} not found for update`);
-        }
-    }
-    /**
-     * Remove an analysis from the registry
-     */
-    unregisterAnalysis(analysisId) {
-        if (this.activeAnalyses.has(analysisId)) {
-            this.activeAnalyses.delete(analysisId);
-            console.log(`[ACTIVE_ANALYSIS_REGISTRY] Unregistered analysis: ${analysisId}`);
-            this._onDidChangeAnalyses.fire();
-        }
-        else {
-            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] Attempted to unregister non-existent analysis: ${analysisId}`);
-        }
-    }
-    /**
-     * Get all active analyses
-     */
-    getAllAnalyses() {
-        return Array.from(this.activeAnalyses.values());
-    }
-    /**
-     * Get a specific analysis by ID
-     */
-    getAnalysis(analysisId) {
-        return this.activeAnalyses.get(analysisId);
-    }
-    /**
-     * Get analyses for a specific file path
-     */
-    getAnalysesForPath(path) {
-        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.path === path);
-    }
-    /**
-     * Get count of active analyses
-     */
-    getActiveCount() {
-        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.status === 'running').length;
-    }
-    /**
-     * Get count of completed analyses
-     */
-    getCompletedCount() {
-        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.status === 'completed').length;
-    }
-    /**
-     * Get the current count of all active analyses (running + completed)
-     */
-    getActiveAnalysesCount() {
-        return this.activeAnalyses.size;
-    }
-    /**
-     * Remove an analysis by its associated file URI
-     * This is used when a server is stopped or the user closes the analysis
-     */
-    unregisterAnalysisByUri(uri) {
-        const targetPath = uri.fsPath;
-        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔍 Looking for analysis with path: ${targetPath}`);
-        // Find analysis by matching file path
-        let foundAnalysisId = null;
-        for (const [id, analysis] of this.activeAnalyses.entries()) {
-            if (analysis.path === targetPath) {
-                foundAnalysisId = id;
-                console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis: ${id}`);
-                break;
+            switch (settingKey) {
+                case 'backgroundColor':
+                case 'groundColor':
+                    await this.handleColorConfiguration(settingKey);
+                    break;
+                case 'environmentPreset':
+                    await this.handleEnvironmentPresetConfiguration();
+                    break;
+                case 'chartPalette':
+                    await this.handleChartPaletteConfiguration();
+                    break;
+                default:
+                    throw new Error(`Unknown setting key: ${settingKey}`);
             }
         }
-        if (foundAnalysisId) {
-            this.unregisterAnalysis(foundAnalysisId);
-            return true;
+        catch (error) {
+            console.error(`VISUALIZATION-SETTINGS: Error configuring ${settingKey}:`, error);
+            vscode.window.showErrorMessage(`Failed to configure ${settingKey}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle color configuration (background or ground color) using HTML-based color picker
+     */
+    async handleColorConfiguration(colorType) {
+        console.log(`VISUALIZATION-SETTINGS: Configuring ${colorType} with HTML color picker`);
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings[colorType];
+        try {
+            // Prepare color picker options
+            const fieldName = colorType === 'backgroundColor' ? 'Background Color' : 'Ground Color';
+            const options = {
+                fieldName,
+                currentColor: colorPickerUtils_1.ColorPickerUtils.normalizeColor(currentValue)
+            };
+            // Create webview panel
+            const panel = colorPickerUtils_1.ColorPickerUtils.createColorPickerWebview(this.context, options);
+            // Load and set HTML content
+            const htmlContent = await colorPickerUtils_1.ColorPickerUtils.loadColorPickerTemplate(this.context, options);
+            panel.webview.html = htmlContent;
+            // Handle messages from the webview
+            const messageDisposable = panel.webview.onDidReceiveMessage(async (message) => {
+                switch (message.type) {
+                    case 'colorPicker.confirm':
+                        const newColor = colorPickerUtils_1.ColorPickerUtils.normalizeColor(message.color);
+                        console.log(`VISUALIZATION-SETTINGS: Color confirmed for ${colorType}: ${newColor}`);
+                        console.log(`COLOR-PICKER: Generating new icon for ${colorType} with color ${newColor}`);
+                        try {
+                            // Generate new color icon
+                            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
+                            console.log(`COLOR-PICKER: Successfully generated icon for ${colorType}: ${iconUri.toString()}`);
+                            // Clean up old icons
+                            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
+                        }
+                        catch (iconError) {
+                            console.error(`COLOR-PICKER: Error generating icon for ${colorType}:`, iconError);
+                            // Continue with setting update even if icon generation fails
+                        }
+                        // Update the setting
+                        await this.storage.updateSetting(colorType, newColor);
+                        // Refresh the tree view to show new icon
+                        vscode.commands.executeCommand('codexr.servers.refresh');
+                        vscode.window.showInformationMessage(`${fieldName} set to: ${newColor}`);
+                        // Close the panel
+                        panel.dispose();
+                        break;
+                    case 'colorPicker.cancel':
+                        console.log(`VISUALIZATION-SETTINGS: Color picker cancelled for ${colorType}`);
+                        panel.dispose();
+                        break;
+                }
+            });
+            // Clean up when panel is disposed
+            panel.onDidDispose(() => {
+                messageDisposable.dispose();
+                console.log(`VISUALIZATION-SETTINGS: Color picker panel disposed for ${colorType}`);
+            });
+        }
+        catch (error) {
+            console.error(`VISUALIZATION-SETTINGS: Error opening color picker for ${colorType}:`, error);
+            vscode.window.showErrorMessage(`Failed to open color picker: ${error}`);
+            // Fallback to the original QuickPick method
+            await this.handleColorConfigurationFallback(colorType);
+        }
+    }
+    /**
+     * Fallback color configuration using QuickPick (in case HTML color picker fails)
+     */
+    async handleColorConfigurationFallback(colorType) {
+        console.log(`VISUALIZATION-SETTINGS: Using fallback QuickPick for ${colorType}`);
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings[colorType];
+        // Create QuickPick options
+        const colorOptions = [
+            ...settingsModel_1.PREDEFINED_COLORS.map(color => ({
+                label: color.label,
+                value: color.value,
+                picked: color.value === currentValue
+            })),
+            {
+                label: 'Pick a custom color...',
+                value: 'custom',
+                picked: false
+            }
+        ];
+        const selectedOption = await vscode.window.showQuickPick(colorOptions, {
+            placeHolder: `Select ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
+            title: `Configure ${colorType.replace(/([A-Z])/g, ' $1')}`,
+            matchOnDescription: true
+        });
+        if (!selectedOption) {
+            console.log(`VISUALIZATION-SETTINGS: ${colorType} configuration cancelled`);
+            return;
+        }
+        let newColor;
+        if (selectedOption.value === 'custom') {
+            const customColor = await this.getCustomColorInput(colorType, currentValue);
+            if (!customColor) {
+                return; // User cancelled custom color input
+            }
+            newColor = customColor;
         }
         else {
-            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ No analysis found for URI: ${targetPath}`);
-            return false;
+            newColor = selectedOption.value;
         }
+        // Generate color icon before updating setting
+        try {
+            console.log(`COLOR-PICKER: Generating fallback icon for ${colorType} with color ${newColor}`);
+            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
+            console.log(`COLOR-PICKER: Successfully generated fallback icon for ${colorType}: ${iconUri.toString()}`);
+            // Clean up old icons
+            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
+        }
+        catch (iconError) {
+            console.error(`COLOR-PICKER: Error generating fallback icon for ${colorType}:`, iconError);
+            // Continue with setting update even if icon generation fails
+        }
+        // Update the setting
+        await this.storage.updateSetting(colorType, newColor);
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+        console.log(`VISUALIZATION-SETTINGS: ${colorType} updated to '${newColor}'`);
+        vscode.window.showInformationMessage(`${colorType.replace(/([A-Z])/g, ' $1')} set to: ${newColor}`);
     }
     /**
-     * Clear all analyses (useful for cleanup)
+     * Get custom color input from user
      */
-    clearAll() {
-        console.log('[ACTIVE_ANALYSIS_REGISTRY] Clearing all analyses');
-        this.activeAnalyses.clear();
-        this._onDidChangeAnalyses.fire();
+    async getCustomColorInput(colorType, currentValue) {
+        let attempts = 0;
+        const maxAttempts = 3;
+        while (attempts < maxAttempts) {
+            const customColor = await vscode.window.showInputBox({
+                prompt: `Enter hex color for ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()} (e.g., #FF5733)`,
+                value: currentValue,
+                validateInput: (value) => {
+                    if (!value) {
+                        return 'Color value is required';
+                    }
+                    if (!(0, settingsModel_1.isValidHexColor)(value)) {
+                        return 'Invalid hex color format. Use format: #RRGGBB (e.g., #FF5733)';
+                    }
+                    return null;
+                }
+            });
+            if (customColor === undefined) {
+                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled`);
+                return undefined;
+            }
+            if ((0, settingsModel_1.isValidHexColor)(customColor)) {
+                console.log(`VISUALIZATION-SETTINGS: Valid custom ${colorType} entered: ${customColor}`);
+                return customColor;
+            }
+            attempts++;
+            console.log(`VISUALIZATION-SETTINGS: Invalid ${colorType} format attempt ${attempts}/${maxAttempts}: ${customColor}`);
+            if (attempts < maxAttempts) {
+                const retry = await vscode.window.showErrorMessage(`Invalid hex color format: ${customColor}. Please use format #RRGGBB (e.g., #FF5733)`, 'Try Again', 'Cancel');
+                if (retry !== 'Try Again') {
+                    console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled after ${attempts} attempts`);
+                    return undefined;
+                }
+            }
+            else {
+                vscode.window.showErrorMessage(`Failed to set ${colorType} after ${maxAttempts} attempts. Please try again later.`);
+                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input failed after ${maxAttempts} attempts`);
+                return undefined;
+            }
+        }
+        return undefined;
     }
     /**
-     * Start tracking a file analysis
+     * Handle environment preset configuration
      */
-    startFileAnalysis(filePath, mode, language) {
-        const analysis = activeAnalysisModel_1.ActiveAnalysisFactory.createFileAnalysis(filePath, mode, language);
-        this.registerAnalysis(analysis);
-        return analysis.id;
+    async handleEnvironmentPresetConfiguration() {
+        console.log('VISUALIZATION-SETTINGS: Configuring environment preset');
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings.environmentPreset;
+        const presetOptions = settingsModel_1.ENVIRONMENT_PRESETS.map(preset => ({
+            label: preset.label,
+            description: preset.description,
+            value: preset.value,
+            picked: preset.value === currentValue
+        }));
+        const selectedPreset = await vscode.window.showQuickPick(presetOptions, {
+            placeHolder: 'Select environment preset',
+            title: 'Configure Environment Preset',
+            matchOnDescription: true
+        });
+        if (!selectedPreset) {
+            console.log('VISUALIZATION-SETTINGS: Environment preset configuration cancelled');
+            return;
+        }
+        // Update the setting
+        await this.storage.updateSetting('environmentPreset', selectedPreset.value);
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+        console.log(`VISUALIZATION-SETTINGS: Environment preset updated to '${selectedPreset.value}'`);
+        vscode.window.showInformationMessage(`Environment preset set to: ${selectedPreset.label} - ${selectedPreset.description}`);
     }
     /**
-     * Start tracking a directory analysis
+     * Handle chart palette configuration
      */
-    startDirectoryAnalysis(directoryPath, mode) {
-        const analysis = activeAnalysisModel_1.ActiveAnalysisFactory.createDirectoryAnalysis(directoryPath, mode);
-        this.registerAnalysis(analysis);
-        return analysis.id;
+    async handleChartPaletteConfiguration() {
+        console.log('VISUALIZATION-SETTINGS: Configuring chart palette');
+        const currentSettings = this.storage.getSettings();
+        const currentValue = currentSettings.chartPalette;
+        const paletteOptions = settingsModel_1.CHART_PALETTES.map(palette => ({
+            label: palette.label,
+            description: palette.description,
+            value: palette.value,
+            picked: palette.value === currentValue
+        }));
+        const selectedPalette = await vscode.window.showQuickPick(paletteOptions, {
+            placeHolder: 'Select chart palette',
+            title: 'Configure Chart Palette',
+            matchOnDescription: true
+        });
+        if (!selectedPalette) {
+            console.log('VISUALIZATION-SETTINGS: Chart palette configuration cancelled');
+            return;
+        }
+        // Update the setting
+        await this.storage.updateSetting('chartPalette', selectedPalette.value);
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+        console.log(`VISUALIZATION-SETTINGS: Chart palette updated to '${selectedPalette.value}'`);
+        vscode.window.showInformationMessage(`Chart palette set to: ${selectedPalette.label} - ${selectedPalette.description}`);
     }
     /**
-     * Mark analysis as completed
+     * Get current storage instance for external access
      */
-    completeAnalysis(analysisId, metadata) {
-        this.updateAnalysis(analysisId, 'completed', 100, undefined, metadata);
+    getStorage() {
+        return this.storage;
     }
     /**
-     * Mark analysis as failed
+     * Cleanup resources
      */
-    failAnalysis(analysisId, error) {
-        this.updateAnalysis(analysisId, 'failed', undefined, error);
-    }
-    /**
-     * Get summary statistics
-     */
-    getSummary() {
-        const all = this.getAllAnalyses();
-        return {
-            total: all.length,
-            running: all.filter(a => a.status === 'running').length,
-            completed: all.filter(a => a.status === 'completed').length,
-            failed: all.filter(a => a.status === 'failed').length
-        };
+    dispose() {
+        console.log('VISUALIZATION-SETTINGS: Interaction handler disposed');
     }
 }
-exports.ActiveAnalysisRegistry = ActiveAnalysisRegistry;
+exports.VisualizationSettingsInteractionHandler = VisualizationSettingsInteractionHandler;
 
 
 /***/ }),
 /* 54 */
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysisFactory = void 0;
-/**
- * Factory for creating active analysis objects
- */
-class ActiveAnalysisFactory {
+exports.ColorPickerUtils = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+class ColorPickerUtils {
+    static TEMPLATE_PATH = 'templates/utils/color-picker.html';
     /**
-     * Create a new active analysis for a file
+     * Load and process the color picker HTML template
      */
-    static createFileAnalysis(filePath, mode, language) {
-        return {
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            path: filePath,
-            mode,
-            timestamp: new Date(),
-            status: 'running',
-            language,
-            progress: 0
-        };
+    static async loadColorPickerTemplate(context, options) {
+        try {
+            const templatePath = path.join(context.extensionPath, this.TEMPLATE_PATH);
+            let templateContent = fs.readFileSync(templatePath, 'utf8');
+            // Replace placeholders
+            templateContent = templateContent
+                .replace(/\$\{FIELD_NAME\}/g, options.fieldName)
+                .replace(/\$\{CURRENT_COLOR\}/g, options.currentColor);
+            return templateContent;
+        }
+        catch (error) {
+            console.error('[VISUALIZATION-SETTINGS] Error loading color picker template:', error);
+            throw new Error(`Failed to load color picker template: ${error}`);
+        }
     }
     /**
-     * Create a new active analysis for a directory
+     * Create and configure a webview for the color picker
      */
-    static createDirectoryAnalysis(directoryPath, mode) {
-        return {
-            id: `dir-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            path: directoryPath,
-            mode,
-            timestamp: new Date(),
-            status: 'running',
-            progress: 0
+    static createColorPickerWebview(context, options) {
+        const panel = vscode.window.createWebviewPanel('colorPicker', `Color Picker - ${options.fieldName}`, vscode.ViewColumn.One, {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [
+                vscode.Uri.file(path.join(context.extensionPath, 'templates'))
+            ]
+        });
+        // Set the icon for the panel
+        panel.iconPath = {
+            light: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')),
+            dark: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg'))
         };
+        return panel;
     }
     /**
-     * Update the status of an existing analysis
+     * Validate hex color format
      */
-    static updateAnalysisStatus(analysis, status, progress, error, metadata) {
-        return {
-            ...analysis,
-            status,
-            progress,
-            error,
-            metadata: metadata || analysis.metadata
-        };
+    static validateHexColor(color) {
+        return /^#[0-9a-fA-F]{6}$/.test(color);
+    }
+    /**
+     * Normalize color to uppercase hex format
+     */
+    static normalizeColor(color) {
+        if (this.validateHexColor(color)) {
+            return color.toUpperCase();
+        }
+        return '#FFFFFF'; // Default fallback
+    }
+    /**
+     * Get predefined colors for fallback
+     */
+    static getPredefinedColors() {
+        return [
+            '#FFFFFF', // White
+            '#000000', // Black
+            '#B10DC9', // Purple
+            '#FF4081', // Pink
+            '#F44336', // Red
+            '#FF9800', // Orange
+            '#FFEB3B', // Yellow
+            '#4CAF50', // Green
+            '#2196F3', // Blue
+            '#9C27B0', // Violet
+            '#607D8B', // Blue Grey
+            '#795548' // Brown
+        ];
     }
 }
-exports.ActiveAnalysisFactory = ActiveAnalysisFactory;
+exports.ColorPickerUtils = ColorPickerUtils;
 
 
 /***/ }),
@@ -11515,467 +10590,253 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = void 0;
-const vscode = __importStar(__webpack_require__(1));
+exports.initializeSettingsAccessors = initializeSettingsAccessors;
+exports.getSelectedBackgroundColor = getSelectedBackgroundColor;
+exports.getSelectedGroundColor = getSelectedGroundColor;
+exports.getSelectedEnvironment = getSelectedEnvironment;
+exports.getSelectedPalette = getSelectedPalette;
+exports.getAllSelectedSettings = getAllSelectedSettings;
+const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
+const settingsModel_1 = __webpack_require__(49);
 /**
- * Tree item representing an active analysis in the VS Code tree view
+ * Settings Accessors
+ * Clean utility functions to access visualization settings for babia-templates integration
  */
-class ActiveAnalysisTreeItem extends vscode.TreeItem {
-    type;
-    analysis;
-    constructor(labelOrUri, collapsibleState, type, command, iconPath, tooltip, description, contextValue, analysis) {
-        // Call super() first with the appropriate arguments
-        if (labelOrUri instanceof vscode.Uri) {
-            super(labelOrUri, collapsibleState);
-            this.label = path.basename(labelOrUri.fsPath);
-        }
-        else {
-            super(labelOrUri, collapsibleState);
-        }
-        // Assign properties after super() call
-        this.type = type;
-        this.analysis = analysis;
-        if (iconPath !== undefined) {
-            this.iconPath = iconPath;
-        }
-        if (command !== undefined) {
-            this.command = command;
-        }
-        if (tooltip !== undefined) {
-            this.tooltip = tooltip;
-        }
-        if (description !== undefined) {
-            this.description = description;
-        }
-        if (contextValue !== undefined) {
-            this.contextValue = contextValue;
-        }
-    }
+// Module-level cache for context
+let extensionContext = null;
+/**
+ * Initialize the settings accessors with extension context
+ * Must be called during extension activation
+ */
+function initializeSettingsAccessors(context) {
+    extensionContext = context;
+    console.log('VISUALIZATION-SETTINGS: Settings accessors initialized');
 }
-exports.ActiveAnalysisTreeItem = ActiveAnalysisTreeItem;
 /**
- * Factory for creating active analysis tree items
+ * Get the visualization configuration directory path
  */
-class ActiveAnalysisItemFactory {
-    /**
-     * Create tree items for active analyses
-     */
-    static createActiveAnalysisItems(analyses) {
-        console.log(`[ACTIVE_ANALYSIS_ITEMS] 🏗️ Creating ${analyses.length} active analysis items`);
-        if (analyses.length === 0) {
-            console.log('[ACTIVE_ANALYSIS_ITEMS] 📝 No analyses, creating placeholder item');
-            return [this.createNoAnalysesItem()];
-        }
-        const treeItems = analyses.map(analysis => {
-            console.log(`[ACTIVE_ANALYSIS_ITEMS] 🔧 Creating item for analysis:`, {
-                id: analysis.id,
-                path: analysis.path,
-                status: analysis.status,
-                mode: analysis.mode,
-                language: analysis.language
-            });
-            return this.createAnalysisItem(analysis);
-        });
-        console.log(`[ACTIVE_ANALYSIS_ITEMS] ✅ Created ${treeItems.length} tree items successfully`);
-        return treeItems;
+function getConfigDirectory() {
+    if (!extensionContext) {
+        throw new Error('Settings accessors not initialized. Call initializeSettingsAccessors() first.');
     }
-    /**
-     * Create a tree item for a single active analysis
-     */
-    static createAnalysisItem(analysis) {
-        const fileName = path.basename(analysis.path);
-        const isDirectory = analysis.id.startsWith('dir-');
-        // Determine label based on status and progress
-        let label = fileName;
-        if (analysis.progress !== undefined && analysis.status === 'running') {
-            label = `${fileName} (${analysis.progress}%)`;
+    const globalStorageUri = extensionContext.globalStorageUri;
+    return path.join(globalStorageUri.fsPath, 'visualization-configuration');
+}
+/**
+ * Get the settings file path
+ */
+function getSettingsFilePath() {
+    return path.join(getConfigDirectory(), 'visualization-settings.json');
+}
+/**
+ * Read settings from the JSON file
+ */
+function readSettingsFromFile() {
+    try {
+        const settingsFilePath = getSettingsFilePath();
+        if (fs.existsSync(settingsFilePath)) {
+            const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
+            const jsonSettings = JSON.parse(fileContent);
+            console.log('VISUALIZATION-SETTINGS: Read settings from file:', jsonSettings);
+            return jsonSettings;
         }
-        // Determine icon based on status
-        let iconPath;
-        switch (analysis.status) {
-            case 'running':
-                iconPath = new vscode.ThemeIcon('loading~spin');
-                break;
-            case 'completed':
-                iconPath = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green'));
-                break;
-            case 'failed':
-                iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red'));
-                break;
-            case 'paused':
-                iconPath = new vscode.ThemeIcon('debug-pause', new vscode.ThemeColor('charts.yellow'));
-                break;
-            default:
-                iconPath = new vscode.ThemeIcon('pulse');
+    }
+    catch (error) {
+        console.error('VISUALIZATION-SETTINGS: Error reading settings file:', error);
+    }
+    return null;
+}
+/**
+ * Get current background color from file storage or globalState fallback
+ */
+async function getBackgroundColorFromStorage() {
+    try {
+        // First try to read from JSON file
+        const fileSettings = readSettingsFromFile();
+        if (fileSettings && fileSettings.backgroundColor) {
+            return fileSettings.backgroundColor;
         }
-        // Create description
-        let description = `${analysis.mode} analysis`;
-        if (analysis.language) {
-            description += ` • ${analysis.language}`;
-        }
-        // Create tooltip
-        let tooltip = `Path: ${analysis.path}\\n`;
-        tooltip += `Mode: ${analysis.mode}\\n`;
-        tooltip += `Status: ${analysis.status}\\n`;
-        tooltip += `Started: ${analysis.timestamp.toLocaleString()}`;
-        if (analysis.error) {
-            tooltip += `\\nError: ${analysis.error}`;
-        }
-        if (analysis.metadata) {
-            if (analysis.metadata.totalLines) {
-                tooltip += `\\nLines: ${analysis.metadata.totalLines}`;
-            }
-            if (analysis.metadata.totalFunctions) {
-                tooltip += `\\nFunctions: ${analysis.metadata.totalFunctions}`;
+        // Fallback to globalState for backward compatibility
+        if (extensionContext) {
+            const legacySettings = extensionContext.globalState.get('visualizationSettings');
+            if (legacySettings && legacySettings.backgroundColor) {
+                return legacySettings.backgroundColor;
             }
         }
-        const type = isDirectory ? 'active-analysis-directory' : 'active-analysis-file';
-        return new ActiveAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, type, {
-            command: 'codexr.activeAnalysis.openAnalysis',
-            title: 'Open Analysis',
-            arguments: [analysis.id]
-        }, iconPath, tooltip, description, `active-analysis-${analysis.status}`, analysis);
     }
-    /**
-     * Create a placeholder item when no analyses are active
-     */
-    static createNoAnalysesItem() {
-        return new ActiveAnalysisTreeItem('No active analyses', vscode.TreeItemCollapsibleState.None, 'active-analysis-placeholder', undefined, new vscode.ThemeIcon('info'), 'No analyses are currently running or tracked', 'Start an analysis to see it here', 'no-active-analyses');
+    catch (error) {
+        console.error('VISUALIZATION-SETTINGS: Error reading background color from storage:', error);
     }
-    /**
-     * Create summary items showing analysis statistics
-     */
-    static createSummaryItems(summary) {
-        const items = [];
-        if (summary.total === 0) {
-            return [this.createNoAnalysesItem()];
-        }
-        // Running analyses
-        if (summary.running > 0) {
-            items.push(new ActiveAnalysisTreeItem(`${summary.running} Running`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('loading~spin'), `${summary.running} analyses currently in progress`, 'In progress', 'running-analyses'));
-        }
-        // Completed analyses
-        if (summary.completed > 0) {
-            items.push(new ActiveAnalysisTreeItem(`${summary.completed} Completed`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green')), `${summary.completed} analyses completed successfully`, 'Finished', 'completed-analyses'));
-        }
-        // Failed analyses
-        if (summary.failed > 0) {
-            items.push(new ActiveAnalysisTreeItem(`${summary.failed} Failed`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), `${summary.failed} analyses failed`, 'Errors', 'failed-analyses'));
-        }
-        return items;
-    }
+    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.backgroundColor;
 }
-exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
+/**
+ * Get current ground color from file storage or globalState fallback
+ */
+async function getGroundColorFromStorage() {
+    try {
+        // First try to read from JSON file
+        const fileSettings = readSettingsFromFile();
+        if (fileSettings && fileSettings.groundColor) {
+            return fileSettings.groundColor;
+        }
+        // Fallback to globalState for backward compatibility
+        if (extensionContext) {
+            const legacySettings = extensionContext.globalState.get('visualizationSettings');
+            if (legacySettings && legacySettings.groundColor) {
+                return legacySettings.groundColor;
+            }
+        }
+    }
+    catch (error) {
+        console.error('VISUALIZATION-SETTINGS: Error reading ground color from storage:', error);
+    }
+    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.groundColor;
+}
+/**
+ * Get the currently selected background color
+ * @returns Promise<string> Hex color value (e.g., "#B10DC9")
+ */
+async function getSelectedBackgroundColor() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected background color');
+    const color = await getBackgroundColorFromStorage();
+    console.log(`VISUALIZATION-SETTINGS: Background color: ${color}`);
+    return color;
+}
+/**
+ * Get the currently selected ground color
+ * @returns Promise<string> Hex color value (e.g., "#FFFFFF")
+ */
+async function getSelectedGroundColor() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected ground color');
+    const color = await getGroundColorFromStorage();
+    console.log(`VISUALIZATION-SETTINGS: Ground color: ${color}`);
+    return color;
+}
+/**
+ * Get the currently selected environment preset
+ * @returns Promise<string> Environment preset name (e.g., "forest")
+ */
+async function getSelectedEnvironment() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected environment');
+    const settings = readSettingsFromFile();
+    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
+    console.log(`VISUALIZATION-SETTINGS: Environment: ${environment}`);
+    return environment;
+}
+/**
+ * Get the currently selected chart palette
+ * @returns Promise<string> Chart palette name (e.g., "ubuntu")
+ */
+async function getSelectedPalette() {
+    console.log('VISUALIZATION-SETTINGS: Getting selected chart palette');
+    const settings = readSettingsFromFile();
+    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
+    console.log(`VISUALIZATION-SETTINGS: Palette: ${palette}`);
+    return palette;
+}
+/**
+ * Get all current settings in a single call (for efficiency)
+ * @returns Promise<object> Object containing all current settings
+ */
+async function getAllSelectedSettings() {
+    console.log('VISUALIZATION-SETTINGS: Getting all selected settings');
+    const [backgroundColor, groundColor] = await Promise.all([
+        getSelectedBackgroundColor(),
+        getSelectedGroundColor()
+    ]);
+    const settings = readSettingsFromFile();
+    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
+    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
+    const allSettings = {
+        backgroundColor,
+        groundColor,
+        environment,
+        palette
+    };
+    console.log('VISUALIZATION-SETTINGS: All settings:', allSettings);
+    return allSettings;
+}
 
 
 /***/ }),
 /* 56 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysesCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(53);
-const serverControl_1 = __webpack_require__(20);
-const activeServerRegistry_1 = __webpack_require__(11);
 /**
- * Commands for managing active analyses
+ * Server Runtime Module
+ *
+ * This module provides the complete server runtime infrastructure for the CodeXR extension.
+ * It includes HTTP/HTTPS servers, port management, and a unified launcher system.
  */
-class ActiveAnalysesCommands {
-    context;
-    registry;
-    constructor(context) {
-        this.context = context;
-        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-        this.registerCommands();
-    }
-    /**
-     * Register all active analysis commands
-     */
-    registerCommands() {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Registering active analysis commands');
-        // Open analysis command
-        const openAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.openAnalysis', (analysisId) => this.openAnalysis(analysisId));
-        // Reveal analysis in explorer
-        const revealAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.revealAnalysis', (analysisId) => this.revealAnalysis(analysisId));
-        // Remove analysis
-        const removeAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.removeAnalysis', (analysisId) => this.removeAnalysis(analysisId));
-        // Clear all analyses
-        const clearAllCommand = vscode.commands.registerCommand('codexr.activeAnalysis.clearAll', () => this.clearAllAnalyses());
-        // Refresh active analyses view
-        const refreshCommand = vscode.commands.registerCommand('codexr.activeAnalysis.refresh', () => this.refreshView());
-        // Re-run analysis
-        const rerunAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.rerun', (analysisId) => this.rerunAnalysis(analysisId));
-        // Stop analysis (stops server and removes analysis)
-        const stopAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.stopAnalysis', (analysisId) => this.stopAnalysis(analysisId));
-        // Add all commands to context subscriptions
-        this.context.subscriptions.push(openAnalysisCommand, revealAnalysisCommand, removeAnalysisCommand, clearAllCommand, refreshCommand, rerunAnalysisCommand, stopAnalysisCommand);
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Active analysis commands registered successfully');
-    }
-    /**
-     * Open the analysis file or result
-     */
-    async openAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Opening analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            // Try to open the file/directory
-            const uri = vscode.Uri.file(analysis.path);
-            if (analysis.id.startsWith('dir-')) {
-                // For directory analysis, try to show the results or open the directory
-                await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: false });
-            }
-            else {
-                // For file analysis, open the file
-                const document = await vscode.workspace.openTextDocument(uri);
-                await vscode.window.showTextDocument(document);
-            }
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error opening analysis:', error);
-            vscode.window.showErrorMessage(`Failed to open analysis: ${error}`);
-        }
-    }
-    /**
-     * Reveal analysis file in the explorer
-     */
-    async revealAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Revealing analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            const uri = vscode.Uri.file(analysis.path);
-            await vscode.commands.executeCommand('revealInExplorer', uri);
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error revealing analysis:', error);
-            vscode.window.showErrorMessage(`Failed to reveal analysis: ${error}`);
-        }
-    }
-    /**
-     * Remove an analysis from the active list
-     */
-    async removeAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Removing analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        const result = await vscode.window.showWarningMessage(`Remove analysis for ${analysis.path}?`, { modal: true }, 'Remove');
-        if (result === 'Remove') {
-            this.registry.unregisterAnalysis(analysisId);
-            vscode.window.showInformationMessage('Analysis removed from active list');
-        }
-    }
-    /**
-     * Clear all analyses with confirmation
-     */
-    async clearAllAnalyses() {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Clearing all analyses');
-        const analyses = this.registry.getAllAnalyses();
-        if (analyses.length === 0) {
-            vscode.window.showInformationMessage('No active analyses to clear');
-            return;
-        }
-        const result = await vscode.window.showWarningMessage(`Clear all ${analyses.length} active analyses?`, { modal: true }, 'Clear All');
-        if (result === 'Clear All') {
-            this.registry.clearAll();
-            vscode.window.showInformationMessage('All active analyses cleared');
-        }
-    }
-    /**
-     * Refresh the active analyses view
-     */
-    refreshView() {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Refreshing active analyses view');
-        // The registry will automatically fire events to refresh the view
-        // We could add manual refresh logic here if needed
-        vscode.window.showInformationMessage('Active analyses view refreshed');
-    }
-    /**
-     * Re-run an analysis
-     */
-    async rerunAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Re-running analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            // For now, just show a placeholder message
-            // In the future, this will trigger the actual analysis
-            vscode.window.showInformationMessage(`TODO: Re-run ${analysis.mode} analysis for ${analysis.path}`);
-            // Reset the analysis status to running
-            this.registry.updateAnalysis(analysisId, 'running', 0);
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error re-running analysis:', error);
-            vscode.window.showErrorMessage(`Failed to re-run analysis: ${error}`);
-        }
-    }
-    /**
-     * Stop an analysis (stops associated server and removes from registry)
-     */
-    async stopAnalysis(analysisIdOrTreeItem) {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] 🔍 stopAnalysis called with:', {
-            type: typeof analysisIdOrTreeItem,
-            isString: typeof analysisIdOrTreeItem === 'string',
-            value: analysisIdOrTreeItem,
-            hasAnalysis: analysisIdOrTreeItem?.analysis,
-            hasLabel: analysisIdOrTreeItem?.label,
-            contextValue: analysisIdOrTreeItem?.contextValue,
-            itemType: analysisIdOrTreeItem?.itemType,
-            sectionType: analysisIdOrTreeItem?.sectionType
-        });
-        // Handle both string ID and tree item object
-        let analysisId;
-        if (typeof analysisIdOrTreeItem === 'string') {
-            analysisId = analysisIdOrTreeItem;
-        }
-        else if (analysisIdOrTreeItem && analysisIdOrTreeItem.analysis && analysisIdOrTreeItem.analysis.id) {
-            // Tree item object with analysis property (from Active Analyses tree)
-            analysisId = analysisIdOrTreeItem.analysis.id;
-        }
-        else if (analysisIdOrTreeItem && analysisIdOrTreeItem.label) {
-            // Tree item from main code analysis tree - try to find analysis by file name
-            const fileName = analysisIdOrTreeItem.label;
-            console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔍 Looking for analysis by filename: ${fileName}`);
-            const allAnalyses = this.registry.getAllAnalyses();
-            const matchingAnalysis = allAnalyses.find(analysis => {
-                const analysisFileName = analysis.path.split('/').pop() || analysis.path.split('\\').pop();
-                return analysisFileName === fileName;
-            });
-            if (matchingAnalysis) {
-                analysisId = matchingAnalysis.id;
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found analysis by filename: ${analysisId}`);
-            }
-            else {
-                console.warn(`[ACTIVE_ANALYSES_COMMANDS] ⚠️ No analysis found for filename: ${fileName}`);
-                vscode.window.showWarningMessage(`No active analysis found for file: ${fileName}`);
-                return;
-            }
-        }
-        else {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Invalid argument for stopAnalysis:', analysisIdOrTreeItem);
-            vscode.window.showErrorMessage('Unable to identify analysis to stop');
-            return;
-        }
-        if (!analysisId) {
-            vscode.window.showErrorMessage('Unable to identify analysis to stop');
-            return;
-        }
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] 🛑 Stopping analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-            const servers = serverRegistry.getAllServers();
-            // Find server associated with this analysis
-            // Strategy 1: Match by HTML file path (exact match)
-            let associatedServer = servers.find((server) => server.htmlFile && server.htmlFile === analysis.path);
-            // Strategy 2: If no exact match, look for servers with similar filenames
-            if (!associatedServer) {
-                const analysisFileName = path.basename(analysis.path);
-                const analysisBaseName = path.parse(analysisFileName).name; // Remove extension
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔍 Looking for server matching filename: ${analysisFileName} (base: ${analysisBaseName})`);
-                // Look for servers whose custom name or HTML file path contains the analysis filename
-                associatedServer = servers.find((server) => {
-                    // Check custom name (e.g., "Analysis Static tryCodeXr.kt")
-                    if (server.customName && server.customName.includes(analysisFileName)) {
-                        console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found server by customName: ${server.customName}`);
-                        return true;
-                    }
-                    // Check if HTML file path contains the base filename
-                    if (server.htmlFile) {
-                        const serverBaseName = path.parse(path.basename(server.htmlFile)).name;
-                        const serverDirName = path.basename(path.dirname(server.htmlFile));
-                        // Check if the server directory or HTML file contains the analysis base name
-                        if (serverDirName.includes(analysisBaseName) || serverBaseName.includes(analysisBaseName)) {
-                            console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found server by HTML path: ${server.htmlFile}`);
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-            }
-            if (associatedServer) {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔌 Found associated server ${associatedServer.id}, stopping...`);
-                const stopped = await serverControl_1.ServerControl.stopServer(associatedServer.id);
-                if (stopped) {
-                    console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Server stopped successfully`);
-                    // The server stop event will automatically remove the analysis via our event integration
-                    vscode.window.showInformationMessage(`Analysis stopped and server terminated`);
-                }
-                else {
-                    console.warn(`[ACTIVE_ANALYSES_COMMANDS] ⚠️ Failed to stop server, removing analysis anyway`);
-                    this.registry.unregisterAnalysis(analysisId);
-                    vscode.window.showWarningMessage(`Analysis removed, but server may still be running`);
-                }
-            }
-            else {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] 📝 No associated server found, just removing analysis`);
-                // No server found, just remove the analysis
-                this.registry.unregisterAnalysis(analysisId);
-                vscode.window.showInformationMessage(`Analysis removed`);
-            }
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error stopping analysis:', error);
-            // Fallback: just remove the analysis from registry
-            this.registry.unregisterAnalysis(analysisId);
-            vscode.window.showErrorMessage(`Failed to stop server, but analysis was removed: ${error}`);
-        }
-    }
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MultiServerLauncher = exports.PortManager = exports.HttpsCustomServer = exports.HttpsDefaultServer = exports.HttpServer = void 0;
+exports.createServerLauncher = createServerLauncher;
+exports.launchServerWithFile = launchServerWithFile;
+exports.isPortAvailable = isPortAvailable;
+exports.findAvailablePort = findAvailablePort;
+exports.getSuggestedPorts = getSuggestedPorts;
+// Core server implementations
+var httpServer_1 = __webpack_require__(27);
+Object.defineProperty(exports, "HttpServer", ({ enumerable: true, get: function () { return httpServer_1.HttpServer; } }));
+var httpsDefaultServer_1 = __webpack_require__(30);
+Object.defineProperty(exports, "HttpsDefaultServer", ({ enumerable: true, get: function () { return httpsDefaultServer_1.HttpsDefaultServer; } }));
+var httpsCustomServer_1 = __webpack_require__(32);
+Object.defineProperty(exports, "HttpsCustomServer", ({ enumerable: true, get: function () { return httpsCustomServer_1.HttpsCustomServer; } }));
+// Utility classes
+var portManager_1 = __webpack_require__(15);
+Object.defineProperty(exports, "PortManager", ({ enumerable: true, get: function () { return portManager_1.PortManager; } }));
+// Main launcher and types
+var multiServerLauncher_1 = __webpack_require__(14);
+Object.defineProperty(exports, "MultiServerLauncher", ({ enumerable: true, get: function () { return multiServerLauncher_1.MultiServerLauncher; } }));
+// Import for use in utility functions
+const multiServerLauncher_2 = __webpack_require__(14);
+const portManager_2 = __webpack_require__(15);
+/**
+ * Create a new multi-server launcher instance
+ * @param context - VS Code extension context
+ * @returns MultiServerLauncher instance
+ */
+function createServerLauncher(context) {
+    return new multiServerLauncher_2.MultiServerLauncher(context);
 }
-exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
+/**
+ * Launch server with a specific HTML file
+ * @param context - VS Code extension context
+ * @param htmlFilePath - Path to HTML file to serve
+ * @param customName - Optional custom display name for the server
+ * @returns Promise<MultiServerLaunchResult>
+ */
+async function launchServerWithFile(context, htmlFilePath, customName) {
+    const launcher = new multiServerLauncher_2.MultiServerLauncher(context);
+    return launcher.launchServer(htmlFilePath, customName);
+}
+/**
+ * Utility function to check if a port is available
+ * @param port - Port number to check
+ * @returns Promise<boolean> - True if port is available
+ */
+async function isPortAvailable(port) {
+    return portManager_2.PortManager.isPortAvailable(port);
+}
+/**
+ * Utility function to find an available port
+ * @param startPort - Port to start searching from
+ * @param endPort - Maximum port to check (optional)
+ * @returns Promise<number> - First available port found
+ */
+async function findAvailablePort(startPort, endPort) {
+    return portManager_2.PortManager.findAvailablePort(startPort, endPort);
+}
+/**
+ * Get suggested ports for a service type
+ * @param serviceType - Type of service ('http', 'https', 'dev')
+ * @returns number[] - Array of suggested ports
+ */
+function getSuggestedPorts(serviceType) {
+    return portManager_2.PortManager.getSuggestedPorts(serviceType);
+}
 
 
 /***/ }),
@@ -12017,477 +10878,178 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileWatcherManager = void 0;
+exports.VisualizationRestorer = void 0;
 const vscode = __importStar(__webpack_require__(1));
+const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(53);
-const statusBarDelayTimer_1 = __webpack_require__(58);
-const analysisSettingsStorage_1 = __webpack_require__(48);
-const analysisCommands_1 = __webpack_require__(59);
-const tempStorageManager_1 = __webpack_require__(65);
-const SSEManager_1 = __webpack_require__(23);
+const index_1 = __webpack_require__(56);
+const activeServerRegistry_1 = __webpack_require__(17);
 /**
- * Manages file watchers for files under analysis
- * Detects changes to analyzed files and shows placeholder info messages
+ * Visualization Restorer
+ * Responsible for scanning and relaunching stored visualizations
  */
-class FileWatcherManager {
+class VisualizationRestorer {
     context;
-    static instance = null;
-    watchers = new Map();
-    registry;
-    delayTimer;
+    visualizeDataPath;
     constructor(context) {
         this.context = context;
-        console.log('[FILE_WATCHER_MANAGER] Initializing file watcher manager');
-        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-        this.delayTimer = statusBarDelayTimer_1.StatusBarDelayTimer.getInstance();
-        // Listen for changes in active analyses to manage watchers
-        this.registry.onDidChangeAnalyses(() => {
-            this.updateWatchers();
-        });
+        this.visualizeDataPath = path.join(context.globalStorageUri.fsPath, 'visualize-data');
+        console.log('BROWSE-VISUALIZATIONS: Restorer initialized with path:', this.visualizeDataPath);
     }
     /**
-     * Get the singleton instance of the file watcher manager
+     * Scan the visualize-data directory for stored visualizations
      */
-    static getInstance(context) {
-        if (!FileWatcherManager.instance && context) {
-            FileWatcherManager.instance = new FileWatcherManager(context);
-        }
-        else if (!FileWatcherManager.instance) {
-            throw new Error('FileWatcherManager requires context for initialization');
-        }
-        return FileWatcherManager.instance;
-    }
-    /**
-     * Update watchers based on current active analyses
-     */
-    updateWatchers() {
-        console.log('[FILE_WATCHER_MANAGER] Updating file watchers');
-        const analyses = this.registry.getAllAnalyses();
-        const currentFiles = new Set();
-        // Collect all files that should be watched
-        analyses.forEach(analysis => {
-            if (analysis.status === 'running' || analysis.status === 'completed') {
-                if (!analysis.id.startsWith('dir-')) {
-                    // Only watch individual files, not directories for now
-                    currentFiles.add(analysis.path);
+    async scanStoredVisualizations() {
+        console.log('BROWSE-VISUALIZATIONS: Scanning for stored visualizations...');
+        const visualizations = [];
+        try {
+            // Ensure the visualize-data directory exists
+            if (!fs.existsSync(this.visualizeDataPath)) {
+                console.log('BROWSE-VISUALIZATIONS: visualize-data directory does not exist yet');
+                return visualizations;
+            }
+            // Read directory contents
+            const entries = await fs.promises.readdir(this.visualizeDataPath, { withFileTypes: true });
+            const folders = entries.filter(entry => entry.isDirectory());
+            console.log(`BROWSE-VISUALIZATIONS: Found ${folders.length} folders in visualize-data directory`);
+            for (const folder of folders) {
+                const folderName = folder.name;
+                const folderPath = path.join(this.visualizeDataPath, folderName);
+                // Extract name from folder name (everything before the last underscore)
+                const lastUnderscoreIndex = folderName.lastIndexOf('_');
+                const name = lastUnderscoreIndex > 0 ? folderName.substring(0, lastUnderscoreIndex) : folderName;
+                // Check for required files
+                const indexPath = path.join(folderPath, 'index.html');
+                const dataPath = path.join(folderPath, 'data.json');
+                const indexExists = fs.existsSync(indexPath);
+                const dataExists = fs.existsSync(dataPath);
+                const isValid = indexExists && dataExists;
+                const visualization = {
+                    name,
+                    folderName,
+                    folderPath,
+                    indexPath,
+                    dataPath,
+                    isValid
+                };
+                visualizations.push(visualization);
+                console.log(`BROWSE-VISUALIZATIONS: Found visualization "${name}" (${folderName}), valid: ${isValid}`);
+                if (!isValid) {
+                    console.warn(`BROWSE-VISUALIZATIONS: Invalid visualization - index.html exists: ${indexExists}, data.json exists: ${dataExists}`);
                 }
             }
-        });
-        // Remove watchers for files no longer in active analyses
-        for (const [filePath, watcher] of this.watchers) {
-            if (!currentFiles.has(filePath)) {
-                console.log(`[FILE_WATCHER_MANAGER] Removing watcher for ${filePath}`);
-                watcher.dispose();
-                this.watchers.delete(filePath);
-            }
-        }
-        // Add watchers for new files
-        for (const filePath of currentFiles) {
-            if (!this.watchers.has(filePath)) {
-                this.addWatcher(filePath);
-            }
-        }
-        console.log(`[FILE_WATCHER_MANAGER] Now watching ${this.watchers.size} files`);
-    }
-    /**
-     * Add a file watcher for a specific file
-     */
-    addWatcher(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] Adding watcher for ${filePath}`);
-        try {
-            // Create a watcher for the specific file
-            const pattern = new vscode.RelativePattern(path.dirname(filePath), path.basename(filePath));
-            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-            // Handle file changes
-            watcher.onDidChange((uri) => {
-                this.onFileChanged(uri.fsPath);
-            });
-            // Handle file saves (more reliable than onChange for some editors)
-            watcher.onDidCreate((uri) => {
-                this.onFileChanged(uri.fsPath);
-            });
-            // Handle file deletion
-            watcher.onDidDelete((uri) => {
-                this.onFileDeleted(uri.fsPath);
-            });
-            this.watchers.set(filePath, watcher);
-            this.context.subscriptions.push(watcher);
         }
         catch (error) {
-            console.error(`[FILE_WATCHER_MANAGER] Error creating watcher for ${filePath}:`, error);
+            console.error('BROWSE-VISUALIZATIONS: Error scanning visualizations:', error);
+            vscode.window.showErrorMessage(`Failed to scan visualizations: ${error instanceof Error ? error.message : String(error)}`);
         }
+        console.log(`BROWSE-VISUALIZATIONS: Scan completed, found ${visualizations.length} visualizations`);
+        return visualizations;
     }
     /**
-     * Handle file change events with auto-analysis delay
+     * Launch a stored visualization
      */
-    async onFileChanged(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] File changed: ${filePath}`);
-        // Get analyses for this file
-        const analyses = this.registry.getAnalysesForPath(filePath);
-        if (analyses.length === 0) {
-            return;
-        }
-        // Get the current auto-analysis delay setting
-        const delayMs = await analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelay(this.context);
-        const fileName = path.basename(filePath);
-        console.log(`[FILE_WATCHER_MANAGER] Starting auto-analysis delay: ${delayMs}ms for ${fileName}`);
-        // Start or restart the delay timer
-        const uri = vscode.Uri.file(filePath);
-        this.delayTimer.start(uri, delayMs, () => {
-            this.executeDelayedAnalysis(filePath, analyses);
-        });
-    }
-    /**
-     * Execute the analysis after the delay has completed
-     * Supports both Static and XR analysis modes
-     */
-    async executeDelayedAnalysis(filePath, analyses) {
-        const fileName = path.basename(filePath);
-        console.log(`[FILE_WATCHER_MANAGER] 🔄 Executing delayed re-analysis for ${fileName}`);
-        console.log(`[FILE_WATCHER_MANAGER] Found ${analyses.length} analysis(es) for this file`);
-        // Group analyses by mode
-        const staticAnalyses = analyses.filter(analysis => analysis.mode === 'Static');
-        const xrAnalyses = analyses.filter(analysis => analysis.mode === 'XR');
-        console.log(`[FILE_WATCHER_MANAGER] Static analyses: ${staticAnalyses.length}, XR analyses: ${xrAnalyses.length}`);
+    async launchVisualization(visualization) {
+        console.log(`BROWSE-VISUALIZATIONS: Launching visualization "${visualization.name}"`);
         try {
-            let analysisData;
-            // Determine which analysis to run based on the modes present
-            if (xrAnalyses.length > 0) {
-                // Run XR analysis if there are any XR analyses
-                console.log(`[FILE_WATCHER_MANAGER] Running XR analysis for ${fileName}...`);
-                analysisData = await (0, analysisCommands_1.runXRFileAnalysisCoordinator)(this.context, filePath);
+            if (!visualization.isValid) {
+                throw new Error(`Visualization "${visualization.name}" is missing required files`);
             }
-            else if (staticAnalyses.length > 0) {
-                // Run static analysis if there are only static analyses
-                console.log(`[FILE_WATCHER_MANAGER] Running static analysis for ${fileName}...`);
-                analysisData = await (0, analysisCommands_1.executeFileAnalysis)(this.context, filePath);
+            // Check if visualization is already running
+            const activeRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            const activeServers = activeRegistry.getAllServers();
+            // Check by custom name or by path
+            const alreadyActive = activeServers.some((server) => server.customName === visualization.name ||
+                server.filePath === visualization.indexPath);
+            if (alreadyActive) {
+                console.log(`BROWSE-VISUALIZATIONS: Visualization "${visualization.name}" is already active`);
+                vscode.window.showInformationMessage(`Visualization "${visualization.name}" is already running`);
+                return;
             }
-            else {
-                throw new Error('No valid analysis modes found');
+            // Launch the visualization using the existing server launcher
+            console.log(`BROWSE-VISUALIZATIONS: Launching server for visualization "${visualization.name}" with file: ${visualization.indexPath}`);
+            await (0, index_1.launchServerWithFile)(this.context, visualization.indexPath, visualization.name // Use the extracted name as customName
+            );
+            console.log(`BROWSE-VISUALIZATIONS: Successfully launched visualization "${visualization.name}"`);
+            vscode.window.showInformationMessage(`Launched visualization: ${visualization.name}`);
+        }
+        catch (error) {
+            console.error(`BROWSE-VISUALIZATIONS: Error launching visualization "${visualization.name}":`, error);
+            vscode.window.showErrorMessage(`Failed to launch visualization "${visualization.name}": ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Delete all stored visualizations (Reset All)
+     */
+    async resetAllVisualizations() {
+        console.log('BROWSE-VISUALIZATIONS: Resetting all visualizations...');
+        try {
+            if (!fs.existsSync(this.visualizeDataPath)) {
+                console.log('BROWSE-VISUALIZATIONS: No visualize-data directory to reset');
+                return;
             }
-            if (!analysisData) {
-                throw new Error('Analysis returned no data');
+            // Get list of folders to delete
+            const entries = await fs.promises.readdir(this.visualizeDataPath, { withFileTypes: true });
+            const folders = entries.filter(entry => entry.isDirectory());
+            if (folders.length === 0) {
+                console.log('BROWSE-VISUALIZATIONS: No visualizations to reset');
+                vscode.window.showInformationMessage('No stored visualizations to reset');
+                return;
             }
-            console.log(`[FILE_WATCHER_MANAGER] ✅ Analysis completed for ${fileName}`);
-            // Step 2: Update existing temp folders with new data.json
-            console.log(`[FILE_WATCHER_MANAGER] Updating existing data.json files for ${fileName}...`);
-            const updatedFolders = await (0, tempStorageManager_1.updateDataJson)(this.context, filePath, analysisData);
-            if (updatedFolders.length > 0) {
-                console.log(`[FILE_WATCHER_MANAGER] ✅ Updated ${updatedFolders.length} analysis folder(s) for ${fileName}`);
-                // Step 3: Send SSE update notification to clients (for both modes)
-                console.log(`[FILE_WATCHER_MANAGER] Sending SSE update notification for ${fileName}...`);
+            // Confirm deletion
+            const confirmResult = await vscode.window.showWarningMessage(`Delete all ${folders.length} stored visualizations? This action cannot be undone.`, { modal: true }, 'Delete All', 'Cancel');
+            if (confirmResult !== 'Delete All') {
+                console.log('BROWSE-VISUALIZATIONS: Reset cancelled by user');
+                return;
+            }
+            // Delete each folder
+            for (const folder of folders) {
+                const folderPath = path.join(this.visualizeDataPath, folder.name);
+                console.log(`BROWSE-VISUALIZATIONS: Deleting folder: ${folderPath}`);
                 try {
-                    SSEManager_1.sseManager.sendUpdate(filePath);
-                    console.log(`[FILE_WATCHER_MANAGER] ✅ SSE update notification sent for ${fileName}`);
+                    await fs.promises.rm(folderPath, { recursive: true, force: true });
                 }
-                catch (sseError) {
-                    console.error(`[FILE_WATCHER_MANAGER] ⚠️ Failed to send SSE update for ${fileName}:`, sseError);
-                    // Continue with the rest of the process even if SSE fails
+                catch (deleteError) {
+                    console.error(`BROWSE-VISUALIZATIONS: Error deleting folder ${folderPath}:`, deleteError);
                 }
-                // Show mode-specific success message to user
-                const modeInfo = [];
-                if (staticAnalyses.length > 0) {
-                    modeInfo.push(`${staticAnalyses.length} Static`);
-                }
-                if (xrAnalyses.length > 0) {
-                    modeInfo.push(`${xrAnalyses.length} XR`);
-                }
-                vscode.window.showInformationMessage(`Analysis updated: ${fileName} (${modeInfo.join(', ')} viewer${updatedFolders.length > 1 ? 's' : ''} refreshed)`, { modal: false });
-                // Update analysis status in registry for all modes
-                analyses.forEach(analysis => {
-                    console.log(`[FILE_WATCHER_MANAGER] Analysis ${analysis.id} (${analysis.mode}) updated due to file change`);
-                    // Update the analysis in registry - mark as completed
-                    try {
-                        this.registry.updateAnalysis(analysis.id, 'completed', 100);
-                    }
-                    catch (error) {
-                        console.log(`[FILE_WATCHER_MANAGER] Could not update analysis status: ${error}`);
-                    }
-                });
             }
-            else {
-                console.log(`[FILE_WATCHER_MANAGER] ⚠️ No existing analysis folders found for ${fileName}`);
-                // Inform user that no viewers were found to update
-                vscode.window.showWarningMessage(`File ${fileName} changed, but no active analysis viewers found to update.`, { modal: false });
-            }
+            console.log(`BROWSE-VISUALIZATIONS: Reset completed, deleted ${folders.length} visualizations`);
+            vscode.window.showInformationMessage(`Deleted ${folders.length} stored visualizations`);
+            // Trigger refresh of the tree view
+            vscode.commands.executeCommand('codexr.servers.refresh');
         }
         catch (error) {
-            console.error(`[FILE_WATCHER_MANAGER] ❌ Failed to execute delayed re-analysis for ${fileName}:`, error);
-            // Show error message to user
-            vscode.window.showErrorMessage(`Failed to update analysis for ${fileName}: ${error}`, { modal: false });
-            // Mark analyses as failed (both modes)
-            analyses.forEach(analysis => {
-                this.registry.failAnalysis(analysis.id, `Re-analysis failed: ${error}`);
-            });
+            console.error('BROWSE-VISUALIZATIONS: Error during reset:', error);
+            vscode.window.showErrorMessage(`Failed to reset visualizations: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
-     * Handle file deletion events
+     * Get the visualize-data directory path
      */
-    onFileDeleted(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] File deleted: ${filePath}`);
-        // Cancel any pending delay timer for this file
-        const uri = vscode.Uri.file(filePath);
-        this.delayTimer.cancel(uri);
-        // Get analyses for this file
-        const analyses = this.registry.getAnalysesForPath(filePath);
-        if (analyses.length > 0) {
-            const fileName = path.basename(filePath);
-            vscode.window.showWarningMessage(`File ${fileName} was deleted. Active analyses for this file will be marked as failed.`);
-            // Mark analyses as failed
-            analyses.forEach(analysis => {
-                this.registry.failAnalysis(analysis.id, `File was deleted: ${filePath}`);
-            });
-        }
-        // Remove the watcher since the file no longer exists
-        const watcher = this.watchers.get(filePath);
-        if (watcher) {
-            watcher.dispose();
-            this.watchers.delete(filePath);
-        }
-    }
-    /**
-     * Manually add a file to be watched
-     */
-    watchFile(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] Manually adding file to watch: ${filePath}`);
-        if (!this.watchers.has(filePath)) {
-            this.addWatcher(filePath);
-        }
-    }
-    /**
-     * Manually remove a file from being watched
-     */
-    unwatchFile(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] Manually removing file from watch: ${filePath}`);
-        // Cancel any pending delay timer for this file
-        const uri = vscode.Uri.file(filePath);
-        this.delayTimer.cancel(uri);
-        const watcher = this.watchers.get(filePath);
-        if (watcher) {
-            watcher.dispose();
-            this.watchers.delete(filePath);
-        }
-    }
-    /**
-     * Get list of currently watched files
-     */
-    getWatchedFiles() {
-        return Array.from(this.watchers.keys());
-    }
-    /**
-     * Dispose all watchers
-     */
-    dispose() {
-        console.log('[FILE_WATCHER_MANAGER] Disposing all file watchers');
-        // Cancel all delay timers
-        this.delayTimer.cancelAll();
-        for (const [filePath, watcher] of this.watchers) {
-            watcher.dispose();
-        }
-        this.watchers.clear();
+    getVisualizeDataPath() {
+        return this.visualizeDataPath;
     }
 }
-exports.FileWatcherManager = FileWatcherManager;
+exports.VisualizationRestorer = VisualizationRestorer;
 
 
 /***/ }),
 /* 58 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.StatusBarDelayTimer = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
+exports.registerCodeAnalysisCommands = registerCodeAnalysisCommands;
+const analysisCommands_1 = __webpack_require__(59);
 /**
- * Manages countdown timers in the VS Code status bar for auto-analysis delays
- * Shows remaining time until re-analysis starts and handles timer resets
+ * Register Code Analysis Commands
+ * Entry point for registering all code analysis related commands
  */
-class StatusBarDelayTimer {
-    static instance = null;
-    timers = new Map();
-    updateInterval = null;
-    constructor() {
-        console.log('[STATUS_BAR_TIMER] Initializing status bar delay timer manager');
-        this.startUpdateLoop();
-    }
-    /**
-     * Get the singleton instance
-     */
-    static getInstance() {
-        if (!StatusBarDelayTimer.instance) {
-            StatusBarDelayTimer.instance = new StatusBarDelayTimer();
-        }
-        return StatusBarDelayTimer.instance;
-    }
-    /**
-     * Start or restart a delay timer for a file
-     * @param uri File URI that changed
-     * @param delayMs Delay in milliseconds before analysis
-     * @param onComplete Callback to execute when timer completes
-     */
-    start(uri, delayMs, onComplete) {
-        const filePath = uri.fsPath;
-        const fileName = path.basename(filePath);
-        console.log(`[STATUS_BAR_TIMER] Starting ${delayMs}ms delay timer for ${fileName}`);
-        // Cancel existing timer for this file if any
-        this.cancel(uri);
-        // For real-time (0ms), execute immediately
-        if (delayMs === 0) {
-            console.log(`[STATUS_BAR_TIMER] Real-time mode: executing immediately for ${fileName}`);
-            onComplete();
-            return;
-        }
-        // Create status bar item
-        const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100 // Priority
-        );
-        // Set up the timeout
-        const timeout = setTimeout(() => {
-            console.log(`[STATUS_BAR_TIMER] Timer completed for ${fileName}`);
-            onComplete();
-            this.cancel(uri);
-        }, delayMs);
-        // Store timer data
-        const timerData = {
-            statusBarItem,
-            timeout,
-            startTime: Date.now(),
-            delayMs,
-            filePath
-        };
-        this.timers.set(filePath, timerData);
-        // Show initial status
-        this.updateStatusDisplay(timerData, fileName);
-        statusBarItem.show();
-    }
-    /**
-     * Cancel the timer for a specific file
-     * @param uri File URI to cancel timer for
-     */
-    cancel(uri) {
-        const filePath = uri.fsPath;
-        const timerData = this.timers.get(filePath);
-        if (timerData) {
-            const fileName = path.basename(filePath);
-            console.log(`[STATUS_BAR_TIMER] Cancelling timer for ${fileName}`);
-            clearTimeout(timerData.timeout);
-            timerData.statusBarItem.dispose();
-            this.timers.delete(filePath);
-        }
-    }
-    /**
-     * Cancel all active timers
-     */
-    cancelAll() {
-        console.log(`[STATUS_BAR_TIMER] Cancelling all ${this.timers.size} active timers`);
-        for (const timerData of this.timers.values()) {
-            clearTimeout(timerData.timeout);
-            timerData.statusBarItem.dispose();
-        }
-        this.timers.clear();
-    }
-    /**
-     * Get list of files with active timers
-     */
-    getActiveTimers() {
-        return Array.from(this.timers.keys());
-    }
-    /**
-     * Check if a file has an active timer
-     */
-    hasActiveTimer(uri) {
-        return this.timers.has(uri.fsPath);
-    }
-    /**
-     * Start the update loop for status bar displays
-     */
-    startUpdateLoop() {
-        this.updateInterval = setInterval(() => {
-            for (const [filePath, timerData] of this.timers.entries()) {
-                const fileName = path.basename(filePath);
-                this.updateStatusDisplay(timerData, fileName);
-            }
-        }, 100); // Update every 100ms for smooth countdown
-    }
-    /**
-     * Update the status bar display for a timer
-     */
-    updateStatusDisplay(timerData, fileName) {
-        const elapsed = Date.now() - timerData.startTime;
-        const remaining = Math.max(0, timerData.delayMs - elapsed);
-        if (remaining <= 0) {
-            // Timer should have completed by now
-            return;
-        }
-        const remainingSeconds = (remaining / 1000).toFixed(1);
-        // Format the status message
-        timerData.statusBarItem.text = `$(clock) ${fileName}: ${remainingSeconds}s`;
-        timerData.statusBarItem.tooltip = `Auto-analysis for ${fileName} will start in ${remainingSeconds} seconds`;
-        timerData.statusBarItem.color = new vscode.ThemeColor('statusBarItem.warningForeground');
-    }
-    /**
-     * Get timing info for a file (for debugging)
-     */
-    getTimerInfo(uri) {
-        const timerData = this.timers.get(uri.fsPath);
-        if (!timerData) {
-            return null;
-        }
-        const elapsed = Date.now() - timerData.startTime;
-        const remaining = Math.max(0, timerData.delayMs - elapsed);
-        return {
-            remaining,
-            total: timerData.delayMs
-        };
-    }
-    /**
-     * Dispose all resources
-     */
-    dispose() {
-        console.log('[STATUS_BAR_TIMER] Disposing status bar delay timer manager');
-        this.cancelAll();
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-        }
-    }
+function registerCodeAnalysisCommands(context) {
+    console.log('[CODE_ANALYSIS] Registering code analysis commands...');
+    analysisCommands_1.CodeAnalysisCommands.registerCommands(context);
+    console.log('[CODE_ANALYSIS] Code analysis commands registration complete');
 }
-exports.StatusBarDelayTimer = StatusBarDelayTimer;
 
 
 /***/ }),
@@ -12536,14 +11098,14 @@ const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const child_process_1 = __webpack_require__(60);
 const handleAnalysisClicks_1 = __webpack_require__(61);
-const analysisSettingsStorage_1 = __webpack_require__(48);
-const pythonEnvStorage_1 = __webpack_require__(62);
-const pythonEnvUtils_1 = __webpack_require__(63);
-const tempStorageManager_1 = __webpack_require__(65);
-const activeAnalysisRegistry_1 = __webpack_require__(53);
-const activeAnalysisModel_1 = __webpack_require__(54);
-const chartRegistry_1 = __webpack_require__(49);
-const xrTemplateRenderer_1 = __webpack_require__(121);
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const pythonEnvStorage_1 = __webpack_require__(63);
+const pythonEnvUtils_1 = __webpack_require__(64);
+const tempStorageManager_1 = __webpack_require__(66);
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const activeAnalysisModel_1 = __webpack_require__(70);
+const chartRegistry_1 = __webpack_require__(42);
+const xrTemplateRenderer_1 = __webpack_require__(68);
 /**
  * Code Analysis Commands
  * Handles all command registrations for the code analysis functionality
@@ -13298,7 +11860,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisInteractionHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisSettingsStorage_1 = __webpack_require__(48);
+const analysisSettingsStorage_1 = __webpack_require__(62);
 /**
  * Handle clicks and interactions for Code Analysis tree items
  */
@@ -13518,10 +12080,358 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisSettingsStorage = exports.AUTO_ANALYSIS_DELAYS = void 0;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * Auto-analysis delay presets in milliseconds
+ */
+exports.AUTO_ANALYSIS_DELAYS = {
+    REAL_TIME: 0,
+    HALF_SECOND: 500,
+    ONE_SECOND: 1000,
+    THREE_SECONDS: 3000,
+    FIVE_SECONDS: 5000,
+    TEN_SECONDS: 10000
+};
+/**
+ * Default analysis configuration
+ */
+const DEFAULT_CONFIG = {
+    analysisModeFile: 'XR',
+    theme: 'light',
+    autoAnalysisDelay: exports.AUTO_ANALYSIS_DELAYS.REAL_TIME,
+    // Default chart and dimension mapping for file analysis - using boats chart with XR field names
+    chartTypeFile: 'boats', // Default to boats chart for file analysis
+    dimensionMappingFile: [
+        {
+            dimension: 'area',
+            dataField: 'parameters' // Same in XR format
+        },
+        {
+            dimension: 'height',
+            dataField: 'lineCount' // Updated to XR field name
+        },
+        {
+            dimension: 'color',
+            dataField: 'complexity' // Updated to XR field name (was 'ccn')
+        }
+    ]
+};
+/**
+ * Utility class for managing analysis settings storage
+ * Stores configuration in globalStorage/codexr_analysis/configuration.json
+ */
+class AnalysisSettingsStorage {
+    static STORAGE_FOLDER = 'codexr_analysis';
+    static CONFIG_FILE = 'configuration.json';
+    /**
+     * Get the full path to the configuration file
+     */
+    static getConfigPath(context) {
+        return vscode.Uri.joinPath(context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
+    }
+    /**
+     * Load analysis configuration from storage
+     */
+    static async loadConfiguration(context) {
+        try {
+            const configPath = this.getConfigPath(context);
+            console.log(`ANALYSIS: Loading configuration from ${configPath.fsPath}`);
+            const configData = await vscode.workspace.fs.readFile(configPath);
+            const configString = Buffer.from(configData).toString('utf8');
+            const loadedConfig = JSON.parse(configString);
+            // Validate and merge with defaults
+            const config = {
+                analysisModeFile: loadedConfig.analysisModeFile || DEFAULT_CONFIG.analysisModeFile,
+                theme: loadedConfig.theme || DEFAULT_CONFIG.theme,
+                autoAnalysisDelay: loadedConfig.autoAnalysisDelay !== undefined ? loadedConfig.autoAnalysisDelay : DEFAULT_CONFIG.autoAnalysisDelay,
+                chartTypeFile: loadedConfig.chartTypeFile || DEFAULT_CONFIG.chartTypeFile,
+                dimensionMappingFile: loadedConfig.dimensionMappingFile || DEFAULT_CONFIG.dimensionMappingFile
+            };
+            console.log(`ANALYSIS: Loaded configuration:`, config);
+            return config;
+        }
+        catch (error) {
+            console.log(`ANALYSIS: Could not load configuration, using defaults:`, error);
+            // Try to detect theme from VS Code when config is not available
+            const detectedTheme = this.getDefaultThemeFromVscode();
+            console.log(`ANALYSIS: Detected VS Code theme: ${detectedTheme}`);
+            return {
+                ...DEFAULT_CONFIG,
+                theme: detectedTheme
+            };
+        }
+    }
+    /**
+     * Save analysis configuration to storage
+     */
+    static async saveConfiguration(context, config) {
+        try {
+            const configPath = this.getConfigPath(context);
+            console.log(`ANALYSIS: Saving configuration to ${configPath.fsPath}:`, config);
+            // Ensure the storage folder exists
+            const storageFolder = vscode.Uri.joinPath(context.globalStorageUri, this.STORAGE_FOLDER);
+            try {
+                await vscode.workspace.fs.createDirectory(storageFolder);
+            }
+            catch (error) {
+                // Directory might already exist, that's fine
+            }
+            // Save configuration
+            const configString = JSON.stringify(config, null, 2);
+            const configData = Buffer.from(configString, 'utf8');
+            await vscode.workspace.fs.writeFile(configPath, configData);
+            console.log(`ANALYSIS: Configuration saved successfully`);
+        }
+        catch (error) {
+            console.error(`ANALYSIS: Failed to save configuration:`, error);
+            vscode.window.showErrorMessage(`Failed to save analysis configuration: ${error}`);
+        }
+    }
+    /**
+     * Get the current analysis mode
+     */
+    static async getCurrentAnalysisMode(context) {
+        const config = await this.loadConfiguration(context);
+        return config.analysisModeFile;
+    }
+    /**
+     * Set the analysis mode and save configuration
+     */
+    static async setAnalysisMode(context, mode) {
+        console.log(`ANALYSIS: Setting analysis mode to: ${mode}`);
+        const config = await this.loadConfiguration(context);
+        config.analysisModeFile = mode;
+        await this.saveConfiguration(context, config);
+        // Show confirmation message
+        const modeDisplay = mode === 'XR' ? 'XR Analysis Mode' : 'Static Analysis Mode';
+        vscode.window.showInformationMessage(`Switched to ${modeDisplay}`);
+    }
+    /**
+     * Toggle between XR and Static analysis modes
+     */
+    static async toggleAnalysisMode(context) {
+        const currentMode = await this.getCurrentAnalysisMode(context);
+        const newMode = currentMode === 'XR' ? 'Static' : 'XR';
+        await this.setAnalysisMode(context, newMode);
+        return newMode;
+    }
+    /**
+     * Get icon for analysis mode
+     */
+    static getAnalysisModeIcon(mode) {
+        switch (mode) {
+            case 'XR':
+                return new vscode.ThemeIcon('file', new vscode.ThemeColor('charts.purple'));
+            case 'Static':
+                return new vscode.ThemeIcon('file', new vscode.ThemeColor('charts.green'));
+            default:
+                return new vscode.ThemeIcon('file');
+        }
+    }
+    /**
+     * Get display label for analysis mode
+     */
+    static getAnalysisModeLabel(mode) {
+        return `Analysis Mode (${mode})`;
+    }
+    /**
+     * Get the current theme mode
+     */
+    static async getCurrentTheme(context) {
+        const config = await this.loadConfiguration(context);
+        return config.theme;
+    }
+    /**
+     * Set the theme mode and save configuration
+     */
+    static async setTheme(context, theme) {
+        console.log(`ANALYSIS: Setting theme to: ${theme}`);
+        const config = await this.loadConfiguration(context);
+        config.theme = theme;
+        await this.saveConfiguration(context, config);
+        console.log(`ANALYSIS: Theme updated to ${theme}`);
+    }
+    /**
+     * Toggle between light and dark themes
+     */
+    static async toggleTheme(context) {
+        const currentTheme = await this.getCurrentTheme(context);
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        await this.setTheme(context, newTheme);
+        return newTheme;
+    }
+    /**
+     * Get default theme from VS Code's active color theme
+     */
+    static getDefaultThemeFromVscode() {
+        const theme = vscode.window.activeColorTheme.kind;
+        if (theme === vscode.ColorThemeKind.Dark || theme === vscode.ColorThemeKind.HighContrast) {
+            return 'dark';
+        }
+        return 'light';
+    }
+    /**
+     * Get the current auto-analysis delay
+     */
+    static async getAutoAnalysisDelay(context) {
+        const config = await this.loadConfiguration(context);
+        return config.autoAnalysisDelay;
+    }
+    /**
+     * Set the auto-analysis delay and save configuration
+     */
+    static async setAutoAnalysisDelay(context, delay) {
+        console.log(`ANALYSIS: Setting auto-analysis delay to: ${delay}ms`);
+        const config = await this.loadConfiguration(context);
+        config.autoAnalysisDelay = delay;
+        await this.saveConfiguration(context, config);
+        // Show confirmation message
+        const delayDisplay = delay === 0 ? 'Real Time' : `${delay}ms`;
+        vscode.window.showInformationMessage(`Auto-analysis delay set to ${delayDisplay}`);
+    }
+    /**
+     * Get display label for auto-analysis delay
+     */
+    static getAutoAnalysisDelayLabel(delay) {
+        switch (delay) {
+            case exports.AUTO_ANALYSIS_DELAYS.REAL_TIME:
+                return 'Real Time (0s)';
+            case exports.AUTO_ANALYSIS_DELAYS.HALF_SECOND:
+                return '0.5s';
+            case exports.AUTO_ANALYSIS_DELAYS.ONE_SECOND:
+                return '1s';
+            case exports.AUTO_ANALYSIS_DELAYS.THREE_SECONDS:
+                return '3s';
+            case exports.AUTO_ANALYSIS_DELAYS.FIVE_SECONDS:
+                return '5s';
+            case exports.AUTO_ANALYSIS_DELAYS.TEN_SECONDS:
+                return '10s';
+            default:
+                return `${delay}ms (Custom)`;
+        }
+    }
+    /**
+     * Get preset delay options for UI
+     */
+    static getAutoAnalysisDelayOptions() {
+        return [
+            { label: 'Real Time (0s)', value: exports.AUTO_ANALYSIS_DELAYS.REAL_TIME },
+            { label: '0.5s', value: exports.AUTO_ANALYSIS_DELAYS.HALF_SECOND },
+            { label: '1s', value: exports.AUTO_ANALYSIS_DELAYS.ONE_SECOND },
+            { label: '3s', value: exports.AUTO_ANALYSIS_DELAYS.THREE_SECONDS },
+            { label: '5s', value: exports.AUTO_ANALYSIS_DELAYS.FIVE_SECONDS },
+            { label: '10s', value: exports.AUTO_ANALYSIS_DELAYS.TEN_SECONDS },
+            { label: 'Custom...', value: -1 } // Special value to indicate custom input
+        ];
+    }
+    /**
+     * Get the current chart type for file analysis
+     */
+    static async getChartTypeFile(context) {
+        const config = await this.loadConfiguration(context);
+        return config.chartTypeFile;
+    }
+    /**
+     * Set the chart type for file analysis and save configuration
+     */
+    static async setChartTypeFile(context, chartType) {
+        console.log(`ANALYSIS: Setting chart type for file analysis to: ${chartType}`);
+        const config = await this.loadConfiguration(context);
+        config.chartTypeFile = chartType;
+        // Reset dimension mappings when chart type changes
+        config.dimensionMappingFile = [];
+        await this.saveConfiguration(context, config);
+        vscode.window.showInformationMessage(`Chart type set to ${chartType}`);
+    }
+    /**
+     * Get the current dimension mapping for file analysis
+     */
+    static async getDimensionMappingFile(context) {
+        const config = await this.loadConfiguration(context);
+        return config.dimensionMappingFile;
+    }
+    /**
+     * Set the dimension mapping for file analysis and save configuration
+     */
+    static async setDimensionMappingFile(context, dimensionMappings) {
+        console.log(`ANALYSIS: Setting dimension mapping for file analysis:`, dimensionMappings);
+        const config = await this.loadConfiguration(context);
+        config.dimensionMappingFile = dimensionMappings;
+        await this.saveConfiguration(context, config);
+        const mappedCount = dimensionMappings.length;
+        vscode.window.showInformationMessage(`${mappedCount} dimension mappings configured`);
+    }
+    /**
+     * Update a single dimension mapping for file analysis
+     */
+    static async updateDimensionMappingFile(context, dimensionName, dataField) {
+        const config = await this.loadConfiguration(context);
+        // Remove any existing mapping for this dimension
+        config.dimensionMappingFile = config.dimensionMappingFile.filter(m => m.dimension !== dimensionName);
+        // Add the new mapping
+        config.dimensionMappingFile.push({
+            dimension: dimensionName,
+            dataField: dataField
+        });
+        await this.saveConfiguration(context, config);
+        console.log(`ANALYSIS: Updated dimension mapping: ${dimensionName} → ${dataField}`);
+    }
+    /**
+     * Reset all settings to default values
+     */
+    static async resetToDefaults(context) {
+        console.log('[ANALYSIS] Resetting all settings to default values...');
+        await this.saveConfiguration(context, DEFAULT_CONFIG);
+        console.log('[ANALYSIS] Settings reset to defaults successfully');
+    }
+}
+exports.AnalysisSettingsStorage = AnalysisSettingsStorage;
+
+
+/***/ }),
+/* 63 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvStorage = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const pythonEnvUtils_1 = __webpack_require__(63);
+const pythonEnvUtils_1 = __webpack_require__(64);
 /**
  * Manages persistent storage of Python environment metadata
  */
@@ -13721,7 +12631,7 @@ exports.PythonEnvStorage = PythonEnvStorage;
 
 
 /***/ }),
-/* 63 */
+/* 64 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13762,7 +12672,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvUtils = void 0;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const os = __importStar(__webpack_require__(64));
+const os = __importStar(__webpack_require__(65));
 /**
  * Platform-specific utilities for Python environment management
  */
@@ -13916,13 +12826,13 @@ exports.PythonEnvUtils = PythonEnvUtils;
 
 
 /***/ }),
-/* 64 */
+/* 65 */
 /***/ ((module) => {
 
 module.exports = require("os");
 
 /***/ }),
-/* 65 */
+/* 66 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13967,13 +12877,13 @@ exports.prepareStaticAnalysisViewerAssets = prepareStaticAnalysisViewerAssets;
 exports.updateDataJson = updateDataJson;
 exports.prepareXRAnalysisViewerAssets = prepareXRAnalysisViewerAssets;
 const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(66));
+const fs = __importStar(__webpack_require__(67));
 const path = __importStar(__webpack_require__(5));
-const nonceGenerator_1 = __webpack_require__(17);
-const index_1 = __webpack_require__(38);
-const analysisSettingsStorage_1 = __webpack_require__(48);
-const fileToServerMap_1 = __webpack_require__(22);
-const xrTemplateRenderer_1 = __webpack_require__(121);
+const nonceGenerator_1 = __webpack_require__(12);
+const index_1 = __webpack_require__(56);
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const fileToServerMap_1 = __webpack_require__(21);
+const xrTemplateRenderer_1 = __webpack_require__(68);
 /**
  * Temporary Storage Manager for Analysis Results
  *
@@ -14334,40 +13244,10 @@ async function prepareXRAnalysisViewerAssets(context, tempFolder, fileName) {
 
 
 /***/ }),
-/* 66 */
+/* 67 */
 /***/ ((module) => {
 
 module.exports = require("fs/promises");
-
-/***/ }),
-/* 67 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerActiveServersCommands = registerActiveServersCommands;
-exports.getActiveServersCommandIds = getActiveServersCommandIds;
-const activeServersCommands_1 = __webpack_require__(68);
-/**
- * Active Servers Commands Wrapper
- * Re-exports active servers commands for centralized command registration
- */
-/**
- * Register all active servers commands
- * @param context VS Code extension context
- * @param treeDataProvider Any tree data provider that supports refresh operations
- */
-function registerActiveServersCommands(context, treeDataProvider) {
-    console.log('COMMANDS: Registering active servers commands');
-    activeServersCommands_1.ActiveServersCommands.registerCommands(context, treeDataProvider);
-}
-/**
- * Get active servers command IDs for external reference
- */
-function getActiveServersCommandIds() {
-    return activeServersCommands_1.ActiveServersCommands.getCommandIds();
-}
-
 
 /***/ }),
 /* 68 */
@@ -14408,145 +13288,76 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveServersCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const handleServerActions_1 = __webpack_require__(19);
+exports.XRTemplateRenderer = void 0;
+const path = __importStar(__webpack_require__(5));
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const templateProcessor_1 = __webpack_require__(46);
 /**
- * Active Servers Commands
- * VS Code command definitions for active servers functionality
+ * XR Template Renderer for File Analysis
+ * Delegates to centralized TemplateProcessor for HTML generation
  */
-class ActiveServersCommands {
-    // Store tree data provider reference for refresh operations
-    static treeDataProvider;
+class XRTemplateRenderer {
     /**
-     * Register all active servers commands
+     * Generate and save index.html for XR file analysis using centralized TemplateProcessor
+     *
+     * @param context - VS Code extension context
+     * @param analysisFolder - URI of the analysis folder (contains data.json)
+     * @param filePath - Original file path being analyzed
+     * @param analysisData - Analysis data object
      */
-    static registerCommands(context, treeDataProvider) {
-        console.log('ACTIVE_SERVER: Registering active servers commands');
-        // Store the tree data provider reference
-        this.treeDataProvider = treeDataProvider;
-        // Command: Show server actions (from tree item click)
-        const showServerActionsCmd = vscode.commands.registerCommand('codeXR.activeServers.showActions', async (serverId) => {
-            await handleServerActions_1.ServerActionHandlers.showServerActions(serverId);
-        });
-        // Command: Open server in browser
-        const openInBrowserCmd = vscode.commands.registerCommand('codeXR.activeServers.openInBrowser', async (treeItem) => {
-            const serverId = this.extractServerIdFromTreeItem(treeItem);
-            if (serverId) {
-                await handleServerActions_1.ServerActionHandlers.openInBrowser(serverId);
+    static async generateXRVisualization(context, analysisFolder, filePath, analysisData) {
+        console.log(`[XR_TEMPLATE_RENDERER] Generating XR visualization for ${path.basename(filePath)} using centralized TemplateProcessor`);
+        try {
+            // Get current chart configuration
+            const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
+            const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
+            console.log(`[XR_TEMPLATE_RENDERER] Using chart type: ${chartType}`);
+            console.log(`[XR_TEMPLATE_RENDERER] Dimension mappings:`, dimensionMappings);
+            // Convert field names to XR format if needed
+            const mappings = dimensionMappings.map(mapping => ({
+                dimension: mapping.dimension,
+                dataField: this.convertToXRFieldName(mapping.dataField),
+                label: mapping.label
+            }));
+            // Prepare output path for index.html
+            const indexHtmlPath = path.join(analysisFolder.fsPath, 'index.html');
+            // Use centralized TemplateProcessor to generate the complete XR visualization
+            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(chartType, mappings, `File Analysis: ${path.basename(filePath)}`, './data.json', context, indexHtmlPath);
+            if (!result.success) {
+                console.error(`[XR_TEMPLATE_RENDERER] TemplateProcessor failed:`, result.error);
+                throw new Error(`Template processing failed: ${result.error}`);
             }
-        });
-        // Command: Open server in lateral panel
-        const openInPanelCmd = vscode.commands.registerCommand('codeXR.activeServers.openInPanel', async (treeItem) => {
-            const serverId = this.extractServerIdFromTreeItem(treeItem);
-            if (serverId) {
-                await handleServerActions_1.ServerActionHandlers.openInPanel(serverId);
-            }
-        });
-        // Command: Copy server URL to clipboard
-        const copyUrlCmd = vscode.commands.registerCommand('codeXR.activeServers.copyUrl', async (treeItem) => {
-            const serverId = this.extractServerIdFromTreeItem(treeItem);
-            if (serverId) {
-                await handleServerActions_1.ServerActionHandlers.copyUrl(serverId);
-            }
-        });
-        // Command: Stop specific server
-        const stopServerCmd = vscode.commands.registerCommand('codeXR.activeServers.stopServer', async (treeItem) => {
-            const serverId = this.extractServerIdFromTreeItem(treeItem);
-            if (serverId) {
-                await handleServerActions_1.ServerActionHandlers.stopServer(serverId);
-            }
-        });
-        // Command: Show server details
-        const showDetailsCmd = vscode.commands.registerCommand('codeXR.activeServers.showDetails', async (treeItem) => {
-            const serverId = this.extractServerIdFromTreeItem(treeItem);
-            if (serverId) {
-                await handleServerActions_1.ServerActionHandlers.showServerDetails(serverId);
-            }
-        });
-        // Command: Stop all servers
-        const stopAllServersCmd = vscode.commands.registerCommand('codeXR.activeServers.stopAllServers', async () => {
-            await handleServerActions_1.ServerActionHandlers.stopAllServers();
-        });
-        // Command: Refresh server statuses
-        const refreshServersCmd = vscode.commands.registerCommand('codeXR.activeServers.refreshServers', async () => {
-            // Use the unified tree data provider if available
-            if (this.treeDataProvider && this.treeDataProvider.refresh) {
-                console.log('ACTIVE_SERVER: Refreshing unified tree view');
-                this.treeDataProvider.refresh();
-            }
-            else {
-                console.log('ACTIVE_SERVER: Using fallback refresh handler');
-                vscode.commands.executeCommand('codexr.tree.refresh');
-            }
-        });
-        // Command: Open active servers view 
-        const openViewCmd = vscode.commands.registerCommand('codeXR.activeServers.openView', async () => {
-            await vscode.commands.executeCommand('codexrTree.focus');
-        });
-        // Register all commands with the extension context
-        context.subscriptions.push(showServerActionsCmd, openInBrowserCmd, openInPanelCmd, copyUrlCmd, stopServerCmd, showDetailsCmd, stopAllServersCmd, refreshServersCmd, openViewCmd);
-        console.log('ACTIVE_SERVER: Registered 9 active servers commands');
+            console.log(`[XR_TEMPLATE_RENDERER] Successfully generated index.html using TemplateProcessor at: ${indexHtmlPath}`);
+        }
+        catch (error) {
+            console.error(`[XR_TEMPLATE_RENDERER] Failed to generate XR visualization:`, error);
+            throw error;
+        }
     }
     /**
-     * Extract server ID from tree item context
-     * @private
+     * Convert field names from static analysis format to XR format
+     * Maps legacy field names to standardized XR field names
      */
-    static extractServerIdFromTreeItem(treeItem) {
-        // Handle different tree item formats
-        if (treeItem && treeItem.server && treeItem.server.id) {
-            console.log(`ACTIVE_SERVER: Extracted server ID from tree item: ${treeItem.server.id}`);
-            return treeItem.server.id;
-        }
-        // Fallback: if treeItem is a string, use it directly (for backward compatibility)
-        if (typeof treeItem === 'string') {
-            console.log(`ACTIVE_SERVER: Using direct server ID: ${treeItem}`);
-            return treeItem;
-        }
-        console.error('ACTIVE_SERVER: Could not extract server ID from tree item:', treeItem);
-        return null;
-    }
-    /**
-     * Get all command IDs for external reference
-     */
-    static getCommandIds() {
-        return {
-            showActions: 'codeXR.activeServers.showActions',
-            openInBrowser: 'codeXR.activeServers.openInBrowser',
-            openInPanel: 'codeXR.activeServers.openInPanel',
-            copyUrl: 'codeXR.activeServers.copyUrl',
-            stopServer: 'codeXR.activeServers.stopServer',
-            showDetails: 'codeXR.activeServers.showDetails',
-            stopAllServers: 'codeXR.activeServers.stopAllServers',
-            refreshServers: 'codeXR.activeServers.refreshServers',
-            openView: 'codeXR.activeServers.openView'
+    static convertToXRFieldName(fieldName) {
+        const fieldMappings = {
+            'ccn': 'complexity',
+            'lines_count': 'lineCount',
+            'line_start': 'lineStart',
+            'line_end': 'lineEnd',
+            'function_name': 'fileName',
+            'nloc': 'lineCount',
+            'parameters': 'parameters',
+            'max_nesting_depth': 'maxNestingDepth',
+            'cyclomatic_density': 'cyclomaticDensity'
         };
+        return fieldMappings[fieldName] || fieldName;
     }
 }
-exports.ActiveServersCommands = ActiveServersCommands;
+exports.XRTemplateRenderer = XRTemplateRenderer;
 
 
 /***/ }),
 /* 69 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerBabiaExamplesCommands = registerBabiaExamplesCommands;
-const babiaExamplesCommands_1 = __webpack_require__(70);
-/**
- * Register Babia Examples Commands
- * Entry point for registering all Babia examples related commands
- */
-function registerBabiaExamplesCommands(context, treeDataProvider) {
-    console.log('EXAMPLES: Registering Babia examples commands...');
-    babiaExamplesCommands_1.BabiaExamplesCommands.registerCommands(context, treeDataProvider);
-    console.log('EXAMPLES: Babia examples commands registration complete');
-}
-
-
-/***/ }),
-/* 70 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14584,139 +13395,344 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BabiaExamplesCommands = void 0;
+exports.ActiveAnalysisRegistry = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const handleExampleClicks_1 = __webpack_require__(71);
+const activeAnalysisModel_1 = __webpack_require__(70);
+const activeServerRegistry_1 = __webpack_require__(17);
+const fileToServerMap_1 = __webpack_require__(21);
+const SSEManager_1 = __webpack_require__(22);
 /**
- * Babia Examples Commands
- * VS Code command definitions for Babia examples functionality
+ * Registry that manages currently tracked active analyses
+ * This is a singleton that maintains the state of all active analyses
  */
-class BabiaExamplesCommands {
+class ActiveAnalysisRegistry {
+    static instance = null;
+    activeAnalyses = new Map();
+    _onDidChangeAnalyses = new vscode.EventEmitter();
+    serverEventSubscription = null;
     /**
-     * Register all Babia examples commands
+     * Event fired when the registry of active analyses changes
      */
-    static registerCommands(context, treeDataProvider) {
-        console.log('EXAMPLES: Registering Babia examples commands...');
-        // Initialize the click handler
-        const clickHandler = new handleExampleClicks_1.ExampleClickHandler(context);
-        // Command: Launch example
-        const launchExampleCmd = vscode.commands.registerCommand('codeXR.babiaExamples.launchExample', async (example) => {
-            try {
-                console.log(`EXAMPLES: Launch command triggered for "${example.name}"`);
-                await clickHandler.handleExampleClick(example);
-            }
-            catch (error) {
-                console.error('EXAMPLES: Error in launch command:', error);
-                vscode.window.showErrorMessage(`Failed to launch example: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Refresh examples (only register if tree data provider is available)
-        if (treeDataProvider) {
-            const refreshExamplesCmd = vscode.commands.registerCommand('codeXR.babiaExamples.refresh', async () => {
-                try {
-                    console.log('EXAMPLES: Refresh command triggered');
-                    await treeDataProvider.rescan();
-                    vscode.window.showInformationMessage('Babia examples refreshed');
-                }
-                catch (error) {
-                    console.error('EXAMPLES: Error in refresh command:', error);
-                    vscode.window.showErrorMessage(`Failed to refresh examples: ${error instanceof Error ? error.message : String(error)}`);
+    onDidChangeAnalyses = this._onDidChangeAnalyses.event;
+    constructor() {
+        console.log('[ACTIVE_ANALYSIS_REGISTRY] Initializing active analysis registry');
+        this.setupServerEventIntegration();
+    }
+    /**
+     * Set up integration with server events to auto-unregister analyses when servers stop
+     */
+    setupServerEventIntegration() {
+        try {
+            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            // Subscribe to server registry changes
+            this.serverEventSubscription = serverRegistry.onRegistryChange((event) => {
+                console.log('[ACTIVE_ANALYSIS_REGISTRY] 📡 Received server registry event:', event.type);
+                if (event.type === 'serverRemoved' && event.server) {
+                    console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔌 Server removed: ${event.server.url} (port ${event.server.port})`);
+                    // Use file-to-server mapping to find associated analysis
+                    const fileUri = fileToServerMap_1.fileToServerMap.findFileByPort(event.server.port);
+                    let removedAnalysis = false;
+                    if (fileUri) {
+                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🎯 Found analysis file via mapping: ${fileUri}`);
+                        // Find and remove the analysis for this file
+                        let foundAnalysisId = null;
+                        for (const [id, analysis] of this.activeAnalyses.entries()) {
+                            if (analysis.path === fileUri) {
+                                foundAnalysisId = id;
+                                console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis: ${id}`);
+                                break;
+                            }
+                        }
+                        if (foundAnalysisId) {
+                            this.unregisterAnalysis(foundAnalysisId);
+                            removedAnalysis = true;
+                            console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🗑️ Auto-removed analysis via file mapping: ${foundAnalysisId}`);
+                        }
+                        // Clean up SSE clients for this file
+                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🧹 Cleaning up SSE clients for: ${fileUri}`);
+                        SSEManager_1.sseManager.removeAllClients(fileUri);
+                        // Remove the mapping
+                        fileToServerMap_1.fileToServerMap.unregisterMapping(fileUri);
+                    }
+                    // Fallback to the old smart matching logic if mapping didn't work
+                    if (!removedAnalysis && event.server.customName) {
+                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔍 Direct path match failed, trying smart matching for server: ${event.server.customName}`);
+                        // Extract filename from custom name (e.g., "Analysis Static tryCodeXr.kt" -> "tryCodeXr.kt")
+                        const customNameParts = event.server.customName.split(' ');
+                        const possibleFileName = customNameParts[customNameParts.length - 1]; // Last part is usually the filename
+                        if (possibleFileName) {
+                            console.log(`[ACTIVE_ANALYSIS_REGISTRY] � Looking for analysis with filename: ${possibleFileName}`);
+                            // Find analysis by matching filename
+                            let foundAnalysisId = null;
+                            for (const [id, analysis] of this.activeAnalyses.entries()) {
+                                const analysisFileName = analysis.path.split('/').pop() || analysis.path.split('\\').pop();
+                                if (analysisFileName === possibleFileName) {
+                                    foundAnalysisId = id;
+                                    console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis by filename: ${id}`);
+                                    break;
+                                }
+                            }
+                            if (foundAnalysisId) {
+                                this.unregisterAnalysis(foundAnalysisId);
+                                removedAnalysis = true;
+                                console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🗑️ Auto-removed analysis via smart matching: ${foundAnalysisId}`);
+                            }
+                        }
+                    }
+                    if (!removedAnalysis) {
+                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Could not find associated analysis for stopped server: ${event.server.url}`);
+                    }
                 }
             });
-            context.subscriptions.push(refreshExamplesCmd);
+            console.log('[ACTIVE_ANALYSIS_REGISTRY] 🔗 Server event integration setup complete');
         }
-        // Command: Open examples folder
-        const openExamplesFolderCmd = vscode.commands.registerCommand('codeXR.babiaExamples.openFolder', async () => {
-            try {
-                console.log('EXAMPLES: Open folder command triggered');
-                const workspaceRoots = vscode.workspace.workspaceFolders;
-                if (!workspaceRoots || workspaceRoots.length === 0) {
-                    vscode.window.showWarningMessage('No workspace folder is open');
-                    return;
-                }
-                const examplesPath = vscode.Uri.joinPath(workspaceRoots[0].uri, 'examples', 'charts');
-                await vscode.commands.executeCommand('vscode.openFolder', examplesPath, { forceNewWindow: false });
-            }
-            catch (error) {
-                console.error('EXAMPLES: Error in open folder command:', error);
-                vscode.window.showErrorMessage(`Failed to open examples folder: ${error instanceof Error ? error.message : String(error)}`);
-            }
+        catch (error) {
+            console.warn('[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Error setting up server integration:', error);
+        }
+    }
+    /**
+     * Dispose of resources
+     */
+    dispose() {
+        if (this.serverEventSubscription) {
+            this.serverEventSubscription.dispose();
+            this.serverEventSubscription = null;
+            console.log('[ACTIVE_ANALYSIS_REGISTRY] 🧹 Disposed server event subscription');
+        }
+    }
+    /**
+     * Get the singleton instance of the registry
+     */
+    static getInstance() {
+        if (!ActiveAnalysisRegistry.instance) {
+            ActiveAnalysisRegistry.instance = new ActiveAnalysisRegistry();
+        }
+        return ActiveAnalysisRegistry.instance;
+    }
+    /**
+     * Register a new analysis
+     */
+    registerAnalysis(analysis) {
+        const analysisId = `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const newAnalysis = {
+            ...analysis,
+            id: analysisId
+        };
+        console.log('[ACTIVE_ANALYSES_REGISTRY] 🔥 Registering new analysis:', {
+            id: analysisId,
+            mode: analysis.mode,
+            path: analysis.path,
+            status: analysis.status,
+            language: analysis.language
         });
-        // Command: Show example details
-        const showExampleDetailsCmd = vscode.commands.registerCommand('codeXR.babiaExamples.showDetails', async (example) => {
-            try {
-                console.log(`EXAMPLES: Show details command triggered for "${example.name}"`);
-                const details = [
-                    `# Babia Example: ${example.name}`,
-                    '',
-                    `**Category:** ${example.category}`,
-                    `**Valid:** ${example.isValid ? 'Yes' : 'No'}`,
-                    `**Directory:** ${example.directory}`,
-                    `**HTML File:** ${example.htmlFilePath || 'Not found'}`,
-                    ''
-                ];
-                if (example.description) {
-                    details.push(`**Description:** ${example.description}`);
-                    details.push('');
-                }
-                if (example.lastModified) {
-                    const lastModified = new Date(example.lastModified).toLocaleString();
-                    details.push(`**Last Modified:** ${lastModified}`);
-                    details.push('');
-                }
-                if (!example.isValid) {
-                    details.push('## Issues');
-                    details.push('- No valid HTML file found in the example directory');
-                    details.push('');
-                }
-                details.push('## Actions');
-                if (example.isValid) {
-                    details.push('- Click the example in the tree to launch it');
-                }
-                else {
-                    details.push('- Fix the HTML file issue to make this example launchable');
-                }
-                const content = details.join('\\n');
-                // Create and show a new untitled document with the details
-                const doc = await vscode.workspace.openTextDocument({
-                    content: content,
-                    language: 'markdown'
-                });
-                await vscode.window.showTextDocument(doc);
+        this.activeAnalyses.set(analysisId, newAnalysis);
+        console.log('[ACTIVE_ANALYSES_REGISTRY] 📊 Total analyses in registry:', this.activeAnalyses.size);
+        console.log('[ACTIVE_ANALYSES_REGISTRY] 🔔 Firing onDidChangeAnalyses event');
+        this._onDidChangeAnalyses.fire();
+        return analysisId;
+    }
+    /**
+     * Update an existing analysis
+     */
+    updateAnalysis(analysisId, status, progress, error, metadata) {
+        const analysis = this.activeAnalyses.get(analysisId);
+        if (analysis) {
+            console.log('[ACTIVE_ANALYSES_REGISTRY] 🔄 Updating analysis:', {
+                id: analysisId,
+                oldStatus: analysis.status,
+                newStatus: status,
+                progress: progress,
+                error: error,
+                metadata: metadata
+            });
+            const updatedAnalysis = activeAnalysisModel_1.ActiveAnalysisFactory.updateAnalysisStatus(analysis, status, progress, error, metadata);
+            this.activeAnalyses.set(analysisId, updatedAnalysis);
+            console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Updated analysis ${analysisId} status to ${status}`);
+            console.log('[ACTIVE_ANALYSES_REGISTRY] 🔔 Firing onDidChangeAnalyses event');
+            this._onDidChangeAnalyses.fire();
+        }
+        else {
+            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Analysis ${analysisId} not found for update`);
+        }
+    }
+    /**
+     * Remove an analysis from the registry
+     */
+    unregisterAnalysis(analysisId) {
+        if (this.activeAnalyses.has(analysisId)) {
+            this.activeAnalyses.delete(analysisId);
+            console.log(`[ACTIVE_ANALYSIS_REGISTRY] Unregistered analysis: ${analysisId}`);
+            this._onDidChangeAnalyses.fire();
+        }
+        else {
+            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] Attempted to unregister non-existent analysis: ${analysisId}`);
+        }
+    }
+    /**
+     * Get all active analyses
+     */
+    getAllAnalyses() {
+        return Array.from(this.activeAnalyses.values());
+    }
+    /**
+     * Get a specific analysis by ID
+     */
+    getAnalysis(analysisId) {
+        return this.activeAnalyses.get(analysisId);
+    }
+    /**
+     * Get analyses for a specific file path
+     */
+    getAnalysesForPath(path) {
+        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.path === path);
+    }
+    /**
+     * Get count of active analyses
+     */
+    getActiveCount() {
+        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.status === 'running').length;
+    }
+    /**
+     * Get count of completed analyses
+     */
+    getCompletedCount() {
+        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.status === 'completed').length;
+    }
+    /**
+     * Get the current count of all active analyses (running + completed)
+     */
+    getActiveAnalysesCount() {
+        return this.activeAnalyses.size;
+    }
+    /**
+     * Remove an analysis by its associated file URI
+     * This is used when a server is stopped or the user closes the analysis
+     */
+    unregisterAnalysisByUri(uri) {
+        const targetPath = uri.fsPath;
+        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔍 Looking for analysis with path: ${targetPath}`);
+        // Find analysis by matching file path
+        let foundAnalysisId = null;
+        for (const [id, analysis] of this.activeAnalyses.entries()) {
+            if (analysis.path === targetPath) {
+                foundAnalysisId = id;
+                console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis: ${id}`);
+                break;
             }
-            catch (error) {
-                console.error('EXAMPLES: Error in show details command:', error);
-                vscode.window.showErrorMessage(`Failed to show example details: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Open examples view
-        const openExamplesViewCmd = vscode.commands.registerCommand('codeXR.babiaExamples.openView', async () => {
-            try {
-                console.log('EXAMPLES: Open view command triggered');
-                await vscode.commands.executeCommand('codeXR.babiaExamplesView.focus');
-            }
-            catch (error) {
-                console.error('EXAMPLES: Error in open view command:', error);
-                // Don't show error message for this, it's likely the view isn't registered yet
-            }
-        });
-        // Register commands that don't require tree data provider
-        const commandsToRegister = [
-            launchExampleCmd,
-            openExamplesFolderCmd,
-            showExampleDetailsCmd,
-            openExamplesViewCmd
-        ];
-        // Register all commands with the extension context
-        context.subscriptions.push(...commandsToRegister);
-        // Store click handler for cleanup
-        context.subscriptions.push({
-            dispose: () => clickHandler.cleanup()
-        });
-        console.log(`EXAMPLES: Registered ${commandsToRegister.length} Babia examples commands`);
+        }
+        if (foundAnalysisId) {
+            this.unregisterAnalysis(foundAnalysisId);
+            return true;
+        }
+        else {
+            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ No analysis found for URI: ${targetPath}`);
+            return false;
+        }
+    }
+    /**
+     * Clear all analyses (useful for cleanup)
+     */
+    clearAll() {
+        console.log('[ACTIVE_ANALYSIS_REGISTRY] Clearing all analyses');
+        this.activeAnalyses.clear();
+        this._onDidChangeAnalyses.fire();
+    }
+    /**
+     * Start tracking a file analysis
+     */
+    startFileAnalysis(filePath, mode, language) {
+        const analysis = activeAnalysisModel_1.ActiveAnalysisFactory.createFileAnalysis(filePath, mode, language);
+        this.registerAnalysis(analysis);
+        return analysis.id;
+    }
+    /**
+     * Start tracking a directory analysis
+     */
+    startDirectoryAnalysis(directoryPath, mode) {
+        const analysis = activeAnalysisModel_1.ActiveAnalysisFactory.createDirectoryAnalysis(directoryPath, mode);
+        this.registerAnalysis(analysis);
+        return analysis.id;
+    }
+    /**
+     * Mark analysis as completed
+     */
+    completeAnalysis(analysisId, metadata) {
+        this.updateAnalysis(analysisId, 'completed', 100, undefined, metadata);
+    }
+    /**
+     * Mark analysis as failed
+     */
+    failAnalysis(analysisId, error) {
+        this.updateAnalysis(analysisId, 'failed', undefined, error);
+    }
+    /**
+     * Get summary statistics
+     */
+    getSummary() {
+        const all = this.getAllAnalyses();
+        return {
+            total: all.length,
+            running: all.filter(a => a.status === 'running').length,
+            completed: all.filter(a => a.status === 'completed').length,
+            failed: all.filter(a => a.status === 'failed').length
+        };
     }
 }
-exports.BabiaExamplesCommands = BabiaExamplesCommands;
+exports.ActiveAnalysisRegistry = ActiveAnalysisRegistry;
+
+
+/***/ }),
+/* 70 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysisFactory = void 0;
+/**
+ * Factory for creating active analysis objects
+ */
+class ActiveAnalysisFactory {
+    /**
+     * Create a new active analysis for a file
+     */
+    static createFileAnalysis(filePath, mode, language) {
+        return {
+            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            path: filePath,
+            mode,
+            timestamp: new Date(),
+            status: 'running',
+            language,
+            progress: 0
+        };
+    }
+    /**
+     * Create a new active analysis for a directory
+     */
+    static createDirectoryAnalysis(directoryPath, mode) {
+        return {
+            id: `dir-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            path: directoryPath,
+            mode,
+            timestamp: new Date(),
+            status: 'running',
+            progress: 0
+        };
+    }
+    /**
+     * Update the status of an existing analysis
+     */
+    static updateAnalysisStatus(analysis, status, progress, error, metadata) {
+        return {
+            ...analysis,
+            status,
+            progress,
+            error,
+            metadata: metadata || analysis.metadata
+        };
+    }
+}
+exports.ActiveAnalysisFactory = ActiveAnalysisFactory;
 
 
 /***/ }),
@@ -14758,1831 +13774,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExampleClickHandler = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const exampleLauncher_1 = __webpack_require__(12);
-/**
- * Handle Example Clicks
- * Manages user interactions with Babia examples in the tree view
- */
-class ExampleClickHandler {
-    exampleLauncher;
-    constructor(context) {
-        this.exampleLauncher = new exampleLauncher_1.ExampleLauncher(context);
-        console.log('EXAMPLES: Example click handler initialized');
-    }
-    /**
-     * Handle click on an example to launch it
-     * @param example The example to launch
-     */
-    async handleExampleClick(example) {
-        console.log(`EXAMPLES: User clicked on example "${example.name}"`);
-        try {
-            if (!example.isValid) {
-                await this.handleInvalidExample(example);
-                return;
-            }
-            // Show launching message
-            const launchingMessage = vscode.window.setStatusBarMessage(`$(loading~spin) Launching Babia example "${example.name}"...`);
-            try {
-                const result = await this.exampleLauncher.launchExample(example);
-                if (result.success) {
-                    console.log(`EXAMPLES: Successfully launched "${example.name}" on port ${result.port}`);
-                }
-                else {
-                    console.error(`EXAMPLES: Failed to launch "${example.name}":`, result.error);
-                }
-            }
-            finally {
-                launchingMessage.dispose();
-            }
-        }
-        catch (error) {
-            const errorMsg = `Failed to handle example click: ${error instanceof Error ? error.message : String(error)}`;
-            console.error('EXAMPLES:', errorMsg);
-            vscode.window.showErrorMessage(errorMsg);
-        }
-    }
-    /**
-     * Handle click on invalid example
-     * @private
-     */
-    async handleInvalidExample(example) {
-        console.log(`EXAMPLES: User clicked on invalid example "${example.name}"`);
-        const action = await vscode.window.showWarningMessage(`Example "${example.name}" is not valid and cannot be launched.`, 'Show Details', 'Rescan Examples');
-        switch (action) {
-            case 'Show Details':
-                await this.showExampleDetails(example);
-                break;
-            case 'Rescan Examples':
-                await this.rescanExamples();
-                break;
-        }
-    }
-    /**
-     * Show example details
-     * @private
-     */
-    async showExampleDetails(example) {
-        const details = [
-            `Example: ${example.name}`,
-            `Category: ${example.category}`,
-            `Directory: ${example.directory}`,
-            `HTML File: ${example.htmlFilePath || 'Not found'}`,
-            `Valid: ${example.isValid ? 'Yes' : 'No'}`,
-            ''
-        ];
-        if (example.description) {
-            details.push(`Description: ${example.description}`);
-        }
-        if (!example.isValid) {
-            details.push('Issues:');
-            details.push('- No valid HTML file found in the example directory');
-        }
-        const content = details.join('\\n');
-        // Create and show a new untitled document with the details
-        const doc = await vscode.workspace.openTextDocument({
-            content: content,
-            language: 'plaintext'
-        });
-        await vscode.window.showTextDocument(doc);
-    }
-    /**
-     * Rescan examples
-     * @private
-     */
-    async rescanExamples() {
-        console.log('EXAMPLES: User requested example rescan');
-        const scanning = vscode.window.setStatusBarMessage('$(loading~spin) Scanning Babia examples...');
-        try {
-            const result = await this.exampleLauncher.scanExamples();
-            console.log(`EXAMPLES: Rescan complete. Found ${result.validCount} valid, ${result.invalidCount} invalid examples`);
-            // Refresh the tree view
-            vscode.commands.executeCommand('codeXR.babiaExamples.refresh');
-            // Show result message
-            if (result.errors.length > 0) {
-                vscode.window.showWarningMessage(`Rescan complete: ${result.validCount} valid, ${result.invalidCount} invalid examples. ${result.errors.length} errors occurred.`);
-            }
-            else {
-                vscode.window.showInformationMessage(`Rescan complete: Found ${result.validCount} valid and ${result.invalidCount} invalid examples.`);
-            }
-        }
-        catch (error) {
-            console.error('EXAMPLES: Error during rescan:', error);
-            vscode.window.showErrorMessage(`Failed to rescan examples: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        finally {
-            scanning.dispose();
-        }
-    }
-    /**
-     * Get the example launcher instance
-     */
-    getExampleLauncher() {
-        return this.exampleLauncher;
-    }
-    /**
-     * Cleanup method
-     */
-    async cleanup() {
-        console.log('EXAMPLES: Cleaning up example click handler...');
-        await this.exampleLauncher.cleanup();
-    }
-}
-exports.ExampleClickHandler = ExampleClickHandler;
-
-
-/***/ }),
-/* 72 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerVisualizeDataCommands = registerVisualizeDataCommands;
-const visualizeDataCommands_1 = __webpack_require__(73);
-/**
- * Register Visualize Data Commands
- * Entry point for registering all visualize data related commands
- */
-function registerVisualizeDataCommands(context) {
-    console.log('VISUALIZE_DATA: Registering visualize data commands...');
-    visualizeDataCommands_1.VisualizeDataCommands.registerCommands(context);
-    console.log('VISUALIZE_DATA: Visualize data commands registration complete');
-}
-
-
-/***/ }),
-/* 73 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizeDataCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const visualizationLauncher_1 = __webpack_require__(74);
-const visualizationRestorer_1 = __webpack_require__(37);
-/**
- * Visualize Data Commands
- * VS Code command definitions for visualize data functionality
- */
-class VisualizeDataCommands {
-    /**
-     * Register all visualize data commands
-     */
-    static registerCommands(context) {
-        console.log('VISUALIZE_DATA: Registering visualize data commands...');
-        // Command: Chart Type selection
-        const chartTypeCmd = vscode.commands.registerCommand('codeXR.visualizeData.chartType', async () => {
-            try {
-                console.log('VISUALIZE_DATA: Chart Type command triggered');
-                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
-                await launcher.handleChartType();
-                launcher.cleanup();
-            }
-            catch (error) {
-                console.error('VISUALIZE_DATA: Error in chart type command:', error);
-                vscode.window.showErrorMessage(`Failed to handle chart type: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Select JSON File
-        const selectJsonCmd = vscode.commands.registerCommand('codeXR.visualizeData.selectJson', async () => {
-            try {
-                console.log('VISUALIZE_DATA: Select JSON command triggered');
-                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
-                await launcher.handleSelectJson();
-                launcher.cleanup();
-            }
-            catch (error) {
-                console.error('VISUALIZE_DATA: Error in select JSON command:', error);
-                vscode.window.showErrorMessage(`Failed to select JSON: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Dimension Mapping
-        const dimensionMappingCmd = vscode.commands.registerCommand('codeXR.visualizeData.dimensionMapping', async () => {
-            try {
-                console.log('VISUALIZE_DATA: Dimension Mapping command triggered');
-                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
-                await launcher.handleDimensionMapping();
-                launcher.cleanup();
-            }
-            catch (error) {
-                console.error('VISUALIZE_DATA: Error in dimension mapping command:', error);
-                vscode.window.showErrorMessage(`Failed to handle dimension mapping: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Map Dimension Field
-        const mapDimensionFieldCmd = vscode.commands.registerCommand('codeXR.visualizeData.mapDimensionField', async (dimensionName) => {
-            try {
-                console.log(`VISUALIZE_DATA: Map Dimension Field command triggered for: ${dimensionName}`);
-                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
-                await launcher.handleDimensionFieldMapping(dimensionName);
-                launcher.cleanup();
-            }
-            catch (error) {
-                console.error('VISUALIZE_DATA: Error in map dimension field command:', error);
-                vscode.window.showErrorMessage(`Failed to map dimension field: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Launch Visualization
-        const launchVisualizationCmd = vscode.commands.registerCommand('codeXR.visualizeData.launchVisualization', async () => {
-            try {
-                console.log('VISUALIZE_DATA: Launch Visualization command triggered');
-                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
-                await launcher.handleLaunchVisualization();
-                launcher.cleanup();
-            }
-            catch (error) {
-                console.error('VISUALIZE_DATA: Error in launch visualization command:', error);
-                vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Diagnostic - Show current state (for debugging)
-        const debugStateCmd = vscode.commands.registerCommand('codeXR.visualizeData.debugState', async () => {
-            try {
-                console.log('VISUALIZE_DATA: Debug State command triggered');
-                const launcher = new visualizationLauncher_1.VisualizationLauncher(context);
-                await launcher.handleDebugState();
-                launcher.cleanup();
-            }
-            catch (error) {
-                console.error('VISUALIZE_DATA: Error in debug state command:', error);
-                vscode.window.showErrorMessage(`Failed to show debug state: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Launch stored visualization
-        const launchStoredVisualizationCmd = vscode.commands.registerCommand('codeXR.browseVisualizations.launch', async (visualization) => {
-            try {
-                console.log('BROWSE-VISUALIZATIONS: Launch command triggered for:', visualization.name);
-                const restorer = new visualizationRestorer_1.VisualizationRestorer(context);
-                await restorer.launchVisualization(visualization);
-            }
-            catch (error) {
-                console.error('BROWSE-VISUALIZATIONS: Error launching visualization:', error);
-                vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Command: Reset all visualizations
-        const resetAllVisualizationsCmd = vscode.commands.registerCommand('codeXR.browseVisualizations.resetAll', async () => {
-            try {
-                console.log('BROWSE-VISUALIZATIONS: Reset all command triggered');
-                const restorer = new visualizationRestorer_1.VisualizationRestorer(context);
-                await restorer.resetAllVisualizations();
-            }
-            catch (error) {
-                console.error('BROWSE-VISUALIZATIONS: Error resetting visualizations:', error);
-                vscode.window.showErrorMessage(`Failed to reset visualizations: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Register commands with the extension context
-        const commandsToRegister = [
-            chartTypeCmd,
-            selectJsonCmd,
-            dimensionMappingCmd,
-            mapDimensionFieldCmd,
-            launchVisualizationCmd,
-            debugStateCmd,
-            launchStoredVisualizationCmd,
-            resetAllVisualizationsCmd
-        ];
-        context.subscriptions.push(...commandsToRegister);
-        // Store action handler for cleanup
-        context.subscriptions.push({
-            dispose: () => {
-                // No longer needed since we create instances on demand
-                console.log('VISUALIZE_DATA: Commands cleanup complete');
-            }
-        });
-        console.log(`VISUALIZE_DATA: Registered ${commandsToRegister.length} visualize data commands`);
-    }
-}
-exports.VisualizeDataCommands = VisualizeDataCommands;
-
-
-/***/ }),
-/* 74 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizationLauncher = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const fs = __importStar(__webpack_require__(6));
-const chartRegistry_1 = __webpack_require__(49);
-const visualizeDataState_1 = __webpack_require__(36);
-const jsonFieldAnalyzer_1 = __webpack_require__(75);
-const nonceGenerator_1 = __webpack_require__(17);
-const templateProcessor_1 = __webpack_require__(122);
-const index_1 = __webpack_require__(38);
-/**
- * Visualization Launcher
- * Manages visualization creation and launching using centralized template processing
- */
-class VisualizationLauncher {
-    context;
-    stateManager;
-    constructor(context) {
-        this.context = context;
-        console.log('VISUALIZE_DATA: Action handler initialized');
-        this.stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(context);
-    }
-    /**
-     * Handle chart type selection
-     */
-    async handleChartType() {
-        console.log('VISUALIZE_DATA: Chart type action triggered');
-        try {
-            // Get available charts from BabiaXR registry
-            const chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
-            const availableCharts = chartRegistry.getAllCharts();
-            if (availableCharts.length === 0) {
-                console.error('BABIA-TEMPLATES: No chart types found in registry');
-                vscode.window.showErrorMessage('No chart templates available');
-                return;
-            }
-            // Create quick pick items for available charts
-            const quickPickItems = availableCharts.map(chart => ({
-                label: chart.name,
-                description: chart.description,
-                detail: `Category: ${chart.category} | Dimensions: ${chart.dimensions.map(d => d.name).join(', ')}`,
-                chart: chart
-            }));
-            // Show quick pick
-            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
-                placeHolder: 'Select a chart type for visualization',
-                title: 'BabiaXR Chart Type Selection'
-            });
-            if (selectedItem && selectedItem.chart) {
-                const selectedChart = selectedItem.chart;
-                // Update state with selected chart
-                this.stateManager.updateSelectedChart(selectedChart);
-                // Trigger tree refresh to update display
-                vscode.commands.executeCommand('codexr.servers.refresh');
-                console.log(`BABIA-TEMPLATES: Chart type selected: ${selectedChart.name}`);
-                vscode.window.showInformationMessage(`Chart type selected: ${selectedChart.name}`);
-            }
-            else {
-                console.log('BABIA-TEMPLATES: Chart type selection cancelled');
-            }
-        }
-        catch (error) {
-            console.error('VISUALIZE_DATA: Error in chart type action:', error);
-            vscode.window.showErrorMessage(`Failed to handle chart type: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Handle JSON file selection
-     */
-    async handleSelectJson() {
-        console.log('VISUALIZE_DATA: Select JSON action triggered');
-        try {
-            const options = {
-                canSelectMany: false,
-                openLabel: 'Select JSON File',
-                filters: {
-                    'JSON files': ['json']
-                },
-                title: 'Select JSON Data File for Visualization'
-            };
-            const fileUri = await vscode.window.showOpenDialog(options);
-            if (fileUri && fileUri[0]) {
-                const filePath = fileUri[0].fsPath;
-                const fileName = path.basename(filePath);
-                // Analyze JSON file to extract field information
-                console.log(`BABIA-TEMPLATES: Starting JSON analysis for ${fileName}`);
-                const jsonAnalysis = await jsonFieldAnalyzer_1.JsonFieldAnalyzer.analyzeJsonFile(filePath);
-                if (jsonAnalysis.success) {
-                    console.log(`BABIA-TEMPLATES: JSON analysis successful - found ${jsonAnalysis.fields.length} fields`);
-                    // Update state with selected JSON and analysis
-                    this.stateManager.updateSelectedJson(filePath, fileName);
-                    this.stateManager.updateJsonAnalysis(jsonAnalysis);
-                    // Trigger tree refresh to update display
-                    vscode.commands.executeCommand('codexr.servers.refresh');
-                    console.log(`BABIA-TEMPLATES: JSON file selected: ${fileName} (${filePath})`);
-                    vscode.window.showInformationMessage(`JSON file selected: ${fileName} (${jsonAnalysis.fields.length} fields found)`);
-                }
-                else {
-                    console.error(`BABIA-TEMPLATES: JSON analysis failed: ${jsonAnalysis.error}`);
-                    vscode.window.showErrorMessage(`Failed to analyze JSON file: ${jsonAnalysis.error}`);
-                }
-            }
-            else {
-                console.log('BABIA-TEMPLATES: No JSON file selected');
-            }
-        }
-        catch (error) {
-            console.error('VISUALIZE_DATA: Error in select JSON action:', error);
-            vscode.window.showErrorMessage(`Failed to select JSON file: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Handle dimension mapping configuration (informational only)
-     */
-    async handleDimensionMapping() {
-        console.log('DIMENSION-MAPPING: Dimension mapping overview requested');
-        try {
-            const state = this.stateManager.getState();
-            if (!state.selectedChart) {
-                vscode.window.showWarningMessage('Please select a chart type first');
-                return;
-            }
-            if (!state.jsonAnalysis) {
-                vscode.window.showWarningMessage('Please select a JSON file first');
-                return;
-            }
-            // Show dimension mapping status overview
-            const requiredDimensions = state.selectedChart.dimensions.filter(d => d.required);
-            const mappedDimensions = state.dimensionMappings.length;
-            const totalDimensions = state.selectedChart.dimensions.length;
-            let message = `Chart: ${state.selectedChart.name}\n`;
-            message += `Dimensions: ${mappedDimensions}/${totalDimensions} configured\n`;
-            message += `Required: ${requiredDimensions.map(d => d.name).join(', ')}\n`;
-            message += `Available fields: ${state.jsonAnalysis.fields.length}`;
-            // Check for duplicate fields
-            const duplicateFields = this.findDuplicateFields(state);
-            if (duplicateFields.length > 0) {
-                message += `\n⚠️ Duplicate field usage: ${duplicateFields.join(', ')}`;
-            }
-            vscode.window.showInformationMessage(`Dimension Mapping Status:\n${message}`);
-        }
-        catch (error) {
-            console.error('DIMENSION-MAPPING: Error in dimension mapping overview:', error);
-            vscode.window.showErrorMessage(`Failed to show dimension mapping overview: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Find fields that are used in multiple dimension mappings
-     */
-    findDuplicateFields(state) {
-        const fieldCounts = new Map();
-        state.dimensionMappings.forEach((mapping) => {
-            const count = fieldCounts.get(mapping.dataField) || 0;
-            fieldCounts.set(mapping.dataField, count + 1);
-        });
-        return Array.from(fieldCounts.entries())
-            .filter(([_, count]) => count > 1)
-            .map(([field, _]) => field);
-    }
-    /**
-     * Handle dimension field mapping for a specific dimension
-     */
-    async handleDimensionFieldMapping(dimensionName) {
-        console.log(`DIMENSION-MAPPING: Field mapping for dimension '${dimensionName}' triggered`);
-        try {
-            const state = this.stateManager.getState();
-            if (!state.selectedChart || !state.jsonAnalysis) {
-                vscode.window.showWarningMessage('Please select a chart type and JSON file first');
-                return;
-            }
-            // Find the dimension definition
-            const dimension = state.selectedChart.dimensions.find(d => d.name === dimensionName);
-            if (!dimension) {
-                vscode.window.showErrorMessage(`Dimension '${dimensionName}' not found in chart`);
-                return;
-            }
-            // Get available fields for this dimension type
-            const availableFields = jsonFieldAnalyzer_1.JsonFieldAnalyzer.getFieldsForDimensionType(state.jsonAnalysis, dimension.dataType);
-            if (availableFields.length === 0) {
-                const typeInfo = dimension.dataType === 'numeric' ? 'numeric fields' : 'fields';
-                vscode.window.showWarningMessage(`No ${typeInfo} available for dimension '${dimension.name}'`);
-                return;
-            }
-            // Create QuickPick items with duplicate field indicators
-            const quickPickItems = availableFields.map(field => {
-                const displayInfo = jsonFieldAnalyzer_1.JsonFieldAnalyzer.formatFieldForDisplay(field);
-                const isAlreadyUsed = state.dimensionMappings.some(mapping => mapping.dataField === field.name && mapping.dimension !== dimensionName);
-                let label = displayInfo.label;
-                let description = displayInfo.description;
-                if (isAlreadyUsed) {
-                    label += ' ⚠️';
-                    description += ' (already used in another dimension)';
-                }
-                return {
-                    label: label,
-                    description: description,
-                    detail: displayInfo.detail,
-                    field: field
-                };
-            });
-            // Show QuickPick
-            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
-                placeHolder: `Select field for ${dimension.name} (${dimension.dataType === 'numeric' ? 'numeric only' : 'any value'})`,
-                title: `Map Dimension: ${dimension.name}`,
-                matchOnDescription: true,
-                matchOnDetail: true
-            });
-            if (selectedItem) {
-                // Check if field is already used and warn user
-                const isAlreadyUsed = state.dimensionMappings.some(mapping => mapping.dataField === selectedItem.field.name && mapping.dimension !== dimensionName);
-                if (isAlreadyUsed) {
-                    const existingMapping = state.dimensionMappings.find(mapping => mapping.dataField === selectedItem.field.name && mapping.dimension !== dimensionName);
-                    console.log(`DIMENSION-MAPPING: Warning - Field '${selectedItem.field.name}' is already mapped to dimension '${existingMapping?.dimension}'`);
-                    const proceed = await vscode.window.showWarningMessage(`Field '${selectedItem.field.name}' is already used for dimension '${existingMapping?.dimension}'. Continue?`, 'Yes, Continue', 'Cancel');
-                    if (proceed !== 'Yes, Continue') {
-                        console.log(`DIMENSION-MAPPING: Duplicate field mapping cancelled by user`);
-                        return;
-                    }
-                }
-                // Update dimension mapping
-                this.stateManager.updateSingleDimensionMapping(dimensionName, selectedItem.field.name);
-                // Trigger tree refresh
-                vscode.commands.executeCommand('codexr.servers.refresh');
-                console.log(`DIMENSION-MAPPING: Mapped dimension '${dimensionName}' to field '${selectedItem.field.name}'`);
-                vscode.window.showInformationMessage(`Mapped ${dimension.name} to field: ${selectedItem.field.name}`);
-            }
-            else {
-                console.log(`DIMENSION-MAPPING: Field mapping for dimension '${dimensionName}' cancelled`);
-            }
-        }
-        catch (error) {
-            console.error(`DIMENSION-MAPPING: Error in field mapping for dimension '${dimensionName}':`, error);
-            vscode.window.showErrorMessage(`Failed to map dimension field: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Handle visualization launch
-     */
-    async handleLaunchVisualization() {
-        console.log('VISUALIZE_DATA: Launch visualization action triggered');
-        try {
-            const state = this.stateManager.getState();
-            // Check if ready to launch (icon should already be showing correct state)
-            if (!state.isReadyToLaunch) {
-                const missingItems = [];
-                if (!state.selectedChart) {
-                    missingItems.push('Chart Type');
-                }
-                if (!state.selectedJsonPath) {
-                    missingItems.push('JSON File');
-                }
-                if (!state.isDimensionMappingConfigured) {
-                    missingItems.push('Dimension Mapping');
-                }
-                vscode.window.showWarningMessage(`Cannot launch visualization. Please configure: ${missingItems.join(', ')}`);
-                return;
-            }
-            // Get visualization name from user
-            const visualizationName = await vscode.window.showInputBox({
-                prompt: 'Enter a name for your visualization',
-                placeHolder: 'e.g., ventas, sales_analysis',
-                value: 'my_visualization',
-                validateInput: (value) => {
-                    if (!value || value.trim().length === 0) {
-                        return 'Visualization name cannot be empty';
-                    }
-                    if (!/^[a-zA-Z0-9_-]+$/.test(value.trim())) {
-                        return 'Name can only contain letters, numbers, underscores, and dashes';
-                    }
-                    return null;
-                }
-            });
-            if (!visualizationName) {
-                console.log('VISUALIZE_DATA: User cancelled visualization name input');
-                return;
-            }
-            // Generate secure unique name
-            const nonce = (0, nonceGenerator_1.generateNonce)(8); // 8 bytes = 16 hex characters
-            const uniqueName = `${visualizationName.trim()}_${nonce}`;
-            console.log('VISUALIZE_DATA: Creating visualization:', uniqueName);
-            // Prepare visualization directory
-            const visualizationDir = await this.prepareVisualizationDirectory(uniqueName);
-            // Generate visualization files
-            const result = await this.generateVisualizationFiles(state, visualizationDir, visualizationName.trim());
-            if (!result.success) {
-                vscode.window.showErrorMessage(`Failed to generate visualization: ${result.error}`);
-                return;
-            }
-            // Launch the server with custom name
-            const indexHtmlPath = path.join(visualizationDir, 'index.html');
-            console.log('VISUALIZE_DATA: Launching server with file:', indexHtmlPath);
-            console.log(`SERVER: Using custom name '${visualizationName.trim()}' for visualization server`);
-            const launchResult = await (0, index_1.launchServerWithFile)(this.context, indexHtmlPath, visualizationName.trim());
-            if (launchResult.success && launchResult.serverUrl) {
-                vscode.window.showInformationMessage(`🚀 Visualization '${visualizationName}' launched successfully!`, 'View in Browser').then(selection => {
-                    if (selection === 'View in Browser' && launchResult.serverUrl) {
-                        vscode.env.openExternal(vscode.Uri.parse(launchResult.serverUrl));
-                    }
-                });
-            }
-            else {
-                vscode.window.showErrorMessage(`Failed to launch visualization server: ${launchResult.error || 'Unknown error'}`);
-            }
-        }
-        catch (error) {
-            console.error('VISUALIZE_DATA: Error in launch visualization action:', error);
-            vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Prepare the visualization directory structure
-     */
-    async prepareVisualizationDirectory(uniqueName) {
-        const globalStorageUri = this.context.globalStorageUri;
-        const visualizeDataDir = path.join(globalStorageUri.fsPath, 'visualize-data');
-        const visualizationDir = path.join(visualizeDataDir, uniqueName);
-        // Ensure directories exist
-        if (!fs.existsSync(visualizeDataDir)) {
-            fs.mkdirSync(visualizeDataDir, { recursive: true });
-            console.log('VISUALIZE_DATA: Created visualize-data directory:', visualizeDataDir);
-        }
-        if (!fs.existsSync(visualizationDir)) {
-            fs.mkdirSync(visualizationDir, { recursive: true });
-            console.log('VISUALIZE_DATA: Created visualization directory:', visualizationDir);
-        }
-        return visualizationDir;
-    }
-    /**
-     * Generate visualization files using centralized TemplateProcessor
-     */
-    async generateVisualizationFiles(state, visualizationDir, userVisualizationName) {
-        try {
-            if (!state.selectedChart || !state.selectedJsonPath) {
-                return { success: false, error: 'Missing chart or JSON file configuration' };
-            }
-            console.log('VISUALIZATION_LAUNCHER: Using centralized TemplateProcessor for HTML generation');
-            // Copy JSON file as data.json
-            const dataJsonPath = path.join(visualizationDir, 'data.json');
-            fs.copyFileSync(state.selectedJsonPath, dataJsonPath);
-            console.log('VISUALIZATION_LAUNCHER: Copied data file to:', dataJsonPath);
-            // Prepare output path for index.html
-            const indexHtmlPath = path.join(visualizationDir, 'index.html');
-            // Use centralized TemplateProcessor to generate the complete XR visualization
-            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(state.selectedChart.id, state.dimensionMappings, userVisualizationName, './data.json', this.context, indexHtmlPath);
-            if (!result.success) {
-                console.error('VISUALIZATION_LAUNCHER: TemplateProcessor failed:', result.error);
-                return {
-                    success: false,
-                    error: `Template processing failed: ${result.error}`
-                };
-            }
-            console.log('VISUALIZATION_LAUNCHER: Successfully generated index.html using TemplateProcessor');
-            return { success: true };
-        }
-        catch (error) {
-            console.error('VISUALIZATION_LAUNCHER: Error generating visualization files:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error)
-            };
-        }
-    }
-    /**
-     * Handle debug state command (for troubleshooting)
-     */
-    async handleDebugState() {
-        console.log('VISUALIZE_DATA: Debug state action triggered');
-        try {
-            const state = this.stateManager.getState();
-            // Validate file path existence
-            const fileExists = state.selectedJsonPath ? fs.existsSync(state.selectedJsonPath) : false;
-            // Prepare state information
-            const stateInfo = {
-                selectedChart: state.selectedChart?.name || 'None',
-                selectedJsonPath: state.selectedJsonPath || 'None',
-                selectedJsonName: state.selectedJsonName || 'None',
-                fileExists: fileExists,
-                jsonAnalysisPresent: !!state.jsonAnalysis,
-                jsonAnalysisFields: state.jsonAnalysis ? state.jsonAnalysis.fields.map(f => f.name) : [],
-                dimensionMappingsCount: state.dimensionMappings.length,
-                isDimensionMappingConfigured: state.isDimensionMappingConfigured,
-                isReadyToLaunch: state.isReadyToLaunch,
-                requiredDimensions: state.selectedChart?.dimensions.map(d => d.name) || [],
-                mappedDimensions: state.dimensionMappings.map(m => `${m.dimension}: ${m.dataField}`)
-            };
-            // Create diagnostic message
-            const message = [
-                'Visualize Data State Diagnostic:',
-                '',
-                `Chart: ${stateInfo.selectedChart}`,
-                `Required Dimensions: [${stateInfo.requiredDimensions.join(', ')}]`,
-                '',
-                `JSON File: ${stateInfo.selectedJsonName}`,
-                `Path: ${stateInfo.selectedJsonPath}`,
-                `File Exists: ${stateInfo.fileExists}`,
-                `Analysis Present: ${stateInfo.jsonAnalysisPresent}`,
-                `Available Fields: [${stateInfo.jsonAnalysisFields.join(', ')}]`,
-                '',
-                `Mapped Dimensions: ${stateInfo.mappedDimensions.length}`,
-                ...stateInfo.mappedDimensions.map(mapping => `  - ${mapping}`),
-                '',
-                `Configuration Complete: ${stateInfo.isDimensionMappingConfigured}`,
-                `Ready to Launch: ${stateInfo.isReadyToLaunch}`
-            ].join('\n');
-            console.log('VISUALIZE_DATA: State diagnostic:', stateInfo);
-            // Show diagnostic information
-            await vscode.window.showInformationMessage('Visualize Data state diagnostic sent to console. Check Output > Log (Extension Host) for details.', { modal: false });
-            console.log('VISUALIZE_DATA: Full state diagnostic:\n' + message);
-        }
-        catch (error) {
-            console.error('VISUALIZE_DATA: Error generating debug state:', error);
-            vscode.window.showErrorMessage(`Debug state failed: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Cleanup resources
-     */
-    cleanup() {
-        console.log('VISUALIZE_DATA: Action handler cleanup');
-        // Note: We don't dispose the state manager here as it may be used by other components
-    }
-    /**
-     * Get state manager instance
-     */
-    getStateManager() {
-        return this.stateManager;
-    }
-}
-exports.VisualizationLauncher = VisualizationLauncher;
-
-
-/***/ }),
-/* 75 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.JsonFieldAnalyzer = void 0;
-const fs = __importStar(__webpack_require__(6));
-/**
- * JSON Field Analyzer
- * Analyzes JSON files to extract available fields and their types
- */
-class JsonFieldAnalyzer {
-    /**
-     * Analyze a JSON file and extract field information
-     */
-    static async analyzeJsonFile(filePath) {
-        console.log(`DIMENSION-MAPPING: Analyzing JSON file: ${filePath}`);
-        try {
-            // Read and parse JSON file
-            const fileContent = fs.readFileSync(filePath, 'utf8');
-            const jsonData = JSON.parse(fileContent);
-            console.log(`DIMENSION-MAPPING: JSON parsed successfully`);
-            // Analyze the data structure
-            const analysisResult = this.analyzeDataStructure(jsonData, filePath);
-            console.log(`DIMENSION-MAPPING: Found ${analysisResult.fields.length} fields in ${analysisResult.recordCount} records`);
-            analysisResult.fields.forEach(field => {
-                console.log(`DIMENSION-MAPPING: Field '${field.name}' - Type: ${field.type}, Numeric: ${field.isNumeric}, Values: ${field.valueCount}`);
-            });
-            return analysisResult;
-        }
-        catch (error) {
-            console.error(`DIMENSION-MAPPING: Error analyzing JSON file:`, error);
-            return {
-                success: false,
-                fields: [],
-                error: `Failed to analyze JSON file: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                recordCount: 0,
-                filePath
-            };
-        }
-    }
-    /**
-     * Analyze data structure and extract field information
-     */
-    static analyzeDataStructure(data, filePath) {
-        const fields = new Map();
-        let recordCount = 0;
-        // Handle different data structures
-        if (Array.isArray(data)) {
-            // Array of objects
-            recordCount = data.length;
-            data.forEach((record, index) => {
-                if (typeof record === 'object' && record !== null) {
-                    this.analyzeRecord(record, fields, index < 10); // Only collect samples from first 10 records
-                }
-            });
-        }
-        else if (typeof data === 'object' && data !== null) {
-            // Single object
-            recordCount = 1;
-            this.analyzeRecord(data, fields, true);
-        }
-        else {
-            throw new Error('JSON data must be an object or array of objects');
-        }
-        return {
-            success: true,
-            fields: Array.from(fields.values()),
-            recordCount,
-            filePath
-        };
-    }
-    /**
-     * Analyze a single record and update field information
-     */
-    static analyzeRecord(record, fields, collectSamples) {
-        for (const [fieldName, value] of Object.entries(record)) {
-            let fieldInfo = fields.get(fieldName);
-            if (!fieldInfo) {
-                fieldInfo = {
-                    name: fieldName,
-                    type: 'unknown',
-                    isNumeric: false,
-                    sampleValues: [],
-                    valueCount: 0
-                };
-                fields.set(fieldName, fieldInfo);
-            }
-            // Skip null/undefined values
-            if (value === null || value === undefined) {
-                return;
-            }
-            fieldInfo.valueCount++;
-            // Determine field type
-            const valueType = this.getValueType(value);
-            if (fieldInfo.type === 'unknown') {
-                fieldInfo.type = valueType;
-            }
-            else if (fieldInfo.type !== valueType) {
-                // Mixed types - mark as string by default
-                fieldInfo.type = 'string';
-            }
-            // Check if numeric
-            if (this.isNumericValue(value)) {
-                fieldInfo.isNumeric = true;
-            }
-            // Collect sample values
-            if (collectSamples && fieldInfo.sampleValues.length < 5) {
-                fieldInfo.sampleValues.push(value);
-            }
-        }
-    }
-    /**
-     * Get the type of a value
-     */
-    static getValueType(value) {
-        if (typeof value === 'string') {
-            return 'string';
-        }
-        if (typeof value === 'number') {
-            return 'number';
-        }
-        if (typeof value === 'boolean') {
-            return 'boolean';
-        }
-        if (Array.isArray(value)) {
-            return 'array';
-        }
-        if (typeof value === 'object') {
-            return 'object';
-        }
-        if (value === null) {
-            return 'null';
-        }
-        return 'unknown';
-    }
-    /**
-     * Check if a value is numeric
-     */
-    static isNumericValue(value) {
-        if (typeof value === 'number') {
-            return !isNaN(value) && isFinite(value);
-        }
-        if (typeof value === 'string') {
-            const num = parseFloat(value);
-            return !isNaN(num) && isFinite(num) && value.trim() !== '';
-        }
-        return false;
-    }
-    /**
-     * Get fields suitable for a specific dimension type
-     */
-    static getFieldsForDimensionType(analysisResult, dimensionDataType) {
-        if (!analysisResult.success) {
-            return [];
-        }
-        if (dimensionDataType === 'numeric') {
-            return analysisResult.fields.filter(field => field.isNumeric);
-        }
-        // For 'any' type, return all fields
-        return analysisResult.fields;
-    }
-    /**
-     * Format field for display in QuickPick
-     */
-    static formatFieldForDisplay(field) {
-        const typeInfo = field.isNumeric ? `${field.type} (numeric)` : field.type;
-        const sampleText = field.sampleValues.length > 0
-            ? `Samples: ${field.sampleValues.slice(0, 3).map(v => JSON.stringify(v)).join(', ')}`
-            : '';
-        return {
-            label: field.name,
-            description: typeInfo,
-            detail: `${field.valueCount} values${sampleText ? ' • ' + sampleText : ''}`
-        };
-    }
-}
-exports.JsonFieldAnalyzer = JsonFieldAnalyzer;
-
-
-/***/ }),
-/* 76 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Visualization Settings Module
- * Main entry point for visualization configuration management
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
-exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
-var settingsModel_1 = __webpack_require__(41);
-Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
-var settingsStorage_1 = __webpack_require__(43);
-Object.defineProperty(exports, "VisualizationSettingsStorage", ({ enumerable: true, get: function () { return settingsStorage_1.VisualizationSettingsStorage; } }));
-var visualizationSettingsItems_1 = __webpack_require__(40);
-Object.defineProperty(exports, "VisualizationSettingsItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsItemFactory; } }));
-Object.defineProperty(exports, "VisualizationSettingsTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsTreeItem; } }));
-var handleSettingsInteraction_1 = __webpack_require__(77);
-Object.defineProperty(exports, "VisualizationSettingsInteractionHandler", ({ enumerable: true, get: function () { return handleSettingsInteraction_1.VisualizationSettingsInteractionHandler; } }));
-// Export settings accessors for babia-templates integration
-var settingsAccessors_1 = __webpack_require__(79);
-Object.defineProperty(exports, "initializeSettingsAccessors", ({ enumerable: true, get: function () { return settingsAccessors_1.initializeSettingsAccessors; } }));
-Object.defineProperty(exports, "getSelectedBackgroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedBackgroundColor; } }));
-Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedGroundColor; } }));
-Object.defineProperty(exports, "getSelectedEnvironment", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedEnvironment; } }));
-Object.defineProperty(exports, "getSelectedPalette", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedPalette; } }));
-Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, get: function () { return settingsAccessors_1.getAllSelectedSettings; } }));
-const vscode = __importStar(__webpack_require__(1));
-const handleSettingsInteraction_2 = __webpack_require__(77);
-const settingsAccessors_2 = __webpack_require__(79);
-/**
- * Register visualization settings commands
- */
-function registerVisualizationSettingsCommands(context) {
-    console.log('VISUALIZATION-SETTINGS: Registering commands...');
-    // Initialize settings accessors for global use
-    (0, settingsAccessors_2.initializeSettingsAccessors)(context);
-    // Initialize the interaction handler
-    const interactionHandler = new handleSettingsInteraction_2.VisualizationSettingsInteractionHandler(context);
-    // Command: Configure setting
-    const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
-        try {
-            console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
-            await interactionHandler.handleSettingConfiguration(settingKey);
-        }
-        catch (error) {
-            console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
-            vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    });
-    // Register commands with the extension context
-    context.subscriptions.push(configureSettingCmd);
-    // Store interaction handler for cleanup
-    context.subscriptions.push({
-        dispose: () => interactionHandler.dispose()
-    });
-    console.log('VISUALIZATION-SETTINGS: Commands registered successfully');
-}
-
-
-/***/ }),
-/* 77 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizationSettingsInteractionHandler = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(41);
-const settingsStorage_1 = __webpack_require__(43);
-const colorPickerUtils_1 = __webpack_require__(78);
-const dynamicColorIconGenerator_1 = __webpack_require__(42);
-/**
- * Handle Visualization Settings Interactions
- * Manages user interactions with visualization settings items
- */
-class VisualizationSettingsInteractionHandler {
-    context;
-    storage;
-    constructor(context) {
-        this.context = context;
-        console.log('VISUALIZATION-SETTINGS: Interaction handler initialized');
-        this.storage = new settingsStorage_1.VisualizationSettingsStorage(context);
-    }
-    /**
-     * Handle configuration of a specific setting field
-     */
-    async handleSettingConfiguration(settingKey) {
-        console.log(`VISUALIZATION-SETTINGS: Configuring setting '${settingKey}'`);
-        try {
-            switch (settingKey) {
-                case 'backgroundColor':
-                case 'groundColor':
-                    await this.handleColorConfiguration(settingKey);
-                    break;
-                case 'environmentPreset':
-                    await this.handleEnvironmentPresetConfiguration();
-                    break;
-                case 'chartPalette':
-                    await this.handleChartPaletteConfiguration();
-                    break;
-                default:
-                    throw new Error(`Unknown setting key: ${settingKey}`);
-            }
-        }
-        catch (error) {
-            console.error(`VISUALIZATION-SETTINGS: Error configuring ${settingKey}:`, error);
-            vscode.window.showErrorMessage(`Failed to configure ${settingKey}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Handle color configuration (background or ground color) using HTML-based color picker
-     */
-    async handleColorConfiguration(colorType) {
-        console.log(`VISUALIZATION-SETTINGS: Configuring ${colorType} with HTML color picker`);
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings[colorType];
-        try {
-            // Prepare color picker options
-            const fieldName = colorType === 'backgroundColor' ? 'Background Color' : 'Ground Color';
-            const options = {
-                fieldName,
-                currentColor: colorPickerUtils_1.ColorPickerUtils.normalizeColor(currentValue)
-            };
-            // Create webview panel
-            const panel = colorPickerUtils_1.ColorPickerUtils.createColorPickerWebview(this.context, options);
-            // Load and set HTML content
-            const htmlContent = await colorPickerUtils_1.ColorPickerUtils.loadColorPickerTemplate(this.context, options);
-            panel.webview.html = htmlContent;
-            // Handle messages from the webview
-            const messageDisposable = panel.webview.onDidReceiveMessage(async (message) => {
-                switch (message.type) {
-                    case 'colorPicker.confirm':
-                        const newColor = colorPickerUtils_1.ColorPickerUtils.normalizeColor(message.color);
-                        console.log(`VISUALIZATION-SETTINGS: Color confirmed for ${colorType}: ${newColor}`);
-                        console.log(`COLOR-PICKER: Generating new icon for ${colorType} with color ${newColor}`);
-                        try {
-                            // Generate new color icon
-                            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
-                            console.log(`COLOR-PICKER: Successfully generated icon for ${colorType}: ${iconUri.toString()}`);
-                            // Clean up old icons
-                            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
-                        }
-                        catch (iconError) {
-                            console.error(`COLOR-PICKER: Error generating icon for ${colorType}:`, iconError);
-                            // Continue with setting update even if icon generation fails
-                        }
-                        // Update the setting
-                        await this.storage.updateSetting(colorType, newColor);
-                        // Refresh the tree view to show new icon
-                        vscode.commands.executeCommand('codexr.servers.refresh');
-                        vscode.window.showInformationMessage(`${fieldName} set to: ${newColor}`);
-                        // Close the panel
-                        panel.dispose();
-                        break;
-                    case 'colorPicker.cancel':
-                        console.log(`VISUALIZATION-SETTINGS: Color picker cancelled for ${colorType}`);
-                        panel.dispose();
-                        break;
-                }
-            });
-            // Clean up when panel is disposed
-            panel.onDidDispose(() => {
-                messageDisposable.dispose();
-                console.log(`VISUALIZATION-SETTINGS: Color picker panel disposed for ${colorType}`);
-            });
-        }
-        catch (error) {
-            console.error(`VISUALIZATION-SETTINGS: Error opening color picker for ${colorType}:`, error);
-            vscode.window.showErrorMessage(`Failed to open color picker: ${error}`);
-            // Fallback to the original QuickPick method
-            await this.handleColorConfigurationFallback(colorType);
-        }
-    }
-    /**
-     * Fallback color configuration using QuickPick (in case HTML color picker fails)
-     */
-    async handleColorConfigurationFallback(colorType) {
-        console.log(`VISUALIZATION-SETTINGS: Using fallback QuickPick for ${colorType}`);
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings[colorType];
-        // Create QuickPick options
-        const colorOptions = [
-            ...settingsModel_1.PREDEFINED_COLORS.map(color => ({
-                label: color.label,
-                value: color.value,
-                picked: color.value === currentValue
-            })),
-            {
-                label: 'Pick a custom color...',
-                value: 'custom',
-                picked: false
-            }
-        ];
-        const selectedOption = await vscode.window.showQuickPick(colorOptions, {
-            placeHolder: `Select ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
-            title: `Configure ${colorType.replace(/([A-Z])/g, ' $1')}`,
-            matchOnDescription: true
-        });
-        if (!selectedOption) {
-            console.log(`VISUALIZATION-SETTINGS: ${colorType} configuration cancelled`);
-            return;
-        }
-        let newColor;
-        if (selectedOption.value === 'custom') {
-            const customColor = await this.getCustomColorInput(colorType, currentValue);
-            if (!customColor) {
-                return; // User cancelled custom color input
-            }
-            newColor = customColor;
-        }
-        else {
-            newColor = selectedOption.value;
-        }
-        // Generate color icon before updating setting
-        try {
-            console.log(`COLOR-PICKER: Generating fallback icon for ${colorType} with color ${newColor}`);
-            const iconUri = await dynamicColorIconGenerator_1.DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorType, newColor);
-            console.log(`COLOR-PICKER: Successfully generated fallback icon for ${colorType}: ${iconUri.toString()}`);
-            // Clean up old icons
-            dynamicColorIconGenerator_1.DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorType, newColor);
-        }
-        catch (iconError) {
-            console.error(`COLOR-PICKER: Error generating fallback icon for ${colorType}:`, iconError);
-            // Continue with setting update even if icon generation fails
-        }
-        // Update the setting
-        await this.storage.updateSetting(colorType, newColor);
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-        console.log(`VISUALIZATION-SETTINGS: ${colorType} updated to '${newColor}'`);
-        vscode.window.showInformationMessage(`${colorType.replace(/([A-Z])/g, ' $1')} set to: ${newColor}`);
-    }
-    /**
-     * Get custom color input from user
-     */
-    async getCustomColorInput(colorType, currentValue) {
-        let attempts = 0;
-        const maxAttempts = 3;
-        while (attempts < maxAttempts) {
-            const customColor = await vscode.window.showInputBox({
-                prompt: `Enter hex color for ${colorType.replace(/([A-Z])/g, ' $1').toLowerCase()} (e.g., #FF5733)`,
-                value: currentValue,
-                validateInput: (value) => {
-                    if (!value) {
-                        return 'Color value is required';
-                    }
-                    if (!(0, settingsModel_1.isValidHexColor)(value)) {
-                        return 'Invalid hex color format. Use format: #RRGGBB (e.g., #FF5733)';
-                    }
-                    return null;
-                }
-            });
-            if (customColor === undefined) {
-                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled`);
-                return undefined;
-            }
-            if ((0, settingsModel_1.isValidHexColor)(customColor)) {
-                console.log(`VISUALIZATION-SETTINGS: Valid custom ${colorType} entered: ${customColor}`);
-                return customColor;
-            }
-            attempts++;
-            console.log(`VISUALIZATION-SETTINGS: Invalid ${colorType} format attempt ${attempts}/${maxAttempts}: ${customColor}`);
-            if (attempts < maxAttempts) {
-                const retry = await vscode.window.showErrorMessage(`Invalid hex color format: ${customColor}. Please use format #RRGGBB (e.g., #FF5733)`, 'Try Again', 'Cancel');
-                if (retry !== 'Try Again') {
-                    console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input cancelled after ${attempts} attempts`);
-                    return undefined;
-                }
-            }
-            else {
-                vscode.window.showErrorMessage(`Failed to set ${colorType} after ${maxAttempts} attempts. Please try again later.`);
-                console.log(`VISUALIZATION-SETTINGS: Custom ${colorType} input failed after ${maxAttempts} attempts`);
-                return undefined;
-            }
-        }
-        return undefined;
-    }
-    /**
-     * Handle environment preset configuration
-     */
-    async handleEnvironmentPresetConfiguration() {
-        console.log('VISUALIZATION-SETTINGS: Configuring environment preset');
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings.environmentPreset;
-        const presetOptions = settingsModel_1.ENVIRONMENT_PRESETS.map(preset => ({
-            label: preset.label,
-            description: preset.description,
-            value: preset.value,
-            picked: preset.value === currentValue
-        }));
-        const selectedPreset = await vscode.window.showQuickPick(presetOptions, {
-            placeHolder: 'Select environment preset',
-            title: 'Configure Environment Preset',
-            matchOnDescription: true
-        });
-        if (!selectedPreset) {
-            console.log('VISUALIZATION-SETTINGS: Environment preset configuration cancelled');
-            return;
-        }
-        // Update the setting
-        await this.storage.updateSetting('environmentPreset', selectedPreset.value);
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-        console.log(`VISUALIZATION-SETTINGS: Environment preset updated to '${selectedPreset.value}'`);
-        vscode.window.showInformationMessage(`Environment preset set to: ${selectedPreset.label} - ${selectedPreset.description}`);
-    }
-    /**
-     * Handle chart palette configuration
-     */
-    async handleChartPaletteConfiguration() {
-        console.log('VISUALIZATION-SETTINGS: Configuring chart palette');
-        const currentSettings = this.storage.getSettings();
-        const currentValue = currentSettings.chartPalette;
-        const paletteOptions = settingsModel_1.CHART_PALETTES.map(palette => ({
-            label: palette.label,
-            description: palette.description,
-            value: palette.value,
-            picked: palette.value === currentValue
-        }));
-        const selectedPalette = await vscode.window.showQuickPick(paletteOptions, {
-            placeHolder: 'Select chart palette',
-            title: 'Configure Chart Palette',
-            matchOnDescription: true
-        });
-        if (!selectedPalette) {
-            console.log('VISUALIZATION-SETTINGS: Chart palette configuration cancelled');
-            return;
-        }
-        // Update the setting
-        await this.storage.updateSetting('chartPalette', selectedPalette.value);
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
-        console.log(`VISUALIZATION-SETTINGS: Chart palette updated to '${selectedPalette.value}'`);
-        vscode.window.showInformationMessage(`Chart palette set to: ${selectedPalette.label} - ${selectedPalette.description}`);
-    }
-    /**
-     * Get current storage instance for external access
-     */
-    getStorage() {
-        return this.storage;
-    }
-    /**
-     * Cleanup resources
-     */
-    dispose() {
-        console.log('VISUALIZATION-SETTINGS: Interaction handler disposed');
-    }
-}
-exports.VisualizationSettingsInteractionHandler = VisualizationSettingsInteractionHandler;
-
-
-/***/ }),
-/* 78 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ColorPickerUtils = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-class ColorPickerUtils {
-    static TEMPLATE_PATH = 'templates/utils/color-picker.html';
-    /**
-     * Load and process the color picker HTML template
-     */
-    static async loadColorPickerTemplate(context, options) {
-        try {
-            const templatePath = path.join(context.extensionPath, this.TEMPLATE_PATH);
-            let templateContent = fs.readFileSync(templatePath, 'utf8');
-            // Replace placeholders
-            templateContent = templateContent
-                .replace(/\$\{FIELD_NAME\}/g, options.fieldName)
-                .replace(/\$\{CURRENT_COLOR\}/g, options.currentColor);
-            return templateContent;
-        }
-        catch (error) {
-            console.error('[VISUALIZATION-SETTINGS] Error loading color picker template:', error);
-            throw new Error(`Failed to load color picker template: ${error}`);
-        }
-    }
-    /**
-     * Create and configure a webview for the color picker
-     */
-    static createColorPickerWebview(context, options) {
-        const panel = vscode.window.createWebviewPanel('colorPicker', `Color Picker - ${options.fieldName}`, vscode.ViewColumn.One, {
-            enableScripts: true,
-            retainContextWhenHidden: true,
-            localResourceRoots: [
-                vscode.Uri.file(path.join(context.extensionPath, 'templates'))
-            ]
-        });
-        // Set the icon for the panel
-        panel.iconPath = {
-            light: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg')),
-            dark: vscode.Uri.file(path.join(context.extensionPath, 'resources', 'icon.svg'))
-        };
-        return panel;
-    }
-    /**
-     * Validate hex color format
-     */
-    static validateHexColor(color) {
-        return /^#[0-9a-fA-F]{6}$/.test(color);
-    }
-    /**
-     * Normalize color to uppercase hex format
-     */
-    static normalizeColor(color) {
-        if (this.validateHexColor(color)) {
-            return color.toUpperCase();
-        }
-        return '#FFFFFF'; // Default fallback
-    }
-    /**
-     * Get predefined colors for fallback
-     */
-    static getPredefinedColors() {
-        return [
-            '#FFFFFF', // White
-            '#000000', // Black
-            '#B10DC9', // Purple
-            '#FF4081', // Pink
-            '#F44336', // Red
-            '#FF9800', // Orange
-            '#FFEB3B', // Yellow
-            '#4CAF50', // Green
-            '#2196F3', // Blue
-            '#9C27B0', // Violet
-            '#607D8B', // Blue Grey
-            '#795548' // Brown
-        ];
-    }
-}
-exports.ColorPickerUtils = ColorPickerUtils;
-
-
-/***/ }),
-/* 79 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.initializeSettingsAccessors = initializeSettingsAccessors;
-exports.getSelectedBackgroundColor = getSelectedBackgroundColor;
-exports.getSelectedGroundColor = getSelectedGroundColor;
-exports.getSelectedEnvironment = getSelectedEnvironment;
-exports.getSelectedPalette = getSelectedPalette;
-exports.getAllSelectedSettings = getAllSelectedSettings;
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(41);
-/**
- * Settings Accessors
- * Clean utility functions to access visualization settings for babia-templates integration
- */
-// Module-level cache for context
-let extensionContext = null;
-/**
- * Initialize the settings accessors with extension context
- * Must be called during extension activation
- */
-function initializeSettingsAccessors(context) {
-    extensionContext = context;
-    console.log('VISUALIZATION-SETTINGS: Settings accessors initialized');
-}
-/**
- * Get the visualization configuration directory path
- */
-function getConfigDirectory() {
-    if (!extensionContext) {
-        throw new Error('Settings accessors not initialized. Call initializeSettingsAccessors() first.');
-    }
-    const globalStorageUri = extensionContext.globalStorageUri;
-    return path.join(globalStorageUri.fsPath, 'visualization-configuration');
-}
-/**
- * Get the settings file path
- */
-function getSettingsFilePath() {
-    return path.join(getConfigDirectory(), 'visualization-settings.json');
-}
-/**
- * Read settings from the JSON file
- */
-function readSettingsFromFile() {
-    try {
-        const settingsFilePath = getSettingsFilePath();
-        if (fs.existsSync(settingsFilePath)) {
-            const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
-            const jsonSettings = JSON.parse(fileContent);
-            console.log('VISUALIZATION-SETTINGS: Read settings from file:', jsonSettings);
-            return jsonSettings;
-        }
-    }
-    catch (error) {
-        console.error('VISUALIZATION-SETTINGS: Error reading settings file:', error);
-    }
-    return null;
-}
-/**
- * Get current background color from file storage or globalState fallback
- */
-async function getBackgroundColorFromStorage() {
-    try {
-        // First try to read from JSON file
-        const fileSettings = readSettingsFromFile();
-        if (fileSettings && fileSettings.backgroundColor) {
-            return fileSettings.backgroundColor;
-        }
-        // Fallback to globalState for backward compatibility
-        if (extensionContext) {
-            const legacySettings = extensionContext.globalState.get('visualizationSettings');
-            if (legacySettings && legacySettings.backgroundColor) {
-                return legacySettings.backgroundColor;
-            }
-        }
-    }
-    catch (error) {
-        console.error('VISUALIZATION-SETTINGS: Error reading background color from storage:', error);
-    }
-    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.backgroundColor;
-}
-/**
- * Get current ground color from file storage or globalState fallback
- */
-async function getGroundColorFromStorage() {
-    try {
-        // First try to read from JSON file
-        const fileSettings = readSettingsFromFile();
-        if (fileSettings && fileSettings.groundColor) {
-            return fileSettings.groundColor;
-        }
-        // Fallback to globalState for backward compatibility
-        if (extensionContext) {
-            const legacySettings = extensionContext.globalState.get('visualizationSettings');
-            if (legacySettings && legacySettings.groundColor) {
-                return legacySettings.groundColor;
-            }
-        }
-    }
-    catch (error) {
-        console.error('VISUALIZATION-SETTINGS: Error reading ground color from storage:', error);
-    }
-    return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.groundColor;
-}
-/**
- * Get the currently selected background color
- * @returns Promise<string> Hex color value (e.g., "#B10DC9")
- */
-async function getSelectedBackgroundColor() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected background color');
-    const color = await getBackgroundColorFromStorage();
-    console.log(`VISUALIZATION-SETTINGS: Background color: ${color}`);
-    return color;
-}
-/**
- * Get the currently selected ground color
- * @returns Promise<string> Hex color value (e.g., "#FFFFFF")
- */
-async function getSelectedGroundColor() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected ground color');
-    const color = await getGroundColorFromStorage();
-    console.log(`VISUALIZATION-SETTINGS: Ground color: ${color}`);
-    return color;
-}
-/**
- * Get the currently selected environment preset
- * @returns Promise<string> Environment preset name (e.g., "forest")
- */
-async function getSelectedEnvironment() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected environment');
-    const settings = readSettingsFromFile();
-    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
-    console.log(`VISUALIZATION-SETTINGS: Environment: ${environment}`);
-    return environment;
-}
-/**
- * Get the currently selected chart palette
- * @returns Promise<string> Chart palette name (e.g., "ubuntu")
- */
-async function getSelectedPalette() {
-    console.log('VISUALIZATION-SETTINGS: Getting selected chart palette');
-    const settings = readSettingsFromFile();
-    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
-    console.log(`VISUALIZATION-SETTINGS: Palette: ${palette}`);
-    return palette;
-}
-/**
- * Get all current settings in a single call (for efficiency)
- * @returns Promise<object> Object containing all current settings
- */
-async function getAllSelectedSettings() {
-    console.log('VISUALIZATION-SETTINGS: Getting all selected settings');
-    const [backgroundColor, groundColor] = await Promise.all([
-        getSelectedBackgroundColor(),
-        getSelectedGroundColor()
-    ]);
-    const settings = readSettingsFromFile();
-    const environment = settings?.environment || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.environmentPreset;
-    const palette = settings?.palette || settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS.chartPalette;
-    const allSettings = {
-        backgroundColor,
-        groundColor,
-        environment,
-        palette
-    };
-    console.log('VISUALIZATION-SETTINGS: All settings:', allSettings);
-    return allSettings;
-}
-
-
-/***/ }),
-/* 80 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerCodeAnalysisCommands = registerCodeAnalysisCommands;
-const analysisCommands_1 = __webpack_require__(59);
-/**
- * Register Code Analysis Commands
- * Entry point for registering all code analysis related commands
- */
-function registerCodeAnalysisCommands(context) {
-    console.log('[CODE_ANALYSIS] Registering code analysis commands...');
-    analysisCommands_1.CodeAnalysisCommands.registerCommands(context);
-    console.log('[CODE_ANALYSIS] Code analysis commands registration complete');
-}
-
-
-/***/ }),
-/* 81 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerGeneralCommands = registerGeneralCommands;
 const vscode = __importStar(__webpack_require__(1));
-const commonCommands_1 = __webpack_require__(82);
+const commonCommands_1 = __webpack_require__(72);
 /**
  * Register general/common commands used throughout the extension
  */
@@ -16610,7 +13804,7 @@ function registerGeneralCommands(context) {
 
 
 /***/ }),
-/* 82 */
+/* 72 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16696,7 +13890,7 @@ exports.CommonCommands = CommonCommands;
 
 
 /***/ }),
-/* 83 */
+/* 73 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16738,7 +13932,7 @@ exports.register = register;
 exports.getPythonEnvCommands = getPythonEnvCommands;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
-const pythonEnvCommands_1 = __webpack_require__(84);
+const pythonEnvCommands_1 = __webpack_require__(74);
 /**
  * Entry point for the Python environment module
  */
@@ -16783,7 +13977,7 @@ function deactivate() {
 
 
 /***/ }),
-/* 84 */
+/* 74 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16823,7 +14017,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const venvManager_1 = __webpack_require__(85);
+const venvManager_1 = __webpack_require__(75);
 /**
  * Python environment command registration and handlers
  */
@@ -17080,7 +14274,7 @@ exports.PythonEnvCommands = PythonEnvCommands;
 
 
 /***/ }),
-/* 85 */
+/* 75 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17121,8 +14315,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VenvManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const cp = __importStar(__webpack_require__(60));
-const pythonEnvStorage_1 = __webpack_require__(62);
-const pythonEnvUtils_1 = __webpack_require__(63);
+const pythonEnvStorage_1 = __webpack_require__(63);
+const pythonEnvUtils_1 = __webpack_require__(64);
 /**
  * Core virtual environment management functionality
  */
@@ -17497,7 +14691,7 @@ exports.VenvManager = VenvManager;
 
 
 /***/ }),
-/* 86 */
+/* 76 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17522,22 +14716,22 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 // Main modular tree provider
-var ModularTreeDataProvider_1 = __webpack_require__(87);
+var ModularTreeDataProvider_1 = __webpack_require__(77);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
-__exportStar(__webpack_require__(88), exports);
-__exportStar(__webpack_require__(116), exports);
+__exportStar(__webpack_require__(78), exports);
+__exportStar(__webpack_require__(119), exports);
 // Section providers
-__exportStar(__webpack_require__(89), exports);
-__exportStar(__webpack_require__(93), exports);
-__exportStar(__webpack_require__(97), exports);
-__exportStar(__webpack_require__(101), exports);
-__exportStar(__webpack_require__(105), exports);
-__exportStar(__webpack_require__(112), exports);
+__exportStar(__webpack_require__(79), exports);
+__exportStar(__webpack_require__(83), exports);
+__exportStar(__webpack_require__(87), exports);
+__exportStar(__webpack_require__(92), exports);
+__exportStar(__webpack_require__(98), exports);
+__exportStar(__webpack_require__(115), exports);
 
 
 /***/ }),
-/* 87 */
+/* 77 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17577,13 +14771,13 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const baseInterfaces_1 = __webpack_require__(88);
-const servers_1 = __webpack_require__(89);
-const active_servers_1 = __webpack_require__(93);
-const babia_examples_1 = __webpack_require__(97);
-const visualize_data_1 = __webpack_require__(101);
-const code_analysis_1 = __webpack_require__(105);
-const visualization_settings_1 = __webpack_require__(112);
+const baseInterfaces_1 = __webpack_require__(78);
+const servers_1 = __webpack_require__(79);
+const active_servers_1 = __webpack_require__(83);
+const babia_examples_1 = __webpack_require__(87);
+const visualize_data_1 = __webpack_require__(92);
+const code_analysis_1 = __webpack_require__(98);
+const visualization_settings_1 = __webpack_require__(115);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -17734,32 +14928,32 @@ class ModularTreeDataProvider {
         switch (sectionName) {
             case 'SERVERS':
                 // Import and create ServerTreeItem
-                const { ServerTreeItem } = __webpack_require__(91);
+                const { ServerTreeItem } = __webpack_require__(81);
                 const serverItem = new ServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.serverItemType || 'config-option', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return serverItem;
             case 'activeServers':
                 // Import and create ActiveServerTreeItem
-                const { ActiveServerTreeItem } = __webpack_require__(95);
+                const { ActiveServerTreeItem } = __webpack_require__(85);
                 const activeServerItem = new ActiveServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.activeServerItemType || 'server-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.activeServer);
                 return activeServerItem;
             case 'babiaExamples':
                 // Import and create BabiaExampleTreeItem
-                const { BabiaExampleTreeItem } = __webpack_require__(99);
+                const { BabiaExampleTreeItem } = __webpack_require__(89);
                 const babiaItem = new BabiaExampleTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.babiaItemType || 'example-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.babiaExample);
                 return babiaItem;
             case 'visualizeData':
                 // Import and create VisualizeDataModularTreeItem
-                const { VisualizeDataModularTreeItem } = __webpack_require__(103);
+                const { VisualizeDataModularTreeItem } = __webpack_require__(94);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
             case 'codeAnalysis':
                 // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(107);
+                const { CodeAnalysisModularTreeItem } = __webpack_require__(100);
                 const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
                 return codeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(114);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(117);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -17817,7 +15011,7 @@ exports.ModularTreeDataProvider = ModularTreeDataProvider;
 
 
 /***/ }),
-/* 88 */
+/* 78 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17919,7 +15113,7 @@ exports.TreeViewUtils = TreeViewUtils;
 
 
 /***/ }),
-/* 89 */
+/* 79 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -17930,19 +15124,19 @@ exports.TreeViewUtils = TreeViewUtils;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerClickHandler = exports.ServerItemFactory = exports.ServerTreeItem = exports.ServersSectionProvider = void 0;
 // Section Provider
-var ServersSectionProvider_1 = __webpack_require__(90);
+var ServersSectionProvider_1 = __webpack_require__(80);
 Object.defineProperty(exports, "ServersSectionProvider", ({ enumerable: true, get: function () { return ServersSectionProvider_1.ServersSectionProvider; } }));
 // Items
-var serverItems_1 = __webpack_require__(91);
+var serverItems_1 = __webpack_require__(81);
 Object.defineProperty(exports, "ServerTreeItem", ({ enumerable: true, get: function () { return serverItems_1.ServerTreeItem; } }));
 Object.defineProperty(exports, "ServerItemFactory", ({ enumerable: true, get: function () { return serverItems_1.ServerItemFactory; } }));
 // Interactions
-var handleServerClicks_1 = __webpack_require__(92);
+var handleServerClicks_1 = __webpack_require__(82);
 Object.defineProperty(exports, "ServerClickHandler", ({ enumerable: true, get: function () { return handleServerClicks_1.ServerClickHandler; } }));
 
 
 /***/ }),
-/* 90 */
+/* 80 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17982,9 +15176,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverItems_1 = __webpack_require__(91);
-const handleServerClicks_1 = __webpack_require__(92);
-const serverSettingsManager_1 = __webpack_require__(16);
+const serverItems_1 = __webpack_require__(81);
+const handleServerClicks_1 = __webpack_require__(82);
+const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Servers section provider for the modular tree view architecture
  */
@@ -18116,7 +15310,7 @@ exports.ServersSectionProvider = ServersSectionProvider;
 
 
 /***/ }),
-/* 91 */
+/* 81 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18156,7 +15350,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerItemFactory = exports.ServerTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverSettingsManager_1 = __webpack_require__(16);
+const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Get current server configuration for dynamic item creation
  */
@@ -18234,7 +15428,7 @@ exports.ServerItemFactory = ServerItemFactory;
 
 
 /***/ }),
-/* 92 */
+/* 82 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18332,7 +15526,7 @@ exports.ServerClickHandler = ServerClickHandler;
 
 
 /***/ }),
-/* 93 */
+/* 83 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18343,19 +15537,19 @@ exports.ServerClickHandler = ServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = exports.ActiveServerItemFactory = exports.ActiveServerTreeItem = exports.ActiveServersSectionProvider = void 0;
 // Section Provider
-var ActiveServersSectionProvider_1 = __webpack_require__(94);
+var ActiveServersSectionProvider_1 = __webpack_require__(84);
 Object.defineProperty(exports, "ActiveServersSectionProvider", ({ enumerable: true, get: function () { return ActiveServersSectionProvider_1.ActiveServersSectionProvider; } }));
 // Items
-var activeServerItems_1 = __webpack_require__(95);
+var activeServerItems_1 = __webpack_require__(85);
 Object.defineProperty(exports, "ActiveServerTreeItem", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerTreeItem; } }));
 Object.defineProperty(exports, "ActiveServerItemFactory", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerItemFactory; } }));
 // Interactions
-var handleActiveServerClicks_1 = __webpack_require__(96);
+var handleActiveServerClicks_1 = __webpack_require__(86);
 Object.defineProperty(exports, "ActiveServerClickHandler", ({ enumerable: true, get: function () { return handleActiveServerClicks_1.ActiveServerClickHandler; } }));
 
 
 /***/ }),
-/* 94 */
+/* 84 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18395,9 +15589,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerItems_1 = __webpack_require__(95);
-const handleActiveServerClicks_1 = __webpack_require__(96);
-const activeServerRegistry_1 = __webpack_require__(11);
+const activeServerItems_1 = __webpack_require__(85);
+const handleActiveServerClicks_1 = __webpack_require__(86);
+const activeServerRegistry_1 = __webpack_require__(17);
 /**
  * Active Servers section provider - manages running servers display and control
  */
@@ -18493,7 +15687,7 @@ exports.ActiveServersSectionProvider = ActiveServersSectionProvider;
 
 
 /***/ }),
-/* 95 */
+/* 85 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18661,13 +15855,13 @@ exports.ActiveServerItemFactory = ActiveServerItemFactory;
 
 
 /***/ }),
-/* 96 */
+/* 86 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = void 0;
-const handleServerActions_1 = __webpack_require__(19);
+const handleServerActions_1 = __webpack_require__(18);
 /**
  * Handler for Active Server section interactions
  */
@@ -18777,7 +15971,7 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 
 
 /***/ }),
-/* 97 */
+/* 87 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18788,19 +15982,19 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = exports.BabiaExamplesSectionProvider = void 0;
 // Section Provider
-var BabiaExamplesSectionProvider_1 = __webpack_require__(98);
+var BabiaExamplesSectionProvider_1 = __webpack_require__(88);
 Object.defineProperty(exports, "BabiaExamplesSectionProvider", ({ enumerable: true, get: function () { return BabiaExamplesSectionProvider_1.BabiaExamplesSectionProvider; } }));
 // Items
-var babiaExampleItems_1 = __webpack_require__(99);
+var babiaExampleItems_1 = __webpack_require__(89);
 Object.defineProperty(exports, "BabiaExampleTreeItem", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleTreeItem; } }));
 Object.defineProperty(exports, "BabiaExampleItemFactory", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleItemFactory; } }));
 // Interactions
-var handleBabiaExampleClicks_1 = __webpack_require__(100);
+var handleBabiaExampleClicks_1 = __webpack_require__(91);
 Object.defineProperty(exports, "BabiaExampleClickHandler", ({ enumerable: true, get: function () { return handleBabiaExampleClicks_1.BabiaExampleClickHandler; } }));
 
 
 /***/ }),
-/* 98 */
+/* 88 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18840,9 +16034,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const babiaExampleItems_1 = __webpack_require__(99);
-const handleBabiaExampleClicks_1 = __webpack_require__(100);
-const exampleLauncher_1 = __webpack_require__(12);
+const babiaExampleItems_1 = __webpack_require__(89);
+const handleBabiaExampleClicks_1 = __webpack_require__(91);
+const exampleLauncher_1 = __webpack_require__(38);
 /**
  * Babia Examples section provider - manages example loading and launching
  */
@@ -18922,7 +16116,7 @@ exports.BabiaExamplesSectionProvider = BabiaExamplesSectionProvider;
 
 
 /***/ }),
-/* 99 */
+/* 89 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18962,7 +16156,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleItems_1 = __webpack_require__(34);
+const exampleItems_1 = __webpack_require__(90);
 /**
  * Babia Example tree items for the Babia Examples section
  */
@@ -19044,7 +16238,168 @@ exports.BabiaExampleItemFactory = BabiaExampleItemFactory;
 
 
 /***/ }),
-/* 100 */
+/* 90 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExampleIcons = exports.ExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * Tree item for Babia examples display
+ */
+class BabiaExampleTreeItem extends vscode.TreeItem {
+    label;
+    collapsibleState;
+    type;
+    command;
+    iconPath;
+    tooltip;
+    description;
+    contextValue;
+    example;
+    constructor(label, collapsibleState, type, command, iconPath, tooltip, description, contextValue, example) {
+        super(label, collapsibleState);
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+        this.type = type;
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip;
+        this.description = description;
+        this.contextValue = contextValue;
+        this.example = example;
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip;
+        this.description = description;
+        this.contextValue = contextValue;
+    }
+}
+exports.BabiaExampleTreeItem = BabiaExampleTreeItem;
+/**
+ * Example item factory for creating tree items
+ */
+class ExampleItemFactory {
+    /**
+     * Create tree item for a Babia example
+     */
+    static createExampleItem(example) {
+        const command = {
+            command: 'codeXR.babiaExamples.launchExample',
+            title: 'Launch Example',
+            arguments: [example]
+        };
+        const icon = ExampleIcons.getExampleIcon(example.category);
+        const tooltip = ExampleItemFactory.createTooltip(example);
+        const description = example.isValid ? undefined : '(Invalid)';
+        return new BabiaExampleTreeItem(example.name, vscode.TreeItemCollapsibleState.None, 'example', command, icon, tooltip, description, example.isValid ? 'validExample' : 'invalidExample', example);
+    }
+    /**
+     * Create "No examples found" item
+     */
+    static createNoExamplesItem() {
+        return new BabiaExampleTreeItem('No examples found', vscode.TreeItemCollapsibleState.None, 'noExamples', undefined, new vscode.ThemeIcon('info'), 'No Babia examples were found in examples/charts/', undefined, 'noExamples');
+    }
+    /**
+     * Create loading item
+     */
+    static createLoadingItem() {
+        return new BabiaExampleTreeItem('Loading examples...', vscode.TreeItemCollapsibleState.None, 'loading', undefined, new vscode.ThemeIcon('loading~spin'), 'Scanning for Babia examples', undefined, 'loading');
+    }
+    /**
+     * Create tooltip for example
+     * @private
+     */
+    static createTooltip(example) {
+        const lines = [
+            `Example: ${example.name}`,
+            `Category: ${example.category}`,
+            `File: ${example.htmlFilePath}`
+        ];
+        if (example.description) {
+            lines.push(`Description: ${example.description}`);
+        }
+        if (!example.isValid) {
+            lines.push('⚠️ This example has issues and may not work properly');
+        }
+        else {
+            lines.push('✅ Click to launch this example');
+        }
+        return lines.join('\\n');
+    }
+}
+exports.ExampleItemFactory = ExampleItemFactory;
+/**
+ * Example icons utility
+ */
+class ExampleIcons {
+    /**
+     * Get appropriate icon for example category
+     */
+    static getExampleIcon(category) {
+        switch (category.toLowerCase()) {
+            case 'pie':
+                return new vscode.ThemeIcon('pie-chart');
+            case 'bar-chart':
+            case 'barsmap':
+                return new vscode.ThemeIcon('graph');
+            case 'bubble-chart':
+                return new vscode.ThemeIcon('circle-large-outline');
+            case 'cylinder-chart':
+            case 'cylindermap-chart':
+                return new vscode.ThemeIcon('package');
+            case 'mix':
+                return new vscode.ThemeIcon('combine');
+            default:
+                return new vscode.ThemeIcon('file-code');
+        }
+    }
+    /**
+     * Get section icon
+     */
+    static getSectionIcon() {
+        return new vscode.ThemeIcon('library');
+    }
+}
+exports.ExampleIcons = ExampleIcons;
+
+
+/***/ }),
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19084,7 +16439,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleLauncher_1 = __webpack_require__(12);
+const exampleLauncher_1 = __webpack_require__(38);
 /**
  * Handler for Babia Examples section interactions
  */
@@ -19223,7 +16578,7 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 
 
 /***/ }),
-/* 101 */
+/* 92 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19234,19 +16589,19 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataClickHandler = exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = exports.VisualizeDataSectionProvider = void 0;
 // Section Provider
-var VisualizeDataSectionProvider_1 = __webpack_require__(102);
+var VisualizeDataSectionProvider_1 = __webpack_require__(93);
 Object.defineProperty(exports, "VisualizeDataSectionProvider", ({ enumerable: true, get: function () { return VisualizeDataSectionProvider_1.VisualizeDataSectionProvider; } }));
 // Items
-var visualizeDataItems_1 = __webpack_require__(103);
+var visualizeDataItems_1 = __webpack_require__(94);
 Object.defineProperty(exports, "VisualizeDataModularTreeItem", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizeDataModularItemFactory", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularItemFactory; } }));
 // Interactions
-var handleVisualizeDataClicks_1 = __webpack_require__(104);
+var handleVisualizeDataClicks_1 = __webpack_require__(97);
 Object.defineProperty(exports, "VisualizeDataClickHandler", ({ enumerable: true, get: function () { return handleVisualizeDataClicks_1.VisualizeDataClickHandler; } }));
 
 
 /***/ }),
-/* 102 */
+/* 93 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19286,9 +16641,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(103);
-const handleVisualizeDataClicks_1 = __webpack_require__(104);
-const visualizeDataState_1 = __webpack_require__(36);
+const visualizeDataItems_1 = __webpack_require__(94);
+const handleVisualizeDataClicks_1 = __webpack_require__(97);
+const visualizeDataState_1 = __webpack_require__(44);
 /**
  * Visualize Data section provider - manages data visualization configuration and launch
  */
@@ -19393,7 +16748,7 @@ exports.VisualizeDataSectionProvider = VisualizeDataSectionProvider;
 
 
 /***/ }),
-/* 103 */
+/* 94 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19433,9 +16788,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(35);
-const visualizationRestorer_1 = __webpack_require__(37);
-const visualizationItem_1 = __webpack_require__(39);
+const visualizeDataItems_1 = __webpack_require__(95);
+const visualizationRestorer_1 = __webpack_require__(57);
+const visualizationItem_1 = __webpack_require__(96);
 /**
  * Visualize Data tree items for the Visualize Data section
  */
@@ -19552,7 +16907,388 @@ exports.VisualizeDataModularItemFactory = VisualizeDataModularItemFactory;
 
 
 /***/ }),
-/* 104 */
+/* 95 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizeDataIcons = exports.VisualizeDataItemFactory = exports.VisualizeDataTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const visualizeDataState_1 = __webpack_require__(44);
+/**
+ * Tree item for visualize data items
+ */
+class VisualizeDataTreeItem extends vscode.TreeItem {
+    label;
+    collapsibleState;
+    type;
+    command;
+    iconPath;
+    tooltip;
+    description;
+    contextValue;
+    constructor(label, collapsibleState, type, command, iconPath, tooltip, description, contextValue) {
+        super(label, collapsibleState);
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+        this.type = type;
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip;
+        this.description = description;
+        this.contextValue = contextValue;
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip;
+        this.description = description;
+        this.contextValue = contextValue;
+    }
+}
+exports.VisualizeDataTreeItem = VisualizeDataTreeItem;
+/**
+ * Factory for creating visualize data items
+ */
+class VisualizeDataItemFactory {
+    /**
+     * Create all visualize data items with current state
+     */
+    static createVisualizeDataItems(context) {
+        console.log('BABIA-TEMPLATES: Creating visualize data items...');
+        // Get current state if context is available and state manager exists
+        let stateManager;
+        let state;
+        try {
+            if (context && visualizeDataState_1.VisualizeDataStateManager.hasInstance()) {
+                stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(context);
+                state = stateManager.getState();
+                console.log('BABIA-TEMPLATES: Retrieved state from manager', {
+                    hasChart: !!state.selectedChart,
+                    chartName: state.selectedChart?.name,
+                    hasJson: !!state.selectedJsonName,
+                    jsonName: state.selectedJsonName
+                });
+            }
+            else if (context) {
+                // Try to initialize state manager if context is available
+                stateManager = visualizeDataState_1.VisualizeDataStateManager.getInstance(context);
+                state = stateManager.getState();
+                console.log('BABIA-TEMPLATES: Initialized new state manager');
+            }
+            else {
+                console.log('BABIA-TEMPLATES: No context available, using default state');
+            }
+        }
+        catch (error) {
+            // State manager not initialized yet, use default values
+            console.log('BABIA-TEMPLATES: Error accessing state manager, using defaults:', error);
+        }
+        const chartDescription = state?.selectedChart
+            ? `Selected: ${state.selectedChart.name}`
+            : 'No chart selected';
+        const jsonDescription = state?.selectedJsonName
+            ? `Selected: ${state.selectedJsonName}`
+            : 'No file selected';
+        const dimensionDescription = state?.isDimensionMappingConfigured
+            ? 'Configured'
+            : 'Not configured';
+        const launchDescription = state?.isReadyToLaunch
+            ? 'Ready to launch'
+            : 'Configure required settings';
+        console.log('BABIA-TEMPLATES: Item descriptions:', {
+            chart: chartDescription,
+            json: jsonDescription,
+            dimension: dimensionDescription,
+            launch: launchDescription
+        });
+        return [
+            // Chart Type
+            new VisualizeDataTreeItem('Chart Type', vscode.TreeItemCollapsibleState.None, 'chart-type', {
+                command: 'codeXR.visualizeData.chartType',
+                title: 'Select Chart Type'
+            }, new vscode.ThemeIcon('graph'), 'Select visualization chart type', chartDescription, 'visualize-data-chart-type'),
+            // Select JSON File
+            new VisualizeDataTreeItem('Select JSON File', vscode.TreeItemCollapsibleState.None, 'select-json', {
+                command: 'codeXR.visualizeData.selectJson',
+                title: 'Select JSON File'
+            }, new vscode.ThemeIcon('file-code'), 'Select JSON data file for visualization', jsonDescription, 'visualize-data-select-json'),
+            // Dimension Mapping
+            VisualizeDataItemFactory.createDimensionMappingItem(state),
+            // Launch Visualization - Icon changes based on readiness
+            new VisualizeDataTreeItem('Launch Visualization', vscode.TreeItemCollapsibleState.None, 'launch-visualization', {
+                command: 'codeXR.visualizeData.launchVisualization',
+                title: 'Launch Visualization'
+            }, state?.isReadyToLaunch
+                ? new vscode.ThemeIcon('rocket') // Ready to launch - rocket icon
+                : new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow')), // Not ready - yellow warning
+            'Launch the configured visualization', launchDescription, 'visualize-data-launch'),
+            // Browse Visualizations
+            new VisualizeDataTreeItem('Browse Visualizations', vscode.TreeItemCollapsibleState.Collapsed, 'browse-visualizations', undefined, // No command - expandable section
+            new vscode.ThemeIcon('folder-opened'), 'Browse and launch previously generated visualizations', undefined, 'visualize-data-browse-visualizations')
+        ];
+    }
+    /**
+     * Create dimension mapping item with collapsible state
+     */
+    static createDimensionMappingItem(state) {
+        if (!state?.selectedChart || !state?.jsonAnalysis) {
+            return new VisualizeDataTreeItem('Dimension Mapping', vscode.TreeItemCollapsibleState.None, 'dimension-mapping', undefined, new vscode.ThemeIcon('settings-gear'), 'Select chart type and JSON file first', 'Not available', 'visualize-data-dimension-mapping');
+        }
+        const requiredCount = state.selectedChart.dimensions.filter(d => d.required).length;
+        const mappedCount = state.dimensionMappings.length;
+        const isConfigured = this.areRequiredDimensionsMapped(state);
+        const description = isConfigured
+            ? `Configured (${mappedCount}/${state.selectedChart.dimensions.length})`
+            : `${mappedCount}/${requiredCount} required`;
+        return new VisualizeDataTreeItem('Dimension Mapping', vscode.TreeItemCollapsibleState.Collapsed, 'dimension-mapping', undefined, // Remove command to allow expand/collapse behavior
+        isConfigured
+            ? new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'))
+            : new vscode.ThemeIcon('settings-gear'), 'Configure dimension mapping for visualization - Click to expand/collapse', description, 'visualize-data-dimension-mapping');
+    }
+    /**
+     * Create dimension items for collapsible dimension mapping
+     */
+    static createDimensionItems(state) {
+        if (!state.selectedChart) {
+            return [];
+        }
+        return state.selectedChart.dimensions.map(dimension => this.createDimensionItem(dimension, state));
+    }
+    /**
+     * Create individual dimension tree item
+     */
+    static createDimensionItem(dimension, state) {
+        const currentMapping = state.dimensionMappings.find(m => m.dimension === dimension.name);
+        const isRequired = dimension.required;
+        // Check for duplicate field usage
+        const isDuplicateField = currentMapping && this.isFieldUsedInOtherMappings(currentMapping.dataField, dimension.name, state);
+        // Create label with status
+        let label = `${dimension.name}`; // Use actual dimension name (key, size)
+        let description = '';
+        let tooltip = `${dimension.name}`;
+        // Add field mapping status
+        if (currentMapping) {
+            description = `→ ${currentMapping.dataField}`;
+            tooltip += `\nMapped to: ${currentMapping.dataField}`;
+            if (isDuplicateField) {
+                description += ' (duplicate)';
+                tooltip += '\n⚠️ Warning: This field is used in multiple mappings';
+                console.log(`DIMENSION-MAPPING: Duplicate field usage detected - '${currentMapping.dataField}' is used for multiple dimensions`);
+            }
+        }
+        else {
+            description = 'Not Mapped';
+            tooltip += '\nNot mapped - Click to select field';
+        }
+        // Add data type suffix
+        const dataTypeSuffix = dimension.dataType === 'numeric' ? ' (numeric only)' : ' (any value)';
+        description += dataTypeSuffix;
+        tooltip += `\nData type: ${dimension.dataType === 'numeric' ? 'numeric only' : 'any value'}`;
+        // Set icon based on mapping status and requirement
+        let iconPath;
+        if (currentMapping && isDuplicateField) {
+            iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.red'));
+        }
+        else if (currentMapping) {
+            iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+        }
+        else if (isRequired) {
+            iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.orange'));
+        }
+        else {
+            iconPath = new vscode.ThemeIcon('circle-outline');
+        }
+        return new VisualizeDataTreeItem(label, vscode.TreeItemCollapsibleState.None, 'dimension-item', {
+            command: 'codeXR.visualizeData.mapDimensionField',
+            title: 'Map Dimension Field',
+            arguments: [dimension.name]
+        }, iconPath, tooltip, description, 'visualize-data-dimension-item');
+    }
+    /**
+     * Check if all required dimensions are mapped
+     */
+    static areRequiredDimensionsMapped(state) {
+        if (!state.selectedChart) {
+            return false;
+        }
+        const requiredDimensions = state.selectedChart.dimensions.filter(d => d.required);
+        return requiredDimensions.every(dimension => state.dimensionMappings.some(mapping => mapping.dimension === dimension.name));
+    }
+    /**
+     * Check if a field is used in other dimension mappings
+     */
+    static isFieldUsedInOtherMappings(fieldName, currentDimensionName, state) {
+        return state.dimensionMappings.some(mapping => mapping.dataField === fieldName && mapping.dimension !== currentDimensionName);
+    }
+}
+exports.VisualizeDataItemFactory = VisualizeDataItemFactory;
+/**
+ * Icons for visualize data items
+ */
+class VisualizeDataIcons {
+    static chartType = new vscode.ThemeIcon('graph');
+    static selectJson = new vscode.ThemeIcon('file-code');
+    static dimensionMapping = new vscode.ThemeIcon('settings-gear');
+    static launchVisualization = new vscode.ThemeIcon('play');
+    static section = new vscode.ThemeIcon('chart-scatter');
+}
+exports.VisualizeDataIcons = VisualizeDataIcons;
+
+
+/***/ }),
+/* 96 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BrowseVisualizationItemFactory = exports.BrowseVisualizationTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * Tree item for browse visualizations
+ */
+class BrowseVisualizationTreeItem extends vscode.TreeItem {
+    label;
+    collapsibleState;
+    type;
+    visualization;
+    command;
+    iconPath;
+    tooltip;
+    description;
+    contextValue;
+    constructor(label, collapsibleState, type, visualization, command, iconPath, tooltip, description, contextValue) {
+        super(label, collapsibleState);
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+        this.type = type;
+        this.visualization = visualization;
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip;
+        this.description = description;
+        this.contextValue = contextValue;
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip;
+        this.description = description;
+        this.contextValue = contextValue;
+    }
+}
+exports.BrowseVisualizationTreeItem = BrowseVisualizationTreeItem;
+/**
+ * Factory for creating browse visualization items
+ */
+class BrowseVisualizationItemFactory {
+    /**
+     * Create browse visualizations section
+     */
+    static createBrowseVisualizationsSection() {
+        return new BrowseVisualizationTreeItem('Browse Visualizations', vscode.TreeItemCollapsibleState.Expanded, 'browse-section', undefined, undefined, new vscode.ThemeIcon('folder-opened'), 'Browse previously generated visualizations', undefined, 'browse-visualizations-section');
+    }
+    /**
+     * Create items for stored visualizations
+     */
+    static createStoredVisualizationItems(visualizations) {
+        if (visualizations.length === 0) {
+            return [
+                new BrowseVisualizationTreeItem('No visualizations found', vscode.TreeItemCollapsibleState.None, 'stored-visualization', undefined, undefined, new vscode.ThemeIcon('info'), 'No stored visualizations available. Generate some visualizations first.', undefined, 'no-visualizations')
+            ];
+        }
+        return visualizations.map(visualization => {
+            const isValid = visualization.isValid;
+            const icon = isValid ? new vscode.ThemeIcon('play') : new vscode.ThemeIcon('warning');
+            const tooltip = isValid
+                ? `Launch visualization: ${visualization.name}\nPath: ${visualization.folderPath}`
+                : `Invalid visualization: ${visualization.name}\nMissing required files in: ${visualization.folderPath}`;
+            const description = isValid ? undefined : '⚠️ Invalid';
+            return new BrowseVisualizationTreeItem(visualization.name, vscode.TreeItemCollapsibleState.None, 'stored-visualization', visualization, isValid ? {
+                command: 'codeXR.browseVisualizations.launch',
+                title: 'Launch Visualization',
+                arguments: [visualization]
+            } : undefined, icon, tooltip, description, 'stored-visualization');
+        });
+    }
+    /**
+     * Create reset all visualizations item
+     */
+    static createResetAllItem() {
+        return new BrowseVisualizationTreeItem('Reset All Visualizations', vscode.TreeItemCollapsibleState.None, 'stored-visualization', undefined, {
+            command: 'codeXR.browseVisualizations.resetAll',
+            title: 'Reset All Visualizations',
+            arguments: []
+        }, new vscode.ThemeIcon('trash'), 'Delete all stored visualizations', undefined, 'reset-all-visualizations');
+    }
+}
+exports.BrowseVisualizationItemFactory = BrowseVisualizationItemFactory;
+
+
+/***/ }),
+/* 97 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19751,7 +17487,7 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 
 /***/ }),
-/* 105 */
+/* 98 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19762,19 +17498,19 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
 // Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(106);
+var CodeAnalysisSectionProvider_1 = __webpack_require__(99);
 Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
 // Items
-var codeAnalysisItems_1 = __webpack_require__(107);
+var codeAnalysisItems_1 = __webpack_require__(100);
 Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
 Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
 // Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(108);
+var handleCodeAnalysisClicks_1 = __webpack_require__(104);
 Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
 
 
 /***/ }),
-/* 106 */
+/* 99 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19814,10 +17550,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(107);
-const handleCodeAnalysisClicks_1 = __webpack_require__(108);
-const codeAnalysisTreeView_1 = __webpack_require__(44);
-const projectStructureAdapter_1 = __webpack_require__(109);
+const codeAnalysisItems_1 = __webpack_require__(100);
+const handleCodeAnalysisClicks_1 = __webpack_require__(104);
+const codeAnalysisTreeView_1 = __webpack_require__(105);
+const projectStructureAdapter_1 = __webpack_require__(112);
 /**
  * Code Analysis section provider - manages code analysis and file organization
  */
@@ -19962,7 +17698,7 @@ exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 107 */
+/* 100 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20002,7 +17738,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(45);
+const analysisTreeItems_1 = __webpack_require__(101);
 /**
  * Code Analysis tree items for the Code Analysis section
  */
@@ -20125,7 +17861,762 @@ exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
 
 
 /***/ }),
-/* 108 */
+/* 101 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const fileDisplayUtils_1 = __webpack_require__(102);
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const chartRegistry_1 = __webpack_require__(42);
+/**
+ * Get user-friendly display name for data field
+ */
+function getFieldDisplayName(fieldName) {
+    const fieldNames = {
+        'parameters': 'Parameters',
+        'lines_count': 'Lines Count',
+        'ccn': 'CCN (Complexity)',
+        'function_name': 'Function Name',
+        'ccn_density': 'CCN Density'
+    };
+    return fieldNames[fieldName] || fieldName;
+}
+/**
+ * Code Analysis tree item that represents different analysis sections and items
+ */
+class CodeAnalysisTreeItem extends vscode.TreeItem {
+    // Declare properties explicitly (iconPath is inherited from TreeItem)
+    type;
+    fileInfo;
+    languageName;
+    constructor(labelOrUri, collapsibleState, type, command, iconPath, tooltip, description, contextValue, fileInfo, languageName) {
+        // Call super() FIRST with the appropriate arguments
+        if (labelOrUri instanceof vscode.Uri) {
+            super(labelOrUri, collapsibleState);
+            // After super(), we can set the label
+            this.label = path.basename(labelOrUri.fsPath);
+        }
+        else {
+            super(labelOrUri, collapsibleState);
+        }
+        // NOW assign all properties after super() has been called
+        this.type = type;
+        // Only assign iconPath if it's defined
+        if (iconPath !== undefined) {
+            this.iconPath = iconPath;
+        }
+        // Assign other properties
+        if (command !== undefined) {
+            this.command = command;
+        }
+        if (tooltip !== undefined) {
+            this.tooltip = tooltip;
+        }
+        if (description !== undefined) {
+            this.description = description;
+        }
+        if (contextValue !== undefined) {
+            this.contextValue = contextValue;
+        }
+        this.fileInfo = fileInfo;
+        this.languageName = languageName;
+    }
+}
+exports.CodeAnalysisTreeItem = CodeAnalysisTreeItem;
+/**
+ * Factory for creating Code Analysis tree items
+ */
+class CodeAnalysisItemFactory {
+    /**
+     * Create the main code analysis sections
+     */
+    static createCodeAnalysisSections() {
+        console.log('[CODE_ANALYSIS] Creating main analysis sections');
+        return [
+            new CodeAnalysisTreeItem('Active Analyses', vscode.TreeItemCollapsibleState.Collapsed, 'active-analyses', {
+                command: 'codeXR.codeAnalysis.showActiveAnalyses',
+                title: 'Show Active Analyses'
+            }, new vscode.ThemeIcon('pulse'), 'View currently running analyses', '', 'active-analyses'),
+            new CodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-settings', {
+                command: 'codeXR.codeAnalysis.showAnalysisSettings',
+                title: 'Show Analysis Settings'
+            }, new vscode.ThemeIcon('gear'), 'Configure analysis parameters', '', 'analysis-settings'),
+            new CodeAnalysisTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'project-structure', {
+                command: 'codexr.codeanalysis.refreshProjectStructure',
+                title: 'Refresh Project Structure'
+            }, new vscode.ThemeIcon('folder-library'), 'Browse complete project directory structure', '', 'project-structure'),
+            new CodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'files-by-language', undefined, // No command - let tree expansion handle the scanning
+            new vscode.ThemeIcon('files'), 'Browse project files grouped by language', '', 'files-by-language')
+        ];
+    }
+    /**
+     * Create the main code analysis sections with file counts
+     */
+    static createCodeAnalysisSectionsWithCounts(filesByLanguage, isScanning = false, activeAnalysesSummary) {
+        console.log('[CODE_ANALYSIS] Creating main analysis sections with file counts');
+        // Calculate file summary if data is available, excluding "Unknown Files"
+        let filesByLanguageDescription = '';
+        if (isScanning) {
+            filesByLanguageDescription = 'Scanning project files...';
+            console.log('[CODE_ANALYSIS] Scanning in progress, showing scanning message');
+        }
+        else if (filesByLanguage && Object.keys(filesByLanguage).length > 0) {
+            // Filter out "Unknown Files" from the count
+            const analyzableLanguages = Object.entries(filesByLanguage)
+                .filter(([languageName]) => languageName !== 'Unknown Files');
+            const languageCount = analyzableLanguages.length;
+            const totalAnalyzableFiles = analyzableLanguages.reduce((total, [, files]) => total + files.length, 0);
+            if (languageCount > 0 && totalAnalyzableFiles > 0) {
+                // Create descriptive text
+                const languageText = languageCount === 1 ? 'language' : 'languages';
+                const fileText = totalAnalyzableFiles === 1 ? 'file' : 'files';
+                filesByLanguageDescription = `${languageCount} ${languageText}, ${totalAnalyzableFiles} ${fileText} (analyzable)`;
+                console.log(`[CODE_ANALYSIS] Updated description: ${filesByLanguageDescription}`);
+            }
+            else {
+                filesByLanguageDescription = 'No analyzable files found';
+                console.log('[CODE_ANALYSIS] No analyzable files found in project');
+            }
+        }
+        else {
+            filesByLanguageDescription = 'Ready to analyze';
+            console.log('[CODE_ANALYSIS] No file data available, showing ready message');
+        }
+        // Use the provided active analyses summary or default
+        const activeAnalysesLabel = activeAnalysesSummary || 'Active Analyses';
+        return [
+            new CodeAnalysisTreeItem(activeAnalysesLabel, vscode.TreeItemCollapsibleState.Collapsed, 'active-analyses', {
+                command: 'codeXR.codeAnalysis.showActiveAnalyses',
+                title: 'Show Active Analyses'
+            }, new vscode.ThemeIcon('pulse'), 'View currently running analyses', '', 'active-analyses'),
+            new CodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-settings', {
+                command: 'codeXR.codeAnalysis.showAnalysisSettings',
+                title: 'Show Analysis Settings'
+            }, new vscode.ThemeIcon('gear'), 'Configure analysis parameters', '', 'analysis-settings'),
+            new CodeAnalysisTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'project-structure', {
+                command: 'codexr.codeanalysis.refreshProjectStructure',
+                title: 'Refresh Project Structure'
+            }, new vscode.ThemeIcon('folder-library'), 'Browse complete project directory structure', 'Hierarchical file explorer', 'project-structure'),
+            new CodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'files-by-language', undefined, // No command - let tree expansion handle the scanning
+            new vscode.ThemeIcon('files'), 'Browse project files grouped by language', filesByLanguageDescription, 'files-by-language')
+        ];
+    }
+    /**
+     * Create placeholder items for when sections are expanded
+     */
+    static async createPlaceholderItems(sectionKey, context) {
+        const placeholders = [];
+        switch (sectionKey) {
+            case 'analysis-settings':
+                // Get current analysis mode from storage
+                const currentMode = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
+                    'Static';
+                const modeItem = new CodeAnalysisTreeItem(`Analysis Mode: ${currentMode}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
+                    command: 'codexr.analysis.toggleMode',
+                    title: 'Toggle Analysis Mode',
+                    arguments: []
+                });
+                // Set icon based on current mode - use the returned ThemeIcon directly
+                const modeIcon = analysisSettingsStorage_1.AnalysisSettingsStorage.getAnalysisModeIcon(currentMode);
+                modeItem.iconPath = modeIcon;
+                modeItem.tooltip = `Current analysis mode: ${currentMode}. Click to toggle between XR and Static modes.`;
+                modeItem.description = `${currentMode === 'XR' ? 'VR/AR visualization' : 'Standard visualization'}`;
+                placeholders.push(modeItem);
+                // Get current theme from storage
+                const currentTheme = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentTheme(context) :
+                    'light';
+                const themeItem = new CodeAnalysisTreeItem(`Viewer Theme: ${currentTheme}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
+                    command: 'codexr.analysis.toggleTheme',
+                    title: 'Toggle Viewer Theme',
+                    arguments: []
+                });
+                // Set icon based on current theme
+                themeItem.iconPath = currentTheme === 'light' ?
+                    new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('foreground')) :
+                    new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('charts.orange'));
+                themeItem.tooltip = `Current viewer theme: ${currentTheme}. Click to toggle between light and dark themes.`;
+                themeItem.description = `${currentTheme === 'light' ? 'Light appearance' : 'Dark appearance'}`;
+                placeholders.push(themeItem);
+                // Get current auto-analysis delay from storage
+                const currentDelay = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelay(context) :
+                    0;
+                const delayItem = new CodeAnalysisTreeItem(`Auto-Analysis Delay: ${analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayLabel(currentDelay)}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
+                    command: 'codexr.analysis.setAutoAnalysisDelay',
+                    title: 'Set Auto-Analysis Delay',
+                    arguments: []
+                });
+                // Set icon for delay setting
+                delayItem.iconPath = new vscode.ThemeIcon('clock', new vscode.ThemeColor('charts.blue'));
+                delayItem.tooltip = `Current auto-analysis delay: ${analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayLabel(currentDelay)}. Click to change the delay before re-analyzing changed files.`;
+                delayItem.description = `${currentDelay === 0 ? 'Immediate analysis' : 'Delayed analysis'}`;
+                placeholders.push(delayItem);
+                // Get current chart type for file analysis
+                const currentChartType = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context) :
+                    'donut';
+                const chartTypeItem = new CodeAnalysisTreeItem(`Chart Type (File): ${currentChartType}`, vscode.TreeItemCollapsibleState.None, 'chart-type-file', {
+                    command: 'codexr.analysis.selectChartTypeFile',
+                    title: 'Select Chart Type for File Analysis',
+                    arguments: []
+                });
+                // Set icon for chart type setting - match analysis mode color
+                const chartCurrentMode = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
+                    'XR';
+                const chartModeColor = chartCurrentMode === 'XR' ? 'charts.purple' : 'charts.green';
+                chartTypeItem.iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(chartModeColor));
+                chartTypeItem.tooltip = `Current chart type for file analysis: ${currentChartType}. Click to select a different chart type.`;
+                chartTypeItem.description = `${currentChartType} chart visualization`;
+                placeholders.push(chartTypeItem);
+                // Add reset to defaults option
+                const resetItem = new CodeAnalysisTreeItem('Reset to default values', vscode.TreeItemCollapsibleState.None, 'reset-settings', {
+                    command: 'codexr.analysis.resetSettings',
+                    title: 'Reset Analysis Settings to Default Values',
+                    arguments: []
+                });
+                resetItem.iconPath = new vscode.ThemeIcon('refresh', new vscode.ThemeColor('charts.red'));
+                resetItem.tooltip = 'Reset all analysis settings to their default values (chart type: boats, default dimension mappings, etc.)';
+                resetItem.description = 'Restore defaults';
+                placeholders.push(resetItem);
+                // Get current dimension mappings for file analysis
+                const currentDimensionMappings = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context) :
+                    [];
+                const mappedCount = currentDimensionMappings.length;
+                const dimensionMappingItem = new CodeAnalysisTreeItem(`Dimension Mapping (File)`, vscode.TreeItemCollapsibleState.Collapsed, 'dimension-mapping-file', undefined, // No command - expandable section
+                undefined, // Will be set below based on mapping status
+                `Configure dimension mapping for file analysis visualization`, `${mappedCount} mapped`);
+                // Set icon based on mapping status - match analysis mode color
+                const dimCurrentMode = context ?
+                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
+                    'XR';
+                const dimModeColor = dimCurrentMode === 'XR' ? 'charts.purple' : 'charts.green';
+                dimensionMappingItem.iconPath = mappedCount > 0 ?
+                    new vscode.ThemeIcon('settings-gear', new vscode.ThemeColor(dimModeColor)) :
+                    new vscode.ThemeIcon('settings-gear', new vscode.ThemeColor('charts.orange'));
+                placeholders.push(dimensionMappingItem);
+                break;
+            case 'dimension-mapping-file':
+                // Create dimension items based on the current chart type
+                if (context) {
+                    const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
+                    const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
+                    // Get chart metadata from the registry
+                    const chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
+                    const chartMetadata = chartRegistry.getChart(chartType);
+                    if (chartMetadata) {
+                        // Create dimension items for the current chart
+                        for (const dimension of chartMetadata.dimensions) {
+                            const currentMapping = dimensionMappings.find(m => m.dimension === dimension.name);
+                            let description = 'Not mapped';
+                            let tooltip = `${dimension.label} - ${dimension.description}`;
+                            let iconPath;
+                            // Add data type information to tooltip
+                            if (dimension.dataType === 'numeric') {
+                                tooltip += '\n(numeric values only)';
+                            }
+                            else {
+                                tooltip += '\n(any value type)';
+                            }
+                            if (currentMapping) {
+                                // Get user-friendly field name
+                                const fieldDisplayName = getFieldDisplayName(currentMapping.dataField);
+                                description = `→ ${fieldDisplayName}`;
+                                tooltip += `\nMapped to: ${fieldDisplayName}`;
+                                iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+                            }
+                            else {
+                                tooltip += '\nNot mapped - Click to select field';
+                                iconPath = dimension.required
+                                    ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.orange'))
+                                    : new vscode.ThemeIcon('circle-outline');
+                            }
+                            const dimensionItem = new CodeAnalysisTreeItem(dimension.label || dimension.name, vscode.TreeItemCollapsibleState.None, 'dimension-item-file', {
+                                command: 'codexr.analysis.mapDimensionFile',
+                                title: 'Map Dimension for File Analysis',
+                                arguments: [dimension.name, dimension.dataType, dimension.required]
+                            }, iconPath, tooltip, description);
+                            placeholders.push(dimensionItem);
+                        }
+                    }
+                    else {
+                        // Chart type not found - show placeholder
+                        placeholders.push(new CodeAnalysisTreeItem(`Unknown chart type: ${chartType}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), 'Chart type not found in registry'));
+                    }
+                }
+                else {
+                    // No context - show placeholder
+                    placeholders.push(new CodeAnalysisTreeItem('Placeholder dimensions (TODO1, TODO2, TODO3)', vscode.TreeItemCollapsibleState.None, 'dimension-item-file', undefined, new vscode.ThemeIcon('circle-outline'), 'Placeholder dimension mapping'));
+                }
+                break;
+            default:
+                // Generic placeholder for other sections
+                placeholders.push(new CodeAnalysisTreeItem("Configuration options", vscode.TreeItemCollapsibleState.None, 'analysis-item'));
+                break;
+        }
+        return placeholders;
+    } /**
+     * Create language group items from scanned files
+     */
+    static createLanguageGroupItems(filesByLanguage, context) {
+        console.log('[CODE_ANALYSIS] Creating language group items from scanned files');
+        const languageItems = [];
+        // Sort languages by file count (descending), but keep "Unknown Files" at the end
+        const sortedLanguages = Object.entries(filesByLanguage)
+            .sort(([nameA, filesA], [nameB, filesB]) => {
+            // Always put "Unknown Files" at the end
+            if (nameA === 'Unknown Files') {
+                return 1;
+            }
+            if (nameB === 'Unknown Files') {
+                return -1;
+            }
+            // Sort others by file count (descending)
+            return filesB.length - filesA.length;
+        });
+        sortedLanguages.forEach(([languageName, files]) => {
+            const fileCount = files.length;
+            const languageInfo = files.length > 0 ? files[0].language : null;
+            // Use shared utility for consistent icon display
+            let iconPath;
+            if (languageName === 'Unknown Files') {
+                iconPath = new vscode.ThemeIcon('question');
+            }
+            else {
+                iconPath = fileDisplayUtils_1.FileDisplayUtils.getFileIcon(languageInfo, context);
+            }
+            const languageItem = new CodeAnalysisTreeItem(languageName, vscode.TreeItemCollapsibleState.Collapsed, 'language-group', undefined, // No command for language groups
+            iconPath, `${languageName} - ${fileCount} files found`, `${fileCount} files`, 'language-group', undefined, languageName);
+            languageItems.push(languageItem);
+        });
+        console.log(`[CODE_ANALYSIS] Created ${languageItems.length} language group items`);
+        return languageItems;
+    }
+    /**
+     * Create file items for a specific language using shared utility for consistent display
+     */
+    static createFileItems(languageName, filesByLanguage, context) {
+        console.log(`[ANALYSIS] Creating file items for language: ${languageName}`);
+        const files = filesByLanguage[languageName] || [];
+        return files.map(fileInfo => {
+            const fileUri = vscode.Uri.file(fileInfo.fullPath);
+            // Use shared utility for consistent file display
+            const fileProperties = fileDisplayUtils_1.FileDisplayUtils.createFileTreeItemProperties(fileInfo.fileName, fileInfo.fullPath, 'language', // Use 'language' view type for relative path description
+            undefined, // No file size needed for language view
+            context, {
+                command: 'codeXR.codeAnalysis.fileClicked',
+                title: 'Open File',
+                arguments: [fileUri]
+            });
+            console.log(`[ANALYSIS] File icon setup - Path: ${fileUri.fsPath}, Language: ${fileInfo.language?.name || 'unknown'}`);
+            // Create tree item with unified display properties
+            const treeItem = new CodeAnalysisTreeItem(path.basename(fileInfo.fileName), vscode.TreeItemCollapsibleState.None, 'file-item', fileProperties.command, fileProperties.iconPath, fileProperties.tooltip, fileProperties.description, // Will show relative path
+            'file-item', fileInfo);
+            // Set the resource URI for context menu and other VS Code features
+            treeItem.resourceUri = fileUri;
+            return treeItem;
+        });
+    }
+}
+exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
+
+
+/***/ }),
+/* 102 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileDisplayUtils = void 0;
+exports.getFileIcon = getFileIcon;
+exports.getFileDescription = getFileDescription;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const languageMetadata_1 = __webpack_require__(103);
+/**
+ * Shared utility for consistent file display across Code Analysis views
+ */
+class FileDisplayUtils {
+    /**
+     * Get the appropriate icon for a file based on its language or extension
+     * @param filePathOrLanguage - File path, extension, or language info
+     * @param context - VS Code extension context for accessing resources
+     * @returns vscode.Uri for colored icon or vscode.ThemeIcon for default
+     */
+    static getFileIcon(filePathOrLanguage, context) {
+        if (!context) {
+            console.log('FILE_RENDER: No context available — using default icon');
+            return vscode.ThemeIcon.File;
+        }
+        let languageInfo = null;
+        // Determine language info from input
+        if (typeof filePathOrLanguage === 'string') {
+            // If it's a file path, detect language
+            languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePathOrLanguage);
+        }
+        else if (filePathOrLanguage && typeof filePathOrLanguage === 'object') {
+            // If it's already a LanguageInfo object
+            languageInfo = filePathOrLanguage;
+        }
+        if (!languageInfo) {
+            console.log('FILE_RENDER: No language detected — using default icon');
+            return vscode.ThemeIcon.File;
+        }
+        // Map language names to colored SVG icon filenames
+        const iconMapping = {
+            'C': 'c.svg',
+            'C++': 'cplusplus.svg',
+            'C#': 'csharp.svg',
+            'Erlang': 'erlang.svg',
+            'Fortran': 'fortran.svg',
+            'GDScript': 'godot.svg',
+            'Go': 'go.svg',
+            'HTML': 'html5.svg',
+            'Java': 'java.svg',
+            'JavaScript': 'javascript.svg',
+            'Kotlin': 'kotlin.svg',
+            'Lua': 'lua.svg',
+            'Objective-C': 'objectivec.svg',
+            'Perl': 'perl.svg',
+            'PHP': 'php.svg',
+            'Python': 'python.svg',
+            'Ruby': 'ruby.svg',
+            'Rust': 'rust.svg',
+            'Scala': 'scala.svg',
+            'Solidity': 'solidity.svg',
+            'Swift': 'swift.svg',
+            'TTCN-3': 'ttcn3.svg',
+            'TypeScript': 'typescript.svg',
+            'Vue': 'vuejs.svg',
+            'Zig': 'zig.svg'
+        };
+        const iconFileName = iconMapping[languageInfo.name];
+        if (iconFileName) {
+            const iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'languages_icons', 'color', iconFileName);
+            console.log(`FILE_RENDER: Using colored icon for ${languageInfo.name}: ${iconFileName}`);
+            return iconPath;
+        }
+        console.log(`FILE_RENDER: No colored icon found for ${languageInfo.name} — using default icon`);
+        return vscode.ThemeIcon.File;
+    }
+    /**
+     * Get context-appropriate description for a file
+     * @param filePath - Full file path
+     * @param viewType - Type of view requesting the description
+     * @param fileSize - Optional file size in bytes (for project view)
+     * @returns Formatted description string
+     */
+    static getFileDescription(filePath, viewType, fileSize) {
+        if (viewType === 'project' && fileSize !== undefined) {
+            const formattedSize = this.formatFileSize(fileSize);
+            console.log(`FILE_RENDER: Project view description for ${path.basename(filePath)}: ${formattedSize}`);
+            return formattedSize;
+        }
+        if (viewType === 'language') {
+            // Get relative path from workspace root
+            let relativePath = filePath;
+            if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                if (filePath.startsWith(workspaceRoot)) {
+                    relativePath = path.relative(workspaceRoot, filePath);
+                }
+            }
+            console.log(`FILE_RENDER: Language view description for ${path.basename(filePath)}: ${relativePath}`);
+            return relativePath;
+        }
+        console.log(`FILE_RENDER: No description for ${path.basename(filePath)} in view type ${viewType}`);
+        return '';
+    }
+    /**
+     * Format file size in human-readable format
+     * @param bytes - File size in bytes
+     * @returns Formatted size string (e.g., "12.4 KB")
+     */
+    static formatFileSize(bytes) {
+        if (bytes === 0) {
+            return '0 B';
+        }
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+    /**
+     * Create a complete file tree item with unified display logic
+     * @param fileName - Name of the file
+     * @param filePath - Full path to the file
+     * @param viewType - Type of view for context-specific description
+     * @param fileSize - Optional file size in bytes
+     * @param context - VS Code extension context
+     * @param command - Optional command to execute on click
+     * @returns Configured vscode.TreeItem properties
+     */
+    static createFileTreeItemProperties(fileName, filePath, viewType, fileSize, context, command) {
+        const iconPath = this.getFileIcon(filePath, context);
+        const description = this.getFileDescription(filePath, viewType, fileSize);
+        // Create detailed tooltip
+        const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
+        const tooltipLines = [];
+        tooltipLines.push(`**${fileName}**`);
+        tooltipLines.push(`Path: ${filePath}`);
+        if (languageInfo) {
+            tooltipLines.push(`Language: ${languageInfo.name}`);
+        }
+        if (fileSize !== undefined) {
+            tooltipLines.push(`Size: ${this.formatFileSize(fileSize)}`);
+        }
+        // Add default file open command if none provided
+        const finalCommand = command || {
+            command: 'vscode.open',
+            title: 'Open File',
+            arguments: [vscode.Uri.file(filePath)]
+        };
+        console.log(`FILE_RENDER: Created tree item properties for ${fileName} in ${viewType} view`);
+        return {
+            iconPath,
+            description,
+            tooltip: tooltipLines.join('\n'),
+            command: finalCommand
+        };
+    }
+    /**
+     * Check if a colored icon exists for a given language
+     * @param languageName - Name of the programming language
+     * @param context - VS Code extension context
+     * @returns true if a colored icon is available
+     */
+    static hasColoredIcon(languageName, context) {
+        if (!context) {
+            return false;
+        }
+        const iconMapping = {
+            'C': 'c.svg',
+            'C++': 'cplusplus.svg',
+            'C#': 'csharp.svg',
+            'Erlang': 'erlang.svg',
+            'Fortran': 'fortran.svg',
+            'GDScript': 'godot.svg',
+            'Go': 'go.svg',
+            'HTML': 'html5.svg',
+            'Java': 'java.svg',
+            'JavaScript': 'javascript.svg',
+            'Kotlin': 'kotlin.svg',
+            'Lua': 'lua.svg',
+            'Objective-C': 'objectivec.svg',
+            'Perl': 'perl.svg',
+            'PHP': 'php.svg',
+            'Python': 'python.svg',
+            'Ruby': 'ruby.svg',
+            'Rust': 'rust.svg',
+            'Scala': 'scala.svg',
+            'Solidity': 'solidity.svg',
+            'Swift': 'swift.svg',
+            'TTCN-3': 'ttcn3.svg',
+            'TypeScript': 'typescript.svg',
+            'Vue': 'vuejs.svg',
+            'Zig': 'zig.svg'
+        };
+        return iconMapping[languageName] !== undefined;
+    }
+    /**
+     * Get all supported languages with colored icons
+     * @returns Array of language names that have colored icons
+     */
+    static getSupportedColoredLanguages() {
+        return [
+            'C', 'C++', 'C#', 'Erlang', 'Fortran', 'GDScript', 'Go', 'HTML',
+            'Java', 'JavaScript', 'Kotlin', 'Lua', 'Objective-C', 'Perl',
+            'PHP', 'Python', 'Ruby', 'Rust', 'Scala', 'Solidity', 'Swift',
+            'TTCN-3', 'TypeScript', 'Vue', 'Zig'
+        ];
+    }
+}
+exports.FileDisplayUtils = FileDisplayUtils;
+/**
+ * Legacy compatibility - re-export for backwards compatibility
+ * @deprecated Use FileDisplayUtils.getFileIcon instead
+ */
+function getFileIcon(filePathOrLanguage, context) {
+    console.log('FILE_RENDER: Using deprecated getFileIcon function, please use FileDisplayUtils.getFileIcon');
+    return FileDisplayUtils.getFileIcon(filePathOrLanguage, context);
+}
+/**
+ * Legacy compatibility - re-export for backwards compatibility
+ * @deprecated Use FileDisplayUtils.getFileDescription instead
+ */
+function getFileDescription(filePath, viewType, fileSize) {
+    console.log('FILE_RENDER: Using deprecated getFileDescription function, please use FileDisplayUtils.getFileDescription');
+    return FileDisplayUtils.getFileDescription(filePath, viewType, fileSize);
+}
+
+
+/***/ }),
+/* 103 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Language metadata for file detection and visualization
+ * Maps file extensions to language information including VS Code icons
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExtensionToLanguageMap = exports.SupportedLanguages = void 0;
+exports.getLanguageForFile = getLanguageForFile;
+exports.getAllLanguageNames = getAllLanguageNames;
+exports.isLanguageSupported = isLanguageSupported;
+/**
+ * Supported languages with their file extensions and VS Code icon IDs
+ */
+exports.SupportedLanguages = [
+    { name: "HTML", extensions: [".html", ".htm"], iconId: "html" },
+    { name: "JavaScript", extensions: [".js", ".mjs"], iconId: "javascript" },
+    { name: "Python", extensions: [".py", ".pyw"], iconId: "python" },
+    { name: "Ruby", extensions: [".rb", ".rbw"], iconId: "ruby" },
+    { name: "C", extensions: [".c", ".h"], iconId: "c" },
+    { name: "Go", extensions: [".go"], iconId: "go" },
+    { name: "Kotlin", extensions: [".kt", ".kts"], iconId: "kotlin" },
+    { name: "Objective-C", extensions: [".m", ".mm"], iconId: "objective-c" },
+    { name: "Perl", extensions: [".pl", ".pm"], iconId: "perl" },
+    { name: "PHP", extensions: [".php", ".phtml"], iconId: "php" },
+    { name: "Scala", extensions: [".scala", ".sc"], iconId: "scala" },
+    { name: "Solidity", extensions: [".sol"], iconId: "solidity" },
+    { name: "Zig", extensions: [".zig"], iconId: "zig" },
+    { name: "C#", extensions: [".cs"], iconId: "csharp" },
+    { name: "C++", extensions: [".cpp", ".cxx", ".cc", ".c++", ".hpp", ".hxx", ".hh", ".h++"], iconId: "cpp" },
+    { name: "Erlang", extensions: [".erl", ".hrl"], iconId: "erlang" },
+    { name: "Fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], iconId: "fortran" },
+    { name: "GDScript", extensions: [".gd"], iconId: "gdscript" },
+    { name: "Java", extensions: [".java"], iconId: "java" },
+    { name: "Lua", extensions: [".lua"], iconId: "lua" },
+    { name: "Swift", extensions: [".swift"], iconId: "swift" },
+    { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
+    { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
+    { name: "Vue", extensions: [".vue"], iconId: "vue" },
+    { name: "JSON", extensions: [".json"], iconId: "json" },
+    { name: "XML", extensions: [".xml"], iconId: "xml" },
+    { name: "CSS", extensions: [".css"], iconId: "css" },
+    { name: "Markdown", extensions: [".md", ".markdown"], iconId: "markdown" }
+];
+/**
+ * Create a map from file extension to language info for fast lookup
+ */
+exports.ExtensionToLanguageMap = new Map();
+// Initialize the extension map
+exports.SupportedLanguages.forEach(lang => {
+    lang.extensions.forEach(ext => {
+        exports.ExtensionToLanguageMap.set(ext.toLowerCase(), lang);
+    });
+});
+/**
+ * Get language info for a file path based on its extension
+ * @param filePath The file path to analyze
+ * @returns Language info or null if not recognized
+ */
+function getLanguageForFile(filePath) {
+    const extension = getFileExtension(filePath);
+    return exports.ExtensionToLanguageMap.get(extension) || null;
+}
+/**
+ * Extract file extension from a file path
+ * @param filePath The file path
+ * @returns The lowercase extension including the dot (e.g., ".js")
+ */
+function getFileExtension(filePath) {
+    const lastDot = filePath.lastIndexOf('.');
+    if (lastDot === -1 || lastDot === filePath.length - 1) {
+        return '';
+    }
+    return filePath.substring(lastDot).toLowerCase();
+}
+/**
+ * Get all supported language names
+ */
+function getAllLanguageNames() {
+    return exports.SupportedLanguages.map(lang => lang.name);
+}
+/**
+ * Check if a language is supported
+ */
+function isLanguageSupported(languageName) {
+    return exports.SupportedLanguages.some(lang => lang.name === languageName);
+}
+
+
+/***/ }),
+/* 104 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20340,7 +18831,1688 @@ exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
 
 
 /***/ }),
+/* 105 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CodeAnalysisTreeDataProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisTreeItems_1 = __webpack_require__(101);
+const fileScanner_1 = __webpack_require__(106);
+const activeAnalysesTreeView_1 = __webpack_require__(107);
+const activeAnalysesCommands_1 = __webpack_require__(109);
+const fileWatcherManager_1 = __webpack_require__(110);
+/**
+ * Code Analysis tree data provider that manages the analysis sections
+ *
+ * Architecture Notes:
+ * - This view provides code analysis functionality
+ * - Displays active analyses, settings, and file organization
+ * - Follows the same patterns as other sections in the unified view
+ */
+class CodeAnalysisTreeDataProvider {
+    context;
+    _onDidChangeTreeData = new vscode.EventEmitter();
+    onDidChangeTreeData = this._onDidChangeTreeData.event;
+    filesByLanguage = null;
+    isScanning = false;
+    activeAnalysesProvider;
+    activeAnalysesCommands;
+    fileWatcherManager;
+    constructor(context) {
+        this.context = context;
+        console.log('[CODE_ANALYSIS] Code analysis tree data provider initialized');
+        // Initialize the active analyses provider and commands
+        this.activeAnalysesProvider = new activeAnalysesTreeView_1.ActiveAnalysesTreeDataProvider(context);
+        this.activeAnalysesCommands = new activeAnalysesCommands_1.ActiveAnalysesCommands(context);
+        this.fileWatcherManager = fileWatcherManager_1.FileWatcherManager.getInstance(context);
+        // Listen to Active Analyses changes to refresh the main tree
+        this.activeAnalysesProvider.onDidChangeTreeData(() => {
+            console.log('[CODE_ANALYSIS] 🔄 Active Analyses changed, refreshing main tree view');
+            this.refresh();
+        });
+        // Start file scanning in the background for better UX
+        this.initializeFileScanning();
+    }
+    /**
+     * Initialize file scanning in background for better user experience
+     */
+    async initializeFileScanning() {
+        try {
+            console.log('[CODE_ANALYSIS] Starting initial background file scanning...');
+            this.isScanning = true;
+            // Scan files in background
+            this.filesByLanguage = await fileScanner_1.FileScanner.scanWorkspaceFiles();
+            this.isScanning = false;
+            const status = this.getScanningStatus();
+            console.log(`[CODE_ANALYSIS] Initial background file scan completed - Found ${status.fileCount} files in ${status.languageCount} languages`);
+            // Refresh the tree to show updated counts
+            this.refresh();
+        }
+        catch (error) {
+            console.error('[CODE_ANALYSIS] Error during initial background file scanning:', error);
+            this.isScanning = false;
+        }
+    }
+    /**
+     * Force refresh file scan data (clears existing data and rescans)
+     */
+    async forceRefreshFilesScan() {
+        console.log('[CODE_ANALYSIS] Force refreshing files scan');
+        this.filesByLanguage = null;
+        this.isScanning = false;
+        // Trigger a new scan
+        await this.initializeFileScanning();
+    }
+    /**
+     * Get current scanning status
+     */
+    isCurrentlyScanning() {
+        return this.isScanning;
+    }
+    /**
+     * Check if files have been scanned
+     */
+    hasScannedFiles() {
+        return this.filesByLanguage !== null;
+    }
+    /**
+     * Get scanning status for debugging
+     */
+    getScanningStatus() {
+        const fileCount = this.filesByLanguage ?
+            Object.values(this.filesByLanguage).reduce((total, files) => total + files.length, 0) : 0;
+        const languageCount = this.filesByLanguage ? Object.keys(this.filesByLanguage).length : 0;
+        return {
+            isScanning: this.isScanning,
+            hasData: this.filesByLanguage !== null,
+            fileCount,
+            languageCount
+        };
+    }
+    /**
+     * Refresh the tree view
+     */
+    refresh() {
+        console.log('[CODE_ANALYSIS] Refreshing code analysis tree view');
+        this._onDidChangeTreeData.fire();
+    }
+    /**
+     * Get tree item representation
+     */
+    getTreeItem(element) {
+        return element;
+    }
+    /**
+     * Get children for the tree view
+     */
+    getChildren(element) {
+        if (!element) {
+            // Root level - return the main analysis sections with file counts if available
+            console.log('[CODE_ANALYSIS] Loading root analysis sections');
+            return Promise.resolve(analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(this.filesByLanguage || undefined, this.isScanning, this.activeAnalysesProvider.getActiveAnalysesSummary()));
+        }
+        // Handle expanding sections
+        switch (element.type) {
+            case 'active-analyses':
+                console.log('[CODE_ANALYSIS] Loading Active Analyses children');
+                return Promise.resolve(this.activeAnalysesProvider.getActiveAnalysesTreeItems());
+            case 'analysis-settings':
+                console.log('[CODE_ANALYSIS] Loading Analysis Settings children');
+                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('analysis-settings', this.context);
+            case 'project-structure':
+                console.log('[CODE_ANALYSIS] Loading Project Structure children');
+                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('project-structure', this.context);
+            case 'files-by-language':
+                console.log('[CODE_ANALYSIS] Loading Files by Language children');
+                return this.getFilesByLanguageChildren();
+            case 'language-group':
+                console.log(`[CODE_ANALYSIS] Loading files for language: ${element.languageName}`);
+                return this.getLanguageGroupChildren(element.languageName);
+            case 'dimension-mapping-file':
+                console.log('[CODE_ANALYSIS] Loading Dimension Mapping (File) children');
+                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('dimension-mapping-file', this.context);
+            default:
+                console.log('[CODE_ANALYSIS] No children available for this item type');
+                return Promise.resolve([]);
+        }
+    }
+    /**
+     * Get the main code analysis sections for integration with unified view
+     */
+    getCodeAnalysisSections() {
+        console.log('[CODE_ANALYSIS] Getting code analysis sections for unified view');
+        return analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(this.filesByLanguage || undefined, this.isScanning, this.activeAnalysesProvider.getActiveAnalysesSummary());
+    }
+    /**
+     * Get children for a specific section type (used by unified view)
+     */
+    getSectionChildren(sectionType) {
+        console.log(`[CODE_ANALYSIS] Getting children for section: ${sectionType}`);
+        if (sectionType === 'files-by-language') {
+            return this.getFilesByLanguageChildren();
+        }
+        if (sectionType === 'project-structure') {
+            return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('project-structure', this.context);
+        }
+        if (sectionType === 'dimension-mapping-file') {
+            return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('dimension-mapping-file', this.context);
+        }
+        return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems(sectionType, this.context);
+    }
+    /**
+     * Get children for Files by Language section - triggers file scanning
+     */
+    async getFilesByLanguageChildren() {
+        console.log('[CODE_ANALYSIS] Getting Files by Language children');
+        // Prevent multiple concurrent scans
+        if (this.isScanning) {
+            console.log('[CODE_ANALYSIS] Scan already in progress, returning scanning indicator');
+            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Scanning files...', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('loading~spin'), 'File scan in progress', 'Please wait', 'scanning')];
+        }
+        try {
+            // Trigger file scan if not already done
+            if (!this.filesByLanguage) {
+                console.log('ANALYSIS: Scanning files for language analysis...');
+                this.isScanning = true;
+                this.filesByLanguage = await fileScanner_1.FileScanner.scanWorkspaceFiles();
+                this.isScanning = false;
+                console.log('[CODE_ANALYSIS] File scan completed, refreshing tree view');
+                // Refresh the entire tree to update the root label with counts
+                this.refresh();
+            }
+            // Create language group items
+            const languageItems = analysisTreeItems_1.CodeAnalysisItemFactory.createLanguageGroupItems(this.filesByLanguage, this.context);
+            if (languageItems.length === 0) {
+                return [new analysisTreeItems_1.CodeAnalysisTreeItem('No files found', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('info'), 'No files detected in workspace', '', 'no-files')];
+            }
+            console.log(`[CODE_ANALYSIS] Returning ${languageItems.length} language groups`);
+            return languageItems;
+        }
+        catch (error) {
+            console.error('[CODE_ANALYSIS] Error getting Files by Language children:', error);
+            this.isScanning = false;
+            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Error scanning files', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), `Failed to scan workspace files: ${error}`, 'Error', 'scan-error')];
+        }
+    }
+    /**
+     * Get children for a specific language group
+     */
+    getLanguageGroupChildren(languageName) {
+        console.log(`[CODE_ANALYSIS] Getting children for language group: ${languageName}`);
+        if (!this.filesByLanguage) {
+            console.warn('[CODE_ANALYSIS] No file data available for language group');
+            return Promise.resolve([]);
+        }
+        // ✅ Pass context for colored language icons
+        const fileItems = analysisTreeItems_1.CodeAnalysisItemFactory.createFileItems(languageName, this.filesByLanguage, this.context);
+        return Promise.resolve(fileItems);
+    }
+    /**
+     * Legacy method for backward compatibility - use forceRefreshFilesScan instead
+     * @deprecated Use forceRefreshFilesScan() instead
+     */
+    async refreshFilesScan() {
+        console.log('[CODE_ANALYSIS] Legacy refreshFilesScan called, delegating to forceRefreshFilesScan');
+        await this.forceRefreshFilesScan();
+    }
+    /**
+     * Get the active analyses provider for external access
+     */
+    getActiveAnalysesProvider() {
+        return this.activeAnalysesProvider;
+    }
+    /**
+     * Get the file watcher manager for external access
+     */
+    getFileWatcherManager() {
+        return this.fileWatcherManager;
+    }
+    /**
+     * Start tracking a file analysis
+     */
+    startFileAnalysis(filePath, mode, language) {
+        console.log(`[CODE_ANALYSIS] Starting file analysis tracking for ${filePath}`);
+        return this.activeAnalysesProvider.startFileAnalysis(filePath, mode, language);
+    }
+    /**
+     * Start tracking a directory analysis
+     */
+    startDirectoryAnalysis(directoryPath, mode) {
+        console.log(`[CODE_ANALYSIS] Starting directory analysis tracking for ${directoryPath}`);
+        return this.activeAnalysesProvider.startDirectoryAnalysis(directoryPath, mode);
+    }
+    /**
+     * Complete an analysis
+     */
+    completeAnalysis(analysisId, metadata) {
+        this.activeAnalysesProvider.completeAnalysis(analysisId, metadata);
+    }
+    /**
+     * Fail an analysis
+     */
+    failAnalysis(analysisId, error) {
+        this.activeAnalysesProvider.failAnalysis(analysisId, error);
+    }
+}
+exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
+
+
+/***/ }),
+/* 106 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileScanner = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const languageMetadata_1 = __webpack_require__(103);
+/**
+ * Scanner for analyzing workspace files and grouping them by programming language
+ */
+class FileScanner {
+    /**
+     * Scan all workspace folders and group files by language
+     * @returns Promise with files grouped by language
+     */
+    static async scanWorkspaceFiles() {
+        console.log('ANALYSIS: Starting workspace file scan');
+        const startTime = Date.now();
+        const filesByLanguage = {};
+        try {
+            // Find all files in the workspace, excluding common build/cache directories and dot folders
+            console.log('ANALYSIS: Searching for files using vscode.workspace.findFiles');
+            const files = await vscode.workspace.findFiles('**/*', '{**/node_modules/**,**/.venv/**,**/.git/**,**/.svn/**,**/.hg/**,**/.*/**,**/build/**,**/dist/**,**/out/**,**/bin/**,**/__pycache__/**,**/.pytest_cache/**,**/.mypy_cache/**,**/.tox/**,**/.coverage/**}');
+            console.log(`ANALYSIS: Found ${files.length} files to analyze`);
+            // Filter out directories and process each file
+            let processedCount = 0;
+            let skippedCount = 0;
+            for (const fileUri of files) {
+                try {
+                    // Get file stats to check if it's a directory
+                    const stat = await vscode.workspace.fs.stat(fileUri);
+                    // Skip directories
+                    if (stat.type === vscode.FileType.Directory) {
+                        skippedCount++;
+                        continue;
+                    }
+                    // Process the file
+                    const fileInfo = this.createFileInfo(fileUri);
+                    this.addFileToLanguageGroup(filesByLanguage, fileInfo);
+                    processedCount++;
+                    // Log progress for large workspaces
+                    if (processedCount % 100 === 0) {
+                        console.log(`ANALYSIS: Processed ${processedCount} files so far...`);
+                    }
+                }
+                catch (error) {
+                    console.warn(`ANALYSIS: Error processing file ${fileUri.fsPath}:`, error);
+                    skippedCount++;
+                }
+            }
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+            console.log(`ANALYSIS: File scan completed in ${duration}ms`);
+            console.log(`ANALYSIS: Processed ${processedCount} files, skipped ${skippedCount} items`);
+            console.log(`ANALYSIS: Found files in ${Object.keys(filesByLanguage).length} different languages`);
+            // Log language distribution
+            this.logLanguageDistribution(filesByLanguage);
+            return filesByLanguage;
+        }
+        catch (error) {
+            console.error('ANALYSIS: Error during workspace file scan:', error);
+            throw error;
+        }
+    }
+    /**
+     * Create file info object from VS Code URI
+     */
+    static createFileInfo(fileUri) {
+        const fullPath = fileUri.fsPath;
+        const fileName = path.basename(fullPath);
+        // Get relative path from workspace root
+        let relativePath = fullPath;
+        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+            if (fullPath.startsWith(workspaceRoot)) {
+                relativePath = path.relative(workspaceRoot, fullPath);
+            }
+        }
+        // Determine language based on file extension
+        const language = (0, languageMetadata_1.getLanguageForFile)(fullPath);
+        return {
+            fileName,
+            relativePath,
+            fullPath,
+            language
+        };
+    }
+    /**
+     * Add file to the appropriate language group
+     */
+    static addFileToLanguageGroup(filesByLanguage, fileInfo) {
+        const languageName = fileInfo.language?.name || 'Unknown Files';
+        if (!filesByLanguage[languageName]) {
+            filesByLanguage[languageName] = [];
+        }
+        filesByLanguage[languageName].push(fileInfo);
+    }
+    /**
+     * Log the distribution of files by language
+     */
+    static logLanguageDistribution(filesByLanguage) {
+        console.log('ANALYSIS: File distribution by language:');
+        // Sort languages by file count (descending)
+        const sortedLanguages = Object.entries(filesByLanguage)
+            .sort(([, filesA], [, filesB]) => filesB.length - filesA.length);
+        sortedLanguages.forEach(([language, files]) => {
+            console.log(`ANALYSIS: Detected ${files.length} files of ${language}`);
+        });
+        const totalLanguages = sortedLanguages.length;
+        const totalFiles = sortedLanguages.reduce((sum, [, files]) => sum + files.length, 0);
+        console.log(`ANALYSIS: Total: ${totalLanguages} languages, ${totalFiles} files detected`);
+    }
+    /**
+     * Get files for a specific language
+     */
+    static getFilesForLanguage(filesByLanguage, languageName) {
+        return filesByLanguage[languageName] || [];
+    }
+    /**
+     * Get all detected languages sorted by file count
+     */
+    static getLanguagesSortedByCount(filesByLanguage) {
+        return Object.entries(filesByLanguage)
+            .sort(([, filesA], [, filesB]) => filesB.length - filesA.length)
+            .map(([language]) => language);
+    }
+    /**
+     * Get total file count across all languages
+     */
+    static getTotalFileCount(filesByLanguage) {
+        return Object.values(filesByLanguage)
+            .reduce((total, files) => total + files.length, 0);
+    }
+}
+exports.FileScanner = FileScanner;
+
+
+/***/ }),
+/* 107 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesTreeDataProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const activeAnalysisItems_1 = __webpack_require__(108);
+const analysisTreeItems_1 = __webpack_require__(101);
+/**
+ * Tree data provider for the Active Analyses section
+ * This handles the rendering and management of the Active Analyses tree view
+ */
+class ActiveAnalysesTreeDataProvider {
+    context;
+    _onDidChangeTreeData = new vscode.EventEmitter();
+    onDidChangeTreeData = this._onDidChangeTreeData.event;
+    registry;
+    constructor(context) {
+        this.context = context;
+        console.log('[ACTIVE_ANALYSES_TREE] Initializing Active Analyses tree data provider');
+        // Get the registry instance
+        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
+        // Listen for changes in the registry
+        this.registry.onDidChangeAnalyses(() => {
+            console.log('[ACTIVE_ANALYSES_TREE] Registry changed, refreshing tree view');
+            this.refresh();
+        });
+    }
+    /**
+     * Refresh the tree view
+     */
+    refresh() {
+        console.log('[ACTIVE_ANALYSES_TREE] Refreshing active analyses tree view');
+        this._onDidChangeTreeData.fire();
+    }
+    /**
+     * Get tree item representation
+     */
+    getTreeItem(element) {
+        return element;
+    }
+    /**
+     * Get children for the tree view
+     */
+    getChildren(element) {
+        console.log('[ACTIVE_ANALYSES_TREE_VIEW] 🌲 getChildren called, element:', element?.label);
+        if (!element) {
+            // Root level - return all active analyses
+            const allAnalyses = this.registry.getAllAnalyses();
+            console.log('[ACTIVE_ANALYSES_TREE_VIEW] 📊 Retrieved analyses from registry:', allAnalyses.length);
+            const treeItems = activeAnalysisItems_1.ActiveAnalysisItemFactory.createActiveAnalysisItems(allAnalyses);
+            console.log('[ACTIVE_ANALYSES_TREE_VIEW] 🔄 Created tree items:', treeItems.length);
+            return treeItems;
+        }
+        // No children for individual analysis items
+        return [];
+    }
+    /**
+     * Get the active analyses items for display
+     */
+    getActiveAnalysesItems() {
+        const analyses = this.registry.getAllAnalyses();
+        console.log(`[ACTIVE_ANALYSES_TREE] Found ${analyses.length} active analyses`);
+        // Create items for each analysis
+        return activeAnalysisItems_1.ActiveAnalysisItemFactory.createActiveAnalysisItems(analyses);
+    }
+    /**
+     * Get summary of active analyses for the parent tree view
+     */
+    getActiveAnalysesSummary() {
+        const summary = this.registry.getSummary();
+        if (summary.total === 0) {
+            return 'Active Analyses';
+        }
+        if (summary.running > 0) {
+            return `Active Analyses (${summary.running} running)`;
+        }
+        return `Active Analyses (${summary.total} total)`;
+    }
+    /**
+     * Get the tree items that should be displayed when this section is expanded
+     * This method is called by the parent code analysis tree view
+     * Returns CodeAnalysisTreeItem for compatibility with parent tree
+     */
+    getActiveAnalysesTreeItems() {
+        const activeAnalysisItems = this.getActiveAnalysesItems();
+        // Convert ActiveAnalysisTreeItem to CodeAnalysisTreeItem for compatibility
+        return activeAnalysisItems.map(item => {
+            return new analysisTreeItems_1.CodeAnalysisTreeItem(item.label, item.collapsibleState || vscode.TreeItemCollapsibleState.None, 'analysis-item', // Use generic analysis-item type for compatibility
+            item.command, item.iconPath, item.tooltip, item.description, item.contextValue);
+        });
+    }
+    /**
+     * Check if there are any active analyses
+     */
+    hasActiveAnalyses() {
+        return this.registry.getAllAnalyses().length > 0;
+    }
+    /**
+     * Get count of running analyses
+     */
+    getRunningCount() {
+        return this.registry.getActiveCount();
+    }
+    /**
+     * Get count of total analyses
+     */
+    getTotalCount() {
+        return this.registry.getAllAnalyses().length;
+    }
+    /**
+     * Start tracking a new file analysis
+     */
+    startFileAnalysis(filePath, mode, language) {
+        console.log(`[ACTIVE_ANALYSES_TREE] Starting file analysis for ${filePath} in ${mode} mode`);
+        return this.registry.startFileAnalysis(filePath, mode, language);
+    }
+    /**
+     * Start tracking a new directory analysis
+     */
+    startDirectoryAnalysis(directoryPath, mode) {
+        console.log(`[ACTIVE_ANALYSES_TREE] Starting directory analysis for ${directoryPath} in ${mode} mode`);
+        return this.registry.startDirectoryAnalysis(directoryPath, mode);
+    }
+    /**
+     * Complete an analysis
+     */
+    completeAnalysis(analysisId, metadata) {
+        console.log(`[ACTIVE_ANALYSES_TREE] Completing analysis ${analysisId}`);
+        this.registry.completeAnalysis(analysisId, metadata);
+    }
+    /**
+     * Fail an analysis
+     */
+    failAnalysis(analysisId, error) {
+        console.log(`[ACTIVE_ANALYSES_TREE] Failing analysis ${analysisId}: ${error}`);
+        this.registry.failAnalysis(analysisId, error);
+    }
+    /**
+     * Remove an analysis from tracking
+     */
+    removeAnalysis(analysisId) {
+        console.log(`[ACTIVE_ANALYSES_TREE] Removing analysis ${analysisId}`);
+        this.registry.unregisterAnalysis(analysisId);
+    }
+    /**
+     * Clear all analyses
+     */
+    clearAllAnalyses() {
+        console.log('[ACTIVE_ANALYSES_TREE] Clearing all analyses');
+        this.registry.clearAll();
+    }
+}
+exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
+
+
+/***/ }),
+/* 108 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+/**
+ * Tree item representing an active analysis in the VS Code tree view
+ */
+class ActiveAnalysisTreeItem extends vscode.TreeItem {
+    type;
+    analysis;
+    constructor(labelOrUri, collapsibleState, type, command, iconPath, tooltip, description, contextValue, analysis) {
+        // Call super() first with the appropriate arguments
+        if (labelOrUri instanceof vscode.Uri) {
+            super(labelOrUri, collapsibleState);
+            this.label = path.basename(labelOrUri.fsPath);
+        }
+        else {
+            super(labelOrUri, collapsibleState);
+        }
+        // Assign properties after super() call
+        this.type = type;
+        this.analysis = analysis;
+        if (iconPath !== undefined) {
+            this.iconPath = iconPath;
+        }
+        if (command !== undefined) {
+            this.command = command;
+        }
+        if (tooltip !== undefined) {
+            this.tooltip = tooltip;
+        }
+        if (description !== undefined) {
+            this.description = description;
+        }
+        if (contextValue !== undefined) {
+            this.contextValue = contextValue;
+        }
+    }
+}
+exports.ActiveAnalysisTreeItem = ActiveAnalysisTreeItem;
+/**
+ * Factory for creating active analysis tree items
+ */
+class ActiveAnalysisItemFactory {
+    /**
+     * Create tree items for active analyses
+     */
+    static createActiveAnalysisItems(analyses) {
+        console.log(`[ACTIVE_ANALYSIS_ITEMS] 🏗️ Creating ${analyses.length} active analysis items`);
+        if (analyses.length === 0) {
+            console.log('[ACTIVE_ANALYSIS_ITEMS] 📝 No analyses, creating placeholder item');
+            return [this.createNoAnalysesItem()];
+        }
+        const treeItems = analyses.map(analysis => {
+            console.log(`[ACTIVE_ANALYSIS_ITEMS] 🔧 Creating item for analysis:`, {
+                id: analysis.id,
+                path: analysis.path,
+                status: analysis.status,
+                mode: analysis.mode,
+                language: analysis.language
+            });
+            return this.createAnalysisItem(analysis);
+        });
+        console.log(`[ACTIVE_ANALYSIS_ITEMS] ✅ Created ${treeItems.length} tree items successfully`);
+        return treeItems;
+    }
+    /**
+     * Create a tree item for a single active analysis
+     */
+    static createAnalysisItem(analysis) {
+        const fileName = path.basename(analysis.path);
+        const isDirectory = analysis.id.startsWith('dir-');
+        // Determine label based on status and progress
+        let label = fileName;
+        if (analysis.progress !== undefined && analysis.status === 'running') {
+            label = `${fileName} (${analysis.progress}%)`;
+        }
+        // Determine icon based on status
+        let iconPath;
+        switch (analysis.status) {
+            case 'running':
+                iconPath = new vscode.ThemeIcon('loading~spin');
+                break;
+            case 'completed':
+                iconPath = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green'));
+                break;
+            case 'failed':
+                iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red'));
+                break;
+            case 'paused':
+                iconPath = new vscode.ThemeIcon('debug-pause', new vscode.ThemeColor('charts.yellow'));
+                break;
+            default:
+                iconPath = new vscode.ThemeIcon('pulse');
+        }
+        // Create description
+        let description = `${analysis.mode} analysis`;
+        if (analysis.language) {
+            description += ` • ${analysis.language}`;
+        }
+        // Create tooltip
+        let tooltip = `Path: ${analysis.path}\\n`;
+        tooltip += `Mode: ${analysis.mode}\\n`;
+        tooltip += `Status: ${analysis.status}\\n`;
+        tooltip += `Started: ${analysis.timestamp.toLocaleString()}`;
+        if (analysis.error) {
+            tooltip += `\\nError: ${analysis.error}`;
+        }
+        if (analysis.metadata) {
+            if (analysis.metadata.totalLines) {
+                tooltip += `\\nLines: ${analysis.metadata.totalLines}`;
+            }
+            if (analysis.metadata.totalFunctions) {
+                tooltip += `\\nFunctions: ${analysis.metadata.totalFunctions}`;
+            }
+        }
+        const type = isDirectory ? 'active-analysis-directory' : 'active-analysis-file';
+        return new ActiveAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, type, {
+            command: 'codexr.activeAnalysis.openAnalysis',
+            title: 'Open Analysis',
+            arguments: [analysis.id]
+        }, iconPath, tooltip, description, `active-analysis-${analysis.status}`, analysis);
+    }
+    /**
+     * Create a placeholder item when no analyses are active
+     */
+    static createNoAnalysesItem() {
+        return new ActiveAnalysisTreeItem('No active analyses', vscode.TreeItemCollapsibleState.None, 'active-analysis-placeholder', undefined, new vscode.ThemeIcon('info'), 'No analyses are currently running or tracked', 'Start an analysis to see it here', 'no-active-analyses');
+    }
+    /**
+     * Create summary items showing analysis statistics
+     */
+    static createSummaryItems(summary) {
+        const items = [];
+        if (summary.total === 0) {
+            return [this.createNoAnalysesItem()];
+        }
+        // Running analyses
+        if (summary.running > 0) {
+            items.push(new ActiveAnalysisTreeItem(`${summary.running} Running`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('loading~spin'), `${summary.running} analyses currently in progress`, 'In progress', 'running-analyses'));
+        }
+        // Completed analyses
+        if (summary.completed > 0) {
+            items.push(new ActiveAnalysisTreeItem(`${summary.completed} Completed`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green')), `${summary.completed} analyses completed successfully`, 'Finished', 'completed-analyses'));
+        }
+        // Failed analyses
+        if (summary.failed > 0) {
+            items.push(new ActiveAnalysisTreeItem(`${summary.failed} Failed`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), `${summary.failed} analyses failed`, 'Errors', 'failed-analyses'));
+        }
+        return items;
+    }
+}
+exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
+
+
+/***/ }),
 /* 109 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const serverControl_1 = __webpack_require__(19);
+const activeServerRegistry_1 = __webpack_require__(17);
+/**
+ * Commands for managing active analyses
+ */
+class ActiveAnalysesCommands {
+    context;
+    registry;
+    constructor(context) {
+        this.context = context;
+        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
+        this.registerCommands();
+    }
+    /**
+     * Register all active analysis commands
+     */
+    registerCommands() {
+        console.log('[ACTIVE_ANALYSES_COMMANDS] Registering active analysis commands');
+        // Open analysis command
+        const openAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.openAnalysis', (analysisId) => this.openAnalysis(analysisId));
+        // Reveal analysis in explorer
+        const revealAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.revealAnalysis', (analysisId) => this.revealAnalysis(analysisId));
+        // Remove analysis
+        const removeAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.removeAnalysis', (analysisId) => this.removeAnalysis(analysisId));
+        // Clear all analyses
+        const clearAllCommand = vscode.commands.registerCommand('codexr.activeAnalysis.clearAll', () => this.clearAllAnalyses());
+        // Refresh active analyses view
+        const refreshCommand = vscode.commands.registerCommand('codexr.activeAnalysis.refresh', () => this.refreshView());
+        // Re-run analysis
+        const rerunAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.rerun', (analysisId) => this.rerunAnalysis(analysisId));
+        // Stop analysis (stops server and removes analysis)
+        const stopAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.stopAnalysis', (analysisId) => this.stopAnalysis(analysisId));
+        // Add all commands to context subscriptions
+        this.context.subscriptions.push(openAnalysisCommand, revealAnalysisCommand, removeAnalysisCommand, clearAllCommand, refreshCommand, rerunAnalysisCommand, stopAnalysisCommand);
+        console.log('[ACTIVE_ANALYSES_COMMANDS] Active analysis commands registered successfully');
+    }
+    /**
+     * Open the analysis file or result
+     */
+    async openAnalysis(analysisId) {
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] Opening analysis: ${analysisId}`);
+        const analysis = this.registry.getAnalysis(analysisId);
+        if (!analysis) {
+            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
+            return;
+        }
+        try {
+            // Try to open the file/directory
+            const uri = vscode.Uri.file(analysis.path);
+            if (analysis.id.startsWith('dir-')) {
+                // For directory analysis, try to show the results or open the directory
+                await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: false });
+            }
+            else {
+                // For file analysis, open the file
+                const document = await vscode.workspace.openTextDocument(uri);
+                await vscode.window.showTextDocument(document);
+            }
+        }
+        catch (error) {
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error opening analysis:', error);
+            vscode.window.showErrorMessage(`Failed to open analysis: ${error}`);
+        }
+    }
+    /**
+     * Reveal analysis file in the explorer
+     */
+    async revealAnalysis(analysisId) {
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] Revealing analysis: ${analysisId}`);
+        const analysis = this.registry.getAnalysis(analysisId);
+        if (!analysis) {
+            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
+            return;
+        }
+        try {
+            const uri = vscode.Uri.file(analysis.path);
+            await vscode.commands.executeCommand('revealInExplorer', uri);
+        }
+        catch (error) {
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error revealing analysis:', error);
+            vscode.window.showErrorMessage(`Failed to reveal analysis: ${error}`);
+        }
+    }
+    /**
+     * Remove an analysis from the active list
+     */
+    async removeAnalysis(analysisId) {
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] Removing analysis: ${analysisId}`);
+        const analysis = this.registry.getAnalysis(analysisId);
+        if (!analysis) {
+            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
+            return;
+        }
+        const result = await vscode.window.showWarningMessage(`Remove analysis for ${analysis.path}?`, { modal: true }, 'Remove');
+        if (result === 'Remove') {
+            this.registry.unregisterAnalysis(analysisId);
+            vscode.window.showInformationMessage('Analysis removed from active list');
+        }
+    }
+    /**
+     * Clear all analyses with confirmation
+     */
+    async clearAllAnalyses() {
+        console.log('[ACTIVE_ANALYSES_COMMANDS] Clearing all analyses');
+        const analyses = this.registry.getAllAnalyses();
+        if (analyses.length === 0) {
+            vscode.window.showInformationMessage('No active analyses to clear');
+            return;
+        }
+        const result = await vscode.window.showWarningMessage(`Clear all ${analyses.length} active analyses?`, { modal: true }, 'Clear All');
+        if (result === 'Clear All') {
+            this.registry.clearAll();
+            vscode.window.showInformationMessage('All active analyses cleared');
+        }
+    }
+    /**
+     * Refresh the active analyses view
+     */
+    refreshView() {
+        console.log('[ACTIVE_ANALYSES_COMMANDS] Refreshing active analyses view');
+        // The registry will automatically fire events to refresh the view
+        // We could add manual refresh logic here if needed
+        vscode.window.showInformationMessage('Active analyses view refreshed');
+    }
+    /**
+     * Re-run an analysis
+     */
+    async rerunAnalysis(analysisId) {
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] Re-running analysis: ${analysisId}`);
+        const analysis = this.registry.getAnalysis(analysisId);
+        if (!analysis) {
+            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
+            return;
+        }
+        try {
+            // For now, just show a placeholder message
+            // In the future, this will trigger the actual analysis
+            vscode.window.showInformationMessage(`TODO: Re-run ${analysis.mode} analysis for ${analysis.path}`);
+            // Reset the analysis status to running
+            this.registry.updateAnalysis(analysisId, 'running', 0);
+        }
+        catch (error) {
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error re-running analysis:', error);
+            vscode.window.showErrorMessage(`Failed to re-run analysis: ${error}`);
+        }
+    }
+    /**
+     * Stop an analysis (stops associated server and removes from registry)
+     */
+    async stopAnalysis(analysisIdOrTreeItem) {
+        console.log('[ACTIVE_ANALYSES_COMMANDS] 🔍 stopAnalysis called with:', {
+            type: typeof analysisIdOrTreeItem,
+            isString: typeof analysisIdOrTreeItem === 'string',
+            value: analysisIdOrTreeItem,
+            hasAnalysis: analysisIdOrTreeItem?.analysis,
+            hasLabel: analysisIdOrTreeItem?.label,
+            contextValue: analysisIdOrTreeItem?.contextValue,
+            itemType: analysisIdOrTreeItem?.itemType,
+            sectionType: analysisIdOrTreeItem?.sectionType
+        });
+        // Handle both string ID and tree item object
+        let analysisId;
+        if (typeof analysisIdOrTreeItem === 'string') {
+            analysisId = analysisIdOrTreeItem;
+        }
+        else if (analysisIdOrTreeItem && analysisIdOrTreeItem.analysis && analysisIdOrTreeItem.analysis.id) {
+            // Tree item object with analysis property (from Active Analyses tree)
+            analysisId = analysisIdOrTreeItem.analysis.id;
+        }
+        else if (analysisIdOrTreeItem && analysisIdOrTreeItem.label) {
+            // Tree item from main code analysis tree - try to find analysis by file name
+            const fileName = analysisIdOrTreeItem.label;
+            console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔍 Looking for analysis by filename: ${fileName}`);
+            const allAnalyses = this.registry.getAllAnalyses();
+            const matchingAnalysis = allAnalyses.find(analysis => {
+                const analysisFileName = analysis.path.split('/').pop() || analysis.path.split('\\').pop();
+                return analysisFileName === fileName;
+            });
+            if (matchingAnalysis) {
+                analysisId = matchingAnalysis.id;
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found analysis by filename: ${analysisId}`);
+            }
+            else {
+                console.warn(`[ACTIVE_ANALYSES_COMMANDS] ⚠️ No analysis found for filename: ${fileName}`);
+                vscode.window.showWarningMessage(`No active analysis found for file: ${fileName}`);
+                return;
+            }
+        }
+        else {
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Invalid argument for stopAnalysis:', analysisIdOrTreeItem);
+            vscode.window.showErrorMessage('Unable to identify analysis to stop');
+            return;
+        }
+        if (!analysisId) {
+            vscode.window.showErrorMessage('Unable to identify analysis to stop');
+            return;
+        }
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] 🛑 Stopping analysis: ${analysisId}`);
+        const analysis = this.registry.getAnalysis(analysisId);
+        if (!analysis) {
+            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
+            return;
+        }
+        try {
+            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            const servers = serverRegistry.getAllServers();
+            // Find server associated with this analysis
+            // Strategy 1: Match by HTML file path (exact match)
+            let associatedServer = servers.find((server) => server.htmlFile && server.htmlFile === analysis.path);
+            // Strategy 2: If no exact match, look for servers with similar filenames
+            if (!associatedServer) {
+                const analysisFileName = path.basename(analysis.path);
+                const analysisBaseName = path.parse(analysisFileName).name; // Remove extension
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔍 Looking for server matching filename: ${analysisFileName} (base: ${analysisBaseName})`);
+                // Look for servers whose custom name or HTML file path contains the analysis filename
+                associatedServer = servers.find((server) => {
+                    // Check custom name (e.g., "Analysis Static tryCodeXr.kt")
+                    if (server.customName && server.customName.includes(analysisFileName)) {
+                        console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found server by customName: ${server.customName}`);
+                        return true;
+                    }
+                    // Check if HTML file path contains the base filename
+                    if (server.htmlFile) {
+                        const serverBaseName = path.parse(path.basename(server.htmlFile)).name;
+                        const serverDirName = path.basename(path.dirname(server.htmlFile));
+                        // Check if the server directory or HTML file contains the analysis base name
+                        if (serverDirName.includes(analysisBaseName) || serverBaseName.includes(analysisBaseName)) {
+                            console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found server by HTML path: ${server.htmlFile}`);
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+            if (associatedServer) {
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔌 Found associated server ${associatedServer.id}, stopping...`);
+                const stopped = await serverControl_1.ServerControl.stopServer(associatedServer.id);
+                if (stopped) {
+                    console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Server stopped successfully`);
+                    // The server stop event will automatically remove the analysis via our event integration
+                    vscode.window.showInformationMessage(`Analysis stopped and server terminated`);
+                }
+                else {
+                    console.warn(`[ACTIVE_ANALYSES_COMMANDS] ⚠️ Failed to stop server, removing analysis anyway`);
+                    this.registry.unregisterAnalysis(analysisId);
+                    vscode.window.showWarningMessage(`Analysis removed, but server may still be running`);
+                }
+            }
+            else {
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] 📝 No associated server found, just removing analysis`);
+                // No server found, just remove the analysis
+                this.registry.unregisterAnalysis(analysisId);
+                vscode.window.showInformationMessage(`Analysis removed`);
+            }
+        }
+        catch (error) {
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error stopping analysis:', error);
+            // Fallback: just remove the analysis from registry
+            this.registry.unregisterAnalysis(analysisId);
+            vscode.window.showErrorMessage(`Failed to stop server, but analysis was removed: ${error}`);
+        }
+    }
+}
+exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
+
+
+/***/ }),
+/* 110 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileWatcherManager = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const statusBarDelayTimer_1 = __webpack_require__(111);
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const analysisCommands_1 = __webpack_require__(59);
+const tempStorageManager_1 = __webpack_require__(66);
+const SSEManager_1 = __webpack_require__(22);
+/**
+ * Manages file watchers for files under analysis
+ * Detects changes to analyzed files and shows placeholder info messages
+ */
+class FileWatcherManager {
+    context;
+    static instance = null;
+    watchers = new Map();
+    registry;
+    delayTimer;
+    constructor(context) {
+        this.context = context;
+        console.log('[FILE_WATCHER_MANAGER] Initializing file watcher manager');
+        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
+        this.delayTimer = statusBarDelayTimer_1.StatusBarDelayTimer.getInstance();
+        // Listen for changes in active analyses to manage watchers
+        this.registry.onDidChangeAnalyses(() => {
+            this.updateWatchers();
+        });
+    }
+    /**
+     * Get the singleton instance of the file watcher manager
+     */
+    static getInstance(context) {
+        if (!FileWatcherManager.instance && context) {
+            FileWatcherManager.instance = new FileWatcherManager(context);
+        }
+        else if (!FileWatcherManager.instance) {
+            throw new Error('FileWatcherManager requires context for initialization');
+        }
+        return FileWatcherManager.instance;
+    }
+    /**
+     * Update watchers based on current active analyses
+     */
+    updateWatchers() {
+        console.log('[FILE_WATCHER_MANAGER] Updating file watchers');
+        const analyses = this.registry.getAllAnalyses();
+        const currentFiles = new Set();
+        // Collect all files that should be watched
+        analyses.forEach(analysis => {
+            if (analysis.status === 'running' || analysis.status === 'completed') {
+                if (!analysis.id.startsWith('dir-')) {
+                    // Only watch individual files, not directories for now
+                    currentFiles.add(analysis.path);
+                }
+            }
+        });
+        // Remove watchers for files no longer in active analyses
+        for (const [filePath, watcher] of this.watchers) {
+            if (!currentFiles.has(filePath)) {
+                console.log(`[FILE_WATCHER_MANAGER] Removing watcher for ${filePath}`);
+                watcher.dispose();
+                this.watchers.delete(filePath);
+            }
+        }
+        // Add watchers for new files
+        for (const filePath of currentFiles) {
+            if (!this.watchers.has(filePath)) {
+                this.addWatcher(filePath);
+            }
+        }
+        console.log(`[FILE_WATCHER_MANAGER] Now watching ${this.watchers.size} files`);
+    }
+    /**
+     * Add a file watcher for a specific file
+     */
+    addWatcher(filePath) {
+        console.log(`[FILE_WATCHER_MANAGER] Adding watcher for ${filePath}`);
+        try {
+            // Create a watcher for the specific file
+            const pattern = new vscode.RelativePattern(path.dirname(filePath), path.basename(filePath));
+            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+            // Handle file changes
+            watcher.onDidChange((uri) => {
+                this.onFileChanged(uri.fsPath);
+            });
+            // Handle file saves (more reliable than onChange for some editors)
+            watcher.onDidCreate((uri) => {
+                this.onFileChanged(uri.fsPath);
+            });
+            // Handle file deletion
+            watcher.onDidDelete((uri) => {
+                this.onFileDeleted(uri.fsPath);
+            });
+            this.watchers.set(filePath, watcher);
+            this.context.subscriptions.push(watcher);
+        }
+        catch (error) {
+            console.error(`[FILE_WATCHER_MANAGER] Error creating watcher for ${filePath}:`, error);
+        }
+    }
+    /**
+     * Handle file change events with auto-analysis delay
+     */
+    async onFileChanged(filePath) {
+        console.log(`[FILE_WATCHER_MANAGER] File changed: ${filePath}`);
+        // Get analyses for this file
+        const analyses = this.registry.getAnalysesForPath(filePath);
+        if (analyses.length === 0) {
+            return;
+        }
+        // Get the current auto-analysis delay setting
+        const delayMs = await analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelay(this.context);
+        const fileName = path.basename(filePath);
+        console.log(`[FILE_WATCHER_MANAGER] Starting auto-analysis delay: ${delayMs}ms for ${fileName}`);
+        // Start or restart the delay timer
+        const uri = vscode.Uri.file(filePath);
+        this.delayTimer.start(uri, delayMs, () => {
+            this.executeDelayedAnalysis(filePath, analyses);
+        });
+    }
+    /**
+     * Execute the analysis after the delay has completed
+     * Supports both Static and XR analysis modes
+     */
+    async executeDelayedAnalysis(filePath, analyses) {
+        const fileName = path.basename(filePath);
+        console.log(`[FILE_WATCHER_MANAGER] 🔄 Executing delayed re-analysis for ${fileName}`);
+        console.log(`[FILE_WATCHER_MANAGER] Found ${analyses.length} analysis(es) for this file`);
+        // Group analyses by mode
+        const staticAnalyses = analyses.filter(analysis => analysis.mode === 'Static');
+        const xrAnalyses = analyses.filter(analysis => analysis.mode === 'XR');
+        console.log(`[FILE_WATCHER_MANAGER] Static analyses: ${staticAnalyses.length}, XR analyses: ${xrAnalyses.length}`);
+        try {
+            let analysisData;
+            // Determine which analysis to run based on the modes present
+            if (xrAnalyses.length > 0) {
+                // Run XR analysis if there are any XR analyses
+                console.log(`[FILE_WATCHER_MANAGER] Running XR analysis for ${fileName}...`);
+                analysisData = await (0, analysisCommands_1.runXRFileAnalysisCoordinator)(this.context, filePath);
+            }
+            else if (staticAnalyses.length > 0) {
+                // Run static analysis if there are only static analyses
+                console.log(`[FILE_WATCHER_MANAGER] Running static analysis for ${fileName}...`);
+                analysisData = await (0, analysisCommands_1.executeFileAnalysis)(this.context, filePath);
+            }
+            else {
+                throw new Error('No valid analysis modes found');
+            }
+            if (!analysisData) {
+                throw new Error('Analysis returned no data');
+            }
+            console.log(`[FILE_WATCHER_MANAGER] ✅ Analysis completed for ${fileName}`);
+            // Step 2: Update existing temp folders with new data.json
+            console.log(`[FILE_WATCHER_MANAGER] Updating existing data.json files for ${fileName}...`);
+            const updatedFolders = await (0, tempStorageManager_1.updateDataJson)(this.context, filePath, analysisData);
+            if (updatedFolders.length > 0) {
+                console.log(`[FILE_WATCHER_MANAGER] ✅ Updated ${updatedFolders.length} analysis folder(s) for ${fileName}`);
+                // Step 3: Send SSE update notification to clients (for both modes)
+                console.log(`[FILE_WATCHER_MANAGER] Sending SSE update notification for ${fileName}...`);
+                try {
+                    SSEManager_1.sseManager.sendUpdate(filePath);
+                    console.log(`[FILE_WATCHER_MANAGER] ✅ SSE update notification sent for ${fileName}`);
+                }
+                catch (sseError) {
+                    console.error(`[FILE_WATCHER_MANAGER] ⚠️ Failed to send SSE update for ${fileName}:`, sseError);
+                    // Continue with the rest of the process even if SSE fails
+                }
+                // Show mode-specific success message to user
+                const modeInfo = [];
+                if (staticAnalyses.length > 0) {
+                    modeInfo.push(`${staticAnalyses.length} Static`);
+                }
+                if (xrAnalyses.length > 0) {
+                    modeInfo.push(`${xrAnalyses.length} XR`);
+                }
+                vscode.window.showInformationMessage(`Analysis updated: ${fileName} (${modeInfo.join(', ')} viewer${updatedFolders.length > 1 ? 's' : ''} refreshed)`, { modal: false });
+                // Update analysis status in registry for all modes
+                analyses.forEach(analysis => {
+                    console.log(`[FILE_WATCHER_MANAGER] Analysis ${analysis.id} (${analysis.mode}) updated due to file change`);
+                    // Update the analysis in registry - mark as completed
+                    try {
+                        this.registry.updateAnalysis(analysis.id, 'completed', 100);
+                    }
+                    catch (error) {
+                        console.log(`[FILE_WATCHER_MANAGER] Could not update analysis status: ${error}`);
+                    }
+                });
+            }
+            else {
+                console.log(`[FILE_WATCHER_MANAGER] ⚠️ No existing analysis folders found for ${fileName}`);
+                // Inform user that no viewers were found to update
+                vscode.window.showWarningMessage(`File ${fileName} changed, but no active analysis viewers found to update.`, { modal: false });
+            }
+        }
+        catch (error) {
+            console.error(`[FILE_WATCHER_MANAGER] ❌ Failed to execute delayed re-analysis for ${fileName}:`, error);
+            // Show error message to user
+            vscode.window.showErrorMessage(`Failed to update analysis for ${fileName}: ${error}`, { modal: false });
+            // Mark analyses as failed (both modes)
+            analyses.forEach(analysis => {
+                this.registry.failAnalysis(analysis.id, `Re-analysis failed: ${error}`);
+            });
+        }
+    }
+    /**
+     * Handle file deletion events
+     */
+    onFileDeleted(filePath) {
+        console.log(`[FILE_WATCHER_MANAGER] File deleted: ${filePath}`);
+        // Cancel any pending delay timer for this file
+        const uri = vscode.Uri.file(filePath);
+        this.delayTimer.cancel(uri);
+        // Get analyses for this file
+        const analyses = this.registry.getAnalysesForPath(filePath);
+        if (analyses.length > 0) {
+            const fileName = path.basename(filePath);
+            vscode.window.showWarningMessage(`File ${fileName} was deleted. Active analyses for this file will be marked as failed.`);
+            // Mark analyses as failed
+            analyses.forEach(analysis => {
+                this.registry.failAnalysis(analysis.id, `File was deleted: ${filePath}`);
+            });
+        }
+        // Remove the watcher since the file no longer exists
+        const watcher = this.watchers.get(filePath);
+        if (watcher) {
+            watcher.dispose();
+            this.watchers.delete(filePath);
+        }
+    }
+    /**
+     * Manually add a file to be watched
+     */
+    watchFile(filePath) {
+        console.log(`[FILE_WATCHER_MANAGER] Manually adding file to watch: ${filePath}`);
+        if (!this.watchers.has(filePath)) {
+            this.addWatcher(filePath);
+        }
+    }
+    /**
+     * Manually remove a file from being watched
+     */
+    unwatchFile(filePath) {
+        console.log(`[FILE_WATCHER_MANAGER] Manually removing file from watch: ${filePath}`);
+        // Cancel any pending delay timer for this file
+        const uri = vscode.Uri.file(filePath);
+        this.delayTimer.cancel(uri);
+        const watcher = this.watchers.get(filePath);
+        if (watcher) {
+            watcher.dispose();
+            this.watchers.delete(filePath);
+        }
+    }
+    /**
+     * Get list of currently watched files
+     */
+    getWatchedFiles() {
+        return Array.from(this.watchers.keys());
+    }
+    /**
+     * Dispose all watchers
+     */
+    dispose() {
+        console.log('[FILE_WATCHER_MANAGER] Disposing all file watchers');
+        // Cancel all delay timers
+        this.delayTimer.cancelAll();
+        for (const [filePath, watcher] of this.watchers) {
+            watcher.dispose();
+        }
+        this.watchers.clear();
+    }
+}
+exports.FileWatcherManager = FileWatcherManager;
+
+
+/***/ }),
+/* 111 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.StatusBarDelayTimer = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+/**
+ * Manages countdown timers in the VS Code status bar for auto-analysis delays
+ * Shows remaining time until re-analysis starts and handles timer resets
+ */
+class StatusBarDelayTimer {
+    static instance = null;
+    timers = new Map();
+    updateInterval = null;
+    constructor() {
+        console.log('[STATUS_BAR_TIMER] Initializing status bar delay timer manager');
+        this.startUpdateLoop();
+    }
+    /**
+     * Get the singleton instance
+     */
+    static getInstance() {
+        if (!StatusBarDelayTimer.instance) {
+            StatusBarDelayTimer.instance = new StatusBarDelayTimer();
+        }
+        return StatusBarDelayTimer.instance;
+    }
+    /**
+     * Start or restart a delay timer for a file
+     * @param uri File URI that changed
+     * @param delayMs Delay in milliseconds before analysis
+     * @param onComplete Callback to execute when timer completes
+     */
+    start(uri, delayMs, onComplete) {
+        const filePath = uri.fsPath;
+        const fileName = path.basename(filePath);
+        console.log(`[STATUS_BAR_TIMER] Starting ${delayMs}ms delay timer for ${fileName}`);
+        // Cancel existing timer for this file if any
+        this.cancel(uri);
+        // For real-time (0ms), execute immediately
+        if (delayMs === 0) {
+            console.log(`[STATUS_BAR_TIMER] Real-time mode: executing immediately for ${fileName}`);
+            onComplete();
+            return;
+        }
+        // Create status bar item
+        const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100 // Priority
+        );
+        // Set up the timeout
+        const timeout = setTimeout(() => {
+            console.log(`[STATUS_BAR_TIMER] Timer completed for ${fileName}`);
+            onComplete();
+            this.cancel(uri);
+        }, delayMs);
+        // Store timer data
+        const timerData = {
+            statusBarItem,
+            timeout,
+            startTime: Date.now(),
+            delayMs,
+            filePath
+        };
+        this.timers.set(filePath, timerData);
+        // Show initial status
+        this.updateStatusDisplay(timerData, fileName);
+        statusBarItem.show();
+    }
+    /**
+     * Cancel the timer for a specific file
+     * @param uri File URI to cancel timer for
+     */
+    cancel(uri) {
+        const filePath = uri.fsPath;
+        const timerData = this.timers.get(filePath);
+        if (timerData) {
+            const fileName = path.basename(filePath);
+            console.log(`[STATUS_BAR_TIMER] Cancelling timer for ${fileName}`);
+            clearTimeout(timerData.timeout);
+            timerData.statusBarItem.dispose();
+            this.timers.delete(filePath);
+        }
+    }
+    /**
+     * Cancel all active timers
+     */
+    cancelAll() {
+        console.log(`[STATUS_BAR_TIMER] Cancelling all ${this.timers.size} active timers`);
+        for (const timerData of this.timers.values()) {
+            clearTimeout(timerData.timeout);
+            timerData.statusBarItem.dispose();
+        }
+        this.timers.clear();
+    }
+    /**
+     * Get list of files with active timers
+     */
+    getActiveTimers() {
+        return Array.from(this.timers.keys());
+    }
+    /**
+     * Check if a file has an active timer
+     */
+    hasActiveTimer(uri) {
+        return this.timers.has(uri.fsPath);
+    }
+    /**
+     * Start the update loop for status bar displays
+     */
+    startUpdateLoop() {
+        this.updateInterval = setInterval(() => {
+            for (const [filePath, timerData] of this.timers.entries()) {
+                const fileName = path.basename(filePath);
+                this.updateStatusDisplay(timerData, fileName);
+            }
+        }, 100); // Update every 100ms for smooth countdown
+    }
+    /**
+     * Update the status bar display for a timer
+     */
+    updateStatusDisplay(timerData, fileName) {
+        const elapsed = Date.now() - timerData.startTime;
+        const remaining = Math.max(0, timerData.delayMs - elapsed);
+        if (remaining <= 0) {
+            // Timer should have completed by now
+            return;
+        }
+        const remainingSeconds = (remaining / 1000).toFixed(1);
+        // Format the status message
+        timerData.statusBarItem.text = `$(clock) ${fileName}: ${remainingSeconds}s`;
+        timerData.statusBarItem.tooltip = `Auto-analysis for ${fileName} will start in ${remainingSeconds} seconds`;
+        timerData.statusBarItem.color = new vscode.ThemeColor('statusBarItem.warningForeground');
+    }
+    /**
+     * Get timing info for a file (for debugging)
+     */
+    getTimerInfo(uri) {
+        const timerData = this.timers.get(uri.fsPath);
+        if (!timerData) {
+            return null;
+        }
+        const elapsed = Date.now() - timerData.startTime;
+        const remaining = Math.max(0, timerData.delayMs - elapsed);
+        return {
+            remaining,
+            total: timerData.delayMs
+        };
+    }
+    /**
+     * Dispose all resources
+     */
+    dispose() {
+        console.log('[STATUS_BAR_TIMER] Disposing status bar delay timer manager');
+        this.cancelAll();
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+        }
+    }
+}
+exports.StatusBarDelayTimer = StatusBarDelayTimer;
+
+
+/***/ }),
+/* 112 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20380,9 +20552,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureModularAdapter = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(110);
-const analysisTreeItems_1 = __webpack_require__(45);
-const fileDisplayUtils_1 = __webpack_require__(46);
+const projectStructureTreeView_1 = __webpack_require__(113);
+const analysisTreeItems_1 = __webpack_require__(101);
+const fileDisplayUtils_1 = __webpack_require__(102);
 /**
  * Adapter to integrate Project Structure Tree View with the modular Code Analysis system
  */
@@ -20522,7 +20694,7 @@ exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
 
 
 /***/ }),
-/* 110 */
+/* 113 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20563,9 +20735,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
 exports.createProjectStructureModularItem = createProjectStructureModularItem;
 const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(111);
-const baseInterfaces_1 = __webpack_require__(88);
-const fileDisplayUtils_1 = __webpack_require__(46);
+const directoryScanner_1 = __webpack_require__(114);
+const baseInterfaces_1 = __webpack_require__(78);
+const fileDisplayUtils_1 = __webpack_require__(102);
 /**
  * Tree data provider for the Project Directory Tree View
  */
@@ -20903,7 +21075,7 @@ exports.ProjectStructureCommands = ProjectStructureCommands;
 
 
 /***/ }),
-/* 111 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20944,7 +21116,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DirectoryScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(47);
+const languageMetadata_1 = __webpack_require__(103);
 /**
  * Scanner for creating a hierarchical project directory structure
  */
@@ -21278,7 +21450,7 @@ exports.DirectoryScanner = DirectoryScanner;
 
 
 /***/ }),
-/* 112 */
+/* 115 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -21289,19 +21461,19 @@ exports.DirectoryScanner = DirectoryScanner;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(113);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(116);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(114);
+var visualizationSettingsItems_1 = __webpack_require__(117);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(115);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(118);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 113 */
+/* 116 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21341,9 +21513,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(114);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(115);
-const settingsStorage_1 = __webpack_require__(43);
+const visualizationSettingsItems_1 = __webpack_require__(117);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(118);
+const settingsStorage_1 = __webpack_require__(50);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
  */
@@ -21431,7 +21603,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 114 */
+/* 117 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21471,7 +21643,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(40);
+const visualizationSettingsItems_1 = __webpack_require__(51);
 /**
  * Visualization Settings tree items for the Visualization Settings section
  */
@@ -21524,7 +21696,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 115 */
+/* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21707,7 +21879,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 116 */
+/* 119 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -21868,7 +22040,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 117 */
+/* 120 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21909,7 +22081,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModel = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
-const visualizeDataState_1 = __webpack_require__(36);
+const visualizeDataState_1 = __webpack_require__(44);
 /**
  * Visualize Data Model
  * Handles state management and validation for visualize data functionality
@@ -22011,599 +22183,17 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 118 */,
-/* 119 */
+/* 121 */,
+/* 122 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 120 */
+/* 123 */
 /***/ ((module) => {
 
 module.exports = require("node:os");
-
-/***/ }),
-/* 121 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.XRTemplateRenderer = void 0;
-const path = __importStar(__webpack_require__(5));
-const analysisSettingsStorage_1 = __webpack_require__(48);
-const templateProcessor_1 = __webpack_require__(122);
-/**
- * XR Template Renderer for File Analysis
- * Delegates to centralized TemplateProcessor for HTML generation
- */
-class XRTemplateRenderer {
-    /**
-     * Generate and save index.html for XR file analysis using centralized TemplateProcessor
-     *
-     * @param context - VS Code extension context
-     * @param analysisFolder - URI of the analysis folder (contains data.json)
-     * @param filePath - Original file path being analyzed
-     * @param analysisData - Analysis data object
-     */
-    static async generateXRVisualization(context, analysisFolder, filePath, analysisData) {
-        console.log(`[XR_TEMPLATE_RENDERER] Generating XR visualization for ${path.basename(filePath)} using centralized TemplateProcessor`);
-        try {
-            // Get current chart configuration
-            const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
-            const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
-            console.log(`[XR_TEMPLATE_RENDERER] Using chart type: ${chartType}`);
-            console.log(`[XR_TEMPLATE_RENDERER] Dimension mappings:`, dimensionMappings);
-            // Convert field names to XR format if needed
-            const mappings = dimensionMappings.map(mapping => ({
-                dimension: mapping.dimension,
-                dataField: this.convertToXRFieldName(mapping.dataField),
-                label: mapping.label
-            }));
-            // Prepare output path for index.html
-            const indexHtmlPath = path.join(analysisFolder.fsPath, 'index.html');
-            // Use centralized TemplateProcessor to generate the complete XR visualization
-            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(chartType, mappings, `File Analysis: ${path.basename(filePath)}`, './data.json', context, indexHtmlPath);
-            if (!result.success) {
-                console.error(`[XR_TEMPLATE_RENDERER] TemplateProcessor failed:`, result.error);
-                throw new Error(`Template processing failed: ${result.error}`);
-            }
-            console.log(`[XR_TEMPLATE_RENDERER] Successfully generated index.html using TemplateProcessor at: ${indexHtmlPath}`);
-        }
-        catch (error) {
-            console.error(`[XR_TEMPLATE_RENDERER] Failed to generate XR visualization:`, error);
-            throw error;
-        }
-    }
-    /**
-     * Convert field names from static analysis format to XR format
-     * Maps legacy field names to standardized XR field names
-     */
-    static convertToXRFieldName(fieldName) {
-        const fieldMappings = {
-            'ccn': 'complexity',
-            'lines_count': 'lineCount',
-            'line_start': 'lineStart',
-            'line_end': 'lineEnd',
-            'function_name': 'fileName',
-            'nloc': 'lineCount',
-            'parameters': 'parameters',
-            'max_nesting_depth': 'maxNestingDepth',
-            'cyclomatic_density': 'cyclomaticDensity'
-        };
-        return fieldMappings[fieldName] || fieldName;
-    }
-}
-exports.XRTemplateRenderer = XRTemplateRenderer;
-
-
-/***/ }),
-/* 122 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TemplateProcessor = void 0;
-const dimensionValidator_1 = __webpack_require__(123);
-const templateCharts_1 = __webpack_require__(50);
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-/**
- * BabiaXR Template Processor
- * Main and centralized processor for generating XR visualization HTML files
- * Handles template processing, placeholder replacement, and HTML generation
- */
-class TemplateProcessor {
-    /**
-     * Main method to generate complete XR visualization index.html
-     * This is the centralized method that both visualize data and XR analysis should use
-     */
-    static async generateXRVisualization(chartId, mappings, title, dataSource, context, outputPath) {
-        try {
-            console.log('TEMPLATE_PROCESSOR: Starting XR visualization generation');
-            console.log('TEMPLATE_PROCESSOR: Chart ID:', chartId);
-            console.log('TEMPLATE_PROCESSOR: Mappings:', mappings);
-            console.log('TEMPLATE_PROCESSOR: Title:', title);
-            console.log('TEMPLATE_PROCESSOR: Data source:', dataSource);
-            // Find the chart template
-            const chart = templateCharts_1.chartTemplates.find(c => c.id === chartId);
-            if (!chart) {
-                return { success: false, error: `Chart type '${chartId}' not found` };
-            }
-            // Get visualization settings
-            const visualizationSettings = await this.getVisualizationSettings();
-            console.log('TEMPLATE_PROCESSOR: Using visualization settings:', visualizationSettings);
-            // Load XR base template
-            const xrTemplate = await this.loadXRTemplate(context);
-            if (!xrTemplate) {
-                return { success: false, error: 'Failed to load XR template' };
-            }
-            // Generate chart component HTML
-            const chartComponent = await this.generateChartComponent(chart, mappings, title, visualizationSettings.palette);
-            // Replace all placeholders in the XR template
-            const finalHtml = this.replaceXRTemplatePlaceholders(xrTemplate, {
-                title,
-                dataSource,
-                chartComponent,
-                ...visualizationSettings
-            });
-            // Write the final HTML file
-            fs.writeFileSync(outputPath, finalHtml, 'utf8');
-            console.log('TEMPLATE_PROCESSOR: Generated XR visualization HTML at:', outputPath);
-            return { success: true };
-        }
-        catch (error) {
-            console.error('TEMPLATE_PROCESSOR: Error generating XR visualization:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error)
-            };
-        }
-    }
-    /**
-     * Get visualization settings (palette, environment, colors)
-     */
-    static async getVisualizationSettings() {
-        // Import visualization settings functions directly (no dynamic import needed)
-        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(76);
-        return {
-            palette: await getSelectedPalette(),
-            environment: await getSelectedEnvironment(),
-            backgroundColor: await getSelectedBackgroundColor(),
-            groundColor: await getSelectedGroundColor()
-        };
-    }
-    /**
-     * Load XR base template from templates/xr/xr-visualization.html
-     */
-    static async loadXRTemplate(context) {
-        try {
-            const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'xr-visualization.html');
-            if (!fs.existsSync(templatePath)) {
-                console.error('TEMPLATE_PROCESSOR: XR template not found at:', templatePath);
-                return null;
-            }
-            const template = fs.readFileSync(templatePath, 'utf8');
-            console.log('TEMPLATE_PROCESSOR: Loaded XR template from:', templatePath);
-            return template;
-        }
-        catch (error) {
-            console.error('TEMPLATE_PROCESSOR: Error loading XR template:', error);
-            return null;
-        }
-    }
-    /**
-     * Generate chart component HTML using the chart template
-     */
-    static async generateChartComponent(chart, mappings, title, palette) {
-        console.log('TEMPLATE_PROCESSOR: Generating chart component for:', chart.id);
-        // Create configuration for chart processing
-        const config = {
-            chartType: chart.id,
-            title: title,
-            dataFilePath: 'data.json',
-            dimensionMappings: mappings,
-            options: {
-                palette: palette
-            }
-        };
-        // Process the chart template
-        const result = await this.processTemplate(chart, mappings, config);
-        if (!result.success) {
-            console.error('TEMPLATE_PROCESSOR: Chart component generation failed:', result.error);
-            return `<!-- Chart generation error: ${result.error || 'Unknown error'} -->`;
-        }
-        console.log('TEMPLATE_PROCESSOR: Chart component generated successfully');
-        return result.html || '';
-    }
-    /**
-     * Replace all placeholders in the XR template
-     */
-    static replaceXRTemplatePlaceholders(template, values) {
-        console.log('TEMPLATE_PROCESSOR: Replacing XR template placeholders');
-        let result = template;
-        // Define placeholder replacements
-        const replacements = {
-            'TITLE': values.title,
-            'DATA_SOURCE': values.dataSource,
-            'CHART_COMPONENT': values.chartComponent,
-            'CHART_PALETTE': values.palette,
-            'ENVIRONMENT_PRESET': values.environment,
-            'BACKGROUND_COLOR': values.backgroundColor,
-            'GROUND_COLOR': values.groundColor,
-            'TREE_BUILDER': '', // Not needed for basic charts
-            'ICON_PATH': '' // Optional
-        };
-        // Replace all placeholders
-        for (const [placeholder, value] of Object.entries(replacements)) {
-            const patterns = [
-                new RegExp(`\\$\\{${this.escapeRegex(placeholder)}\\}`, 'g'),
-                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g')
-            ];
-            for (const pattern of patterns) {
-                result = result.replace(pattern, value);
-            }
-        }
-        console.log('TEMPLATE_PROCESSOR: XR template placeholders replaced');
-        return result;
-    }
-    /**
-     * Process a chart template with given configuration and mappings
-     */
-    static async processTemplate(chart, mappings, config) {
-        // Validate dimensions first
-        const validation = dimensionValidator_1.DimensionValidator.validateMappings(chart, mappings);
-        if (!validation.isValid) {
-            return {
-                success: false,
-                html: '',
-                error: validation.errors.join('; '),
-                warnings: validation.warnings
-            };
-        }
-        try {
-            // Start with the base template
-            let html = chart.htmlTemplate;
-            // Create placeholder replacements map
-            const replacements = this.createPlaceholderReplacements(chart, mappings, config);
-            // Replace all placeholders
-            html = this.replacePlaceholders(html, replacements);
-            // Validate final HTML
-            const htmlValidation = this.validateGeneratedHtml(html);
-            if (!htmlValidation.isValid) {
-                return {
-                    success: false,
-                    html: '',
-                    error: htmlValidation.error || 'Generated HTML is invalid',
-                    warnings: validation.warnings
-                };
-            }
-            return {
-                success: true,
-                html: html,
-                warnings: validation.warnings
-            };
-        }
-        catch (error) {
-            return {
-                success: false,
-                html: '',
-                error: `Template processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                warnings: validation.warnings
-            };
-        }
-    }
-    /**
-     * Create map of placeholder replacements based on mappings and config
-     */
-    static createPlaceholderReplacements(chart, mappings, config) {
-        const replacements = new Map();
-        // Add basic configuration replacements
-        replacements.set('TITLE', config.title || chart.name);
-        replacements.set('DATA_SOURCE', config.dataFilePath || 'data.json');
-        replacements.set('CHART_ID', `chart-${chart.id}-${Date.now()}`);
-        // Add dimension-specific replacements
-        for (const mapping of mappings) {
-            const dimension = chart.dimensions.find(d => d.name === mapping.dimension);
-            if (dimension) {
-                // Create various placeholder formats for the dimension
-                const upperDimension = mapping.dimension.toUpperCase();
-                const fieldName = mapping.dataField;
-                replacements.set(`${upperDimension}_FIELD`, fieldName);
-                replacements.set(`${mapping.dimension}_field`, fieldName);
-                replacements.set(mapping.dimension, fieldName);
-                // Special common dimension mappings
-                switch (mapping.dimension.toLowerCase()) {
-                    case 'key':
-                    case 'category':
-                        replacements.set('KEY_FIELD', fieldName);
-                        replacements.set('CATEGORY_FIELD', fieldName);
-                        break;
-                    case 'size':
-                    case 'value':
-                        replacements.set('SIZE_FIELD', fieldName);
-                        replacements.set('VALUE_FIELD', fieldName);
-                        break;
-                    case 'height':
-                        replacements.set('HEIGHT_FIELD', fieldName);
-                        break;
-                    case 'color':
-                        replacements.set('COLOR_FIELD', fieldName);
-                        break;
-                }
-            }
-        }
-        // Add chart-specific attributes
-        if (config.options) {
-            for (const [key, value] of Object.entries(config.options)) {
-                replacements.set(key.toUpperCase(), String(value));
-                replacements.set(key, String(value));
-            }
-        }
-        return replacements;
-    }
-    /**
-     * Replace placeholders in template with actual values
-     */
-    static replacePlaceholders(template, replacements) {
-        let result = template;
-        // Replace {{PLACEHOLDER}} format
-        for (const [placeholder, value] of replacements) {
-            const patterns = [
-                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g'),
-                new RegExp(`\\$\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}`, 'g')
-            ];
-            for (const pattern of patterns) {
-                result = result.replace(pattern, value);
-            }
-        }
-        // Check for remaining unresolved placeholders and warn
-        const unresolvedPlaceholders = result.match(/\{\{[^}]+\}\}|\$\{[^}]+\}/g);
-        if (unresolvedPlaceholders) {
-            console.warn('Unresolved placeholders found:', unresolvedPlaceholders);
-        }
-        return result;
-    }
-    /**
-     * Escape special regex characters
-     */
-    static escapeRegex(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-    /**
-     * Basic validation of generated HTML
-     */
-    static validateGeneratedHtml(html) {
-        // Check for basic HTML structure
-        if (!html || html.trim() === '') {
-            return { isValid: false, error: 'Generated HTML is empty' };
-        }
-        // Check for remaining unresolved placeholders
-        const unresolvedPlaceholders = html.match(/\{\{[^}]+\}\}/g);
-        if (unresolvedPlaceholders && unresolvedPlaceholders.length > 0) {
-            return {
-                isValid: false,
-                error: `Unresolved placeholders: ${unresolvedPlaceholders.join(', ')}`
-            };
-        }
-        // Check for BabiaXR components
-        if (!html.includes('babia-') && !html.includes('a-entity')) {
-            return {
-                isValid: false,
-                error: 'Generated HTML does not contain BabiaXR components'
-            };
-        }
-        return { isValid: true };
-    }
-    /**
-     * Get available placeholders for a chart
-     */
-    static getAvailablePlaceholders(chart) {
-        const placeholders = [
-            'TITLE',
-            'DATA_SOURCE',
-            'CHART_ID'
-        ];
-        // Add dimension-based placeholders
-        for (const dimension of chart.dimensions) {
-            const upperDimension = dimension.name.toUpperCase();
-            placeholders.push(`${upperDimension}_FIELD`);
-        }
-        return placeholders;
-    }
-    /**
-     * Preview template with sample data for testing
-     */
-    static async previewTemplate(chart, sampleMappings) {
-        const defaultMappings = sampleMappings || chart.dimensions.map(dim => ({
-            dimension: dim.name,
-            dataField: `sample_${dim.name}`
-        }));
-        const defaultConfig = {
-            chartType: chart.id,
-            title: `Sample ${chart.name}`,
-            dataFilePath: 'sample-data.json',
-            dimensionMappings: defaultMappings
-        };
-        const result = await this.processTemplate(chart, defaultMappings, defaultConfig);
-        return result.success ? (result.html || '') : `<!-- Error: ${result.error || 'Unknown error'} -->`;
-    }
-}
-exports.TemplateProcessor = TemplateProcessor;
-
-
-/***/ }),
-/* 123 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DimensionValidator = void 0;
-/**
- * BabiaXR Dimension Validator
- * Validates dimension mappings against chart requirements
- */
-class DimensionValidator {
-    /**
-     * Validate dimension mappings for a given chart
-     */
-    static validateMappings(chart, mappings) {
-        const result = {
-            isValid: true,
-            errors: [],
-            warnings: []
-        };
-        // Check for required dimensions
-        const requiredDimensions = chart.dimensions.filter(d => d.required);
-        const mappedDimensions = new Set(mappings.map(m => m.dimension));
-        for (const requiredDim of requiredDimensions) {
-            if (!mappedDimensions.has(requiredDim.name)) {
-                result.errors.push(`Required dimension '${requiredDim.name}' (${requiredDim.label}) is not mapped`);
-                result.isValid = false;
-            }
-        }
-        // Check for invalid dimension names
-        const validDimensionNames = new Set(chart.dimensions.map(d => d.name));
-        for (const mapping of mappings) {
-            if (!validDimensionNames.has(mapping.dimension)) {
-                result.errors.push(`Unknown dimension '${mapping.dimension}' for chart type '${chart.name}'`);
-                result.isValid = false;
-            }
-        }
-        // Check for duplicate mappings
-        const dimensionCounts = new Map();
-        for (const mapping of mappings) {
-            const count = dimensionCounts.get(mapping.dimension) || 0;
-            dimensionCounts.set(mapping.dimension, count + 1);
-        }
-        for (const [dimension, count] of dimensionCounts) {
-            if (count > 1) {
-                result.errors.push(`Dimension '${dimension}' is mapped multiple times`);
-                result.isValid = false;
-            }
-        }
-        // Check for empty data fields
-        for (const mapping of mappings) {
-            if (!mapping.dataField || mapping.dataField.trim() === '') {
-                result.errors.push(`Dimension '${mapping.dimension}' has no data field specified`);
-                result.isValid = false;
-            }
-        }
-        // Add warnings for optional dimensions that are not mapped
-        const optionalDimensions = chart.dimensions.filter(d => !d.required);
-        for (const optionalDim of optionalDimensions) {
-            if (!mappedDimensions.has(optionalDim.name)) {
-                result.warnings.push(`Optional dimension '${optionalDim.name}' (${optionalDim.label}) is not mapped`);
-            }
-        }
-        return result;
-    }
-    /**
-     * Validate a specific data field against dimension requirements
-     */
-    static validateDataField(dimensionName, dataField, chart) {
-        const dimension = chart.dimensions.find(d => d.name === dimensionName);
-        if (!dimension) {
-            return {
-                isValid: false,
-                error: `Dimension '${dimensionName}' does not exist for chart type '${chart.name}'`
-            };
-        }
-        if (!dataField || dataField.trim() === '') {
-            return {
-                isValid: false,
-                error: `Data field for dimension '${dimensionName}' cannot be empty`
-            };
-        }
-        // Additional validation can be added here for data type checking
-        // when we have access to actual data structure
-        return { isValid: true };
-    }
-    /**
-     * Get missing required dimensions
-     */
-    static getMissingRequiredDimensions(chart, mappings) {
-        const requiredDimensions = chart.dimensions.filter(d => d.required);
-        const mappedDimensions = new Set(mappings.map(m => m.dimension));
-        return requiredDimensions
-            .filter(d => !mappedDimensions.has(d.name))
-            .map(d => d.name);
-    }
-    /**
-     * Check if all required dimensions are mapped
-     */
-    static areAllRequiredDimensionsMapped(chart, mappings) {
-        return this.getMissingRequiredDimensions(chart, mappings).length === 0;
-    }
-}
-exports.DimensionValidator = DimensionValidator;
-
 
 /***/ })
 /******/ 	]);

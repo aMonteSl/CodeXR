@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { UnifiedServerTreeItem } from '../unifiedServersTreeView';
+import { ServerTreeItem } from '../unifiedServersTreeView';
 import { ServerNodeIcons } from './serverNodeIcons';
 import { ServerSettingsManager } from '../../storage/serverSettingsManager';
 
@@ -21,7 +21,7 @@ export async function updateServerConfig(updates: any): Promise<void> {
 /**
  * Create configuration items for the server tree view
  */
-export function createConfigurationItems(): UnifiedServerTreeItem[] {
+export function createConfigurationItems(): ServerTreeItem[] {
     const config = getServerConfig();
     
     // Determine icon based on HTTP mode security
@@ -30,7 +30,7 @@ export function createConfigurationItems(): UnifiedServerTreeItem[] {
         : ServerNodeIcons.httpModeSecure;
     
     return [
-        new UnifiedServerTreeItem(
+        new ServerTreeItem(
             `HTTP Mode: ${config.httpMode}`,
             vscode.TreeItemCollapsibleState.None,
             'config-option',
@@ -41,7 +41,7 @@ export function createConfigurationItems(): UnifiedServerTreeItem[] {
             ServerNodeIcons.httpMode,
             `Click to change server mode (currently: ${config.httpMode})`
         ),
-        new UnifiedServerTreeItem(
+        new ServerTreeItem(
             `Default Port: ${config.port}`,
             vscode.TreeItemCollapsibleState.None,
             'config-option',
@@ -52,7 +52,7 @@ export function createConfigurationItems(): UnifiedServerTreeItem[] {
             ServerNodeIcons.defaultPort,
             `Click to change default port (currently: ${config.port})`
         ),
-        new UnifiedServerTreeItem(
+        new ServerTreeItem(
             `Auto-Open: ${config.autoOpen ? 'Enabled' : 'Disabled'}`,
             vscode.TreeItemCollapsibleState.None,
             'config-option',
@@ -63,7 +63,7 @@ export function createConfigurationItems(): UnifiedServerTreeItem[] {
             ServerNodeIcons.autoOpen,
             `Click to toggle auto-open (currently: ${config.autoOpen ? 'enabled' : 'disabled'})`
         ),
-        new UnifiedServerTreeItem(
+        new ServerTreeItem(
             `Open Mode: ${config.openMode}`,
             vscode.TreeItemCollapsibleState.None,
             'config-option',
@@ -74,7 +74,7 @@ export function createConfigurationItems(): UnifiedServerTreeItem[] {
             ServerNodeIcons.openMode,
             `Click to change open mode (currently: ${config.openMode})`
         ),
-        new UnifiedServerTreeItem(
+        new ServerTreeItem(
             'Reset to Default',
             vscode.TreeItemCollapsibleState.None,
             'config-option',
