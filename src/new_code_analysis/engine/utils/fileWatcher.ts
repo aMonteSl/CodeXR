@@ -231,58 +231,22 @@ export class FileWatcher {
                 
                 if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
                     console.log(`FILE_WATCHER: DOM analysis completed successfully`);
-                    
-                    // Update the HTML file with new content
-                    const indexHtmlPath = path.join(analysisDir, 'index.html');
-                    const jsPath = path.join(analysisDir, 'main.js');
-                    const dataJsonPath = path.join(analysisDir, 'data.json');
-                    
-                    try {
-                        // Update files with new analysis results
-                        await fs.promises.writeFile(indexHtmlPath, analysisResult.indexHtml, 'utf-8');
-                        if (analysisResult.jsContent) {
-                            await fs.promises.writeFile(jsPath, analysisResult.jsContent, 'utf-8');
-                        }
-                        await fs.promises.writeFile(dataJsonPath, JSON.stringify(analysisResult.data, null, 2), 'utf-8');
-                        
-                        console.log(`FILE_WATCHER: Updated DOM visualization files in: ${analysisDir}`);
-                        
-                        // Send SSE update to clients with specific HTML update event
-                        try {
-                            console.log(`FILE_WATCHER: Sending SSE update for DOM visualization: ${filePath}`);
-                            console.log(`FILE_WATCHER: Checking file-to-server mapping for: ${filePath}`);
-                            
-                            // Debug: Check if mapping exists for this file
-                            const mapping = fileToServerMap.getServerInfo(filePath);
-                            if (mapping) {
-                                console.log(`FILE_WATCHER: Found server mapping - Port: ${mapping.port}, TempDir: ${mapping.tempDir}`);
-                            } else {
-                                console.warn(`FILE_WATCHER: No server mapping found for: ${filePath}`);
-                                console.warn(`FILE_WATCHER: Available mappings: ${fileToServerMap.getAllFileUris().join(', ')}`);
-                            }
-                            
-                            // Send specific HTML update event for DOM visualization
-                            sseManager.sendCustomMessage(filePath, {
-                                type: 'htmlUpdated',
-                                htmlContent: analysisResult.data?.htmlContent || '',
-                                action: 'reload-html',
-                                message: 'HTML DOM content has been updated'
-                            });
-                            
-                            console.log(`FILE_WATCHER: SSE HTML update sent successfully for DOM visualization`);
-                        } catch (sseError) {
-                            console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
-                        }
-                        
-                        // Show success message
-                        vscode.window.showInformationMessage(`🌐 DOM Visualization updated for: ${path.basename(filePath)}`);
-                        
-                    } catch (error) {
-                        console.error(`FILE_WATCHER: Error updating DOM visualization files:`, error);
-                    }
+                    await FileWatcher.updateAnalysisFiles(analysisResult, analysisDir, filePath, 'DOMVisualization');
                 } else {
                     console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
                     vscode.window.showErrorMessage(`DOM visualization update failed: ${analysisResult.error}`);
+                }
+                
+            } else if (analysisType === 'FileXRAnalysis') {
+                // Re-execute XR analysis
+                const analysisResult = await GetNecessaryFiles.getAnalysisFileXR(filePath, context);
+                
+                if (analysisResult.success && analysisResult.data) {
+                    console.log(`FILE_WATCHER: XR analysis completed successfully`);
+                    await FileWatcher.updateAnalysisFiles(analysisResult, analysisDir, filePath, 'FileXRAnalysis');
+                } else {
+                    console.error(`FILE_WATCHER: XR analysis failed:`, analysisResult.error);
+                    vscode.window.showErrorMessage(`XR visualization update failed: ${analysisResult.error}`);
                 }
                 
             } else {
@@ -332,6 +296,61 @@ export class FileWatcher {
 
         } catch (error) {
             console.error(`FILE_WATCHER: Error in reExecuteAnalysis:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update analysis files and send SSE notification
+     */
+    private static async updateAnalysisFiles(
+        analysisResult: any,
+        analysisDir: string,
+        filePath: string,
+        analysisType: string
+    ): Promise<void> {
+        const indexHtmlPath = path.join(analysisDir, 'index.html');
+        const jsPath = path.join(analysisDir, 'main.js');
+        const dataJsonPath = path.join(analysisDir, 'data.json');
+        
+        try {
+            // Update files with new analysis results
+            if (analysisResult.indexHtml) {
+                await fs.promises.writeFile(indexHtmlPath, analysisResult.indexHtml, 'utf-8');
+            }
+            if (analysisResult.jsContent) {
+                await fs.promises.writeFile(jsPath, analysisResult.jsContent, 'utf-8');
+            }
+            await fs.promises.writeFile(dataJsonPath, JSON.stringify(analysisResult.data, null, 2), 'utf-8');
+            
+            console.log(`FILE_WATCHER: Updated ${analysisType} files in: ${analysisDir}`);
+            
+            // Send SSE update based on analysis type
+            try {
+                console.log(`FILE_WATCHER: Sending SSE update for ${analysisType}: ${filePath}`);
+                
+                if (analysisType === 'DOMVisualization') {
+                    sseManager.sendCustomMessage(filePath, {
+                        type: 'htmlUpdated',
+                        htmlContent: analysisResult.data?.htmlContent || '',
+                        action: 'reload-html',
+                        message: 'HTML DOM content has been updated'
+                    });
+                } else if (analysisType === 'FileXRAnalysis') {
+                    sseManager.sendEventMessage(filePath, 'dataRefresh', 'refreshed');
+                }
+                
+                console.log(`FILE_WATCHER: SSE ${analysisType} update sent successfully`);
+            } catch (sseError) {
+                console.warn(`FILE_WATCHER: Failed to send SSE ${analysisType} update (non-critical):`, sseError);
+            }
+            
+            // Show success message with appropriate emoji
+            const emoji = analysisType === 'DOMVisualization' ? '🌐' : '🥽';
+            vscode.window.showInformationMessage(`${emoji} ${analysisType} updated for: ${path.basename(filePath)}`);
+            
+        } catch (error) {
+            console.error(`FILE_WATCHER: Error updating ${analysisType} files:`, error);
             throw error;
         }
     }

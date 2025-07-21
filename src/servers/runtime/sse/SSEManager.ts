@@ -134,6 +134,29 @@ export class SSEManager {
     }
 
     /**
+     * Send a specific SSE event to all clients of a specific analysis file
+     * 
+     * @param fileUri - URI of the analyzed file
+     * @param eventType - Type of SSE event (e.g., 'analysisUpdated')
+     * @param message - Message object or string
+     */
+    sendEventMessage(fileUri: string, eventType: string, message: object | string): void {
+        console.log(`[SSE_MANAGER] Sending SSE event '${eventType}' for: ${fileUri}`);
+        
+        let eventMessage: string;
+        if (typeof message === 'string') {
+            eventMessage = message;
+        } else {
+            eventMessage = JSON.stringify({
+                ...message,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        this.clientRegistry.sendEventToClients(fileUri, eventType, eventMessage);
+    }
+
+    /**
      * Send a heartbeat/keep-alive message to all clients of a specific file
      * 
      * @param fileUri - URI of the analyzed file

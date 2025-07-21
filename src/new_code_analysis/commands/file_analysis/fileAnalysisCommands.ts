@@ -1,65 +1,34 @@
 /**
  * File Analysis Commands
- * Commands for analyzing individual files
+ * Main coordinator for all file analysis commands (LivePanel and XR)
+ * Russian dolls pattern: FileAnalysisCommands -> LivePanel/XR Commands
  */
 
 import * as vscode from 'vscode';
-import { LaunchAnalyzeFileLivePanel } from '../../engine';
+import { FileAnalysisLivePanelCommands } from './fileAnalysisLivePanelCommands';
+import { FileAnalysisXRCommands } from './fileAnalysisXRCommands';
 
 export class FileAnalysisCommands {
 
-    constructor(private context: vscode.ExtensionContext) {}
-
     /**
-     * Register file analysis commands
+     * Register all file analysis commands (coordinates LivePanel and XR)
      */
     static registerCommands(context: vscode.ExtensionContext): vscode.Disposable[] {
-        const commands = new FileAnalysisCommands(context);
+        console.log('FILE_ANALYSIS_COMMANDS: Registering all file analysis commands...');
         
-        const analyzeFileCommand = vscode.commands.registerCommand(
-            'newCodeAnalysis.analyzeFile',
-            (uri?: vscode.Uri) => commands.analyzeFile(uri)
-        );
-
-        return [analyzeFileCommand];
-    }
-
-    /**
-     * Analyze file command handler
-     */
-    private async analyzeFile(uri?: vscode.Uri): Promise<void> {
-        try {
-            let filePath: string;
-
-            if (uri) {
-                // Called from context menu or command palette with URI
-                filePath = uri.fsPath;
-            } else {
-                // Called from command palette without URI - use active editor
-                const activeEditor = vscode.window.activeTextEditor;
-                if (!activeEditor) {
-                    vscode.window.showWarningMessage('CodeXR: No file selected for analysis');
-                    return;
-                }
-                filePath = activeEditor.document.fileName;
-            }
-
-            console.log(`FILE_ANALYSIS_COMMAND: Analyze file requested for: ${filePath}`);
-
-            // Check if file can be analyzed
-            if (!LaunchAnalyzeFileLivePanel.canAnalyzeFile(filePath)) {
-                vscode.window.showWarningMessage(
-                    `CodeXR: File "${filePath}" is not a supported programming language`
-                );
-                return;
-            }
-
-            // Execute analysis
-            await LaunchAnalyzeFileLivePanel.analyzeFile(filePath, this.context);
-
-        } catch (error) {
-            console.error('FILE_ANALYSIS_COMMAND: Error in analyze file command:', error);
-            vscode.window.showErrorMessage(`CodeXR: Analysis failed - ${error}`);
-        }
+        const disposables: vscode.Disposable[] = [];
+        
+        // Register LivePanel commands
+        console.log('FILE_ANALYSIS_COMMANDS: Registering LivePanel commands...');
+        const livePanelCommands = FileAnalysisLivePanelCommands.registerCommands(context);
+        disposables.push(...livePanelCommands);
+        
+        // Register XR commands  
+        console.log('FILE_ANALYSIS_COMMANDS: Registering XR commands...');
+        const xrCommands = FileAnalysisXRCommands.registerCommands(context);
+        disposables.push(...xrCommands);
+        
+        console.log(`FILE_ANALYSIS_COMMANDS: Successfully registered ${disposables.length} file analysis commands`);
+        return disposables;
     }
 }

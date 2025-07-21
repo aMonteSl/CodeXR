@@ -8,7 +8,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { getPythonEnvCommands } from '../../../commands/python_env/pythonEnvCommands';
 
-export type AnalysisType = 'FileLivePanel' | 'DOMVisualization';
+export type AnalysisType = 'FileLivePanel' | 'DOMVisualization' | 'FileXRAnalysis';
 
 export interface PythonExecutionResult {
     success: boolean;
@@ -63,25 +63,19 @@ export class PythonExecutor {
 
             console.log(`PYTHON_EXECUTOR: Using Python executable: ${pythonExecutable}`);
 
-            // Get the appropriate Python script based on analysis type
-            const scriptPath = PythonExecutor.getScriptPath(analysisType, context);
+            // Get the main Python dispatcher script
+            const mainScriptPath = PythonExecutor.getMainScriptPath(context);
             
-            if (!scriptPath) {
-                return {
-                    success: false,
-                    error: `No Python script found for analysis type: ${analysisType}`
-                };
-            }
+            console.log(`PYTHON_EXECUTOR: Using main dispatcher: ${mainScriptPath}`);
 
-            console.log(`PYTHON_EXECUTOR: Using script: ${scriptPath}`);
-
-            // Execute the Python script using the virtual environment
-            const result = await PythonExecutor.runPythonScript(pythonExecutable, scriptPath, filePath, analysisType);
+            // Execute the Python analysis using the main dispatcher
+            const result = await PythonExecutor.runPythonMainDispatcher(pythonExecutable, mainScriptPath, analysisType, filePath);
             
             if (result.success && result.stdout) {
                 try {
-                    // Try to parse the stdout as JSON (data.json content)
-                    const analysisData = JSON.parse(result.stdout);
+                    // Extract JSON from stdout (ignore debug messages)
+                    const cleanedOutput = PythonExecutor.extractJsonFromOutput(result.stdout);
+                    const analysisData = JSON.parse(cleanedOutput);
                     console.log(`PYTHON_EXECUTOR: Analysis completed successfully for ${analysisType}`);
                     console.log(`PYTHON_EXECUTOR: Analysis data logged to console`);
                     
@@ -115,33 +109,25 @@ export class PythonExecutor {
     }
 
     /**
-     * Get the appropriate Python script path based on analysis type
+     * Get the main Python dispatcher script path
      */
-    private static getScriptPath(analysisType: AnalysisType, context: vscode.ExtensionContext): string | null {
+    private static getMainScriptPath(context: vscode.ExtensionContext): string {
         const pythonDir = path.join(context.extensionPath, 'src', 'new_code_analysis', 'python');
-        
-        if (analysisType === 'FileLivePanel') {
-            return path.join(pythonDir, 'livePanel_file_analysis_coordinator.py');
-        } else if (analysisType === 'DOMVisualization') {
-            return path.join(pythonDir, 'html_dom_parser.py');
-        }
-        
-        console.error(`PYTHON_EXECUTOR: Unknown analysis type: ${analysisType}`);
-        return null;
+        return path.join(pythonDir, 'main.py');
     }
 
     /**
-     * Run Python script with file path as argument using virtual environment
+     * Run Python main dispatcher with analysis type and file path
      */
-    private static async runPythonScript(pythonExecutable: string, scriptPath: string, filePath: string, analysisType?: AnalysisType): Promise<PythonExecutionResult> {
+    private static async runPythonMainDispatcher(pythonExecutable: string, mainScriptPath: string, analysisType: AnalysisType, filePath: string): Promise<PythonExecutionResult> {
         return new Promise((resolve) => {
-            // Build arguments array
-            const args = [scriptPath, filePath];
+            // Build arguments array for main dispatcher
+            const args = [mainScriptPath, analysisType, filePath, '--debug'];
             
-            console.log(`PYTHON_EXECUTOR: Executing: "${pythonExecutable}" ${args.map(arg => `"${arg}"`).join(' ')}`);
+            console.log(`PYTHON_EXECUTOR: Executing main dispatcher: "${pythonExecutable}" ${args.map(arg => `"${arg}"`).join(' ')}`);
 
             const pythonProcess = spawn(pythonExecutable, args, {
-                cwd: path.dirname(scriptPath)
+                cwd: path.dirname(mainScriptPath)
             });
 
             let stdout = '';
@@ -156,7 +142,7 @@ export class PythonExecutor {
             });
 
             pythonProcess.on('close', (code) => {
-                console.log(`PYTHON_EXECUTOR: Python process exited with code: ${code}`);
+                console.log(`PYTHON_EXECUTOR: Python main dispatcher exited with code: ${code}`);
                 
                 if (code === 0) {
                     resolve({
@@ -167,7 +153,7 @@ export class PythonExecutor {
                 } else {
                     resolve({
                         success: false,
-                        error: `Python script exited with code ${code}`,
+                        error: `Python main dispatcher exited with code ${code}`,
                         stdout: stdout.trim(),
                         stderr: stderr.trim()
                     });
@@ -175,12 +161,60 @@ export class PythonExecutor {
             });
 
             pythonProcess.on('error', (error) => {
-                console.error(`PYTHON_EXECUTOR: Failed to start Python process:`, error);
+                console.error(`PYTHON_EXECUTOR: Failed to start Python main dispatcher:`, error);
                 resolve({
                     success: false,
-                    error: `Failed to start Python process: ${error.message}`
+                    error: `Failed to start Python main dispatcher: ${error.message}`
                 });
             });
         });
+    }
+
+    /**
+     * Extract JSON from output that may contain debug messages
+     */
+    private static extractJsonFromOutput(output: string): string {
+        console.log(`PYTHON_EXECUTOR: Raw output length: ${output.length}`);
+        
+        // Split output into lines
+        const lines = output.split('\n');
+        let jsonStart = -1;
+        let jsonEnd = -1;
+        
+        // Find the first line that starts with { or [
+        for (let i = 0; i < lines.length; i++) {
+            const trimmedLine = lines[i].trim();
+            if (trimmedLine.startsWith('{') || trimmedLine.startsWith('[')) {
+                jsonStart = i;
+                break;
+            }
+        }
+        
+        if (jsonStart === -1) {
+            console.log(`PYTHON_EXECUTOR: No JSON found in output`);
+            return '{}';
+        }
+        
+        // Find the last line that ends with } or ]
+        for (let i = lines.length - 1; i >= jsonStart; i--) {
+            const trimmedLine = lines[i].trim();
+            if (trimmedLine.endsWith('}') || trimmedLine.endsWith(']')) {
+                jsonEnd = i;
+                break;
+            }
+        }
+        
+        if (jsonEnd === -1) {
+            console.log(`PYTHON_EXECUTOR: JSON not properly closed`);
+            return '{}';
+        }
+        
+        // Extract JSON lines
+        const jsonLines = lines.slice(jsonStart, jsonEnd + 1);
+        const result = jsonLines.join('\n');
+        
+        console.log(`PYTHON_EXECUTOR: Extracted JSON (${result.length} chars), lines ${jsonStart}-${jsonEnd}`);
+        
+        return result;
     }
 }

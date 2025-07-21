@@ -129,7 +129,7 @@ export class TemplateHTMLProcessor {
     }
 
     /**
-     * Load HTML live reload JavaScript from templates/xr/html/htmlLiveReload.js
+     * Load HTML live reload JavaScript from templates/xr/sse/live_sse_fileDOM.js
      * @private
      */
     private static async loadHTMLLiveReloadJS(context: vscode.ExtensionContext): Promise<string | null> {
@@ -138,8 +138,8 @@ export class TemplateHTMLProcessor {
                 context.extensionPath,
                 'templates',
                 'xr',
-                'html',
-                'htmlLiveReload.js'
+                'sse',
+                'live_sse_fileDOM.js'
             );
 
             console.log('TEMPLATE_HTML_PROCESSOR: Loading JS from:', jsPath);

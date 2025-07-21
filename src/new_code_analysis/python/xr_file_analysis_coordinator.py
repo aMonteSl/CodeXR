@@ -60,16 +60,13 @@ def analyze_file_for_xr(file_path):
         for func in lizard_data.get('functions', []):
             xr_function = {
                 "fileName": func.get('name', 'unknown'),
-                "lineStart": func.get('start_line', 0),
-                "lineEnd": func.get('end_line', 0),
-                "lineCount": func.get('nloc', 0),  # NLOC = Non-comment Lines of Code
-                "complexity": func.get('cyclomatic_complexity', 1),
-                "parameters": func.get('parameter_count', 0),
-                "maxNestingDepth": func.get('max_nesting_depth', 0),
-                "cyclomaticDensity": calculate_cyclomatic_density(
-                    func.get('cyclomatic_complexity', 1),
-                    func.get('nloc', 1)
-                )
+                "lineStart": func.get('lineStart', 0),  # Fixed: use correct field name
+                "lineEnd": func.get('lineEnd', 0),      # Fixed: use correct field name
+                "lineCount": func.get('lineCount', 0),  # Fixed: use correct field name
+                "complexity": func.get('complexity', 1), # Fixed: use correct field name
+                "parameters": func.get('parameters', 0), # Fixed: use correct field name
+                "maxNestingDepth": func.get('maxNestingDepth', 0), # Fixed: use correct field name
+                "cyclomaticDensity": func.get('cyclomaticDensity', 1.0)  # Use the already calculated value from lizard
             }
             xr_functions.append(xr_function)
         

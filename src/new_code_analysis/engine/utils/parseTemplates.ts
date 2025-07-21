@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { generateNonce } from '../../../utils/nonceGenerator';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
+import { TemplateProcessor } from '../../../babia_templates/processing/templateProcessor';
 
 export interface ParsedTemplateFiles {
     indexHtml: string;
@@ -52,21 +53,19 @@ export class ParseTemplates {
             const cssTemplate = fs.readFileSync(cssPath, 'utf-8');
             const jsTemplate = fs.readFileSync(jsPath, 'utf-8');
 
-            // Parse HTML template
-            const parsedHtml = ParseTemplates.parseHtmlTemplate(htmlTemplate, context);
-
-            // Parse CSS template (for now, just return as-is)
-            const parsedCss = ParseTemplates.parseCssTemplate(cssTemplate);
-
-            // Parse JS template (for now, just return as-is)
-            const parsedJs = ParseTemplates.parseJsTemplate(jsTemplate);
+            // Generate nonce for security and process HTML directly
+            const nonce = generateNonce();
+            const parsedHtml = htmlTemplate
+                .replace(/\$\{nonce\}/g, nonce)
+                .replace(/\$\{styleUri\}/g, './style.css')
+                .replace(/\$\{scriptUri\}/g, './main.js');
 
             console.log(`PARSE_TEMPLATES: Template parsing completed successfully`);
             
             return {
                 indexHtml: parsedHtml,
-                cssContent: parsedCss,
-                jsContent: parsedJs,
+                cssContent: cssTemplate,
+                jsContent: jsTemplate,
                 success: true
             };
 
@@ -79,54 +78,6 @@ export class ParseTemplates {
                 success: false,
                 error: error instanceof Error ? error.message : String(error)
             };
-        }
-    }
-
-    /**
-     * Parse HTML template and replace placeholders
-     */
-    private static parseHtmlTemplate(htmlTemplate: string, context: vscode.ExtensionContext): string {
-        try {
-            // Generate nonce for security
-            const nonce = generateNonce();
-
-            // Replace all placeholders in the HTML template
-            let parsedHtml = htmlTemplate;
-
-            // Replace nonce placeholder
-            parsedHtml = parsedHtml.replace(/\$\{nonce\}/g, nonce);
-            
-            // Replace styleUri placeholder - for now we'll use inline CSS approach
-            parsedHtml = parsedHtml.replace(/\$\{styleUri\}/g, './style.css');
-            
-            // Replace scriptUri placeholder - for now we'll use relative path
-            parsedHtml = parsedHtml.replace(/\$\{scriptUri\}/g, './main.js');
-
-            console.log(`PARSE_TEMPLATES: HTML template parsed with nonce: ${nonce}`);
-            console.log(`PARSE_TEMPLATES: Replaced styleUri with: ./style.css`);
-            console.log(`PARSE_TEMPLATES: Replaced scriptUri with: ./main.js`);
-            
-            return parsedHtml;
-
-        } catch (error) {
-            console.error(`PARSE_TEMPLATES: Error parsing HTML template:`, error);
-            return htmlTemplate; // Return original if parsing fails
-        }
-    }
-
-    /**
-     * Parse CSS template
-     */
-    private static parseCssTemplate(cssTemplate: string): string {
-        try {
-            // For now, return CSS as-is
-            // In the future, we could add variable substitution or minification
-            console.log(`PARSE_TEMPLATES: CSS template parsed successfully`);
-            return cssTemplate;
-
-        } catch (error) {
-            console.error(`PARSE_TEMPLATES: Error parsing CSS template:`, error);
-            return cssTemplate; // Return original if parsing fails
         }
     }
 
@@ -189,18 +140,116 @@ export class ParseTemplates {
     }
 
     /**
-     * Parse JS template
+     * Parse XR Visualization template for XR analysis with boats chart
      */
-    private static parseJsTemplate(jsTemplate: string): string {
+    static async parseXRVisualizationTemplate(
+        context: vscode.ExtensionContext,
+        xrData: { 
+            analysisData: any; 
+            fileName: string; 
+            filePath: string; 
+            title?: string;
+            chartId: string;
+        }
+    ): Promise<ParsedTemplateFiles> {
         try {
-            // For now, return JS as-is
-            // In the future, we could add variable substitution or minification
-            console.log(`PARSE_TEMPLATES: JS template parsed successfully`);
-            return jsTemplate;
+            console.log(`PARSE_TEMPLATES: Starting XR Visualization template parsing`);
+            console.log(`PARSE_TEMPLATES: File: ${xrData.fileName}`);
+            console.log(`PARSE_TEMPLATES: Chart ID: ${xrData.chartId}`);
+            console.log(`PARSE_TEMPLATES: Analysis data:`, xrData.analysisData);
+
+            // Prepare dimension mappings for boats chart (area=parameters, height=lineCount, color=complexity)
+            const mappings = TemplateProcessor.createDefaultXRMappings();
+            console.log(`PARSE_TEMPLATES: Using dimension mappings:`, mappings);
+
+            // Prepare data source path (this will be replaced with actual data.json path)
+            const dataSource = './data.json';
+
+            // Generate temporary output path for template processing
+            const tempOutputPath = require('path').join(require('os').tmpdir(), 'xr-template-temp.html');
+
+            // Generate XR visualization using the modular TemplateProcessor
+            const result = await TemplateProcessor.generateXRVisualization(
+                xrData.chartId,
+                mappings,
+                xrData.title || `XR Analysis - ${xrData.fileName}`,
+                dataSource,
+                context,
+                tempOutputPath
+            );
+
+            if (!result.success) {
+                throw new Error(`XR visualization generation failed: ${result.error}`);
+            }
+
+            // Read the generated HTML file
+            const fs = require('fs');
+            const generatedHtml = fs.readFileSync(tempOutputPath, 'utf8');
+
+            // Clean up temporary file
+            try {
+                fs.unlinkSync(tempOutputPath);
+            } catch (cleanupError) {
+                console.warn(`PARSE_TEMPLATES: Could not clean up temp file: ${tempOutputPath}`);
+            }
+
+            // Generate SSE JavaScript content for XR mode
+            const sseJsContent = await this.loadXRSSEScript(context);
+
+            console.log(`PARSE_TEMPLATES: XR Visualization template processing completed successfully`);
+            console.log(`PARSE_TEMPLATES: Generated HTML length: ${generatedHtml.length}`);
+            console.log(`PARSE_TEMPLATES: Generated JS length: ${sseJsContent.length}`);
+
+            return {
+                indexHtml: generatedHtml,
+                cssContent: '', // XR templates include inline styles
+                jsContent: sseJsContent,
+                success: true,
+                error: undefined
+            };
 
         } catch (error) {
-            console.error(`PARSE_TEMPLATES: Error parsing JS template:`, error);
-            return jsTemplate; // Return original if parsing fails
+            console.error(`PARSE_TEMPLATES: Error parsing XR Visualization template:`, error);
+            return {
+                indexHtml: '',
+                cssContent: '',
+                jsContent: '',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+
+    /**
+     * Load XR SSE script for live updates
+     * @private
+     */
+    private static async loadXRSSEScript(context: vscode.ExtensionContext): Promise<string> {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            
+            const sseScriptPath = path.join(
+                context.extensionPath,
+                'templates',
+                'xr',
+                'sse',
+                'live_sse_fileXR.js'
+            );
+
+            if (!fs.existsSync(sseScriptPath)) {
+                console.warn(`PARSE_TEMPLATES: XR SSE script not found at: ${sseScriptPath}`);
+                return '';
+            }
+
+            const sseScript = fs.readFileSync(sseScriptPath, 'utf8');
+            console.log(`PARSE_TEMPLATES: XR SSE script loaded successfully, length: ${sseScript.length}`);
+            
+            return sseScript;
+
+        } catch (error) {
+            console.error(`PARSE_TEMPLATES: Error loading XR SSE script:`, error);
+            return '';
         }
     }
 }

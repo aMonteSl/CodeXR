@@ -137,6 +137,57 @@ export class SSEClientRegistry {
     }
 
     /**
+     * Send a specific SSE event to all clients for a specific file
+     * @param fileUri - URI of the analyzed file
+     * @param eventType - Type of SSE event (e.g., 'analysisUpdated')
+     * @param data - Data to send with the event
+     */
+    sendEventToClients(fileUri: string, eventType: string, data: string): void {
+        const clientList = this.clients.get(fileUri);
+        console.log(`[SSE_CLIENT_REGISTRY] Sending SSE event '${eventType}' to clients for: ${fileUri}`);
+        console.log(`[SSE_CLIENT_REGISTRY] Found ${clientList ? clientList.length : 0} client(s) for file: ${fileUri}`);
+        
+        if (!clientList || clientList.length === 0) {
+            console.log(`[SSE_CLIENT_REGISTRY] No SSE clients registered for: ${fileUri}`);
+            console.log(`[SSE_CLIENT_REGISTRY] Available files in registry: ${Array.from(this.clients.keys()).join(', ')}`);
+            return;
+        }
+        
+        console.log(`[SSE_CLIENT_REGISTRY] Sending SSE event '${eventType}' to ${clientList.length} client(s)`);
+        
+        // Send to all active clients, removing any that error out
+        const activeClients = [];
+        for (const client of clientList) {
+            try {
+                if (!client.headersSent) {
+                    // Headers not sent yet, this shouldn't happen in SSE
+                    console.warn(`[SSE_CLIENT_REGISTRY] Skipping client with unsent headers for: ${fileUri}`);
+                    continue;
+                }
+                
+                // Send as specific SSE event: event: eventType\ndata: data\n\n
+                client.write(`event: ${eventType}\ndata: ${data}\n\n`);
+                activeClients.push(client);
+                console.log(`[SSE_CLIENT_REGISTRY] SSE event '${eventType}' sent to client successfully`);
+            } catch (error) {
+                console.error(`[SSE_CLIENT_REGISTRY] Error sending SSE event '${eventType}' to client for ${fileUri}:`, error);
+                // Client will be removed via error event handler
+            }
+        }
+        
+        // Update the client list to only include active clients
+        if (activeClients.length !== clientList.length) {
+            if (activeClients.length === 0) {
+                this.clients.delete(fileUri);
+                console.log(`[SSE_CLIENT_REGISTRY] All clients disconnected for: ${fileUri}`);
+            } else {
+                this.clients.set(fileUri, activeClients);
+                console.log(`[SSE_CLIENT_REGISTRY] Updated active clients for ${fileUri}: ${activeClients.length}`);
+            }
+        }
+    }
+
+    /**
      * Get all file URIs with active clients
      * @returns Array of file URIs
      */

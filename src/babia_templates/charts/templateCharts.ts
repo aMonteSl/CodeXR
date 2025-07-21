@@ -38,7 +38,8 @@ export const chartTemplates: ChartMetadata[] = [
                                 axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -83,7 +84,8 @@ export const chartTemplates: ChartMetadata[] = [
                                    axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -128,7 +130,8 @@ export const chartTemplates: ChartMetadata[] = [
                                 axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -181,7 +184,8 @@ export const chartTemplates: ChartMetadata[] = [
                                    axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -218,7 +222,8 @@ export const chartTemplates: ChartMetadata[] = [
                                  axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -255,7 +260,8 @@ export const chartTemplates: ChartMetadata[] = [
                                axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -308,7 +314,8 @@ export const chartTemplates: ChartMetadata[] = [
                                    axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     },
 
@@ -353,7 +360,8 @@ export const chartTemplates: ChartMetadata[] = [
                                  axis_name: true"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
+                    scale="1.5 1.5 1.5"
+                    class="babiaxraycasterclass">
                 </a-entity>`
     }
 ];

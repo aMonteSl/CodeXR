@@ -84,6 +84,7 @@ export class NewCodeAnalysisCommands {
         allCommandRegistrations.push(...mainCommands);
 
         // Add file analysis commands (these are direct registrations, not command registrations)
+        // This now includes both LivePanel and XR commands
         const fileAnalysisCommands = FileAnalysisCommands.registerCommands(context);
         // Note: FileAnalysisCommands returns disposables directly, not CommandRegistrations
         // These will be automatically added to the context subscriptions

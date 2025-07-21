@@ -191,4 +191,81 @@ export class GetNecessaryFiles {
             };
         }
     }
+
+    /**
+     * Get analysis for File XR mode
+     */
+    static async getAnalysisFileXR(
+        filePath: string,
+        context: vscode.ExtensionContext
+    ): Promise<AnalysisResult> {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting FileXR analysis for: ${filePath}`);
+
+            // Execute Python analysis using PythonExecutor
+            const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysis(
+                'FileXRAnalysis',
+                filePath,
+                context
+            );
+
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: FileXR analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: XR Analysis data.json:`, JSON.stringify(pythonResult.data, null, 2));
+
+                // Parse XR visualization template using boats chart
+                console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing...`);
+                const templateResult: ParsedTemplateFiles = await ParseTemplates.parseXRVisualizationTemplate(
+                    context,
+                    {
+                        analysisData: pythonResult.data,
+                        fileName: require('path').basename(filePath),
+                        filePath: filePath,
+                        title: `XR Analysis - ${require('path').basename(filePath)}`,
+                        chartId: 'boats' // Use boats chart for XR analysis
+                    }
+                );
+
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: XR visualization template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+
+                    return {
+                        success: true,
+                        data: pythonResult.data,
+                        indexHtml: templateResult.indexHtml,
+                        jsContent: templateResult.jsContent,
+                        filePath: filePath,
+                        analysisType: 'FileXRAnalysis'
+                    };
+                } else {
+                    console.error(`GET_NECESSARY_FILES: XR template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `XR template parsing failed: ${templateResult.error}`,
+                        filePath: filePath,
+                        analysisType: 'FileXRAnalysis'
+                    };
+                }
+            } else {
+                console.error(`GET_NECESSARY_FILES: FileXR analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during XR analysis',
+                    filePath: filePath,
+                    analysisType: 'FileXRAnalysis'
+                };
+            }
+
+        } catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getAnalysisFileXR:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: filePath,
+                analysisType: 'FileXRAnalysis'
+            };
+        }
+    }
 }

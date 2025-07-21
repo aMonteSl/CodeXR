@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import { getLanguageForFile } from '../../utils/languageMetadata';
+import { SUPPORTED_LANGUAGES } from '../../utils/supportedLanguages';
 import { GetNecessaryFiles, SaveFiles, FilesToSave, FileWatcher, LaunchServer } from './utils';
 
 export class LaunchAnalyzeFileLivePanel {
@@ -164,16 +165,28 @@ export class LaunchAnalyzeFileLivePanel {
      * Check if a file can be analyzed
      */
     static canAnalyzeFile(filePath: string): boolean {
-        const languageInfo = getLanguageForFile(filePath);
-        return languageInfo !== null;
+        const extension = require('path').extname(filePath).toLowerCase();
+        
+        // Check if extension is supported by any language
+        for (const [langName, langConfig] of Object.entries(SUPPORTED_LANGUAGES)) {
+            if (langConfig.extensions.includes(extension)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
      * Get supported file extensions for analysis
      */
     static getSupportedExtensions(): string[] {
-        // This will return all extensions from our supported languages
-        const { getAllSupportedExtensions } = require('../../utils/supportedLanguages');
-        return getAllSupportedExtensions();
+        const extensions: string[] = [];
+        
+        for (const [langName, langConfig] of Object.entries(SUPPORTED_LANGUAGES)) {
+            extensions.push(...langConfig.extensions);
+        }
+        
+        return [...new Set(extensions)]; // Remove duplicates
     }
 }

@@ -1,21 +1,20 @@
 import { DimensionMapping } from '../models/chartModels';
 import { getVisualizationConfiguration, VisualizationSettings } from '../../utils/getVisualizationConfiguration';
 import { CreateChart } from './placeholders/createChart';
-import { CreateStructure } from './placeholders/createStructure';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
 /**
- * BabiaXR Template Processor - Modular Architecture
- * Streamlined processor using CreateChart and CreateStructure modules
- * Combines chart entities with structural elements for complete XR visualization
+ * BabiaXR Template Processor
+ * Streamlined processor for generating XR visualization HTML files
+ * Uses CreateChart module for chart creation and template processing
  */
 export class TemplateProcessor {
 
     /**
      * Main method to generate complete XR visualization index.html
-     * Uses both CreateChart and CreateStructure modules for modular processing
+     * Streamlined to use the new CreateChart module
      */
     public static async generateXRVisualization(
         chartId: string,
@@ -26,7 +25,7 @@ export class TemplateProcessor {
         outputPath: string
     ): Promise<{ success: boolean; error?: string }> {
         try {
-            console.log('TEMPLATE_PROCESSOR: Starting modular XR visualization generation');
+            console.log('TEMPLATE_PROCESSOR: Starting XR visualization generation');
             console.log('TEMPLATE_PROCESSOR: Chart ID:', chartId);
             console.log('TEMPLATE_PROCESSOR: Mappings:', mappings);
             console.log('TEMPLATE_PROCESSOR: Title:', title);
@@ -36,8 +35,8 @@ export class TemplateProcessor {
             const visualizationSettings = await this.getVisualizationSettings();
             console.log('TEMPLATE_PROCESSOR: Using visualization settings:', visualizationSettings);
 
-            // Create chart entity using CreateChart module
-            const chartResult = CreateChart.createChartEntity(
+            // Create chart HTML using the new CreateChart module
+            const chartResult = CreateChart.createChartHTML(
                 chartId,
                 mappings,
                 title,
@@ -51,53 +50,23 @@ export class TemplateProcessor {
                 };
             }
 
-            // Create structural placeholders using CreateStructure module
-            const structureResult = CreateStructure.createStructuralPlaceholders(
-                title,
-                dataSource,
-                visualizationSettings,
-                'xr', // Analysis type for XR visualization
-                context,
-                chartId // Pass chart type for tree builder decision
-            );
-
-            if (!structureResult.success) {
-                return { 
-                    success: false, 
-                    error: `Structure creation failed: ${structureResult.error}` 
-                };
-            }
-
             // Load XR base template
             const xrTemplate = await this.loadXRTemplate(context);
             if (!xrTemplate) {
                 return { success: false, error: 'Failed to load XR template' };
             }
 
-            // First, replace chart component placeholder
-            let templateWithChart = xrTemplate.replace(
-                /\$\{CHART_COMPONENT\}|\{\{\s*CHART_COMPONENT\s*\}\}/g,
-                chartResult.chartHtml || ''
-            );
-
-            // Then replace all structural placeholders
-            let finalHtml = CreateStructure.replaceStructuralPlaceholders(
-                templateWithChart, 
-                structureResult.placeholders!
-            );
-
-            // Special replacement for the SSE script tag in case it wasn't replaced
-            const nonce = structureResult.placeholders!.get('nonce') || structureResult.placeholders!.get('NONCE');
-            if (nonce) {
-                finalHtml = finalHtml.replace(
-                    /<script nonce="\$\{nonce\}" src="\$\{scriptUri\}"><\/script>/g,
-                    `<script nonce="${nonce}" src="./main.js"></script>`
-                );
-            }
+            // Replace all placeholders in the XR template
+            const finalHtml = this.replaceXRTemplatePlaceholders(xrTemplate, {
+                title,
+                dataSource,
+                chartComponent: chartResult.html || '',
+                ...visualizationSettings
+            });
 
             // Write the final HTML file
             fs.writeFileSync(outputPath, finalHtml, 'utf8');
-            console.log('TEMPLATE_PROCESSOR: Generated modular XR visualization HTML at:', outputPath);
+            console.log('TEMPLATE_PROCESSOR: Generated XR visualization HTML at:', outputPath);
 
             return { success: true };
 
@@ -140,6 +109,61 @@ export class TemplateProcessor {
     }
 
     /**
+     * Replace all placeholders in the XR template
+     */
+    private static replaceXRTemplatePlaceholders(
+        template: string,
+        values: {
+            title: string;
+            dataSource: string;
+            chartComponent: string;
+            palette: string;
+            environment: string;
+            backgroundColor: string;
+            groundColor: string;
+        }
+    ): string {
+        console.log('TEMPLATE_PROCESSOR: Replacing XR template placeholders');
+
+        let result = template;
+
+        // Define placeholder replacements
+        const replacements = {
+            'TITLE': values.title,
+            'DATA_SOURCE': values.dataSource,
+            'CHART_COMPONENT': values.chartComponent,
+            'CHART_PALETTE': values.palette,
+            'ENVIRONMENT_PRESET': values.environment,
+            'BACKGROUND_COLOR': values.backgroundColor,
+            'GROUND_COLOR': values.groundColor,
+            'TREE_BUILDER': '', // Not needed for basic charts
+            'ICON_PATH': '' // Optional
+        };
+
+        // Replace all placeholders
+        for (const [placeholder, value] of Object.entries(replacements)) {
+            const patterns = [
+                new RegExp(`\\$\\{${this.escapeRegex(placeholder)}\\}`, 'g'),
+                new RegExp(`\\{\\{\\s*${this.escapeRegex(placeholder)}\\s*\\}\\}`, 'g')
+            ];
+
+            for (const pattern of patterns) {
+                result = result.replace(pattern, value);
+            }
+        }
+
+        console.log('TEMPLATE_PROCESSOR: XR template placeholders replaced');
+        return result;
+    }
+
+    /**
+     * Escape special regex characters
+     */
+    private static escapeRegex(str: string): string {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /**
      * Get available charts (delegated to CreateChart)
      */
     public static getAvailableCharts() {
@@ -151,24 +175,5 @@ export class TemplateProcessor {
      */
     public static createDefaultXRMappings(): DimensionMapping[] {
         return CreateChart.createDefaultXRMappings();
-    }
-
-    /**
-     * Create structural placeholders for any analysis type (delegated to CreateStructure)
-     */
-    public static async createStructuralPlaceholders(
-        title: string,
-        dataSource: string,
-        analysisType: 'xr' | 'dom' | 'none',
-        context: vscode.ExtensionContext
-    ) {
-        const visualizationSettings = await this.getVisualizationSettings();
-        return CreateStructure.createStructuralPlaceholders(
-            title,
-            dataSource,
-            visualizationSettings,
-            analysisType,
-            context
-        );
     }
 }
