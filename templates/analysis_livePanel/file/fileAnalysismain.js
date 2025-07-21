@@ -171,11 +171,15 @@
       
       eventSource.onmessage = function(event) {
         try {
+          console.log('ANALYSIS_VIEWER: Raw SSE event.data:', event.data);
           const data = JSON.parse(event.data);
-          console.log('ANALYSIS_VIEWER: SSE message received:', data);
+          console.log('ANALYSIS_VIEWER: Parsed SSE data:', data);
+          console.log('ANALYSIS_VIEWER: Data type:', typeof data, 'data.type:', data.type);
+          
           handleSSEMessage(data);
         } catch (error) {
           console.error('ANALYSIS_VIEWER: Error parsing SSE message:', error);
+          console.error('ANALYSIS_VIEWER: Raw event.data was:', event.data);
         }
       };
       
@@ -199,24 +203,34 @@
    * Handle incoming SSE messages
    */
   function handleSSEMessage(data) {
-    switch (data.type) {
+    console.log('ANALYSIS_VIEWER: Handling SSE message, data.type:', data.type);
+    console.log('ANALYSIS_VIEWER: Full data object:', data);
+    
+    // Check if we have nested data (EnhancedSSEManager format)
+    const messageType = data.type || (data.data && data.data.type);
+    console.log('ANALYSIS_VIEWER: Determined message type:', messageType);
+    
+    switch (messageType) {
       case 'connected':
-        console.log('ANALYSIS_VIEWER: SSE connected for file:', data.fileUri);
+        console.log('ANALYSIS_VIEWER: SSE connected for file:', data.fileUri || data.data?.fileUri);
         showSSEStatus('connected');
         break;
         
       case 'analysis-updated':
-        console.log('ANALYSIS_VIEWER: Analysis updated for file:', data.fileUri);
+        console.log('ANALYSIS_VIEWER: Analysis updated for file:', data.fileUri || data.data?.fileUri);
+        console.log('ANALYSIS_VIEWER: Triggering data reload...');
         showUpdateNotification();
         reloadAnalysisData();
         break;
         
       case 'heartbeat':
+        console.log('ANALYSIS_VIEWER: Heartbeat received');
         // Keep-alive message, no action needed
         break;
         
       default:
-        console.log('ANALYSIS_VIEWER: Unknown SSE message type:', data.type);
+        console.log('ANALYSIS_VIEWER: Unknown SSE message type:', messageType);
+        console.log('ANALYSIS_VIEWER: Full data:', data);
     }
   }
 

@@ -1,0 +1,168 @@
+/**
+ * Save Files for Analysis
+ * Handles saving analysis files to workspace storage
+ */
+
+import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import { generateNonce } from '../../../utils/nonceGenerator';
+
+export interface SavedAnalysisFiles {
+    success: boolean;
+    nonce: string;
+    analysisDirectoryPath: string;
+    indexHtmlPath: string;
+    error?: string;
+}
+
+export interface FilesToSave {
+    indexHtml: string;
+    cssContent: string;
+    jsContent: string;
+    dataJson: any;
+}
+
+export class SaveFiles {
+
+    /**
+     * Save analysis files to workspace storage
+     */
+    static async saveAnalysisFiles(
+        filesToSave: FilesToSave,
+        originalFileName: string,
+        analysisType: string,
+        context: vscode.ExtensionContext
+    ): Promise<SavedAnalysisFiles> {
+        try {
+            console.log(`SAVE_FILES: Starting to save analysis files for: ${originalFileName}`);
+
+            // Generate nonce for this analysis session
+            const nonce = generateNonce();
+            
+            // Get workspace storage path
+            const workspaceStorage = context.workspaceState;
+            const storageUri = context.storageUri;
+            
+            if (!storageUri) {
+                throw new Error('Workspace storage URI is not available');
+            }
+
+            // Create analysis directory structure
+            const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
+            const fileName = path.basename(originalFileName, path.extname(originalFileName));
+            const analysisSessionDir = path.join(analysisBaseDir, `${fileName}_${nonce}`);
+
+            // Ensure directories exist
+            await SaveFiles.ensureDirectoryExists(analysisBaseDir);
+            await SaveFiles.ensureDirectoryExists(analysisSessionDir);
+
+            console.log(`SAVE_FILES: Created analysis directory: ${analysisSessionDir}`);
+
+            // Save files
+            const indexHtmlPath = path.join(analysisSessionDir, 'index.html');
+            const cssPath = path.join(analysisSessionDir, 'style.css');
+            const jsPath = path.join(analysisSessionDir, 'main.js');
+            const dataJsonPath = path.join(analysisSessionDir, 'data.json');
+
+            // Write files to storage
+            await fs.promises.writeFile(indexHtmlPath, filesToSave.indexHtml, 'utf-8');
+            await fs.promises.writeFile(cssPath, filesToSave.cssContent, 'utf-8');
+            await fs.promises.writeFile(jsPath, filesToSave.jsContent, 'utf-8');
+            await fs.promises.writeFile(dataJsonPath, JSON.stringify(filesToSave.dataJson, null, 2), 'utf-8');
+
+            console.log(`SAVE_FILES: Successfully saved all files:`);
+            console.log(`SAVE_FILES: - index.html: ${indexHtmlPath}`);
+            console.log(`SAVE_FILES: - style.css: ${cssPath}`);
+            console.log(`SAVE_FILES: - main.js: ${jsPath}`);
+            console.log(`SAVE_FILES: - data.json: ${dataJsonPath}`);
+
+            return {
+                success: true,
+                nonce: nonce,
+                analysisDirectoryPath: analysisSessionDir,
+                indexHtmlPath: indexHtmlPath
+            };
+
+        } catch (error) {
+            console.error(`SAVE_FILES: Error saving analysis files:`, error);
+            return {
+                success: false,
+                nonce: '',
+                analysisDirectoryPath: '',
+                indexHtmlPath: '',
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+
+    /**
+     * Clean all analysis directories (called on plugin restart)
+     */
+    static async cleanAllAnalysisDirectories(context: vscode.ExtensionContext): Promise<boolean> {
+        try {
+            console.log(`SAVE_FILES: Starting cleanup of all analysis directories`);
+
+            const storageUri = context.storageUri;
+            if (!storageUri) {
+                console.log(`SAVE_FILES: No workspace storage URI available - nothing to clean`);
+                return true;
+            }
+
+            const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
+            
+            if (!fs.existsSync(analysisBaseDir)) {
+                console.log(`SAVE_FILES: Analysis directory doesn't exist - nothing to clean`);
+                return true;
+            }
+
+            // Get all directories that match the pattern {fileName}_{nonce}
+            const entries = await fs.promises.readdir(analysisBaseDir, { withFileTypes: true });
+            const analysisDirs = entries
+                .filter(entry => entry.isDirectory())
+                .filter(entry => entry.name.includes('_')) // Pattern: fileName_nonce
+                .map(entry => path.join(analysisBaseDir, entry.name));
+
+            console.log(`SAVE_FILES: Found ${analysisDirs.length} analysis directories to clean`);
+
+            // Remove all analysis directories
+            for (const dirPath of analysisDirs) {
+                try {
+                    await fs.promises.rm(dirPath, { recursive: true, force: true });
+                    console.log(`SAVE_FILES: Cleaned directory: ${dirPath}`);
+                } catch (dirError) {
+                    console.error(`SAVE_FILES: Failed to clean directory ${dirPath}:`, dirError);
+                }
+            }
+
+            // If analysis base directory is empty, remove it too
+            const remainingEntries = await fs.promises.readdir(analysisBaseDir);
+            if (remainingEntries.length === 0) {
+                await fs.promises.rmdir(analysisBaseDir);
+                console.log(`SAVE_FILES: Removed empty analysis base directory`);
+            }
+
+            console.log(`SAVE_FILES: Analysis directories cleanup completed`);
+            return true;
+
+        } catch (error) {
+            console.error(`SAVE_FILES: Error during analysis directories cleanup:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Ensure directory exists, create if it doesn't
+     */
+    private static async ensureDirectoryExists(dirPath: string): Promise<void> {
+        try {
+            if (!fs.existsSync(dirPath)) {
+                await fs.promises.mkdir(dirPath, { recursive: true });
+                console.log(`SAVE_FILES: Created directory: ${dirPath}`);
+            }
+        } catch (error) {
+            console.error(`SAVE_FILES: Failed to create directory ${dirPath}:`, error);
+            throw error;
+        }
+    }
+}

@@ -17,12 +17,10 @@ export { PortManager } from './portManager';
 export { 
     MultiServerLauncher,
     MultiServerLaunchResult,
+    LaunchResult, // Now exported from multiServerLauncher.ts
     ServerType, 
     ServerInstance
 } from './multiServerLauncher';
-
-// Import LaunchResult from the original launcher for backward compatibility
-export { LaunchResult } from './launcher';
 
 // Import for use in utility functions
 import { MultiServerLauncher, MultiServerLaunchResult } from './multiServerLauncher';

@@ -4,6 +4,7 @@ import { registerActiveServersCommands } from './active_servers/activeServersCom
 import { registerBabiaExamplesCommands } from './babia_examples/babiaExamplesCommands';
 import { registerVisualizeDataCommands } from './visualize_data/visualizeDataCommands';
 import { registerCodeAnalysisCommands } from './code_analysis/analysisCommands';
+import { registerNewCodeAnalysisCommands } from './new_code_analysis/newCodeAnalysisCommands';
 import { registerPythonEnvCommands } from './python_env/pythonEnvCommands';
 import { registerVisualizationSettingsCommands } from './visualization_settings/visualizationSettingsCommands';
 import { registerGeneralCommands } from './common/generalCommands';
@@ -41,6 +42,25 @@ export function registerAllCommands(
     
     // Register code analysis commands
     registerCodeAnalysisCommands(context);
+    
+    // Register new code analysis commands with specific section refresh callback
+    const newCodeAnalysisRefreshCallback = () => {
+        if (treeDataProvider) {
+            // Try to get the specific section provider if it's a ModularTreeDataProvider
+            if ('getSectionProvider' in treeDataProvider) {
+                const sectionProvider = (treeDataProvider as any).getSectionProvider('newCodeAnalysis');
+                if (sectionProvider && typeof sectionProvider.refresh === 'function') {
+                    console.log('COMMAND_REGISTRATION: Using specific section provider refresh');
+                    sectionProvider.refresh();
+                    return;
+                }
+            }
+            // Fallback to general refresh
+            console.log('COMMAND_REGISTRATION: Using general tree provider refresh');
+            treeDataProvider.refresh();
+        }
+    };
+    registerNewCodeAnalysisCommands(context, newCodeAnalysisRefreshCallback);
     
     // Register Python environment commands
     registerPythonEnvCommands(context);

@@ -11,36 +11,32 @@ export interface LanguageInfo {
 
 /**
  * Supported languages with their file extensions and VS Code icon IDs
+ * CodeXR Programming Languages Support
  */
 export const SupportedLanguages: LanguageInfo[] = [
-    { name: "HTML", extensions: [".html", ".htm"], iconId: "html" },
-    { name: "JavaScript", extensions: [".js", ".mjs"], iconId: "javascript" },
-    { name: "Python", extensions: [".py", ".pyw"], iconId: "python" },
+    { name: "Python", extensions: [".py", ".pyw", ".pyi"], iconId: "python" },
     { name: "Ruby", extensions: [".rb", ".rbw"], iconId: "ruby" },
+    { name: "Java", extensions: [".java"], iconId: "java" },
     { name: "C", extensions: [".c", ".h"], iconId: "c" },
-    { name: "Go", extensions: [".go"], iconId: "go" },
-    { name: "Kotlin", extensions: [".kt", ".kts"], iconId: "kotlin" },
-    { name: "Objective-C", extensions: [".m", ".mm"], iconId: "objective-c" },
-    { name: "Perl", extensions: [".pl", ".pm"], iconId: "perl" },
-    { name: "PHP", extensions: [".php", ".phtml"], iconId: "php" },
-    { name: "Scala", extensions: [".scala", ".sc"], iconId: "scala" },
-    { name: "Solidity", extensions: [".sol"], iconId: "solidity" },
-    { name: "Zig", extensions: [".zig"], iconId: "zig" },
-    { name: "C#", extensions: [".cs"], iconId: "csharp" },
     { name: "C++", extensions: [".cpp", ".cxx", ".cc", ".c++", ".hpp", ".hxx", ".hh", ".h++"], iconId: "cpp" },
+    { name: "C#", extensions: [".cs"], iconId: "csharp" },
     { name: "Erlang", extensions: [".erl", ".hrl"], iconId: "erlang" },
     { name: "Fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], iconId: "fortran" },
     { name: "GDScript", extensions: [".gd"], iconId: "gdscript" },
-    { name: "Java", extensions: [".java"], iconId: "java" },
+    { name: "Go", extensions: [".go"], iconId: "go" },
+    { name: "JavaScript", extensions: [".js", ".mjs", ".cjs"], iconId: "javascript" },
+    { name: "Kotlin", extensions: [".kt", ".kts"], iconId: "kotlin" },
     { name: "Lua", extensions: [".lua"], iconId: "lua" },
+    { name: "Objective-C", extensions: [".m", ".mm"], iconId: "objective-c" },
+    { name: "PHP", extensions: [".php", ".phtml", ".php3", ".php4", ".php5"], iconId: "php" },
+    { name: "Perl", extensions: [".pl", ".pm"], iconId: "perl" },
+    { name: "Scala", extensions: [".scala", ".sc"], iconId: "scala" },
+    { name: "Solidity", extensions: [".sol"], iconId: "solidity" },
     { name: "Swift", extensions: [".swift"], iconId: "swift" },
-    { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
     { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
+    { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
     { name: "Vue", extensions: [".vue"], iconId: "vue" },
-    { name: "JSON", extensions: [".json"], iconId: "json" },
-    { name: "XML", extensions: [".xml"], iconId: "xml" },
-    { name: "CSS", extensions: [".css"], iconId: "css" },
-    { name: "Markdown", extensions: [".md", ".markdown"], iconId: "markdown" }
+    { name: "Zig", extensions: [".zig"], iconId: "zig" }
 ];
 
 /**

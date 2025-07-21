@@ -9,25 +9,7 @@ export interface LanguageConfig {
 }
 
 export const SUPPORTED_LANGUAGES: Record<string, LanguageConfig> = {
-    // Web Technologies
-    html: { 
-        extensions: ['.html', '.htm'], 
-        name: 'HTML' 
-    },
-    javascript: { 
-        extensions: ['.js', '.mjs', '.cjs'], 
-        name: 'JavaScript' 
-    },
-    typescript: { 
-        extensions: ['.ts', '.tsx'], 
-        name: 'TypeScript' 
-    },
-    vue: { 
-        extensions: ['.vue'], 
-        name: 'Vue' 
-    },
-    
-    // Backend Languages
+    // Programming Languages - CodeXR Supported
     python: { 
         extensions: ['.py', '.pyw', '.pyi'], 
         name: 'Python' 
@@ -36,16 +18,10 @@ export const SUPPORTED_LANGUAGES: Record<string, LanguageConfig> = {
         extensions: ['.rb', '.rbw'], 
         name: 'Ruby' 
     },
-    php: { 
-        extensions: ['.php', '.phtml', '.php3', '.php4', '.php5'], 
-        name: 'PHP' 
+    java: { 
+        extensions: ['.java'], 
+        name: 'Java' 
     },
-    perl: { 
-        extensions: ['.pl', '.pm'], 
-        name: 'Perl' 
-    },
-    
-    // System Languages
     c: { 
         extensions: ['.c', '.h'], 
         name: 'C' 
@@ -58,62 +34,6 @@ export const SUPPORTED_LANGUAGES: Record<string, LanguageConfig> = {
         extensions: ['.cs'], 
         name: 'C#' 
     },
-    go: { 
-        extensions: ['.go'], 
-        name: 'Go' 
-    },
-    rust: { 
-        extensions: ['.rs'], 
-        name: 'Rust' 
-    },
-    zig: { 
-        extensions: ['.zig'], 
-        name: 'Zig' 
-    },
-    
-    // JVM Languages
-    java: { 
-        extensions: ['.java'], 
-        name: 'Java' 
-    },
-    kotlin: { 
-        extensions: ['.kt', '.kts'], 
-        name: 'Kotlin' 
-    },
-    scala: { 
-        extensions: ['.scala', '.sc'], 
-        name: 'Scala' 
-    },
-    
-    // Mobile
-    objectivec: { 
-        extensions: ['.m', '.mm'], 
-        name: 'Objective-C' 
-    },
-    swift: { 
-        extensions: ['.swift'], 
-        name: 'Swift' 
-    },
-    
-    // Scripting
-    lua: { 
-        extensions: ['.lua'], 
-        name: 'Lua' 
-    },
-    
-    // Specialized
-    solidity: { 
-        extensions: ['.sol'], 
-        name: 'Solidity' 
-    },
-    gdscript: { 
-        extensions: ['.gd'], 
-        name: 'GDScript' 
-    },
-    ttcn3: { 
-        extensions: ['.ttcn', '.ttcn3'], 
-        name: 'TTCN-3' 
-    },
     erlang: { 
         extensions: ['.erl', '.hrl'], 
         name: 'Erlang' 
@@ -121,6 +41,66 @@ export const SUPPORTED_LANGUAGES: Record<string, LanguageConfig> = {
     fortran: { 
         extensions: ['.f90', '.f95', '.f03', '.f08', '.f'], 
         name: 'Fortran' 
+    },
+    gdscript: { 
+        extensions: ['.gd'], 
+        name: 'GDScript' 
+    },
+    go: { 
+        extensions: ['.go'], 
+        name: 'Go' 
+    },
+    javascript: { 
+        extensions: ['.js', '.mjs', '.cjs'], 
+        name: 'JavaScript' 
+    },
+    kotlin: { 
+        extensions: ['.kt', '.kts'], 
+        name: 'Kotlin' 
+    },
+    lua: { 
+        extensions: ['.lua'], 
+        name: 'Lua' 
+    },
+    objectivec: { 
+        extensions: ['.m', '.mm'], 
+        name: 'Objective-C' 
+    },
+    php: { 
+        extensions: ['.php', '.phtml', '.php3', '.php4', '.php5'], 
+        name: 'PHP' 
+    },
+    perl: { 
+        extensions: ['.pl', '.pm'], 
+        name: 'Perl' 
+    },
+    scala: { 
+        extensions: ['.scala', '.sc'], 
+        name: 'Scala' 
+    },
+    solidity: { 
+        extensions: ['.sol'], 
+        name: 'Solidity' 
+    },
+    swift: { 
+        extensions: ['.swift'], 
+        name: 'Swift' 
+    },
+    typescript: { 
+        extensions: ['.ts', '.tsx'], 
+        name: 'TypeScript' 
+    },
+    ttcn3: { 
+        extensions: ['.ttcn', '.ttcn3'], 
+        name: 'TTCN-3' 
+    },
+    vue: { 
+        extensions: ['.vue'], 
+        name: 'Vue' 
+    },
+    zig: { 
+        extensions: ['.zig'], 
+        name: 'Zig' 
     }
 };
 

@@ -5,6 +5,7 @@ import { ActiveServersSectionProvider } from './active_servers';
 import { BabiaExamplesSectionProvider } from './babia_examples';
 import { VisualizeDataSectionProvider } from './visualize_data';
 import { CodeAnalysisSectionProvider } from './code_analysis';
+import { NewCodeAnalysisSectionProvider } from '../new_code_analysis/views/NewCodeAnalysisSectionProvider';
 import { VisualizationSettingsSectionProvider } from './visualization_settings';
 
 /**
@@ -39,6 +40,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
             new BabiaExamplesSectionProvider(this.context),
             new VisualizeDataSectionProvider(this.context),
             new CodeAnalysisSectionProvider(this.context),
+            new NewCodeAnalysisSectionProvider(this.context),
             new VisualizationSettingsSectionProvider(this.context)
         ];
 
@@ -160,7 +162,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                     typeof child.label === 'string' ? child.label : child.label?.label || 'Unknown',
                     child.collapsibleState || vscode.TreeItemCollapsibleState.None,
                     sectionName,
-                    child.serverItemType || child.activeServerItemType || child.babiaItemType || child.visualizeDataItemType || child.codeAnalysisItemType || child.visualizationSettingsItemType || child.type || 'item',
+                    child.serverItemType || child.activeServerItemType || child.babiaItemType || child.visualizeDataItemType || child.codeAnalysisItemType || child.newCodeAnalysisItemType || child.visualizationSettingsItemType || child.type || 'item',
                     child.command,
                     child.iconPath,
                     child.tooltip,
@@ -187,6 +189,10 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                 if (child.codeAnalysisItemType) {
                     (modularItem as any).codeAnalysisItemType = child.codeAnalysisItemType;
                     (modularItem as any).originalCodeAnalysisItem = child.originalCodeAnalysisItem;
+                }
+                if (child.newCodeAnalysisItemType) {
+                    (modularItem as any).newCodeAnalysisItemType = child.newCodeAnalysisItemType;
+                    (modularItem as any).originalNewCodeAnalysisItem = child.originalNewCodeAnalysisItem;
                 }
                 if (child.visualizationSettingsItemType) {
                     (modularItem as any).visualizationSettingsItemType = child.visualizationSettingsItemType;
@@ -300,6 +306,21 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                 );
                 return codeAnalysisItem;
                 
+            case 'newCodeAnalysis':
+                // Import and create NewCodeAnalysisTreeItem
+                const { NewCodeAnalysisTreeItem } = require('../new_code_analysis/views/items/newCodeAnalysisItems');
+                const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(
+                    typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown',
+                    element.collapsibleState || vscode.TreeItemCollapsibleState.None,
+                    (element as any).type || 'item',
+                    element.command,
+                    element.iconPath,
+                    element.tooltip,
+                    element.description,
+                    element.contextValue
+                );
+                return newCodeAnalysisItem;
+                
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
                 const { VisualizationSettingsModularTreeItem } = require('./visualization_settings/items/visualizationSettingsItems');
@@ -326,8 +347,10 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
      * Refresh the tree
      */
     refresh(): void {
-        console.log('MODULAR_TREE: Refreshing modular tree');
+        console.log('MODULAR_TREE: Refreshing modular tree - START');
+        console.log('MODULAR_TREE: Firing _onDidChangeTreeData event');
         this._onDidChangeTreeData.fire();
+        console.log('MODULAR_TREE: Refreshing modular tree - COMPLETE');
     }
 
     /**

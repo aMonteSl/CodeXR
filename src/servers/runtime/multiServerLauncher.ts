@@ -21,7 +21,19 @@ export type ServerType = 'http' | 'https-default' | 'https-custom';
 export type ServerInstance = HttpServer | HttpsDefaultServer | HttpsCustomServer;
 
 /**
- * Launch result interface
+ * Launch result interface (consolidated from launcher.ts)
+ */
+export interface LaunchResult {
+    success: boolean;
+    serverUrl?: string;
+    serverType?: ServerType;
+    error?: string;
+    port?: number;
+    httpsOverridden?: boolean; // Indicates if HTTPS was overridden to HTTP for lateral panel compatibility
+}
+
+/**
+ * Multi-server launch result interface
  */
 export interface MultiServerLaunchResult {
     success: boolean;
@@ -380,59 +392,93 @@ export class MultiServerLauncher {
     ): Promise<{
         success: boolean;
         serverUrl?: string;
+        serverType?: ServerType;
+        port?: number;
         error?: string;
         httpsOverridden?: boolean;
         serverInstance?: ServerInstance;
     }> {
-        // Import the original server launcher logic
-        const { ServerLauncher } = require('./launcher');
-        
-        // Create a temporary launcher instance to use the existing server creation logic
-        const tempLauncher = new ServerLauncher(this.context);
-        
-        // Use reflection to access private methods - this is a bridge solution
-        // until we can refactor the server creation logic into shared utilities
-        const launchMethod = (tempLauncher as any).launchServerByType.bind(tempLauncher);
-        
         try {
-            let result;
-            
-            if (htmlFile) {
-                // Extract directory and filename from the HTML file path
-                const path = require('path');
-                const fileDirectory = path.dirname(htmlFile);
-                const fileName = path.basename(htmlFile);
+            let server: ServerInstance;
+            let serverUrl: string;
 
-                console.log(`SERVER: Using custom static root: ${fileDirectory}`);
-                console.log(`SERVER: Main file: ${fileName}`);
-                
-                // Call with custom static root and main file
-                result = await launchMethod(serverType, settings, port, host, fileDirectory, fileName);
-            } else {
-                // Call without custom file (uses default templates)
-                result = await launchMethod(serverType, settings, port, host);
+            // Default server configuration
+            const staticRoot = htmlFile ? path.dirname(htmlFile) : path.join(__dirname, '../../../templates');
+            const mainFile = htmlFile ? path.basename(htmlFile) : undefined;
+            const enableCors = true;
+            const allowedOrigins = ['*'];
+
+            console.log(`SERVER: Using static root: ${staticRoot}`);
+            if (mainFile) {
+                console.log(`SERVER: Main file configured: ${mainFile}`);
             }
-            
-            // Extract the server instance from the temporary launcher
-            const serverInstance = (tempLauncher as any).currentServer;
-            
-            if (result.success && serverInstance) {
-                // Clear the temporary launcher's reference to prevent it from managing this server
-                (tempLauncher as any).currentServer = null;
-                (tempLauncher as any).currentServerType = null;
-                
-                return {
-                    ...result,
-                    serverInstance: serverInstance
-                };
+
+            switch (serverType) {
+                case 'http':
+                    console.log('SERVER: Creating HTTP server...');
+                    server = new HttpServer({
+                        port,
+                        host,
+                        staticRoot,
+                        enableCors,
+                        allowedOrigins,
+                        mainFile
+                    });
+                    break;
+
+                case 'https-default':
+                    console.log('SERVER: Creating HTTPS server with default certificates...');
+                    server = new HttpsDefaultServer({
+                        port,
+                        host,
+                        staticRoot,
+                        enableCors,
+                        allowedOrigins,
+                        mainFile,
+                        extensionContext: this.context
+                    });
+                    break;
+
+                case 'https-custom':
+                    console.log('SERVER: Creating HTTPS server with custom certificates...');
+                    if (!settings.https?.certPath || !settings.https.keyPath) {
+                        throw new Error('Custom certificate paths are required for custom HTTPS server');
+                    }
+                    server = new HttpsCustomServer({
+                        port,
+                        host,
+                        staticRoot,
+                        enableCors,
+                        allowedOrigins,
+                        mainFile,
+                        certPath: settings.https.certPath,
+                        keyPath: settings.https.keyPath,
+                        extensionContext: this.context
+                    });
+                    break;
+
+                default:
+                    throw new Error(`Unsupported server type: ${serverType}`);
             }
-            
-            return result;
+
+            // Start the server
+            console.log(`SERVER: Starting ${serverType} server...`);
+            serverUrl = await server.start();
+
+            return {
+                success: true,
+                serverUrl,
+                serverType,
+                port,
+                serverInstance: server
+            };
+
         } catch (error) {
             console.error(`SERVER: Error launching ${serverType} server:`, error);
             return {
                 success: false,
-                error: `Failed to launch ${serverType} server: ${error instanceof Error ? error.message : String(error)}`
+                error: error instanceof Error ? error.message : String(error),
+                serverType
             };
         }
     }

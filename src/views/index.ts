@@ -17,3 +17,6 @@ export * from './babia_examples';
 export * from './visualize_data';
 export * from './code_analysis';
 export * from './visualization_settings';
+
+// New code analysis views (experimental)
+export * from '../new_code_analysis/views';

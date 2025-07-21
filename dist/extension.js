@@ -43,16 +43,16 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
 const index_1 = __webpack_require__(2);
-const views_1 = __webpack_require__(76);
-const commonCommands_1 = __webpack_require__(72);
+const views_1 = __webpack_require__(114);
+const commonCommands_1 = __webpack_require__(113);
 const serverSettingsManager_1 = __webpack_require__(11);
-const activeServerRegistry_1 = __webpack_require__(17);
-const visualizeDataModel_1 = __webpack_require__(120);
-const tempStorageManager_1 = __webpack_require__(66);
-const fileWatcherManager_1 = __webpack_require__(110);
-const statusBarDelayTimer_1 = __webpack_require__(111);
-const SSEManager_1 = __webpack_require__(22);
-const fileToServerMap_1 = __webpack_require__(21);
+const activeServerRegistry_1 = __webpack_require__(26);
+const visualizeDataModel_1 = __webpack_require__(174);
+const tempStorageManager_1 = __webpack_require__(65);
+const fileWatcherManager_1 = __webpack_require__(147);
+const statusBarDelayTimer_1 = __webpack_require__(148);
+const SSEManager_1 = __webpack_require__(18);
+const fileToServerMap_1 = __webpack_require__(20);
 // Global context reference for cleanup
 let extensionContext;
 // This method is called when your extension is activated
@@ -200,13 +200,14 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerAllCommands = registerAllCommands;
 const vscode = __importStar(__webpack_require__(1));
 const serverCommands_1 = __webpack_require__(3);
-const activeServersCommands_1 = __webpack_require__(33);
-const babiaExamplesCommands_1 = __webpack_require__(35);
-const visualizeDataCommands_1 = __webpack_require__(39);
-const analysisCommands_1 = __webpack_require__(58);
-const pythonEnvCommands_1 = __webpack_require__(73);
-const visualizationSettingsCommands_1 = __webpack_require__(124);
-const generalCommands_1 = __webpack_require__(71);
+const activeServersCommands_1 = __webpack_require__(32);
+const babiaExamplesCommands_1 = __webpack_require__(34);
+const visualizeDataCommands_1 = __webpack_require__(38);
+const analysisCommands_1 = __webpack_require__(57);
+const newCodeAnalysisCommands_1 = __webpack_require__(70);
+const pythonEnvCommands_1 = __webpack_require__(90);
+const visualizationSettingsCommands_1 = __webpack_require__(110);
+const generalCommands_1 = __webpack_require__(112);
 /**
  * Entry point that registers all extension commands
  */
@@ -223,6 +224,24 @@ function registerAllCommands(context, treeDataProvider, babiaExamplesTreeDataPro
     (0, visualizeDataCommands_1.registerVisualizeDataCommands)(context);
     // Register code analysis commands
     (0, analysisCommands_1.registerCodeAnalysisCommands)(context);
+    // Register new code analysis commands with specific section refresh callback
+    const newCodeAnalysisRefreshCallback = () => {
+        if (treeDataProvider) {
+            // Try to get the specific section provider if it's a ModularTreeDataProvider
+            if ('getSectionProvider' in treeDataProvider) {
+                const sectionProvider = treeDataProvider.getSectionProvider('newCodeAnalysis');
+                if (sectionProvider && typeof sectionProvider.refresh === 'function') {
+                    console.log('COMMAND_REGISTRATION: Using specific section provider refresh');
+                    sectionProvider.refresh();
+                    return;
+                }
+            }
+            // Fallback to general refresh
+            console.log('COMMAND_REGISTRATION: Using general tree provider refresh');
+            treeDataProvider.refresh();
+        }
+    };
+    (0, newCodeAnalysisCommands_1.registerNewCodeAnalysisCommands)(context, newCodeAnalysisRefreshCallback);
     // Register Python environment commands
     (0, pythonEnvCommands_1.registerPythonEnvCommands)(context);
     // Register visualization settings commands
@@ -352,7 +371,7 @@ const fs = __importStar(__webpack_require__(6));
 const handleConfigurationClicks_1 = __webpack_require__(7);
 const multiServerLauncher_1 = __webpack_require__(14);
 const serverSettingsManager_1 = __webpack_require__(11);
-const previewRenderer_1 = __webpack_require__(24);
+const previewRenderer_1 = __webpack_require__(30);
 let currentServerConfig = {
     mode: 'HTTPS (default certificates)',
     description: 'HTTPS with default certificates'
@@ -1583,11 +1602,15 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MultiServerLauncher = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const portManager_1 = __webpack_require__(15);
+const path = __importStar(__webpack_require__(5));
+const httpServer_1 = __webpack_require__(15);
+const httpsDefaultServer_1 = __webpack_require__(21);
+const httpsCustomServer_1 = __webpack_require__(23);
+const portManager_1 = __webpack_require__(24);
 const serverSettingsManager_1 = __webpack_require__(11);
-const activeServerRegistry_1 = __webpack_require__(17);
-const handleServerActions_1 = __webpack_require__(18);
-const serverRegistrar_1 = __webpack_require__(25);
+const activeServerRegistry_1 = __webpack_require__(26);
+const handleServerActions_1 = __webpack_require__(27);
+const serverRegistrar_1 = __webpack_require__(31);
 /**
  * Multi-Server Launcher
  * Manages multiple HTTP/HTTPS servers running concurrently with dynamic port allocation
@@ -1871,47 +1894,79 @@ class MultiServerLauncher {
      * @private
      */
     async launchServerByType(serverType, settings, port, host, htmlFile) {
-        // Import the original server launcher logic
-        const { ServerLauncher } = __webpack_require__(26);
-        // Create a temporary launcher instance to use the existing server creation logic
-        const tempLauncher = new ServerLauncher(this.context);
-        // Use reflection to access private methods - this is a bridge solution
-        // until we can refactor the server creation logic into shared utilities
-        const launchMethod = tempLauncher.launchServerByType.bind(tempLauncher);
         try {
-            let result;
-            if (htmlFile) {
-                // Extract directory and filename from the HTML file path
-                const path = __webpack_require__(5);
-                const fileDirectory = path.dirname(htmlFile);
-                const fileName = path.basename(htmlFile);
-                console.log(`SERVER: Using custom static root: ${fileDirectory}`);
-                console.log(`SERVER: Main file: ${fileName}`);
-                // Call with custom static root and main file
-                result = await launchMethod(serverType, settings, port, host, fileDirectory, fileName);
+            let server;
+            let serverUrl;
+            // Default server configuration
+            const staticRoot = htmlFile ? path.dirname(htmlFile) : path.join(__dirname, '../../../templates');
+            const mainFile = htmlFile ? path.basename(htmlFile) : undefined;
+            const enableCors = true;
+            const allowedOrigins = ['*'];
+            console.log(`SERVER: Using static root: ${staticRoot}`);
+            if (mainFile) {
+                console.log(`SERVER: Main file configured: ${mainFile}`);
             }
-            else {
-                // Call without custom file (uses default templates)
-                result = await launchMethod(serverType, settings, port, host);
+            switch (serverType) {
+                case 'http':
+                    console.log('SERVER: Creating HTTP server...');
+                    server = new httpServer_1.HttpServer({
+                        port,
+                        host,
+                        staticRoot,
+                        enableCors,
+                        allowedOrigins,
+                        mainFile
+                    });
+                    break;
+                case 'https-default':
+                    console.log('SERVER: Creating HTTPS server with default certificates...');
+                    server = new httpsDefaultServer_1.HttpsDefaultServer({
+                        port,
+                        host,
+                        staticRoot,
+                        enableCors,
+                        allowedOrigins,
+                        mainFile,
+                        extensionContext: this.context
+                    });
+                    break;
+                case 'https-custom':
+                    console.log('SERVER: Creating HTTPS server with custom certificates...');
+                    if (!settings.https?.certPath || !settings.https.keyPath) {
+                        throw new Error('Custom certificate paths are required for custom HTTPS server');
+                    }
+                    server = new httpsCustomServer_1.HttpsCustomServer({
+                        port,
+                        host,
+                        staticRoot,
+                        enableCors,
+                        allowedOrigins,
+                        mainFile,
+                        certPath: settings.https.certPath,
+                        keyPath: settings.https.keyPath,
+                        extensionContext: this.context
+                    });
+                    break;
+                default:
+                    throw new Error(`Unsupported server type: ${serverType}`);
             }
-            // Extract the server instance from the temporary launcher
-            const serverInstance = tempLauncher.currentServer;
-            if (result.success && serverInstance) {
-                // Clear the temporary launcher's reference to prevent it from managing this server
-                tempLauncher.currentServer = null;
-                tempLauncher.currentServerType = null;
-                return {
-                    ...result,
-                    serverInstance: serverInstance
-                };
-            }
-            return result;
+            // Start the server
+            console.log(`SERVER: Starting ${serverType} server...`);
+            serverUrl = await server.start();
+            return {
+                success: true,
+                serverUrl,
+                serverType,
+                port,
+                serverInstance: server
+            };
         }
         catch (error) {
             console.error(`SERVER: Error launching ${serverType} server:`, error);
             return {
                 success: false,
-                error: `Failed to launch ${serverType} server: ${error instanceof Error ? error.message : String(error)}`
+                error: error instanceof Error ? error.message : String(error),
+                serverType
             };
         }
     }
@@ -2064,2919 +2119,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.PortManager = void 0;
-const net = __importStar(__webpack_require__(16));
-/**
- * Port availability checker and manager
- * Provides utilities to find available ports starting from a given port number
- */
-class PortManager {
-    static DEFAULT_START_PORT = 3000;
-    static DEFAULT_END_PORT = 8080;
-    static MAX_RETRIES = 50;
-    /**
-     * Check if a specific port is available
-     * @param port - The port number to check
-     * @returns Promise<boolean> - True if port is available, false otherwise
-     */
-    static async isPortAvailable(port) {
-        return new Promise((resolve) => {
-            const server = net.createServer();
-            server.listen(port, () => {
-                server.close(() => {
-                    console.log(`SERVER: Port ${port} is available`);
-                    resolve(true);
-                });
-            });
-            server.on('error', (err) => {
-                if (err.code === 'EADDRINUSE') {
-                    console.log(`SERVER: Port ${port} is already in use`);
-                    resolve(false);
-                }
-                else {
-                    console.error(`SERVER: Error checking port ${port}:`, err);
-                    resolve(false);
-                }
-            });
-        });
-    }
-    /**
-     * Find the next available port starting from the specified port using get-port library
-     * @param startPort - The port to start searching from
-     * @param endPort - The maximum port to check (optional, defaults to 8080)
-     * @returns Promise<number> - The first available port found
-     * @throws Error if no available port is found within the range
-     */
-    static async findAvailablePort(startPort = PortManager.DEFAULT_START_PORT, endPort = PortManager.DEFAULT_END_PORT) {
-        console.log(`SERVER: Searching for available port starting from ${startPort}`);
-        // Validate inputs
-        if (startPort < 1 || startPort > 65535) {
-            throw new Error(`SERVER: Invalid start port ${startPort}. Must be between 1 and 65535`);
-        }
-        if (endPort < startPort || endPort > 65535) {
-            throw new Error(`SERVER: Invalid end port ${endPort}. Must be between ${startPort} and 65535`);
-        }
-        try {
-            // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 121))).default;
-            // Create a range array for get-port - limit to reasonable range for performance
-            const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
-            const ports = [];
-            for (let i = 0; i < maxRange; i++) {
-                const port = startPort + i;
-                if (port <= endPort) {
-                    ports.push(port);
-                }
-            }
-            console.log(`SERVER: Searching through ${ports.length} ports starting from ${startPort}`);
-            const availablePort = await getPort({
-                port: ports,
-                host: 'localhost'
-            });
-            console.log(`SERVER: get-port found available port: ${availablePort}`);
-            return availablePort;
-        }
-        catch (error) {
-            console.error(`SERVER: get-port failed, falling back to manual detection:`, error);
-            // Fallback to the original manual implementation
-            console.log(`SERVER: Using fallback manual port detection from ${startPort} to ${endPort}`);
-            let currentPort = startPort;
-            let attempts = 0;
-            const maxAttempts = Math.min(endPort - startPort + 1, PortManager.MAX_RETRIES);
-            while (attempts < maxAttempts) {
-                if (currentPort > endPort) {
-                    break;
-                }
-                console.log(`SERVER: Checking port ${currentPort}...`);
-                if (await PortManager.isPortAvailable(currentPort)) {
-                    console.log(`SERVER: Found available port (fallback): ${currentPort}`);
-                    return currentPort;
-                }
-                currentPort++;
-                attempts++;
-            }
-            throw new Error(`SERVER: No available port found in range ${startPort}-${endPort} after ${attempts} attempts`);
-        }
-    }
-    /**
-     * Find multiple available ports
-     * @param count - Number of ports needed
-     * @param startPort - The port to start searching from
-     * @param endPort - The maximum port to check
-     * @returns Promise<number[]> - Array of available ports
-     */
-    static async findMultipleAvailablePorts(count, startPort = PortManager.DEFAULT_START_PORT, endPort = PortManager.DEFAULT_END_PORT) {
-        if (count <= 0) {
-            throw new Error('SERVER: Port count must be greater than 0');
-        }
-        console.log(`SERVER: Searching for ${count} available ports starting from ${startPort}`);
-        const availablePorts = [];
-        let currentPort = startPort;
-        while (availablePorts.length < count && currentPort <= endPort) {
-            if (await PortManager.isPortAvailable(currentPort)) {
-                availablePorts.push(currentPort);
-                console.log(`SERVER: Found port ${currentPort} (${availablePorts.length}/${count})`);
-            }
-            currentPort++;
-        }
-        if (availablePorts.length < count) {
-            throw new Error(`SERVER: Only found ${availablePorts.length} available ports, needed ${count}`);
-        }
-        return availablePorts;
-    }
-    /**
-     * Validate port number
-     * @param port - Port number to validate
-     * @returns boolean - True if port is valid
-     */
-    static isValidPort(port) {
-        return Number.isInteger(port) && port >= 1 && port <= 65535;
-    }
-    /**
-     * Get a random port within a range
-     * @param min - Minimum port number
-     * @param max - Maximum port number
-     * @returns number - Random port number
-     */
-    static getRandomPort(min = 3000, max = 8080) {
-        if (!PortManager.isValidPort(min) || !PortManager.isValidPort(max) || min > max) {
-            throw new Error(`SERVER: Invalid port range ${min}-${max}`);
-        }
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-    /**
-     * Check if port is in privileged range (1-1023)
-     * @param port - Port number to check
-     * @returns boolean - True if port is privileged
-     */
-    static isPrivilegedPort(port) {
-        return port >= 1 && port <= 1023;
-    }
-    /**
-     * Get suggested ports based on service type
-     * @param serviceType - Type of service ('http', 'https', 'dev')
-     * @returns number[] - Array of suggested ports
-     */
-    static getSuggestedPorts(serviceType) {
-        switch (serviceType) {
-            case 'http':
-                return [3000, 8000, 8080, 8008, 3001];
-            case 'https':
-                return [3443, 8443, 3001, 4443, 5443];
-            case 'dev':
-                return [3000, 3001, 3002, 8000, 8080, 8888];
-            default:
-                return [3000, 3001, 8000, 8080];
-        }
-    }
-}
-exports.PortManager = PortManager;
-
-
-/***/ }),
-/* 16 */
-/***/ ((module) => {
-
-module.exports = require("net");
-
-/***/ }),
-/* 17 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveServerRegistry = void 0;
-exports.getActiveServerRegistry = getActiveServerRegistry;
-exports.registerActiveServer = registerActiveServer;
-const vscode = __importStar(__webpack_require__(1));
-/**
- * Active Server Registry
- * Centralized tracking and management of all active servers
- */
-class ActiveServerRegistry {
-    static instance = null;
-    servers = new Map();
-    eventEmitter = new vscode.EventEmitter();
-    /** Event fired when registry changes */
-    onRegistryChange = this.eventEmitter.event;
-    constructor() {
-        console.log('ACTIVE_SERVERS: Registry initialized');
-    }
-    /**
-     * Get singleton instance
-     */
-    static getInstance() {
-        if (!ActiveServerRegistry.instance) {
-            ActiveServerRegistry.instance = new ActiveServerRegistry();
-        }
-        return ActiveServerRegistry.instance;
-    }
-    /**
-     * Register a new active server
-     */
-    registerServer(config) {
-        console.log('SERVER: registerServer called with config:', {
-            port: config.port,
-            htmlFile: config.htmlFile,
-            customName: config.customName,
-            url: config.url
-        });
-        const serverId = this.generateServerId(config.port, config.timestamp);
-        const server = {
-            id: serverId,
-            port: config.port,
-            url: config.url,
-            launchMode: config.launchMode,
-            certMode: config.certMode,
-            timestamp: config.timestamp,
-            status: 'running',
-            htmlFile: config.htmlFile,
-            customName: config.customName,
-            serverInstance: config.serverInstance,
-            metadata: config.metadata
-        };
-        this.servers.set(serverId, server);
-        // Enhanced logging for custom names
-        console.log(`ACTIVE_SERVERS: Registered server ${serverId} at ${config.url} (${config.certMode}/${config.launchMode})`);
-        if (config.customName && config.customName.trim().length > 0) {
-            console.log(`ACTIVE_SERVERS: Received custom name from launcher: ${config.customName}`);
-            console.log(`ACTIVE_SERVERS: Registering server with name: ${config.customName}`);
-        }
-        else {
-            const fallbackName = `localhost:${config.port}`;
-            console.log(`ACTIVE_SERVERS: No custom name provided. Using default name: ${fallbackName}`);
-        }
-        this.emitEvent('serverAdded', serverId, server);
-        return server;
-    }
-    /**
-     * Remove a server from the registry
-     */
-    unregisterServer(serverId) {
-        const server = this.servers.get(serverId);
-        if (!server) {
-            console.warn(`ACTIVE_SERVERS: Attempted to unregister non-existent server: ${serverId}`);
-            return false;
-        }
-        this.servers.delete(serverId);
-        console.log(`ACTIVE_SERVERS: Unregistered server ${serverId} (${server.url})`);
-        this.emitEvent('serverRemoved', serverId, server);
-        return true;
-    }
-    /**
-     * Update server status
-     */
-    updateServerStatus(serverId, status) {
-        const server = this.servers.get(serverId);
-        if (!server) {
-            console.warn(`ACTIVE_SERVERS: Attempted to update status of non-existent server: ${serverId}`);
-            return false;
-        }
-        server.status = status;
-        console.log(`ACTIVE_SERVERS: Updated server ${serverId} status to ${status}`);
-        this.emitEvent('serverUpdated', serverId, server);
-        return true;
-    }
-    /**
-     * Get server by ID
-     */
-    getServer(serverId) {
-        return this.servers.get(serverId);
-    }
-    /**
-     * Get all active servers
-     */
-    getAllServers() {
-        return Array.from(this.servers.values());
-    }
-    /**
-     * Get servers by status
-     */
-    getServersByStatus(status) {
-        return this.getAllServers().filter(server => server.status === status);
-    }
-    /**
-     * Get servers by port
-     */
-    getServerByPort(port) {
-        return this.getAllServers().find(server => server.port === port);
-    }
-    /**
-     * Check if a server is registered
-     */
-    hasServer(serverId) {
-        return this.servers.has(serverId);
-    }
-    /**
-     * Get count of active servers
-     */
-    getServerCount() {
-        return this.servers.size;
-    }
-    /**
-     * Get count of running servers
-     */
-    getRunningServerCount() {
-        return this.getServersByStatus('running').length;
-    }
-    /**
-     * Clear all servers from registry
-     */
-    clearAll() {
-        const count = this.servers.size;
-        this.servers.clear();
-        console.log(`ACTIVE_SERVERS: Cleared all servers (${count} removed)`);
-        this.emitEvent('registryCleared');
-    }
-    /**
-     * Cleanup stopped/error servers
-     */
-    cleanupInactiveServers() {
-        const inactiveServers = this.getAllServers().filter(server => server.status === 'stopped' || server.status === 'error');
-        let removedCount = 0;
-        for (const server of inactiveServers) {
-            if (this.unregisterServer(server.id)) {
-                removedCount++;
-            }
-        }
-        if (removedCount > 0) {
-            console.log(`ACTIVE_SERVERS: Cleaned up ${removedCount} inactive servers`);
-        }
-        return removedCount;
-    }
-    /**
-     * Get registry statistics
-     */
-    getStats() {
-        const servers = this.getAllServers();
-        const stats = {
-            total: servers.length,
-            running: 0,
-            stopped: 0,
-            error: 0,
-            byMode: {},
-            byCertMode: {}
-        };
-        for (const server of servers) {
-            // Count by status
-            stats[server.status]++;
-            // Count by launch mode
-            stats.byMode[server.launchMode] = (stats.byMode[server.launchMode] || 0) + 1;
-            // Count by cert mode
-            stats.byCertMode[server.certMode] = (stats.byCertMode[server.certMode] || 0) + 1;
-        }
-        return stats;
-    }
-    /**
-     * Dispose of the registry
-     */
-    dispose() {
-        this.eventEmitter.dispose();
-        this.clearAll();
-        console.log('ACTIVE_SERVERS: Registry disposed');
-    }
-    /**
-     * Generate unique server ID
-     * @private
-     */
-    generateServerId(port, timestamp) {
-        return `server-${port}-${timestamp}`;
-    }
-    /**
-     * Emit registry event
-     * @private
-     */
-    emitEvent(type, serverId, server) {
-        const event = {
-            type,
-            serverId,
-            server,
-            timestamp: Date.now()
-        };
-        this.eventEmitter.fire(event);
-    }
-}
-exports.ActiveServerRegistry = ActiveServerRegistry;
-/**
- * Convenience function to get the registry instance
- */
-function getActiveServerRegistry() {
-    return ActiveServerRegistry.getInstance();
-}
-/**
- * Convenience function to register a server
- */
-function registerActiveServer(config) {
-    return getActiveServerRegistry().registerServer(config);
-}
-
-
-/***/ }),
-/* 18 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerActionHandlers = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const activeServerRegistry_1 = __webpack_require__(17);
-const serverControl_1 = __webpack_require__(19);
-const previewRenderer_1 = __webpack_require__(24);
-/**
- * Server Action Handlers
- * Handle user interactions with active servers
- */
-class ServerActionHandlers {
-    /**
-     * Show server actions quick pick
-     */
-    static async showServerActions(serverId) {
-        console.log(`ACTIVE_SERVER: Showing actions for server ${serverId}`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return;
-        }
-        const actions = this.getAvailableActions(server);
-        const selectedAction = await vscode.window.showQuickPick(actions, {
-            placeHolder: `Actions for ${server.url}`,
-            title: `Server Actions - localhost:${server.port}`
-        });
-        if (selectedAction) {
-            await this.executeAction(selectedAction.action, server);
-        }
-    }
-    /**
-     * Open server in browser
-     */
-    static async openInBrowser(serverId) {
-        console.log(`ACTIVE_SERVER: Opening server ${serverId} in browser`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return;
-        }
-        try {
-            await previewRenderer_1.PreviewRenderer.openPreview(server.url, server.htmlFile || '', 'browser');
-            console.log(`ACTIVE_SERVER: Opened ${server.url} in browser`);
-            vscode.window.showInformationMessage(`Opened ${server.url} in browser`);
-        }
-        catch (error) {
-            console.error(`ACTIVE_SERVER: Error opening ${server.url} in browser:`, error);
-            vscode.window.showErrorMessage(`Failed to open in browser: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Open server in lateral panel
-     */
-    static async openInPanel(serverId) {
-        console.log(`ACTIVE_SERVER: Opening server ${serverId} in lateral panel`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return;
-        }
-        // Check for HTTPS + lateral panel conflict
-        if (server.certMode !== 'http') {
-            console.log(`ACTIVE_SERVER: HTTPS server ${serverId} cannot be opened in lateral panel - cert mode: ${server.certMode}`);
-            const response = await vscode.window.showWarningMessage('HTTPS content cannot be displayed in VS Code panels due to security restrictions. The content will not load properly.', 'Open in Browser Instead', 'Cancel');
-            if (response === 'Open in Browser Instead') {
-                console.log(`ACTIVE_SERVER: Redirecting server ${serverId} to browser due to HTTPS incompatibility`);
-                return this.openInBrowser(serverId);
-            }
-            else {
-                console.log(`ACTIVE_SERVER: User cancelled opening HTTPS server ${serverId} in panel`);
-                return; // User cancelled
-            }
-        }
-        try {
-            console.log(`ACTIVE_SERVER: Opening HTTP server ${serverId} (${server.url}) in lateral panel`);
-            await previewRenderer_1.PreviewRenderer.openPreview(server.url, server.htmlFile || '', 'lateralPanel', serverId);
-            console.log(`ACTIVE_SERVER: Successfully opened ${server.url} in lateral panel`);
-            vscode.window.showInformationMessage(`Opened ${server.url} in VS Code panel`);
-        }
-        catch (error) {
-            console.error(`ACTIVE_SERVER: Error opening ${server.url} in panel:`, error);
-            vscode.window.showErrorMessage(`Failed to open in panel: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Copy server URL to clipboard
-     */
-    static async copyUrl(serverId) {
-        console.log(`ACTIVE_SERVER: Copying URL for server ${serverId}`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return;
-        }
-        try {
-            await vscode.env.clipboard.writeText(server.url);
-            console.log(`ACTIVE_SERVER: Copied ${server.url} to clipboard`);
-            vscode.window.showInformationMessage(`Copied ${server.url} to clipboard`);
-        }
-        catch (error) {
-            console.error(`ACTIVE_SERVER: Error copying URL to clipboard:`, error);
-            vscode.window.showErrorMessage('Failed to copy URL to clipboard');
-        }
-    }
-    /**
-     * Stop server
-     */
-    static async stopServer(serverId) {
-        console.log(`ACTIVE_SERVER: Stopping server ${serverId}`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return;
-        }
-        const response = await vscode.window.showWarningMessage(`Stop server ${server.url}?`, 'Stop', 'Cancel');
-        if (response === 'Stop') {
-            try {
-                console.log(`ACTIVE_SERVER: Stopping server ${serverId} (${server.url})`);
-                const success = await serverControl_1.ServerControl.stopServer(serverId);
-                if (success) {
-                    console.log(`ACTIVE_SERVER: Successfully stopped server ${serverId}`);
-                    vscode.window.showInformationMessage(`Stopped server ${server.url}`);
-                    // Refresh the tree view
-                    vscode.commands.executeCommand('codeXR.activeServers.refreshServers');
-                }
-                else {
-                    console.error(`ACTIVE_SERVER: Failed to stop server ${serverId}`);
-                    vscode.window.showErrorMessage(`Failed to stop server ${server.url}`);
-                }
-            }
-            catch (error) {
-                console.error(`ACTIVE_SERVER: Error stopping server ${serverId}:`, error);
-                vscode.window.showErrorMessage(`Error stopping server: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        }
-        else {
-            console.log(`ACTIVE_SERVER: User cancelled stopping server ${serverId}`);
-        }
-    }
-    /**
-     * Show detailed server information
-     */
-    static async showServerDetails(serverId) {
-        console.log(`ACTIVE_SERVER: Showing details for server ${serverId}`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return;
-        }
-        const details = this.formatServerDetails(server);
-        console.log(`ACTIVE_SERVER: Displaying detailed information for server ${serverId}`);
-        await vscode.window.showInformationMessage(`Server Information - ${server.url}`, { modal: true, detail: details });
-    }
-    /**
-     * Stop all servers
-     */
-    static async stopAllServers() {
-        console.log('ACTIVE_SERVER: Stopping all servers');
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const allServers = registry.getAllServers();
-        if (allServers.length === 0) {
-            vscode.window.showInformationMessage('No servers are currently running');
-            return;
-        }
-        const response = await vscode.window.showWarningMessage(`Stop all ${allServers.length} server(s)?`, 'Stop All', 'Cancel');
-        if (response === 'Stop All') {
-            try {
-                console.log(`ACTIVE_SERVER: Stopping ${allServers.length} servers`);
-                const success = await serverControl_1.ServerControl.stopAllServers();
-                if (success) {
-                    console.log('ACTIVE_SERVER: Successfully stopped all servers');
-                    vscode.window.showInformationMessage(`Stopped all ${allServers.length} servers`);
-                }
-                else {
-                    console.error('ACTIVE_SERVER: Failed to stop some servers');
-                    vscode.window.showWarningMessage('Some servers may not have stopped properly');
-                }
-                // Refresh the tree view
-                vscode.commands.executeCommand('codeXR.activeServers.refreshServers');
-            }
-            catch (error) {
-                console.error('ACTIVE_SERVER: Error stopping all servers:', error);
-                vscode.window.showErrorMessage(`Error stopping servers: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        }
-        else {
-            console.log('ACTIVE_SERVER: User cancelled stopping all servers');
-        }
-    }
-    /**
-     * Refresh servers display
-     */
-    static async refreshServers() {
-        console.log('ACTIVE_SERVER: Refreshing servers display');
-        vscode.commands.executeCommand('codeXR.activeServers.refreshServers');
-    }
-    /**
-     * Get available actions for a server based on its type
-     * @private
-     */
-    static getAvailableActions(server) {
-        const isHttp = server.certMode === 'http';
-        const actions = [
-            {
-                label: '🌐 Open in Browser',
-                description: 'Open server in external browser',
-                action: 'openInBrowser'
-            }
-        ];
-        // Add lateral panel option only for HTTP servers
-        if (isHttp) {
-            actions.push({
-                label: '📱 Open in Panel',
-                description: 'Open server in VS Code lateral panel',
-                action: 'openInPanel'
-            });
-        }
-        actions.push({
-            label: '📋 Copy URL',
-            description: 'Copy server URL to clipboard',
-            action: 'copyUrl'
-        }, {
-            label: 'ℹ️ Server Info',
-            description: 'Show detailed server information',
-            action: 'showDetails'
-        }, {
-            label: '⏹️ Stop Server',
-            description: 'Stop this server',
-            action: 'stopServer'
-        });
-        return actions;
-    }
-    /**
-     * Execute an action on a server
-     * @private
-     */
-    static async executeAction(action, server) {
-        console.log(`ACTIVE_SERVER: Executing action '${action}' on server ${server.id}`);
-        switch (action) {
-            case 'openInBrowser':
-                await this.openInBrowser(server.id);
-                break;
-            case 'openInPanel':
-                await this.openInPanel(server.id);
-                break;
-            case 'copyUrl':
-                await this.copyUrl(server.id);
-                break;
-            case 'showDetails':
-                await this.showServerDetails(server.id);
-                break;
-            case 'stopServer':
-                await this.stopServer(server.id);
-                break;
-            default:
-                console.error(`ACTIVE_SERVER: Unknown action: ${action}`);
-                vscode.window.showErrorMessage(`Unknown action: ${action}`);
-        }
-    }
-    /**
-     * Format server details for display
-     * @private
-     */
-    static formatServerDetails(server) {
-        const uptimeMs = Date.now() - server.timestamp;
-        const uptime = this.formatUptime(uptimeMs);
-        let details = '';
-        details += `URL: ${server.url}\\n`;
-        details += `Port: ${server.port}\\n`;
-        details += `Status: ${server.status}\\n`;
-        details += `Security: ${server.certMode.toUpperCase()}\\n`;
-        details += `Launch Mode: ${server.launchMode}\\n`;
-        details += `Uptime: ${uptime}\\n`;
-        if (server.htmlFile) {
-            const fileName = server.htmlFile.split('/').pop() || server.htmlFile;
-            details += `Serving File: ${fileName}\\n`;
-        }
-        if (server.metadata) {
-            if (server.metadata.host) {
-                details += `Host: ${server.metadata.host}\\n`;
-            }
-            if (server.metadata.staticRoot) {
-                details += `Static Root: ${server.metadata.staticRoot}\\n`;
-            }
-            if (server.metadata.description) {
-                details += `Description: ${server.metadata.description}\\n`;
-            }
-        }
-        return details;
-    }
-    /**
-     * Format uptime duration
-     * @private
-     */
-    static formatUptime(milliseconds) {
-        const seconds = Math.floor(milliseconds / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        }
-        else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        }
-        else {
-            return `${seconds}s`;
-        }
-    }
-}
-exports.ServerActionHandlers = ServerActionHandlers;
-
-
-/***/ }),
-/* 19 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerControl = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const activeServerRegistry_1 = __webpack_require__(17);
-const panelManager_1 = __webpack_require__(20);
-const fileToServerMap_1 = __webpack_require__(21);
-const SSEManager_1 = __webpack_require__(22);
-/**
- * Server Control
- * Runtime operations for managing active servers
- */
-class ServerControl {
-    /**
-     * Stop an active server
-     */
-    static async stopServer(serverId) {
-        console.log(`ACTIVE_SERVERS: Attempting to stop server ${serverId}`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.error(`ACTIVE_SERVERS: Server ${serverId} not found in registry`);
-            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
-            return false;
-        }
-        try {
-            // Close associated lateral panel if it exists
-            const panelManager = (0, panelManager_1.getPanelManager)();
-            if (server.launchMode === 'lateralPanel' && panelManager.hasPanel(serverId)) {
-                console.log(`ACTIVE_SERVER_PANEL: Closing lateral panel for server ${serverId}`);
-                panelManager.removePanel(serverId);
-            }
-            // Check if this server is associated with an analysis file and clean up
-            console.log(`ACTIVE_SERVERS: Checking for file-to-server mapping for server on port ${server.port}`);
-            const fileUri = fileToServerMap_1.fileToServerMap.findFileByPort(server.port);
-            if (fileUri) {
-                console.log(`ACTIVE_SERVERS: Found associated analysis file: ${fileUri}`);
-                // Clean up SSE clients for this file
-                console.log(`ACTIVE_SERVERS: Cleaning up SSE clients for ${fileUri}`);
-                SSEManager_1.sseManager.removeAllClients(fileUri);
-                // Remove the file-to-server mapping
-                console.log(`ACTIVE_SERVERS: Removing file-to-server mapping for ${fileUri}`);
-                fileToServerMap_1.fileToServerMap.unregisterMapping(fileUri);
-            }
-            // Update status to indicate stopping
-            registry.updateServerStatus(serverId, 'stopped');
-            // Stop the actual server instance if available
-            if (server.serverInstance && typeof server.serverInstance.stop === 'function') {
-                console.log(`ACTIVE_SERVERS: Stopping server instance for ${serverId}`);
-                await server.serverInstance.stop();
-            }
-            // Remove from registry
-            registry.unregisterServer(serverId);
-            console.log(`ACTIVE_SERVERS: Successfully stopped server ${serverId} (${server.url})`);
-            vscode.window.showInformationMessage(`Server stopped: ${server.url}`);
-            return true;
-        }
-        catch (error) {
-            console.error(`ACTIVE_SERVERS: Error stopping server ${serverId}:`, error);
-            // Update status to error
-            registry.updateServerStatus(serverId, 'error');
-            vscode.window.showErrorMessage(`Failed to stop server ${server.url}: ${error instanceof Error ? error.message : String(error)}`);
-            return false;
-        }
-    }
-    /**
-     * Stop all active servers
-     */
-    static async stopAllServers() {
-        console.log('ACTIVE_SERVERS: Stopping all active servers');
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const runningServers = registry.getServersByStatus('running');
-        if (runningServers.length === 0) {
-            console.log('ACTIVE_SERVERS: No running servers to stop');
-            vscode.window.showInformationMessage('No active servers to stop');
-            return 0;
-        }
-        // First, close all lateral panels for servers that have them
-        const panelManager = (0, panelManager_1.getPanelManager)();
-        const lateralPanelServers = runningServers.filter(server => server.launchMode === 'lateralPanel');
-        if (lateralPanelServers.length > 0) {
-            console.log(`ACTIVE_SERVER_PANEL: Closing ${lateralPanelServers.length} lateral panels before stopping servers`);
-            const serverIdsWithPanels = lateralPanelServers.map(server => server.id);
-            const closedPanelCount = panelManager.removePanelsForServers(serverIdsWithPanels);
-            console.log(`ACTIVE_SERVER_PANEL: Closed ${closedPanelCount}/${lateralPanelServers.length} lateral panels`);
-        }
-        let stoppedCount = 0;
-        const stopPromises = runningServers.map(async (server) => {
-            const success = await this.stopServer(server.id);
-            if (success) {
-                stoppedCount++;
-            }
-            return success;
-        });
-        await Promise.all(stopPromises);
-        console.log(`ACTIVE_SERVERS: Stopped ${stoppedCount}/${runningServers.length} servers`);
-        if (stoppedCount === runningServers.length) {
-            vscode.window.showInformationMessage(`All ${stoppedCount} servers stopped successfully`);
-        }
-        else {
-            vscode.window.showWarningMessage(`Stopped ${stoppedCount}/${runningServers.length} servers. Some servers may require manual intervention.`);
-        }
-        return stoppedCount;
-    }
-    /**
-     * Get server status information
-     */
-    static getServerStatus(serverId) {
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            return null;
-        }
-        const uptime = Date.now() - server.timestamp;
-        const isRunning = server.status === 'running';
-        let details = `Status: ${server.status}\\n`;
-        details += `URL: ${server.url}\\n`;
-        details += `Mode: ${server.certMode}/${server.launchMode}\\n`;
-        details += `Uptime: ${this.formatUptime(uptime)}\\n`;
-        if (server.htmlFile) {
-            details += `File: ${server.htmlFile}\\n`;
-        }
-        return {
-            server,
-            isRunning,
-            uptime,
-            details
-        };
-    }
-    /**
-     * Refresh server status by checking actual server instance
-     */
-    static async refreshServerStatus(serverId) {
-        console.log(`ACTIVE_SERVERS: Refreshing status for server ${serverId}`);
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const server = registry.getServer(serverId);
-        if (!server) {
-            console.warn(`ACTIVE_SERVERS: Cannot refresh non-existent server ${serverId}`);
-            return false;
-        }
-        try {
-            let actualStatus = 'running';
-            // Check if server instance has a status check method
-            if (server.serverInstance) {
-                if (typeof server.serverInstance.getIsRunning === 'function') {
-                    const isRunning = server.serverInstance.getIsRunning();
-                    actualStatus = isRunning ? 'running' : 'stopped';
-                }
-                else if (typeof server.serverInstance.status !== 'undefined') {
-                    actualStatus = server.serverInstance.status;
-                }
-            }
-            // Update status if it has changed
-            if (server.status !== actualStatus) {
-                console.log(`ACTIVE_SERVERS: Status changed for ${serverId}: ${server.status} -> ${actualStatus}`);
-                registry.updateServerStatus(serverId, actualStatus);
-                // If server is stopped/error, consider removing from registry
-                if (actualStatus !== 'running') {
-                    console.log(`ACTIVE_SERVERS: Server ${serverId} is no longer running, removing from registry`);
-                    registry.unregisterServer(serverId);
-                }
-            }
-            return true;
-        }
-        catch (error) {
-            console.error(`ACTIVE_SERVERS: Error refreshing server ${serverId} status:`, error);
-            registry.updateServerStatus(serverId, 'error');
-            return false;
-        }
-    }
-    /**
-     * Refresh all server statuses
-     */
-    static async refreshAllServerStatuses() {
-        console.log('ACTIVE_SERVERS: Refreshing all server statuses');
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const servers = registry.getAllServers();
-        const refreshPromises = servers.map(server => this.refreshServerStatus(server.id));
-        await Promise.all(refreshPromises);
-        console.log('ACTIVE_SERVERS: Completed status refresh for all servers');
-    }
-    /**
-     * Get comprehensive registry information
-     */
-    static getRegistryInfo() {
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const servers = registry.getAllServers();
-        const stats = registry.getStats();
-        let summary = `Total: ${stats.total} servers\\n`;
-        summary += `Running: ${stats.running}\\n`;
-        summary += `Stopped: ${stats.stopped}\\n`;
-        summary += `Errors: ${stats.error}\\n`;
-        if (stats.total > 0) {
-            summary += `\\nLaunch modes:\\n`;
-            Object.entries(stats.byMode).forEach(([mode, count]) => {
-                summary += `  ${mode}: ${count}\\n`;
-            });
-            summary += `\\nCertificate modes:\\n`;
-            Object.entries(stats.byCertMode).forEach(([mode, count]) => {
-                summary += `  ${mode}: ${count}\\n`;
-            });
-        }
-        return {
-            servers,
-            stats,
-            summary
-        };
-    }
-    /**
-     * Cleanup inactive servers from registry
-     */
-    static cleanupInactiveServers() {
-        console.log('ACTIVE_SERVERS: Cleaning up inactive servers');
-        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-        const removedCount = registry.cleanupInactiveServers();
-        if (removedCount > 0) {
-            vscode.window.showInformationMessage(`Cleaned up ${removedCount} inactive servers`);
-        }
-        return removedCount;
-    }
-    /**
-     * Format uptime duration
-     * @private
-     */
-    static formatUptime(milliseconds) {
-        const seconds = Math.floor(milliseconds / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-        }
-        else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        }
-        else {
-            return `${seconds}s`;
-        }
-    }
-}
-exports.ServerControl = ServerControl;
-
-
-/***/ }),
-/* 20 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.PanelManager = void 0;
-exports.getPanelManager = getPanelManager;
-/**
- * Panel Manager Service
- * Manages WebviewPanel instances for servers launched in lateral panel mode
- */
-class PanelManager {
-    static instance;
-    panels = new Map();
-    constructor() {
-        console.log('ACTIVE_SERVER_PANEL: Panel manager initialized');
-    }
-    /**
-     * Get singleton instance
-     */
-    static getInstance() {
-        if (!PanelManager.instance) {
-            PanelManager.instance = new PanelManager();
-        }
-        return PanelManager.instance;
-    }
-    /**
-     * Register a panel for a server
-     * @param serverId - Server ID
-     * @param panel - WebviewPanel instance
-     */
-    registerPanel(serverId, panel) {
-        console.log(`ACTIVE_SERVER_PANEL: Registering panel for server ${serverId}`);
-        // Remove any existing panel for this server first
-        this.removePanel(serverId);
-        // Register the new panel
-        this.panels.set(serverId, panel);
-        // Set up disposal listener to auto-cleanup
-        panel.onDidDispose(() => {
-            console.log(`ACTIVE_SERVER_PANEL: Panel for server ${serverId} was disposed by user`);
-            this.panels.delete(serverId);
-        });
-        console.log(`ACTIVE_SERVER_PANEL: Panel registered for server ${serverId}, total panels: ${this.panels.size}`);
-    }
-    /**
-     * Remove and dispose a panel for a server
-     * @param serverId - Server ID
-     * @returns true if panel was found and disposed, false otherwise
-     */
-    removePanel(serverId) {
-        const panel = this.panels.get(serverId);
-        if (panel) {
-            console.log(`ACTIVE_SERVER_PANEL: Disposing panel for server ${serverId}`);
-            try {
-                panel.dispose();
-                this.panels.delete(serverId);
-                console.log(`ACTIVE_SERVER_PANEL: Panel for server ${serverId} disposed successfully`);
-                return true;
-            }
-            catch (error) {
-                console.warn(`ACTIVE_SERVER_PANEL: Error disposing panel for server ${serverId}:`, error);
-                // Still remove from map even if disposal failed
-                this.panels.delete(serverId);
-                return false;
-            }
-        }
-        return false;
-    }
-    /**
-     * Remove and dispose all panels
-     * @returns number of panels that were disposed
-     */
-    removeAllPanels() {
-        console.log(`ACTIVE_SERVER_PANEL: Disposing all ${this.panels.size} panels`);
-        let disposedCount = 0;
-        const panelEntries = Array.from(this.panels.entries());
-        for (const [serverId, panel] of panelEntries) {
-            try {
-                console.log(`ACTIVE_SERVER_PANEL: Disposing panel for server ${serverId}`);
-                panel.dispose();
-                this.panels.delete(serverId);
-                disposedCount++;
-            }
-            catch (error) {
-                console.warn(`ACTIVE_SERVER_PANEL: Error disposing panel for server ${serverId}:`, error);
-                // Still remove from map even if disposal failed
-                this.panels.delete(serverId);
-            }
-        }
-        console.log(`ACTIVE_SERVER_PANEL: Disposed ${disposedCount}/${panelEntries.length} panels`);
-        return disposedCount;
-    }
-    /**
-     * Get panel for a server (if exists)
-     * @param serverId - Server ID
-     * @returns WebviewPanel or undefined
-     */
-    getPanel(serverId) {
-        return this.panels.get(serverId);
-    }
-    /**
-     * Check if a server has an associated panel
-     * @param serverId - Server ID
-     * @returns true if panel exists
-     */
-    hasPanel(serverId) {
-        return this.panels.has(serverId);
-    }
-    /**
-     * Get number of currently managed panels
-     * @returns number of active panels
-     */
-    getPanelCount() {
-        return this.panels.size;
-    }
-    /**
-     * Get all server IDs that have panels
-     * @returns array of server IDs
-     */
-    getServerIdsWithPanels() {
-        return Array.from(this.panels.keys());
-    }
-    /**
-     * Remove panels for multiple servers
-     * @param serverIds - Array of server IDs
-     * @returns number of panels that were disposed
-     */
-    removePanelsForServers(serverIds) {
-        console.log(`ACTIVE_SERVER_PANEL: Disposing panels for ${serverIds.length} servers`);
-        let disposedCount = 0;
-        for (const serverId of serverIds) {
-            if (this.removePanel(serverId)) {
-                disposedCount++;
-            }
-        }
-        console.log(`ACTIVE_SERVER_PANEL: Disposed ${disposedCount}/${serverIds.length} requested panels`);
-        return disposedCount;
-    }
-    /**
-     * Get debug information about current panels
-     * @returns debug information
-     */
-    getDebugInfo() {
-        return {
-            serverCount: this.panels.size,
-            serverIds: Array.from(this.panels.keys())
-        };
-    }
-}
-exports.PanelManager = PanelManager;
-/**
- * Get global panel manager instance
- */
-function getPanelManager() {
-    return PanelManager.getInstance();
-}
-
-
-/***/ }),
-/* 21 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.fileToServerMap = void 0;
-/**
- * Central mapping between analysis files and their corresponding servers
- * This enables efficient lookup for SSE notifications and cleanup operations
- */
-class FileToServerMapping {
-    static instance = null;
-    fileToServer = new Map();
-    constructor() {
-        console.log('[FILE_TO_SERVER_MAP] Initializing file-to-server mapping registry');
-    }
-    /**
-     * Get the singleton instance
-     */
-    static getInstance() {
-        if (!FileToServerMapping.instance) {
-            FileToServerMapping.instance = new FileToServerMapping();
-        }
-        return FileToServerMapping.instance;
-    }
-    /**
-     * Register a mapping between a file and its analysis server
-     * @param fileUri - URI of the analyzed file
-     * @param serverInfo - Information about the server serving this analysis
-     */
-    registerMapping(fileUri, serverInfo) {
-        console.log(`REQUEST_UPDATE: Registering file-to-server mapping`);
-        console.log(`REQUEST_UPDATE: File URI: ${fileUri}`);
-        console.log(`REQUEST_UPDATE: Server port: ${serverInfo.port}`);
-        console.log(`REQUEST_UPDATE: Temp dir: ${serverInfo.tempDir}`);
-        console.log(`[FILE_TO_SERVER_MAP] Registering mapping: ${fileUri} -> port ${serverInfo.port}`);
-        this.fileToServer.set(fileUri, serverInfo);
-        console.log(`REQUEST_UPDATE: Total mappings after registration: ${this.fileToServer.size}`);
-    }
-    /**
-     * Unregister a mapping for a file
-     * @param fileUri - URI of the analyzed file
-     */
-    unregisterMapping(fileUri) {
-        console.log(`[FILE_TO_SERVER_MAP] Unregistering mapping for: ${fileUri}`);
-        this.fileToServer.delete(fileUri);
-    }
-    /**
-     * Get server information for a file
-     * @param fileUri - URI of the analyzed file
-     * @returns ServerInfo or null if not found
-     */
-    getServerInfo(fileUri) {
-        return this.fileToServer.get(fileUri) || null;
-    }
-    /**
-     * Find file URI by server port
-     * @param port - Server port number
-     * @returns File URI or null if not found
-     */
-    findFileByPort(port) {
-        console.log(`REQUEST_UPDATE: Looking up file for port ${port}`);
-        console.log(`REQUEST_UPDATE: Available ports: ${Array.from(this.fileToServer.values()).map(info => info.port).join(', ')}`);
-        for (const [fileUri, serverInfo] of this.fileToServer.entries()) {
-            if (serverInfo.port === port) {
-                console.log(`REQUEST_UPDATE: Found file ${fileUri} for port ${port}`);
-                return fileUri;
-            }
-        }
-        console.log(`REQUEST_UPDATE: No file found for port ${port}`);
-        return null;
-    }
-    /**
-     * Find file URI by server reference
-     * @param serverRef - HTTP server reference
-     * @returns File URI or null if not found
-     */
-    findFileByServerRef(serverRef) {
-        for (const [fileUri, serverInfo] of this.fileToServer.entries()) {
-            if (serverInfo.serverRef === serverRef) {
-                return fileUri;
-            }
-        }
-        return null;
-    }
-    /**
-     * Find file URI by temp directory path
-     * @param tempDir - Temporary directory path
-     * @returns File URI or null if not found
-     */
-    findFileByTempDir(tempDir) {
-        for (const [fileUri, serverInfo] of this.fileToServer.entries()) {
-            if (serverInfo.tempDir === tempDir) {
-                return fileUri;
-            }
-        }
-        return null;
-    }
-    /**
-     * Get all registered mappings
-     * @returns Array of [fileUri, ServerInfo] entries
-     */
-    getAllMappings() {
-        return Array.from(this.fileToServer.entries());
-    }
-    /**
-     * Get all file URIs that have servers
-     * @returns Array of file URIs
-     */
-    getAllFileUris() {
-        return Array.from(this.fileToServer.keys());
-    }
-    /**
-     * Check if a file has a registered server
-     * @param fileUri - URI of the analyzed file
-     * @returns True if mapping exists
-     */
-    hasMapping(fileUri) {
-        return this.fileToServer.has(fileUri);
-    }
-    /**
-     * Clear all mappings (useful for cleanup)
-     */
-    clearAll() {
-        console.log(`[FILE_TO_SERVER_MAP] Clearing all ${this.fileToServer.size} mappings`);
-        this.fileToServer.clear();
-    }
-    /**
-     * Get the number of registered mappings
-     */
-    size() {
-        return this.fileToServer.size;
-    }
-}
-// Export singleton instance
-exports.fileToServerMap = FileToServerMapping.getInstance();
-
-
-/***/ }),
-/* 22 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.sseManager = exports.SSEManager = void 0;
-const sseClientRegistry_1 = __webpack_require__(23);
-const fileToServerMap_1 = __webpack_require__(21);
-/**
- * SSE Manager
- * Central module for managing Server-Sent Events for analysis updates
- */
-class SSEManager {
-    static instance = null;
-    clientRegistry;
-    constructor() {
-        console.log('[SSE_MANAGER] Initializing SSE manager');
-        this.clientRegistry = sseClientRegistry_1.SSEClientRegistry.getInstance();
-    }
-    /**
-     * Get the singleton instance
-     */
-    static getInstance() {
-        if (!SSEManager.instance) {
-            SSEManager.instance = new SSEManager();
-        }
-        return SSEManager.instance;
-    }
-    /**
-     * Register a new SSE client for a specific analysis file
-     * Sets up the SSE connection with proper headers and keep-alive
-     *
-     * @param fileUri - URI of the analyzed file
-     * @param res - HTTP response object
-     */
-    registerClient(fileUri, res) {
-        console.log(`[SSE_MANAGER] Setting up SSE connection for: ${fileUri}`);
-        // Set SSE headers
-        res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Cache-Control',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-        });
-        // Send initial connection message
-        res.write(`data: ${JSON.stringify({
-            type: 'connected',
-            fileUri: fileUri,
-            timestamp: new Date().toISOString(),
-            message: 'SSE connection established for analysis updates'
-        })}\n\n`);
-        // Register the client
-        this.clientRegistry.registerClient(fileUri, res);
-        console.log(`[SSE_MANAGER] SSE client registered for: ${fileUri}`);
-    }
-    /**
-     * Unregister an SSE client
-     *
-     * @param fileUri - URI of the analyzed file
-     * @param res - HTTP response object
-     */
-    unregisterClient(fileUri, res) {
-        console.log(`[SSE_MANAGER] Unregistering SSE client for: ${fileUri}`);
-        this.clientRegistry.unregisterClient(fileUri, res);
-    }
-    /**
-     * Send an update notification to all clients of a specific analysis file
-     * This is called when the data.json file is regenerated
-     *
-     * @param fileUri - URI of the analyzed file that was updated
-     */
-    sendUpdate(fileUri) {
-        console.log(`REQUEST_UPDATE: Server received update request for file: ${fileUri}`);
-        console.log(`[SSE_MANAGER] Sending analysis update for: ${fileUri}`);
-        // Debug: Check file-to-server mapping
-        const mapping = fileToServerMap_1.fileToServerMap.getServerInfo(fileUri);
-        if (mapping) {
-            console.log(`REQUEST_UPDATE: Found mapping - Port: ${mapping.port}, TempDir: ${mapping.tempDir}`);
-            // Verify data.json exists in the temp directory
-            const dataJsonPath = (__webpack_require__(5).join)(mapping.tempDir, 'data.json');
-            const fs = __webpack_require__(6);
-            try {
-                const exists = fs.existsSync(dataJsonPath);
-                console.log(`REQUEST_UPDATE: data.json exists at ${dataJsonPath}: ${exists}`);
-                if (exists) {
-                    const stats = fs.statSync(dataJsonPath);
-                    console.log(`REQUEST_UPDATE: data.json size: ${stats.size} bytes, modified: ${stats.mtime}`);
-                }
-            }
-            catch (fileError) {
-                console.error(`REQUEST_UPDATE: Error checking data.json:`, fileError);
-            }
-        }
-        else {
-            console.log(`REQUEST_UPDATE: No mapping found for file: ${fileUri}`);
-        }
-        const updateMessage = JSON.stringify({
-            type: 'analysis-updated',
-            fileUri: fileUri,
-            timestamp: new Date().toISOString(),
-            message: 'Analysis data has been updated, please refresh',
-            action: 'reload-data'
-        });
-        this.clientRegistry.sendToClients(fileUri, updateMessage);
-        console.log(`[SSE_MANAGER] Update notification sent for: ${fileUri}`);
-        console.log(`REQUEST_UPDATE: Update message dispatched to clients for: ${fileUri}`);
-    }
-    /**
-     * Send a custom message to all clients of a specific analysis file
-     *
-     * @param fileUri - URI of the analyzed file
-     * @param message - Custom message object
-     */
-    sendCustomMessage(fileUri, message) {
-        console.log(`[SSE_MANAGER] Sending custom message for: ${fileUri}`);
-        const customMessage = JSON.stringify({
-            ...message,
-            timestamp: new Date().toISOString()
-        });
-        this.clientRegistry.sendToClients(fileUri, customMessage);
-    }
-    /**
-     * Send a heartbeat/keep-alive message to all clients of a specific file
-     *
-     * @param fileUri - URI of the analyzed file
-     */
-    sendHeartbeat(fileUri) {
-        const heartbeatMessage = JSON.stringify({
-            type: 'heartbeat',
-            timestamp: new Date().toISOString()
-        });
-        this.clientRegistry.sendToClients(fileUri, heartbeatMessage);
-    }
-    /**
-     * Send heartbeat to all active files
-     * Useful for maintaining connections
-     */
-    sendHeartbeatToAll() {
-        const activeFiles = this.clientRegistry.getActiveFiles();
-        if (activeFiles.length > 0) {
-            console.log(`[SSE_MANAGER] Sending heartbeat to ${activeFiles.length} active file(s)`);
-            for (const fileUri of activeFiles) {
-                this.sendHeartbeat(fileUri);
-            }
-        }
-    }
-    /**
-     * Get the number of active clients for a specific file
-     *
-     * @param fileUri - URI of the analyzed file
-     * @returns Number of active clients
-     */
-    getClientCount(fileUri) {
-        return this.clientRegistry.getClients(fileUri).length;
-    }
-    /**
-     * Get all file URIs that have active SSE clients
-     *
-     * @returns Array of file URIs with active clients
-     */
-    getActiveFiles() {
-        return this.clientRegistry.getActiveFiles();
-    }
-    /**
-     * Remove all clients for a specific file
-     * Useful when an analysis is stopped or file is deleted
-     *
-     * @param fileUri - URI of the analyzed file
-     */
-    removeAllClients(fileUri) {
-        console.log(`[SSE_MANAGER] Removing all SSE clients for: ${fileUri}`);
-        this.clientRegistry.removeAllClients(fileUri);
-    }
-    /**
-     * Get statistics about active SSE connections
-     *
-     * @returns Statistics object
-     */
-    getStats() {
-        return this.clientRegistry.getStats();
-    }
-    /**
-     * Clean up all SSE connections
-     * Should be called during extension deactivation
-     */
-    dispose() {
-        console.log('[SSE_MANAGER] Disposing SSE manager');
-        this.clientRegistry.clearAll();
-    }
-}
-exports.SSEManager = SSEManager;
-// Export singleton instance for easy access
-exports.sseManager = SSEManager.getInstance();
-
-
-/***/ }),
-/* 23 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.SSEClientRegistry = void 0;
-/**
- * SSE Client Registry
- * Maintains active Server-Sent Events connections for analysis updates
- */
-class SSEClientRegistry {
-    static instance = null;
-    clients = new Map();
-    constructor() {
-        console.log('[SSE_CLIENT_REGISTRY] Initializing SSE client registry');
-    }
-    /**
-     * Get the singleton instance
-     */
-    static getInstance() {
-        if (!SSEClientRegistry.instance) {
-            SSEClientRegistry.instance = new SSEClientRegistry();
-        }
-        return SSEClientRegistry.instance;
-    }
-    /**
-     * Register a new SSE client for a specific file
-     * @param fileUri - URI of the analyzed file
-     * @param res - HTTP response object for SSE
-     */
-    registerClient(fileUri, res) {
-        console.log(`[SSE_CLIENT_REGISTRY] Registering SSE client for: ${fileUri}`);
-        if (!this.clients.has(fileUri)) {
-            this.clients.set(fileUri, []);
-        }
-        const clientList = this.clients.get(fileUri);
-        clientList.push(res);
-        console.log(`[SSE_CLIENT_REGISTRY] Client registered. Total clients for ${fileUri}: ${clientList.length}`);
-        // Set up cleanup when client disconnects
-        res.on('close', () => {
-            this.unregisterClient(fileUri, res);
-        });
-        res.on('error', (error) => {
-            console.error(`[SSE_CLIENT_REGISTRY] Client error for ${fileUri}:`, error);
-            this.unregisterClient(fileUri, res);
-        });
-    }
-    /**
-     * Unregister an SSE client
-     * @param fileUri - URI of the analyzed file
-     * @param res - HTTP response object for SSE
-     */
-    unregisterClient(fileUri, res) {
-        console.log(`[SSE_CLIENT_REGISTRY] Unregistering SSE client for: ${fileUri}`);
-        const clientList = this.clients.get(fileUri);
-        if (!clientList) {
-            return;
-        }
-        const index = clientList.indexOf(res);
-        if (index > -1) {
-            clientList.splice(index, 1);
-            console.log(`[SSE_CLIENT_REGISTRY] Client unregistered. Remaining clients for ${fileUri}: ${clientList.length}`);
-            // Clean up empty arrays
-            if (clientList.length === 0) {
-                this.clients.delete(fileUri);
-                console.log(`[SSE_CLIENT_REGISTRY] Removed empty client list for: ${fileUri}`);
-            }
-        }
-    }
-    /**
-     * Get all active clients for a file
-     * @param fileUri - URI of the analyzed file
-     * @returns Array of response objects
-     */
-    getClients(fileUri) {
-        return this.clients.get(fileUri) || [];
-    }
-    /**
-     * Send a message to all clients for a specific file
-     * @param fileUri - URI of the analyzed file
-     * @param message - Message to send
-     */
-    sendToClients(fileUri, message) {
-        const clientList = this.clients.get(fileUri);
-        console.log(`REQUEST_UPDATE: SSE Registry lookup for file: ${fileUri}`);
-        console.log(`REQUEST_UPDATE: Found ${clientList ? clientList.length : 0} client(s) for file: ${fileUri}`);
-        if (!clientList || clientList.length === 0) {
-            console.log(`REQUEST_UPDATE: No SSE clients registered for: ${fileUri}`);
-            console.log(`REQUEST_UPDATE: Available files in registry: ${Array.from(this.clients.keys()).join(', ')}`);
-            return;
-        }
-        console.log(`[SSE_CLIENT_REGISTRY] Sending message to ${clientList.length} client(s) for: ${fileUri}`);
-        console.log(`REQUEST_UPDATE: About to send message to ${clientList.length} client(s)`);
-        // Send to all active clients, removing any that error out
-        const activeClients = [];
-        for (const client of clientList) {
-            try {
-                if (!client.headersSent) {
-                    // Headers not sent yet, this shouldn't happen in SSE
-                    console.warn(`[SSE_CLIENT_REGISTRY] Skipping client with unsent headers for: ${fileUri}`);
-                    continue;
-                }
-                client.write(`data: ${message}\n\n`);
-                activeClients.push(client);
-                console.log(`REQUEST_UPDATE: Message sent to client successfully`);
-            }
-            catch (error) {
-                console.error(`[SSE_CLIENT_REGISTRY] Error sending to client for ${fileUri}:`, error);
-                console.error(`REQUEST_UPDATE: Failed to send to client: ${error}`);
-                // Client will be removed via error event handler
-            }
-        }
-        // Update the client list to only include active clients
-        if (activeClients.length !== clientList.length) {
-            if (activeClients.length === 0) {
-                this.clients.delete(fileUri);
-                console.log(`[SSE_CLIENT_REGISTRY] All clients disconnected for: ${fileUri}`);
-            }
-            else {
-                this.clients.set(fileUri, activeClients);
-                console.log(`[SSE_CLIENT_REGISTRY] Updated active clients for ${fileUri}: ${activeClients.length}`);
-            }
-        }
-    }
-    /**
-     * Get all file URIs with active clients
-     * @returns Array of file URIs
-     */
-    getActiveFiles() {
-        return Array.from(this.clients.keys());
-    }
-    /**
-     * Get total number of active clients across all files
-     * @returns Total client count
-     */
-    getTotalClientCount() {
-        let total = 0;
-        for (const clientList of this.clients.values()) {
-            total += clientList.length;
-        }
-        return total;
-    }
-    /**
-     * Remove all clients for a specific file
-     * @param fileUri - URI of the analyzed file
-     */
-    removeAllClients(fileUri) {
-        const clientList = this.clients.get(fileUri);
-        if (!clientList) {
-            return;
-        }
-        console.log(`[SSE_CLIENT_REGISTRY] Removing all ${clientList.length} client(s) for: ${fileUri}`);
-        // Close all connections
-        for (const client of clientList) {
-            try {
-                client.end();
-            }
-            catch (error) {
-                console.error(`[SSE_CLIENT_REGISTRY] Error closing client for ${fileUri}:`, error);
-            }
-        }
-        this.clients.delete(fileUri);
-    }
-    /**
-     * Clear all clients (useful for cleanup)
-     */
-    clearAll() {
-        console.log(`[SSE_CLIENT_REGISTRY] Clearing all clients for ${this.clients.size} file(s)`);
-        for (const [fileUri, clientList] of this.clients.entries()) {
-            console.log(`[SSE_CLIENT_REGISTRY] Closing ${clientList.length} client(s) for: ${fileUri}`);
-            for (const client of clientList) {
-                try {
-                    client.end();
-                }
-                catch (error) {
-                    console.error(`[SSE_CLIENT_REGISTRY] Error closing client:`, error);
-                }
-            }
-        }
-        this.clients.clear();
-    }
-    /**
-     * Get statistics about the registry
-     * @returns Registry statistics
-     */
-    getStats() {
-        const clientsPerFile = {};
-        for (const [fileUri, clientList] of this.clients.entries()) {
-            clientsPerFile[fileUri] = clientList.length;
-        }
-        return {
-            fileCount: this.clients.size,
-            totalClients: this.getTotalClientCount(),
-            clientsPerFile
-        };
-    }
-}
-exports.SSEClientRegistry = SSEClientRegistry;
-
-
-/***/ }),
-/* 24 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.PreviewRenderer = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const panelManager_1 = __webpack_require__(20);
-/**
- * Preview Renderer
- * Handles opening HTML content in browser or VS Code webview panel
- */
-class PreviewRenderer {
-    /**
-     * Open HTML content based on the specified mode
-     * @param serverUrl - Server URL where the file is served
-     * @param htmlFilePath - Path to the HTML file (for reference/logging)
-     * @param openMode - How to open ('browser' or 'lateralPanel')
-     * @param serverId - Optional server ID for panel tracking (required for lateralPanel mode)
-     */
-    static async openPreview(serverUrl, htmlFilePath, openMode, serverId) {
-        console.log(`SERVER: Opening preview for ${htmlFilePath} at ${serverUrl} in ${openMode} mode`);
-        try {
-            if (openMode === 'browser') {
-                await this.openInBrowser(serverUrl);
-            }
-            else if (openMode === 'lateralPanel') {
-                if (!serverId) {
-                    throw new Error('Server ID is required for lateral panel mode');
-                }
-                await this.openInWebviewPanel(serverUrl, htmlFilePath, serverId);
-            }
-            else {
-                throw new Error(`Unsupported open mode: ${openMode}`);
-            }
-        }
-        catch (error) {
-            console.error(`SERVER: Error opening preview: ${error}`);
-            vscode.window.showWarningMessage(`Failed to open preview: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Open URL in external browser
-     * @private
-     */
-    static async openInBrowser(serverUrl) {
-        console.log(`SERVER: Opening ${serverUrl} in external browser`);
-        await vscode.env.openExternal(vscode.Uri.parse(serverUrl));
-        vscode.window.showInformationMessage(`Opened ${serverUrl} in browser`);
-    }
-    /**
-     * Open server URL in VS Code webview panel using iframe
-     * @private
-     */
-    static async openInWebviewPanel(serverUrl, htmlFilePath, serverId) {
-        console.log(`ACTIVE_SERVER_PANEL: Opening ${serverUrl} in VS Code webview panel for server ${serverId}`);
-        try {
-            const fileName = path.basename(htmlFilePath);
-            // Create webview panel
-            const panel = vscode.window.createWebviewPanel('serverPreview', `Local Server Preview - ${fileName}`, vscode.ViewColumn.Two, {
-                enableScripts: true,
-                enableForms: true,
-                retainContextWhenHidden: true
-            });
-            // Register panel with panel manager
-            const panelManager = (0, panelManager_1.getPanelManager)();
-            panelManager.registerPanel(serverId, panel);
-            console.log(`ACTIVE_SERVER_PANEL: Panel registered for server ${serverId}`);
-            // Create iframe HTML pointing to the server URL
-            const iframeHtml = this.createIframeHtml(serverUrl, fileName);
-            // Set the HTML content
-            panel.webview.html = iframeHtml;
-            // Handle messages from webview
-            panel.webview.onDidReceiveMessage(message => {
-                console.log(`ACTIVE_SERVER_PANEL: Webview message for server ${serverId}:`, message);
-                switch (message.command) {
-                    case 'openExternal':
-                        vscode.env.openExternal(vscode.Uri.parse(message.url));
-                        break;
-                    case 'showError':
-                        vscode.window.showErrorMessage(message.text);
-                        break;
-                    case 'serverError':
-                        vscode.window.showWarningMessage(`Server Error: ${message.text}`);
-                        break;
-                }
-            }, undefined);
-            // Handle panel disposal
-            panel.onDidDispose(() => {
-                console.log(`ACTIVE_SERVER_PANEL: Webview panel disposed for server ${serverId}`);
-                // Panel manager will automatically clean up via its disposal listener
-            });
-            console.log(`SERVER: Created webview panel for ${serverUrl}`);
-            vscode.window.showInformationMessage(`Opened ${fileName} in VS Code panel`);
-        }
-        catch (error) {
-            console.error(`SERVER: Error creating webview panel: ${error}`);
-            throw new Error(`Failed to create webview panel: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Create iframe HTML for embedding the server URL
-     * @private
-     */
-    static createIframeHtml(serverUrl, fileName) {
-        // Escape template literals in serverUrl for safe injection
-        const escapedServerUrl = serverUrl.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local Server Preview - ${fileName}</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #1e1e1e;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        .loading-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #cccccc;
-            z-index: 1000;
-        }
-        
-        .loading-spinner {
-            border: 3px solid #333;
-            border-top: 3px solid #007acc;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .error-container {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #f48771;
-            background: #2d2d30;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #f48771;
-            max-width: 80%;
-        }
-        
-        .retry-button {
-            background: #007acc;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        
-        .retry-button:hover {
-            background: #005a9e;
-        }
-        
-        iframe {
-            width: 100%;
-            height: 100vh;
-            border: none;
-            display: none;
-        }
-        
-        iframe.loaded {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <div class="loading-container" id="loadingContainer">
-        <div class="loading-spinner"></div>
-        <div>Loading server content...</div>
-        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">${escapedServerUrl}</div>
-    </div>
-    
-    <div class="error-container" id="errorContainer">
-        <h3>⚠️ Connection Error</h3>
-        <p>Could not load content from the local server.</p>
-        <p style="font-size: 12px; opacity: 0.8;">URL: ${escapedServerUrl}</p>
-        <button class="retry-button" onclick="reloadFrame()">Retry</button>
-        <button class="retry-button" onclick="openInBrowser()" style="margin-left: 8px;">Open in Browser</button>
-    </div>
-    
-    <iframe id="contentFrame" src="${escapedServerUrl}" title="Server Content"></iframe>
-    
-    <script>
-        const iframe = document.getElementById('contentFrame');
-        const loadingContainer = document.getElementById('loadingContainer');
-        const errorContainer = document.getElementById('errorContainer');
-        
-        let loadTimeout;
-        
-        function showLoading() {
-            loadingContainer.style.display = 'block';
-            errorContainer.style.display = 'none';
-            iframe.classList.remove('loaded');
-        }
-        
-        function showContent() {
-            loadingContainer.style.display = 'none';
-            errorContainer.style.display = 'none';
-            iframe.classList.add('loaded');
-        }
-        
-        function showError() {
-            loadingContainer.style.display = 'none';
-            errorContainer.style.display = 'block';
-            iframe.classList.remove('loaded');
-        }
-        
-        function reloadFrame() {
-            showLoading();
-            iframe.src = iframe.src; // Reload
-            setupLoadTimeout();
-        }
-        
-        function openInBrowser() {
-            if (typeof acquireVsCodeApi !== 'undefined') {
-                const vscode = acquireVsCodeApi();
-                vscode.postMessage({
-                    command: 'openExternal',
-                    url: '${escapedServerUrl}'
-                });
-            }
-        }
-        
-        function setupLoadTimeout() {
-            clearTimeout(loadTimeout);
-            loadTimeout = setTimeout(() => {
-                console.log('SERVER: Load timeout, showing error');
-                showError();
-            }, 10000); // 10 second timeout
-        }
-        
-        iframe.addEventListener('load', () => {
-            console.log('SERVER: Iframe loaded successfully');
-            clearTimeout(loadTimeout);
-            showContent();
-        });
-        
-        iframe.addEventListener('error', () => {
-            console.log('SERVER: Iframe load error');
-            clearTimeout(loadTimeout);
-            showError();
-        });
-        
-        // Initial setup
-        showLoading();
-        setupLoadTimeout();
-        
-        // Send ready message to extension
-        if (typeof acquireVsCodeApi !== 'undefined') {
-            const vscode = acquireVsCodeApi();
-            vscode.postMessage({
-                command: 'webviewReady',
-                url: '${escapedServerUrl}'
-            });
-        }
-    </script>
-</body>
-</html>`;
-    }
-}
-exports.PreviewRenderer = PreviewRenderer;
-
-
-/***/ }),
-/* 25 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerRegistrar = void 0;
-exports.getServerRegistrar = getServerRegistrar;
-const activeServerRegistry_1 = __webpack_require__(17);
-/**
- * Server Registrar Service
- * Centralized service for registering servers with the active servers registry
- * This layer provides validation, logging, and abstraction between server launchers and the registry
- */
-class ServerRegistrar {
-    static instance = null;
-    constructor() {
-        console.log('SERVER_REGISTRAR: Service initialized');
-    }
-    /**
-     * Get singleton instance
-     */
-    static getInstance() {
-        if (!ServerRegistrar.instance) {
-            ServerRegistrar.instance = new ServerRegistrar();
-        }
-        return ServerRegistrar.instance;
-    }
-    /**
-     * Register a server with the active servers registry
-     * @param config - Server registration configuration
-     * @returns Registered ActiveServer
-     */
-    registerServer(config) {
-        console.log('SERVER_REGISTRAR: Registering server with config:', {
-            port: config.port,
-            customName: config.customName,
-            url: config.url,
-            launchMode: config.launchMode,
-            certMode: config.certMode
-        });
-        // Input validation
-        this.validateConfig(config);
-        try {
-            // Register with the registry
-            const activeServer = (0, activeServerRegistry_1.registerActiveServer)(config);
-            console.log(`SERVER_REGISTRAR: Successfully registered server ${activeServer.id}`);
-            return activeServer;
-        }
-        catch (error) {
-            console.error('SERVER_REGISTRAR: Failed to register server:', error);
-            throw new Error(`Server registration failed: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Validate server registration configuration
-     * @private
-     */
-    validateConfig(config) {
-        // Validate required fields
-        if (!config.port || config.port <= 0 || config.port > 65535) {
-            throw new Error(`Invalid port number: ${config.port}`);
-        }
-        if (!config.url || typeof config.url !== 'string') {
-            throw new Error(`Invalid URL: ${config.url}`);
-        }
-        if (!config.launchMode || !['browser', 'lateralPanel'].includes(config.launchMode)) {
-            throw new Error(`Invalid launch mode: ${config.launchMode}`);
-        }
-        if (!config.certMode || !['http', 'https-default', 'https-custom'].includes(config.certMode)) {
-            throw new Error(`Invalid cert mode: ${config.certMode}`);
-        }
-        if (!config.timestamp || config.timestamp <= 0) {
-            throw new Error(`Invalid timestamp: ${config.timestamp}`);
-        }
-        // Validate optional fields
-        if (config.customName !== undefined && typeof config.customName !== 'string') {
-            throw new Error(`Custom name must be a string: ${typeof config.customName}`);
-        }
-        if (config.htmlFile !== undefined && typeof config.htmlFile !== 'string') {
-            throw new Error(`HTML file path must be a string: ${typeof config.htmlFile}`);
-        }
-    }
-}
-exports.ServerRegistrar = ServerRegistrar;
-/**
- * Convenience function to get the registrar instance
- */
-function getServerRegistrar() {
-    return ServerRegistrar.getInstance();
-}
-
-
-/***/ }),
-/* 26 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerLauncher = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const httpServer_1 = __webpack_require__(27);
-const httpsDefaultServer_1 = __webpack_require__(30);
-const httpsCustomServer_1 = __webpack_require__(32);
-const portManager_1 = __webpack_require__(15);
-const serverSettingsManager_1 = __webpack_require__(11);
-const activeServerRegistry_1 = __webpack_require__(17);
-const serverRegistrar_1 = __webpack_require__(25);
-/**
- * Server Launcher
- * Main entry point for launching HTTP/HTTPS servers based on saved settings
- */
-class ServerLauncher {
-    currentServer = null;
-    currentServerType = null;
-    settingsManager;
-    currentHtmlFile = null; // Track the current HTML file being served
-    activeServerId = null; // Track the active server ID in registry
-    currentCustomName = null; // Track the custom name for server registration
-    constructor(context) {
-        this.settingsManager = serverSettingsManager_1.ServerSettingsManager.getInstance(context);
-        console.log('SERVER: Server launcher initialized');
-    }
-    /**
-     * Launch server based on current settings
-     * @returns Promise<LaunchResult>
-     */
-    async launchServer() {
-        try {
-            // Stop any existing server first
-            if (this.currentServer) {
-                await this.stopServer();
-            }
-            console.log('SERVER: Starting server launch process...');
-            // Load current settings
-            const settings = this.settingsManager.getServerSettings();
-            console.log('SERVER: Loaded settings:', {
-                ...settings,
-                https: settings.https ? {
-                    ...settings.https,
-                    certPath: settings.https.certPath ? '***REDACTED***' : undefined,
-                    keyPath: settings.https.keyPath ? '***REDACTED***' : undefined
-                } : undefined
-            });
-            // Determine server type based on settings
-            const serverType = this.determineServerType(settings);
-            console.log('SERVER: Determined server type:', serverType);
-            // Check port availability and find alternative if needed
-            const port = settings.defaultPort;
-            const host = 'localhost'; // Default host
-            let finalPort = port;
-            const isPortAvailable = await portManager_1.PortManager.isPortAvailable(port);
-            if (!isPortAvailable) {
-                console.log(`SERVER: Port ${port} is already in use, finding alternative...`);
-                try {
-                    finalPort = await portManager_1.PortManager.findAvailablePort(port);
-                    console.log(`SERVER: Found available port: ${finalPort}`);
-                    vscode.window.showInformationMessage(`Port ${port} was busy, using port ${finalPort} instead.`);
-                }
-                catch (error) {
-                    console.error(`SERVER: Could not find available port: ${error}`);
-                    return {
-                        success: false,
-                        error: `Port ${port} is in use and no alternative ports available: ${error instanceof Error ? error.message : String(error)}`
-                    };
-                }
-            }
-            // Launch the appropriate server type
-            const result = await this.launchServerByType(serverType, settings, finalPort, host);
-            if (result.success) {
-                this.currentServerType = serverType;
-                console.log(`SERVER: Successfully launched ${serverType} server`);
-                // Register server in active servers registry
-                try {
-                    const launchMode = this.determineLaunchMode(settings);
-                    const certMode = this.determineCertMode(serverType, result.httpsOverridden);
-                    const registrar = (0, serverRegistrar_1.getServerRegistrar)();
-                    const activeServer = registrar.registerServer({
-                        port: finalPort,
-                        url: result.serverUrl,
-                        launchMode: launchMode,
-                        certMode: certMode,
-                        timestamp: Date.now(),
-                        htmlFile: this.currentHtmlFile || undefined,
-                        customName: this.currentCustomName || undefined,
-                        serverInstance: this.currentServer,
-                        metadata: {
-                            serverType: serverType,
-                            originalPort: port,
-                            portChanged: finalPort !== port,
-                            httpsOverridden: result.httpsOverridden || false
-                        }
-                    });
-                    this.activeServerId = activeServer.id;
-                    console.log(`SERVER: Successfully registered server ${activeServer.id} via registrar service`);
-                }
-                catch (error) {
-                    console.error('SERVER: Failed to register server via registrar service:', error);
-                    // Don't fail the launch if registry registration fails
-                }
-            }
-            return result;
-        }
-        catch (error) {
-            console.error('SERVER: Error during server launch:', error);
-            return {
-                success: false,
-                error: `Failed to launch server: ${error instanceof Error ? error.message : String(error)}`
-            };
-        }
-    }
-    /**
-     * Stop the currently running server
-     * @returns Promise<boolean> - True if server was stopped or wasn't running
-     */
-    async stopServer() {
-        if (!this.currentServer) {
-            console.log('SERVER: No server is currently running');
-            return true;
-        }
-        try {
-            console.log(`SERVER: Stopping ${this.currentServerType} server...`);
-            await this.currentServer.stop();
-            // Unregister from active servers registry
-            if (this.activeServerId) {
-                try {
-                    const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-                    registry.unregisterServer(this.activeServerId);
-                    console.log(`ACTIVE_SERVERS: Unregistered server ${this.activeServerId} from registry`);
-                }
-                catch (error) {
-                    console.error('ACTIVE_SERVERS: Failed to unregister server from registry:', error);
-                }
-                this.activeServerId = null;
-            }
-            this.currentServer = null;
-            this.currentServerType = null;
-            console.log('SERVER: Server stopped successfully');
-            return true;
-        }
-        catch (error) {
-            console.error('SERVER: Error stopping server:', error);
-            return false;
-        }
-    }
-    /**
-     * Check if a server is currently running
-     * @returns boolean
-     */
-    isServerRunning() {
-        return this.currentServer !== null && this.currentServer.getIsRunning();
-    }
-    /**
-     * Get current server information
-     * @returns object with server details or null
-     */
-    getCurrentServerInfo() {
-        if (!this.currentServer || !this.currentServerType) {
-            return null;
-        }
-        return {
-            type: this.currentServerType,
-            url: this.currentServer.getServerUrl(),
-            isRunning: this.currentServer.getIsRunning(),
-            config: this.currentServer.getConfig()
-        };
-    }
-    /**
-     * Get the currently configured HTML file
-     * @returns string | undefined - Path to current HTML file
-     */
-    getCurrentHtmlFile() {
-        return this.currentHtmlFile || undefined;
-    }
-    /**
-     * Get detailed server status
-     * @returns object with comprehensive server information
-     */
-    async getDetailedStatus() {
-        const settings = this.settingsManager.getServerSettings();
-        const status = {
-            isRunning: this.isServerRunning(),
-            settings
-        };
-        if (this.currentServer && this.currentServerType) {
-            status.server = {
-                type: this.currentServerType,
-                url: this.currentServer.getServerUrl(),
-                config: this.currentServer.getConfig(),
-                uptime: this.isServerRunning() ? process.uptime() : undefined
-            };
-        }
-        // Add port information
-        const port = settings.defaultPort;
-        const isPortAvailable = await portManager_1.PortManager.isPortAvailable(port);
-        status.portInfo = {
-            currentPort: port,
-            isAvailable: isPortAvailable
-        };
-        if (!isPortAvailable) {
-            status.portInfo.suggestedPorts = await portManager_1.PortManager.findMultipleAvailablePorts(3, port);
-        }
-        return status;
-    }
-    /**
-     * Test certificates without starting server
-     * @returns Promise<object> with test results
-     */
-    async testCertificates() {
-        const settings = this.settingsManager.getServerSettings();
-        const results = {};
-        // Test default certificates
-        try {
-            const defaultServer = new httpsDefaultServer_1.HttpsDefaultServer({
-                port: 0, // Dummy port for testing
-                host: 'localhost'
-            });
-            results.defaultCerts = {
-                isValid: await defaultServer.testCertificates()
-            };
-        }
-        catch (error) {
-            results.defaultCerts = {
-                isValid: false,
-                error: error instanceof Error ? error.message : String(error)
-            };
-        }
-        // Test custom certificates if configured
-        if (settings.https?.certSource === 'custom' &&
-            settings.https.certPath && settings.https.keyPath) {
-            try {
-                const customServer = new httpsCustomServer_1.HttpsCustomServer({
-                    port: 0, // Dummy port for testing
-                    host: 'localhost',
-                    certPath: settings.https.certPath,
-                    keyPath: settings.https.keyPath
-                });
-                results.customCerts = {
-                    isValid: await customServer.testCertificates()
-                };
-            }
-            catch (error) {
-                results.customCerts = {
-                    isValid: false,
-                    error: error instanceof Error ? error.message : String(error)
-                };
-            }
-        }
-        return results;
-    }
-    /**
-     * Restart the server with current settings
-     * @returns Promise<LaunchResult>
-     */
-    async restartServer() {
-        console.log('SERVER: Restarting server...');
-        if (this.isServerRunning()) {
-            await this.stopServer();
-        }
-        return this.launchServer();
-    }
-    /**
-     * Launch server with specific port (temporary override)
-     * @param port - Port number to use
-     * @returns Promise<LaunchResult>
-     */
-    async launchWithPort(port) {
-        try {
-            // Validate port
-            if (port < 1 || port > 65535) {
-                return {
-                    success: false,
-                    error: `Invalid port number: ${port}. Port must be between 1 and 65535.`
-                };
-            }
-            // Stop any existing server first
-            if (this.currentServer) {
-                await this.stopServer();
-            }
-            console.log(`SERVER: Launching server with specific port: ${port}`);
-            // Get current settings and temporarily override the port
-            const settings = this.settingsManager.getServerSettings();
-            // Check if port is available
-            const isAvailable = await portManager_1.PortManager.isPortAvailable(port);
-            if (!isAvailable) {
-                return {
-                    success: false,
-                    error: `Port ${port} is already in use or not available.`
-                };
-            }
-            // Determine server type based on settings
-            const serverType = this.determineServerType(settings);
-            console.log('SERVER: Determined server type:', serverType);
-            const host = 'localhost';
-            // Launch server using existing method with custom port
-            const result = await this.launchServerByType(serverType, settings, port, host);
-            if (result.success && result.serverUrl) {
-                // Update server type tracking
-                this.currentServerType = serverType;
-                // Register active server
-                const launchMode = this.determineLaunchMode(settings);
-                const certMode = this.determineCertMode(serverType);
-                console.log(`SERVER: About to register server with customName: ${this.currentCustomName}`);
-                const registrar = (0, serverRegistrar_1.getServerRegistrar)();
-                const activeServer = registrar.registerServer({
-                    port: port,
-                    url: result.serverUrl,
-                    launchMode: launchMode,
-                    certMode: certMode,
-                    timestamp: Date.now(),
-                    customName: this.currentCustomName || undefined,
-                    serverInstance: this.currentServer,
-                    metadata: {
-                        host: host,
-                        description: `Manual launch with port ${port}`
-                    }
-                });
-                this.activeServerId = activeServer.id;
-                console.log(`SERVER: Successfully registered server ${activeServer.id} via registrar service`);
-            }
-            return result;
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            console.error('SERVER: Error launching server with port:', errorMessage);
-            return {
-                success: false,
-                error: `Failed to launch server with port ${port}: ${errorMessage}`
-            };
-        }
-    }
-    /**
-     * Launch server with specific HTML file (temporary override)
-     * @param htmlFilePath - Path to HTML file to serve
-     * @param customName - Optional custom display name for the server
-     * @returns Promise<LaunchResult>
-     */
-    async launchWithHtmlFile(htmlFilePath, customName) {
-        let isHttpsOverridden = false; // Track if HTTPS was overridden
-        try {
-            // Store the custom name for registration
-            this.currentCustomName = customName || null;
-            console.log(`SERVER: launchWithHtmlFile called with customName: ${customName}`);
-            // Stop any existing server
-            if (this.currentServer) {
-                await this.stopServer();
-            }
-            console.log(`SERVER: Launching server with HTML file: ${htmlFilePath}`);
-            // Validate file exists
-            if (!(__webpack_require__(6).existsSync)(htmlFilePath)) {
-                throw new Error(`HTML file not found: ${htmlFilePath}`);
-            }
-            const settings = this.settingsManager.getServerSettings();
-            // Check for lateral panel + HTTPS conflict and handle appropriately
-            const serverTypeResult = this.checkAndHandleLateralPanelHttpsConflict(settings);
-            const serverType = serverTypeResult.serverType;
-            isHttpsOverridden = serverTypeResult.isOverridden;
-            if (serverTypeResult.isOverridden) {
-                console.log('SERVER: *** IMPORTANT *** Temporarily overriding HTTPS to HTTP for lateral panel compatibility');
-                console.log('SERVER: This override does NOT modify your saved configuration');
-                console.log('SERVER: Your HTTPS configuration will be preserved for browser mode launches');
-            }
-            else {
-                console.log(`SERVER: Using configured server type: ${serverType}`);
-            }
-            const port = settings.defaultPort;
-            const host = 'localhost';
-            // Use the directory containing the HTML file as static root
-            const fileDirectory = (__webpack_require__(5).dirname)(htmlFilePath);
-            const fileName = (__webpack_require__(5).basename)(htmlFilePath);
-            console.log(`SERVER: Using custom static root: ${fileDirectory}`);
-            console.log(`SERVER: Main file: ${fileName}`);
-            // Check port availability and find alternative if needed
-            let finalPort = port;
-            const isPortAvailable = await portManager_1.PortManager.isPortAvailable(port);
-            if (!isPortAvailable) {
-                console.log(`SERVER: Port ${port} is already in use, finding alternative...`);
-                try {
-                    finalPort = await portManager_1.PortManager.findAvailablePort(port);
-                    console.log(`SERVER: Found available port: ${finalPort}`);
-                    vscode.window.showInformationMessage(`Port ${port} was busy, using port ${finalPort} instead.`);
-                }
-                catch (error) {
-                    console.error(`SERVER: Could not find available port: ${error}`);
-                    return {
-                        success: false,
-                        error: `Port ${port} is in use and no alternative ports available: ${error instanceof Error ? error.message : String(error)}`
-                    };
-                }
-            }
-            const result = await this.launchServerByType(serverType, settings, finalPort, host, fileDirectory, fileName);
-            if (result.success) {
-                this.currentServerType = serverType;
-                this.currentHtmlFile = htmlFilePath; // Store the HTML file path
-                console.log(`SERVER: Successfully launched ${serverType} server with custom file`);
-                // Register server in active servers registry
-                try {
-                    const launchMode = this.determineLaunchMode(settings);
-                    const certMode = this.determineCertMode(serverType, isHttpsOverridden);
-                    console.log(`SERVER: About to register server with customName: ${this.currentCustomName}`);
-                    const registrar = (0, serverRegistrar_1.getServerRegistrar)();
-                    const activeServer = registrar.registerServer({
-                        port: finalPort,
-                        url: result.serverUrl,
-                        launchMode: launchMode,
-                        certMode: certMode,
-                        timestamp: Date.now(),
-                        htmlFile: htmlFilePath,
-                        customName: this.currentCustomName || undefined,
-                        serverInstance: this.currentServer,
-                        metadata: {
-                            serverType: serverType,
-                            originalPort: port,
-                            portChanged: finalPort !== port,
-                            httpsOverridden: isHttpsOverridden,
-                            htmlFileName: fileName,
-                            staticRoot: fileDirectory
-                        }
-                    });
-                    this.activeServerId = activeServer.id;
-                    console.log(`SERVER: Successfully registered server ${activeServer.id} via registrar service`);
-                }
-                catch (error) {
-                    console.error('ACTIVE_SERVERS: Failed to register server in registry:', error);
-                    // Don't fail the launch if registry registration fails
-                }
-                // Return the base server URL (the HTML file will be served at root)
-                return {
-                    ...result,
-                    serverUrl: result.serverUrl, // Return base URL, file will be served at root
-                    httpsOverridden: isHttpsOverridden // Include override information
-                };
-            }
-            return {
-                ...result,
-                httpsOverridden: isHttpsOverridden // Include override information even in failure case
-            };
-        }
-        catch (error) {
-            console.error('SERVER: Error launching with HTML file:', error);
-            return {
-                success: false,
-                error: `Failed to launch server: ${error instanceof Error ? error.message : String(error)}`,
-                httpsOverridden: isHttpsOverridden // Include override information even in error case
-            };
-        }
-    }
-    /**
-     * Check for lateral panel + HTTPS conflict and provide fallback
-     * @private
-     * @param settings - Server settings
-     * @returns Modified server type if fallback needed, original type otherwise
-     */
-    checkAndHandleLateralPanelHttpsConflict(settings) {
-        const originalServerType = this.determineServerType(settings);
-        // Check if we have lateral panel + HTTPS combination
-        const isLateralPanel = settings.launch.openMode === 'lateralPanel';
-        const isHttps = originalServerType === 'https-default' || originalServerType === 'https-custom';
-        if (isLateralPanel && isHttps) {
-            console.log('SERVER: HTTPS + Lateral Panel conflict detected - overriding to HTTP for compatibility');
-            console.log(`SERVER: Original server type would have been: ${originalServerType}`);
-            console.log('SERVER: VS Code webview panels do not support HTTPS content, using HTTP fallback');
-            // Show non-blocking warning to user with actionable information
-            vscode.window.showWarningMessage('Launching in HTTP mode due to VS Code limitations: lateral panel views do not support HTTPS content. Use browser mode to preserve HTTPS.', 'Change to Browser Mode').then(action => {
-                if (action === 'Change to Browser Mode') {
-                    // Open the configuration to change open mode
-                    vscode.commands.executeCommand('codexr.server.config.openMode');
-                }
-            });
-            return {
-                serverType: 'http',
-                isOverridden: true
-            };
-        }
-        return {
-            serverType: originalServerType,
-            isOverridden: false
-        };
-    }
-    /**
-     * Determine server type based on settings
-     * @private
-     */
-    determineServerType(settings) {
-        if (settings.mode === 'HTTP') {
-            return 'http';
-        }
-        if (settings.https?.certSource === 'custom' && settings.https.certPath && settings.https.keyPath) {
-            return 'https-custom';
-        }
-        return 'https-default';
-    }
-    /**
-     * Launch server by specific type
-     * @private
-     */
-    async launchServerByType(serverType, settings, port, host, customStaticRoot, mainFile) {
-        try {
-            let server;
-            let serverUrl;
-            // Default server configuration
-            const staticRoot = customStaticRoot || path.join(__dirname, '../../../templates');
-            const enableCors = true;
-            const allowedOrigins = ['*'];
-            console.log(`SERVER: Using static root: ${staticRoot}`);
-            if (mainFile) {
-                console.log(`SERVER: Main file configured: ${mainFile}`);
-            }
-            switch (serverType) {
-                case 'http':
-                    console.log('SERVER: Creating HTTP server...');
-                    server = new httpServer_1.HttpServer({
-                        port,
-                        host,
-                        staticRoot,
-                        enableCors,
-                        allowedOrigins,
-                        mainFile
-                    });
-                    break;
-                case 'https-default':
-                    console.log('SERVER: Creating HTTPS server with default certificates...');
-                    server = new httpsDefaultServer_1.HttpsDefaultServer({
-                        port,
-                        host,
-                        staticRoot,
-                        enableCors,
-                        allowedOrigins,
-                        mainFile,
-                        extensionContext: this.settingsManager.getExtensionContext() // Pass extension context for certificate resolution
-                    });
-                    break;
-                case 'https-custom':
-                    console.log('SERVER: Creating HTTPS server with custom certificates...');
-                    if (!settings.https?.certPath || !settings.https.keyPath) {
-                        throw new Error('Custom certificate paths are required for custom HTTPS server');
-                    }
-                    server = new httpsCustomServer_1.HttpsCustomServer({
-                        port,
-                        host,
-                        staticRoot,
-                        enableCors,
-                        allowedOrigins,
-                        mainFile,
-                        certPath: settings.https.certPath,
-                        keyPath: settings.https.keyPath,
-                        extensionContext: this.settingsManager.getExtensionContext() // Pass extension context for fallback certificates
-                    });
-                    break;
-                default:
-                    throw new Error(`Unsupported server type: ${serverType}`);
-            }
-            // Start the server
-            console.log(`SERVER: Starting ${serverType} server...`);
-            serverUrl = await server.start();
-            // Store the running server
-            this.currentServer = server;
-            return {
-                success: true,
-                serverUrl,
-                serverType,
-                port
-            };
-        }
-        catch (error) {
-            console.error(`SERVER: Error launching ${serverType} server:`, error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                serverType
-            };
-        }
-    }
-    /**
-     * Get port suggestions if current port is busy
-     * @returns Promise<number[]>
-     */
-    async getPortSuggestions(count = 3) {
-        const settings = this.settingsManager.getServerSettings();
-        return portManager_1.PortManager.findMultipleAvailablePorts(count, settings.defaultPort);
-    }
-    /**
-     * Check if current settings would trigger HTTPS override for lateral panel
-     * @returns boolean - True if override would occur
-     */
-    wouldTriggerHttpsOverride() {
-        const settings = this.settingsManager.getServerSettings();
-        const isLateralPanel = settings.launch.openMode === 'lateralPanel';
-        const originalServerType = this.determineServerType(settings);
-        const isHttps = originalServerType === 'https-default' || originalServerType === 'https-custom';
-        return isLateralPanel && isHttps;
-    }
-    /**
-     * Determine launch mode for active server registry
-     * @private
-     */
-    determineLaunchMode(settings) {
-        return settings.launch.openMode;
-    }
-    /**
-     * Determine certificate mode for active server registry
-     * @private
-     */
-    determineCertMode(serverType, httpsOverridden) {
-        if (httpsOverridden) {
-            return 'http'; // HTTPS was overridden to HTTP
-        }
-        switch (serverType) {
-            case 'http':
-                return 'http';
-            case 'https-default':
-                return 'https-default';
-            case 'https-custom':
-                return 'https-custom';
-            default:
-                return 'http';
-        }
-    }
-    /**
-     * Cleanup method to be called when extension deactivates
-     */
-    async cleanup() {
-        console.log('SERVER: Cleaning up server launcher...');
-        if (this.currentServer) {
-            await this.stopServer();
-        }
-        console.log('SERVER: Server launcher cleanup completed');
-    }
-}
-exports.ServerLauncher = ServerLauncher;
-
-
-/***/ }),
-/* 27 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpServer = void 0;
-const http = __importStar(__webpack_require__(28));
+const http = __importStar(__webpack_require__(16));
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const url_1 = __webpack_require__(29);
-const SSEManager_1 = __webpack_require__(22);
-const fileToServerMap_1 = __webpack_require__(21);
+const url_1 = __webpack_require__(17);
+const SSEManager_1 = __webpack_require__(18);
+const fileToServerMap_1 = __webpack_require__(20);
 /**
  * HTTP Server instance
  * Provides basic HTTP server functionality for CodeXR
@@ -5417,19 +2566,557 @@ exports.HttpServer = HttpServer;
 
 
 /***/ }),
-/* 28 */
+/* 16 */
 /***/ ((module) => {
 
 module.exports = require("http");
 
 /***/ }),
-/* 29 */
+/* 17 */
 /***/ ((module) => {
 
 module.exports = require("url");
 
 /***/ }),
-/* 30 */
+/* 18 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.sseManager = exports.SSEManager = void 0;
+const sseClientRegistry_1 = __webpack_require__(19);
+const fileToServerMap_1 = __webpack_require__(20);
+/**
+ * SSE Manager
+ * Central module for managing Server-Sent Events for analysis updates
+ */
+class SSEManager {
+    static instance = null;
+    clientRegistry;
+    constructor() {
+        console.log('[SSE_MANAGER] Initializing SSE manager');
+        this.clientRegistry = sseClientRegistry_1.SSEClientRegistry.getInstance();
+    }
+    /**
+     * Get the singleton instance
+     */
+    static getInstance() {
+        if (!SSEManager.instance) {
+            SSEManager.instance = new SSEManager();
+        }
+        return SSEManager.instance;
+    }
+    /**
+     * Register a new SSE client for a specific analysis file
+     * Sets up the SSE connection with proper headers and keep-alive
+     *
+     * @param fileUri - URI of the analyzed file
+     * @param res - HTTP response object
+     */
+    registerClient(fileUri, res) {
+        console.log(`[SSE_MANAGER] Setting up SSE connection for: ${fileUri}`);
+        // Set SSE headers
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Cache-Control',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+        });
+        // Send initial connection message
+        res.write(`data: ${JSON.stringify({
+            type: 'connected',
+            fileUri: fileUri,
+            timestamp: new Date().toISOString(),
+            message: 'SSE connection established for analysis updates'
+        })}\n\n`);
+        // Register the client
+        this.clientRegistry.registerClient(fileUri, res);
+        console.log(`[SSE_MANAGER] SSE client registered for: ${fileUri}`);
+    }
+    /**
+     * Unregister an SSE client
+     *
+     * @param fileUri - URI of the analyzed file
+     * @param res - HTTP response object
+     */
+    unregisterClient(fileUri, res) {
+        console.log(`[SSE_MANAGER] Unregistering SSE client for: ${fileUri}`);
+        this.clientRegistry.unregisterClient(fileUri, res);
+    }
+    /**
+     * Send an update notification to all clients of a specific analysis file
+     * This is called when the data.json file is regenerated
+     *
+     * @param fileUri - URI of the analyzed file that was updated
+     */
+    sendUpdate(fileUri) {
+        console.log(`REQUEST_UPDATE: Server received update request for file: ${fileUri}`);
+        console.log(`[SSE_MANAGER] Sending analysis update for: ${fileUri}`);
+        // Debug: Check file-to-server mapping
+        const mapping = fileToServerMap_1.fileToServerMap.getServerInfo(fileUri);
+        if (mapping) {
+            console.log(`REQUEST_UPDATE: Found mapping - Port: ${mapping.port}, TempDir: ${mapping.tempDir}`);
+            // Verify data.json exists in the temp directory
+            const dataJsonPath = (__webpack_require__(5).join)(mapping.tempDir, 'data.json');
+            const fs = __webpack_require__(6);
+            try {
+                const exists = fs.existsSync(dataJsonPath);
+                console.log(`REQUEST_UPDATE: data.json exists at ${dataJsonPath}: ${exists}`);
+                if (exists) {
+                    const stats = fs.statSync(dataJsonPath);
+                    console.log(`REQUEST_UPDATE: data.json size: ${stats.size} bytes, modified: ${stats.mtime}`);
+                }
+            }
+            catch (fileError) {
+                console.error(`REQUEST_UPDATE: Error checking data.json:`, fileError);
+            }
+        }
+        else {
+            console.log(`REQUEST_UPDATE: No mapping found for file: ${fileUri}`);
+        }
+        const updateMessage = JSON.stringify({
+            type: 'analysis-updated',
+            fileUri: fileUri,
+            timestamp: new Date().toISOString(),
+            message: 'Analysis data has been updated, please refresh',
+            action: 'reload-data'
+        });
+        this.clientRegistry.sendToClients(fileUri, updateMessage);
+        console.log(`[SSE_MANAGER] Update notification sent for: ${fileUri}`);
+        console.log(`REQUEST_UPDATE: Update message dispatched to clients for: ${fileUri}`);
+    }
+    /**
+     * Send a custom message to all clients of a specific analysis file
+     *
+     * @param fileUri - URI of the analyzed file
+     * @param message - Custom message object
+     */
+    sendCustomMessage(fileUri, message) {
+        console.log(`[SSE_MANAGER] Sending custom message for: ${fileUri}`);
+        const customMessage = JSON.stringify({
+            ...message,
+            timestamp: new Date().toISOString()
+        });
+        this.clientRegistry.sendToClients(fileUri, customMessage);
+    }
+    /**
+     * Send a heartbeat/keep-alive message to all clients of a specific file
+     *
+     * @param fileUri - URI of the analyzed file
+     */
+    sendHeartbeat(fileUri) {
+        const heartbeatMessage = JSON.stringify({
+            type: 'heartbeat',
+            timestamp: new Date().toISOString()
+        });
+        this.clientRegistry.sendToClients(fileUri, heartbeatMessage);
+    }
+    /**
+     * Send heartbeat to all active files
+     * Useful for maintaining connections
+     */
+    sendHeartbeatToAll() {
+        const activeFiles = this.clientRegistry.getActiveFiles();
+        if (activeFiles.length > 0) {
+            console.log(`[SSE_MANAGER] Sending heartbeat to ${activeFiles.length} active file(s)`);
+            for (const fileUri of activeFiles) {
+                this.sendHeartbeat(fileUri);
+            }
+        }
+    }
+    /**
+     * Get the number of active clients for a specific file
+     *
+     * @param fileUri - URI of the analyzed file
+     * @returns Number of active clients
+     */
+    getClientCount(fileUri) {
+        return this.clientRegistry.getClients(fileUri).length;
+    }
+    /**
+     * Get all file URIs that have active SSE clients
+     *
+     * @returns Array of file URIs with active clients
+     */
+    getActiveFiles() {
+        return this.clientRegistry.getActiveFiles();
+    }
+    /**
+     * Remove all clients for a specific file
+     * Useful when an analysis is stopped or file is deleted
+     *
+     * @param fileUri - URI of the analyzed file
+     */
+    removeAllClients(fileUri) {
+        console.log(`[SSE_MANAGER] Removing all SSE clients for: ${fileUri}`);
+        this.clientRegistry.removeAllClients(fileUri);
+    }
+    /**
+     * Get statistics about active SSE connections
+     *
+     * @returns Statistics object
+     */
+    getStats() {
+        return this.clientRegistry.getStats();
+    }
+    /**
+     * Clean up all SSE connections
+     * Should be called during extension deactivation
+     */
+    dispose() {
+        console.log('[SSE_MANAGER] Disposing SSE manager');
+        this.clientRegistry.clearAll();
+    }
+}
+exports.SSEManager = SSEManager;
+// Export singleton instance for easy access
+exports.sseManager = SSEManager.getInstance();
+
+
+/***/ }),
+/* 19 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SSEClientRegistry = void 0;
+/**
+ * SSE Client Registry
+ * Maintains active Server-Sent Events connections for analysis updates
+ */
+class SSEClientRegistry {
+    static instance = null;
+    clients = new Map();
+    constructor() {
+        console.log('[SSE_CLIENT_REGISTRY] Initializing SSE client registry');
+    }
+    /**
+     * Get the singleton instance
+     */
+    static getInstance() {
+        if (!SSEClientRegistry.instance) {
+            SSEClientRegistry.instance = new SSEClientRegistry();
+        }
+        return SSEClientRegistry.instance;
+    }
+    /**
+     * Register a new SSE client for a specific file
+     * @param fileUri - URI of the analyzed file
+     * @param res - HTTP response object for SSE
+     */
+    registerClient(fileUri, res) {
+        console.log(`[SSE_CLIENT_REGISTRY] Registering SSE client for: ${fileUri}`);
+        if (!this.clients.has(fileUri)) {
+            this.clients.set(fileUri, []);
+        }
+        const clientList = this.clients.get(fileUri);
+        clientList.push(res);
+        console.log(`[SSE_CLIENT_REGISTRY] Client registered. Total clients for ${fileUri}: ${clientList.length}`);
+        // Set up cleanup when client disconnects
+        res.on('close', () => {
+            this.unregisterClient(fileUri, res);
+        });
+        res.on('error', (error) => {
+            console.error(`[SSE_CLIENT_REGISTRY] Client error for ${fileUri}:`, error);
+            this.unregisterClient(fileUri, res);
+        });
+    }
+    /**
+     * Unregister an SSE client
+     * @param fileUri - URI of the analyzed file
+     * @param res - HTTP response object for SSE
+     */
+    unregisterClient(fileUri, res) {
+        console.log(`[SSE_CLIENT_REGISTRY] Unregistering SSE client for: ${fileUri}`);
+        const clientList = this.clients.get(fileUri);
+        if (!clientList) {
+            return;
+        }
+        const index = clientList.indexOf(res);
+        if (index > -1) {
+            clientList.splice(index, 1);
+            console.log(`[SSE_CLIENT_REGISTRY] Client unregistered. Remaining clients for ${fileUri}: ${clientList.length}`);
+            // Clean up empty arrays
+            if (clientList.length === 0) {
+                this.clients.delete(fileUri);
+                console.log(`[SSE_CLIENT_REGISTRY] Removed empty client list for: ${fileUri}`);
+            }
+        }
+    }
+    /**
+     * Get all active clients for a file
+     * @param fileUri - URI of the analyzed file
+     * @returns Array of response objects
+     */
+    getClients(fileUri) {
+        return this.clients.get(fileUri) || [];
+    }
+    /**
+     * Send a message to all clients for a specific file
+     * @param fileUri - URI of the analyzed file
+     * @param message - Message to send
+     */
+    sendToClients(fileUri, message) {
+        const clientList = this.clients.get(fileUri);
+        console.log(`REQUEST_UPDATE: SSE Registry lookup for file: ${fileUri}`);
+        console.log(`REQUEST_UPDATE: Found ${clientList ? clientList.length : 0} client(s) for file: ${fileUri}`);
+        if (!clientList || clientList.length === 0) {
+            console.log(`REQUEST_UPDATE: No SSE clients registered for: ${fileUri}`);
+            console.log(`REQUEST_UPDATE: Available files in registry: ${Array.from(this.clients.keys()).join(', ')}`);
+            return;
+        }
+        console.log(`[SSE_CLIENT_REGISTRY] Sending message to ${clientList.length} client(s) for: ${fileUri}`);
+        console.log(`REQUEST_UPDATE: About to send message to ${clientList.length} client(s)`);
+        // Send to all active clients, removing any that error out
+        const activeClients = [];
+        for (const client of clientList) {
+            try {
+                if (!client.headersSent) {
+                    // Headers not sent yet, this shouldn't happen in SSE
+                    console.warn(`[SSE_CLIENT_REGISTRY] Skipping client with unsent headers for: ${fileUri}`);
+                    continue;
+                }
+                client.write(`data: ${message}\n\n`);
+                activeClients.push(client);
+                console.log(`REQUEST_UPDATE: Message sent to client successfully`);
+            }
+            catch (error) {
+                console.error(`[SSE_CLIENT_REGISTRY] Error sending to client for ${fileUri}:`, error);
+                console.error(`REQUEST_UPDATE: Failed to send to client: ${error}`);
+                // Client will be removed via error event handler
+            }
+        }
+        // Update the client list to only include active clients
+        if (activeClients.length !== clientList.length) {
+            if (activeClients.length === 0) {
+                this.clients.delete(fileUri);
+                console.log(`[SSE_CLIENT_REGISTRY] All clients disconnected for: ${fileUri}`);
+            }
+            else {
+                this.clients.set(fileUri, activeClients);
+                console.log(`[SSE_CLIENT_REGISTRY] Updated active clients for ${fileUri}: ${activeClients.length}`);
+            }
+        }
+    }
+    /**
+     * Get all file URIs with active clients
+     * @returns Array of file URIs
+     */
+    getActiveFiles() {
+        return Array.from(this.clients.keys());
+    }
+    /**
+     * Get total number of active clients across all files
+     * @returns Total client count
+     */
+    getTotalClientCount() {
+        let total = 0;
+        for (const clientList of this.clients.values()) {
+            total += clientList.length;
+        }
+        return total;
+    }
+    /**
+     * Remove all clients for a specific file
+     * @param fileUri - URI of the analyzed file
+     */
+    removeAllClients(fileUri) {
+        const clientList = this.clients.get(fileUri);
+        if (!clientList) {
+            return;
+        }
+        console.log(`[SSE_CLIENT_REGISTRY] Removing all ${clientList.length} client(s) for: ${fileUri}`);
+        // Close all connections
+        for (const client of clientList) {
+            try {
+                client.end();
+            }
+            catch (error) {
+                console.error(`[SSE_CLIENT_REGISTRY] Error closing client for ${fileUri}:`, error);
+            }
+        }
+        this.clients.delete(fileUri);
+    }
+    /**
+     * Clear all clients (useful for cleanup)
+     */
+    clearAll() {
+        console.log(`[SSE_CLIENT_REGISTRY] Clearing all clients for ${this.clients.size} file(s)`);
+        for (const [fileUri, clientList] of this.clients.entries()) {
+            console.log(`[SSE_CLIENT_REGISTRY] Closing ${clientList.length} client(s) for: ${fileUri}`);
+            for (const client of clientList) {
+                try {
+                    client.end();
+                }
+                catch (error) {
+                    console.error(`[SSE_CLIENT_REGISTRY] Error closing client:`, error);
+                }
+            }
+        }
+        this.clients.clear();
+    }
+    /**
+     * Get statistics about the registry
+     * @returns Registry statistics
+     */
+    getStats() {
+        const clientsPerFile = {};
+        for (const [fileUri, clientList] of this.clients.entries()) {
+            clientsPerFile[fileUri] = clientList.length;
+        }
+        return {
+            fileCount: this.clients.size,
+            totalClients: this.getTotalClientCount(),
+            clientsPerFile
+        };
+    }
+}
+exports.SSEClientRegistry = SSEClientRegistry;
+
+
+/***/ }),
+/* 20 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.fileToServerMap = void 0;
+/**
+ * Central mapping between analysis files and their corresponding servers
+ * This enables efficient lookup for SSE notifications and cleanup operations
+ */
+class FileToServerMapping {
+    static instance = null;
+    fileToServer = new Map();
+    constructor() {
+        console.log('[FILE_TO_SERVER_MAP] Initializing file-to-server mapping registry');
+    }
+    /**
+     * Get the singleton instance
+     */
+    static getInstance() {
+        if (!FileToServerMapping.instance) {
+            FileToServerMapping.instance = new FileToServerMapping();
+        }
+        return FileToServerMapping.instance;
+    }
+    /**
+     * Register a mapping between a file and its analysis server
+     * @param fileUri - URI of the analyzed file
+     * @param serverInfo - Information about the server serving this analysis
+     */
+    registerMapping(fileUri, serverInfo) {
+        console.log(`REQUEST_UPDATE: Registering file-to-server mapping`);
+        console.log(`REQUEST_UPDATE: File URI: ${fileUri}`);
+        console.log(`REQUEST_UPDATE: Server port: ${serverInfo.port}`);
+        console.log(`REQUEST_UPDATE: Temp dir: ${serverInfo.tempDir}`);
+        console.log(`[FILE_TO_SERVER_MAP] Registering mapping: ${fileUri} -> port ${serverInfo.port}`);
+        this.fileToServer.set(fileUri, serverInfo);
+        console.log(`REQUEST_UPDATE: Total mappings after registration: ${this.fileToServer.size}`);
+    }
+    /**
+     * Unregister a mapping for a file
+     * @param fileUri - URI of the analyzed file
+     */
+    unregisterMapping(fileUri) {
+        console.log(`[FILE_TO_SERVER_MAP] Unregistering mapping for: ${fileUri}`);
+        this.fileToServer.delete(fileUri);
+    }
+    /**
+     * Get server information for a file
+     * @param fileUri - URI of the analyzed file
+     * @returns ServerInfo or null if not found
+     */
+    getServerInfo(fileUri) {
+        return this.fileToServer.get(fileUri) || null;
+    }
+    /**
+     * Find file URI by server port
+     * @param port - Server port number
+     * @returns File URI or null if not found
+     */
+    findFileByPort(port) {
+        console.log(`REQUEST_UPDATE: Looking up file for port ${port}`);
+        console.log(`REQUEST_UPDATE: Available ports: ${Array.from(this.fileToServer.values()).map(info => info.port).join(', ')}`);
+        for (const [fileUri, serverInfo] of this.fileToServer.entries()) {
+            if (serverInfo.port === port) {
+                console.log(`REQUEST_UPDATE: Found file ${fileUri} for port ${port}`);
+                return fileUri;
+            }
+        }
+        console.log(`REQUEST_UPDATE: No file found for port ${port}`);
+        return null;
+    }
+    /**
+     * Find file URI by server reference
+     * @param serverRef - HTTP server reference
+     * @returns File URI or null if not found
+     */
+    findFileByServerRef(serverRef) {
+        for (const [fileUri, serverInfo] of this.fileToServer.entries()) {
+            if (serverInfo.serverRef === serverRef) {
+                return fileUri;
+            }
+        }
+        return null;
+    }
+    /**
+     * Find file URI by temp directory path
+     * @param tempDir - Temporary directory path
+     * @returns File URI or null if not found
+     */
+    findFileByTempDir(tempDir) {
+        for (const [fileUri, serverInfo] of this.fileToServer.entries()) {
+            if (serverInfo.tempDir === tempDir) {
+                return fileUri;
+            }
+        }
+        return null;
+    }
+    /**
+     * Get all registered mappings
+     * @returns Array of [fileUri, ServerInfo] entries
+     */
+    getAllMappings() {
+        return Array.from(this.fileToServer.entries());
+    }
+    /**
+     * Get all file URIs that have servers
+     * @returns Array of file URIs
+     */
+    getAllFileUris() {
+        return Array.from(this.fileToServer.keys());
+    }
+    /**
+     * Check if a file has a registered server
+     * @param fileUri - URI of the analyzed file
+     * @returns True if mapping exists
+     */
+    hasMapping(fileUri) {
+        return this.fileToServer.has(fileUri);
+    }
+    /**
+     * Clear all mappings (useful for cleanup)
+     */
+    clearAll() {
+        console.log(`[FILE_TO_SERVER_MAP] Clearing all ${this.fileToServer.size} mappings`);
+        this.fileToServer.clear();
+    }
+    /**
+     * Get the number of registered mappings
+     */
+    size() {
+        return this.fileToServer.size;
+    }
+}
+// Export singleton instance
+exports.fileToServerMap = FileToServerMapping.getInstance();
+
+
+/***/ }),
+/* 21 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5468,10 +3155,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpsDefaultServer = void 0;
-const https = __importStar(__webpack_require__(31));
+const https = __importStar(__webpack_require__(22));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const httpServer_1 = __webpack_require__(27);
+const httpServer_1 = __webpack_require__(15);
 /**
  * HTTPS Server with default certificates
  * Extends HTTP server functionality with SSL/TLS support using default certificates
@@ -5774,13 +3461,13 @@ exports.HttpsDefaultServer = HttpsDefaultServer;
 
 
 /***/ }),
-/* 31 */
+/* 22 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 32 */
+/* 23 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5819,11 +3506,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpsCustomServer = void 0;
-const https = __importStar(__webpack_require__(31));
+const https = __importStar(__webpack_require__(22));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 const vscode = __importStar(__webpack_require__(1));
-const httpServer_1 = __webpack_require__(27);
+const httpServer_1 = __webpack_require__(15);
 /**
  * HTTPS Server with custom user-selected certificates
  * Extends HTTP server functionality with SSL/TLS support using user-provided certificates
@@ -6302,14 +3989,1709 @@ exports.HttpsCustomServer = HttpsCustomServer;
 
 
 /***/ }),
-/* 33 */
+/* 24 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PortManager = void 0;
+const net = __importStar(__webpack_require__(25));
+/**
+ * Port availability checker and manager
+ * Provides utilities to find available ports starting from a given port number
+ */
+class PortManager {
+    static DEFAULT_START_PORT = 3000;
+    static DEFAULT_END_PORT = 8080;
+    static MAX_RETRIES = 50;
+    /**
+     * Check if a specific port is available
+     * @param port - The port number to check
+     * @returns Promise<boolean> - True if port is available, false otherwise
+     */
+    static async isPortAvailable(port) {
+        return new Promise((resolve) => {
+            const server = net.createServer();
+            server.listen(port, () => {
+                server.close(() => {
+                    console.log(`SERVER: Port ${port} is available`);
+                    resolve(true);
+                });
+            });
+            server.on('error', (err) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.log(`SERVER: Port ${port} is already in use`);
+                    resolve(false);
+                }
+                else {
+                    console.error(`SERVER: Error checking port ${port}:`, err);
+                    resolve(false);
+                }
+            });
+        });
+    }
+    /**
+     * Find the next available port starting from the specified port using get-port library
+     * @param startPort - The port to start searching from
+     * @param endPort - The maximum port to check (optional, defaults to 8080)
+     * @returns Promise<number> - The first available port found
+     * @throws Error if no available port is found within the range
+     */
+    static async findAvailablePort(startPort = PortManager.DEFAULT_START_PORT, endPort = PortManager.DEFAULT_END_PORT) {
+        console.log(`SERVER: Searching for available port starting from ${startPort}`);
+        // Validate inputs
+        if (startPort < 1 || startPort > 65535) {
+            throw new Error(`SERVER: Invalid start port ${startPort}. Must be between 1 and 65535`);
+        }
+        if (endPort < startPort || endPort > 65535) {
+            throw new Error(`SERVER: Invalid end port ${endPort}. Must be between ${startPort} and 65535`);
+        }
+        try {
+            // Use get-port for more reliable port detection
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 175))).default;
+            // Create a range array for get-port - limit to reasonable range for performance
+            const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
+            const ports = [];
+            for (let i = 0; i < maxRange; i++) {
+                const port = startPort + i;
+                if (port <= endPort) {
+                    ports.push(port);
+                }
+            }
+            console.log(`SERVER: Searching through ${ports.length} ports starting from ${startPort}`);
+            const availablePort = await getPort({
+                port: ports,
+                host: 'localhost'
+            });
+            console.log(`SERVER: get-port found available port: ${availablePort}`);
+            return availablePort;
+        }
+        catch (error) {
+            console.error(`SERVER: get-port failed, falling back to manual detection:`, error);
+            // Fallback to the original manual implementation
+            console.log(`SERVER: Using fallback manual port detection from ${startPort} to ${endPort}`);
+            let currentPort = startPort;
+            let attempts = 0;
+            const maxAttempts = Math.min(endPort - startPort + 1, PortManager.MAX_RETRIES);
+            while (attempts < maxAttempts) {
+                if (currentPort > endPort) {
+                    break;
+                }
+                console.log(`SERVER: Checking port ${currentPort}...`);
+                if (await PortManager.isPortAvailable(currentPort)) {
+                    console.log(`SERVER: Found available port (fallback): ${currentPort}`);
+                    return currentPort;
+                }
+                currentPort++;
+                attempts++;
+            }
+            throw new Error(`SERVER: No available port found in range ${startPort}-${endPort} after ${attempts} attempts`);
+        }
+    }
+    /**
+     * Find multiple available ports
+     * @param count - Number of ports needed
+     * @param startPort - The port to start searching from
+     * @param endPort - The maximum port to check
+     * @returns Promise<number[]> - Array of available ports
+     */
+    static async findMultipleAvailablePorts(count, startPort = PortManager.DEFAULT_START_PORT, endPort = PortManager.DEFAULT_END_PORT) {
+        if (count <= 0) {
+            throw new Error('SERVER: Port count must be greater than 0');
+        }
+        console.log(`SERVER: Searching for ${count} available ports starting from ${startPort}`);
+        const availablePorts = [];
+        let currentPort = startPort;
+        while (availablePorts.length < count && currentPort <= endPort) {
+            if (await PortManager.isPortAvailable(currentPort)) {
+                availablePorts.push(currentPort);
+                console.log(`SERVER: Found port ${currentPort} (${availablePorts.length}/${count})`);
+            }
+            currentPort++;
+        }
+        if (availablePorts.length < count) {
+            throw new Error(`SERVER: Only found ${availablePorts.length} available ports, needed ${count}`);
+        }
+        return availablePorts;
+    }
+    /**
+     * Validate port number
+     * @param port - Port number to validate
+     * @returns boolean - True if port is valid
+     */
+    static isValidPort(port) {
+        return Number.isInteger(port) && port >= 1 && port <= 65535;
+    }
+    /**
+     * Get a random port within a range
+     * @param min - Minimum port number
+     * @param max - Maximum port number
+     * @returns number - Random port number
+     */
+    static getRandomPort(min = 3000, max = 8080) {
+        if (!PortManager.isValidPort(min) || !PortManager.isValidPort(max) || min > max) {
+            throw new Error(`SERVER: Invalid port range ${min}-${max}`);
+        }
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    /**
+     * Check if port is in privileged range (1-1023)
+     * @param port - Port number to check
+     * @returns boolean - True if port is privileged
+     */
+    static isPrivilegedPort(port) {
+        return port >= 1 && port <= 1023;
+    }
+    /**
+     * Get suggested ports based on service type
+     * @param serviceType - Type of service ('http', 'https', 'dev')
+     * @returns number[] - Array of suggested ports
+     */
+    static getSuggestedPorts(serviceType) {
+        switch (serviceType) {
+            case 'http':
+                return [3000, 8000, 8080, 8008, 3001];
+            case 'https':
+                return [3443, 8443, 3001, 4443, 5443];
+            case 'dev':
+                return [3000, 3001, 3002, 8000, 8080, 8888];
+            default:
+                return [3000, 3001, 8000, 8080];
+        }
+    }
+}
+exports.PortManager = PortManager;
+
+
+/***/ }),
+/* 25 */
+/***/ ((module) => {
+
+module.exports = require("net");
+
+/***/ }),
+/* 26 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveServerRegistry = void 0;
+exports.getActiveServerRegistry = getActiveServerRegistry;
+exports.registerActiveServer = registerActiveServer;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * Active Server Registry
+ * Centralized tracking and management of all active servers
+ */
+class ActiveServerRegistry {
+    static instance = null;
+    servers = new Map();
+    eventEmitter = new vscode.EventEmitter();
+    /** Event fired when registry changes */
+    onRegistryChange = this.eventEmitter.event;
+    constructor() {
+        console.log('ACTIVE_SERVERS: Registry initialized');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance() {
+        if (!ActiveServerRegistry.instance) {
+            ActiveServerRegistry.instance = new ActiveServerRegistry();
+        }
+        return ActiveServerRegistry.instance;
+    }
+    /**
+     * Register a new active server
+     */
+    registerServer(config) {
+        console.log('SERVER: registerServer called with config:', {
+            port: config.port,
+            htmlFile: config.htmlFile,
+            customName: config.customName,
+            url: config.url
+        });
+        const serverId = this.generateServerId(config.port, config.timestamp);
+        const server = {
+            id: serverId,
+            port: config.port,
+            url: config.url,
+            launchMode: config.launchMode,
+            certMode: config.certMode,
+            timestamp: config.timestamp,
+            status: 'running',
+            htmlFile: config.htmlFile,
+            customName: config.customName,
+            serverInstance: config.serverInstance,
+            metadata: config.metadata
+        };
+        this.servers.set(serverId, server);
+        // Enhanced logging for custom names
+        console.log(`ACTIVE_SERVERS: Registered server ${serverId} at ${config.url} (${config.certMode}/${config.launchMode})`);
+        if (config.customName && config.customName.trim().length > 0) {
+            console.log(`ACTIVE_SERVERS: Received custom name from launcher: ${config.customName}`);
+            console.log(`ACTIVE_SERVERS: Registering server with name: ${config.customName}`);
+        }
+        else {
+            const fallbackName = `localhost:${config.port}`;
+            console.log(`ACTIVE_SERVERS: No custom name provided. Using default name: ${fallbackName}`);
+        }
+        this.emitEvent('serverAdded', serverId, server);
+        return server;
+    }
+    /**
+     * Remove a server from the registry
+     */
+    unregisterServer(serverId) {
+        const server = this.servers.get(serverId);
+        if (!server) {
+            console.warn(`ACTIVE_SERVERS: Attempted to unregister non-existent server: ${serverId}`);
+            return false;
+        }
+        this.servers.delete(serverId);
+        console.log(`ACTIVE_SERVERS: Unregistered server ${serverId} (${server.url})`);
+        this.emitEvent('serverRemoved', serverId, server);
+        return true;
+    }
+    /**
+     * Update server status
+     */
+    updateServerStatus(serverId, status) {
+        const server = this.servers.get(serverId);
+        if (!server) {
+            console.warn(`ACTIVE_SERVERS: Attempted to update status of non-existent server: ${serverId}`);
+            return false;
+        }
+        server.status = status;
+        console.log(`ACTIVE_SERVERS: Updated server ${serverId} status to ${status}`);
+        this.emitEvent('serverUpdated', serverId, server);
+        return true;
+    }
+    /**
+     * Get server by ID
+     */
+    getServer(serverId) {
+        return this.servers.get(serverId);
+    }
+    /**
+     * Get all active servers
+     */
+    getAllServers() {
+        return Array.from(this.servers.values());
+    }
+    /**
+     * Get servers by status
+     */
+    getServersByStatus(status) {
+        return this.getAllServers().filter(server => server.status === status);
+    }
+    /**
+     * Get servers by port
+     */
+    getServerByPort(port) {
+        return this.getAllServers().find(server => server.port === port);
+    }
+    /**
+     * Check if a server is registered
+     */
+    hasServer(serverId) {
+        return this.servers.has(serverId);
+    }
+    /**
+     * Get count of active servers
+     */
+    getServerCount() {
+        return this.servers.size;
+    }
+    /**
+     * Get count of running servers
+     */
+    getRunningServerCount() {
+        return this.getServersByStatus('running').length;
+    }
+    /**
+     * Clear all servers from registry
+     */
+    clearAll() {
+        const count = this.servers.size;
+        this.servers.clear();
+        console.log(`ACTIVE_SERVERS: Cleared all servers (${count} removed)`);
+        this.emitEvent('registryCleared');
+    }
+    /**
+     * Cleanup stopped/error servers
+     */
+    cleanupInactiveServers() {
+        const inactiveServers = this.getAllServers().filter(server => server.status === 'stopped' || server.status === 'error');
+        let removedCount = 0;
+        for (const server of inactiveServers) {
+            if (this.unregisterServer(server.id)) {
+                removedCount++;
+            }
+        }
+        if (removedCount > 0) {
+            console.log(`ACTIVE_SERVERS: Cleaned up ${removedCount} inactive servers`);
+        }
+        return removedCount;
+    }
+    /**
+     * Get registry statistics
+     */
+    getStats() {
+        const servers = this.getAllServers();
+        const stats = {
+            total: servers.length,
+            running: 0,
+            stopped: 0,
+            error: 0,
+            byMode: {},
+            byCertMode: {}
+        };
+        for (const server of servers) {
+            // Count by status
+            stats[server.status]++;
+            // Count by launch mode
+            stats.byMode[server.launchMode] = (stats.byMode[server.launchMode] || 0) + 1;
+            // Count by cert mode
+            stats.byCertMode[server.certMode] = (stats.byCertMode[server.certMode] || 0) + 1;
+        }
+        return stats;
+    }
+    /**
+     * Dispose of the registry
+     */
+    dispose() {
+        this.eventEmitter.dispose();
+        this.clearAll();
+        console.log('ACTIVE_SERVERS: Registry disposed');
+    }
+    /**
+     * Generate unique server ID
+     * @private
+     */
+    generateServerId(port, timestamp) {
+        return `server-${port}-${timestamp}`;
+    }
+    /**
+     * Emit registry event
+     * @private
+     */
+    emitEvent(type, serverId, server) {
+        const event = {
+            type,
+            serverId,
+            server,
+            timestamp: Date.now()
+        };
+        this.eventEmitter.fire(event);
+    }
+}
+exports.ActiveServerRegistry = ActiveServerRegistry;
+/**
+ * Convenience function to get the registry instance
+ */
+function getActiveServerRegistry() {
+    return ActiveServerRegistry.getInstance();
+}
+/**
+ * Convenience function to register a server
+ */
+function registerActiveServer(config) {
+    return getActiveServerRegistry().registerServer(config);
+}
+
+
+/***/ }),
+/* 27 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServerActionHandlers = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const activeServerRegistry_1 = __webpack_require__(26);
+const serverControl_1 = __webpack_require__(28);
+const previewRenderer_1 = __webpack_require__(30);
+/**
+ * Server Action Handlers
+ * Handle user interactions with active servers
+ */
+class ServerActionHandlers {
+    /**
+     * Show server actions quick pick
+     */
+    static async showServerActions(serverId) {
+        console.log(`ACTIVE_SERVER: Showing actions for server ${serverId}`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        const actions = this.getAvailableActions(server);
+        const selectedAction = await vscode.window.showQuickPick(actions, {
+            placeHolder: `Actions for ${server.url}`,
+            title: `Server Actions - localhost:${server.port}`
+        });
+        if (selectedAction) {
+            await this.executeAction(selectedAction.action, server);
+        }
+    }
+    /**
+     * Open server in browser
+     */
+    static async openInBrowser(serverId) {
+        console.log(`ACTIVE_SERVER: Opening server ${serverId} in browser`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        try {
+            await previewRenderer_1.PreviewRenderer.openPreview(server.url, server.htmlFile || '', 'browser');
+            console.log(`ACTIVE_SERVER: Opened ${server.url} in browser`);
+            vscode.window.showInformationMessage(`Opened ${server.url} in browser`);
+        }
+        catch (error) {
+            console.error(`ACTIVE_SERVER: Error opening ${server.url} in browser:`, error);
+            vscode.window.showErrorMessage(`Failed to open in browser: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Open server in lateral panel
+     */
+    static async openInPanel(serverId) {
+        console.log(`ACTIVE_SERVER: Opening server ${serverId} in lateral panel`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        // Check for HTTPS + lateral panel conflict
+        if (server.certMode !== 'http') {
+            console.log(`ACTIVE_SERVER: HTTPS server ${serverId} cannot be opened in lateral panel - cert mode: ${server.certMode}`);
+            const response = await vscode.window.showWarningMessage('HTTPS content cannot be displayed in VS Code panels due to security restrictions. The content will not load properly.', 'Open in Browser Instead', 'Cancel');
+            if (response === 'Open in Browser Instead') {
+                console.log(`ACTIVE_SERVER: Redirecting server ${serverId} to browser due to HTTPS incompatibility`);
+                return this.openInBrowser(serverId);
+            }
+            else {
+                console.log(`ACTIVE_SERVER: User cancelled opening HTTPS server ${serverId} in panel`);
+                return; // User cancelled
+            }
+        }
+        try {
+            console.log(`ACTIVE_SERVER: Opening HTTP server ${serverId} (${server.url}) in lateral panel`);
+            await previewRenderer_1.PreviewRenderer.openPreview(server.url, server.htmlFile || '', 'lateralPanel', serverId);
+            console.log(`ACTIVE_SERVER: Successfully opened ${server.url} in lateral panel`);
+            vscode.window.showInformationMessage(`Opened ${server.url} in VS Code panel`);
+        }
+        catch (error) {
+            console.error(`ACTIVE_SERVER: Error opening ${server.url} in panel:`, error);
+            vscode.window.showErrorMessage(`Failed to open in panel: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Copy server URL to clipboard
+     */
+    static async copyUrl(serverId) {
+        console.log(`ACTIVE_SERVER: Copying URL for server ${serverId}`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        try {
+            await vscode.env.clipboard.writeText(server.url);
+            console.log(`ACTIVE_SERVER: Copied ${server.url} to clipboard`);
+            vscode.window.showInformationMessage(`Copied ${server.url} to clipboard`);
+        }
+        catch (error) {
+            console.error(`ACTIVE_SERVER: Error copying URL to clipboard:`, error);
+            vscode.window.showErrorMessage('Failed to copy URL to clipboard');
+        }
+    }
+    /**
+     * Stop server
+     */
+    static async stopServer(serverId) {
+        console.log(`ACTIVE_SERVER: Stopping server ${serverId}`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        const response = await vscode.window.showWarningMessage(`Stop server ${server.url}?`, 'Stop', 'Cancel');
+        if (response === 'Stop') {
+            try {
+                console.log(`ACTIVE_SERVER: Stopping server ${serverId} (${server.url})`);
+                const success = await serverControl_1.ServerControl.stopServer(serverId);
+                if (success) {
+                    console.log(`ACTIVE_SERVER: Successfully stopped server ${serverId}`);
+                    vscode.window.showInformationMessage(`Stopped server ${server.url}`);
+                    // Refresh the tree view
+                    vscode.commands.executeCommand('codeXR.activeServers.refreshServers');
+                }
+                else {
+                    console.error(`ACTIVE_SERVER: Failed to stop server ${serverId}`);
+                    vscode.window.showErrorMessage(`Failed to stop server ${server.url}`);
+                }
+            }
+            catch (error) {
+                console.error(`ACTIVE_SERVER: Error stopping server ${serverId}:`, error);
+                vscode.window.showErrorMessage(`Error stopping server: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        else {
+            console.log(`ACTIVE_SERVER: User cancelled stopping server ${serverId}`);
+        }
+    }
+    /**
+     * Show detailed server information
+     */
+    static async showServerDetails(serverId) {
+        console.log(`ACTIVE_SERVER: Showing details for server ${serverId}`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVER: Server ${serverId} not found`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        const details = this.formatServerDetails(server);
+        console.log(`ACTIVE_SERVER: Displaying detailed information for server ${serverId}`);
+        await vscode.window.showInformationMessage(`Server Information - ${server.url}`, { modal: true, detail: details });
+    }
+    /**
+     * Stop all servers
+     */
+    static async stopAllServers() {
+        console.log('ACTIVE_SERVER: Stopping all servers');
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const allServers = registry.getAllServers();
+        if (allServers.length === 0) {
+            vscode.window.showInformationMessage('No servers are currently running');
+            return;
+        }
+        const response = await vscode.window.showWarningMessage(`Stop all ${allServers.length} server(s)?`, 'Stop All', 'Cancel');
+        if (response === 'Stop All') {
+            try {
+                console.log(`ACTIVE_SERVER: Stopping ${allServers.length} servers`);
+                const success = await serverControl_1.ServerControl.stopAllServers();
+                if (success) {
+                    console.log('ACTIVE_SERVER: Successfully stopped all servers');
+                    vscode.window.showInformationMessage(`Stopped all ${allServers.length} servers`);
+                }
+                else {
+                    console.error('ACTIVE_SERVER: Failed to stop some servers');
+                    vscode.window.showWarningMessage('Some servers may not have stopped properly');
+                }
+                // Refresh the tree view
+                vscode.commands.executeCommand('codeXR.activeServers.refreshServers');
+            }
+            catch (error) {
+                console.error('ACTIVE_SERVER: Error stopping all servers:', error);
+                vscode.window.showErrorMessage(`Error stopping servers: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        else {
+            console.log('ACTIVE_SERVER: User cancelled stopping all servers');
+        }
+    }
+    /**
+     * Refresh servers display
+     */
+    static async refreshServers() {
+        console.log('ACTIVE_SERVER: Refreshing servers display');
+        vscode.commands.executeCommand('codeXR.activeServers.refreshServers');
+    }
+    /**
+     * Get available actions for a server based on its type
+     * @private
+     */
+    static getAvailableActions(server) {
+        const isHttp = server.certMode === 'http';
+        const actions = [
+            {
+                label: '🌐 Open in Browser',
+                description: 'Open server in external browser',
+                action: 'openInBrowser'
+            }
+        ];
+        // Add lateral panel option only for HTTP servers
+        if (isHttp) {
+            actions.push({
+                label: '📱 Open in Panel',
+                description: 'Open server in VS Code lateral panel',
+                action: 'openInPanel'
+            });
+        }
+        actions.push({
+            label: '📋 Copy URL',
+            description: 'Copy server URL to clipboard',
+            action: 'copyUrl'
+        }, {
+            label: 'ℹ️ Server Info',
+            description: 'Show detailed server information',
+            action: 'showDetails'
+        }, {
+            label: '⏹️ Stop Server',
+            description: 'Stop this server',
+            action: 'stopServer'
+        });
+        return actions;
+    }
+    /**
+     * Execute an action on a server
+     * @private
+     */
+    static async executeAction(action, server) {
+        console.log(`ACTIVE_SERVER: Executing action '${action}' on server ${server.id}`);
+        switch (action) {
+            case 'openInBrowser':
+                await this.openInBrowser(server.id);
+                break;
+            case 'openInPanel':
+                await this.openInPanel(server.id);
+                break;
+            case 'copyUrl':
+                await this.copyUrl(server.id);
+                break;
+            case 'showDetails':
+                await this.showServerDetails(server.id);
+                break;
+            case 'stopServer':
+                await this.stopServer(server.id);
+                break;
+            default:
+                console.error(`ACTIVE_SERVER: Unknown action: ${action}`);
+                vscode.window.showErrorMessage(`Unknown action: ${action}`);
+        }
+    }
+    /**
+     * Format server details for display
+     * @private
+     */
+    static formatServerDetails(server) {
+        const uptimeMs = Date.now() - server.timestamp;
+        const uptime = this.formatUptime(uptimeMs);
+        let details = '';
+        details += `URL: ${server.url}\\n`;
+        details += `Port: ${server.port}\\n`;
+        details += `Status: ${server.status}\\n`;
+        details += `Security: ${server.certMode.toUpperCase()}\\n`;
+        details += `Launch Mode: ${server.launchMode}\\n`;
+        details += `Uptime: ${uptime}\\n`;
+        if (server.htmlFile) {
+            const fileName = server.htmlFile.split('/').pop() || server.htmlFile;
+            details += `Serving File: ${fileName}\\n`;
+        }
+        if (server.metadata) {
+            if (server.metadata.host) {
+                details += `Host: ${server.metadata.host}\\n`;
+            }
+            if (server.metadata.staticRoot) {
+                details += `Static Root: ${server.metadata.staticRoot}\\n`;
+            }
+            if (server.metadata.description) {
+                details += `Description: ${server.metadata.description}\\n`;
+            }
+        }
+        return details;
+    }
+    /**
+     * Format uptime duration
+     * @private
+     */
+    static formatUptime(milliseconds) {
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        if (hours > 0) {
+            return `${hours}h ${minutes % 60}m`;
+        }
+        else if (minutes > 0) {
+            return `${minutes}m ${seconds % 60}s`;
+        }
+        else {
+            return `${seconds}s`;
+        }
+    }
+}
+exports.ServerActionHandlers = ServerActionHandlers;
+
+
+/***/ }),
+/* 28 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServerControl = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const activeServerRegistry_1 = __webpack_require__(26);
+const panelManager_1 = __webpack_require__(29);
+const fileToServerMap_1 = __webpack_require__(20);
+const SSEManager_1 = __webpack_require__(18);
+/**
+ * Server Control
+ * Runtime operations for managing active servers
+ */
+class ServerControl {
+    /**
+     * Stop an active server
+     */
+    static async stopServer(serverId) {
+        console.log(`ACTIVE_SERVERS: Attempting to stop server ${serverId}`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.error(`ACTIVE_SERVERS: Server ${serverId} not found in registry`);
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return false;
+        }
+        try {
+            // Close associated lateral panel if it exists
+            const panelManager = (0, panelManager_1.getPanelManager)();
+            if (server.launchMode === 'lateralPanel' && panelManager.hasPanel(serverId)) {
+                console.log(`ACTIVE_SERVER_PANEL: Closing lateral panel for server ${serverId}`);
+                panelManager.removePanel(serverId);
+            }
+            // Check if this server is associated with an analysis file and clean up
+            console.log(`ACTIVE_SERVERS: Checking for file-to-server mapping for server on port ${server.port}`);
+            const fileUri = fileToServerMap_1.fileToServerMap.findFileByPort(server.port);
+            if (fileUri) {
+                console.log(`ACTIVE_SERVERS: Found associated analysis file: ${fileUri}`);
+                // Clean up SSE clients for this file
+                console.log(`ACTIVE_SERVERS: Cleaning up SSE clients for ${fileUri}`);
+                SSEManager_1.sseManager.removeAllClients(fileUri);
+                // Remove the file-to-server mapping
+                console.log(`ACTIVE_SERVERS: Removing file-to-server mapping for ${fileUri}`);
+                fileToServerMap_1.fileToServerMap.unregisterMapping(fileUri);
+            }
+            // Update status to indicate stopping
+            registry.updateServerStatus(serverId, 'stopped');
+            // Stop the actual server instance if available
+            if (server.serverInstance && typeof server.serverInstance.stop === 'function') {
+                console.log(`ACTIVE_SERVERS: Stopping server instance for ${serverId}`);
+                await server.serverInstance.stop();
+            }
+            // Remove from registry
+            registry.unregisterServer(serverId);
+            console.log(`ACTIVE_SERVERS: Successfully stopped server ${serverId} (${server.url})`);
+            vscode.window.showInformationMessage(`Server stopped: ${server.url}`);
+            return true;
+        }
+        catch (error) {
+            console.error(`ACTIVE_SERVERS: Error stopping server ${serverId}:`, error);
+            // Update status to error
+            registry.updateServerStatus(serverId, 'error');
+            vscode.window.showErrorMessage(`Failed to stop server ${server.url}: ${error instanceof Error ? error.message : String(error)}`);
+            return false;
+        }
+    }
+    /**
+     * Stop all active servers
+     */
+    static async stopAllServers() {
+        console.log('ACTIVE_SERVERS: Stopping all active servers');
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const runningServers = registry.getServersByStatus('running');
+        if (runningServers.length === 0) {
+            console.log('ACTIVE_SERVERS: No running servers to stop');
+            vscode.window.showInformationMessage('No active servers to stop');
+            return 0;
+        }
+        // First, close all lateral panels for servers that have them
+        const panelManager = (0, panelManager_1.getPanelManager)();
+        const lateralPanelServers = runningServers.filter(server => server.launchMode === 'lateralPanel');
+        if (lateralPanelServers.length > 0) {
+            console.log(`ACTIVE_SERVER_PANEL: Closing ${lateralPanelServers.length} lateral panels before stopping servers`);
+            const serverIdsWithPanels = lateralPanelServers.map(server => server.id);
+            const closedPanelCount = panelManager.removePanelsForServers(serverIdsWithPanels);
+            console.log(`ACTIVE_SERVER_PANEL: Closed ${closedPanelCount}/${lateralPanelServers.length} lateral panels`);
+        }
+        let stoppedCount = 0;
+        const stopPromises = runningServers.map(async (server) => {
+            const success = await this.stopServer(server.id);
+            if (success) {
+                stoppedCount++;
+            }
+            return success;
+        });
+        await Promise.all(stopPromises);
+        console.log(`ACTIVE_SERVERS: Stopped ${stoppedCount}/${runningServers.length} servers`);
+        if (stoppedCount === runningServers.length) {
+            vscode.window.showInformationMessage(`All ${stoppedCount} servers stopped successfully`);
+        }
+        else {
+            vscode.window.showWarningMessage(`Stopped ${stoppedCount}/${runningServers.length} servers. Some servers may require manual intervention.`);
+        }
+        return stoppedCount;
+    }
+    /**
+     * Get server status information
+     */
+    static getServerStatus(serverId) {
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            return null;
+        }
+        const uptime = Date.now() - server.timestamp;
+        const isRunning = server.status === 'running';
+        let details = `Status: ${server.status}\\n`;
+        details += `URL: ${server.url}\\n`;
+        details += `Mode: ${server.certMode}/${server.launchMode}\\n`;
+        details += `Uptime: ${this.formatUptime(uptime)}\\n`;
+        if (server.htmlFile) {
+            details += `File: ${server.htmlFile}\\n`;
+        }
+        return {
+            server,
+            isRunning,
+            uptime,
+            details
+        };
+    }
+    /**
+     * Refresh server status by checking actual server instance
+     */
+    static async refreshServerStatus(serverId) {
+        console.log(`ACTIVE_SERVERS: Refreshing status for server ${serverId}`);
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const server = registry.getServer(serverId);
+        if (!server) {
+            console.warn(`ACTIVE_SERVERS: Cannot refresh non-existent server ${serverId}`);
+            return false;
+        }
+        try {
+            let actualStatus = 'running';
+            // Check if server instance has a status check method
+            if (server.serverInstance) {
+                if (typeof server.serverInstance.getIsRunning === 'function') {
+                    const isRunning = server.serverInstance.getIsRunning();
+                    actualStatus = isRunning ? 'running' : 'stopped';
+                }
+                else if (typeof server.serverInstance.status !== 'undefined') {
+                    actualStatus = server.serverInstance.status;
+                }
+            }
+            // Update status if it has changed
+            if (server.status !== actualStatus) {
+                console.log(`ACTIVE_SERVERS: Status changed for ${serverId}: ${server.status} -> ${actualStatus}`);
+                registry.updateServerStatus(serverId, actualStatus);
+                // If server is stopped/error, consider removing from registry
+                if (actualStatus !== 'running') {
+                    console.log(`ACTIVE_SERVERS: Server ${serverId} is no longer running, removing from registry`);
+                    registry.unregisterServer(serverId);
+                }
+            }
+            return true;
+        }
+        catch (error) {
+            console.error(`ACTIVE_SERVERS: Error refreshing server ${serverId} status:`, error);
+            registry.updateServerStatus(serverId, 'error');
+            return false;
+        }
+    }
+    /**
+     * Refresh all server statuses
+     */
+    static async refreshAllServerStatuses() {
+        console.log('ACTIVE_SERVERS: Refreshing all server statuses');
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const servers = registry.getAllServers();
+        const refreshPromises = servers.map(server => this.refreshServerStatus(server.id));
+        await Promise.all(refreshPromises);
+        console.log('ACTIVE_SERVERS: Completed status refresh for all servers');
+    }
+    /**
+     * Get comprehensive registry information
+     */
+    static getRegistryInfo() {
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const servers = registry.getAllServers();
+        const stats = registry.getStats();
+        let summary = `Total: ${stats.total} servers\\n`;
+        summary += `Running: ${stats.running}\\n`;
+        summary += `Stopped: ${stats.stopped}\\n`;
+        summary += `Errors: ${stats.error}\\n`;
+        if (stats.total > 0) {
+            summary += `\\nLaunch modes:\\n`;
+            Object.entries(stats.byMode).forEach(([mode, count]) => {
+                summary += `  ${mode}: ${count}\\n`;
+            });
+            summary += `\\nCertificate modes:\\n`;
+            Object.entries(stats.byCertMode).forEach(([mode, count]) => {
+                summary += `  ${mode}: ${count}\\n`;
+            });
+        }
+        return {
+            servers,
+            stats,
+            summary
+        };
+    }
+    /**
+     * Cleanup inactive servers from registry
+     */
+    static cleanupInactiveServers() {
+        console.log('ACTIVE_SERVERS: Cleaning up inactive servers');
+        const registry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+        const removedCount = registry.cleanupInactiveServers();
+        if (removedCount > 0) {
+            vscode.window.showInformationMessage(`Cleaned up ${removedCount} inactive servers`);
+        }
+        return removedCount;
+    }
+    /**
+     * Format uptime duration
+     * @private
+     */
+    static formatUptime(milliseconds) {
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        if (hours > 0) {
+            return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+        }
+        else if (minutes > 0) {
+            return `${minutes}m ${seconds % 60}s`;
+        }
+        else {
+            return `${seconds}s`;
+        }
+    }
+}
+exports.ServerControl = ServerControl;
+
+
+/***/ }),
+/* 29 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PanelManager = void 0;
+exports.getPanelManager = getPanelManager;
+/**
+ * Panel Manager Service
+ * Manages WebviewPanel instances for servers launched in lateral panel mode
+ */
+class PanelManager {
+    static instance;
+    panels = new Map();
+    constructor() {
+        console.log('ACTIVE_SERVER_PANEL: Panel manager initialized');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance() {
+        if (!PanelManager.instance) {
+            PanelManager.instance = new PanelManager();
+        }
+        return PanelManager.instance;
+    }
+    /**
+     * Register a panel for a server
+     * @param serverId - Server ID
+     * @param panel - WebviewPanel instance
+     */
+    registerPanel(serverId, panel) {
+        console.log(`ACTIVE_SERVER_PANEL: Registering panel for server ${serverId}`);
+        // Remove any existing panel for this server first
+        this.removePanel(serverId);
+        // Register the new panel
+        this.panels.set(serverId, panel);
+        // Set up disposal listener to auto-cleanup
+        panel.onDidDispose(() => {
+            console.log(`ACTIVE_SERVER_PANEL: Panel for server ${serverId} was disposed by user`);
+            this.panels.delete(serverId);
+        });
+        console.log(`ACTIVE_SERVER_PANEL: Panel registered for server ${serverId}, total panels: ${this.panels.size}`);
+    }
+    /**
+     * Remove and dispose a panel for a server
+     * @param serverId - Server ID
+     * @returns true if panel was found and disposed, false otherwise
+     */
+    removePanel(serverId) {
+        const panel = this.panels.get(serverId);
+        if (panel) {
+            console.log(`ACTIVE_SERVER_PANEL: Disposing panel for server ${serverId}`);
+            try {
+                panel.dispose();
+                this.panels.delete(serverId);
+                console.log(`ACTIVE_SERVER_PANEL: Panel for server ${serverId} disposed successfully`);
+                return true;
+            }
+            catch (error) {
+                console.warn(`ACTIVE_SERVER_PANEL: Error disposing panel for server ${serverId}:`, error);
+                // Still remove from map even if disposal failed
+                this.panels.delete(serverId);
+                return false;
+            }
+        }
+        return false;
+    }
+    /**
+     * Remove and dispose all panels
+     * @returns number of panels that were disposed
+     */
+    removeAllPanels() {
+        console.log(`ACTIVE_SERVER_PANEL: Disposing all ${this.panels.size} panels`);
+        let disposedCount = 0;
+        const panelEntries = Array.from(this.panels.entries());
+        for (const [serverId, panel] of panelEntries) {
+            try {
+                console.log(`ACTIVE_SERVER_PANEL: Disposing panel for server ${serverId}`);
+                panel.dispose();
+                this.panels.delete(serverId);
+                disposedCount++;
+            }
+            catch (error) {
+                console.warn(`ACTIVE_SERVER_PANEL: Error disposing panel for server ${serverId}:`, error);
+                // Still remove from map even if disposal failed
+                this.panels.delete(serverId);
+            }
+        }
+        console.log(`ACTIVE_SERVER_PANEL: Disposed ${disposedCount}/${panelEntries.length} panels`);
+        return disposedCount;
+    }
+    /**
+     * Get panel for a server (if exists)
+     * @param serverId - Server ID
+     * @returns WebviewPanel or undefined
+     */
+    getPanel(serverId) {
+        return this.panels.get(serverId);
+    }
+    /**
+     * Check if a server has an associated panel
+     * @param serverId - Server ID
+     * @returns true if panel exists
+     */
+    hasPanel(serverId) {
+        return this.panels.has(serverId);
+    }
+    /**
+     * Get number of currently managed panels
+     * @returns number of active panels
+     */
+    getPanelCount() {
+        return this.panels.size;
+    }
+    /**
+     * Get all server IDs that have panels
+     * @returns array of server IDs
+     */
+    getServerIdsWithPanels() {
+        return Array.from(this.panels.keys());
+    }
+    /**
+     * Remove panels for multiple servers
+     * @param serverIds - Array of server IDs
+     * @returns number of panels that were disposed
+     */
+    removePanelsForServers(serverIds) {
+        console.log(`ACTIVE_SERVER_PANEL: Disposing panels for ${serverIds.length} servers`);
+        let disposedCount = 0;
+        for (const serverId of serverIds) {
+            if (this.removePanel(serverId)) {
+                disposedCount++;
+            }
+        }
+        console.log(`ACTIVE_SERVER_PANEL: Disposed ${disposedCount}/${serverIds.length} requested panels`);
+        return disposedCount;
+    }
+    /**
+     * Get debug information about current panels
+     * @returns debug information
+     */
+    getDebugInfo() {
+        return {
+            serverCount: this.panels.size,
+            serverIds: Array.from(this.panels.keys())
+        };
+    }
+}
+exports.PanelManager = PanelManager;
+/**
+ * Get global panel manager instance
+ */
+function getPanelManager() {
+    return PanelManager.getInstance();
+}
+
+
+/***/ }),
+/* 30 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PreviewRenderer = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const panelManager_1 = __webpack_require__(29);
+/**
+ * Preview Renderer
+ * Handles opening HTML content in browser or VS Code webview panel
+ */
+class PreviewRenderer {
+    /**
+     * Open HTML content based on the specified mode
+     * @param serverUrl - Server URL where the file is served
+     * @param htmlFilePath - Path to the HTML file (for reference/logging)
+     * @param openMode - How to open ('browser' or 'lateralPanel')
+     * @param serverId - Optional server ID for panel tracking (required for lateralPanel mode)
+     */
+    static async openPreview(serverUrl, htmlFilePath, openMode, serverId) {
+        console.log(`SERVER: Opening preview for ${htmlFilePath} at ${serverUrl} in ${openMode} mode`);
+        try {
+            if (openMode === 'browser') {
+                await this.openInBrowser(serverUrl);
+            }
+            else if (openMode === 'lateralPanel') {
+                if (!serverId) {
+                    throw new Error('Server ID is required for lateral panel mode');
+                }
+                await this.openInWebviewPanel(serverUrl, htmlFilePath, serverId);
+            }
+            else {
+                throw new Error(`Unsupported open mode: ${openMode}`);
+            }
+        }
+        catch (error) {
+            console.error(`SERVER: Error opening preview: ${error}`);
+            vscode.window.showWarningMessage(`Failed to open preview: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Open URL in external browser
+     * @private
+     */
+    static async openInBrowser(serverUrl) {
+        console.log(`SERVER: Opening ${serverUrl} in external browser`);
+        await vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+        vscode.window.showInformationMessage(`Opened ${serverUrl} in browser`);
+    }
+    /**
+     * Open server URL in VS Code webview panel using iframe
+     * @private
+     */
+    static async openInWebviewPanel(serverUrl, htmlFilePath, serverId) {
+        console.log(`ACTIVE_SERVER_PANEL: Opening ${serverUrl} in VS Code webview panel for server ${serverId}`);
+        try {
+            const fileName = path.basename(htmlFilePath);
+            // Create webview panel
+            const panel = vscode.window.createWebviewPanel('serverPreview', `Local Server Preview - ${fileName}`, vscode.ViewColumn.Two, {
+                enableScripts: true,
+                enableForms: true,
+                retainContextWhenHidden: true
+            });
+            // Register panel with panel manager
+            const panelManager = (0, panelManager_1.getPanelManager)();
+            panelManager.registerPanel(serverId, panel);
+            console.log(`ACTIVE_SERVER_PANEL: Panel registered for server ${serverId}`);
+            // Create iframe HTML pointing to the server URL
+            const iframeHtml = this.createIframeHtml(serverUrl, fileName);
+            // Set the HTML content
+            panel.webview.html = iframeHtml;
+            // Handle messages from webview
+            panel.webview.onDidReceiveMessage(message => {
+                console.log(`ACTIVE_SERVER_PANEL: Webview message for server ${serverId}:`, message);
+                switch (message.command) {
+                    case 'openExternal':
+                        vscode.env.openExternal(vscode.Uri.parse(message.url));
+                        break;
+                    case 'showError':
+                        vscode.window.showErrorMessage(message.text);
+                        break;
+                    case 'serverError':
+                        vscode.window.showWarningMessage(`Server Error: ${message.text}`);
+                        break;
+                }
+            }, undefined);
+            // Handle panel disposal
+            panel.onDidDispose(() => {
+                console.log(`ACTIVE_SERVER_PANEL: Webview panel disposed for server ${serverId}`);
+                // Panel manager will automatically clean up via its disposal listener
+            });
+            console.log(`SERVER: Created webview panel for ${serverUrl}`);
+            vscode.window.showInformationMessage(`Opened ${fileName} in VS Code panel`);
+        }
+        catch (error) {
+            console.error(`SERVER: Error creating webview panel: ${error}`);
+            throw new Error(`Failed to create webview panel: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Create iframe HTML for embedding the server URL
+     * @private
+     */
+    static createIframeHtml(serverUrl, fileName) {
+        // Escape template literals in serverUrl for safe injection
+        const escapedServerUrl = serverUrl.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Server Preview - ${fileName}</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #1e1e1e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .loading-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #cccccc;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #007acc;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-container {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #f48771;
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #f48771;
+            max-width: 80%;
+        }
+        
+        .retry-button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .retry-button:hover {
+            background: #005a9e;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 100vh;
+            border: none;
+            display: none;
+        }
+        
+        iframe.loaded {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container" id="loadingContainer">
+        <div class="loading-spinner"></div>
+        <div>Loading server content...</div>
+        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">${escapedServerUrl}</div>
+    </div>
+    
+    <div class="error-container" id="errorContainer">
+        <h3>⚠️ Connection Error</h3>
+        <p>Could not load content from the local server.</p>
+        <p style="font-size: 12px; opacity: 0.8;">URL: ${escapedServerUrl}</p>
+        <button class="retry-button" onclick="reloadFrame()">Retry</button>
+        <button class="retry-button" onclick="openInBrowser()" style="margin-left: 8px;">Open in Browser</button>
+    </div>
+    
+    <iframe id="contentFrame" src="${escapedServerUrl}" title="Server Content"></iframe>
+    
+    <script>
+        const iframe = document.getElementById('contentFrame');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const errorContainer = document.getElementById('errorContainer');
+        
+        let loadTimeout;
+        
+        function showLoading() {
+            loadingContainer.style.display = 'block';
+            errorContainer.style.display = 'none';
+            iframe.classList.remove('loaded');
+        }
+        
+        function showContent() {
+            loadingContainer.style.display = 'none';
+            errorContainer.style.display = 'none';
+            iframe.classList.add('loaded');
+        }
+        
+        function showError() {
+            loadingContainer.style.display = 'none';
+            errorContainer.style.display = 'block';
+            iframe.classList.remove('loaded');
+        }
+        
+        function reloadFrame() {
+            showLoading();
+            iframe.src = iframe.src; // Reload
+            setupLoadTimeout();
+        }
+        
+        function openInBrowser() {
+            if (typeof acquireVsCodeApi !== 'undefined') {
+                const vscode = acquireVsCodeApi();
+                vscode.postMessage({
+                    command: 'openExternal',
+                    url: '${escapedServerUrl}'
+                });
+            }
+        }
+        
+        function setupLoadTimeout() {
+            clearTimeout(loadTimeout);
+            loadTimeout = setTimeout(() => {
+                console.log('SERVER: Load timeout, showing error');
+                showError();
+            }, 10000); // 10 second timeout
+        }
+        
+        iframe.addEventListener('load', () => {
+            console.log('SERVER: Iframe loaded successfully');
+            clearTimeout(loadTimeout);
+            showContent();
+        });
+        
+        iframe.addEventListener('error', () => {
+            console.log('SERVER: Iframe load error');
+            clearTimeout(loadTimeout);
+            showError();
+        });
+        
+        // Initial setup
+        showLoading();
+        setupLoadTimeout();
+        
+        // Send ready message to extension
+        if (typeof acquireVsCodeApi !== 'undefined') {
+            const vscode = acquireVsCodeApi();
+            vscode.postMessage({
+                command: 'webviewReady',
+                url: '${escapedServerUrl}'
+            });
+        }
+    </script>
+</body>
+</html>`;
+    }
+}
+exports.PreviewRenderer = PreviewRenderer;
+
+
+/***/ }),
+/* 31 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServerRegistrar = void 0;
+exports.getServerRegistrar = getServerRegistrar;
+const activeServerRegistry_1 = __webpack_require__(26);
+/**
+ * Server Registrar Service
+ * Centralized service for registering servers with the active servers registry
+ * This layer provides validation, logging, and abstraction between server launchers and the registry
+ */
+class ServerRegistrar {
+    static instance = null;
+    constructor() {
+        console.log('SERVER_REGISTRAR: Service initialized');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance() {
+        if (!ServerRegistrar.instance) {
+            ServerRegistrar.instance = new ServerRegistrar();
+        }
+        return ServerRegistrar.instance;
+    }
+    /**
+     * Register a server with the active servers registry
+     * @param config - Server registration configuration
+     * @returns Registered ActiveServer
+     */
+    registerServer(config) {
+        console.log('SERVER_REGISTRAR: Registering server with config:', {
+            port: config.port,
+            customName: config.customName,
+            url: config.url,
+            launchMode: config.launchMode,
+            certMode: config.certMode
+        });
+        // Input validation
+        this.validateConfig(config);
+        try {
+            // Register with the registry
+            const activeServer = (0, activeServerRegistry_1.registerActiveServer)(config);
+            console.log(`SERVER_REGISTRAR: Successfully registered server ${activeServer.id}`);
+            return activeServer;
+        }
+        catch (error) {
+            console.error('SERVER_REGISTRAR: Failed to register server:', error);
+            throw new Error(`Server registration failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Validate server registration configuration
+     * @private
+     */
+    validateConfig(config) {
+        // Validate required fields
+        if (!config.port || config.port <= 0 || config.port > 65535) {
+            throw new Error(`Invalid port number: ${config.port}`);
+        }
+        if (!config.url || typeof config.url !== 'string') {
+            throw new Error(`Invalid URL: ${config.url}`);
+        }
+        if (!config.launchMode || !['browser', 'lateralPanel'].includes(config.launchMode)) {
+            throw new Error(`Invalid launch mode: ${config.launchMode}`);
+        }
+        if (!config.certMode || !['http', 'https-default', 'https-custom'].includes(config.certMode)) {
+            throw new Error(`Invalid cert mode: ${config.certMode}`);
+        }
+        if (!config.timestamp || config.timestamp <= 0) {
+            throw new Error(`Invalid timestamp: ${config.timestamp}`);
+        }
+        // Validate optional fields
+        if (config.customName !== undefined && typeof config.customName !== 'string') {
+            throw new Error(`Custom name must be a string: ${typeof config.customName}`);
+        }
+        if (config.htmlFile !== undefined && typeof config.htmlFile !== 'string') {
+            throw new Error(`HTML file path must be a string: ${typeof config.htmlFile}`);
+        }
+    }
+}
+exports.ServerRegistrar = ServerRegistrar;
+/**
+ * Convenience function to get the registrar instance
+ */
+function getServerRegistrar() {
+    return ServerRegistrar.getInstance();
+}
+
+
+/***/ }),
+/* 32 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerActiveServersCommands = registerActiveServersCommands;
 exports.getActiveServersCommandIds = getActiveServersCommandIds;
-const activeServersCommands_1 = __webpack_require__(34);
+const activeServersCommands_1 = __webpack_require__(33);
 /**
  * Active Servers Commands Wrapper
  * Re-exports active servers commands for centralized command registration
@@ -6332,7 +5714,7 @@ function getActiveServersCommandIds() {
 
 
 /***/ }),
-/* 34 */
+/* 33 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6372,7 +5754,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const handleServerActions_1 = __webpack_require__(18);
+const handleServerActions_1 = __webpack_require__(27);
 /**
  * Active Servers Commands
  * VS Code command definitions for active servers functionality
@@ -6489,13 +5871,13 @@ exports.ActiveServersCommands = ActiveServersCommands;
 
 
 /***/ }),
-/* 35 */
+/* 34 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerBabiaExamplesCommands = registerBabiaExamplesCommands;
-const babiaExamplesCommands_1 = __webpack_require__(36);
+const babiaExamplesCommands_1 = __webpack_require__(35);
 /**
  * Register Babia Examples Commands
  * Entry point for registering all Babia examples related commands
@@ -6508,7 +5890,7 @@ function registerBabiaExamplesCommands(context, treeDataProvider) {
 
 
 /***/ }),
-/* 36 */
+/* 35 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6548,7 +5930,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const handleExampleClicks_1 = __webpack_require__(37);
+const handleExampleClicks_1 = __webpack_require__(36);
 /**
  * Babia Examples Commands
  * VS Code command definitions for Babia examples functionality
@@ -6682,7 +6064,7 @@ exports.BabiaExamplesCommands = BabiaExamplesCommands;
 
 
 /***/ }),
-/* 37 */
+/* 36 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6722,7 +6104,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ExampleClickHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleLauncher_1 = __webpack_require__(38);
+const exampleLauncher_1 = __webpack_require__(37);
 /**
  * Handle Example Clicks
  * Manages user interactions with Babia examples in the tree view
@@ -6855,7 +6237,7 @@ exports.ExampleClickHandler = ExampleClickHandler;
 
 
 /***/ }),
-/* 38 */
+/* 37 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7155,13 +6537,13 @@ exports.ExampleLauncher = ExampleLauncher;
 
 
 /***/ }),
-/* 39 */
+/* 38 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerVisualizeDataCommands = registerVisualizeDataCommands;
-const visualizeDataCommands_1 = __webpack_require__(40);
+const visualizeDataCommands_1 = __webpack_require__(39);
 /**
  * Register Visualize Data Commands
  * Entry point for registering all visualize data related commands
@@ -7174,7 +6556,7 @@ function registerVisualizeDataCommands(context) {
 
 
 /***/ }),
-/* 40 */
+/* 39 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7214,8 +6596,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationLauncher_1 = __webpack_require__(41);
-const visualizationRestorer_1 = __webpack_require__(57);
+const visualizationLauncher_1 = __webpack_require__(40);
+const visualizationRestorer_1 = __webpack_require__(56);
 /**
  * Visualize Data Commands
  * VS Code command definitions for visualize data functionality
@@ -7354,7 +6736,7 @@ exports.VisualizeDataCommands = VisualizeDataCommands;
 
 
 /***/ }),
-/* 41 */
+/* 40 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7396,12 +6778,12 @@ exports.VisualizationLauncher = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const chartRegistry_1 = __webpack_require__(42);
-const visualizeDataState_1 = __webpack_require__(44);
-const jsonFieldAnalyzer_1 = __webpack_require__(45);
+const chartRegistry_1 = __webpack_require__(41);
+const visualizeDataState_1 = __webpack_require__(43);
+const jsonFieldAnalyzer_1 = __webpack_require__(44);
 const nonceGenerator_1 = __webpack_require__(12);
-const templateProcessor_1 = __webpack_require__(46);
-const index_1 = __webpack_require__(56);
+const templateProcessor_1 = __webpack_require__(45);
+const index_1 = __webpack_require__(55);
 /**
  * Visualization Launcher
  * Manages visualization creation and launching using centralized template processing
@@ -7824,13 +7206,13 @@ exports.VisualizationLauncher = VisualizationLauncher;
 
 
 /***/ }),
-/* 42 */
+/* 41 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaChartRegistry = void 0;
-const templateCharts_1 = __webpack_require__(43);
+const templateCharts_1 = __webpack_require__(42);
 /**
  * BabiaXR Chart Registry
  * Central registry for available chart types and their metadata
@@ -7912,7 +7294,7 @@ exports.BabiaChartRegistry = BabiaChartRegistry;
 
 
 /***/ }),
-/* 43 */
+/* 42 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -8271,7 +7653,7 @@ exports.chartTemplates = [
 
 
 /***/ }),
-/* 44 */
+/* 43 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8638,7 +8020,7 @@ exports.VisualizeDataStateManager = VisualizeDataStateManager;
 
 
 /***/ }),
-/* 45 */
+/* 44 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8852,7 +8234,7 @@ exports.JsonFieldAnalyzer = JsonFieldAnalyzer;
 
 
 /***/ }),
-/* 46 */
+/* 45 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8891,8 +8273,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TemplateProcessor = void 0;
-const dimensionValidator_1 = __webpack_require__(47);
-const templateCharts_1 = __webpack_require__(43);
+const dimensionValidator_1 = __webpack_require__(46);
+const templateCharts_1 = __webpack_require__(42);
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 /**
@@ -8952,7 +8334,7 @@ class TemplateProcessor {
      */
     static async getVisualizationSettings() {
         // Import visualization settings functions directly (no dynamic import needed)
-        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(48);
+        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(47);
         return {
             palette: await getSelectedPalette(),
             environment: await getSelectedEnvironment(),
@@ -9220,7 +8602,7 @@ exports.TemplateProcessor = TemplateProcessor;
 
 
 /***/ }),
-/* 47 */
+/* 46 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -9327,7 +8709,7 @@ exports.DimensionValidator = DimensionValidator;
 
 
 /***/ }),
-/* 48 */
+/* 47 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9337,17 +8719,17 @@ exports.DimensionValidator = DimensionValidator;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
-var settingsModel_1 = __webpack_require__(49);
+var settingsModel_1 = __webpack_require__(48);
 Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
-var settingsStorage_1 = __webpack_require__(50);
+var settingsStorage_1 = __webpack_require__(49);
 Object.defineProperty(exports, "VisualizationSettingsStorage", ({ enumerable: true, get: function () { return settingsStorage_1.VisualizationSettingsStorage; } }));
-var visualizationSettingsItems_1 = __webpack_require__(51);
+var visualizationSettingsItems_1 = __webpack_require__(50);
 Object.defineProperty(exports, "VisualizationSettingsItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsItemFactory; } }));
 Object.defineProperty(exports, "VisualizationSettingsTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsTreeItem; } }));
-var handleSettingsInteraction_1 = __webpack_require__(53);
+var handleSettingsInteraction_1 = __webpack_require__(52);
 Object.defineProperty(exports, "VisualizationSettingsInteractionHandler", ({ enumerable: true, get: function () { return handleSettingsInteraction_1.VisualizationSettingsInteractionHandler; } }));
 // Export settings accessors for babia-templates integration
-var settingsAccessors_1 = __webpack_require__(55);
+var settingsAccessors_1 = __webpack_require__(54);
 Object.defineProperty(exports, "initializeSettingsAccessors", ({ enumerable: true, get: function () { return settingsAccessors_1.initializeSettingsAccessors; } }));
 Object.defineProperty(exports, "getSelectedBackgroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedBackgroundColor; } }));
 Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedGroundColor; } }));
@@ -9357,7 +8739,7 @@ Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, ge
 
 
 /***/ }),
-/* 49 */
+/* 48 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -9462,7 +8844,7 @@ exports.SETTING_FIELDS = [
 
 
 /***/ }),
-/* 50 */
+/* 49 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9503,7 +8885,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsStorage = void 0;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(49);
+const settingsModel_1 = __webpack_require__(48);
 /**
  * Visualization Settings Storage
  * Manages persistent storage and retrieval of visualization configuration using file system
@@ -9677,7 +9059,7 @@ exports.VisualizationSettingsStorage = VisualizationSettingsStorage;
 
 
 /***/ }),
-/* 51 */
+/* 50 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9717,8 +9099,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsIcons = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(49);
-const dynamicColorIconGenerator_1 = __webpack_require__(52);
+const settingsModel_1 = __webpack_require__(48);
+const dynamicColorIconGenerator_1 = __webpack_require__(51);
 /**
  * Tree item for visualization settings
  */
@@ -9825,7 +9207,7 @@ exports.VisualizationSettingsIcons = VisualizationSettingsIcons;
 
 
 /***/ }),
-/* 52 */
+/* 51 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10041,7 +9423,7 @@ exports.DynamicColorIconGenerator = DynamicColorIconGenerator;
 
 
 /***/ }),
-/* 53 */
+/* 52 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10081,10 +9463,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsInteractionHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(49);
-const settingsStorage_1 = __webpack_require__(50);
-const colorPickerUtils_1 = __webpack_require__(54);
-const dynamicColorIconGenerator_1 = __webpack_require__(52);
+const settingsModel_1 = __webpack_require__(48);
+const settingsStorage_1 = __webpack_require__(49);
+const colorPickerUtils_1 = __webpack_require__(53);
+const dynamicColorIconGenerator_1 = __webpack_require__(51);
 /**
  * Handle Visualization Settings Interactions
  * Manages user interactions with visualization settings items
@@ -10366,7 +9748,7 @@ exports.VisualizationSettingsInteractionHandler = VisualizationSettingsInteracti
 
 
 /***/ }),
-/* 54 */
+/* 53 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10485,7 +9867,7 @@ exports.ColorPickerUtils = ColorPickerUtils;
 
 
 /***/ }),
-/* 55 */
+/* 54 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10531,7 +9913,7 @@ exports.getSelectedPalette = getSelectedPalette;
 exports.getAllSelectedSettings = getAllSelectedSettings;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(49);
+const settingsModel_1 = __webpack_require__(48);
 /**
  * Settings Accessors
  * Clean utility functions to access visualization settings for babia-templates integration
@@ -10693,7 +10075,7 @@ async function getAllSelectedSettings() {
 
 
 /***/ }),
-/* 56 */
+/* 55 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10711,21 +10093,21 @@ exports.isPortAvailable = isPortAvailable;
 exports.findAvailablePort = findAvailablePort;
 exports.getSuggestedPorts = getSuggestedPorts;
 // Core server implementations
-var httpServer_1 = __webpack_require__(27);
+var httpServer_1 = __webpack_require__(15);
 Object.defineProperty(exports, "HttpServer", ({ enumerable: true, get: function () { return httpServer_1.HttpServer; } }));
-var httpsDefaultServer_1 = __webpack_require__(30);
+var httpsDefaultServer_1 = __webpack_require__(21);
 Object.defineProperty(exports, "HttpsDefaultServer", ({ enumerable: true, get: function () { return httpsDefaultServer_1.HttpsDefaultServer; } }));
-var httpsCustomServer_1 = __webpack_require__(32);
+var httpsCustomServer_1 = __webpack_require__(23);
 Object.defineProperty(exports, "HttpsCustomServer", ({ enumerable: true, get: function () { return httpsCustomServer_1.HttpsCustomServer; } }));
 // Utility classes
-var portManager_1 = __webpack_require__(15);
+var portManager_1 = __webpack_require__(24);
 Object.defineProperty(exports, "PortManager", ({ enumerable: true, get: function () { return portManager_1.PortManager; } }));
 // Main launcher and types
 var multiServerLauncher_1 = __webpack_require__(14);
 Object.defineProperty(exports, "MultiServerLauncher", ({ enumerable: true, get: function () { return multiServerLauncher_1.MultiServerLauncher; } }));
 // Import for use in utility functions
 const multiServerLauncher_2 = __webpack_require__(14);
-const portManager_2 = __webpack_require__(15);
+const portManager_2 = __webpack_require__(24);
 /**
  * Create a new multi-server launcher instance
  * @param context - VS Code extension context
@@ -10773,7 +10155,7 @@ function getSuggestedPorts(serviceType) {
 
 
 /***/ }),
-/* 57 */
+/* 56 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10815,8 +10197,8 @@ exports.VisualizationRestorer = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const index_1 = __webpack_require__(56);
-const activeServerRegistry_1 = __webpack_require__(17);
+const index_1 = __webpack_require__(55);
+const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Visualization Restorer
  * Responsible for scanning and relaunching stored visualizations
@@ -10967,13 +10349,13 @@ exports.VisualizationRestorer = VisualizationRestorer;
 
 
 /***/ }),
-/* 58 */
+/* 57 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerCodeAnalysisCommands = registerCodeAnalysisCommands;
-const analysisCommands_1 = __webpack_require__(59);
+const analysisCommands_1 = __webpack_require__(58);
 /**
  * Register Code Analysis Commands
  * Entry point for registering all code analysis related commands
@@ -10986,7 +10368,7 @@ function registerCodeAnalysisCommands(context) {
 
 
 /***/ }),
-/* 59 */
+/* 58 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11029,16 +10411,16 @@ exports.executeFileAnalysis = executeFileAnalysis;
 exports.runXRFileAnalysisCoordinator = runXRFileAnalysisCoordinator;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const child_process_1 = __webpack_require__(60);
-const handleAnalysisClicks_1 = __webpack_require__(61);
-const analysisSettingsStorage_1 = __webpack_require__(62);
-const pythonEnvStorage_1 = __webpack_require__(63);
-const pythonEnvUtils_1 = __webpack_require__(64);
-const tempStorageManager_1 = __webpack_require__(66);
-const activeAnalysisRegistry_1 = __webpack_require__(69);
-const activeAnalysisModel_1 = __webpack_require__(70);
-const chartRegistry_1 = __webpack_require__(42);
-const xrTemplateRenderer_1 = __webpack_require__(68);
+const child_process_1 = __webpack_require__(59);
+const handleAnalysisClicks_1 = __webpack_require__(60);
+const analysisSettingsStorage_1 = __webpack_require__(61);
+const pythonEnvStorage_1 = __webpack_require__(62);
+const pythonEnvUtils_1 = __webpack_require__(63);
+const tempStorageManager_1 = __webpack_require__(65);
+const activeAnalysisRegistry_1 = __webpack_require__(68);
+const activeAnalysisModel_1 = __webpack_require__(69);
+const chartRegistry_1 = __webpack_require__(41);
+const xrTemplateRenderer_1 = __webpack_require__(67);
 /**
  * Code Analysis Commands
  * Handles all command registrations for the code analysis functionality
@@ -11747,13 +11129,13 @@ async function handleDimensionMappingFileSelection(context, dimensionName, dataT
 
 
 /***/ }),
-/* 60 */
+/* 59 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 61 */
+/* 60 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11793,7 +11175,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisInteractionHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisSettingsStorage_1 = __webpack_require__(62);
+const analysisSettingsStorage_1 = __webpack_require__(61);
 /**
  * Handle clicks and interactions for Code Analysis tree items
  */
@@ -11975,7 +11357,7 @@ exports.CodeAnalysisInteractionHandler = CodeAnalysisInteractionHandler;
 
 
 /***/ }),
-/* 62 */
+/* 61 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12323,7 +11705,7 @@ exports.AnalysisSettingsStorage = AnalysisSettingsStorage;
 
 
 /***/ }),
-/* 63 */
+/* 62 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12364,7 +11746,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvStorage = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const pythonEnvUtils_1 = __webpack_require__(64);
+const pythonEnvUtils_1 = __webpack_require__(63);
 /**
  * Manages persistent storage of Python environment metadata
  */
@@ -12564,7 +11946,7 @@ exports.PythonEnvStorage = PythonEnvStorage;
 
 
 /***/ }),
-/* 64 */
+/* 63 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12605,7 +11987,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvUtils = void 0;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const os = __importStar(__webpack_require__(65));
+const os = __importStar(__webpack_require__(64));
 /**
  * Platform-specific utilities for Python environment management
  */
@@ -12759,13 +12141,13 @@ exports.PythonEnvUtils = PythonEnvUtils;
 
 
 /***/ }),
-/* 65 */
+/* 64 */
 /***/ ((module) => {
 
 module.exports = require("os");
 
 /***/ }),
-/* 66 */
+/* 65 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12810,13 +12192,13 @@ exports.prepareStaticAnalysisViewerAssets = prepareStaticAnalysisViewerAssets;
 exports.updateDataJson = updateDataJson;
 exports.prepareXRAnalysisViewerAssets = prepareXRAnalysisViewerAssets;
 const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(67));
+const fs = __importStar(__webpack_require__(66));
 const path = __importStar(__webpack_require__(5));
 const nonceGenerator_1 = __webpack_require__(12);
-const index_1 = __webpack_require__(56);
-const analysisSettingsStorage_1 = __webpack_require__(62);
-const fileToServerMap_1 = __webpack_require__(21);
-const xrTemplateRenderer_1 = __webpack_require__(68);
+const index_1 = __webpack_require__(55);
+const analysisSettingsStorage_1 = __webpack_require__(61);
+const fileToServerMap_1 = __webpack_require__(20);
+const xrTemplateRenderer_1 = __webpack_require__(67);
 /**
  * Temporary Storage Manager for Analysis Results
  *
@@ -13177,13 +12559,13 @@ async function prepareXRAnalysisViewerAssets(context, tempFolder, fileName) {
 
 
 /***/ }),
-/* 67 */
+/* 66 */
 /***/ ((module) => {
 
 module.exports = require("fs/promises");
 
 /***/ }),
-/* 68 */
+/* 67 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13223,8 +12605,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.XRTemplateRenderer = void 0;
 const path = __importStar(__webpack_require__(5));
-const analysisSettingsStorage_1 = __webpack_require__(62);
-const templateProcessor_1 = __webpack_require__(46);
+const analysisSettingsStorage_1 = __webpack_require__(61);
+const templateProcessor_1 = __webpack_require__(45);
 /**
  * XR Template Renderer for File Analysis
  * Delegates to centralized TemplateProcessor for HTML generation
@@ -13290,7 +12672,7 @@ exports.XRTemplateRenderer = XRTemplateRenderer;
 
 
 /***/ }),
-/* 69 */
+/* 68 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13330,10 +12712,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysisRegistry = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisModel_1 = __webpack_require__(70);
-const activeServerRegistry_1 = __webpack_require__(17);
-const fileToServerMap_1 = __webpack_require__(21);
-const SSEManager_1 = __webpack_require__(22);
+const activeAnalysisModel_1 = __webpack_require__(69);
+const activeServerRegistry_1 = __webpack_require__(26);
+const fileToServerMap_1 = __webpack_require__(20);
+const SSEManager_1 = __webpack_require__(18);
 /**
  * Registry that manages currently tracked active analyses
  * This is a singleton that maintains the state of all active analyses
@@ -13615,7 +12997,7 @@ exports.ActiveAnalysisRegistry = ActiveAnalysisRegistry;
 
 
 /***/ }),
-/* 70 */
+/* 69 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -13669,10 +13051,15 @@ exports.ActiveAnalysisFactory = ActiveAnalysisFactory;
 
 
 /***/ }),
-/* 71 */
+/* 70 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+/**
+ * New Code Analysis Commands Registration
+ * Command registration for new code analysis module
+ * This is the final level of the "nested dolls" architecture
+ */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -13707,40 +13094,228 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerGeneralCommands = registerGeneralCommands;
+exports.registerNewCodeAnalysisCommands = registerNewCodeAnalysisCommands;
 const vscode = __importStar(__webpack_require__(1));
-const commonCommands_1 = __webpack_require__(72);
+const newCodeAnalysisCommands_1 = __webpack_require__(71);
 /**
- * Register general/common commands used throughout the extension
+ * Register all new code analysis commands
+ * This is the ONLY place where VS Code commands are actually registered
  */
-function registerGeneralCommands(context) {
-    console.log('GENERAL_COMMANDS: Registering general commands');
-    // Register the main tree refresh command (replaces codexr.servers.refresh)
-    const refreshTreeCommand = vscode.commands.registerCommand('codexr.tree.refresh', () => {
-        console.log('GENERAL_COMMANDS: Tree refresh command executed');
-        commonCommands_1.CommonCommands.refreshTreeView();
-    });
-    // Register legacy command for backward compatibility
-    const legacyRefreshCommand = vscode.commands.registerCommand('codexr.servers.refresh', () => {
-        console.log('GENERAL_COMMANDS: Legacy servers refresh command executed, delegating to tree refresh');
-        commonCommands_1.CommonCommands.refreshTreeView();
-    });
-    // Register a general modular tree refresh command
-    const modularTreeRefreshCommand = vscode.commands.registerCommand('codeXR.modularTree.refresh', () => {
-        console.log('GENERAL_COMMANDS: Modular tree refresh command executed');
-        commonCommands_1.CommonCommands.refreshTreeView();
-    });
-    // Add commands to subscriptions
-    context.subscriptions.push(refreshTreeCommand, legacyRefreshCommand, modularTreeRefreshCommand);
-    console.log('GENERAL_COMMANDS: Registered 3 general commands (tree refresh, legacy refresh, modular refresh)');
+function registerNewCodeAnalysisCommands(context, refreshCallback) {
+    console.log('COMMAND_REGISTRATION: Starting New Code Analysis commands registration');
+    console.log('COMMAND_REGISTRATION: refreshCallback provided:', refreshCallback !== undefined);
+    try {
+        // Get all command registrations using the "nested dolls" pattern
+        const commandRegistrations = newCodeAnalysisCommands_1.NewCodeAnalysisCommands.getCommandRegistrations(context, refreshCallback);
+        console.log(`COMMAND_REGISTRATION: Processing ${commandRegistrations.length} command registrations`);
+        // Helper function to safely register commands (avoid duplicates)
+        const safeRegisterCommand = (registration) => {
+            try {
+                const command = vscode.commands.registerCommand(registration.commandId, registration.callback);
+                context.subscriptions.push(command);
+                console.log(`COMMAND_REGISTRATION: ✓ Registered: ${registration.commandId} - ${registration.description}`);
+                return true;
+            }
+            catch (error) {
+                console.warn(`COMMAND_REGISTRATION: ⚠️ Command ${registration.commandId} may already exist:`, error);
+                return false;
+            }
+        };
+        // Register all collected commands
+        let successCount = 0;
+        let failureCount = 0;
+        commandRegistrations.forEach(registration => {
+            if (safeRegisterCommand(registration)) {
+                successCount++;
+            }
+            else {
+                failureCount++;
+            }
+        });
+        console.log(`COMMAND_REGISTRATION: New Code Analysis commands registration complete`);
+        console.log(`COMMAND_REGISTRATION: ✓ Successfully registered: ${successCount} commands`);
+        if (failureCount > 0) {
+            console.log(`COMMAND_REGISTRATION: ⚠️ Failed to register: ${failureCount} commands (may already exist)`);
+        }
+    }
+    catch (error) {
+        console.error('COMMAND_REGISTRATION: Error during New Code Analysis commands registration:', error);
+        throw error;
+    }
 }
+
+
+/***/ }),
+/* 71 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Commands
+ * Command handlers for the new code analysis functionality
+ * Implements the "nested dolls" architecture pattern
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisCommands = void 0;
+const subsections_1 = __webpack_require__(72);
+const file_analysis_1 = __webpack_require__(83);
+const clean_analysis_1 = __webpack_require__(100);
+const analysisFileMode_1 = __webpack_require__(102);
+const viewTheme_1 = __webpack_require__(108);
+const autoAnalysisDelay_1 = __webpack_require__(109);
+/**
+ * Main command coordinator for New Code Analysis
+ * Follows the "nested dolls" pattern: collects all command registrations
+ * without actually registering them - that's done at the top level
+ */
+class NewCodeAnalysisCommands {
+    /**
+     * Get all new code analysis command registrations (nested dolls pattern)
+     * This collects all commands from subsections without registering them
+     */
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting all command registrations');
+        // Create a default refresh callback if none provided
+        const defaultRefreshCallback = refreshCallback || (() => {
+            console.log('NEW_CODE_ANALYSIS: Default refresh callback executed');
+        });
+        // Create setting instances
+        const tempAnalysisFileSetting = new analysisFileMode_1.AnalysisFileSetting(context);
+        const tempViewThemeSetting = new viewTheme_1.ViewThemeSetting(context);
+        const tempAutoAnalysisDelaySetting = new autoAnalysisDelay_1.AutoAnalysisDelaySetting(context);
+        const allCommandRegistrations = [];
+        // Collect subsection command registrations
+        const analysisSettingsCommands = subsections_1.AnalysisSettingsCommands.getCommandRegistrations(context, tempAnalysisFileSetting, tempViewThemeSetting, tempAutoAnalysisDelaySetting, defaultRefreshCallback);
+        allCommandRegistrations.push(...analysisSettingsCommands);
+        const activeAnalysesCommands = subsections_1.ActiveAnalysesCommands.getCommandRegistrations(context, defaultRefreshCallback);
+        allCommandRegistrations.push(...activeAnalysesCommands);
+        const projectByLanguageCommands = subsections_1.ProjectByLanguageCommands.getCommandRegistrations(context, defaultRefreshCallback);
+        allCommandRegistrations.push(...projectByLanguageCommands);
+        const filesByLanguageCommands = subsections_1.FilesByLanguageCommands.getCommandRegistrations(context, defaultRefreshCallback);
+        allCommandRegistrations.push(...filesByLanguageCommands);
+        // Add main section commands
+        const mainCommands = NewCodeAnalysisCommands.getMainCommandRegistrations(context, defaultRefreshCallback);
+        allCommandRegistrations.push(...mainCommands);
+        // Add file analysis commands (these are direct registrations, not command registrations)
+        const fileAnalysisCommands = file_analysis_1.FileAnalysisCommands.registerCommands(context);
+        // Note: FileAnalysisCommands returns disposables directly, not CommandRegistrations
+        // These will be automatically added to the context subscriptions
+        // Add clean analysis commands
+        const cleanAnalysisCommands = clean_analysis_1.CleanAnalysisCommands.getCommandRegistrations(context, defaultRefreshCallback);
+        allCommandRegistrations.push(...cleanAnalysisCommands);
+        // Execute startup cleanup
+        clean_analysis_1.CleanAnalysisCommands.executeStartupCleanup(context);
+        console.log(`NEW_CODE_ANALYSIS: Collected total of ${allCommandRegistrations.length} command registrations + file analysis commands`);
+        return allCommandRegistrations;
+    }
+    /**
+     * Get main section command registrations (not subsection-specific)
+     */
+    static getMainCommandRegistrations(context, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting main command registrations');
+        // TODO: Add main new code analysis commands
+        const mainCommands = [
+        // Example main commands:
+        // {
+        //     commandId: 'newCodeAnalysis.refresh',
+        //     callback: refreshCallback,
+        //     description: 'Refresh New Code Analysis tree view'
+        // }
+        ];
+        console.log(`NEW_CODE_ANALYSIS: Collected ${mainCommands.length} main command registrations`);
+        return mainCommands;
+    }
+}
+exports.NewCodeAnalysisCommands = NewCodeAnalysisCommands;
 
 
 /***/ }),
 /* 72 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Subsection Commands
+ * Exports for all subsection command modules
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageCommands = exports.ProjectByLanguageCommands = exports.ActiveAnalysesCommands = exports.AnalysisSettingsCommands = void 0;
+var analysisSettingsCommands_1 = __webpack_require__(73);
+Object.defineProperty(exports, "AnalysisSettingsCommands", ({ enumerable: true, get: function () { return analysisSettingsCommands_1.AnalysisSettingsCommands; } }));
+var activeAnalysesCommands_1 = __webpack_require__(80);
+Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
+var projectByLanguageCommands_1 = __webpack_require__(81);
+Object.defineProperty(exports, "ProjectByLanguageCommands", ({ enumerable: true, get: function () { return projectByLanguageCommands_1.ProjectByLanguageCommands; } }));
+var filesByLanguageCommands_1 = __webpack_require__(82);
+Object.defineProperty(exports, "FilesByLanguageCommands", ({ enumerable: true, get: function () { return filesByLanguageCommands_1.FilesByLanguageCommands; } }));
+
+
+/***/ }),
+/* 73 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Analysis Settings Commands Coordinator
+ * Coordinates all commands for the Analysis Settings subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisSettingsCommands = void 0;
+const analysis_file_mode_1 = __webpack_require__(74);
+const view_theme_1 = __webpack_require__(76);
+const auto_analysis_delay_1 = __webpack_require__(78);
+class AnalysisSettingsCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Get all analysis settings command registrations (nested dolls pattern)
+     * Collects commands from all sub-components without registering them
+     */
+    static getCommandRegistrations(context, analysisFileSetting, viewThemeSetting, autoAnalysisDelaySetting, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting Analysis Settings command registrations');
+        const commandRegistrations = [];
+        // Collect analysis file mode command registrations
+        const fileModeCommands = analysis_file_mode_1.AnalysisFileModeCommands.getCommandRegistrations(context, analysisFileSetting, refreshCallback);
+        commandRegistrations.push(...fileModeCommands);
+        // Collect view theme command registrations
+        const viewThemeCommands = view_theme_1.ViewThemeCommands.getCommandRegistrations(context, viewThemeSetting, refreshCallback);
+        commandRegistrations.push(...viewThemeCommands);
+        // Collect auto-analysis delay command registrations
+        const autoAnalysisDelayCommands = auto_analysis_delay_1.AutoAnalysisDelayCommands.getCommandRegistrations(context, autoAnalysisDelaySetting, refreshCallback);
+        commandRegistrations.push(...autoAnalysisDelayCommands);
+        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Analysis Settings command registrations`);
+        return commandRegistrations;
+    }
+}
+exports.AnalysisSettingsCommands = AnalysisSettingsCommands;
+
+
+/***/ }),
+/* 74 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Analysis File Mode Commands Module
+ * Exports for analysis file mode commands
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisFileModeCommands = void 0;
+var analysisFileModeCommands_1 = __webpack_require__(75);
+Object.defineProperty(exports, "AnalysisFileModeCommands", ({ enumerable: true, get: function () { return analysisFileModeCommands_1.AnalysisFileModeCommands; } }));
+
+
+/***/ }),
+/* 75 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+/**
+ * Analysis File Mode Commands
+ * Commands specific to the Analysis File Mode setting
+ */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -13775,55 +13350,1157 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CommonCommands = void 0;
+exports.AnalysisFileModeCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-/**
- * Common commands utility for shared functionality across the extension
- */
-class CommonCommands {
-    static modularTreeProvider;
-    /**
-     * Set the modular tree provider for refresh operations
-     */
-    static setModularTreeProvider(provider) {
-        this.modularTreeProvider = provider;
-        console.log('COMMON_COMMANDS: Modular tree provider set for refresh operations');
+class AnalysisFileModeCommands {
+    context;
+    analysisFileSetting;
+    constructor(context, analysisFileSetting) {
+        this.context = context;
+        this.analysisFileSetting = analysisFileSetting;
     }
     /**
-     * Refresh the entire tree view
-     * This replaces the legacy 'codexr.servers.refresh' command
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
      */
-    static refreshTreeView() {
-        console.log('COMMON_COMMANDS: Refreshing tree view');
-        if (this.modularTreeProvider && typeof this.modularTreeProvider.refresh === 'function') {
-            this.modularTreeProvider.refresh();
-            console.log('COMMON_COMMANDS: Tree view refreshed successfully');
+    static getCommandRegistrations(context, analysisFileSetting, refreshCallback) {
+        const commands = new AnalysisFileModeCommands(context, analysisFileSetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.toggleAnalysisFileMode',
+                callback: () => commands.toggleAnalysisFileMode(refreshCallback),
+                description: 'Toggle Analysis File Mode between XR and LivePanel'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAnalysisFileModeXR',
+                callback: () => commands.setAnalysisFileMode('XR', refreshCallback),
+                description: 'Set Analysis File Mode to XR'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAnalysisFileModeHivePanel',
+                callback: () => commands.setAnalysisFileMode('LivePanel', refreshCallback),
+                description: 'Set Analysis File Mode to LivePanel'
+            }
+        ];
+    }
+    /**
+     * Toggle analysis file mode command handler
+     */
+    async toggleAnalysisFileMode(refreshCallback) {
+        try {
+            const newMode = await this.analysisFileSetting.toggleMode();
+            // Show notification to user
+            vscode.window.showInformationMessage(`Analysis File mode switched to: ${newMode}`, { modal: false });
+            // Refresh the tree view to show updated state
+            refreshCallback();
+            console.log(`NEW_CODE_ANALYSIS: Command executed - Analysis file mode: ${newMode}`);
         }
-        else {
-            console.warn('COMMON_COMMANDS: No modular tree provider available for refresh');
-            // Fallback: try to execute any existing refresh commands
-            try {
-                vscode.commands.executeCommand('codeXR.modularTree.refresh');
-            }
-            catch (error) {
-                console.error('COMMON_COMMANDS: Failed to refresh tree view:', error);
-            }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error toggling analysis file mode:', error);
+            vscode.window.showErrorMessage(`Failed to toggle analysis file mode: ${error}`);
         }
     }
     /**
-     * Legacy method for backward compatibility
-     * @deprecated Use refreshTreeView() instead
+     * Set specific analysis file mode command handler
      */
-    static refreshServers() {
-        console.log('COMMON_COMMANDS: Legacy refresh servers called, delegating to refreshTreeView');
-        this.refreshTreeView();
+    async setAnalysisFileMode(mode, refreshCallback) {
+        try {
+            await this.analysisFileSetting.setMode(mode);
+            // Show notification to user
+            vscode.window.showInformationMessage(`Analysis File mode set to: ${mode}`, { modal: false });
+            // Refresh the tree view to show updated state
+            refreshCallback();
+            console.log(`NEW_CODE_ANALYSIS: Command executed - Analysis file mode set to: ${mode}`);
+        }
+        catch (error) {
+            console.error(`NEW_CODE_ANALYSIS: Error setting analysis file mode to ${mode}:`, error);
+            vscode.window.showErrorMessage(`Failed to set analysis file mode to ${mode}: ${error}`);
+        }
     }
 }
-exports.CommonCommands = CommonCommands;
+exports.AnalysisFileModeCommands = AnalysisFileModeCommands;
 
 
 /***/ }),
-/* 73 */
+/* 76 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * View Theme Commands Module
+ * Exports for view theme commands
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ViewThemeCommands = void 0;
+var viewThemeCommands_1 = __webpack_require__(77);
+Object.defineProperty(exports, "ViewThemeCommands", ({ enumerable: true, get: function () { return viewThemeCommands_1.ViewThemeCommands; } }));
+
+
+/***/ }),
+/* 77 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * View Theme Commands
+ * Commands specific to the View Theme setting
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ViewThemeCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class ViewThemeCommands {
+    context;
+    viewThemeSetting;
+    constructor(context, viewThemeSetting) {
+        this.context = context;
+        this.viewThemeSetting = viewThemeSetting;
+    }
+    /**
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
+     */
+    static getCommandRegistrations(context, viewThemeSetting, refreshCallback) {
+        const commands = new ViewThemeCommands(context, viewThemeSetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.toggleViewTheme',
+                callback: () => commands.toggleViewTheme(refreshCallback),
+                description: 'Toggle View Theme between Dark and Light'
+            },
+            {
+                commandId: 'newCodeAnalysis.setViewThemeDark',
+                callback: () => commands.setViewTheme('Dark', refreshCallback),
+                description: 'Set View Theme to Dark'
+            },
+            {
+                commandId: 'newCodeAnalysis.setViewThemeLight',
+                callback: () => commands.setViewTheme('Light', refreshCallback),
+                description: 'Set View Theme to Light'
+            }
+        ];
+    }
+    /**
+     * Toggle view theme command handler
+     */
+    async toggleViewTheme(refreshCallback) {
+        try {
+            console.log('VIEW_THEME_COMMAND: Starting toggle view theme command');
+            const newTheme = await this.viewThemeSetting.toggleTheme();
+            // Show notification to user
+            vscode.window.showInformationMessage(`View theme switched to: ${newTheme}`, { modal: false });
+            console.log('VIEW_THEME_COMMAND: About to call refreshCallback');
+            // Refresh the tree view to show updated state
+            refreshCallback();
+            console.log('VIEW_THEME_COMMAND: refreshCallback executed');
+            console.log(`NEW_CODE_ANALYSIS: Command executed - View theme: ${newTheme}`);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error toggling view theme:', error);
+            vscode.window.showErrorMessage(`Failed to toggle view theme: ${error}`);
+        }
+    }
+    /**
+     * Set specific view theme command handler
+     */
+    async setViewTheme(theme, refreshCallback) {
+        try {
+            await this.viewThemeSetting.setTheme(theme);
+            // Show notification to user
+            vscode.window.showInformationMessage(`View theme set to: ${theme}`, { modal: false });
+            // Refresh the tree view to show updated state
+            refreshCallback();
+            console.log(`NEW_CODE_ANALYSIS: Command executed - View theme set to: ${theme}`);
+        }
+        catch (error) {
+            console.error(`NEW_CODE_ANALYSIS: Error setting view theme to ${theme}:`, error);
+            vscode.window.showErrorMessage(`Failed to set view theme to ${theme}: ${error}`);
+        }
+    }
+}
+exports.ViewThemeCommands = ViewThemeCommands;
+
+
+/***/ }),
+/* 78 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Auto-Analysis Delay Commands Module
+ * Exports for auto-analysis delay commands
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AutoAnalysisDelayCommands = void 0;
+var autoAnalysisDelayCommands_1 = __webpack_require__(79);
+Object.defineProperty(exports, "AutoAnalysisDelayCommands", ({ enumerable: true, get: function () { return autoAnalysisDelayCommands_1.AutoAnalysisDelayCommands; } }));
+
+
+/***/ }),
+/* 79 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Auto-Analysis Delay Commands
+ * Commands specific to the Auto-Analysis Delay setting
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AutoAnalysisDelayCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class AutoAnalysisDelayCommands {
+    context;
+    autoAnalysisDelaySetting;
+    constructor(context, autoAnalysisDelaySetting) {
+        this.context = context;
+        this.autoAnalysisDelaySetting = autoAnalysisDelaySetting;
+    }
+    /**
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
+     */
+    static getCommandRegistrations(context, autoAnalysisDelaySetting, refreshCallback) {
+        const commands = new AutoAnalysisDelayCommands(context, autoAnalysisDelaySetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.selectAutoAnalysisDelay',
+                callback: () => commands.selectAutoAnalysisDelay(refreshCallback),
+                description: 'Select Auto-Analysis Delay from options'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAutoAnalysisDelayRealTime',
+                callback: () => commands.setAutoAnalysisDelay('RealTime', refreshCallback),
+                description: 'Set Auto-Analysis Delay to Real Time (0s)'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAutoAnalysisDelay1s',
+                callback: () => commands.setAutoAnalysisDelay('1s', refreshCallback),
+                description: 'Set Auto-Analysis Delay to 1 second'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAutoAnalysisDelay3s',
+                callback: () => commands.setAutoAnalysisDelay('3s', refreshCallback),
+                description: 'Set Auto-Analysis Delay to 3 seconds'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAutoAnalysisDelay5s',
+                callback: () => commands.setAutoAnalysisDelay('5s', refreshCallback),
+                description: 'Set Auto-Analysis Delay to 5 seconds'
+            },
+            {
+                commandId: 'newCodeAnalysis.setAutoAnalysisDelay10s',
+                callback: () => commands.setAutoAnalysisDelay('10s', refreshCallback),
+                description: 'Set Auto-Analysis Delay to 10 seconds'
+            }
+        ];
+    }
+    /**
+     * Select auto-analysis delay from QuickPick command handler
+     */
+    async selectAutoAnalysisDelay(refreshCallback) {
+        try {
+            // Create QuickPick items for predefined options
+            const predefinedItems = [
+                {
+                    label: '⚡ Real Time (0s)',
+                    description: 'Instant analysis as you type',
+                    detail: 'No delay - immediate response',
+                    value: 'RealTime'
+                },
+                {
+                    label: '🕐 1 Second',
+                    description: 'Short delay for quick feedback',
+                    detail: '1000ms delay',
+                    value: '1s'
+                },
+                {
+                    label: '🕒 3 Seconds',
+                    description: 'Balanced delay for most users',
+                    detail: '3000ms delay',
+                    value: '3s'
+                },
+                {
+                    label: '🕔 5 Seconds',
+                    description: 'Longer delay for complex analysis',
+                    detail: '5000ms delay',
+                    value: '5s'
+                },
+                {
+                    label: '🕙 10 Seconds',
+                    description: 'Maximum predefined delay',
+                    detail: '10000ms delay',
+                    value: '10s'
+                },
+                {
+                    label: '⚙️ Custom Value...',
+                    description: 'Set your own delay (0-20000ms)',
+                    detail: 'Enter custom milliseconds',
+                    value: 'Custom'
+                }
+            ];
+            const selectedItem = await vscode.window.showQuickPick(predefinedItems, {
+                placeHolder: 'Select auto-analysis delay timing',
+                title: 'Auto-Analysis Delay Configuration',
+                matchOnDescription: true,
+                matchOnDetail: true
+            });
+            if (!selectedItem) {
+                return; // User cancelled
+            }
+            if (selectedItem.value === 'Custom') {
+                // Handle custom input
+                await this.setCustomAutoAnalysisDelay(refreshCallback);
+            }
+            else {
+                // Handle predefined value
+                await this.setAutoAnalysisDelay(selectedItem.value, refreshCallback);
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error selecting auto-analysis delay:', error);
+            vscode.window.showErrorMessage(`Failed to select auto-analysis delay: ${error}`);
+        }
+    }
+    /**
+     * Set custom auto-analysis delay command handler
+     */
+    async setCustomAutoAnalysisDelay(refreshCallback) {
+        try {
+            // Show input box for custom delay
+            const input = await vscode.window.showInputBox({
+                prompt: 'Enter custom auto-analysis delay in milliseconds (0-20000)',
+                placeHolder: '1000',
+                validateInput: (value) => {
+                    const num = parseInt(value);
+                    if (isNaN(num)) {
+                        return 'Please enter a valid number';
+                    }
+                    if (num < 0 || num > 20000) {
+                        return 'Delay must be between 0 and 20000 milliseconds (20 seconds)';
+                    }
+                    return null;
+                }
+            });
+            if (input === undefined) {
+                return; // User cancelled
+            }
+            const customMs = parseInt(input);
+            const newDelayConfig = await this.autoAnalysisDelaySetting.setCustomDelay(customMs);
+            // Show notification to user
+            vscode.window.showInformationMessage(`Auto-analysis delay set to custom: ${customMs}ms`, { modal: false });
+            // Refresh the tree view to show updated state
+            refreshCallback();
+            console.log(`NEW_CODE_ANALYSIS: Command executed - Custom auto-analysis delay: ${customMs}ms`);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error setting custom auto-analysis delay:', error);
+            vscode.window.showErrorMessage(`Failed to set custom auto-analysis delay: ${error}`);
+        }
+    }
+    /**
+     * Set specific auto-analysis delay command handler
+     */
+    async setAutoAnalysisDelay(delayType, refreshCallback) {
+        try {
+            await this.autoAnalysisDelaySetting.setDelay(delayType);
+            // Show notification to user
+            vscode.window.showInformationMessage(`Auto-analysis delay set to: ${delayType}`, { modal: false });
+            // Refresh the tree view to show updated state
+            refreshCallback();
+            console.log(`NEW_CODE_ANALYSIS: Command executed - Auto-analysis delay set to: ${delayType}`);
+        }
+        catch (error) {
+            console.error(`NEW_CODE_ANALYSIS: Error setting auto-analysis delay to ${delayType}:`, error);
+            vscode.window.showErrorMessage(`Failed to set auto-analysis delay to ${delayType}: ${error}`);
+        }
+    }
+}
+exports.AutoAnalysisDelayCommands = AutoAnalysisDelayCommands;
+
+
+/***/ }),
+/* 80 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Active Analyses Commands
+ * Commands specific to the Active Analyses subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesCommands = void 0;
+class ActiveAnalysesCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Get active analyses command registrations (nested dolls pattern)
+     */
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting Active Analyses command registrations');
+        // TODO: Add actual active analyses commands
+        const commandRegistrations = [
+        // Example commands:
+        // {
+        //     commandId: 'newCodeAnalysis.showActiveAnalyses',
+        //     callback: () => { /* implementation */ },
+        //     description: 'Show Active Analyses view'
+        // }
+        ];
+        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Active Analyses command registrations`);
+        return commandRegistrations;
+    }
+}
+exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
+
+
+/***/ }),
+/* 81 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Project By Language Commands
+ * Commands specific to the Project By Language subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ProjectByLanguageCommands = void 0;
+class ProjectByLanguageCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Get project by language command registrations (nested dolls pattern)
+     */
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting Project By Language command registrations');
+        // TODO: Add actual project by language commands
+        const commandRegistrations = [
+        // Example commands:
+        // {
+        //     commandId: 'newCodeAnalysis.analyzeProjectByLanguage',
+        //     callback: () => { /* implementation */ },
+        //     description: 'Analyze project files by programming language'
+        // }
+        ];
+        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Project By Language command registrations`);
+        return commandRegistrations;
+    }
+}
+exports.ProjectByLanguageCommands = ProjectByLanguageCommands;
+
+
+/***/ }),
+/* 82 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Files By Language Commands
+ * Commands specific to the Files By Language subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageCommands = void 0;
+class FilesByLanguageCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Get files by language command registrations (nested dolls pattern)
+     */
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting Files By Language command registrations');
+        // TODO: Add actual files by language commands
+        const commandRegistrations = [
+        // Example commands:
+        // {
+        //     commandId: 'newCodeAnalysis.showFilesByLanguage',
+        //     callback: () => { /* implementation */ },
+        //     description: 'Show files grouped by programming language'
+        // }
+        ];
+        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Files By Language command registrations`);
+        return commandRegistrations;
+    }
+}
+exports.FilesByLanguageCommands = FilesByLanguageCommands;
+
+
+/***/ }),
+/* 83 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * File Analysis Commands Module
+ * Exports for file analysis commands
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileAnalysisCommands = void 0;
+var fileAnalysisCommands_1 = __webpack_require__(84);
+Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
+
+
+/***/ }),
+/* 84 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * File Analysis Commands
+ * Commands for analyzing individual files
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileAnalysisCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const engine_1 = __webpack_require__(85);
+class FileAnalysisCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Register file analysis commands
+     */
+    static registerCommands(context) {
+        const commands = new FileAnalysisCommands(context);
+        const analyzeFileCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeFile', (uri) => commands.analyzeFile(uri));
+        return [analyzeFileCommand];
+    }
+    /**
+     * Analyze file command handler
+     */
+    async analyzeFile(uri) {
+        try {
+            let filePath;
+            if (uri) {
+                // Called from context menu or command palette with URI
+                filePath = uri.fsPath;
+            }
+            else {
+                // Called from command palette without URI - use active editor
+                const activeEditor = vscode.window.activeTextEditor;
+                if (!activeEditor) {
+                    vscode.window.showWarningMessage('CodeXR: No file selected for analysis');
+                    return;
+                }
+                filePath = activeEditor.document.fileName;
+            }
+            console.log(`FILE_ANALYSIS_COMMAND: Analyze file requested for: ${filePath}`);
+            // Check if file can be analyzed
+            if (!engine_1.LaunchAnalyzeFileLivePanel.canAnalyzeFile(filePath)) {
+                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" is not a supported programming language`);
+                return;
+            }
+            // Execute analysis
+            await engine_1.LaunchAnalyzeFileLivePanel.analyzeFile(filePath, this.context);
+        }
+        catch (error) {
+            console.error('FILE_ANALYSIS_COMMAND: Error in analyze file command:', error);
+            vscode.window.showErrorMessage(`CodeXR: Analysis failed - ${error}`);
+        }
+    }
+}
+exports.FileAnalysisCommands = FileAnalysisCommands;
+
+
+/***/ }),
+/* 85 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Engine Module
+ * Exports for analysis engine functionality
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchAnalyzeFileLivePanel = void 0;
+var launchAnalyzeFileLivePanel_1 = __webpack_require__(86);
+Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
+var utils_1 = __webpack_require__(88);
+Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
+Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return utils_1.GetNecessaryFiles; } }));
+
+
+/***/ }),
+/* 86 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Launch Analyze File Live Panel
+ * Live Panel file analysis engine for CodeXR
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LaunchAnalyzeFileLivePanel = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const languageMetadata_1 = __webpack_require__(87);
+const utils_1 = __webpack_require__(88);
+class LaunchAnalyzeFileLivePanel {
+    /**
+     * Analyze a specific file using Live Panel mode
+     */
+    static async analyzeFile(filePath, context) {
+        try {
+            // Get file language information
+            const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
+            if (!languageInfo) {
+                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" - Language not supported for analysis`);
+                return;
+            }
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis requested for file: ${filePath}`);
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Detected language: ${languageInfo.name}`);
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
+            // Show confirmation message to user
+            vscode.window.showInformationMessage(`CodeXR: LivePanel analysis started for "${filePath}" (${languageInfo.name})`, { modal: false });
+            // Get analysis data using the new system
+            const analysisResult = await utils_1.GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context);
+            if (analysisResult.success && analysisResult.data) {
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis data.json:`, JSON.stringify(analysisResult.data, null, 2));
+                // Log template files received
+                if (analysisResult.indexHtml) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received index.html (${analysisResult.indexHtml.length} characters)`);
+                }
+                if (analysisResult.cssContent) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received CSS file (${analysisResult.cssContent.length} characters)`);
+                }
+                if (analysisResult.jsContent) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received JS file (${analysisResult.jsContent.length} characters)`);
+                }
+                // Save all files to workspace storage
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: Saving analysis files to workspace storage...`);
+                const filesToSave = {
+                    indexHtml: analysisResult.indexHtml,
+                    cssContent: analysisResult.cssContent,
+                    jsContent: analysisResult.jsContent,
+                    dataJson: analysisResult.data
+                };
+                const saveResult = await utils_1.SaveFiles.saveAnalysisFiles(filesToSave, filePath, 'FileLivePanel', context);
+                if (saveResult.success) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Files saved successfully!`);
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis nonce: ${saveResult.nonce}`);
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis directory: ${saveResult.analysisDirectoryPath}`);
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Index.html path: ${saveResult.indexHtmlPath}`);
+                    // Start file watcher for live updates
+                    const watcherId = utils_1.FileWatcher.startWatching(context, filePath, saveResult.analysisDirectoryPath, 'LivePanel');
+                    if (watcherId) {
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Started file watcher with ID: ${watcherId}`);
+                    }
+                    else {
+                        console.warn(`NEW_CODE_ANALYSIS_ENGINE: Failed to start file watcher for: ${filePath}`);
+                    }
+                    // Launch SSE server for real-time updates
+                    const serverLaunchResult = await utils_1.LaunchServer.launchAnalysisServer(context, {
+                        filePath: filePath,
+                        analysisType: 'LivePanel',
+                        enableSSE: true,
+                        analysisDirectoryPath: saveResult.analysisDirectoryPath,
+                        indexHtmlPath: saveResult.indexHtmlPath
+                    });
+                    if (serverLaunchResult.success) {
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launched successfully!`);
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server URL: ${serverLaunchResult.serverUrl}`);
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server ID: ${serverLaunchResult.serverId}`);
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: SSE Channel: ${serverLaunchResult.sseChannel}`);
+                        // Show enhanced success message with server information
+                        vscode.window.showInformationMessage(`CodeXR: Live Panel launched! Analysis: ${saveResult.nonce} | Server: ${serverLaunchResult.serverUrl} | Live updates enabled`, 'Open in Browser', 'View Servers').then(action => {
+                            if (action === 'Open in Browser') {
+                                vscode.env.openExternal(vscode.Uri.parse(serverLaunchResult.serverUrl));
+                            }
+                            else if (action === 'View Servers') {
+                                vscode.commands.executeCommand('codexr.servers.view');
+                            }
+                        });
+                    }
+                    else {
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launch failed: ${serverLaunchResult.error}`);
+                        // Still show success for analysis, but note server issue
+                        vscode.window.showWarningMessage(`CodeXR: Analysis completed for "${filePath}" (Session: ${saveResult.nonce}) but server launch failed: ${serverLaunchResult.error}`, 'Retry Server Launch', 'View Analysis Files').then(action => {
+                            if (action === 'Retry Server Launch') {
+                                // Re-attempt server launch
+                                utils_1.LaunchServer.launchAnalysisServer(context, {
+                                    filePath: filePath,
+                                    analysisType: 'LivePanel',
+                                    enableSSE: true,
+                                    analysisDirectoryPath: saveResult.analysisDirectoryPath,
+                                    indexHtmlPath: saveResult.indexHtmlPath
+                                });
+                            }
+                            else if (action === 'View Analysis Files') {
+                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(saveResult.analysisDirectoryPath));
+                            }
+                        });
+                    }
+                }
+                else {
+                    console.error(`NEW_CODE_ANALYSIS_ENGINE: Failed to save files:`, saveResult.error);
+                    vscode.window.showErrorMessage(`CodeXR: Analysis completed but failed to save files: ${saveResult.error}`);
+                }
+            }
+            else {
+                console.error(`NEW_CODE_ANALYSIS_ENGINE: Analysis failed:`, analysisResult.error);
+                vscode.window.showErrorMessage(`CodeXR: Analysis failed for "${filePath}": ${analysisResult.error}`);
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS_ENGINE: Error analyzing file:', error);
+            vscode.window.showErrorMessage(`CodeXR: Failed to analyze file "${filePath}": ${error}`);
+        }
+    }
+    /**
+     * Check if a file can be analyzed
+     */
+    static canAnalyzeFile(filePath) {
+        const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
+        return languageInfo !== null;
+    }
+    /**
+     * Get supported file extensions for analysis
+     */
+    static getSupportedExtensions() {
+        // This will return all extensions from our supported languages
+        const { getAllSupportedExtensions } = __webpack_require__(99);
+        return getAllSupportedExtensions();
+    }
+}
+exports.LaunchAnalyzeFileLivePanel = LaunchAnalyzeFileLivePanel;
+
+
+/***/ }),
+/* 87 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Language metadata for file detection and visualization
+ * Maps file extensions to language information including VS Code icons
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExtensionToLanguageMap = exports.SupportedLanguages = void 0;
+exports.getLanguageForFile = getLanguageForFile;
+exports.getAllLanguageNames = getAllLanguageNames;
+exports.isLanguageSupported = isLanguageSupported;
+/**
+ * Supported languages with their file extensions and VS Code icon IDs
+ * CodeXR Programming Languages Support
+ */
+exports.SupportedLanguages = [
+    { name: "Python", extensions: [".py", ".pyw", ".pyi"], iconId: "python" },
+    { name: "Ruby", extensions: [".rb", ".rbw"], iconId: "ruby" },
+    { name: "Java", extensions: [".java"], iconId: "java" },
+    { name: "C", extensions: [".c", ".h"], iconId: "c" },
+    { name: "C++", extensions: [".cpp", ".cxx", ".cc", ".c++", ".hpp", ".hxx", ".hh", ".h++"], iconId: "cpp" },
+    { name: "C#", extensions: [".cs"], iconId: "csharp" },
+    { name: "Erlang", extensions: [".erl", ".hrl"], iconId: "erlang" },
+    { name: "Fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], iconId: "fortran" },
+    { name: "GDScript", extensions: [".gd"], iconId: "gdscript" },
+    { name: "Go", extensions: [".go"], iconId: "go" },
+    { name: "JavaScript", extensions: [".js", ".mjs", ".cjs"], iconId: "javascript" },
+    { name: "Kotlin", extensions: [".kt", ".kts"], iconId: "kotlin" },
+    { name: "Lua", extensions: [".lua"], iconId: "lua" },
+    { name: "Objective-C", extensions: [".m", ".mm"], iconId: "objective-c" },
+    { name: "PHP", extensions: [".php", ".phtml", ".php3", ".php4", ".php5"], iconId: "php" },
+    { name: "Perl", extensions: [".pl", ".pm"], iconId: "perl" },
+    { name: "Scala", extensions: [".scala", ".sc"], iconId: "scala" },
+    { name: "Solidity", extensions: [".sol"], iconId: "solidity" },
+    { name: "Swift", extensions: [".swift"], iconId: "swift" },
+    { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
+    { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
+    { name: "Vue", extensions: [".vue"], iconId: "vue" },
+    { name: "Zig", extensions: [".zig"], iconId: "zig" }
+];
+/**
+ * Create a map from file extension to language info for fast lookup
+ */
+exports.ExtensionToLanguageMap = new Map();
+// Initialize the extension map
+exports.SupportedLanguages.forEach(lang => {
+    lang.extensions.forEach(ext => {
+        exports.ExtensionToLanguageMap.set(ext.toLowerCase(), lang);
+    });
+});
+/**
+ * Get language info for a file path based on its extension
+ * @param filePath The file path to analyze
+ * @returns Language info or null if not recognized
+ */
+function getLanguageForFile(filePath) {
+    const extension = getFileExtension(filePath);
+    return exports.ExtensionToLanguageMap.get(extension) || null;
+}
+/**
+ * Extract file extension from a file path
+ * @param filePath The file path
+ * @returns The lowercase extension including the dot (e.g., ".js")
+ */
+function getFileExtension(filePath) {
+    const lastDot = filePath.lastIndexOf('.');
+    if (lastDot === -1 || lastDot === filePath.length - 1) {
+        return '';
+    }
+    return filePath.substring(lastDot).toLowerCase();
+}
+/**
+ * Get all supported language names
+ */
+function getAllLanguageNames() {
+    return exports.SupportedLanguages.map(lang => lang.name);
+}
+/**
+ * Check if a language is supported
+ */
+function isLanguageSupported(languageName) {
+    return exports.SupportedLanguages.some(lang => lang.name === languageName);
+}
+
+
+/***/ }),
+/* 88 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Engine Utils Module
+ * Exports for analysis engine utilities
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LaunchServer = exports.FileWatcher = exports.SaveFiles = exports.ParseTemplates = exports.GetNecessaryFiles = exports.PythonExecutor = void 0;
+var pythonExecutor_1 = __webpack_require__(89);
+Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return pythonExecutor_1.PythonExecutor; } }));
+var getNecessaryFiles_1 = __webpack_require__(93);
+Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return getNecessaryFiles_1.GetNecessaryFiles; } }));
+var parseTemplates_1 = __webpack_require__(94);
+Object.defineProperty(exports, "ParseTemplates", ({ enumerable: true, get: function () { return parseTemplates_1.ParseTemplates; } }));
+var saveFiles_1 = __webpack_require__(95);
+Object.defineProperty(exports, "SaveFiles", ({ enumerable: true, get: function () { return saveFiles_1.SaveFiles; } }));
+var fileWatcher_1 = __webpack_require__(96);
+Object.defineProperty(exports, "FileWatcher", ({ enumerable: true, get: function () { return fileWatcher_1.FileWatcher; } }));
+var launchServer_1 = __webpack_require__(97);
+Object.defineProperty(exports, "LaunchServer", ({ enumerable: true, get: function () { return launchServer_1.LaunchServer; } }));
+
+
+/***/ }),
+/* 89 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Python Executor for New Code Analysis
+ * Executes Python analysis scripts and returns results
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PythonExecutor = void 0;
+const path = __importStar(__webpack_require__(5));
+const child_process_1 = __webpack_require__(59);
+const pythonEnvCommands_1 = __webpack_require__(90);
+class PythonExecutor {
+    /**
+     * Execute Python analysis script based on analysis type
+     */
+    static async executeAnalysis(analysisType, filePath, context) {
+        try {
+            console.log(`PYTHON_EXECUTOR: Starting ${analysisType} analysis for: ${filePath}`);
+            // Get the global PythonEnvCommands instance
+            const pythonEnvCommands = (0, pythonEnvCommands_1.getPythonEnvCommands)();
+            if (!pythonEnvCommands) {
+                return {
+                    success: false,
+                    error: 'Python environment system is not initialized. Please restart VS Code.'
+                };
+            }
+            // Get VenvManager from the global instance
+            const venvManager = pythonEnvCommands.getVenvManager();
+            // Check if environment is available
+            const status = venvManager.getEnvironmentStatus();
+            if (!status.exists || !status.isValid) {
+                return {
+                    success: false,
+                    error: `Python virtual environment is not available. Status: exists=${status.exists}, valid=${status.isValid}. Please create a Python environment first using "CodeXR: Create Python Environment" command.`
+                };
+            }
+            // Get the Python executable from virtual environment
+            const pythonExecutable = venvManager.getPythonExecutablePath();
+            if (!pythonExecutable) {
+                return {
+                    success: false,
+                    error: 'Could not get Python executable from virtual environment'
+                };
+            }
+            console.log(`PYTHON_EXECUTOR: Using Python executable: ${pythonExecutable}`);
+            // Get the appropriate Python script based on analysis type
+            const scriptPath = PythonExecutor.getScriptPath(analysisType, context);
+            if (!scriptPath) {
+                return {
+                    success: false,
+                    error: `No Python script found for analysis type: ${analysisType}`
+                };
+            }
+            console.log(`PYTHON_EXECUTOR: Using script: ${scriptPath}`);
+            // Execute the Python script using the virtual environment
+            const result = await PythonExecutor.runPythonScript(pythonExecutable, scriptPath, filePath);
+            if (result.success && result.stdout) {
+                try {
+                    // Try to parse the stdout as JSON (data.json content)
+                    const analysisData = JSON.parse(result.stdout);
+                    console.log(`PYTHON_EXECUTOR: Analysis completed successfully for ${analysisType}`);
+                    console.log(`PYTHON_EXECUTOR: Analysis data logged to console`);
+                    return {
+                        success: true,
+                        data: analysisData,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    };
+                }
+                catch (parseError) {
+                    console.error(`PYTHON_EXECUTOR: Failed to parse analysis result as JSON:`, parseError);
+                    console.log(`PYTHON_EXECUTOR: Raw stdout:`, result.stdout);
+                    return {
+                        success: false,
+                        error: `Failed to parse analysis result: ${parseError}`,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    };
+                }
+            }
+            return result;
+        }
+        catch (error) {
+            console.error(`PYTHON_EXECUTOR: Error executing ${analysisType} analysis:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Get the appropriate Python script path based on analysis type
+     */
+    static getScriptPath(analysisType, context) {
+        const pythonDir = path.join(context.extensionPath, 'src', 'new_code_analysis', 'python');
+        if (analysisType === 'FileLivePanel') {
+            return path.join(pythonDir, 'livePanel_file_analysis_coordinator.py');
+        }
+        console.error(`PYTHON_EXECUTOR: Unknown analysis type: ${analysisType}`);
+        return null;
+    }
+    /**
+     * Run Python script with file path as argument using virtual environment
+     */
+    static async runPythonScript(pythonExecutable, scriptPath, filePath) {
+        return new Promise((resolve) => {
+            console.log(`PYTHON_EXECUTOR: Executing: "${pythonExecutable}" "${scriptPath}" "${filePath}"`);
+            const pythonProcess = (0, child_process_1.spawn)(pythonExecutable, [scriptPath, filePath], {
+                cwd: path.dirname(scriptPath)
+            });
+            let stdout = '';
+            let stderr = '';
+            pythonProcess.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+            pythonProcess.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+            pythonProcess.on('close', (code) => {
+                console.log(`PYTHON_EXECUTOR: Python process exited with code: ${code}`);
+                if (code === 0) {
+                    resolve({
+                        success: true,
+                        stdout: stdout.trim(),
+                        stderr: stderr.trim()
+                    });
+                }
+                else {
+                    resolve({
+                        success: false,
+                        error: `Python script exited with code ${code}`,
+                        stdout: stdout.trim(),
+                        stderr: stderr.trim()
+                    });
+                }
+            });
+            pythonProcess.on('error', (error) => {
+                console.error(`PYTHON_EXECUTOR: Failed to start Python process:`, error);
+                resolve({
+                    success: false,
+                    error: `Failed to start Python process: ${error.message}`
+                });
+            });
+        });
+    }
+}
+exports.PythonExecutor = PythonExecutor;
+
+
+/***/ }),
+/* 90 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13865,7 +14542,7 @@ exports.registerPythonEnvCommands = registerPythonEnvCommands;
 exports.getPythonEnvCommands = getPythonEnvCommands;
 exports.deactivatePythonEnvCommands = deactivatePythonEnvCommands;
 const vscode = __importStar(__webpack_require__(1));
-const pythonEnvCommands_1 = __webpack_require__(74);
+const pythonEnvCommands_1 = __webpack_require__(91);
 /**
  * Python Environment Commands Wrapper
  * Re-exports python environment commands for centralized command registration
@@ -13911,7 +14588,7 @@ function deactivatePythonEnvCommands() {
 
 
 /***/ }),
-/* 74 */
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13951,7 +14628,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const venvManager_1 = __webpack_require__(75);
+const venvManager_1 = __webpack_require__(92);
 /**
  * Python environment command registration and handlers
  */
@@ -14208,7 +14885,7 @@ exports.PythonEnvCommands = PythonEnvCommands;
 
 
 /***/ }),
-/* 75 */
+/* 92 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14248,9 +14925,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VenvManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const cp = __importStar(__webpack_require__(60));
-const pythonEnvStorage_1 = __webpack_require__(63);
-const pythonEnvUtils_1 = __webpack_require__(64);
+const cp = __importStar(__webpack_require__(59));
+const pythonEnvStorage_1 = __webpack_require__(62);
+const pythonEnvUtils_1 = __webpack_require__(63);
 /**
  * Core virtual environment management functionality
  */
@@ -14625,7 +15302,2603 @@ exports.VenvManager = VenvManager;
 
 
 /***/ }),
-/* 76 */
+/* 93 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Get Necessary Files for Analysis
+ * Common functions for different types of analysis
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetNecessaryFiles = void 0;
+const pythonExecutor_1 = __webpack_require__(89);
+const parseTemplates_1 = __webpack_require__(94);
+class GetNecessaryFiles {
+    /**
+     * Get analysis for File Live Panel mode
+     */
+    static async getAnalysisFileLivePanel(filePath, context) {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting FileLivePanel analysis for: ${filePath}`);
+            // Execute Python analysis using PythonExecutor
+            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileLivePanel', filePath, context);
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: FileLivePanel analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
+                // Parse templates to get HTML, CSS, and JS files
+                console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Files...`);
+                const templateResult = await parseTemplates_1.ParseTemplates.parseLivePanelFilesTemplate(context, pythonResult.data);
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: Template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+                    return {
+                        success: true,
+                        data: pythonResult.data,
+                        indexHtml: templateResult.indexHtml,
+                        cssContent: templateResult.cssContent,
+                        jsContent: templateResult.jsContent,
+                        filePath: filePath,
+                        analysisType: 'FileLivePanel'
+                    };
+                }
+                else {
+                    console.error(`GET_NECESSARY_FILES: Template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `Template parsing failed: ${templateResult.error}`,
+                        filePath: filePath,
+                        analysisType: 'FileLivePanel'
+                    };
+                }
+            }
+            else {
+                console.error(`GET_NECESSARY_FILES: FileLivePanel analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during analysis',
+                    filePath: filePath,
+                    analysisType: 'FileLivePanel'
+                };
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getAnalysisFileLivePanel:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: filePath,
+                analysisType: 'FileLivePanel'
+            };
+        }
+    }
+}
+exports.GetNecessaryFiles = GetNecessaryFiles;
+
+
+/***/ }),
+/* 94 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Parse Templates for Analysis
+ * Handles template parsing and file generation for different analysis types
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ParseTemplates = void 0;
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const nonceGenerator_1 = __webpack_require__(12);
+class ParseTemplates {
+    /**
+     * Parse LivePanel Files template for File Live Panel analysis
+     */
+    static async parseLivePanelFilesTemplate(context, analysisData) {
+        try {
+            console.log(`PARSE_TEMPLATES: Starting LivePanel Files template parsing`);
+            // Define template paths
+            const templateDir = path.join(context.extensionPath, 'templates', 'analysis_livePanel', 'file');
+            const htmlPath = path.join(templateDir, 'fileAnalysis.html');
+            const cssPath = path.join(templateDir, 'fileAnalysisstyle.css');
+            const jsPath = path.join(templateDir, 'fileAnalysismain.js');
+            // Check if template files exist
+            if (!fs.existsSync(htmlPath)) {
+                throw new Error(`HTML template not found at: ${htmlPath}`);
+            }
+            if (!fs.existsSync(cssPath)) {
+                throw new Error(`CSS template not found at: ${cssPath}`);
+            }
+            if (!fs.existsSync(jsPath)) {
+                throw new Error(`JS template not found at: ${jsPath}`);
+            }
+            // Read template files
+            console.log(`PARSE_TEMPLATES: Reading template files from: ${templateDir}`);
+            const htmlTemplate = fs.readFileSync(htmlPath, 'utf-8');
+            const cssTemplate = fs.readFileSync(cssPath, 'utf-8');
+            const jsTemplate = fs.readFileSync(jsPath, 'utf-8');
+            // Parse HTML template
+            const parsedHtml = ParseTemplates.parseHtmlTemplate(htmlTemplate, context);
+            // Parse CSS template (for now, just return as-is)
+            const parsedCss = ParseTemplates.parseCssTemplate(cssTemplate);
+            // Parse JS template (for now, just return as-is)
+            const parsedJs = ParseTemplates.parseJsTemplate(jsTemplate);
+            console.log(`PARSE_TEMPLATES: Template parsing completed successfully`);
+            return {
+                indexHtml: parsedHtml,
+                cssContent: parsedCss,
+                jsContent: parsedJs,
+                success: true
+            };
+        }
+        catch (error) {
+            console.log(`PARSE_TEMPLATES: Error parsing LivePanel Files template:`, error);
+            return {
+                indexHtml: '',
+                cssContent: '',
+                jsContent: '',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Parse HTML template and replace placeholders
+     */
+    static parseHtmlTemplate(htmlTemplate, context) {
+        try {
+            // Generate nonce for security
+            const nonce = (0, nonceGenerator_1.generateNonce)();
+            // Replace all placeholders in the HTML template
+            let parsedHtml = htmlTemplate;
+            // Replace nonce placeholder
+            parsedHtml = parsedHtml.replace(/\$\{nonce\}/g, nonce);
+            // Replace styleUri placeholder - for now we'll use inline CSS approach
+            parsedHtml = parsedHtml.replace(/\$\{styleUri\}/g, './style.css');
+            // Replace scriptUri placeholder - for now we'll use relative path
+            parsedHtml = parsedHtml.replace(/\$\{scriptUri\}/g, './main.js');
+            console.log(`PARSE_TEMPLATES: HTML template parsed with nonce: ${nonce}`);
+            console.log(`PARSE_TEMPLATES: Replaced styleUri with: ./style.css`);
+            console.log(`PARSE_TEMPLATES: Replaced scriptUri with: ./main.js`);
+            return parsedHtml;
+        }
+        catch (error) {
+            console.error(`PARSE_TEMPLATES: Error parsing HTML template:`, error);
+            return htmlTemplate; // Return original if parsing fails
+        }
+    }
+    /**
+     * Parse CSS template
+     */
+    static parseCssTemplate(cssTemplate) {
+        try {
+            // For now, return CSS as-is
+            // In the future, we could add variable substitution or minification
+            console.log(`PARSE_TEMPLATES: CSS template parsed successfully`);
+            return cssTemplate;
+        }
+        catch (error) {
+            console.error(`PARSE_TEMPLATES: Error parsing CSS template:`, error);
+            return cssTemplate; // Return original if parsing fails
+        }
+    }
+    /**
+     * Parse JS template
+     */
+    static parseJsTemplate(jsTemplate) {
+        try {
+            // For now, return JS as-is
+            // In the future, we could add variable substitution or minification
+            console.log(`PARSE_TEMPLATES: JS template parsed successfully`);
+            return jsTemplate;
+        }
+        catch (error) {
+            console.error(`PARSE_TEMPLATES: Error parsing JS template:`, error);
+            return jsTemplate; // Return original if parsing fails
+        }
+    }
+}
+exports.ParseTemplates = ParseTemplates;
+
+
+/***/ }),
+/* 95 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Save Files for Analysis
+ * Handles saving analysis files to workspace storage
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SaveFiles = void 0;
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const nonceGenerator_1 = __webpack_require__(12);
+class SaveFiles {
+    /**
+     * Save analysis files to workspace storage
+     */
+    static async saveAnalysisFiles(filesToSave, originalFileName, analysisType, context) {
+        try {
+            console.log(`SAVE_FILES: Starting to save analysis files for: ${originalFileName}`);
+            // Generate nonce for this analysis session
+            const nonce = (0, nonceGenerator_1.generateNonce)();
+            // Get workspace storage path
+            const workspaceStorage = context.workspaceState;
+            const storageUri = context.storageUri;
+            if (!storageUri) {
+                throw new Error('Workspace storage URI is not available');
+            }
+            // Create analysis directory structure
+            const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
+            const fileName = path.basename(originalFileName, path.extname(originalFileName));
+            const analysisSessionDir = path.join(analysisBaseDir, `${fileName}_${nonce}`);
+            // Ensure directories exist
+            await SaveFiles.ensureDirectoryExists(analysisBaseDir);
+            await SaveFiles.ensureDirectoryExists(analysisSessionDir);
+            console.log(`SAVE_FILES: Created analysis directory: ${analysisSessionDir}`);
+            // Save files
+            const indexHtmlPath = path.join(analysisSessionDir, 'index.html');
+            const cssPath = path.join(analysisSessionDir, 'style.css');
+            const jsPath = path.join(analysisSessionDir, 'main.js');
+            const dataJsonPath = path.join(analysisSessionDir, 'data.json');
+            // Write files to storage
+            await fs.promises.writeFile(indexHtmlPath, filesToSave.indexHtml, 'utf-8');
+            await fs.promises.writeFile(cssPath, filesToSave.cssContent, 'utf-8');
+            await fs.promises.writeFile(jsPath, filesToSave.jsContent, 'utf-8');
+            await fs.promises.writeFile(dataJsonPath, JSON.stringify(filesToSave.dataJson, null, 2), 'utf-8');
+            console.log(`SAVE_FILES: Successfully saved all files:`);
+            console.log(`SAVE_FILES: - index.html: ${indexHtmlPath}`);
+            console.log(`SAVE_FILES: - style.css: ${cssPath}`);
+            console.log(`SAVE_FILES: - main.js: ${jsPath}`);
+            console.log(`SAVE_FILES: - data.json: ${dataJsonPath}`);
+            return {
+                success: true,
+                nonce: nonce,
+                analysisDirectoryPath: analysisSessionDir,
+                indexHtmlPath: indexHtmlPath
+            };
+        }
+        catch (error) {
+            console.error(`SAVE_FILES: Error saving analysis files:`, error);
+            return {
+                success: false,
+                nonce: '',
+                analysisDirectoryPath: '',
+                indexHtmlPath: '',
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Clean all analysis directories (called on plugin restart)
+     */
+    static async cleanAllAnalysisDirectories(context) {
+        try {
+            console.log(`SAVE_FILES: Starting cleanup of all analysis directories`);
+            const storageUri = context.storageUri;
+            if (!storageUri) {
+                console.log(`SAVE_FILES: No workspace storage URI available - nothing to clean`);
+                return true;
+            }
+            const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
+            if (!fs.existsSync(analysisBaseDir)) {
+                console.log(`SAVE_FILES: Analysis directory doesn't exist - nothing to clean`);
+                return true;
+            }
+            // Get all directories that match the pattern {fileName}_{nonce}
+            const entries = await fs.promises.readdir(analysisBaseDir, { withFileTypes: true });
+            const analysisDirs = entries
+                .filter(entry => entry.isDirectory())
+                .filter(entry => entry.name.includes('_')) // Pattern: fileName_nonce
+                .map(entry => path.join(analysisBaseDir, entry.name));
+            console.log(`SAVE_FILES: Found ${analysisDirs.length} analysis directories to clean`);
+            // Remove all analysis directories
+            for (const dirPath of analysisDirs) {
+                try {
+                    await fs.promises.rm(dirPath, { recursive: true, force: true });
+                    console.log(`SAVE_FILES: Cleaned directory: ${dirPath}`);
+                }
+                catch (dirError) {
+                    console.error(`SAVE_FILES: Failed to clean directory ${dirPath}:`, dirError);
+                }
+            }
+            // If analysis base directory is empty, remove it too
+            const remainingEntries = await fs.promises.readdir(analysisBaseDir);
+            if (remainingEntries.length === 0) {
+                await fs.promises.rmdir(analysisBaseDir);
+                console.log(`SAVE_FILES: Removed empty analysis base directory`);
+            }
+            console.log(`SAVE_FILES: Analysis directories cleanup completed`);
+            return true;
+        }
+        catch (error) {
+            console.error(`SAVE_FILES: Error during analysis directories cleanup:`, error);
+            return false;
+        }
+    }
+    /**
+     * Ensure directory exists, create if it doesn't
+     */
+    static async ensureDirectoryExists(dirPath) {
+        try {
+            if (!fs.existsSync(dirPath)) {
+                await fs.promises.mkdir(dirPath, { recursive: true });
+                console.log(`SAVE_FILES: Created directory: ${dirPath}`);
+            }
+        }
+        catch (error) {
+            console.error(`SAVE_FILES: Failed to create directory ${dirPath}:`, error);
+            throw error;
+        }
+    }
+}
+exports.SaveFiles = SaveFiles;
+
+
+/***/ }),
+/* 96 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ *
+ *
+ * File Watcher Utility
+ * Manages file watchers for live analysis updates
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileWatcher = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const pythonExecutor_1 = __webpack_require__(89);
+const SSEManager_1 = __webpack_require__(18);
+class FileWatcher {
+    static activeWatchers = new Map();
+    static DEBOUNCE_DELAY = 300; // 300ms debounce to avoid duplicate executions
+    /**
+     * Start watching a file for changes and re-execute analysis when detected
+     */
+    static startWatching(context, filePath, analysisDir, analysisType = 'LivePanel') {
+        try {
+            console.log(`FILE_WATCHER: Starting to watch file: ${filePath}`);
+            console.log(`FILE_WATCHER: Analysis directory: ${analysisDir}`);
+            console.log(`FILE_WATCHER: Analysis type: ${analysisType}`);
+            // Create unique watcher ID
+            const watcherId = `${path.basename(filePath)}_${Date.now()}`;
+            // Check if file exists
+            if (!fs.existsSync(filePath)) {
+                console.error(`FILE_WATCHER: File does not exist: ${filePath}`);
+                return '';
+            }
+            // Check if analysis directory exists
+            if (!fs.existsSync(analysisDir)) {
+                console.error(`FILE_WATCHER: Analysis directory does not exist: ${analysisDir}`);
+                return '';
+            }
+            // Create file watcher
+            const watcher = fs.watch(filePath, { persistent: true }, async (eventType, filename) => {
+                if (eventType === 'change') {
+                    console.log(`FILE_WATCHER: File changed detected: ${filePath}`);
+                    console.log(`FILE_WATCHER: Event type: ${eventType}, filename: ${filename}`);
+                    // Get current watcher info for debouncing
+                    const currentWatcherInfo = FileWatcher.activeWatchers.get(watcherId);
+                    if (!currentWatcherInfo) {
+                        console.error(`FILE_WATCHER: Watcher info not found for ID: ${watcherId}`);
+                        return;
+                    }
+                    // Clear existing debounce timer if it exists
+                    if (currentWatcherInfo.debounceTimer) {
+                        clearTimeout(currentWatcherInfo.debounceTimer);
+                        console.log(`FILE_WATCHER: Cleared previous debounce timer for: ${filePath}`);
+                    }
+                    // Check if we processed this change too recently (additional protection)
+                    const now = Date.now();
+                    if (currentWatcherInfo.lastProcessedTime &&
+                        (now - currentWatcherInfo.lastProcessedTime) < FileWatcher.DEBOUNCE_DELAY) {
+                        console.log(`FILE_WATCHER: Skipping duplicate change event (too recent): ${filePath}`);
+                        return;
+                    }
+                    // Set up debounced execution
+                    currentWatcherInfo.debounceTimer = setTimeout(async () => {
+                        try {
+                            console.log(`FILE_WATCHER: Executing debounced analysis for: ${filePath}`);
+                            currentWatcherInfo.lastProcessedTime = Date.now();
+                            // Re-execute Python analysis
+                            await FileWatcher.reExecuteAnalysis(context, filePath, analysisDir, analysisType);
+                            // Clear the timer reference
+                            currentWatcherInfo.debounceTimer = undefined;
+                        }
+                        catch (error) {
+                            console.error(`FILE_WATCHER: Error re-executing analysis:`, error);
+                            vscode.window.showErrorMessage(`Error updating analysis: ${error instanceof Error ? error.message : String(error)}`);
+                            currentWatcherInfo.debounceTimer = undefined;
+                        }
+                    }, FileWatcher.DEBOUNCE_DELAY);
+                    console.log(`FILE_WATCHER: Debounce timer set for: ${filePath} (${FileWatcher.DEBOUNCE_DELAY}ms)`);
+                }
+            });
+            // Store watcher info
+            const watcherInfo = {
+                watcher,
+                filePath,
+                analysisDir,
+                analysisType,
+                debounceTimer: undefined,
+                lastProcessedTime: undefined
+            };
+            FileWatcher.activeWatchers.set(watcherId, watcherInfo);
+            console.log(`FILE_WATCHER: Successfully started watching with ID: ${watcherId}`);
+            console.log(`FILE_WATCHER: Total active watchers: ${FileWatcher.activeWatchers.size}`);
+            return watcherId;
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error starting file watcher:`, error);
+            vscode.window.showErrorMessage(`Error starting file watcher: ${error instanceof Error ? error.message : String(error)}`);
+            return '';
+        }
+    }
+    /**
+     * Stop watching a specific file
+     */
+    static stopWatching(watcherId) {
+        try {
+            const watcherInfo = FileWatcher.activeWatchers.get(watcherId);
+            if (!watcherInfo) {
+                console.log(`FILE_WATCHER: Watcher not found with ID: ${watcherId}`);
+                return false;
+            }
+            // Clear debounce timer if it exists
+            if (watcherInfo.debounceTimer) {
+                clearTimeout(watcherInfo.debounceTimer);
+                console.log(`FILE_WATCHER: Cleared debounce timer for: ${watcherInfo.filePath}`);
+            }
+            // Close the watcher
+            watcherInfo.watcher.close();
+            // Remove from active watchers
+            FileWatcher.activeWatchers.delete(watcherId);
+            console.log(`FILE_WATCHER: Stopped watching file: ${watcherInfo.filePath}`);
+            console.log(`FILE_WATCHER: Remaining active watchers: ${FileWatcher.activeWatchers.size}`);
+            return true;
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error stopping watcher:`, error);
+            return false;
+        }
+    }
+    /**
+     * Stop all active watchers
+     */
+    static stopAllWatchers() {
+        try {
+            console.log(`FILE_WATCHER: Stopping all ${FileWatcher.activeWatchers.size} active watchers`);
+            for (const [watcherId, watcherInfo] of FileWatcher.activeWatchers) {
+                try {
+                    // Clear debounce timer if it exists
+                    if (watcherInfo.debounceTimer) {
+                        clearTimeout(watcherInfo.debounceTimer);
+                        console.log(`FILE_WATCHER: Cleared debounce timer for: ${watcherInfo.filePath}`);
+                    }
+                    watcherInfo.watcher.close();
+                    console.log(`FILE_WATCHER: Closed watcher for: ${watcherInfo.filePath}`);
+                }
+                catch (error) {
+                    console.error(`FILE_WATCHER: Error closing watcher ${watcherId}:`, error);
+                }
+            }
+            FileWatcher.activeWatchers.clear();
+            console.log(`FILE_WATCHER: All watchers stopped`);
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error stopping all watchers:`, error);
+        }
+    }
+    /**
+     * Get information about active watchers
+     */
+    static getActiveWatchersInfo() {
+        const info = [];
+        for (const [watcherId, watcherInfo] of FileWatcher.activeWatchers) {
+            info.push({
+                id: watcherId,
+                filePath: watcherInfo.filePath,
+                analysisDir: watcherInfo.analysisDir,
+                analysisType: watcherInfo.analysisType
+            });
+        }
+        return info;
+    }
+    /**
+     * Re-execute analysis when file changes are detected
+     */
+    static async reExecuteAnalysis(context, filePath, analysisDir, analysisType) {
+        try {
+            console.log(`FILE_WATCHER: Re-executing analysis for: ${filePath}`);
+            console.log(`FILE_WATCHER: Analysis type: ${analysisType}`);
+            // Execute Python analysis in LivePanel mode
+            const result = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileLivePanel', filePath, context);
+            if (result.success && result.stdout) {
+                // Update data.json in analysis directory
+                const dataJsonPath = path.join(analysisDir, 'data.json');
+                try {
+                    // Parse the output to extract JSON data
+                    const jsonData = FileWatcher.extractJsonFromOutput(result.stdout);
+                    if (jsonData) {
+                        fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2), 'utf-8');
+                        console.log(`FILE_WATCHER: Updated data.json at: ${dataJsonPath}`);
+                        // Send SSE update to all clients listening for this file
+                        try {
+                            console.log(`FILE_WATCHER: Sending SSE update notification for file: ${filePath}`);
+                            // Use the original SSEManager that matches the server
+                            SSEManager_1.sseManager.sendUpdate(filePath);
+                            console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                        }
+                        catch (sseError) {
+                            console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
+                        }
+                        // Show success message
+                        vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(filePath)}`);
+                    }
+                    else {
+                        console.error(`FILE_WATCHER: No valid JSON data found in Python output`);
+                    }
+                }
+                catch (error) {
+                    console.error(`FILE_WATCHER: Error updating data.json:`, error);
+                }
+            }
+            else {
+                console.error(`FILE_WATCHER: Python analysis failed:`, result.error);
+                vscode.window.showErrorMessage(`Analysis update failed: ${result.error}`);
+            }
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error in reExecuteAnalysis:`, error);
+            throw error;
+        }
+    }
+    /**
+     * Extract JSON data from Python output
+     */
+    static extractJsonFromOutput(output) {
+        try {
+            // Look for JSON data in the output
+            // This might need to be adjusted based on how Python outputs the data
+            const lines = output.split('\n');
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+                    try {
+                        return JSON.parse(trimmedLine);
+                    }
+                    catch (parseError) {
+                        // Continue looking for valid JSON
+                        continue;
+                    }
+                }
+            }
+            // If no single-line JSON found, try to find multi-line JSON
+            const fullOutput = output.trim();
+            if (fullOutput.startsWith('{') && fullOutput.endsWith('}')) {
+                return JSON.parse(fullOutput);
+            }
+            return null;
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error extracting JSON from output:`, error);
+            return null;
+        }
+    }
+}
+exports.FileWatcher = FileWatcher;
+
+
+/***/ }),
+/* 97 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Launch Server Utility
+ * Intermediate utility for launching analysis with SSE server connections
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LaunchServer = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const multiServerLauncher_1 = __webpack_require__(14);
+const enhancedSSEManager_1 = __webpack_require__(98);
+const fileToServerMap_1 = __webpack_require__(20);
+class LaunchServer {
+    /**
+     * Launch analysis server with SSE support
+     */
+    static async launchAnalysisServer(context, options) {
+        try {
+            console.log(`LAUNCH_SERVER: Preparing to launch server for: ${options.filePath}`);
+            console.log(`LAUNCH_SERVER: Analysis type: ${options.analysisType}`);
+            console.log(`LAUNCH_SERVER: SSE enabled: ${options.enableSSE ?? true}`);
+            // Use the existing MultiServerLauncher to launch the server
+            const multiServerLauncher = new multiServerLauncher_1.MultiServerLauncher(context);
+            // Determine HTML file path - use analysis index.html if available
+            let htmlFile;
+            if (options.indexHtmlPath && await this.fileExists(options.indexHtmlPath)) {
+                htmlFile = options.indexHtmlPath;
+                console.log(`LAUNCH_SERVER: Using analysis index.html: ${htmlFile}`);
+            }
+            else if (options.analysisDirectoryPath) {
+                const analysisIndex = path.join(options.analysisDirectoryPath, 'index.html');
+                if (await this.fileExists(analysisIndex)) {
+                    htmlFile = analysisIndex;
+                    console.log(`LAUNCH_SERVER: Using analysis directory index.html: ${htmlFile}`);
+                }
+            }
+            // Generate custom name for the server
+            const fileName = path.basename(options.filePath);
+            const customName = `LivePanel Analysis: ${fileName}`;
+            console.log(`LAUNCH_SERVER: Launching server with custom name: ${customName}`);
+            // Launch the server
+            const launchResult = await multiServerLauncher.launchServer(htmlFile, customName);
+            if (!launchResult.success) {
+                return {
+                    success: false,
+                    error: launchResult.error || 'Failed to launch server'
+                };
+            }
+            console.log(`LAUNCH_SERVER: Server launched successfully: ${launchResult.serverUrl}`);
+            console.log(`LAUNCH_SERVER: Server ID: ${launchResult.serverId}`);
+            // Register file-to-server mapping for SSE support
+            try {
+                console.log(`LAUNCH_SERVER: Registering file-to-server mapping...`);
+                console.log(`LAUNCH_SERVER: File path: ${options.filePath}`);
+                console.log(`LAUNCH_SERVER: Server port: ${launchResult.port}`);
+                console.log(`LAUNCH_SERVER: Analysis directory: ${options.analysisDirectoryPath || 'N/A'}`);
+                fileToServerMap_1.fileToServerMap.registerMapping(options.filePath, {
+                    port: launchResult.port,
+                    tempDir: options.analysisDirectoryPath || '',
+                    fileUri: options.filePath,
+                    serverRef: null // We don't have direct access to server reference in MultiServerLauncher
+                });
+                console.log(`LAUNCH_SERVER: File-to-server mapping registered successfully`);
+                console.log(`LAUNCH_SERVER: Total mappings: ${fileToServerMap_1.fileToServerMap.size()}`);
+            }
+            catch (mappingError) {
+                console.warn(`LAUNCH_SERVER: Failed to register file-to-server mapping (non-critical):`, mappingError);
+            }
+            // Setup SSE channel for live updates if enabled
+            let sseChannel;
+            if (options.enableSSE !== false) {
+                try {
+                    sseChannel = this.setupSSEChannel(options.filePath, options.analysisType, launchResult.serverId);
+                    console.log(`LAUNCH_SERVER: SSE channel setup: ${sseChannel}`);
+                }
+                catch (sseError) {
+                    console.warn(`LAUNCH_SERVER: SSE setup failed (non-critical):`, sseError);
+                    // Don't fail the launch if SSE setup fails
+                }
+            }
+            return {
+                success: true,
+                serverUrl: launchResult.serverUrl,
+                port: launchResult.port,
+                serverId: launchResult.serverId,
+                sseChannel: sseChannel
+            };
+        }
+        catch (error) {
+            console.error(`LAUNCH_SERVER: Error launching analysis server:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Check if file exists
+     * @private
+     */
+    static async fileExists(filePath) {
+        try {
+            await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Setup SSE channel for live analysis updates
+     * @private
+     */
+    static setupSSEChannel(filePath, analysisType, serverId) {
+        console.log(`LAUNCH_SERVER: Creating SSE channel for file: ${filePath}`);
+        console.log(`LAUNCH_SERVER: Analysis type: ${analysisType}`);
+        console.log(`LAUNCH_SERVER: Server ID: ${serverId}`);
+        // Setup SSE channel using EnhancedSSEManager
+        try {
+            const sseManager = enhancedSSEManager_1.EnhancedSSEManager.getInstance();
+            // Create a channel for this analysis session
+            const channelId = sseManager.createChannel(filePath, analysisType);
+            console.log(`LAUNCH_SERVER: SSE channel created successfully: ${channelId}`);
+            return channelId;
+        }
+        catch (error) {
+            console.error(`LAUNCH_SERVER: Failed to setup SSE channel:`, error);
+            throw error;
+        }
+    }
+    /**
+     * Stop analysis server
+     */
+    static async stopAnalysisServer(context, serverId, filePath) {
+        try {
+            console.log(`LAUNCH_SERVER: Stopping analysis server: ${serverId}`);
+            // Clean up file-to-server mapping if filePath provided
+            if (filePath) {
+                try {
+                    console.log(`LAUNCH_SERVER: Cleaning up file-to-server mapping for: ${filePath}`);
+                    fileToServerMap_1.fileToServerMap.unregisterMapping(filePath);
+                    console.log(`LAUNCH_SERVER: File-to-server mapping cleaned up successfully`);
+                }
+                catch (mappingError) {
+                    console.warn(`LAUNCH_SERVER: Failed to clean up file-to-server mapping:`, mappingError);
+                }
+            }
+            const multiServerLauncher = new multiServerLauncher_1.MultiServerLauncher(context);
+            const result = await multiServerLauncher.stopServer(serverId);
+            if (result) {
+                console.log(`LAUNCH_SERVER: Server ${serverId} stopped successfully`);
+            }
+            else {
+                console.warn(`LAUNCH_SERVER: Failed to stop server ${serverId}`);
+            }
+            return result;
+        }
+        catch (error) {
+            console.error(`LAUNCH_SERVER: Error stopping analysis server:`, error);
+            return false;
+        }
+    }
+    /**
+     * Get active analysis servers
+     */
+    static getActiveServers(context) {
+        try {
+            const multiServerLauncher = new multiServerLauncher_1.MultiServerLauncher(context);
+            const runningServers = multiServerLauncher.getRunningServers();
+            return runningServers.map(server => ({
+                serverId: server.id,
+                port: server.port,
+                serverUrl: `http://localhost:${server.port}`,
+                serverType: server.serverType
+            }));
+        }
+        catch (error) {
+            console.error(`LAUNCH_SERVER: Error getting active servers:`, error);
+            return [];
+        }
+    }
+}
+exports.LaunchServer = LaunchServer;
+
+
+/***/ }),
+/* 98 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Improved SSE Manager with Channel Support
+ * Enhanced version using channel-based architecture for better SSE management
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EnhancedSSEManager = void 0;
+/**
+ * Enhanced SSE Manager with Channel Support
+ */
+class EnhancedSSEManager {
+    static instance = null;
+    channels = new Map();
+    channelsByFile = new Map(); // filePath -> channelIds
+    constructor() {
+        console.log('[ENHANCED_SSE_MANAGER] Initializing enhanced SSE manager with channel support');
+    }
+    /**
+     * Get the singleton instance
+     */
+    static getInstance() {
+        if (!EnhancedSSEManager.instance) {
+            EnhancedSSEManager.instance = new EnhancedSSEManager();
+        }
+        return EnhancedSSEManager.instance;
+    }
+    /**
+     * Create a new SSE channel for a file analysis
+     */
+    createChannel(filePath, analysisType) {
+        const channelId = this.generateChannelId(filePath, analysisType);
+        console.log(`[ENHANCED_SSE_MANAGER] Creating SSE channel: ${channelId} for file: ${filePath}`);
+        const channel = {
+            channelId,
+            filePath,
+            analysisType,
+            clients: new Set(),
+            isActive: true,
+            createdAt: new Date(),
+            lastUpdate: new Date()
+        };
+        this.channels.set(channelId, channel);
+        // Update file -> channels mapping
+        if (!this.channelsByFile.has(filePath)) {
+            this.channelsByFile.set(filePath, new Set());
+        }
+        this.channelsByFile.get(filePath).add(channelId);
+        console.log(`[ENHANCED_SSE_MANAGER] Channel created successfully: ${channelId}`);
+        return channelId;
+    }
+    /**
+     * Register a client to a specific SSE channel
+     */
+    registerClient(channelId, res) {
+        const channel = this.channels.get(channelId);
+        if (!channel || !channel.isActive) {
+            console.error(`[ENHANCED_SSE_MANAGER] Channel not found or inactive: ${channelId}`);
+            return false;
+        }
+        console.log(`[ENHANCED_SSE_MANAGER] Registering client to channel: ${channelId}`);
+        // Set SSE headers
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Cache-Control',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+        });
+        // Add client to channel
+        channel.clients.add(res);
+        channel.lastUpdate = new Date();
+        // Send connection established event
+        this.sendToClient(res, {
+            type: 'connection-established',
+            channelId,
+            timestamp: new Date(),
+            data: {
+                filePath: channel.filePath,
+                analysisType: channel.analysisType,
+                clientCount: channel.clients.size
+            }
+        });
+        // Set up cleanup when client disconnects
+        res.on('close', () => {
+            this.unregisterClient(channelId, res);
+        });
+        res.on('error', (error) => {
+            console.error(`[ENHANCED_SSE_MANAGER] Client error for channel ${channelId}:`, error);
+            this.unregisterClient(channelId, res);
+        });
+        console.log(`[ENHANCED_SSE_MANAGER] Client registered to channel: ${channelId}. Total clients: ${channel.clients.size}`);
+        return true;
+    }
+    /**
+     * Unregister a client from a channel
+     */
+    unregisterClient(channelId, res) {
+        const channel = this.channels.get(channelId);
+        if (!channel) {
+            return;
+        }
+        channel.clients.delete(res);
+        console.log(`[ENHANCED_SSE_MANAGER] Client unregistered from channel: ${channelId}. Remaining clients: ${channel.clients.size}`);
+        // If no more clients, consider closing the channel
+        if (channel.clients.size === 0) {
+            console.log(`[ENHANCED_SSE_MANAGER] No clients remaining for channel: ${channelId}. Marking as inactive.`);
+            channel.isActive = false;
+        }
+    }
+    /**
+     * Broadcast event to all clients in a channel
+     */
+    broadcastToChannel(channelId, event) {
+        const channel = this.channels.get(channelId);
+        if (!channel || !channel.isActive) {
+            console.warn(`[ENHANCED_SSE_MANAGER] Cannot broadcast to inactive channel: ${channelId}`);
+            return;
+        }
+        const fullEvent = {
+            ...event,
+            channelId
+        };
+        console.log(`[ENHANCED_SSE_MANAGER] Broadcasting to channel ${channelId}: ${event.type} (${channel.clients.size} clients)`);
+        for (const client of channel.clients) {
+            this.sendToClient(client, fullEvent);
+        }
+        channel.lastUpdate = new Date();
+    }
+    /**
+     * Broadcast event to all channels for a specific file
+     */
+    broadcastToFileChannels(filePath, event) {
+        const channelIds = this.channelsByFile.get(filePath);
+        if (!channelIds || channelIds.size === 0) {
+            console.log(`[ENHANCED_SSE_MANAGER] No channels found for file: ${filePath}`);
+            return;
+        }
+        console.log(`[ENHANCED_SSE_MANAGER] Broadcasting to ${channelIds.size} channels for file: ${filePath}`);
+        for (const channelId of channelIds) {
+            this.broadcastToChannel(channelId, event);
+        }
+    }
+    /**
+     * Close a specific channel
+     */
+    closeChannel(channelId) {
+        const channel = this.channels.get(channelId);
+        if (!channel) {
+            return;
+        }
+        console.log(`[ENHANCED_SSE_MANAGER] Closing channel: ${channelId}`);
+        // Send close event to all clients
+        const closeEvent = {
+            type: 'channel-closed',
+            channelId,
+            timestamp: new Date(),
+            data: { reason: 'Channel closed by server' }
+        };
+        for (const client of channel.clients) {
+            this.sendToClient(client, closeEvent);
+            try {
+                client.end();
+            }
+            catch (error) {
+                console.error(`[ENHANCED_SSE_MANAGER] Error closing client connection:`, error);
+            }
+        }
+        // Clean up mappings
+        channel.isActive = false;
+        channel.clients.clear();
+        const fileChannels = this.channelsByFile.get(channel.filePath);
+        if (fileChannels) {
+            fileChannels.delete(channelId);
+            if (fileChannels.size === 0) {
+                this.channelsByFile.delete(channel.filePath);
+            }
+        }
+        this.channels.delete(channelId);
+        console.log(`[ENHANCED_SSE_MANAGER] Channel closed: ${channelId}`);
+    }
+    /**
+     * Get channel information
+     */
+    getChannelInfo(channelId) {
+        return this.channels.get(channelId);
+    }
+    /**
+     * Get all active channels
+     */
+    getActiveChannels() {
+        return Array.from(this.channels.values()).filter(channel => channel.isActive);
+    }
+    /**
+     * Get channels for a specific file
+     */
+    getChannelsForFile(filePath) {
+        const channelIds = this.channelsByFile.get(filePath) || new Set();
+        return Array.from(channelIds)
+            .map(id => this.channels.get(id))
+            .filter((channel) => channel !== undefined && channel.isActive);
+    }
+    /**
+     * Clean up inactive channels
+     */
+    cleanupInactiveChannels() {
+        console.log(`[ENHANCED_SSE_MANAGER] Cleaning up inactive channels`);
+        const inactiveChannels = Array.from(this.channels.values())
+            .filter(channel => !channel.isActive || channel.clients.size === 0);
+        for (const channel of inactiveChannels) {
+            this.closeChannel(channel.channelId);
+        }
+        console.log(`[ENHANCED_SSE_MANAGER] Cleanup completed. Removed ${inactiveChannels.length} inactive channels`);
+    }
+    /**
+     * Send event to a specific client
+     */
+    sendToClient(res, event) {
+        try {
+            const eventData = JSON.stringify(event);
+            res.write(`data: ${eventData}\n\n`);
+        }
+        catch (error) {
+            console.error(`[ENHANCED_SSE_MANAGER] Error sending event to client:`, error);
+        }
+    }
+    /**
+     * Generate unique channel ID
+     */
+    generateChannelId(filePath, analysisType) {
+        const timestamp = Date.now();
+        const fileName = filePath.split('/').pop() || 'unknown';
+        return `${analysisType}_${fileName}_${timestamp}`;
+    }
+}
+exports.EnhancedSSEManager = EnhancedSSEManager;
+
+
+/***/ }),
+/* 99 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Supported languages configuration for file detection and analysis
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SUPPORTED_LANGUAGES = void 0;
+exports.getLanguageByExtension = getLanguageByExtension;
+exports.getAllSupportedExtensions = getAllSupportedExtensions;
+exports.isSupportedExtension = isSupportedExtension;
+exports.getLanguageStats = getLanguageStats;
+exports.SUPPORTED_LANGUAGES = {
+    // Programming Languages - CodeXR Supported
+    python: {
+        extensions: ['.py', '.pyw', '.pyi'],
+        name: 'Python'
+    },
+    ruby: {
+        extensions: ['.rb', '.rbw'],
+        name: 'Ruby'
+    },
+    java: {
+        extensions: ['.java'],
+        name: 'Java'
+    },
+    c: {
+        extensions: ['.c', '.h'],
+        name: 'C'
+    },
+    cplusplus: {
+        extensions: ['.cpp', '.cxx', '.cc', '.hpp', '.hxx'],
+        name: 'C++'
+    },
+    csharp: {
+        extensions: ['.cs'],
+        name: 'C#'
+    },
+    erlang: {
+        extensions: ['.erl', '.hrl'],
+        name: 'Erlang'
+    },
+    fortran: {
+        extensions: ['.f90', '.f95', '.f03', '.f08', '.f'],
+        name: 'Fortran'
+    },
+    gdscript: {
+        extensions: ['.gd'],
+        name: 'GDScript'
+    },
+    go: {
+        extensions: ['.go'],
+        name: 'Go'
+    },
+    javascript: {
+        extensions: ['.js', '.mjs', '.cjs'],
+        name: 'JavaScript'
+    },
+    kotlin: {
+        extensions: ['.kt', '.kts'],
+        name: 'Kotlin'
+    },
+    lua: {
+        extensions: ['.lua'],
+        name: 'Lua'
+    },
+    objectivec: {
+        extensions: ['.m', '.mm'],
+        name: 'Objective-C'
+    },
+    php: {
+        extensions: ['.php', '.phtml', '.php3', '.php4', '.php5'],
+        name: 'PHP'
+    },
+    perl: {
+        extensions: ['.pl', '.pm'],
+        name: 'Perl'
+    },
+    scala: {
+        extensions: ['.scala', '.sc'],
+        name: 'Scala'
+    },
+    solidity: {
+        extensions: ['.sol'],
+        name: 'Solidity'
+    },
+    swift: {
+        extensions: ['.swift'],
+        name: 'Swift'
+    },
+    typescript: {
+        extensions: ['.ts', '.tsx'],
+        name: 'TypeScript'
+    },
+    ttcn3: {
+        extensions: ['.ttcn', '.ttcn3'],
+        name: 'TTCN-3'
+    },
+    vue: {
+        extensions: ['.vue'],
+        name: 'Vue'
+    },
+    zig: {
+        extensions: ['.zig'],
+        name: 'Zig'
+    }
+};
+/**
+ * Get language configuration by file extension
+ */
+function getLanguageByExtension(extension) {
+    const normalizedExt = extension.toLowerCase();
+    for (const [key, config] of Object.entries(exports.SUPPORTED_LANGUAGES)) {
+        if (config.extensions.includes(normalizedExt)) {
+            return { ...config, icon: key }; // Add the key as icon identifier
+        }
+    }
+    return null;
+}
+/**
+ * Get all supported extensions as a flat array
+ */
+function getAllSupportedExtensions() {
+    return Object.values(exports.SUPPORTED_LANGUAGES)
+        .flatMap(config => config.extensions);
+}
+/**
+ * Check if a file extension is supported
+ */
+function isSupportedExtension(extension) {
+    return getLanguageByExtension(extension) !== null;
+}
+/**
+ * Get language statistics for logging
+ */
+function getLanguageStats() {
+    const languages = Object.keys(exports.SUPPORTED_LANGUAGES);
+    const extensions = getAllSupportedExtensions();
+    return {
+        totalLanguages: languages.length,
+        totalExtensions: extensions.length
+    };
+}
+
+
+/***/ }),
+/* 100 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Clean Analysis Commands Module
+ * Exports for clean analysis functionality
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CleanAnalysisCommands = void 0;
+var cleanAnalysisCommands_1 = __webpack_require__(101);
+Object.defineProperty(exports, "CleanAnalysisCommands", ({ enumerable: true, get: function () { return cleanAnalysisCommands_1.CleanAnalysisCommands; } }));
+
+
+/***/ }),
+/* 101 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Clean Analysis Command
+ * Handles cleaning of analysis files from workspace storage
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CleanAnalysisCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const utils_1 = __webpack_require__(88);
+class CleanAnalysisCommands {
+    /**
+     * Get command registrations for clean analysis functionality (Nested Dolls pattern)
+     */
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('CLEAN_ANALYSIS_COMMANDS: Collecting command registrations...');
+        const commands = [];
+        // Manual clean command
+        commands.push({
+            commandId: 'codeXR.newCodeAnalysis.cleanAnalysis',
+            callback: async () => {
+                await CleanAnalysisCommands.executeCleanAnalysis(context);
+                if (refreshCallback) {
+                    refreshCallback();
+                }
+            },
+            description: 'Clean all analysis directories and files from workspace storage'
+        });
+        console.log(`CLEAN_ANALYSIS_COMMANDS: Collected ${commands.length} command registrations`);
+        return commands;
+    }
+    /**
+     * Execute cleanup of analysis files on plugin startup
+     */
+    static async executeStartupCleanup(context) {
+        try {
+            console.log('CLEAN_ANALYSIS_COMMANDS: Executing startup cleanup...');
+            // Stop all file watchers (in case of restart)
+            console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
+            utils_1.FileWatcher.stopAllWatchers();
+            const cleanupResult = await utils_1.SaveFiles.cleanAllAnalysisDirectories(context);
+            if (cleanupResult) {
+                console.log('CLEAN_ANALYSIS_COMMANDS: Startup cleanup completed successfully');
+            }
+            else {
+                console.warn('CLEAN_ANALYSIS_COMMANDS: Startup cleanup completed with some errors');
+            }
+        }
+        catch (error) {
+            console.error('CLEAN_ANALYSIS_COMMANDS: Error during startup cleanup:', error);
+        }
+    }
+    /**
+     * Execute manual cleanup of analysis files
+     */
+    static async executeCleanAnalysis(context) {
+        try {
+            console.log('CLEAN_ANALYSIS_COMMANDS: Manual cleanup requested');
+            // Show confirmation dialog
+            const result = await vscode.window.showWarningMessage('Are you sure you want to clean all analysis files? This will remove all saved analysis data from the current workspace.', { modal: true }, 'Clean Analysis Files', 'Cancel');
+            if (result !== 'Clean Analysis Files') {
+                console.log('CLEAN_ANALYSIS_COMMANDS: Manual cleanup cancelled by user');
+                return;
+            }
+            // Stop all file watchers first
+            console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
+            utils_1.FileWatcher.stopAllWatchers();
+            // Execute cleanup
+            const cleanupResult = await utils_1.SaveFiles.cleanAllAnalysisDirectories(context);
+            if (cleanupResult) {
+                vscode.window.showInformationMessage('CodeXR: Analysis files cleaned successfully');
+                console.log('CLEAN_ANALYSIS_COMMANDS: Manual cleanup completed successfully');
+            }
+            else {
+                vscode.window.showErrorMessage('CodeXR: Failed to clean some analysis files. Check console for details.');
+                console.error('CLEAN_ANALYSIS_COMMANDS: Manual cleanup completed with errors');
+            }
+        }
+        catch (error) {
+            console.error('CLEAN_ANALYSIS_COMMANDS: Error during manual cleanup:', error);
+            vscode.window.showErrorMessage(`CodeXR: Error during cleanup: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+}
+exports.CleanAnalysisCommands = CleanAnalysisCommands;
+
+
+/***/ }),
+/* 102 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Analysis File Setting Item
+ * Manages the analysis file mode (XR/LivePanel) configuration
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisFileSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+const storage_1 = __webpack_require__(104);
+class AnalysisFileSetting {
+    context;
+    currentMode = 'XR'; // Default mode (will be loaded from storage)
+    storage;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing Analysis File setting');
+        this.storage = storage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.loadSavedMode();
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        // Always get the current value from storage to ensure it's up to date
+        const currentMode = await this.storage.getAnalysisFileMode();
+        const modeText = currentMode === 'XR'
+            ? 'Analysis with Immersive VR/AR'
+            : 'Analysis with Standard Experience';
+        const iconPath = currentMode === 'LivePanel'
+            ? new vscode.ThemeIcon('symbol-file', new vscode.ThemeColor('charts.green'))
+            : new vscode.ThemeIcon('vr', new vscode.ThemeColor('charts.blue'));
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(modeText, vscode.TreeItemCollapsibleState.None, 'analysis-result', {
+            command: 'newCodeAnalysis.toggleAnalysisFileMode',
+            title: 'Toggle Analysis File Mode',
+            arguments: []
+        }, iconPath, `Click to switch between analysis modes. Current: ${currentMode === 'XR' ? 'Immersive VR/AR experience for detailed analysis' : 'Standard panel for quick review'}`, currentMode, 'analysisFileModeSetting');
+    }
+    /**
+     * Toggle between XR and LivePanel modes
+     */
+    async toggleMode() {
+        this.currentMode = this.currentMode === 'XR' ? 'LivePanel' : 'XR';
+        console.log(`NEW_CODE_ANALYSIS: Analysis file mode switched to ${this.currentMode}`);
+        await this.saveModeToSettings();
+        return this.currentMode;
+    }
+    /**
+     * Get current mode
+     */
+    getCurrentMode() {
+        return this.currentMode;
+    }
+    /**
+     * Set specific mode
+     */
+    async setMode(mode) {
+        this.currentMode = mode;
+        await this.saveModeToSettings();
+    }
+    /**
+     * Load saved mode from globalStorage
+     */
+    async loadSavedMode() {
+        try {
+            const savedMode = await this.storage.getAnalysisFileMode();
+            this.currentMode = savedMode;
+            console.log(`NEW_CODE_ANALYSIS: Loaded analysis file mode from storage: ${this.currentMode}`);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading saved mode, using default:', error);
+            this.currentMode = 'XR'; // Fallback to default
+        }
+    }
+    /**
+     * Save mode to globalStorage
+     */
+    async saveModeToSettings() {
+        try {
+            await this.storage.setAnalysisFileMode(this.currentMode);
+            console.log(`NEW_CODE_ANALYSIS: Saved analysis file mode to storage: ${this.currentMode}`);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving mode to storage:', error);
+        }
+    }
+}
+exports.AnalysisFileSetting = AnalysisFileSetting;
+
+
+/***/ }),
+/* 103 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * New Code Analysis Tree Items
+ * Tree item definitions for the new code analysis view
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * TODO: Define tree items for new code analysis
+ * - Analysis result items
+ * - File analysis items
+ * - Method/function analysis items
+ * - Error/warning items
+ */
+class NewCodeAnalysisTreeItem extends vscode.TreeItem {
+    label;
+    collapsibleState;
+    newCodeAnalysisItemType;
+    constructor(label, collapsibleState, newCodeAnalysisItemType, command, iconPath, tooltip, description, contextValue) {
+        super(label, collapsibleState);
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+        this.newCodeAnalysisItemType = newCodeAnalysisItemType;
+        // TODO: Set appropriate properties
+        this.command = command;
+        this.iconPath = iconPath;
+        this.tooltip = tooltip || this.label;
+        this.description = description;
+        this.contextValue = contextValue || newCodeAnalysisItemType;
+    }
+}
+exports.NewCodeAnalysisTreeItem = NewCodeAnalysisTreeItem;
+/**
+ * TODO: Factory class for creating different types of analysis items
+ */
+class NewCodeAnalysisItemFactory {
+    /**
+     * TODO: Create analysis result item
+     */
+    static createAnalysisResultItem(data) {
+        // TODO: Implementation
+        return new NewCodeAnalysisTreeItem('TODO: Analysis Result', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result');
+    }
+    /**
+     * TODO: Create file analysis item
+     */
+    static createFileAnalysisItem(filePath) {
+        // TODO: Implementation
+        return new NewCodeAnalysisTreeItem('TODO: File Analysis', vscode.TreeItemCollapsibleState.Collapsed, 'file-item');
+    }
+    /**
+     * TODO: Create method analysis item
+     */
+    static createMethodAnalysisItem(methodName) {
+        // TODO: Implementation
+        return new NewCodeAnalysisTreeItem('TODO: Method Analysis', vscode.TreeItemCollapsibleState.None, 'method-item');
+    }
+}
+exports.NewCodeAnalysisItemFactory = NewCodeAnalysisItemFactory;
+
+
+/***/ }),
+/* 104 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Storage Module
+ * Central exports for all storage functionality
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+var analysisConfigurationStorage_1 = __webpack_require__(105);
+Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
+__exportStar(__webpack_require__(107), exports);
+
+
+/***/ }),
+/* 105 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Analysis Configuration Storage Manager
+ * Handles reading/writing configuration to VS Code globalStorage
+ * Path: codexr_analysis/configuration_analysis.json
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisConfiguration_1 = __webpack_require__(106);
+class AnalysisConfigurationStorage {
+    static instance;
+    STORAGE_FOLDER = 'codexr_analysis';
+    CONFIG_FILE = 'configuration_analysis.json';
+    context;
+    cachedConfiguration = null;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance(context) {
+        if (!AnalysisConfigurationStorage.instance) {
+            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
+        }
+        return AnalysisConfigurationStorage.instance;
+    }
+    /**
+     * Get the full file path for configuration
+     */
+    getConfigurationPath() {
+        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
+    }
+    /**
+     * Load configuration from storage
+     */
+    async loadConfiguration() {
+        try {
+            // Return cached if available
+            if (this.cachedConfiguration) {
+                return this.cachedConfiguration;
+            }
+            const configPath = this.getConfigurationPath();
+            // Check if file exists
+            try {
+                const configData = await vscode.workspace.fs.readFile(configPath);
+                const configString = Buffer.from(configData).toString('utf8');
+                const configFile = JSON.parse(configString);
+                // Validate and merge with defaults (in case new settings were added)
+                const configuration = {
+                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
+                    ...configFile.configuration
+                };
+                this.cachedConfiguration = configuration;
+                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
+                return configuration;
+            }
+            catch (readError) {
+                // File doesn't exist or is corrupted, return defaults
+                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
+                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+                // Create default file
+                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
+            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+        }
+    }
+    /**
+     * Save configuration to storage
+     */
+    async saveConfiguration(configuration) {
+        try {
+            const configPath = this.getConfigurationPath();
+            // Ensure directory exists
+            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
+            await vscode.workspace.fs.createDirectory(folderPath);
+            // Create configuration file structure
+            const configFile = {
+                metadata: {
+                    version: '1.0.0',
+                    lastModified: Date.now(),
+                    createdBy: 'CodeXR New Code Analysis'
+                },
+                configuration: configuration
+            };
+            // Write to file
+            const configString = JSON.stringify(configFile, null, 2);
+            const configData = Buffer.from(configString, 'utf8');
+            await vscode.workspace.fs.writeFile(configPath, configData);
+            // Update cache
+            this.cachedConfiguration = configuration;
+            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get specific setting value
+     */
+    async getAnalysisFileMode() {
+        const config = await this.loadConfiguration();
+        return config.analysisFileMode;
+    }
+    /**
+     * Set specific setting value
+     */
+    async setAnalysisFileMode(mode) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            analysisFileMode: mode
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Get view theme setting
+     */
+    async getViewTheme() {
+        const config = await this.loadConfiguration();
+        return config.viewTheme;
+    }
+    /**
+     * Set view theme setting
+     */
+    async setViewTheme(theme) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            viewTheme: theme
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Get auto-analysis delay setting
+     */
+    async getAutoAnalysisDelay() {
+        const config = await this.loadConfiguration();
+        return config.autoAnalysisDelay;
+    }
+    /**
+     * Set auto-analysis delay setting
+     */
+    async setAutoAnalysisDelay(delayConfig) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            autoAnalysisDelay: delayConfig
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Update multiple settings at once
+     */
+    async updateConfiguration(updates) {
+        const currentConfig = await this.loadConfiguration();
+        const updatedConfig = {
+            ...currentConfig,
+            ...updates
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Reset configuration to defaults
+     */
+    async resetConfiguration() {
+        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+        this.cachedConfiguration = null; // Clear cache
+    }
+    /**
+     * Get configuration file path for debugging
+     */
+    getConfigurationFilePath() {
+        return this.getConfigurationPath().fsPath;
+    }
+    /**
+     * Check if configuration file exists
+     */
+    async configurationExists() {
+        try {
+            const configPath = this.getConfigurationPath();
+            await vscode.workspace.fs.stat(configPath);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+}
+exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
+
+
+/***/ }),
+/* 106 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Analysis Configuration Models
+ * Types and interfaces for all analysis configuration data
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+/**
+ * Default configuration values
+ */
+exports.DEFAULT_ANALYSIS_CONFIGURATION = {
+    analysisFileMode: 'XR', // Default to XR as requested
+    viewTheme: 'Dark', // Default to Dark theme
+    autoAnalysisDelay: {
+        type: 'RealTime', // Default to Real Time (0s)
+        customMs: undefined
+    }
+};
+/**
+ * Default configuration file structure
+ */
+exports.DEFAULT_CONFIGURATION_FILE = {
+    metadata: {
+        version: '1.0.0',
+        lastModified: Date.now(),
+        createdBy: 'CodeXR New Code Analysis'
+    },
+    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
+};
+
+
+/***/ }),
+/* 107 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Storage Models Module
+ * Exports for all storage-related models and types
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+var analysisConfiguration_1 = __webpack_require__(106);
+Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
+Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
+
+
+/***/ }),
+/* 108 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * View Theme Setting Item
+ * Manages the analysis view theme (Dark/Light/Auto) configuration
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ViewThemeSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+const storage_1 = __webpack_require__(104);
+class ViewThemeSetting {
+    context;
+    currentTheme = 'Dark';
+    storage;
+    constructor(context) {
+        this.context = context;
+        this.storage = storage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.loadSavedTheme();
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        // Always get the current value from storage to ensure it's up to date
+        const currentTheme = await this.storage.getViewTheme();
+        const themeText = currentTheme === 'Dark'
+            ? 'Visual Theme: Dark Mode'
+            : 'Visual Theme: Light Mode';
+        const iconPath = this.getThemeIcon(currentTheme);
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(themeText, vscode.TreeItemCollapsibleState.None, 'analysis-result', {
+            command: 'newCodeAnalysis.toggleViewTheme',
+            title: 'Toggle View Theme',
+            arguments: []
+        }, iconPath, `Click to switch between dark and light visual themes. Current: ${currentTheme} mode for better ${currentTheme === 'Dark' ? 'night coding' : 'daylight visibility'}`, currentTheme, 'viewThemeSetting');
+    }
+    /**
+     * Get appropriate icon for current theme
+     */
+    getThemeIcon(theme) {
+        const themeToUse = theme || this.currentTheme;
+        switch (themeToUse) {
+            case 'Dark':
+                return new vscode.ThemeIcon('symbol-color', new vscode.ThemeColor('charts.foreground'));
+            case 'Light':
+                return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
+            default:
+                return new vscode.ThemeIcon('gear', new vscode.ThemeColor('charts.blue'));
+        }
+    }
+    /**
+     * Toggle between Dark and Light themes
+     */
+    async toggleTheme() {
+        this.currentTheme = this.currentTheme === 'Dark' ? 'Light' : 'Dark';
+        console.log(`NEW_CODE_ANALYSIS: View theme switched to ${this.currentTheme}`);
+        await this.saveThemeToSettings();
+        return this.currentTheme;
+    }
+    /**
+     * Get current theme
+     */
+    getCurrentTheme() {
+        return this.currentTheme;
+    }
+    /**
+     * Set specific theme
+     */
+    async setTheme(theme) {
+        this.currentTheme = theme;
+        await this.saveThemeToSettings();
+    }
+    /**
+     * Load saved theme from globalStorage
+     */
+    async loadSavedTheme() {
+        try {
+            const savedTheme = await this.storage.getViewTheme();
+            this.currentTheme = savedTheme;
+            console.log(`NEW_CODE_ANALYSIS: Loaded view theme from storage: ${this.currentTheme}`);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading saved theme, using default:', error);
+            this.currentTheme = 'Dark'; // Fallback to default
+        }
+    }
+    /**
+     * Save theme to globalStorage
+     */
+    async saveThemeToSettings() {
+        try {
+            await this.storage.setViewTheme(this.currentTheme);
+            console.log(`NEW_CODE_ANALYSIS: Saved view theme to storage: ${this.currentTheme}`);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving theme to storage:', error);
+        }
+    }
+}
+exports.ViewThemeSetting = ViewThemeSetting;
+
+
+/***/ }),
+/* 109 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Auto-Analysis Delay Setting Item
+ * Manages the auto-analysis delay configuration with predefined and custom values
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AutoAnalysisDelaySetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+const storage_1 = __webpack_require__(104);
+class AutoAnalysisDelaySetting {
+    context;
+    currentDelayConfig = { type: 'RealTime' };
+    storage;
+    // Predefined delay options with their millisecond values
+    PREDEFINED_DELAYS = {
+        'RealTime': 0,
+        '1s': 1000,
+        '3s': 3000,
+        '5s': 5000,
+        '10s': 10000
+    };
+    constructor(context) {
+        this.context = context;
+        this.storage = storage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.loadSavedDelay();
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        // Always get the current value from storage to ensure it's up to date
+        const currentDelay = await this.storage.getAutoAnalysisDelay();
+        const delayDisplayText = this.getDelayDisplayText(currentDelay);
+        const delayText = `Auto-Analysis Timing: ${delayDisplayText}`;
+        const iconPath = this.getDelayIcon(currentDelay);
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(delayText, vscode.TreeItemCollapsibleState.None, 'analysis-result', {
+            command: 'newCodeAnalysis.selectAutoAnalysisDelay',
+            title: 'Select Auto-Analysis Delay',
+            arguments: []
+        }, iconPath, `Click to select delay between code changes and analysis trigger. Current: ${delayDisplayText}`, delayDisplayText, 'autoAnalysisDelaySetting');
+    }
+    /**
+     * Get display text for current delay
+     */
+    getDelayDisplayText(delayConfig) {
+        const configToUse = delayConfig || this.currentDelayConfig;
+        if (configToUse.type === 'Custom') {
+            const ms = configToUse.customMs || 0;
+            return `Custom: ${ms}ms`;
+        }
+        return configToUse.type;
+    }
+    /**
+     * Get appropriate icon for current delay
+     */
+    getDelayIcon(delayConfig) {
+        const configToUse = delayConfig || this.currentDelayConfig;
+        if (configToUse.type === 'RealTime') {
+            return new vscode.ThemeIcon('zap', new vscode.ThemeColor('charts.green'));
+        }
+        else if (configToUse.type === 'Custom') {
+            return new vscode.ThemeIcon('settings', new vscode.ThemeColor('charts.purple'));
+        }
+        else {
+            return new vscode.ThemeIcon('clock', new vscode.ThemeColor('charts.blue'));
+        }
+    }
+    /**
+     * Cycle through predefined delay options
+     */
+    async cycleDelay() {
+        const predefinedOptions = ['RealTime', '1s', '3s', '5s', '10s'];
+        const currentIndex = predefinedOptions.indexOf(this.currentDelayConfig.type);
+        let nextIndex;
+        if (currentIndex === -1 || currentIndex === predefinedOptions.length - 1) {
+            nextIndex = 0; // If custom or last option, go to first
+        }
+        else {
+            nextIndex = currentIndex + 1;
+        }
+        this.currentDelayConfig = {
+            type: predefinedOptions[nextIndex],
+            customMs: undefined
+        };
+        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay cycled to ${this.currentDelayConfig.type}`);
+        await this.saveDelayToSettings();
+        return this.currentDelayConfig;
+    }
+    /**
+     * Set custom delay in milliseconds
+     */
+    async setCustomDelay(milliseconds) {
+        // Validate range (0-20000ms)
+        const clampedMs = Math.max(0, Math.min(20000, milliseconds));
+        this.currentDelayConfig = {
+            type: 'Custom',
+            customMs: clampedMs
+        };
+        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay set to custom ${clampedMs}ms`);
+        await this.saveDelayToSettings();
+        return this.currentDelayConfig;
+    }
+    /**
+     * Get current delay configuration
+     */
+    getCurrentDelayConfig() {
+        return this.currentDelayConfig;
+    }
+    /**
+     * Get current delay in milliseconds
+     */
+    getCurrentDelayMs() {
+        if (this.currentDelayConfig.type === 'Custom') {
+            return this.currentDelayConfig.customMs || 0;
+        }
+        return this.PREDEFINED_DELAYS[this.currentDelayConfig.type] || 0;
+    }
+    /**
+     * Set specific predefined delay
+     */
+    async setDelay(delayType) {
+        this.currentDelayConfig = {
+            type: delayType,
+            customMs: delayType === 'Custom' ? this.currentDelayConfig.customMs : undefined
+        };
+        await this.saveDelayToSettings();
+    }
+    /**
+     * Load saved delay from globalStorage
+     */
+    async loadSavedDelay() {
+        try {
+            const savedDelay = await this.storage.getAutoAnalysisDelay();
+            this.currentDelayConfig = savedDelay;
+            console.log(`NEW_CODE_ANALYSIS: Loaded auto-analysis delay from storage:`, savedDelay);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading saved delay, using default:', error);
+            this.currentDelayConfig = { type: 'RealTime' }; // Fallback to default
+        }
+    }
+    /**
+     * Save delay to globalStorage
+     */
+    async saveDelayToSettings() {
+        try {
+            await this.storage.setAutoAnalysisDelay(this.currentDelayConfig);
+            console.log(`NEW_CODE_ANALYSIS: Saved auto-analysis delay to storage:`, this.currentDelayConfig);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving delay to storage:', error);
+        }
+    }
+}
+exports.AutoAnalysisDelaySetting = AutoAnalysisDelaySetting;
+
+
+/***/ }),
+/* 110 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
+const visualizationSettingsCommands_1 = __webpack_require__(111);
+/**
+ * Visualization Settings Commands Wrapper
+ * Re-exports visualization settings commands for centralized command registration
+ */
+/**
+ * Registers all visualization settings related commands
+ */
+function registerVisualizationSettingsCommands(context) {
+    console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands...');
+    visualizationSettingsCommands_1.VisualizationSettingsCommands.registerCommands(context);
+    console.log('VISUALIZATION-SETTINGS: Visualization settings commands registration complete');
+}
+
+
+/***/ }),
+/* 111 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizationSettingsCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const handleSettingsInteraction_1 = __webpack_require__(52);
+const settingsAccessors_1 = __webpack_require__(54);
+/**
+ * Visualization Settings Commands Class
+ * Defines what each visualization settings command does
+ */
+class VisualizationSettingsCommands {
+    context;
+    interactionHandler;
+    constructor(context) {
+        this.context = context;
+        console.log('VISUALIZATION-SETTINGS: Initializing visualization settings commands...');
+        // Initialize settings accessors for global use
+        (0, settingsAccessors_1.initializeSettingsAccessors)(context);
+        // Initialize the interaction handler
+        this.interactionHandler = new handleSettingsInteraction_1.VisualizationSettingsInteractionHandler(context);
+    }
+    /**
+     * Register all visualization settings commands
+     */
+    static registerCommands(context) {
+        console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands...');
+        const commandsInstance = new VisualizationSettingsCommands(context);
+        commandsInstance.registerAllCommands();
+        console.log('VISUALIZATION-SETTINGS: Visualization settings commands registration complete');
+    }
+    /**
+     * Register individual commands
+     */
+    registerAllCommands() {
+        // Command: Configure setting
+        const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
+            try {
+                console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
+                await this.interactionHandler.handleSettingConfiguration(settingKey);
+            }
+            catch (error) {
+                console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
+                vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
+        // Register commands with the extension context
+        this.context.subscriptions.push(configureSettingCmd);
+        // Store interaction handler for cleanup
+        this.context.subscriptions.push({
+            dispose: () => this.interactionHandler.dispose()
+        });
+        console.log('VISUALIZATION-SETTINGS: All commands registered successfully');
+    }
+    /**
+     * Dispose of resources
+     */
+    dispose() {
+        this.interactionHandler.dispose();
+    }
+}
+exports.VisualizationSettingsCommands = VisualizationSettingsCommands;
+
+
+/***/ }),
+/* 112 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerGeneralCommands = registerGeneralCommands;
+const vscode = __importStar(__webpack_require__(1));
+const commonCommands_1 = __webpack_require__(113);
+/**
+ * Register general/common commands used throughout the extension
+ */
+function registerGeneralCommands(context) {
+    console.log('GENERAL_COMMANDS: Registering general commands');
+    // Register the main tree refresh command (replaces codexr.servers.refresh)
+    const refreshTreeCommand = vscode.commands.registerCommand('codexr.tree.refresh', () => {
+        console.log('GENERAL_COMMANDS: Tree refresh command executed');
+        commonCommands_1.CommonCommands.refreshTreeView();
+    });
+    // Register legacy command for backward compatibility
+    const legacyRefreshCommand = vscode.commands.registerCommand('codexr.servers.refresh', () => {
+        console.log('GENERAL_COMMANDS: Legacy servers refresh command executed, delegating to tree refresh');
+        commonCommands_1.CommonCommands.refreshTreeView();
+    });
+    // Register a general modular tree refresh command
+    const modularTreeRefreshCommand = vscode.commands.registerCommand('codeXR.modularTree.refresh', () => {
+        console.log('GENERAL_COMMANDS: Modular tree refresh command executed');
+        commonCommands_1.CommonCommands.refreshTreeView();
+    });
+    // Add commands to subscriptions
+    context.subscriptions.push(refreshTreeCommand, legacyRefreshCommand, modularTreeRefreshCommand);
+    console.log('GENERAL_COMMANDS: Registered 3 general commands (tree refresh, legacy refresh, modular refresh)');
+}
+
+
+/***/ }),
+/* 113 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CommonCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * Common commands utility for shared functionality across the extension
+ */
+class CommonCommands {
+    static modularTreeProvider;
+    /**
+     * Set the modular tree provider for refresh operations
+     */
+    static setModularTreeProvider(provider) {
+        this.modularTreeProvider = provider;
+        console.log('COMMON_COMMANDS: Modular tree provider set for refresh operations');
+    }
+    /**
+     * Refresh the entire tree view
+     * This replaces the legacy 'codexr.servers.refresh' command
+     */
+    static refreshTreeView() {
+        console.log('COMMON_COMMANDS: Refreshing tree view');
+        if (this.modularTreeProvider && typeof this.modularTreeProvider.refresh === 'function') {
+            this.modularTreeProvider.refresh();
+            console.log('COMMON_COMMANDS: Tree view refreshed successfully');
+        }
+        else {
+            console.warn('COMMON_COMMANDS: No modular tree provider available for refresh');
+            // Fallback: try to execute any existing refresh commands
+            try {
+                vscode.commands.executeCommand('codeXR.modularTree.refresh');
+            }
+            catch (error) {
+                console.error('COMMON_COMMANDS: Failed to refresh tree view:', error);
+            }
+        }
+    }
+    /**
+     * Legacy method for backward compatibility
+     * @deprecated Use refreshTreeView() instead
+     */
+    static refreshServers() {
+        console.log('COMMON_COMMANDS: Legacy refresh servers called, delegating to refreshTreeView');
+        this.refreshTreeView();
+    }
+}
+exports.CommonCommands = CommonCommands;
+
+
+/***/ }),
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14650,22 +17923,24 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 // Main modular tree provider
-var ModularTreeDataProvider_1 = __webpack_require__(77);
+var ModularTreeDataProvider_1 = __webpack_require__(115);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
-__exportStar(__webpack_require__(78), exports);
-__exportStar(__webpack_require__(119), exports);
+__exportStar(__webpack_require__(116), exports);
+__exportStar(__webpack_require__(170), exports);
 // Section providers
-__exportStar(__webpack_require__(79), exports);
-__exportStar(__webpack_require__(83), exports);
-__exportStar(__webpack_require__(87), exports);
-__exportStar(__webpack_require__(92), exports);
-__exportStar(__webpack_require__(98), exports);
-__exportStar(__webpack_require__(115), exports);
+__exportStar(__webpack_require__(117), exports);
+__exportStar(__webpack_require__(121), exports);
+__exportStar(__webpack_require__(125), exports);
+__exportStar(__webpack_require__(130), exports);
+__exportStar(__webpack_require__(136), exports);
+__exportStar(__webpack_require__(166), exports);
+// New code analysis views (experimental)
+__exportStar(__webpack_require__(171), exports);
 
 
 /***/ }),
-/* 77 */
+/* 115 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14705,13 +17980,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const baseInterfaces_1 = __webpack_require__(78);
-const servers_1 = __webpack_require__(79);
-const active_servers_1 = __webpack_require__(83);
-const babia_examples_1 = __webpack_require__(87);
-const visualize_data_1 = __webpack_require__(92);
-const code_analysis_1 = __webpack_require__(98);
-const visualization_settings_1 = __webpack_require__(115);
+const baseInterfaces_1 = __webpack_require__(116);
+const servers_1 = __webpack_require__(117);
+const active_servers_1 = __webpack_require__(121);
+const babia_examples_1 = __webpack_require__(125);
+const visualize_data_1 = __webpack_require__(130);
+const code_analysis_1 = __webpack_require__(136);
+const NewCodeAnalysisSectionProvider_1 = __webpack_require__(152);
+const visualization_settings_1 = __webpack_require__(166);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -14738,6 +18014,7 @@ class ModularTreeDataProvider {
             new babia_examples_1.BabiaExamplesSectionProvider(this.context),
             new visualize_data_1.VisualizeDataSectionProvider(this.context),
             new code_analysis_1.CodeAnalysisSectionProvider(this.context),
+            new NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider(this.context),
             new visualization_settings_1.VisualizationSettingsSectionProvider(this.context)
         ];
         // Register providers and listen to their changes
@@ -14818,7 +18095,7 @@ class ModularTreeDataProvider {
             // Convert to ModularTreeItems
             const modularChildren = sectionChildren.map((child) => {
                 // Preserve the original item properties for proper delegation
-                const modularItem = new baseInterfaces_1.ModularTreeItem(typeof child.label === 'string' ? child.label : child.label?.label || 'Unknown', child.collapsibleState || vscode.TreeItemCollapsibleState.None, sectionName, child.serverItemType || child.activeServerItemType || child.babiaItemType || child.visualizeDataItemType || child.codeAnalysisItemType || child.visualizationSettingsItemType || child.type || 'item', child.command, child.iconPath, child.tooltip, child.description, child.contextValue);
+                const modularItem = new baseInterfaces_1.ModularTreeItem(typeof child.label === 'string' ? child.label : child.label?.label || 'Unknown', child.collapsibleState || vscode.TreeItemCollapsibleState.None, sectionName, child.serverItemType || child.activeServerItemType || child.babiaItemType || child.visualizeDataItemType || child.codeAnalysisItemType || child.newCodeAnalysisItemType || child.visualizationSettingsItemType || child.type || 'item', child.command, child.iconPath, child.tooltip, child.description, child.contextValue);
                 // Copy over section-specific properties
                 if (child.serverItemType) {
                     modularItem.serverItemType = child.serverItemType;
@@ -14838,6 +18115,10 @@ class ModularTreeDataProvider {
                 if (child.codeAnalysisItemType) {
                     modularItem.codeAnalysisItemType = child.codeAnalysisItemType;
                     modularItem.originalCodeAnalysisItem = child.originalCodeAnalysisItem;
+                }
+                if (child.newCodeAnalysisItemType) {
+                    modularItem.newCodeAnalysisItemType = child.newCodeAnalysisItemType;
+                    modularItem.originalNewCodeAnalysisItem = child.originalNewCodeAnalysisItem;
                 }
                 if (child.visualizationSettingsItemType) {
                     modularItem.visualizationSettingsItemType = child.visualizationSettingsItemType;
@@ -14862,32 +18143,37 @@ class ModularTreeDataProvider {
         switch (sectionName) {
             case 'SERVERS':
                 // Import and create ServerTreeItem
-                const { ServerTreeItem } = __webpack_require__(81);
+                const { ServerTreeItem } = __webpack_require__(119);
                 const serverItem = new ServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.serverItemType || 'config-option', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return serverItem;
             case 'activeServers':
                 // Import and create ActiveServerTreeItem
-                const { ActiveServerTreeItem } = __webpack_require__(85);
+                const { ActiveServerTreeItem } = __webpack_require__(123);
                 const activeServerItem = new ActiveServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.activeServerItemType || 'server-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.activeServer);
                 return activeServerItem;
             case 'babiaExamples':
                 // Import and create BabiaExampleTreeItem
-                const { BabiaExampleTreeItem } = __webpack_require__(89);
+                const { BabiaExampleTreeItem } = __webpack_require__(127);
                 const babiaItem = new BabiaExampleTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.babiaItemType || 'example-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.babiaExample);
                 return babiaItem;
             case 'visualizeData':
                 // Import and create VisualizeDataModularTreeItem
-                const { VisualizeDataModularTreeItem } = __webpack_require__(94);
+                const { VisualizeDataModularTreeItem } = __webpack_require__(132);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
             case 'codeAnalysis':
                 // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(100);
+                const { CodeAnalysisModularTreeItem } = __webpack_require__(138);
                 const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
                 return codeAnalysisItem;
+            case 'newCodeAnalysis':
+                // Import and create NewCodeAnalysisTreeItem
+                const { NewCodeAnalysisTreeItem } = __webpack_require__(103);
+                const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.type || 'item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
+                return newCodeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(117);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(168);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -14899,8 +18185,10 @@ class ModularTreeDataProvider {
      * Refresh the tree
      */
     refresh() {
-        console.log('MODULAR_TREE: Refreshing modular tree');
+        console.log('MODULAR_TREE: Refreshing modular tree - START');
+        console.log('MODULAR_TREE: Firing _onDidChangeTreeData event');
         this._onDidChangeTreeData.fire();
+        console.log('MODULAR_TREE: Refreshing modular tree - COMPLETE');
     }
     /**
      * Get section provider by name
@@ -14945,7 +18233,7 @@ exports.ModularTreeDataProvider = ModularTreeDataProvider;
 
 
 /***/ }),
-/* 78 */
+/* 116 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15047,7 +18335,7 @@ exports.TreeViewUtils = TreeViewUtils;
 
 
 /***/ }),
-/* 79 */
+/* 117 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -15058,19 +18346,19 @@ exports.TreeViewUtils = TreeViewUtils;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerClickHandler = exports.ServerItemFactory = exports.ServerTreeItem = exports.ServersSectionProvider = void 0;
 // Section Provider
-var ServersSectionProvider_1 = __webpack_require__(80);
+var ServersSectionProvider_1 = __webpack_require__(118);
 Object.defineProperty(exports, "ServersSectionProvider", ({ enumerable: true, get: function () { return ServersSectionProvider_1.ServersSectionProvider; } }));
 // Items
-var serverItems_1 = __webpack_require__(81);
+var serverItems_1 = __webpack_require__(119);
 Object.defineProperty(exports, "ServerTreeItem", ({ enumerable: true, get: function () { return serverItems_1.ServerTreeItem; } }));
 Object.defineProperty(exports, "ServerItemFactory", ({ enumerable: true, get: function () { return serverItems_1.ServerItemFactory; } }));
 // Interactions
-var handleServerClicks_1 = __webpack_require__(82);
+var handleServerClicks_1 = __webpack_require__(120);
 Object.defineProperty(exports, "ServerClickHandler", ({ enumerable: true, get: function () { return handleServerClicks_1.ServerClickHandler; } }));
 
 
 /***/ }),
-/* 80 */
+/* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15110,8 +18398,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverItems_1 = __webpack_require__(81);
-const handleServerClicks_1 = __webpack_require__(82);
+const serverItems_1 = __webpack_require__(119);
+const handleServerClicks_1 = __webpack_require__(120);
 const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Servers section provider for the modular tree view architecture
@@ -15244,7 +18532,7 @@ exports.ServersSectionProvider = ServersSectionProvider;
 
 
 /***/ }),
-/* 81 */
+/* 119 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15362,7 +18650,7 @@ exports.ServerItemFactory = ServerItemFactory;
 
 
 /***/ }),
-/* 82 */
+/* 120 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15460,7 +18748,7 @@ exports.ServerClickHandler = ServerClickHandler;
 
 
 /***/ }),
-/* 83 */
+/* 121 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -15471,19 +18759,19 @@ exports.ServerClickHandler = ServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = exports.ActiveServerItemFactory = exports.ActiveServerTreeItem = exports.ActiveServersSectionProvider = void 0;
 // Section Provider
-var ActiveServersSectionProvider_1 = __webpack_require__(84);
+var ActiveServersSectionProvider_1 = __webpack_require__(122);
 Object.defineProperty(exports, "ActiveServersSectionProvider", ({ enumerable: true, get: function () { return ActiveServersSectionProvider_1.ActiveServersSectionProvider; } }));
 // Items
-var activeServerItems_1 = __webpack_require__(85);
+var activeServerItems_1 = __webpack_require__(123);
 Object.defineProperty(exports, "ActiveServerTreeItem", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerTreeItem; } }));
 Object.defineProperty(exports, "ActiveServerItemFactory", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerItemFactory; } }));
 // Interactions
-var handleActiveServerClicks_1 = __webpack_require__(86);
+var handleActiveServerClicks_1 = __webpack_require__(124);
 Object.defineProperty(exports, "ActiveServerClickHandler", ({ enumerable: true, get: function () { return handleActiveServerClicks_1.ActiveServerClickHandler; } }));
 
 
 /***/ }),
-/* 84 */
+/* 122 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15523,9 +18811,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerItems_1 = __webpack_require__(85);
-const handleActiveServerClicks_1 = __webpack_require__(86);
-const activeServerRegistry_1 = __webpack_require__(17);
+const activeServerItems_1 = __webpack_require__(123);
+const handleActiveServerClicks_1 = __webpack_require__(124);
+const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Active Servers section provider - manages running servers display and control
  */
@@ -15621,7 +18909,7 @@ exports.ActiveServersSectionProvider = ActiveServersSectionProvider;
 
 
 /***/ }),
-/* 85 */
+/* 123 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15789,13 +19077,13 @@ exports.ActiveServerItemFactory = ActiveServerItemFactory;
 
 
 /***/ }),
-/* 86 */
+/* 124 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = void 0;
-const handleServerActions_1 = __webpack_require__(18);
+const handleServerActions_1 = __webpack_require__(27);
 /**
  * Handler for Active Server section interactions
  */
@@ -15905,7 +19193,7 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 
 
 /***/ }),
-/* 87 */
+/* 125 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -15916,19 +19204,19 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = exports.BabiaExamplesSectionProvider = void 0;
 // Section Provider
-var BabiaExamplesSectionProvider_1 = __webpack_require__(88);
+var BabiaExamplesSectionProvider_1 = __webpack_require__(126);
 Object.defineProperty(exports, "BabiaExamplesSectionProvider", ({ enumerable: true, get: function () { return BabiaExamplesSectionProvider_1.BabiaExamplesSectionProvider; } }));
 // Items
-var babiaExampleItems_1 = __webpack_require__(89);
+var babiaExampleItems_1 = __webpack_require__(127);
 Object.defineProperty(exports, "BabiaExampleTreeItem", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleTreeItem; } }));
 Object.defineProperty(exports, "BabiaExampleItemFactory", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleItemFactory; } }));
 // Interactions
-var handleBabiaExampleClicks_1 = __webpack_require__(91);
+var handleBabiaExampleClicks_1 = __webpack_require__(129);
 Object.defineProperty(exports, "BabiaExampleClickHandler", ({ enumerable: true, get: function () { return handleBabiaExampleClicks_1.BabiaExampleClickHandler; } }));
 
 
 /***/ }),
-/* 88 */
+/* 126 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15968,9 +19256,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const babiaExampleItems_1 = __webpack_require__(89);
-const handleBabiaExampleClicks_1 = __webpack_require__(91);
-const exampleLauncher_1 = __webpack_require__(38);
+const babiaExampleItems_1 = __webpack_require__(127);
+const handleBabiaExampleClicks_1 = __webpack_require__(129);
+const exampleLauncher_1 = __webpack_require__(37);
 /**
  * Babia Examples section provider - manages example loading and launching
  */
@@ -16050,7 +19338,7 @@ exports.BabiaExamplesSectionProvider = BabiaExamplesSectionProvider;
 
 
 /***/ }),
-/* 89 */
+/* 127 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16090,7 +19378,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleItems_1 = __webpack_require__(90);
+const exampleItems_1 = __webpack_require__(128);
 /**
  * Babia Example tree items for the Babia Examples section
  */
@@ -16172,7 +19460,7 @@ exports.BabiaExampleItemFactory = BabiaExampleItemFactory;
 
 
 /***/ }),
-/* 90 */
+/* 128 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16333,7 +19621,7 @@ exports.ExampleIcons = ExampleIcons;
 
 
 /***/ }),
-/* 91 */
+/* 129 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16373,7 +19661,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleLauncher_1 = __webpack_require__(38);
+const exampleLauncher_1 = __webpack_require__(37);
 /**
  * Handler for Babia Examples section interactions
  */
@@ -16512,7 +19800,7 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 
 
 /***/ }),
-/* 92 */
+/* 130 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -16523,19 +19811,19 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataClickHandler = exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = exports.VisualizeDataSectionProvider = void 0;
 // Section Provider
-var VisualizeDataSectionProvider_1 = __webpack_require__(93);
+var VisualizeDataSectionProvider_1 = __webpack_require__(131);
 Object.defineProperty(exports, "VisualizeDataSectionProvider", ({ enumerable: true, get: function () { return VisualizeDataSectionProvider_1.VisualizeDataSectionProvider; } }));
 // Items
-var visualizeDataItems_1 = __webpack_require__(94);
+var visualizeDataItems_1 = __webpack_require__(132);
 Object.defineProperty(exports, "VisualizeDataModularTreeItem", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizeDataModularItemFactory", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularItemFactory; } }));
 // Interactions
-var handleVisualizeDataClicks_1 = __webpack_require__(97);
+var handleVisualizeDataClicks_1 = __webpack_require__(135);
 Object.defineProperty(exports, "VisualizeDataClickHandler", ({ enumerable: true, get: function () { return handleVisualizeDataClicks_1.VisualizeDataClickHandler; } }));
 
 
 /***/ }),
-/* 93 */
+/* 131 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16575,9 +19863,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(94);
-const handleVisualizeDataClicks_1 = __webpack_require__(97);
-const visualizeDataState_1 = __webpack_require__(44);
+const visualizeDataItems_1 = __webpack_require__(132);
+const handleVisualizeDataClicks_1 = __webpack_require__(135);
+const visualizeDataState_1 = __webpack_require__(43);
 /**
  * Visualize Data section provider - manages data visualization configuration and launch
  */
@@ -16682,7 +19970,7 @@ exports.VisualizeDataSectionProvider = VisualizeDataSectionProvider;
 
 
 /***/ }),
-/* 94 */
+/* 132 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16722,9 +20010,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(95);
-const visualizationRestorer_1 = __webpack_require__(57);
-const visualizationItem_1 = __webpack_require__(96);
+const visualizeDataItems_1 = __webpack_require__(133);
+const visualizationRestorer_1 = __webpack_require__(56);
+const visualizationItem_1 = __webpack_require__(134);
 /**
  * Visualize Data tree items for the Visualize Data section
  */
@@ -16841,7 +20129,7 @@ exports.VisualizeDataModularItemFactory = VisualizeDataModularItemFactory;
 
 
 /***/ }),
-/* 95 */
+/* 133 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16881,7 +20169,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataIcons = exports.VisualizeDataItemFactory = exports.VisualizeDataTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataState_1 = __webpack_require__(44);
+const visualizeDataState_1 = __webpack_require__(43);
 /**
  * Tree item for visualize data items
  */
@@ -17102,7 +20390,7 @@ exports.VisualizeDataIcons = VisualizeDataIcons;
 
 
 /***/ }),
-/* 96 */
+/* 134 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17222,7 +20510,7 @@ exports.BrowseVisualizationItemFactory = BrowseVisualizationItemFactory;
 
 
 /***/ }),
-/* 97 */
+/* 135 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17421,7 +20709,7 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 
 /***/ }),
-/* 98 */
+/* 136 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -17432,19 +20720,19 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
 // Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(99);
+var CodeAnalysisSectionProvider_1 = __webpack_require__(137);
 Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
 // Items
-var codeAnalysisItems_1 = __webpack_require__(100);
+var codeAnalysisItems_1 = __webpack_require__(138);
 Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
 Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
 // Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(104);
+var handleCodeAnalysisClicks_1 = __webpack_require__(141);
 Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
 
 
 /***/ }),
-/* 99 */
+/* 137 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17484,10 +20772,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(100);
-const handleCodeAnalysisClicks_1 = __webpack_require__(104);
-const codeAnalysisTreeView_1 = __webpack_require__(105);
-const projectStructureAdapter_1 = __webpack_require__(112);
+const codeAnalysisItems_1 = __webpack_require__(138);
+const handleCodeAnalysisClicks_1 = __webpack_require__(141);
+const codeAnalysisTreeView_1 = __webpack_require__(142);
+const projectStructureAdapter_1 = __webpack_require__(149);
 /**
  * Code Analysis section provider - manages code analysis and file organization
  */
@@ -17632,7 +20920,7 @@ exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 100 */
+/* 138 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17672,7 +20960,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(101);
+const analysisTreeItems_1 = __webpack_require__(139);
 /**
  * Code Analysis tree items for the Code Analysis section
  */
@@ -17795,7 +21083,7 @@ exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
 
 
 /***/ }),
-/* 101 */
+/* 139 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17836,9 +21124,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const fileDisplayUtils_1 = __webpack_require__(102);
-const analysisSettingsStorage_1 = __webpack_require__(62);
-const chartRegistry_1 = __webpack_require__(42);
+const fileDisplayUtils_1 = __webpack_require__(140);
+const analysisSettingsStorage_1 = __webpack_require__(61);
+const chartRegistry_1 = __webpack_require__(41);
 /**
  * Get user-friendly display name for data field
  */
@@ -18196,7 +21484,7 @@ exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 102 */
+/* 140 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18239,7 +21527,7 @@ exports.getFileIcon = getFileIcon;
 exports.getFileDescription = getFileDescription;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(103);
+const languageMetadata_1 = __webpack_require__(87);
 /**
  * Shared utility for consistent file display across Code Analysis views
  */
@@ -18458,99 +21746,7 @@ function getFileDescription(filePath, viewType, fileSize) {
 
 
 /***/ }),
-/* 103 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-/**
- * Language metadata for file detection and visualization
- * Maps file extensions to language information including VS Code icons
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExtensionToLanguageMap = exports.SupportedLanguages = void 0;
-exports.getLanguageForFile = getLanguageForFile;
-exports.getAllLanguageNames = getAllLanguageNames;
-exports.isLanguageSupported = isLanguageSupported;
-/**
- * Supported languages with their file extensions and VS Code icon IDs
- */
-exports.SupportedLanguages = [
-    { name: "HTML", extensions: [".html", ".htm"], iconId: "html" },
-    { name: "JavaScript", extensions: [".js", ".mjs"], iconId: "javascript" },
-    { name: "Python", extensions: [".py", ".pyw"], iconId: "python" },
-    { name: "Ruby", extensions: [".rb", ".rbw"], iconId: "ruby" },
-    { name: "C", extensions: [".c", ".h"], iconId: "c" },
-    { name: "Go", extensions: [".go"], iconId: "go" },
-    { name: "Kotlin", extensions: [".kt", ".kts"], iconId: "kotlin" },
-    { name: "Objective-C", extensions: [".m", ".mm"], iconId: "objective-c" },
-    { name: "Perl", extensions: [".pl", ".pm"], iconId: "perl" },
-    { name: "PHP", extensions: [".php", ".phtml"], iconId: "php" },
-    { name: "Scala", extensions: [".scala", ".sc"], iconId: "scala" },
-    { name: "Solidity", extensions: [".sol"], iconId: "solidity" },
-    { name: "Zig", extensions: [".zig"], iconId: "zig" },
-    { name: "C#", extensions: [".cs"], iconId: "csharp" },
-    { name: "C++", extensions: [".cpp", ".cxx", ".cc", ".c++", ".hpp", ".hxx", ".hh", ".h++"], iconId: "cpp" },
-    { name: "Erlang", extensions: [".erl", ".hrl"], iconId: "erlang" },
-    { name: "Fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], iconId: "fortran" },
-    { name: "GDScript", extensions: [".gd"], iconId: "gdscript" },
-    { name: "Java", extensions: [".java"], iconId: "java" },
-    { name: "Lua", extensions: [".lua"], iconId: "lua" },
-    { name: "Swift", extensions: [".swift"], iconId: "swift" },
-    { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
-    { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
-    { name: "Vue", extensions: [".vue"], iconId: "vue" },
-    { name: "JSON", extensions: [".json"], iconId: "json" },
-    { name: "XML", extensions: [".xml"], iconId: "xml" },
-    { name: "CSS", extensions: [".css"], iconId: "css" },
-    { name: "Markdown", extensions: [".md", ".markdown"], iconId: "markdown" }
-];
-/**
- * Create a map from file extension to language info for fast lookup
- */
-exports.ExtensionToLanguageMap = new Map();
-// Initialize the extension map
-exports.SupportedLanguages.forEach(lang => {
-    lang.extensions.forEach(ext => {
-        exports.ExtensionToLanguageMap.set(ext.toLowerCase(), lang);
-    });
-});
-/**
- * Get language info for a file path based on its extension
- * @param filePath The file path to analyze
- * @returns Language info or null if not recognized
- */
-function getLanguageForFile(filePath) {
-    const extension = getFileExtension(filePath);
-    return exports.ExtensionToLanguageMap.get(extension) || null;
-}
-/**
- * Extract file extension from a file path
- * @param filePath The file path
- * @returns The lowercase extension including the dot (e.g., ".js")
- */
-function getFileExtension(filePath) {
-    const lastDot = filePath.lastIndexOf('.');
-    if (lastDot === -1 || lastDot === filePath.length - 1) {
-        return '';
-    }
-    return filePath.substring(lastDot).toLowerCase();
-}
-/**
- * Get all supported language names
- */
-function getAllLanguageNames() {
-    return exports.SupportedLanguages.map(lang => lang.name);
-}
-/**
- * Check if a language is supported
- */
-function isLanguageSupported(languageName) {
-    return exports.SupportedLanguages.some(lang => lang.name === languageName);
-}
-
-
-/***/ }),
-/* 104 */
+/* 141 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18765,7 +21961,7 @@ exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
 
 
 /***/ }),
-/* 105 */
+/* 142 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18805,11 +22001,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(101);
-const fileScanner_1 = __webpack_require__(106);
-const activeAnalysesTreeView_1 = __webpack_require__(107);
-const activeAnalysesCommands_1 = __webpack_require__(109);
-const fileWatcherManager_1 = __webpack_require__(110);
+const analysisTreeItems_1 = __webpack_require__(139);
+const fileScanner_1 = __webpack_require__(143);
+const activeAnalysesTreeView_1 = __webpack_require__(144);
+const activeAnalysesCommands_1 = __webpack_require__(146);
+const fileWatcherManager_1 = __webpack_require__(147);
 /**
  * Code Analysis tree data provider that manages the analysis sections
  *
@@ -19067,7 +22263,7 @@ exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
 
 
 /***/ }),
-/* 106 */
+/* 143 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19108,7 +22304,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(103);
+const languageMetadata_1 = __webpack_require__(87);
 /**
  * Scanner for analyzing workspace files and grouping them by programming language
  */
@@ -19240,7 +22436,7 @@ exports.FileScanner = FileScanner;
 
 
 /***/ }),
-/* 107 */
+/* 144 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19280,9 +22476,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisRegistry_1 = __webpack_require__(69);
-const activeAnalysisItems_1 = __webpack_require__(108);
-const analysisTreeItems_1 = __webpack_require__(101);
+const activeAnalysisRegistry_1 = __webpack_require__(68);
+const activeAnalysisItems_1 = __webpack_require__(145);
+const analysisTreeItems_1 = __webpack_require__(139);
 /**
  * Tree data provider for the Active Analyses section
  * This handles the rendering and management of the Active Analyses tree view
@@ -19432,7 +22628,7 @@ exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
 
 
 /***/ }),
-/* 108 */
+/* 145 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19625,7 +22821,7 @@ exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
 
 
 /***/ }),
-/* 109 */
+/* 146 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19666,9 +22862,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(69);
-const serverControl_1 = __webpack_require__(19);
-const activeServerRegistry_1 = __webpack_require__(17);
+const activeAnalysisRegistry_1 = __webpack_require__(68);
+const serverControl_1 = __webpack_require__(28);
+const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Commands for managing active analyses
  */
@@ -19934,7 +23130,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 110 */
+/* 147 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19975,12 +23171,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileWatcherManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(69);
-const statusBarDelayTimer_1 = __webpack_require__(111);
-const analysisSettingsStorage_1 = __webpack_require__(62);
-const analysisCommands_1 = __webpack_require__(59);
-const tempStorageManager_1 = __webpack_require__(66);
-const SSEManager_1 = __webpack_require__(22);
+const activeAnalysisRegistry_1 = __webpack_require__(68);
+const statusBarDelayTimer_1 = __webpack_require__(148);
+const analysisSettingsStorage_1 = __webpack_require__(61);
+const analysisCommands_1 = __webpack_require__(58);
+const tempStorageManager_1 = __webpack_require__(65);
+const SSEManager_1 = __webpack_require__(18);
 /**
  * Manages file watchers for files under analysis
  * Detects changes to analyzed files and shows placeholder info messages
@@ -20248,7 +23444,7 @@ exports.FileWatcherManager = FileWatcherManager;
 
 
 /***/ }),
-/* 111 */
+/* 148 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20446,7 +23642,7 @@ exports.StatusBarDelayTimer = StatusBarDelayTimer;
 
 
 /***/ }),
-/* 112 */
+/* 149 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20486,9 +23682,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureModularAdapter = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(113);
-const analysisTreeItems_1 = __webpack_require__(101);
-const fileDisplayUtils_1 = __webpack_require__(102);
+const projectStructureTreeView_1 = __webpack_require__(150);
+const analysisTreeItems_1 = __webpack_require__(139);
+const fileDisplayUtils_1 = __webpack_require__(140);
 /**
  * Adapter to integrate Project Structure Tree View with the modular Code Analysis system
  */
@@ -20628,7 +23824,7 @@ exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
 
 
 /***/ }),
-/* 113 */
+/* 150 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20669,9 +23865,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
 exports.createProjectStructureModularItem = createProjectStructureModularItem;
 const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(114);
-const baseInterfaces_1 = __webpack_require__(78);
-const fileDisplayUtils_1 = __webpack_require__(102);
+const directoryScanner_1 = __webpack_require__(151);
+const baseInterfaces_1 = __webpack_require__(116);
+const fileDisplayUtils_1 = __webpack_require__(140);
 /**
  * Tree data provider for the Project Directory Tree View
  */
@@ -21009,7 +24205,7 @@ exports.ProjectStructureCommands = ProjectStructureCommands;
 
 
 /***/ }),
-/* 114 */
+/* 151 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21050,7 +24246,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DirectoryScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(103);
+const languageMetadata_1 = __webpack_require__(87);
 /**
  * Scanner for creating a hierarchical project directory structure
  */
@@ -21384,7 +24580,700 @@ exports.DirectoryScanner = DirectoryScanner;
 
 
 /***/ }),
-/* 115 */
+/* 152 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * New Code Analysis Section Provider
+ * Tree data provider for the new code analysis view section
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisSectionProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+const handleNewCodeAnalysisClicks_1 = __webpack_require__(153);
+const subsections_1 = __webpack_require__(154);
+/**
+ * TODO: Implement tree data provider for new code analysis
+ * - Provide tree structure for analysis results
+ * - Handle data refresh and updates
+ * - Manage analysis state
+ * - Integrate with analysis engine
+ */
+class NewCodeAnalysisSectionProvider {
+    context;
+    _onDidChangeTreeData = new vscode.EventEmitter();
+    onDidChangeTreeData = this._onDidChangeTreeData.event;
+    // Subsection providers
+    activeAnalysesSubsection;
+    analysisSettingsSubsection;
+    projectByLanguageSubsection;
+    filesByLanguageSubsection;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing New Code Analysis section provider');
+        // Initialize subsections
+        this.activeAnalysesSubsection = new subsections_1.ActiveAnalysesSubsectionProvider(context);
+        this.analysisSettingsSubsection = new subsections_1.AnalysisSettingsSubsectionProvider(context);
+        this.projectByLanguageSubsection = new subsections_1.ProjectByLanguageSubsectionProvider(context);
+        this.filesByLanguageSubsection = new subsections_1.FilesByLanguageSubsectionProvider(context);
+        // Commands are now registered centrally in src/commands/new_code_analysis
+        // following the "nested dolls" architecture pattern
+        console.log('NEW_CODE_ANALYSIS: Section provider initialized. Commands registered centrally.');
+    }
+    /**
+     * Get the section name for identification
+     */
+    getSectionName() {
+        return 'newCodeAnalysis';
+    }
+    /**
+     * Get the section header item
+     */
+    getSectionItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('NEW CODE ANALYSIS', vscode.TreeItemCollapsibleState.Collapsed, 'section', undefined, new vscode.ThemeIcon('search-view-icon'), 'New experimental code analysis tools', undefined, 'newCodeAnalysisSection');
+    }
+    /**
+     * Refresh the tree view and all subsections
+     */
+    refresh() {
+        console.log('NEW_CODE_ANALYSIS: ========== REFRESH CALLED ==========');
+        console.log('NEW_CODE_ANALYSIS: Refreshing all subsections');
+        // Refresh all subsections
+        this.activeAnalysesSubsection.refresh();
+        this.analysisSettingsSubsection.refresh();
+        this.projectByLanguageSubsection.refresh();
+        this.filesByLanguageSubsection.refresh();
+        // Fire the tree data change event
+        console.log('NEW_CODE_ANALYSIS: About to fire _onDidChangeTreeData');
+        this._onDidChangeTreeData.fire();
+        console.log('NEW_CODE_ANALYSIS: ========== REFRESH COMPLETE ==========');
+    } /**
+     * TODO: Get tree item representation
+     */
+    getTreeItem(element) {
+        return element;
+    }
+    /**
+     * Get children for tree element
+     */
+    getChildren(element) {
+        if (!element) {
+            // Return root subsections
+            return Promise.resolve([
+                this.activeAnalysesSubsection.getSubsectionItem(),
+                this.analysisSettingsSubsection.getSubsectionItem(),
+                this.projectByLanguageSubsection.getSubsectionItem(),
+                this.filesByLanguageSubsection.getSubsectionItem()
+            ]);
+        }
+        // Handle children for specific subsections
+        switch (element.contextValue) {
+            case 'activeAnalysesSubsection':
+                return this.activeAnalysesSubsection.getChildren();
+            case 'analysisSettingsSubsection':
+                return this.analysisSettingsSubsection.getChildren();
+            case 'projectByLanguageSubsection':
+                return this.projectByLanguageSubsection.getChildren();
+            case 'filesByLanguageSubsection':
+                return this.filesByLanguageSubsection.getChildren();
+            default:
+                return Promise.resolve([]);
+        }
+    }
+    /**
+     * TODO: Handle item selection
+     */
+    async onItemSelected(item) {
+        await handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler.handleItemClick(item);
+    }
+}
+exports.NewCodeAnalysisSectionProvider = NewCodeAnalysisSectionProvider;
+
+
+/***/ }),
+/* 153 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * New Code Analysis Interaction Handler
+ * Handles user interactions with new code analysis tree items
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisInteractionHandler = void 0;
+/**
+ * TODO: Handle interactions with new code analysis tree items
+ * - Click handlers for different item types
+ * - Context menu actions
+ * - Double-click behaviors
+ * - Hover information
+ */
+class NewCodeAnalysisInteractionHandler {
+    /**
+     * TODO: Handle tree item clicks
+     */
+    static async handleItemClick(item) {
+        switch (item.newCodeAnalysisItemType) {
+            case 'analysis-result':
+                // TODO: Handle analysis result click
+                break;
+            case 'file-item':
+                // TODO: Handle file analysis click
+                break;
+            case 'method-item':
+                // TODO: Handle method analysis click
+                break;
+            default:
+                // TODO: Default click behavior
+                break;
+        }
+    }
+    /**
+     * TODO: Handle context menu actions
+     */
+    static async handleContextMenuAction(action, item) {
+        // TODO: Implementation
+    }
+    /**
+     * TODO: Handle double-click actions
+     */
+    static async handleDoubleClick(item) {
+        // TODO: Implementation
+    }
+    /**
+     * TODO: Get hover information for item
+     */
+    static getHoverInfo(item) {
+        // TODO: Implementation
+        return undefined;
+    }
+}
+exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
+
+
+/***/ }),
+/* 154 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis View Subsections Module
+ * Central exports for all view subsections
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSubsectionProvider = exports.ProjectByLanguageSubsectionProvider = exports.ActiveAnalysesSubsectionProvider = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
+var analysis_settings_1 = __webpack_require__(155);
+Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisSettingsSubsectionProvider; } }));
+Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisFileSetting; } }));
+var active_analyses_1 = __webpack_require__(160);
+Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return active_analyses_1.ActiveAnalysesSubsectionProvider; } }));
+var project_by_language_1 = __webpack_require__(162);
+Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return project_by_language_1.ProjectByLanguageSubsectionProvider; } }));
+var files_by_language_1 = __webpack_require__(164);
+Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return files_by_language_1.FilesByLanguageSubsectionProvider; } }));
+
+
+/***/ }),
+/* 155 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Analysis Settings Subsection Module
+ * Exports for analysis settings subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AutoAnalysisDelaySetting = exports.ViewThemeSetting = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
+var analysisSettingsSubsectionProvider_1 = __webpack_require__(156);
+Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysisSettingsSubsectionProvider_1.AnalysisSettingsSubsectionProvider; } }));
+var analysis_file_mode_1 = __webpack_require__(157);
+Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_file_mode_1.AnalysisFileSetting; } }));
+var view_theme_1 = __webpack_require__(158);
+Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return view_theme_1.ViewThemeSetting; } }));
+var auto_analysis_delay_1 = __webpack_require__(159);
+Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return auto_analysis_delay_1.AutoAnalysisDelaySetting; } }));
+
+
+/***/ }),
+/* 156 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ import * as vscode from 'vscode';
+import { NewCodeAnalysisTreeItem } from '../../items/newCodeAnalysisItems';
+import { AnalysisFileSetting } from './analysis_file_mode/analysisFileMode';
+import { ViewThemeSetting } from './view_theme';
+import { AutoAnalysisDelaySetting } from './auto_analysis_delay';lysis Settings Subsection Provider
+ * Manages the Analysis Settings subsection of New Code Analysis
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisSettingsSubsectionProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+const analysis_file_mode_1 = __webpack_require__(157);
+const view_theme_1 = __webpack_require__(158);
+const auto_analysis_delay_1 = __webpack_require__(159);
+class AnalysisSettingsSubsectionProvider {
+    context;
+    analysisFileSetting;
+    viewThemeSetting;
+    autoAnalysisDelaySetting;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing Analysis Settings subsection provider');
+        // Initialize setting components
+        this.analysisFileSetting = new analysis_file_mode_1.AnalysisFileSetting(context);
+        this.viewThemeSetting = new view_theme_1.ViewThemeSetting(context);
+        this.autoAnalysisDelaySetting = new auto_analysis_delay_1.AutoAnalysisDelaySetting(context);
+    }
+    /**
+     * Get the subsection header item
+     */
+    getSubsectionItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('settings-gear'), 'Configuration settings for analysis processes - File mode, theme, and timing', undefined, 'analysisSettingsSubsection');
+    }
+    /**
+     * Get children for this subsection
+     */
+    async getChildren() {
+        return [
+            // Analysis File Mode setting
+            await this.analysisFileSetting.getSettingItem(),
+            // View Theme setting  
+            await this.viewThemeSetting.getSettingItem(),
+            // Auto-Analysis Delay setting
+            await this.autoAnalysisDelaySetting.getSettingItem()
+        ];
+    }
+    /**
+     * Get the analysis file setting instance (for command registration)
+     */
+    getAnalysisFileSetting() {
+        return this.analysisFileSetting;
+    }
+    /**
+     * Get the view theme setting instance (for command registration)
+     */
+    getViewThemeSetting() {
+        return this.viewThemeSetting;
+    }
+    /**
+     * Get the auto-analysis delay setting instance (for command registration)
+     */
+    getAutoAnalysisDelaySetting() {
+        return this.autoAnalysisDelaySetting;
+    }
+    /**
+     * Handle refresh for this subsection
+     */
+    refresh() {
+        console.log('NEW_CODE_ANALYSIS: Refreshing Analysis Settings subsection');
+        // Settings will be refreshed when tree view refreshes
+    }
+}
+exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
+
+
+/***/ }),
+/* 157 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Analysis File Mode Component
+ * Exports for analysis file mode functionality
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisFileSetting = void 0;
+var analysisFileMode_1 = __webpack_require__(102);
+Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysisFileMode_1.AnalysisFileSetting; } }));
+
+
+/***/ }),
+/* 158 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * View Theme Setting Module
+ * Exports for view theme setting functionality
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ViewThemeSetting = void 0;
+var viewTheme_1 = __webpack_require__(108);
+Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return viewTheme_1.ViewThemeSetting; } }));
+
+
+/***/ }),
+/* 159 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Auto-Analysis Delay Setting Module
+ * Exports for auto-analysis delay setting functionality
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AutoAnalysisDelaySetting = void 0;
+var autoAnalysisDelay_1 = __webpack_require__(109);
+Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return autoAnalysisDelay_1.AutoAnalysisDelaySetting; } }));
+
+
+/***/ }),
+/* 160 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Active Analyses Subsection Module
+ * Exports for active analyses subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesSubsectionProvider = void 0;
+var activeAnalysesSubsectionProvider_1 = __webpack_require__(161);
+Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return activeAnalysesSubsectionProvider_1.ActiveAnalysesSubsectionProvider; } }));
+
+
+/***/ }),
+/* 161 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Active Analyses Subsection Provider
+ * Manages the Active Analyses subsection of New Code Analysis
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesSubsectionProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+class ActiveAnalysesSubsectionProvider {
+    context;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing Active Analyses subsection provider');
+    }
+    /**
+     * Get the subsection header item
+     */
+    getSubsectionItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Active Analyses', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('play-circle'), 'Currently running analysis processes', undefined, 'activeAnalysesSubsection');
+    }
+    /**
+     * Get children for this subsection
+     */
+    async getChildren() {
+        // TODO: Implement active analyses logic
+        return [
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: Analysis Process 1', vscode.TreeItemCollapsibleState.None, 'analysis-result', undefined, new vscode.ThemeIcon('loading~spin'), 'Analysis in progress...', 'Running...', 'activeAnalysisProcess'),
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: Analysis Process 2', vscode.TreeItemCollapsibleState.None, 'analysis-result', undefined, new vscode.ThemeIcon('check'), 'Analysis completed', 'Completed', 'completedAnalysisProcess')
+        ];
+    }
+    /**
+     * Handle refresh for this subsection
+     */
+    refresh() {
+        // TODO: Refresh active analyses data
+        console.log('NEW_CODE_ANALYSIS: Refreshing Active Analyses subsection');
+    }
+}
+exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
+
+
+/***/ }),
+/* 162 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Project by Language Subsection Module
+ * Exports for project by language subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ProjectByLanguageSubsectionProvider = void 0;
+var projectByLanguageSubsectionProvider_1 = __webpack_require__(163);
+Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return projectByLanguageSubsectionProvider_1.ProjectByLanguageSubsectionProvider; } }));
+
+
+/***/ }),
+/* 163 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Project by Language Subsection Provider
+ * Manages the Project by Language subsection of New Code Analysis
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ProjectByLanguageSubsectionProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+class ProjectByLanguageSubsectionProvider {
+    context;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing Project by Language subsection provider');
+    }
+    /**
+     * Get the subsection header item
+     */
+    getSubsectionItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Project by Language', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('symbol-namespace'), 'Project structure organized by programming language', undefined, 'projectByLanguageSubsection');
+    }
+    /**
+     * Get children for this subsection
+     */
+    async getChildren() {
+        // TODO: Implement project by language logic
+        return [
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: TypeScript', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result', undefined, new vscode.ThemeIcon('symbol-class'), 'TypeScript files and modules', '15 files', 'languageGroup'),
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: JavaScript', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result', undefined, new vscode.ThemeIcon('symbol-function'), 'JavaScript files and modules', '8 files', 'languageGroup'),
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: JSON', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result', undefined, new vscode.ThemeIcon('symbol-object'), 'JSON configuration files', '3 files', 'languageGroup')
+        ];
+    }
+    /**
+     * Handle refresh for this subsection
+     */
+    refresh() {
+        // TODO: Refresh project by language data
+        console.log('NEW_CODE_ANALYSIS: Refreshing Project by Language subsection');
+    }
+}
+exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvider;
+
+
+/***/ }),
+/* 164 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Files by Language Subsection Module
+ * Exports for files by language subsection
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSubsectionProvider = void 0;
+var filesByLanguageSubsectionProvider_1 = __webpack_require__(165);
+Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return filesByLanguageSubsectionProvider_1.FilesByLanguageSubsectionProvider; } }));
+
+
+/***/ }),
+/* 165 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Files by Language Subsection Provider
+ * Manages the Files by Language subsection of New Code Analysis
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSubsectionProvider = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(103);
+class FilesByLanguageSubsectionProvider {
+    context;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing Files by Language subsection provider');
+    }
+    /**
+     * Get the subsection header item
+     */
+    getSubsectionItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('files'), 'Individual files organized by programming language', undefined, 'filesByLanguageSubsection');
+    }
+    /**
+     * Get children for this subsection
+     */
+    async getChildren() {
+        // TODO: Implement files by language logic
+        return [
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: TypeScript Files', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result', undefined, new vscode.ThemeIcon('symbol-file'), 'TypeScript source files', '15 files', 'fileLanguageGroup'),
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: JavaScript Files', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result', undefined, new vscode.ThemeIcon('symbol-file'), 'JavaScript source files', '8 files', 'fileLanguageGroup'),
+            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: Configuration Files', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-result', undefined, new vscode.ThemeIcon('symbol-file'), 'JSON and configuration files', '5 files', 'fileLanguageGroup')
+        ];
+    }
+    /**
+     * Handle refresh for this subsection
+     */
+    refresh() {
+        // TODO: Refresh files by language data
+        console.log('NEW_CODE_ANALYSIS: Refreshing Files by Language subsection');
+    }
+}
+exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
+
+
+/***/ }),
+/* 166 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -21395,19 +25284,19 @@ exports.DirectoryScanner = DirectoryScanner;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(116);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(167);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(117);
+var visualizationSettingsItems_1 = __webpack_require__(168);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(118);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(169);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 116 */
+/* 167 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21447,9 +25336,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(117);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(118);
-const settingsStorage_1 = __webpack_require__(50);
+const visualizationSettingsItems_1 = __webpack_require__(168);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(169);
+const settingsStorage_1 = __webpack_require__(49);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
  */
@@ -21537,7 +25426,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 117 */
+/* 168 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21577,7 +25466,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(51);
+const visualizationSettingsItems_1 = __webpack_require__(50);
 /**
  * Visualization Settings tree items for the Visualization Settings section
  */
@@ -21630,7 +25519,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 118 */
+/* 169 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21813,7 +25702,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 119 */
+/* 170 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -21974,7 +25863,58 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 120 */
+/* 171 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Views Module
+ * Exports for view components
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisInteractionHandler = exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = exports.NewCodeAnalysisSectionProvider = void 0;
+var NewCodeAnalysisSectionProvider_1 = __webpack_require__(152);
+Object.defineProperty(exports, "NewCodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider; } }));
+var items_1 = __webpack_require__(172);
+Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisTreeItem; } }));
+Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisItemFactory; } }));
+var interactions_1 = __webpack_require__(173);
+Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return interactions_1.NewCodeAnalysisInteractionHandler; } }));
+
+
+/***/ }),
+/* 172 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Items Module
+ * Exports for view items
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
+var newCodeAnalysisItems_1 = __webpack_require__(103);
+Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisTreeItem; } }));
+Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisItemFactory; } }));
+
+
+/***/ }),
+/* 173 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Interactions Module
+ * Exports for interaction handlers
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NewCodeAnalysisInteractionHandler = void 0;
+var handleNewCodeAnalysisClicks_1 = __webpack_require__(153);
+Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler; } }));
+
+
+/***/ }),
+/* 174 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22015,7 +25955,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModel = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
-const visualizeDataState_1 = __webpack_require__(44);
+const visualizeDataState_1 = __webpack_require__(43);
 /**
  * Visualize Data Model
  * Handles state management and validation for visualize data functionality
@@ -22117,139 +26057,17 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 121 */,
-/* 122 */
+/* 175 */,
+/* 176 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 123 */
+/* 177 */
 /***/ ((module) => {
 
 module.exports = require("node:os");
-
-/***/ }),
-/* 124 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
-const visualizationSettingsCommands_1 = __webpack_require__(125);
-/**
- * Visualization Settings Commands Wrapper
- * Re-exports visualization settings commands for centralized command registration
- */
-/**
- * Registers all visualization settings related commands
- */
-function registerVisualizationSettingsCommands(context) {
-    console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands...');
-    visualizationSettingsCommands_1.VisualizationSettingsCommands.registerCommands(context);
-    console.log('VISUALIZATION-SETTINGS: Visualization settings commands registration complete');
-}
-
-
-/***/ }),
-/* 125 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VisualizationSettingsCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const handleSettingsInteraction_1 = __webpack_require__(53);
-const settingsAccessors_1 = __webpack_require__(55);
-/**
- * Visualization Settings Commands Class
- * Defines what each visualization settings command does
- */
-class VisualizationSettingsCommands {
-    context;
-    interactionHandler;
-    constructor(context) {
-        this.context = context;
-        console.log('VISUALIZATION-SETTINGS: Initializing visualization settings commands...');
-        // Initialize settings accessors for global use
-        (0, settingsAccessors_1.initializeSettingsAccessors)(context);
-        // Initialize the interaction handler
-        this.interactionHandler = new handleSettingsInteraction_1.VisualizationSettingsInteractionHandler(context);
-    }
-    /**
-     * Register all visualization settings commands
-     */
-    static registerCommands(context) {
-        console.log('VISUALIZATION-SETTINGS: Registering visualization settings commands...');
-        const commandsInstance = new VisualizationSettingsCommands(context);
-        commandsInstance.registerAllCommands();
-        console.log('VISUALIZATION-SETTINGS: Visualization settings commands registration complete');
-    }
-    /**
-     * Register individual commands
-     */
-    registerAllCommands() {
-        // Command: Configure setting
-        const configureSettingCmd = vscode.commands.registerCommand('codeXR.visualizationSettings.configure', async (settingKey) => {
-            try {
-                console.log(`VISUALIZATION-SETTINGS: Configure command triggered for: ${settingKey}`);
-                await this.interactionHandler.handleSettingConfiguration(settingKey);
-            }
-            catch (error) {
-                console.error('VISUALIZATION-SETTINGS: Error in configure command:', error);
-                vscode.window.showErrorMessage(`Failed to configure setting: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-        // Register commands with the extension context
-        this.context.subscriptions.push(configureSettingCmd);
-        // Store interaction handler for cleanup
-        this.context.subscriptions.push({
-            dispose: () => this.interactionHandler.dispose()
-        });
-        console.log('VISUALIZATION-SETTINGS: All commands registered successfully');
-    }
-    /**
-     * Dispose of resources
-     */
-    dispose() {
-        this.interactionHandler.dispose();
-    }
-}
-exports.VisualizationSettingsCommands = VisualizationSettingsCommands;
-
 
 /***/ })
 /******/ 	]);
