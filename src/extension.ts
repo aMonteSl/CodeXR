@@ -10,6 +10,7 @@ import { FileWatcherManager } from './code_analysis/runtime/fileWatcherManager';
 import { StatusBarDelayTimer } from './code_analysis/runtime/statusBarDelayTimer';
 import { sseManager } from './servers/runtime/sse/SSEManager';
 import { fileToServerMap } from './utils/fileToServerMap';
+import { ServerWatcherIntegration } from './new_code_analysis/services/serverWatcherIntegration';
 
 // Global context reference for cleanup
 let extensionContext: vscode.ExtensionContext;
@@ -36,6 +37,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		console.log('ACTIVE_SERVERS: Initializing active servers registry');
 		const activeServerRegistry = getActiveServerRegistry();
 		console.log('ACTIVE_SERVERS: Registry initialized');
+
+		// Step 2.5: Initialize server-watcher integration service
+		console.log('SERVER_WATCHER_INTEGRATION: Initializing integration service');
+		ServerWatcherIntegration.initialize();
+		console.log('SERVER_WATCHER_INTEGRATION: Service initialized');
 
 		// Step 3: Register the modular tree view AFTER settings are restored
 		console.log('MODULAR_TREE: Registering modular tree view with all sections');

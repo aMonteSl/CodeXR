@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { AnalysisSessionRegistry, AnalysisType } from '../registry/analysisSessionRegistry';
+import { ServerWatcherIntegration } from '../../services/serverWatcherIntegration';
 
 export interface AnalysisConflictResult {
     canRun: boolean;
@@ -24,37 +25,66 @@ export class CheckIfAnalysisAlreadyRunning {
         analysisType: AnalysisType
     ): AnalysisConflictResult {
         try {
+            console.log(`CHECK_ANALYSIS: ===== STARTING CONFLICT CHECK =====`);
             console.log(`CHECK_ANALYSIS: Checking conflicts for ${analysisType} analysis of: ${filePath}`);
+            console.log(`CHECK_ANALYSIS: File name: ${path.basename(filePath)}`);
             
             const registry = AnalysisSessionRegistry.getInstance();
             const fileName = path.basename(filePath);
             
-            // Get all active sessions (creating or analyzing status)
-            const activeSessions = registry.getActiveSessions();
-            console.log(`CHECK_ANALYSIS: Found ${activeSessions.length} active sessions to check`);
+            // Get all sessions - check ALL sessions regardless of status for conflicts
+            const allSessions = registry.getAllSessions();
+            console.log(`CHECK_ANALYSIS: Found ${allSessions.length} total sessions to check for conflicts`);
             
-            // Find conflicting sessions for the same file and analysis type
+            // Log all sessions
+            console.log(`CHECK_ANALYSIS: All sessions in registry:`);
+            allSessions.forEach((session, index) => {
+                console.log(`CHECK_ANALYSIS: Session ${index + 1}: ID=${session.id}, fileName="${session.fileName}", analysisType="${session.analysisType}", status="${session.status}"`);
+            });
+            
+            // Find conflicting sessions for the same file and analysis type (ANY status)
             const conflictingSessions: string[] = [];
             
-            for (const session of activeSessions) {
-                // Check if it's the same file and same analysis type
-                if (session.filePath === filePath && session.analysisType === analysisType) {
+            console.log(`CHECK_ANALYSIS: Starting detailed comparison for fileName="${fileName}" and analysisType="${analysisType}"...`);
+            for (const session of allSessions) {
+                console.log(`CHECK_ANALYSIS: -----`);
+                console.log(`CHECK_ANALYSIS: Comparing session ${session.id}:`);
+                console.log(`CHECK_ANALYSIS:   - Session fileName: "${session.fileName}"`);
+                console.log(`CHECK_ANALYSIS:   - Target fileName: "${fileName}"`);
+                console.log(`CHECK_ANALYSIS:   - fileName match: ${session.fileName === fileName}`);
+                console.log(`CHECK_ANALYSIS:   - Session analysisType: "${session.analysisType}"`);
+                console.log(`CHECK_ANALYSIS:   - Target analysisType: "${analysisType}"`);
+                console.log(`CHECK_ANALYSIS:   - analysisType match: ${session.analysisType === analysisType}`);
+                console.log(`CHECK_ANALYSIS:   - Session status: "${session.status}"`);
+                
+                // Theory: check if same fileName AND same analysisType
+                const fileNameMatch = session.fileName === fileName;
+                const analysisTypeMatch = session.analysisType === analysisType;
+                
+                console.log(`CHECK_ANALYSIS:   - Both fileName and analysisType match: ${fileNameMatch && analysisTypeMatch}`);
+                
+                if (fileNameMatch && analysisTypeMatch) {
                     conflictingSessions.push(session.id);
-                    console.log(`CHECK_ANALYSIS: Found conflicting session ${session.id} - ${session.analysisType} for ${path.basename(session.filePath)}`);
+                    console.log(`CHECK_ANALYSIS: *** CONFLICT FOUND *** session ${session.id} - ${session.analysisType} for ${session.fileName}`);
+                } else {
+                    console.log(`CHECK_ANALYSIS: No conflict - different ${!fileNameMatch ? 'fileName' : 'analysisType'}`);
                 }
             }
             
             // Determine if analysis can run
             const canRun = conflictingSessions.length === 0;
             
+            console.log(`CHECK_ANALYSIS: ===== CONFLICT CHECK RESULT =====`);
+            console.log(`CHECK_ANALYSIS: Analysis ${canRun ? 'CAN' : 'CANNOT'} run`);
+            console.log(`CHECK_ANALYSIS: Found ${conflictingSessions.length} conflicting sessions: [${conflictingSessions.join(', ')}]`);
+            console.log(`CHECK_ANALYSIS: =====================================`);
+            
             // Generate warning message if conflicts found
             let warningMessage: string | undefined;
             if (!canRun) {
                 const sessionWord = conflictingSessions.length === 1 ? 'session' : 'sessions';
-                warningMessage = `${analysisType} analysis is already running for "${fileName}". Please wait for the current analysis to complete or close it first. Found ${conflictingSessions.length} conflicting ${sessionWord}.`;
+                warningMessage = `${analysisType} analysis already exists for "${fileName}". Only one analysis per file and type is allowed. Found ${conflictingSessions.length} existing ${sessionWord}.`;
             }
-            
-            console.log(`CHECK_ANALYSIS: Analysis ${canRun ? 'CAN' : 'CANNOT'} run - ${conflictingSessions.length} conflicts found`);
             
             return {
                 canRun,
@@ -130,18 +160,28 @@ export class CheckIfAnalysisAlreadyRunning {
             const action = await vscode.window.showWarningMessage(
                 conflictResult.warningMessage!,
                 { modal: true },
-                'Cancel',
-                'Force Start Anyway',
-                'View Active Sessions'
+                'Force Restart',
+                'View Existing Sessions'
             );
             
-            if (action === 'Force Start Anyway') {
-                console.log(`CHECK_ANALYSIS: User chose to force start analysis despite conflicts`);
-                return true;
-            } else if (action === 'View Active Sessions') {
+            if (action === 'Force Restart') {
+                console.log(`CHECK_ANALYSIS: User chose to force restart - closing existing sessions first`);
+                
+                // Close all conflicting sessions before allowing new analysis
+                const closeSuccess = await this.stopConflictingSessions(conflictResult.conflictingSessions);
+                
+                if (closeSuccess) {
+                    console.log(`CHECK_ANALYSIS: Successfully closed ${conflictResult.conflictingSessions.length} existing sessions`);
+                    return true; // Proceed with new analysis
+                } else {
+                    console.log(`CHECK_ANALYSIS: Failed to close some existing sessions`);
+                    vscode.window.showErrorMessage('Failed to close existing analysis sessions. Please try again.');
+                    return false;
+                }
+            } else if (action === 'View Existing Sessions') {
                 // Show information about conflicting sessions
                 const conflictInfo = this.getConflictingSessionsInfo(conflictResult.conflictingSessions);
-                let infoMessage = `Active sessions for ${path.basename(filePath)}:\n\n`;
+                let infoMessage = `Existing sessions for ${path.basename(filePath)}:\n\n`;
                 
                 for (const info of conflictInfo) {
                     infoMessage += `• ${info.analysisType} (${info.status}) - Started: ${info.startTime.toLocaleTimeString()}`;
@@ -154,8 +194,8 @@ export class CheckIfAnalysisAlreadyRunning {
                 await vscode.window.showInformationMessage(infoMessage, { modal: true });
                 return false; // Don't proceed after showing info
             } else {
-                console.log(`CHECK_ANALYSIS: User cancelled analysis due to conflicts`);
-                return false; // Cancel or closed dialog
+                console.log(`CHECK_ANALYSIS: User cancelled analysis (closed dialog)`);
+                return false; // Closed dialog or no action
             }
             
         } catch (error) {
@@ -166,28 +206,39 @@ export class CheckIfAnalysisAlreadyRunning {
     }
 
     /**
-     * Stop conflicting sessions if user requests it
+     * Stop conflicting sessions using comprehensive cleanup
      */
     static async stopConflictingSessions(sessionIds: string[]): Promise<boolean> {
         try {
-            const registry = AnalysisSessionRegistry.getInstance();
-            let stoppedCount = 0;
+            console.log(`CHECK_ANALYSIS: Stopping ${sessionIds.length} conflicting sessions with full cleanup...`);
+            
+            const integrationService = ServerWatcherIntegration.getInstance();
+            let successCount = 0;
             
             for (const sessionId of sessionIds) {
-                const success = registry.closeSession(sessionId);
+                console.log(`CHECK_ANALYSIS: Cleaning up session ${sessionId}...`);
+                const success = await integrationService.triggerManualCleanup(sessionId);
+                
                 if (success) {
-                    stoppedCount++;
-                    console.log(`CHECK_ANALYSIS: Stopped conflicting session: ${sessionId}`);
+                    successCount++;
+                    console.log(`CHECK_ANALYSIS: Successfully cleaned up session: ${sessionId}`);
+                } else {
+                    console.warn(`CHECK_ANALYSIS: Failed to clean up session: ${sessionId}`);
                 }
             }
             
-            if (stoppedCount > 0) {
+            if (successCount > 0) {
+                const sessionWord = successCount === 1 ? 'session' : 'sessions';
                 vscode.window.showInformationMessage(
-                    `Stopped ${stoppedCount} conflicting analysis session${stoppedCount === 1 ? '' : 's'}.`
+                    `Closed ${successCount} existing analysis ${sessionWord} and their servers.`
                 );
             }
             
-            return stoppedCount === sessionIds.length;
+            // Return true if all sessions were successfully cleaned up
+            const allSuccess = successCount === sessionIds.length;
+            console.log(`CHECK_ANALYSIS: Cleanup summary: ${successCount}/${sessionIds.length} sessions cleaned up successfully`);
+            
+            return allSuccess;
             
         } catch (error) {
             console.error(`CHECK_ANALYSIS: Error stopping conflicting sessions:`, error);

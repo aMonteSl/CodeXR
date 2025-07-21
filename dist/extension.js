@@ -43,16 +43,17 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
 const index_1 = __webpack_require__(2);
-const views_1 = __webpack_require__(131);
-const commonCommands_1 = __webpack_require__(129);
+const views_1 = __webpack_require__(132);
+const commonCommands_1 = __webpack_require__(130);
 const serverSettingsManager_1 = __webpack_require__(11);
 const activeServerRegistry_1 = __webpack_require__(26);
-const visualizeDataModel_1 = __webpack_require__(191);
+const visualizeDataModel_1 = __webpack_require__(196);
 const tempStorageManager_1 = __webpack_require__(67);
-const fileWatcherManager_1 = __webpack_require__(164);
-const statusBarDelayTimer_1 = __webpack_require__(165);
+const fileWatcherManager_1 = __webpack_require__(165);
+const statusBarDelayTimer_1 = __webpack_require__(166);
 const SSEManager_1 = __webpack_require__(18);
 const fileToServerMap_1 = __webpack_require__(20);
+const serverWatcherIntegration_1 = __webpack_require__(111);
 // Global context reference for cleanup
 let extensionContext;
 // This method is called when your extension is activated
@@ -73,6 +74,10 @@ async function activate(context) {
         console.log('ACTIVE_SERVERS: Initializing active servers registry');
         const activeServerRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
         console.log('ACTIVE_SERVERS: Registry initialized');
+        // Step 2.5: Initialize server-watcher integration service
+        console.log('SERVER_WATCHER_INTEGRATION: Initializing integration service');
+        serverWatcherIntegration_1.ServerWatcherIntegration.initialize();
+        console.log('SERVER_WATCHER_INTEGRATION: Service initialized');
         // Step 3: Register the modular tree view AFTER settings are restored
         console.log('MODULAR_TREE: Registering modular tree view with all sections');
         const modularTreeDataProvider = new views_1.ModularTreeDataProvider(context);
@@ -206,9 +211,9 @@ const visualizeDataCommands_1 = __webpack_require__(38);
 const analysisCommands_1 = __webpack_require__(59);
 const newCodeAnalysisCommands_1 = __webpack_require__(72);
 const pythonEnvCommands_1 = __webpack_require__(94);
-const visualizationSettingsCommands_1 = __webpack_require__(126);
-const generalCommands_1 = __webpack_require__(128);
-const debugThemeProblem_1 = __webpack_require__(130);
+const visualizationSettingsCommands_1 = __webpack_require__(127);
+const generalCommands_1 = __webpack_require__(129);
+const debugThemeProblem_1 = __webpack_require__(131);
 /**
  * Entry point that registers all extension commands
  */
@@ -4153,7 +4158,7 @@ class PortManager {
         }
         try {
             // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 192))).default;
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 197))).default;
             // Create a range array for get-port - limit to reasonable range for performance
             const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
             const ports = [];
@@ -13526,11 +13531,11 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisCommands = void 0;
 const subsections_1 = __webpack_require__(74);
 const file_analysis_1 = __webpack_require__(85);
-const clean_analysis_1 = __webpack_require__(114);
-const dom_visualization_1 = __webpack_require__(116);
-const analysisFileMode_1 = __webpack_require__(119);
-const viewTheme_1 = __webpack_require__(124);
-const autoAnalysisDelay_1 = __webpack_require__(125);
+const clean_analysis_1 = __webpack_require__(115);
+const dom_visualization_1 = __webpack_require__(117);
+const analysisFileMode_1 = __webpack_require__(120);
+const viewTheme_1 = __webpack_require__(125);
+const autoAnalysisDelay_1 = __webpack_require__(126);
 /**
  * Main command coordinator for New Code Analysis
  * Follows the "nested dolls" pattern: collects all command registrations
@@ -14281,7 +14286,7 @@ var fileAnalysisCommands_1 = __webpack_require__(86);
 Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
 var fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
 Object.defineProperty(exports, "FileAnalysisLivePanelCommands", ({ enumerable: true, get: function () { return fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands; } }));
-var fileAnalysisXRCommands_1 = __webpack_require__(112);
+var fileAnalysisXRCommands_1 = __webpack_require__(113);
 Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, get: function () { return fileAnalysisXRCommands_1.FileAnalysisXRCommands; } }));
 
 
@@ -14298,7 +14303,7 @@ Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisCommands = void 0;
 const fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
-const fileAnalysisXRCommands_1 = __webpack_require__(112);
+const fileAnalysisXRCommands_1 = __webpack_require__(113);
 class FileAnalysisCommands {
     /**
      * Register all file analysis commands (coordinates LivePanel and XR)
@@ -14433,7 +14438,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchVisualizeDOMPanel = exports.LaunchAnalyzeFileLivePanel = void 0;
 var launchAnalyzeFileLivePanel_1 = __webpack_require__(89);
 Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
-var launchVisualizeDOMPanel_1 = __webpack_require__(111);
+var launchVisualizeDOMPanel_1 = __webpack_require__(112);
 Object.defineProperty(exports, "LaunchVisualizeDOMPanel", ({ enumerable: true, get: function () { return launchVisualizeDOMPanel_1.LaunchVisualizeDOMPanel; } }));
 var utils_1 = __webpack_require__(92);
 Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
@@ -17110,7 +17115,7 @@ class AnalysisSessionRegistry {
         return this.sessions.get(sessionId);
     }
     /**
-     * Get all active sessions (creating or analyzing)
+     * Get all active sessions (creating or analyzing, excluding closing)
      */
     getActiveSessions() {
         return Array.from(this.sessions.values()).filter(session => session.status === 'creating' || session.status === 'analyzing');
@@ -17734,6 +17739,10 @@ class FileWatcher {
                 if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
                     console.log(`FILE_WATCHER: DOM analysis completed successfully`);
                     await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after DOM analysis`);
                 }
                 else {
                     console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
@@ -17748,6 +17757,10 @@ class FileWatcher {
                 if (analysisResult.success && analysisResult.data) {
                     console.log(`FILE_WATCHER: XR analysis completed successfully`);
                     await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after XR analysis`);
                 }
                 else {
                     console.error(`FILE_WATCHER: XR analysis failed:`, analysisResult.error);
@@ -17773,6 +17786,10 @@ class FileWatcher {
                     catch (sseError) {
                         console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
                     }
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS AND SSE NOTIFICATION**
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after LivePanel analysis and SSE notification`);
                     // Show success message
                     vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(session.filePath)}`);
                 }
@@ -18950,6 +18967,7 @@ exports.CheckIfAnalysisAlreadyRunning = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const analysisSessionRegistry_1 = __webpack_require__(101);
+const serverWatcherIntegration_1 = __webpack_require__(111);
 class CheckIfAnalysisAlreadyRunning {
     /**
      * Check if analysis can be started for given file and type
@@ -18957,30 +18975,56 @@ class CheckIfAnalysisAlreadyRunning {
      */
     static checkAnalysisConflict(filePath, analysisType) {
         try {
+            console.log(`CHECK_ANALYSIS: ===== STARTING CONFLICT CHECK =====`);
             console.log(`CHECK_ANALYSIS: Checking conflicts for ${analysisType} analysis of: ${filePath}`);
+            console.log(`CHECK_ANALYSIS: File name: ${path.basename(filePath)}`);
             const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
             const fileName = path.basename(filePath);
-            // Get all active sessions (creating or analyzing status)
-            const activeSessions = registry.getActiveSessions();
-            console.log(`CHECK_ANALYSIS: Found ${activeSessions.length} active sessions to check`);
-            // Find conflicting sessions for the same file and analysis type
+            // Get all sessions - check ALL sessions regardless of status for conflicts
+            const allSessions = registry.getAllSessions();
+            console.log(`CHECK_ANALYSIS: Found ${allSessions.length} total sessions to check for conflicts`);
+            // Log all sessions
+            console.log(`CHECK_ANALYSIS: All sessions in registry:`);
+            allSessions.forEach((session, index) => {
+                console.log(`CHECK_ANALYSIS: Session ${index + 1}: ID=${session.id}, fileName="${session.fileName}", analysisType="${session.analysisType}", status="${session.status}"`);
+            });
+            // Find conflicting sessions for the same file and analysis type (ANY status)
             const conflictingSessions = [];
-            for (const session of activeSessions) {
-                // Check if it's the same file and same analysis type
-                if (session.filePath === filePath && session.analysisType === analysisType) {
+            console.log(`CHECK_ANALYSIS: Starting detailed comparison for fileName="${fileName}" and analysisType="${analysisType}"...`);
+            for (const session of allSessions) {
+                console.log(`CHECK_ANALYSIS: -----`);
+                console.log(`CHECK_ANALYSIS: Comparing session ${session.id}:`);
+                console.log(`CHECK_ANALYSIS:   - Session fileName: "${session.fileName}"`);
+                console.log(`CHECK_ANALYSIS:   - Target fileName: "${fileName}"`);
+                console.log(`CHECK_ANALYSIS:   - fileName match: ${session.fileName === fileName}`);
+                console.log(`CHECK_ANALYSIS:   - Session analysisType: "${session.analysisType}"`);
+                console.log(`CHECK_ANALYSIS:   - Target analysisType: "${analysisType}"`);
+                console.log(`CHECK_ANALYSIS:   - analysisType match: ${session.analysisType === analysisType}`);
+                console.log(`CHECK_ANALYSIS:   - Session status: "${session.status}"`);
+                // Theory: check if same fileName AND same analysisType
+                const fileNameMatch = session.fileName === fileName;
+                const analysisTypeMatch = session.analysisType === analysisType;
+                console.log(`CHECK_ANALYSIS:   - Both fileName and analysisType match: ${fileNameMatch && analysisTypeMatch}`);
+                if (fileNameMatch && analysisTypeMatch) {
                     conflictingSessions.push(session.id);
-                    console.log(`CHECK_ANALYSIS: Found conflicting session ${session.id} - ${session.analysisType} for ${path.basename(session.filePath)}`);
+                    console.log(`CHECK_ANALYSIS: *** CONFLICT FOUND *** session ${session.id} - ${session.analysisType} for ${session.fileName}`);
+                }
+                else {
+                    console.log(`CHECK_ANALYSIS: No conflict - different ${!fileNameMatch ? 'fileName' : 'analysisType'}`);
                 }
             }
             // Determine if analysis can run
             const canRun = conflictingSessions.length === 0;
+            console.log(`CHECK_ANALYSIS: ===== CONFLICT CHECK RESULT =====`);
+            console.log(`CHECK_ANALYSIS: Analysis ${canRun ? 'CAN' : 'CANNOT'} run`);
+            console.log(`CHECK_ANALYSIS: Found ${conflictingSessions.length} conflicting sessions: [${conflictingSessions.join(', ')}]`);
+            console.log(`CHECK_ANALYSIS: =====================================`);
             // Generate warning message if conflicts found
             let warningMessage;
             if (!canRun) {
                 const sessionWord = conflictingSessions.length === 1 ? 'session' : 'sessions';
-                warningMessage = `${analysisType} analysis is already running for "${fileName}". Please wait for the current analysis to complete or close it first. Found ${conflictingSessions.length} conflicting ${sessionWord}.`;
+                warningMessage = `${analysisType} analysis already exists for "${fileName}". Only one analysis per file and type is allowed. Found ${conflictingSessions.length} existing ${sessionWord}.`;
             }
-            console.log(`CHECK_ANALYSIS: Analysis ${canRun ? 'CAN' : 'CANNOT'} run - ${conflictingSessions.length} conflicts found`);
             return {
                 canRun,
                 conflictingSessions,
@@ -19035,15 +19079,25 @@ class CheckIfAnalysisAlreadyRunning {
                 return true; // No conflicts, proceed
             }
             // Show warning dialog with options
-            const action = await vscode.window.showWarningMessage(conflictResult.warningMessage, { modal: true }, 'Cancel', 'Force Start Anyway', 'View Active Sessions');
-            if (action === 'Force Start Anyway') {
-                console.log(`CHECK_ANALYSIS: User chose to force start analysis despite conflicts`);
-                return true;
+            const action = await vscode.window.showWarningMessage(conflictResult.warningMessage, { modal: true }, 'Force Restart', 'View Existing Sessions');
+            if (action === 'Force Restart') {
+                console.log(`CHECK_ANALYSIS: User chose to force restart - closing existing sessions first`);
+                // Close all conflicting sessions before allowing new analysis
+                const closeSuccess = await this.stopConflictingSessions(conflictResult.conflictingSessions);
+                if (closeSuccess) {
+                    console.log(`CHECK_ANALYSIS: Successfully closed ${conflictResult.conflictingSessions.length} existing sessions`);
+                    return true; // Proceed with new analysis
+                }
+                else {
+                    console.log(`CHECK_ANALYSIS: Failed to close some existing sessions`);
+                    vscode.window.showErrorMessage('Failed to close existing analysis sessions. Please try again.');
+                    return false;
+                }
             }
-            else if (action === 'View Active Sessions') {
+            else if (action === 'View Existing Sessions') {
                 // Show information about conflicting sessions
                 const conflictInfo = this.getConflictingSessionsInfo(conflictResult.conflictingSessions);
-                let infoMessage = `Active sessions for ${path.basename(filePath)}:\n\n`;
+                let infoMessage = `Existing sessions for ${path.basename(filePath)}:\n\n`;
                 for (const info of conflictInfo) {
                     infoMessage += `• ${info.analysisType} (${info.status}) - Started: ${info.startTime.toLocaleTimeString()}`;
                     if (info.progress !== undefined) {
@@ -19055,8 +19109,8 @@ class CheckIfAnalysisAlreadyRunning {
                 return false; // Don't proceed after showing info
             }
             else {
-                console.log(`CHECK_ANALYSIS: User cancelled analysis due to conflicts`);
-                return false; // Cancel or closed dialog
+                console.log(`CHECK_ANALYSIS: User cancelled analysis (closed dialog)`);
+                return false; // Closed dialog or no action
             }
         }
         catch (error) {
@@ -19066,23 +19120,32 @@ class CheckIfAnalysisAlreadyRunning {
         }
     }
     /**
-     * Stop conflicting sessions if user requests it
+     * Stop conflicting sessions using comprehensive cleanup
      */
     static async stopConflictingSessions(sessionIds) {
         try {
-            const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-            let stoppedCount = 0;
+            console.log(`CHECK_ANALYSIS: Stopping ${sessionIds.length} conflicting sessions with full cleanup...`);
+            const integrationService = serverWatcherIntegration_1.ServerWatcherIntegration.getInstance();
+            let successCount = 0;
             for (const sessionId of sessionIds) {
-                const success = registry.closeSession(sessionId);
+                console.log(`CHECK_ANALYSIS: Cleaning up session ${sessionId}...`);
+                const success = await integrationService.triggerManualCleanup(sessionId);
                 if (success) {
-                    stoppedCount++;
-                    console.log(`CHECK_ANALYSIS: Stopped conflicting session: ${sessionId}`);
+                    successCount++;
+                    console.log(`CHECK_ANALYSIS: Successfully cleaned up session: ${sessionId}`);
+                }
+                else {
+                    console.warn(`CHECK_ANALYSIS: Failed to clean up session: ${sessionId}`);
                 }
             }
-            if (stoppedCount > 0) {
-                vscode.window.showInformationMessage(`Stopped ${stoppedCount} conflicting analysis session${stoppedCount === 1 ? '' : 's'}.`);
+            if (successCount > 0) {
+                const sessionWord = successCount === 1 ? 'session' : 'sessions';
+                vscode.window.showInformationMessage(`Closed ${successCount} existing analysis ${sessionWord} and their servers.`);
             }
-            return stoppedCount === sessionIds.length;
+            // Return true if all sessions were successfully cleaned up
+            const allSuccess = successCount === sessionIds.length;
+            console.log(`CHECK_ANALYSIS: Cleanup summary: ${successCount}/${sessionIds.length} sessions cleaned up successfully`);
+            return allSuccess;
         }
         catch (error) {
             console.error(`CHECK_ANALYSIS: Error stopping conflicting sessions:`, error);
@@ -19095,6 +19158,256 @@ exports.CheckIfAnalysisAlreadyRunning = CheckIfAnalysisAlreadyRunning;
 
 /***/ }),
 /* 111 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Server-Watcher Integration Service
+ * Manages communication between servers and file watchers for cleanup coordination
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServerWatcherIntegration = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisSessionRegistry_1 = __webpack_require__(101);
+const fileWatcher_1 = __webpack_require__(104);
+const activeServerRegistry_1 = __webpack_require__(26);
+const serverControl_1 = __webpack_require__(28);
+const fs = __importStar(__webpack_require__(6));
+class ServerWatcherIntegration {
+    static instance;
+    constructor() {
+        console.log('SERVER_WATCHER_INTEGRATION: Initializing service');
+        this.setupServerEventListeners();
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance() {
+        if (!ServerWatcherIntegration.instance) {
+            ServerWatcherIntegration.instance = new ServerWatcherIntegration();
+        }
+        return ServerWatcherIntegration.instance;
+    }
+    /**
+     * Setup listeners for server events
+     */
+    setupServerEventListeners() {
+        try {
+            console.log('SERVER_WATCHER_INTEGRATION: Setting up server event listeners');
+            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            // Listen for server registry changes
+            serverRegistry.onRegistryChange((event) => {
+                if (event.type === 'serverRemoved') {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Server removed event detected: ${event.serverId}`);
+                    this.handleServerRemoved(event.serverId, event.server);
+                }
+            });
+            console.log('SERVER_WATCHER_INTEGRATION: Server event listeners setup complete');
+        }
+        catch (error) {
+            console.error('SERVER_WATCHER_INTEGRATION: Error setting up server event listeners:', error);
+        }
+    }
+    /**
+     * Handle server removal - cleanup associated analysis sessions
+     */
+    async handleServerRemoved(serverId, server) {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Handling server removal: ${serverId} on port ${server.port}`);
+            // Find analysis sessions that were using this server
+            const sessionRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+            const allSessions = sessionRegistry.getAllSessions();
+            const affectedSessions = allSessions.filter((session) => {
+                // Check if session has the same port (indicating it was using this server)
+                return session.port === server.port;
+            });
+            console.log(`SERVER_WATCHER_INTEGRATION: Found ${affectedSessions.length} affected sessions for server ${serverId}`);
+            // Cleanup each affected session
+            for (const session of affectedSessions) {
+                await this.cleanupSessionAfterServerClosure(session.id, server.port);
+            }
+        }
+        catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error handling server removal:`, error);
+        }
+    }
+    /**
+     * Cleanup session after server closure
+     */
+    async cleanupSessionAfterServerClosure(sessionId, serverPort) {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Cleaning up session ${sessionId} after server closure (port ${serverPort})`);
+            const sessionRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+            const session = sessionRegistry.getSession(sessionId);
+            if (!session) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Session ${sessionId} not found`);
+                return;
+            }
+            // 1. Stop file watcher
+            await this.stopFileWatcherForSession(sessionId, session.filePath);
+            // 2. Cleanup analysis files
+            await this.cleanupAnalysisFiles(session.outputPath);
+            // 3. Close the session
+            sessionRegistry.closeSession(sessionId);
+            // 4. Show notification to user
+            vscode.window.showInformationMessage(`🗑️ Analysis cleaned up: ${session.fileName} - ${session.analysisType} (server on port ${serverPort} was closed)`);
+            console.log(`SERVER_WATCHER_INTEGRATION: Successfully cleaned up session ${sessionId}`);
+        }
+        catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error cleaning up session ${sessionId}:`, error);
+        }
+    }
+    /**
+     * Stop file watcher for a session
+     */
+    async stopFileWatcherForSession(sessionId, filePath) {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Stopping file watcher for session ${sessionId}, file: ${filePath}`);
+            // Get all active watchers and find the one for this session
+            const watchersInfo = fileWatcher_1.FileWatcher.getActiveWatchersInfo();
+            // Find watcher by file path
+            const watcherInfo = watchersInfo.find((w) => w.filePath === filePath);
+            if (watcherInfo) {
+                const stopped = fileWatcher_1.FileWatcher.stopWatching(watcherInfo.id);
+                if (stopped) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped file watcher ${watcherInfo.id}`);
+                }
+                else {
+                    console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop file watcher ${watcherInfo.id}`);
+                }
+            }
+            else {
+                console.log(`SERVER_WATCHER_INTEGRATION: No file watcher found for file: ${filePath}`);
+            }
+        }
+        catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher:`, error);
+        }
+    }
+    /**
+     * Cleanup analysis files
+     */
+    async cleanupAnalysisFiles(outputPath) {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Cleaning up analysis files at: ${outputPath}`);
+            if (fs.existsSync(outputPath)) {
+                // Remove the directory and all its contents
+                await fs.promises.rm(outputPath, { recursive: true, force: true });
+                console.log(`SERVER_WATCHER_INTEGRATION: Successfully removed analysis directory: ${outputPath}`);
+            }
+            else {
+                console.log(`SERVER_WATCHER_INTEGRATION: Analysis directory does not exist: ${outputPath}`);
+            }
+        }
+        catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error cleaning up analysis files:`, error);
+        }
+    }
+    /**
+     * Manual cleanup trigger (for when user closes analysis from UI)
+     */
+    async triggerManualCleanup(sessionId) {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Manual cleanup triggered for session ${sessionId}`);
+            const sessionRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+            const session = sessionRegistry.getSession(sessionId);
+            if (!session) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Session ${sessionId} not found for manual cleanup`);
+                return false;
+            }
+            // 1. Stop related server if it exists
+            if (session.port) {
+                await this.stopServerByPort(session.port);
+            }
+            // 2. Stop file watcher
+            await this.stopFileWatcherForSession(sessionId, session.filePath);
+            // 3. Cleanup analysis files  
+            await this.cleanupAnalysisFiles(session.outputPath);
+            // 4. Close the session
+            const closed = sessionRegistry.closeSession(sessionId);
+            console.log(`SERVER_WATCHER_INTEGRATION: Manual cleanup completed for session ${sessionId}: ${closed}`);
+            return closed;
+        }
+        catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error in manual cleanup:`, error);
+            return false;
+        }
+    }
+    /**
+     * Stop server by port
+     */
+    async stopServerByPort(port) {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Stopping server on port ${port}`);
+            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            // Find server by port
+            const servers = serverRegistry.getAllServers();
+            const targetServer = servers.find(server => server.port === port);
+            if (targetServer) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Found server ${targetServer.id} on port ${port}`);
+                // Stop the server using ServerControl
+                const stopped = await serverControl_1.ServerControl.stopServer(targetServer.id);
+                if (stopped) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped server ${targetServer.id}`);
+                }
+                else {
+                    console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop server ${targetServer.id}`);
+                }
+            }
+            else {
+                console.log(`SERVER_WATCHER_INTEGRATION: No server found on port ${port}`);
+            }
+        }
+        catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error stopping server by port:`, error);
+        }
+    }
+    /**
+     * Initialize the service (to be called from extension activation)
+     */
+    static initialize() {
+        ServerWatcherIntegration.getInstance();
+        console.log('SERVER_WATCHER_INTEGRATION: Service initialized');
+    }
+}
+exports.ServerWatcherIntegration = ServerWatcherIntegration;
+
+
+/***/ }),
+/* 112 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19295,7 +19608,7 @@ exports.LaunchVisualizeDOMPanel = LaunchVisualizeDOMPanel;
 
 
 /***/ }),
-/* 112 */
+/* 113 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19339,7 +19652,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisXRCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const launchAnalyzeFileXR_1 = __webpack_require__(113);
+const launchAnalyzeFileXR_1 = __webpack_require__(114);
 class FileAnalysisXRCommands {
     context;
     constructor(context) {
@@ -19394,7 +19707,7 @@ exports.FileAnalysisXRCommands = FileAnalysisXRCommands;
 
 
 /***/ }),
-/* 113 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19595,7 +19908,7 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
 
 
 /***/ }),
-/* 114 */
+/* 115 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19605,12 +19918,12 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
-var cleanAnalysisCommands_1 = __webpack_require__(115);
+var cleanAnalysisCommands_1 = __webpack_require__(116);
 Object.defineProperty(exports, "CleanAnalysisCommands", ({ enumerable: true, get: function () { return cleanAnalysisCommands_1.CleanAnalysisCommands; } }));
 
 
 /***/ }),
-/* 115 */
+/* 116 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19733,7 +20046,7 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
 
 
 /***/ }),
-/* 116 */
+/* 117 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19743,12 +20056,12 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
-var domVisualizationCommands_1 = __webpack_require__(117);
+var domVisualizationCommands_1 = __webpack_require__(118);
 Object.defineProperty(exports, "DOMVisualizationCommands", ({ enumerable: true, get: function () { return domVisualizationCommands_1.DOMVisualizationCommands; } }));
 
 
 /***/ }),
-/* 117 */
+/* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19793,7 +20106,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const engine_1 = __webpack_require__(88);
-const uriPathConverter_1 = __webpack_require__(118);
+const uriPathConverter_1 = __webpack_require__(119);
 class DOMVisualizationCommands {
     context;
     constructor(context) {
@@ -19880,7 +20193,7 @@ exports.DOMVisualizationCommands = DOMVisualizationCommands;
 
 
 /***/ }),
-/* 118 */
+/* 119 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20031,7 +20344,7 @@ function isValidFileSystemPath(path) {
 
 
 /***/ }),
-/* 119 */
+/* 120 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20075,8 +20388,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
-const configuration_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+const configuration_1 = __webpack_require__(122);
 class AnalysisFileSetting {
     context;
     currentMode = 'XR'; // Default mode (will be loaded from storage)
@@ -20158,7 +20471,7 @@ exports.AnalysisFileSetting = AnalysisFileSetting;
 
 
 /***/ }),
-/* 120 */
+/* 121 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20257,7 +20570,7 @@ exports.NewCodeAnalysisItemFactory = NewCodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 121 */
+/* 122 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20283,14 +20596,14 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.testConfigurationChanges = exports.debugConfiguration = exports.AnalysisConfigurationStorage = void 0;
 var analysisConfigurationStorage_1 = __webpack_require__(106);
 Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
-var debugConfiguration_1 = __webpack_require__(122);
+var debugConfiguration_1 = __webpack_require__(123);
 Object.defineProperty(exports, "debugConfiguration", ({ enumerable: true, get: function () { return debugConfiguration_1.debugConfiguration; } }));
 Object.defineProperty(exports, "testConfigurationChanges", ({ enumerable: true, get: function () { return debugConfiguration_1.testConfigurationChanges; } }));
-__exportStar(__webpack_require__(123), exports);
+__exportStar(__webpack_require__(124), exports);
 
 
 /***/ }),
-/* 122 */
+/* 123 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20376,7 +20689,7 @@ async function testConfigurationChanges(context) {
 
 
 /***/ }),
-/* 123 */
+/* 124 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20392,7 +20705,7 @@ Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true
 
 
 /***/ }),
-/* 124 */
+/* 125 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20436,8 +20749,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
-const configuration_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+const configuration_1 = __webpack_require__(122);
 class ViewThemeSetting {
     context;
     currentTheme = 'Dark';
@@ -20530,7 +20843,7 @@ exports.ViewThemeSetting = ViewThemeSetting;
 
 
 /***/ }),
-/* 125 */
+/* 126 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20574,8 +20887,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
-const configuration_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+const configuration_1 = __webpack_require__(122);
 class AutoAnalysisDelaySetting {
     context;
     currentDelayConfig = { type: 'RealTime' };
@@ -20725,13 +21038,13 @@ exports.AutoAnalysisDelaySetting = AutoAnalysisDelaySetting;
 
 
 /***/ }),
-/* 126 */
+/* 127 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
-const visualizationSettingsCommands_1 = __webpack_require__(127);
+const visualizationSettingsCommands_1 = __webpack_require__(128);
 /**
  * Visualization Settings Commands Wrapper
  * Re-exports visualization settings commands for centralized command registration
@@ -20747,7 +21060,7 @@ function registerVisualizationSettingsCommands(context) {
 
 
 /***/ }),
-/* 127 */
+/* 128 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20847,7 +21160,7 @@ exports.VisualizationSettingsCommands = VisualizationSettingsCommands;
 
 
 /***/ }),
-/* 128 */
+/* 129 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20887,7 +21200,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerGeneralCommands = registerGeneralCommands;
 const vscode = __importStar(__webpack_require__(1));
-const commonCommands_1 = __webpack_require__(129);
+const commonCommands_1 = __webpack_require__(130);
 /**
  * Register general/common commands used throughout the extension
  */
@@ -20915,7 +21228,7 @@ function registerGeneralCommands(context) {
 
 
 /***/ }),
-/* 129 */
+/* 130 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21001,7 +21314,7 @@ exports.CommonCommands = CommonCommands;
 
 
 /***/ }),
-/* 130 */
+/* 131 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21197,7 +21510,7 @@ exports.DebugThemeProblem = DebugThemeProblem;
 
 
 /***/ }),
-/* 131 */
+/* 132 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21222,24 +21535,24 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 // Main modular tree provider
-var ModularTreeDataProvider_1 = __webpack_require__(132);
+var ModularTreeDataProvider_1 = __webpack_require__(133);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
-__exportStar(__webpack_require__(133), exports);
-__exportStar(__webpack_require__(187), exports);
-// Section providers
 __exportStar(__webpack_require__(134), exports);
-__exportStar(__webpack_require__(138), exports);
-__exportStar(__webpack_require__(142), exports);
-__exportStar(__webpack_require__(147), exports);
-__exportStar(__webpack_require__(153), exports);
-__exportStar(__webpack_require__(183), exports);
-// New code analysis views (experimental)
+__exportStar(__webpack_require__(192), exports);
+// Section providers
+__exportStar(__webpack_require__(135), exports);
+__exportStar(__webpack_require__(139), exports);
+__exportStar(__webpack_require__(143), exports);
+__exportStar(__webpack_require__(148), exports);
+__exportStar(__webpack_require__(154), exports);
 __exportStar(__webpack_require__(188), exports);
+// New code analysis views (experimental)
+__exportStar(__webpack_require__(193), exports);
 
 
 /***/ }),
-/* 132 */
+/* 133 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21279,14 +21592,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const baseInterfaces_1 = __webpack_require__(133);
-const servers_1 = __webpack_require__(134);
-const active_servers_1 = __webpack_require__(138);
-const babia_examples_1 = __webpack_require__(142);
-const visualize_data_1 = __webpack_require__(147);
-const code_analysis_1 = __webpack_require__(153);
-const NewCodeAnalysisSectionProvider_1 = __webpack_require__(169);
-const visualization_settings_1 = __webpack_require__(183);
+const baseInterfaces_1 = __webpack_require__(134);
+const servers_1 = __webpack_require__(135);
+const active_servers_1 = __webpack_require__(139);
+const babia_examples_1 = __webpack_require__(143);
+const visualize_data_1 = __webpack_require__(148);
+const code_analysis_1 = __webpack_require__(154);
+const NewCodeAnalysisSectionProvider_1 = __webpack_require__(170);
+const visualization_settings_1 = __webpack_require__(188);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -21442,37 +21755,37 @@ class ModularTreeDataProvider {
         switch (sectionName) {
             case 'SERVERS':
                 // Import and create ServerTreeItem
-                const { ServerTreeItem } = __webpack_require__(136);
+                const { ServerTreeItem } = __webpack_require__(137);
                 const serverItem = new ServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.serverItemType || 'config-option', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return serverItem;
             case 'activeServers':
                 // Import and create ActiveServerTreeItem
-                const { ActiveServerTreeItem } = __webpack_require__(140);
+                const { ActiveServerTreeItem } = __webpack_require__(141);
                 const activeServerItem = new ActiveServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.activeServerItemType || 'server-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.activeServer);
                 return activeServerItem;
             case 'babiaExamples':
                 // Import and create BabiaExampleTreeItem
-                const { BabiaExampleTreeItem } = __webpack_require__(144);
+                const { BabiaExampleTreeItem } = __webpack_require__(145);
                 const babiaItem = new BabiaExampleTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.babiaItemType || 'example-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.babiaExample);
                 return babiaItem;
             case 'visualizeData':
                 // Import and create VisualizeDataModularTreeItem
-                const { VisualizeDataModularTreeItem } = __webpack_require__(149);
+                const { VisualizeDataModularTreeItem } = __webpack_require__(150);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
             case 'codeAnalysis':
                 // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(155);
+                const { CodeAnalysisModularTreeItem } = __webpack_require__(156);
                 const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
                 return codeAnalysisItem;
             case 'newCodeAnalysis':
                 // Import and create NewCodeAnalysisTreeItem
-                const { NewCodeAnalysisTreeItem } = __webpack_require__(120);
+                const { NewCodeAnalysisTreeItem } = __webpack_require__(121);
                 const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.type || 'item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return newCodeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(185);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(190);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -21532,7 +21845,7 @@ exports.ModularTreeDataProvider = ModularTreeDataProvider;
 
 
 /***/ }),
-/* 133 */
+/* 134 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21634,7 +21947,7 @@ exports.TreeViewUtils = TreeViewUtils;
 
 
 /***/ }),
-/* 134 */
+/* 135 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -21645,19 +21958,19 @@ exports.TreeViewUtils = TreeViewUtils;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerClickHandler = exports.ServerItemFactory = exports.ServerTreeItem = exports.ServersSectionProvider = void 0;
 // Section Provider
-var ServersSectionProvider_1 = __webpack_require__(135);
+var ServersSectionProvider_1 = __webpack_require__(136);
 Object.defineProperty(exports, "ServersSectionProvider", ({ enumerable: true, get: function () { return ServersSectionProvider_1.ServersSectionProvider; } }));
 // Items
-var serverItems_1 = __webpack_require__(136);
+var serverItems_1 = __webpack_require__(137);
 Object.defineProperty(exports, "ServerTreeItem", ({ enumerable: true, get: function () { return serverItems_1.ServerTreeItem; } }));
 Object.defineProperty(exports, "ServerItemFactory", ({ enumerable: true, get: function () { return serverItems_1.ServerItemFactory; } }));
 // Interactions
-var handleServerClicks_1 = __webpack_require__(137);
+var handleServerClicks_1 = __webpack_require__(138);
 Object.defineProperty(exports, "ServerClickHandler", ({ enumerable: true, get: function () { return handleServerClicks_1.ServerClickHandler; } }));
 
 
 /***/ }),
-/* 135 */
+/* 136 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21697,8 +22010,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverItems_1 = __webpack_require__(136);
-const handleServerClicks_1 = __webpack_require__(137);
+const serverItems_1 = __webpack_require__(137);
+const handleServerClicks_1 = __webpack_require__(138);
 const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Servers section provider for the modular tree view architecture
@@ -21831,7 +22144,7 @@ exports.ServersSectionProvider = ServersSectionProvider;
 
 
 /***/ }),
-/* 136 */
+/* 137 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21949,7 +22262,7 @@ exports.ServerItemFactory = ServerItemFactory;
 
 
 /***/ }),
-/* 137 */
+/* 138 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22047,7 +22360,7 @@ exports.ServerClickHandler = ServerClickHandler;
 
 
 /***/ }),
-/* 138 */
+/* 139 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22058,19 +22371,19 @@ exports.ServerClickHandler = ServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = exports.ActiveServerItemFactory = exports.ActiveServerTreeItem = exports.ActiveServersSectionProvider = void 0;
 // Section Provider
-var ActiveServersSectionProvider_1 = __webpack_require__(139);
+var ActiveServersSectionProvider_1 = __webpack_require__(140);
 Object.defineProperty(exports, "ActiveServersSectionProvider", ({ enumerable: true, get: function () { return ActiveServersSectionProvider_1.ActiveServersSectionProvider; } }));
 // Items
-var activeServerItems_1 = __webpack_require__(140);
+var activeServerItems_1 = __webpack_require__(141);
 Object.defineProperty(exports, "ActiveServerTreeItem", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerTreeItem; } }));
 Object.defineProperty(exports, "ActiveServerItemFactory", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerItemFactory; } }));
 // Interactions
-var handleActiveServerClicks_1 = __webpack_require__(141);
+var handleActiveServerClicks_1 = __webpack_require__(142);
 Object.defineProperty(exports, "ActiveServerClickHandler", ({ enumerable: true, get: function () { return handleActiveServerClicks_1.ActiveServerClickHandler; } }));
 
 
 /***/ }),
-/* 139 */
+/* 140 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22110,8 +22423,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerItems_1 = __webpack_require__(140);
-const handleActiveServerClicks_1 = __webpack_require__(141);
+const activeServerItems_1 = __webpack_require__(141);
+const handleActiveServerClicks_1 = __webpack_require__(142);
 const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Active Servers section provider - manages running servers display and control
@@ -22208,7 +22521,7 @@ exports.ActiveServersSectionProvider = ActiveServersSectionProvider;
 
 
 /***/ }),
-/* 140 */
+/* 141 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22376,7 +22689,7 @@ exports.ActiveServerItemFactory = ActiveServerItemFactory;
 
 
 /***/ }),
-/* 141 */
+/* 142 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22492,7 +22805,7 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 
 
 /***/ }),
-/* 142 */
+/* 143 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22503,19 +22816,19 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = exports.BabiaExamplesSectionProvider = void 0;
 // Section Provider
-var BabiaExamplesSectionProvider_1 = __webpack_require__(143);
+var BabiaExamplesSectionProvider_1 = __webpack_require__(144);
 Object.defineProperty(exports, "BabiaExamplesSectionProvider", ({ enumerable: true, get: function () { return BabiaExamplesSectionProvider_1.BabiaExamplesSectionProvider; } }));
 // Items
-var babiaExampleItems_1 = __webpack_require__(144);
+var babiaExampleItems_1 = __webpack_require__(145);
 Object.defineProperty(exports, "BabiaExampleTreeItem", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleTreeItem; } }));
 Object.defineProperty(exports, "BabiaExampleItemFactory", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleItemFactory; } }));
 // Interactions
-var handleBabiaExampleClicks_1 = __webpack_require__(146);
+var handleBabiaExampleClicks_1 = __webpack_require__(147);
 Object.defineProperty(exports, "BabiaExampleClickHandler", ({ enumerable: true, get: function () { return handleBabiaExampleClicks_1.BabiaExampleClickHandler; } }));
 
 
 /***/ }),
-/* 143 */
+/* 144 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22555,8 +22868,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const babiaExampleItems_1 = __webpack_require__(144);
-const handleBabiaExampleClicks_1 = __webpack_require__(146);
+const babiaExampleItems_1 = __webpack_require__(145);
+const handleBabiaExampleClicks_1 = __webpack_require__(147);
 const exampleLauncher_1 = __webpack_require__(37);
 /**
  * Babia Examples section provider - manages example loading and launching
@@ -22637,7 +22950,7 @@ exports.BabiaExamplesSectionProvider = BabiaExamplesSectionProvider;
 
 
 /***/ }),
-/* 144 */
+/* 145 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22677,7 +22990,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleItems_1 = __webpack_require__(145);
+const exampleItems_1 = __webpack_require__(146);
 /**
  * Babia Example tree items for the Babia Examples section
  */
@@ -22759,7 +23072,7 @@ exports.BabiaExampleItemFactory = BabiaExampleItemFactory;
 
 
 /***/ }),
-/* 145 */
+/* 146 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22920,7 +23233,7 @@ exports.ExampleIcons = ExampleIcons;
 
 
 /***/ }),
-/* 146 */
+/* 147 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23099,7 +23412,7 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 
 
 /***/ }),
-/* 147 */
+/* 148 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -23110,19 +23423,19 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataClickHandler = exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = exports.VisualizeDataSectionProvider = void 0;
 // Section Provider
-var VisualizeDataSectionProvider_1 = __webpack_require__(148);
+var VisualizeDataSectionProvider_1 = __webpack_require__(149);
 Object.defineProperty(exports, "VisualizeDataSectionProvider", ({ enumerable: true, get: function () { return VisualizeDataSectionProvider_1.VisualizeDataSectionProvider; } }));
 // Items
-var visualizeDataItems_1 = __webpack_require__(149);
+var visualizeDataItems_1 = __webpack_require__(150);
 Object.defineProperty(exports, "VisualizeDataModularTreeItem", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizeDataModularItemFactory", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularItemFactory; } }));
 // Interactions
-var handleVisualizeDataClicks_1 = __webpack_require__(152);
+var handleVisualizeDataClicks_1 = __webpack_require__(153);
 Object.defineProperty(exports, "VisualizeDataClickHandler", ({ enumerable: true, get: function () { return handleVisualizeDataClicks_1.VisualizeDataClickHandler; } }));
 
 
 /***/ }),
-/* 148 */
+/* 149 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23162,8 +23475,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(149);
-const handleVisualizeDataClicks_1 = __webpack_require__(152);
+const visualizeDataItems_1 = __webpack_require__(150);
+const handleVisualizeDataClicks_1 = __webpack_require__(153);
 const visualizeDataState_1 = __webpack_require__(43);
 /**
  * Visualize Data section provider - manages data visualization configuration and launch
@@ -23269,7 +23582,7 @@ exports.VisualizeDataSectionProvider = VisualizeDataSectionProvider;
 
 
 /***/ }),
-/* 149 */
+/* 150 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23309,9 +23622,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(150);
+const visualizeDataItems_1 = __webpack_require__(151);
 const visualizationRestorer_1 = __webpack_require__(58);
-const visualizationItem_1 = __webpack_require__(151);
+const visualizationItem_1 = __webpack_require__(152);
 /**
  * Visualize Data tree items for the Visualize Data section
  */
@@ -23428,7 +23741,7 @@ exports.VisualizeDataModularItemFactory = VisualizeDataModularItemFactory;
 
 
 /***/ }),
-/* 150 */
+/* 151 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23689,7 +24002,7 @@ exports.VisualizeDataIcons = VisualizeDataIcons;
 
 
 /***/ }),
-/* 151 */
+/* 152 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23809,7 +24122,7 @@ exports.BrowseVisualizationItemFactory = BrowseVisualizationItemFactory;
 
 
 /***/ }),
-/* 152 */
+/* 153 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24008,7 +24321,7 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 
 /***/ }),
-/* 153 */
+/* 154 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24019,19 +24332,19 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
 // Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(154);
+var CodeAnalysisSectionProvider_1 = __webpack_require__(155);
 Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
 // Items
-var codeAnalysisItems_1 = __webpack_require__(155);
+var codeAnalysisItems_1 = __webpack_require__(156);
 Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
 Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
 // Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(158);
+var handleCodeAnalysisClicks_1 = __webpack_require__(159);
 Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
 
 
 /***/ }),
-/* 154 */
+/* 155 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24071,10 +24384,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(155);
-const handleCodeAnalysisClicks_1 = __webpack_require__(158);
-const codeAnalysisTreeView_1 = __webpack_require__(159);
-const projectStructureAdapter_1 = __webpack_require__(166);
+const codeAnalysisItems_1 = __webpack_require__(156);
+const handleCodeAnalysisClicks_1 = __webpack_require__(159);
+const codeAnalysisTreeView_1 = __webpack_require__(160);
+const projectStructureAdapter_1 = __webpack_require__(167);
 /**
  * Code Analysis section provider - manages code analysis and file organization
  */
@@ -24219,7 +24532,7 @@ exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 155 */
+/* 156 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24259,7 +24572,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(156);
+const analysisTreeItems_1 = __webpack_require__(157);
 /**
  * Code Analysis tree items for the Code Analysis section
  */
@@ -24382,7 +24695,7 @@ exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
 
 
 /***/ }),
-/* 156 */
+/* 157 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24423,7 +24736,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const fileDisplayUtils_1 = __webpack_require__(157);
+const fileDisplayUtils_1 = __webpack_require__(158);
 const analysisSettingsStorage_1 = __webpack_require__(63);
 const chartRegistry_1 = __webpack_require__(41);
 /**
@@ -24783,7 +25096,7 @@ exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 157 */
+/* 158 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25045,7 +25358,7 @@ function getFileDescription(filePath, viewType, fileSize) {
 
 
 /***/ }),
-/* 158 */
+/* 159 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25260,7 +25573,7 @@ exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
 
 
 /***/ }),
-/* 159 */
+/* 160 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25300,11 +25613,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(156);
-const fileScanner_1 = __webpack_require__(160);
-const activeAnalysesTreeView_1 = __webpack_require__(161);
-const activeAnalysesCommands_1 = __webpack_require__(163);
-const fileWatcherManager_1 = __webpack_require__(164);
+const analysisTreeItems_1 = __webpack_require__(157);
+const fileScanner_1 = __webpack_require__(161);
+const activeAnalysesTreeView_1 = __webpack_require__(162);
+const activeAnalysesCommands_1 = __webpack_require__(164);
+const fileWatcherManager_1 = __webpack_require__(165);
 /**
  * Code Analysis tree data provider that manages the analysis sections
  *
@@ -25562,7 +25875,7 @@ exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
 
 
 /***/ }),
-/* 160 */
+/* 161 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25735,7 +26048,7 @@ exports.FileScanner = FileScanner;
 
 
 /***/ }),
-/* 161 */
+/* 162 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25776,8 +26089,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const activeAnalysisRegistry_1 = __webpack_require__(70);
-const activeAnalysisItems_1 = __webpack_require__(162);
-const analysisTreeItems_1 = __webpack_require__(156);
+const activeAnalysisItems_1 = __webpack_require__(163);
+const analysisTreeItems_1 = __webpack_require__(157);
 /**
  * Tree data provider for the Active Analyses section
  * This handles the rendering and management of the Active Analyses tree view
@@ -25927,7 +26240,7 @@ exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
 
 
 /***/ }),
-/* 162 */
+/* 163 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26120,7 +26433,7 @@ exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
 
 
 /***/ }),
-/* 163 */
+/* 164 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26429,7 +26742,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 164 */
+/* 165 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26471,7 +26784,7 @@ exports.FileWatcherManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const activeAnalysisRegistry_1 = __webpack_require__(70);
-const statusBarDelayTimer_1 = __webpack_require__(165);
+const statusBarDelayTimer_1 = __webpack_require__(166);
 const analysisSettingsStorage_1 = __webpack_require__(63);
 const analysisCommands_1 = __webpack_require__(60);
 const tempStorageManager_1 = __webpack_require__(67);
@@ -26743,7 +27056,7 @@ exports.FileWatcherManager = FileWatcherManager;
 
 
 /***/ }),
-/* 165 */
+/* 166 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26941,7 +27254,7 @@ exports.StatusBarDelayTimer = StatusBarDelayTimer;
 
 
 /***/ }),
-/* 166 */
+/* 167 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26981,9 +27294,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureModularAdapter = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(167);
-const analysisTreeItems_1 = __webpack_require__(156);
-const fileDisplayUtils_1 = __webpack_require__(157);
+const projectStructureTreeView_1 = __webpack_require__(168);
+const analysisTreeItems_1 = __webpack_require__(157);
+const fileDisplayUtils_1 = __webpack_require__(158);
 /**
  * Adapter to integrate Project Structure Tree View with the modular Code Analysis system
  */
@@ -27123,7 +27436,7 @@ exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
 
 
 /***/ }),
-/* 167 */
+/* 168 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27164,9 +27477,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
 exports.createProjectStructureModularItem = createProjectStructureModularItem;
 const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(168);
-const baseInterfaces_1 = __webpack_require__(133);
-const fileDisplayUtils_1 = __webpack_require__(157);
+const directoryScanner_1 = __webpack_require__(169);
+const baseInterfaces_1 = __webpack_require__(134);
+const fileDisplayUtils_1 = __webpack_require__(158);
 /**
  * Tree data provider for the Project Directory Tree View
  */
@@ -27504,7 +27817,7 @@ exports.ProjectStructureCommands = ProjectStructureCommands;
 
 
 /***/ }),
-/* 168 */
+/* 169 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27879,7 +28192,7 @@ exports.DirectoryScanner = DirectoryScanner;
 
 
 /***/ }),
-/* 169 */
+/* 170 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27923,9 +28236,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
-const handleNewCodeAnalysisClicks_1 = __webpack_require__(170);
-const subsections_1 = __webpack_require__(171);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+const handleNewCodeAnalysisClicks_1 = __webpack_require__(171);
+const subsections_1 = __webpack_require__(172);
 /**
  * TODO: Implement tree data provider for new code analysis
  * - Provide tree structure for analysis results
@@ -28025,7 +28338,7 @@ exports.NewCodeAnalysisSectionProvider = NewCodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 170 */
+/* 171 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -28086,7 +28399,7 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
 
 
 /***/ }),
-/* 171 */
+/* 172 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28096,19 +28409,19 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = exports.ProjectByLanguageSubsectionProvider = exports.ActiveAnalysesSubsectionProvider = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysis_settings_1 = __webpack_require__(172);
+var analysis_settings_1 = __webpack_require__(173);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisSettingsSubsectionProvider; } }));
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisFileSetting; } }));
-var active_analyses_1 = __webpack_require__(177);
+var active_analyses_1 = __webpack_require__(178);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return active_analyses_1.ActiveAnalysesSubsectionProvider; } }));
-var project_by_language_1 = __webpack_require__(179);
+var project_by_language_1 = __webpack_require__(184);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return project_by_language_1.ProjectByLanguageSubsectionProvider; } }));
-var files_by_language_1 = __webpack_require__(181);
+var files_by_language_1 = __webpack_require__(186);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return files_by_language_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 172 */
+/* 173 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28118,18 +28431,18 @@ Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = exports.ViewThemeSetting = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysisSettingsSubsectionProvider_1 = __webpack_require__(173);
+var analysisSettingsSubsectionProvider_1 = __webpack_require__(174);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysisSettingsSubsectionProvider_1.AnalysisSettingsSubsectionProvider; } }));
-var analysis_file_mode_1 = __webpack_require__(174);
+var analysis_file_mode_1 = __webpack_require__(175);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_file_mode_1.AnalysisFileSetting; } }));
-var view_theme_1 = __webpack_require__(175);
+var view_theme_1 = __webpack_require__(176);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return view_theme_1.ViewThemeSetting; } }));
-var auto_analysis_delay_1 = __webpack_require__(176);
+var auto_analysis_delay_1 = __webpack_require__(177);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return auto_analysis_delay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 173 */
+/* 174 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28177,10 +28490,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
-const analysis_file_mode_1 = __webpack_require__(174);
-const view_theme_1 = __webpack_require__(175);
-const auto_analysis_delay_1 = __webpack_require__(176);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+const analysis_file_mode_1 = __webpack_require__(175);
+const view_theme_1 = __webpack_require__(176);
+const auto_analysis_delay_1 = __webpack_require__(177);
 class AnalysisSettingsSubsectionProvider {
     context;
     analysisFileSetting;
@@ -28243,7 +28556,7 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
 
 
 /***/ }),
-/* 174 */
+/* 175 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28253,12 +28566,12 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
-var analysisFileMode_1 = __webpack_require__(119);
+var analysisFileMode_1 = __webpack_require__(120);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysisFileMode_1.AnalysisFileSetting; } }));
 
 
 /***/ }),
-/* 175 */
+/* 176 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28268,12 +28581,12 @@ Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: 
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
-var viewTheme_1 = __webpack_require__(124);
+var viewTheme_1 = __webpack_require__(125);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return viewTheme_1.ViewThemeSetting; } }));
 
 
 /***/ }),
-/* 176 */
+/* 177 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28283,27 +28596,41 @@ Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: fun
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
-var autoAnalysisDelay_1 = __webpack_require__(125);
+var autoAnalysisDelay_1 = __webpack_require__(126);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return autoAnalysisDelay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 177 */
+/* 178 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 /**
- * Active Analyses Subsection Module
- * Exports for active analyses subsection
+ * Active Analyses Module Index
+ * Exports all components of the Active Analyses subsection
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysesSubsectionProvider = void 0;
-var activeAnalysesSubsectionProvider_1 = __webpack_require__(178);
+exports.ActiveAnalysesCommands = exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = exports.ActiveAnalysesDataService = exports.ActiveAnalysisModelMapper = exports.ActiveAnalysesSubsectionProvider = void 0;
+// Main provider
+var activeAnalysesSubsectionProvider_1 = __webpack_require__(179);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return activeAnalysesSubsectionProvider_1.ActiveAnalysesSubsectionProvider; } }));
+// Model components
+var activeAnalysisModel_1 = __webpack_require__(181);
+Object.defineProperty(exports, "ActiveAnalysisModelMapper", ({ enumerable: true, get: function () { return activeAnalysisModel_1.ActiveAnalysisModelMapper; } }));
+// Service components
+var activeAnalysesDataService_1 = __webpack_require__(180);
+Object.defineProperty(exports, "ActiveAnalysesDataService", ({ enumerable: true, get: function () { return activeAnalysesDataService_1.ActiveAnalysesDataService; } }));
+// UI components
+var activeAnalysisItems_1 = __webpack_require__(182);
+Object.defineProperty(exports, "ActiveAnalysisTreeItem", ({ enumerable: true, get: function () { return activeAnalysisItems_1.ActiveAnalysisTreeItem; } }));
+Object.defineProperty(exports, "ActiveAnalysisItemFactory", ({ enumerable: true, get: function () { return activeAnalysisItems_1.ActiveAnalysisItemFactory; } }));
+// Command components
+var activeAnalysesCommands_1 = __webpack_require__(183);
+Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
 
 
 /***/ }),
-/* 178 */
+/* 179 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28347,42 +28674,1168 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+const activeAnalysesDataService_1 = __webpack_require__(180);
+const activeAnalysisModel_1 = __webpack_require__(181);
+const activeAnalysisItems_1 = __webpack_require__(182);
+const activeAnalysesCommands_1 = __webpack_require__(183);
 class ActiveAnalysesSubsectionProvider {
     context;
+    dataService;
+    commands;
     constructor(context) {
         this.context = context;
         console.log('NEW_CODE_ANALYSIS: Initializing Active Analyses subsection provider');
+        this.dataService = activeAnalysesDataService_1.ActiveAnalysesDataService.getInstance();
+        this.commands = new activeAnalysesCommands_1.ActiveAnalysesCommands();
+        // Register commands
+        this.registerCommands();
     }
     /**
      * Get the subsection header item
      */
     getSubsectionItem() {
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Active Analyses', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('play-circle'), 'Currently running analysis processes', undefined, 'activeAnalysesSubsection');
+        const statusCounts = this.dataService.getAnalysisCountByStatus();
+        const activeCount = statusCounts.creating + statusCounts.analyzing;
+        let label = 'Active Analyses';
+        let description = '';
+        let icon = 'play-circle';
+        let iconColor = 'charts.foreground';
+        if (statusCounts.total > 0) {
+            label = `Active Analyses (${statusCounts.total})`;
+            if (activeCount > 0) {
+                description = `${activeCount} running`;
+                icon = 'beaker';
+                iconColor = 'charts.green';
+            }
+            else {
+                description = `${statusCounts.completed} completed, ${statusCounts.failed} failed`;
+                icon = 'beaker';
+                iconColor = 'charts.green';
+            }
+        }
+        else {
+            description = 'No active sessions';
+            icon = 'beaker';
+            iconColor = 'descriptionForeground';
+        }
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'subsection', {
+            command: 'newCodeAnalysis.activeAnalyses.refreshAll',
+            title: 'Refresh Active Analyses'
+        }, new vscode.ThemeIcon(icon, new vscode.ThemeColor(iconColor)), 'Currently running and recent analysis processes. Click to refresh.', description, 'activeAnalysesSubsection');
     }
     /**
      * Get children for this subsection
      */
     async getChildren() {
-        // TODO: Implement active analyses logic
-        return [
-            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: Analysis Process 1', vscode.TreeItemCollapsibleState.None, 'analysis-result', undefined, new vscode.ThemeIcon('loading~spin'), 'Analysis in progress...', 'Running...', 'activeAnalysisProcess'),
-            new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('TODO: Analysis Process 2', vscode.TreeItemCollapsibleState.None, 'analysis-result', undefined, new vscode.ThemeIcon('check'), 'Analysis completed', 'Completed', 'completedAnalysisProcess')
-        ];
+        try {
+            console.log('ACTIVE_ANALYSES_PROVIDER: Getting children for Active Analyses');
+            // Get all active analyses
+            const activeAnalyses = this.dataService.getActiveAnalyses();
+            console.log(`ACTIVE_ANALYSES_PROVIDER: Found ${activeAnalyses.length} active analyses`);
+            const items = [];
+            if (activeAnalyses.length === 0) {
+                // Show empty state
+                const emptyItem = activeAnalysisItems_1.ActiveAnalysisItemFactory.createEmptyStateItem();
+                items.push(emptyItem);
+            }
+            else {
+                // Convert analyses to UI models and sort them
+                const uiItems = activeAnalyses.map(analysis => activeAnalysisModel_1.ActiveAnalysisModelMapper.toUIItem(analysis));
+                const sortedUIItems = activeAnalysisModel_1.ActiveAnalysisModelMapper.sortAnalysisItems(uiItems);
+                // Create tree items
+                const analysisItems = activeAnalysisItems_1.ActiveAnalysisItemFactory.createTreeItems(sortedUIItems);
+                items.push(...analysisItems);
+            }
+            console.log(`ACTIVE_ANALYSES_PROVIDER: Returning ${items.length} items`);
+            return items;
+        }
+        catch (error) {
+            console.error('ACTIVE_ANALYSES_PROVIDER: Error getting children:', error);
+            // Return error item
+            return [
+                new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Error loading analyses', vscode.TreeItemCollapsibleState.None, 'error', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), `Failed to load active analyses: ${error}`, 'Error occurred', 'activeAnalysesError')
+            ];
+        }
     }
     /**
      * Handle refresh for this subsection
      */
     refresh() {
-        // TODO: Refresh active analyses data
         console.log('NEW_CODE_ANALYSIS: Refreshing Active Analyses subsection');
+        this.dataService.refresh();
+    }
+    /**
+     * Register all commands for active analyses
+     */
+    registerCommands() {
+        try {
+            console.log('ACTIVE_ANALYSES_PROVIDER: Registering commands');
+            const refreshCallback = () => {
+                // Refresh this subsection specifically
+                this.refresh();
+                // Also refresh the entire tree (this will be called by the main provider)
+                vscode.commands.executeCommand('codexr.tree.refresh');
+            };
+            const commandRegistrations = this.commands.getCommandRegistrations(refreshCallback);
+            for (const reg of commandRegistrations) {
+                const disposable = vscode.commands.registerCommand(reg.commandId, reg.callback);
+                this.context.subscriptions.push(disposable);
+                console.log(`ACTIVE_ANALYSES_PROVIDER: Registered command: ${reg.commandId}`);
+            }
+            console.log(`ACTIVE_ANALYSES_PROVIDER: Registered ${commandRegistrations.length} commands`);
+        }
+        catch (error) {
+            console.error('ACTIVE_ANALYSES_PROVIDER: Error registering commands:', error);
+        }
     }
 }
 exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
 
 
 /***/ }),
-/* 179 */
+/* 180 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Active Analyses Data Service
+ * Service for fetching and managing active analysis data from the session registry
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesDataService = void 0;
+const analysisSessionRegistry_1 = __webpack_require__(101);
+const activeServerRegistry_1 = __webpack_require__(26);
+class ActiveAnalysesDataService {
+    static instance;
+    sessionRegistry;
+    constructor() {
+        this.sessionRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+        console.log('ACTIVE_ANALYSES_SERVICE: Initialized Active Analyses Data Service');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance() {
+        if (!ActiveAnalysesDataService.instance) {
+            ActiveAnalysesDataService.instance = new ActiveAnalysesDataService();
+        }
+        return ActiveAnalysesDataService.instance;
+    }
+    /**
+     * Get all active analysis data
+     */
+    getActiveAnalyses() {
+        try {
+            console.log('ACTIVE_ANALYSES_SERVICE: Fetching active analyses from session registry');
+            // Get all sessions (including completed ones for recent activity)
+            const allSessions = this.sessionRegistry.getAllSessions();
+            console.log(`ACTIVE_ANALYSES_SERVICE: Found ${allSessions.length} total sessions`);
+            // Filter and convert to ActiveAnalysisData
+            const activeAnalyses = [];
+            for (const session of allSessions) {
+                // Include sessions that are not closed/failed or were recently completed
+                if (this.shouldIncludeSession(session)) {
+                    const analysisData = this.convertSessionToAnalysisData(session);
+                    if (analysisData) {
+                        activeAnalyses.push(analysisData);
+                    }
+                }
+            }
+            console.log(`ACTIVE_ANALYSES_SERVICE: Returning ${activeAnalyses.length} active analyses`);
+            return activeAnalyses;
+        }
+        catch (error) {
+            console.error('ACTIVE_ANALYSES_SERVICE: Error fetching active analyses:', error);
+            return [];
+        }
+    }
+    /**
+     * Get specific analysis data by session ID
+     */
+    getAnalysisData(sessionId) {
+        try {
+            const session = this.sessionRegistry.getSession(sessionId);
+            if (!session) {
+                return null;
+            }
+            return this.convertSessionToAnalysisData(session);
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_SERVICE: Error fetching analysis data for session ${sessionId}:`, error);
+            return null;
+        }
+    }
+    /**
+     * Check if session should be included in active analyses list
+     */
+    shouldIncludeSession(session) {
+        // Always include active sessions
+        if (['creating', 'analyzing'].includes(session.status)) {
+            return true;
+        }
+        // Include completed sessions if they're recent (within last 30 minutes)
+        if (session.status === 'completed' && session.endTime) {
+            const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+            return session.endTime > thirtyMinutesAgo;
+        }
+        // Include failed sessions if they're recent (within last 10 minutes)
+        if (session.status === 'failed' && session.endTime) {
+            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+            return session.endTime > tenMinutesAgo;
+        }
+        // Don't include closing sessions or very old ones
+        return false;
+    }
+    /**
+     * Convert AnalysisSession to ActiveAnalysisData
+     */
+    convertSessionToAnalysisData(session) {
+        try {
+            // Get server information for this session
+            const serverInfo = this.getServerInfoForSession(session.id);
+            // Calculate duration if available
+            let durationSeconds;
+            const currentTime = session.endTime || new Date();
+            if (session.startTime) {
+                durationSeconds = Math.round((currentTime.getTime() - session.startTime.getTime()) / 1000);
+            }
+            // Use endTime if available, otherwise use current time for active sessions
+            const lastAnalysisTime = session.endTime || new Date();
+            const analysisData = {
+                sessionId: session.id,
+                fileName: session.fileName,
+                filePath: session.filePath,
+                analysisType: session.analysisType,
+                status: session.status,
+                lastAnalysisTime: lastAnalysisTime,
+                serverPort: serverInfo?.port,
+                serverUrl: serverInfo?.url,
+                progress: session.progress,
+                startTime: session.startTime,
+                durationSeconds
+            };
+            return analysisData;
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_SERVICE: Error converting session ${session.id} to analysis data:`, error);
+            return null;
+        }
+    }
+    /**
+     * Get server information for a session
+     */
+    getServerInfoForSession(sessionId) {
+        try {
+            // Get active server registry to find servers related to this session
+            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            const activeServers = serverRegistry.getAllServers();
+            // Look for a server that might be serving this session
+            // This is a best-effort approach since the session doesn't directly track the server
+            for (const server of activeServers) {
+                // Check if the server's HTML file or ID might relate to this session
+                if (server.htmlFile && server.htmlFile.includes(sessionId)) {
+                    return {
+                        port: server.port,
+                        url: server.url
+                    };
+                }
+                // Also check if the server ID contains the session ID
+                if (server.id.includes(sessionId)) {
+                    return {
+                        port: server.port,
+                        url: server.url
+                    };
+                }
+            }
+            return null;
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_SERVICE: Error getting server info for session ${sessionId}:`, error);
+            return null;
+        }
+    }
+    /**
+     * Get count of analyses by status
+     */
+    getAnalysisCountByStatus() {
+        try {
+            const analyses = this.getActiveAnalyses();
+            const counts = {
+                creating: 0,
+                analyzing: 0,
+                completed: 0,
+                failed: 0,
+                total: analyses.length
+            };
+            for (const analysis of analyses) {
+                switch (analysis.status) {
+                    case 'creating':
+                        counts.creating++;
+                        break;
+                    case 'analyzing':
+                        counts.analyzing++;
+                        break;
+                    case 'completed':
+                        counts.completed++;
+                        break;
+                    case 'failed':
+                        counts.failed++;
+                        break;
+                }
+            }
+            return counts;
+        }
+        catch (error) {
+            console.error('ACTIVE_ANALYSES_SERVICE: Error getting analysis count by status:', error);
+            return { creating: 0, analyzing: 0, completed: 0, failed: 0, total: 0 };
+        }
+    }
+    /**
+     * Stop/close an active analysis session
+     */
+    stopAnalysis(sessionId) {
+        try {
+            console.log(`ACTIVE_ANALYSES_SERVICE: Stopping analysis session: ${sessionId}`);
+            const success = this.sessionRegistry.closeSession(sessionId);
+            if (success) {
+                console.log(`ACTIVE_ANALYSES_SERVICE: Successfully stopped session: ${sessionId}`);
+            }
+            else {
+                console.warn(`ACTIVE_ANALYSES_SERVICE: Failed to stop session: ${sessionId}`);
+            }
+            return success;
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_SERVICE: Error stopping analysis session ${sessionId}:`, error);
+            return false;
+        }
+    }
+    /**
+     * Refresh analysis data (force reload from registry)
+     */
+    refresh() {
+        console.log('ACTIVE_ANALYSES_SERVICE: Refreshing analysis data');
+        // The data is always fetched fresh from the registry, so no caching to clear
+        // This method exists for potential future caching implementation
+    }
+}
+exports.ActiveAnalysesDataService = ActiveAnalysesDataService;
+
+
+/***/ }),
+/* 181 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Active Analysis Data Model
+ * Model for representing active analysis sessions in the UI
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysisModelMapper = void 0;
+const path = __importStar(__webpack_require__(5));
+/**
+ * Utility class for converting session data to UI models
+ */
+class ActiveAnalysisModelMapper {
+    /**
+     * Convert session data to UI display model
+     */
+    static toUIItem(data) {
+        const fileName = path.basename(data.filePath);
+        const label = `${fileName} - ${data.analysisType}`;
+        // Generate description with last analysis time and server info
+        const lastAnalysisStr = data.lastAnalysisTime.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        let description = `Last: ${lastAnalysisStr}`;
+        if (data.serverPort) {
+            description += ` | Port: ${data.serverPort}`;
+        }
+        // Generate detailed tooltip
+        let tooltip = `Analysis: ${data.analysisType}\n`;
+        tooltip += `File: ${fileName}\n`;
+        tooltip += `Status: ${data.status}\n`;
+        tooltip += `Started: ${data.startTime.toLocaleString()}\n`;
+        tooltip += `Last Analysis: ${data.lastAnalysisTime.toLocaleString()}\n`;
+        if (data.serverUrl) {
+            tooltip += `Server: ${data.serverUrl}\n`;
+        }
+        if (data.progress !== undefined) {
+            tooltip += `Progress: ${data.progress}%\n`;
+        }
+        if (data.durationSeconds !== undefined) {
+            tooltip += `Duration: ${data.durationSeconds}s\n`;
+        }
+        tooltip += `Path: ${data.filePath}`;
+        // Determine icon and context based on status
+        const { iconName, iconColor, contextValue } = this.getStatusVisuals(data.status, data.analysisType);
+        return {
+            label,
+            description,
+            tooltip,
+            iconName,
+            iconColor,
+            contextValue,
+            sessionData: data
+        };
+    }
+    /**
+     * Get visual representation for analysis status and type
+     */
+    static getStatusVisuals(status, analysisType) {
+        // Determine base icon based on analysis type
+        let baseIcon;
+        let baseColor;
+        if (analysisType === 'FileXRAnalysis') {
+            // XR Analysis uses VR icon in purple
+            baseIcon = 'vr';
+            baseColor = 'charts.purple';
+        }
+        else if (analysisType === 'LivePanel') {
+            // Live Panel uses file-code icon in green
+            baseIcon = 'file-code';
+            baseColor = 'charts.green';
+        }
+        else if (analysisType === 'DOMVisualization') {
+            // DOM Visualization uses code-oss icon in orange
+            baseIcon = 'code-oss';
+            baseColor = 'charts.orange';
+        }
+        else {
+            // Default fallback
+            baseIcon = 'file-code';
+            baseColor = 'charts.green';
+        }
+        switch (status) {
+            case 'creating':
+                return {
+                    iconName: 'loading~spin',
+                    iconColor: 'charts.yellow',
+                    contextValue: 'activeAnalysis.creating'
+                };
+            case 'analyzing':
+                return {
+                    iconName: 'sync~spin',
+                    iconColor: 'charts.blue',
+                    contextValue: 'activeAnalysis.analyzing'
+                };
+            case 'completed':
+                return {
+                    iconName: baseIcon,
+                    iconColor: baseColor,
+                    contextValue: 'activeAnalysis.completed'
+                };
+            case 'failed':
+                return {
+                    iconName: 'error',
+                    iconColor: 'charts.red',
+                    contextValue: 'activeAnalysis.failed'
+                };
+            case 'closing':
+                return {
+                    iconName: 'close',
+                    iconColor: 'charts.orange',
+                    contextValue: 'activeAnalysis.closing'
+                };
+            default:
+                return {
+                    iconName: 'question',
+                    iconColor: 'charts.foreground',
+                    contextValue: 'activeAnalysis.unknown'
+                };
+        }
+    }
+    /**
+     * Sort analysis items by priority and time
+     */
+    static sortAnalysisItems(items) {
+        return items.sort((a, b) => {
+            // Priority order: analyzing > creating > completed > failed > closing
+            const statusPriority = {
+                'analyzing': 1,
+                'creating': 2,
+                'completed': 3,
+                'failed': 4,
+                'closing': 5
+            };
+            const aPriority = statusPriority[a.sessionData.status] || 6;
+            const bPriority = statusPriority[b.sessionData.status] || 6;
+            if (aPriority !== bPriority) {
+                return aPriority - bPriority;
+            }
+            // If same priority, sort by last analysis time (most recent first)
+            return b.sessionData.lastAnalysisTime.getTime() - a.sessionData.lastAnalysisTime.getTime();
+        });
+    }
+}
+exports.ActiveAnalysisModelMapper = ActiveAnalysisModelMapper;
+
+
+/***/ }),
+/* 182 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Active Analysis Tree Items
+ * UI items for displaying active analysis sessions in the tree view
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(121);
+class ActiveAnalysisTreeItem extends newCodeAnalysisItems_1.NewCodeAnalysisTreeItem {
+    sessionData;
+    constructor(uiItem) {
+        // Create the tree item with all the UI data
+        super(uiItem.label, // label
+        vscode.TreeItemCollapsibleState.None, // collapsibleState
+        'analysis-result', // itemType
+        undefined, // command
+        new vscode.ThemeIcon(// iconPath
+        uiItem.iconName, uiItem.iconColor ? new vscode.ThemeColor(uiItem.iconColor) : undefined), uiItem.tooltip, // tooltip
+        uiItem.description, // description
+        uiItem.contextValue // contextValue
+        );
+        this.sessionData = uiItem.sessionData;
+        // Set up the command to view details when clicked
+        this.command = {
+            command: 'newCodeAnalysis.activeAnalyses.viewDetails',
+            title: 'View Analysis Details',
+            arguments: [this.sessionData.sessionId]
+        };
+    }
+    /**
+     * Get context menu commands for this analysis item
+     */
+    getContextMenuCommands() {
+        const commands = [
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.viewDetails',
+                label: 'View Details',
+                icon: 'info'
+            }
+        ];
+        // Add server-related commands if server is available
+        if (this.sessionData.serverUrl) {
+            commands.push({
+                commandId: 'newCodeAnalysis.activeAnalyses.openInBrowser',
+                label: 'Open in Browser',
+                icon: 'globe'
+            });
+        }
+        // Add stop command for active analyses
+        if (['creating', 'analyzing'].includes(this.sessionData.status)) {
+            commands.push({
+                commandId: 'newCodeAnalysis.activeAnalyses.stopAnalysis',
+                label: 'Stop Analysis',
+                icon: 'stop-circle'
+            });
+        }
+        commands.push({
+            commandId: 'newCodeAnalysis.activeAnalyses.openOutputFolder',
+            label: 'Open Output Folder',
+            icon: 'folder-opened'
+        });
+        return commands;
+    }
+}
+exports.ActiveAnalysisTreeItem = ActiveAnalysisTreeItem;
+class ActiveAnalysisItemFactory {
+    /**
+     * Create tree item from UI model
+     */
+    static createTreeItem(uiItem) {
+        return new ActiveAnalysisTreeItem(uiItem);
+    }
+    /**
+     * Create multiple tree items from UI models
+     */
+    static createTreeItems(uiItems) {
+        return uiItems.map(uiItem => this.createTreeItem(uiItem));
+    }
+    /**
+     * Create empty state item when no analyses are active
+     */
+    static createEmptyStateItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('No active analyses', vscode.TreeItemCollapsibleState.None, 'analysis-result', undefined, new vscode.ThemeIcon('circle-slash', new vscode.ThemeColor('descriptionForeground')), 'No analysis sessions are currently running. Start an analysis to see it here.', 'Start analyzing files to see active sessions', 'activeAnalysesEmpty');
+    }
+    /**
+     * Create status summary item
+     */
+    static createStatusSummaryItem(statusCounts) {
+        const { creating, analyzing, completed, failed, total } = statusCounts;
+        let label = `Analysis Summary (${total} total)`;
+        let description = '';
+        let icon = 'pulse';
+        let iconColor = 'charts.foreground';
+        if (total === 0) {
+            description = 'No active analyses';
+            icon = 'circle-slash';
+            iconColor = 'descriptionForeground';
+        }
+        else {
+            const parts = [];
+            if (creating > 0) {
+                parts.push(`${creating} creating`);
+            }
+            if (analyzing > 0) {
+                parts.push(`${analyzing} analyzing`);
+            }
+            if (completed > 0) {
+                parts.push(`${completed} completed`);
+            }
+            if (failed > 0) {
+                parts.push(`${failed} failed`);
+            }
+            description = parts.join(', ');
+            // Choose icon based on predominant status
+            if (analyzing > 0) {
+                icon = 'sync~spin';
+                iconColor = 'charts.blue';
+            }
+            else if (creating > 0) {
+                icon = 'loading~spin';
+                iconColor = 'charts.yellow';
+            }
+            else if (failed > 0) {
+                icon = 'error';
+                iconColor = 'charts.red';
+            }
+            else if (completed > 0) {
+                icon = 'check-all';
+                iconColor = 'charts.green';
+            }
+        }
+        const tooltip = `Active Analysis Summary:\n` +
+            `• Creating: ${creating}\n` +
+            `• Analyzing: ${analyzing}\n` +
+            `• Completed: ${completed}\n` +
+            `• Failed: ${failed}\n` +
+            `• Total: ${total}`;
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'analysis-result', {
+            command: 'newCodeAnalysis.activeAnalyses.refreshAll',
+            title: 'Refresh Active Analyses'
+        }, new vscode.ThemeIcon(icon, new vscode.ThemeColor(iconColor)), tooltip, description, 'activeAnalysesStatusSummary');
+    }
+}
+exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
+
+
+/***/ }),
+/* 183 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Active Analyses Commands
+ * Commands for managing active analysis sessions from the UI
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ActiveAnalysesCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const activeAnalysesDataService_1 = __webpack_require__(180);
+const activeServerRegistry_1 = __webpack_require__(26);
+const serverControl_1 = __webpack_require__(28);
+const serverWatcherIntegration_1 = __webpack_require__(111);
+const fileWatcher_1 = __webpack_require__(104);
+const analysisSessionRegistry_1 = __webpack_require__(101);
+const fs = __importStar(__webpack_require__(6));
+class ActiveAnalysesCommands {
+    dataService;
+    constructor() {
+        this.dataService = activeAnalysesDataService_1.ActiveAnalysesDataService.getInstance();
+        console.log('ACTIVE_ANALYSES_COMMANDS: Initialized Active Analyses Commands');
+    }
+    /**
+     * Get all command registrations for active analyses
+     */
+    getCommandRegistrations(refreshCallback) {
+        return [
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.closeAnalysis',
+                callback: (arg) => this.closeAnalysis(arg, refreshCallback),
+                description: 'Close analysis session and cleanup all resources'
+            },
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.openInBrowser',
+                callback: (arg) => this.openAnalysisInBrowser(arg),
+                description: 'Open analysis in browser'
+            },
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.stopAnalysis',
+                callback: (arg) => this.stopAnalysis(arg, refreshCallback),
+                description: 'Stop analysis session'
+            },
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.viewDetails',
+                callback: (arg) => this.viewAnalysisDetails(arg),
+                description: 'View analysis details'
+            },
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.openOutputFolder',
+                callback: (arg) => this.openOutputFolder(arg),
+                description: 'Open analysis output folder'
+            },
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.refreshAll',
+                callback: () => this.refreshAllAnalyses(refreshCallback),
+                description: 'Refresh all active analyses'
+            },
+            {
+                commandId: 'newCodeAnalysis.activeAnalyses.stopAll',
+                callback: () => this.stopAllAnalyses(refreshCallback),
+                description: 'Stop all active analyses'
+            }
+        ];
+    }
+    /**
+     * Extract sessionId from command argument (handles both string and TreeItem)
+     */
+    extractSessionId(arg) {
+        // If it's already a string, return it
+        if (typeof arg === 'string') {
+            return arg;
+        }
+        // If it's a TreeItem with sessionData, extract sessionId
+        if (arg && arg.sessionData && arg.sessionData.sessionId) {
+            return arg.sessionData.sessionId;
+        }
+        // Log the received argument for debugging
+        console.log('ACTIVE_ANALYSES_COMMANDS: Received argument:', arg);
+        // Try to extract from different possible structures
+        if (arg && arg.sessionId) {
+            return arg.sessionId;
+        }
+        // If it has a command with arguments, try to get sessionId from there
+        if (arg && arg.command && arg.command.arguments && arg.command.arguments.length > 0) {
+            return arg.command.arguments[0];
+        }
+        return null;
+    }
+    /**
+     * Close analysis session and cleanup all resources
+     */
+    async closeAnalysis(arg, refreshCallback) {
+        try {
+            const sessionId = this.extractSessionId(arg);
+            if (!sessionId) {
+                vscode.window.showErrorMessage('Invalid session ID for close analysis operation');
+                return;
+            }
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Closing analysis session ${sessionId}`);
+            const analysisData = this.dataService.getAnalysisData(sessionId);
+            if (!analysisData) {
+                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
+                return;
+            }
+            // Confirm with user
+            const action = await vscode.window.showWarningMessage(`Close analysis for "${analysisData.fileName} - ${analysisData.analysisType}"?\n\nThis will:\n• Stop the analysis server\n• Remove file watcher\n• Delete analysis files`, { modal: true }, 'Close Analysis', 'Cancel');
+            if (action !== 'Close Analysis') {
+                return;
+            }
+            // Use the integration service for comprehensive cleanup
+            const integrationService = serverWatcherIntegration_1.ServerWatcherIntegration.getInstance();
+            const success = await integrationService.triggerManualCleanup(sessionId);
+            if (success) {
+                vscode.window.showInformationMessage(`✅ Closed analysis: ${analysisData.fileName} - ${analysisData.analysisType}`);
+                refreshCallback();
+            }
+            else {
+                vscode.window.showErrorMessage(`Failed to close session: ${analysisData.fileName} - ${analysisData.analysisType}`);
+            }
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error closing analysis:`, error);
+            vscode.window.showErrorMessage(`Failed to close analysis: ${error}`);
+        }
+    }
+    /**
+     * Close analysis server by port
+     */
+    async closeAnalysisServer(port, filePath) {
+        try {
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Closing server on port ${port} for file: ${filePath}`);
+            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
+            const servers = serverRegistry.getAllServers();
+            // Find server by port
+            const targetServer = servers.find(server => server.port === port);
+            if (targetServer) {
+                console.log(`ACTIVE_ANALYSES_COMMANDS: Found server ${targetServer.id} on port ${port}`);
+                // Stop the server using ServerControl
+                const stopped = await serverControl_1.ServerControl.stopServer(targetServer.id);
+                if (stopped) {
+                    console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully stopped server ${targetServer.id}`);
+                }
+                else {
+                    console.warn(`ACTIVE_ANALYSES_COMMANDS: Failed to stop server ${targetServer.id}`);
+                }
+            }
+            else {
+                console.log(`ACTIVE_ANALYSES_COMMANDS: No server found on port ${port}`);
+            }
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error closing server:`, error);
+        }
+    }
+    /**
+     * Stop file watcher for the session
+     */
+    async stopFileWatcher(sessionId) {
+        try {
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Stopping file watcher for session ${sessionId}`);
+            // Get all active watchers and find the one for this session
+            const watchersInfo = fileWatcher_1.FileWatcher.getActiveWatchersInfo();
+            // Find watcher by checking if the sessionId is in the watcher ID or by matching file path
+            const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+            const session = registry.getSession(sessionId);
+            if (session) {
+                // Try to find watcher by file path
+                const watcherInfo = watchersInfo.find(w => w.filePath === session.filePath);
+                if (watcherInfo) {
+                    const stopped = fileWatcher_1.FileWatcher.stopWatching(watcherInfo.id);
+                    if (stopped) {
+                        console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully stopped file watcher ${watcherInfo.id}`);
+                    }
+                    else {
+                        console.warn(`ACTIVE_ANALYSES_COMMANDS: Failed to stop file watcher ${watcherInfo.id}`);
+                    }
+                }
+                else {
+                    console.log(`ACTIVE_ANALYSES_COMMANDS: No file watcher found for session ${sessionId}`);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error stopping file watcher:`, error);
+        }
+    }
+    /**
+     * Cleanup analysis files and directory
+     */
+    async cleanupAnalysisFiles(sessionId) {
+        try {
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Cleaning up analysis files for session ${sessionId}`);
+            const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+            const session = registry.getSession(sessionId);
+            if (session && session.outputPath) {
+                // Check if directory exists
+                if (fs.existsSync(session.outputPath)) {
+                    console.log(`ACTIVE_ANALYSES_COMMANDS: Removing analysis directory: ${session.outputPath}`);
+                    // Remove the directory and all its contents
+                    await fs.promises.rm(session.outputPath, { recursive: true, force: true });
+                    console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully removed analysis directory`);
+                }
+                else {
+                    console.log(`ACTIVE_ANALYSES_COMMANDS: Analysis directory does not exist: ${session.outputPath}`);
+                }
+            }
+            else {
+                console.log(`ACTIVE_ANALYSES_COMMANDS: No output path found for session ${sessionId}`);
+            }
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error cleaning up analysis files:`, error);
+        }
+    }
+    /**
+     * Open analysis in browser
+     */
+    async openAnalysisInBrowser(arg) {
+        try {
+            const sessionId = this.extractSessionId(arg);
+            if (!sessionId) {
+                vscode.window.showErrorMessage('Invalid session ID for open in browser operation');
+                return;
+            }
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Opening analysis ${sessionId} in browser`);
+            const analysisData = this.dataService.getAnalysisData(sessionId);
+            if (!analysisData) {
+                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
+                return;
+            }
+            if (!analysisData.serverUrl) {
+                vscode.window.showWarningMessage(`No server URL available for analysis: ${analysisData.fileName} - ${analysisData.analysisType}`);
+                return;
+            }
+            // Open in external browser
+            await vscode.env.openExternal(vscode.Uri.parse(analysisData.serverUrl));
+            vscode.window.showInformationMessage(`Opened ${analysisData.fileName} analysis in browser`);
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error opening analysis in browser:`, error);
+            vscode.window.showErrorMessage(`Failed to open analysis in browser: ${error}`);
+        }
+    }
+    /**
+     * Stop analysis session
+     */
+    async stopAnalysis(arg, refreshCallback) {
+        try {
+            const sessionId = this.extractSessionId(arg);
+            if (!sessionId) {
+                vscode.window.showErrorMessage('Invalid session ID for stop analysis operation');
+                return;
+            }
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Stopping analysis ${sessionId}`);
+            const analysisData = this.dataService.getAnalysisData(sessionId);
+            if (!analysisData) {
+                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
+                return;
+            }
+            // Confirm with user
+            const action = await vscode.window.showWarningMessage(`Stop analysis for "${analysisData.fileName} - ${analysisData.analysisType}"?`, { modal: true }, 'Stop Analysis', 'Cancel');
+            if (action !== 'Stop Analysis') {
+                return;
+            }
+            // Stop the analysis
+            const success = this.dataService.stopAnalysis(sessionId);
+            if (success) {
+                vscode.window.showInformationMessage(`Stopped analysis: ${analysisData.fileName} - ${analysisData.analysisType}`);
+                refreshCallback();
+            }
+            else {
+                vscode.window.showErrorMessage(`Failed to stop analysis: ${analysisData.fileName} - ${analysisData.analysisType}`);
+            }
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error stopping analysis:`, error);
+            vscode.window.showErrorMessage(`Failed to stop analysis: ${error}`);
+        }
+    }
+    /**
+     * View detailed information about analysis
+     */
+    async viewAnalysisDetails(arg) {
+        try {
+            const sessionId = this.extractSessionId(arg);
+            if (!sessionId) {
+                vscode.window.showErrorMessage('Invalid session ID for view details operation');
+                return;
+            }
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Viewing details for analysis ${sessionId}`);
+            const analysisData = this.dataService.getAnalysisData(sessionId);
+            if (!analysisData) {
+                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
+                return;
+            }
+            // Create detailed information message
+            let details = `Analysis Details\n\n`;
+            details += `File: ${analysisData.fileName}\n`;
+            details += `Type: ${analysisData.analysisType}\n`;
+            details += `Status: ${analysisData.status}\n`;
+            details += `Session ID: ${analysisData.sessionId}\n\n`;
+            details += `Started: ${analysisData.startTime.toLocaleString()}\n`;
+            details += `Last Analysis: ${analysisData.lastAnalysisTime.toLocaleString()}\n`;
+            if (analysisData.durationSeconds !== undefined) {
+                details += `Duration: ${analysisData.durationSeconds} seconds\n`;
+            }
+            if (analysisData.progress !== undefined) {
+                details += `Progress: ${analysisData.progress}%\n`;
+            }
+            if (analysisData.serverUrl) {
+                details += `\nServer: ${analysisData.serverUrl}\n`;
+                details += `Port: ${analysisData.serverPort}\n`;
+            }
+            details += `\nFile Path: ${analysisData.filePath}`;
+            // Show details in information dialog
+            await vscode.window.showInformationMessage(details, { modal: true });
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error viewing analysis details:`, error);
+            vscode.window.showErrorMessage(`Failed to view analysis details: ${error}`);
+        }
+    }
+    /**
+     * Open analysis output folder
+     */
+    async openOutputFolder(arg) {
+        try {
+            const sessionId = this.extractSessionId(arg);
+            if (!sessionId) {
+                vscode.window.showErrorMessage('Invalid session ID for open output folder operation');
+                return;
+            }
+            console.log(`ACTIVE_ANALYSES_COMMANDS: Opening output folder for analysis ${sessionId}`);
+            const analysisData = this.dataService.getAnalysisData(sessionId);
+            if (!analysisData) {
+                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
+                return;
+            }
+            // TODO: Get the actual output folder path from the session
+            // For now, show a message that this feature is coming
+            vscode.window.showInformationMessage(`Opening output folder for: ${analysisData.fileName} - ${analysisData.analysisType}\n` +
+                `Session: ${sessionId}\n\n` +
+                `Note: This feature will open the analysis results directory in the file explorer.`, 'OK');
+        }
+        catch (error) {
+            console.error(`ACTIVE_ANALYSES_COMMANDS: Error opening output folder:`, error);
+            vscode.window.showErrorMessage(`Failed to open output folder: ${error}`);
+        }
+    }
+    /**
+     * Refresh all analyses
+     */
+    refreshAllAnalyses(refreshCallback) {
+        try {
+            console.log('ACTIVE_ANALYSES_COMMANDS: Refreshing all analyses');
+            this.dataService.refresh();
+            refreshCallback();
+            vscode.window.showInformationMessage('Active analyses refreshed');
+        }
+        catch (error) {
+            console.error('ACTIVE_ANALYSES_COMMANDS: Error refreshing all analyses:', error);
+            vscode.window.showErrorMessage(`Failed to refresh analyses: ${error}`);
+        }
+    }
+    /**
+     * Stop all active analyses
+     */
+    async stopAllAnalyses(refreshCallback) {
+        try {
+            console.log('ACTIVE_ANALYSES_COMMANDS: Stopping all analyses');
+            const activeAnalyses = this.dataService.getActiveAnalyses();
+            const runningAnalyses = activeAnalyses.filter(a => a.status === 'creating' || a.status === 'analyzing');
+            if (runningAnalyses.length === 0) {
+                vscode.window.showInformationMessage('No active analyses to stop');
+                return;
+            }
+            // Confirm with user
+            const action = await vscode.window.showWarningMessage(`Stop all ${runningAnalyses.length} active analysis${runningAnalyses.length === 1 ? '' : 'es'}?`, { modal: true }, 'Stop All', 'Cancel');
+            if (action !== 'Stop All') {
+                return;
+            }
+            // Stop all running analyses
+            let stoppedCount = 0;
+            for (const analysis of runningAnalyses) {
+                const success = this.dataService.stopAnalysis(analysis.sessionId);
+                if (success) {
+                    stoppedCount++;
+                }
+            }
+            if (stoppedCount > 0) {
+                vscode.window.showInformationMessage(`Stopped ${stoppedCount} of ${runningAnalyses.length} active analyses`);
+                refreshCallback();
+            }
+            else {
+                vscode.window.showErrorMessage('Failed to stop any analyses');
+            }
+        }
+        catch (error) {
+            console.error('ACTIVE_ANALYSES_COMMANDS: Error stopping all analyses:', error);
+            vscode.window.showErrorMessage(`Failed to stop all analyses: ${error}`);
+        }
+    }
+}
+exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
+
+
+/***/ }),
+/* 184 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28392,12 +29845,12 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
-var projectByLanguageSubsectionProvider_1 = __webpack_require__(180);
+var projectByLanguageSubsectionProvider_1 = __webpack_require__(185);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return projectByLanguageSubsectionProvider_1.ProjectByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 180 */
+/* 185 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28441,7 +29894,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
 class ProjectByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -28477,7 +29930,7 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
 
 
 /***/ }),
-/* 181 */
+/* 186 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28487,12 +29940,12 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
-var filesByLanguageSubsectionProvider_1 = __webpack_require__(182);
+var filesByLanguageSubsectionProvider_1 = __webpack_require__(187);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return filesByLanguageSubsectionProvider_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 182 */
+/* 187 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28536,7 +29989,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(120);
+const newCodeAnalysisItems_1 = __webpack_require__(121);
 class FilesByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -28572,7 +30025,7 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 
 
 /***/ }),
-/* 183 */
+/* 188 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28583,19 +30036,19 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(184);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(189);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(185);
+var visualizationSettingsItems_1 = __webpack_require__(190);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(186);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(191);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 184 */
+/* 189 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28635,8 +30088,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(185);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(186);
+const visualizationSettingsItems_1 = __webpack_require__(190);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(191);
 const settingsStorage_1 = __webpack_require__(49);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
@@ -28725,7 +30178,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 185 */
+/* 190 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28818,7 +30271,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 186 */
+/* 191 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29001,7 +30454,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 187 */
+/* 192 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -29162,7 +30615,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 188 */
+/* 193 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -29172,17 +30625,17 @@ function getLanguageStats() {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = exports.NewCodeAnalysisSectionProvider = void 0;
-var NewCodeAnalysisSectionProvider_1 = __webpack_require__(169);
+var NewCodeAnalysisSectionProvider_1 = __webpack_require__(170);
 Object.defineProperty(exports, "NewCodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider; } }));
-var items_1 = __webpack_require__(189);
+var items_1 = __webpack_require__(194);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisItemFactory; } }));
-var interactions_1 = __webpack_require__(190);
+var interactions_1 = __webpack_require__(195);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return interactions_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 189 */
+/* 194 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -29192,13 +30645,13 @@ Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
-var newCodeAnalysisItems_1 = __webpack_require__(120);
+var newCodeAnalysisItems_1 = __webpack_require__(121);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisItemFactory; } }));
 
 
 /***/ }),
-/* 190 */
+/* 195 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -29208,12 +30661,12 @@ Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = void 0;
-var handleNewCodeAnalysisClicks_1 = __webpack_require__(170);
+var handleNewCodeAnalysisClicks_1 = __webpack_require__(171);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 191 */
+/* 196 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29356,14 +30809,14 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 192 */,
-/* 193 */
+/* 197 */,
+/* 198 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 194 */
+/* 199 */
 /***/ ((module) => {
 
 module.exports = require("node:os");

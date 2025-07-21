@@ -190,6 +190,26 @@
         "command": "newCodeAnalysis.visualizeDOM",
         "title": "CodeXR: Visualize DOM",
         "icon": "$(browser)"
+      },
+      {
+        "command": "newCodeAnalysis.activeAnalyses.closeAnalysis",
+        "title": "Close Analysis",
+        "icon": "$(close)"
+      },
+      {
+        "command": "newCodeAnalysis.activeAnalyses.openInBrowser",
+        "title": "Open in Browser",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "newCodeAnalysis.activeAnalyses.viewDetails",
+        "title": "View Details",
+        "icon": "$(info)"
+      },
+      {
+        "command": "newCodeAnalysis.activeAnalyses.refreshAll",
+        "title": "Refresh Active Analyses",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -279,6 +299,21 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "newCodeAnalysis.activeAnalyses.closeAnalysis",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|completed|failed)$/",
+          "group": "activeAnalyses@1"
+        },
+        {
+          "command": "newCodeAnalysis.activeAnalyses.openInBrowser",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(completed)$/",
+          "group": "activeAnalyses@2"
+        },
+        {
+          "command": "newCodeAnalysis.activeAnalyses.viewDetails",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|completed|failed)$/",
+          "group": "activeAnalyses@3"
+        },
         {
           "command": "codexr.activeAnalysis.stopAnalysis",
           "when": "view == codexrTree && viewItem =~ /^active-analysis-(running|completed|failed|paused)$/",

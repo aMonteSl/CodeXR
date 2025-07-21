@@ -11,3 +11,6 @@ export {
     NewCodeAnalysisInteractionHandler 
 } from './views';
 export { LaunchAnalyzeFileLivePanel } from './engine';
+
+// Initialize services
+export { ServerWatcherIntegration } from './services/serverWatcherIntegration';

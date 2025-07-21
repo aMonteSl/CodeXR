@@ -225,7 +225,7 @@ export class AnalysisSessionRegistry {
     }
 
     /**
-     * Get all active sessions (creating or analyzing)
+     * Get all active sessions (creating or analyzing, excluding closing)
      */
     getActiveSessions(): AnalysisSession[] {
         return Array.from(this.sessions.values()).filter(

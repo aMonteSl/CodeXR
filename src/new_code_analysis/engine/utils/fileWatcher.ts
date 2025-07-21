@@ -272,6 +272,11 @@ export class FileWatcher {
                 if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
                     console.log(`FILE_WATCHER: DOM analysis completed successfully`);
                     await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
+                    const registry = AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after DOM analysis`);
                 } else {
                     console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
                     const registry = AnalysisSessionRegistry.getInstance();
@@ -286,6 +291,11 @@ export class FileWatcher {
                 if (analysisResult.success && analysisResult.data) {
                     console.log(`FILE_WATCHER: XR analysis completed successfully`);
                     await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
+                    const registry = AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after XR analysis`);
                 } else {
                     console.error(`FILE_WATCHER: XR analysis failed:`, analysisResult.error);
                     const registry = AnalysisSessionRegistry.getInstance();
@@ -317,6 +327,11 @@ export class FileWatcher {
                     } catch (sseError) {
                         console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
                     }
+                    
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS AND SSE NOTIFICATION**
+                    const registry = AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after LivePanel analysis and SSE notification`);
                     
                     // Show success message
                     vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(session.filePath)}`);
