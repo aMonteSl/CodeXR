@@ -1,6 +1,7 @@
 import { ChartMetadata, DimensionMapping, VisualizationConfig, TemplateProcessingResult } from '../models/chartModels';
 import { DimensionValidator } from './dimensionValidator';
 import { chartTemplates } from '../charts/templateCharts';
+import { getVisualizationConfiguration, VisualizationSettings } from '../../utils/getVisualizationConfiguration';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -76,26 +77,8 @@ export class TemplateProcessor {
     /**
      * Get visualization settings (palette, environment, colors)
      */
-    private static async getVisualizationSettings(): Promise<{
-        palette: string;
-        environment: string;
-        backgroundColor: string;
-        groundColor: string;
-    }> {
-        // Import visualization settings functions directly (no dynamic import needed)
-        const { 
-            getSelectedPalette,
-            getSelectedEnvironment,
-            getSelectedBackgroundColor,
-            getSelectedGroundColor
-        } = require('../../visualization_settings');
-
-        return {
-            palette: await getSelectedPalette(),
-            environment: await getSelectedEnvironment(),
-            backgroundColor: await getSelectedBackgroundColor(),
-            groundColor: await getSelectedGroundColor()
-        };
+    private static async getVisualizationSettings(): Promise<VisualizationSettings> {
+        return await getVisualizationConfiguration();
     }
 
     /**

@@ -18,9 +18,9 @@ export interface SavedAnalysisFiles {
 
 export interface FilesToSave {
     indexHtml: string;
-    cssContent: string;
     jsContent: string;
     dataJson: any;
+    cssContent?: string; // Optional for compatibility, not used in DOM visualization
 }
 
 export class SaveFiles {
@@ -67,13 +67,20 @@ export class SaveFiles {
 
             // Write files to storage
             await fs.promises.writeFile(indexHtmlPath, filesToSave.indexHtml, 'utf-8');
-            await fs.promises.writeFile(cssPath, filesToSave.cssContent, 'utf-8');
+            
+            // Only save CSS if provided (DOM visualization doesn't need it)
+            if (filesToSave.cssContent) {
+                await fs.promises.writeFile(cssPath, filesToSave.cssContent, 'utf-8');
+                console.log(`SAVE_FILES: - style.css: ${cssPath}`);
+            } else {
+                console.log(`SAVE_FILES: - style.css: Skipped (not needed for DOM visualization)`);
+            }
+            
             await fs.promises.writeFile(jsPath, filesToSave.jsContent, 'utf-8');
             await fs.promises.writeFile(dataJsonPath, JSON.stringify(filesToSave.dataJson, null, 2), 'utf-8');
 
             console.log(`SAVE_FILES: Successfully saved all files:`);
             console.log(`SAVE_FILES: - index.html: ${indexHtmlPath}`);
-            console.log(`SAVE_FILES: - style.css: ${cssPath}`);
             console.log(`SAVE_FILES: - main.js: ${jsPath}`);
             console.log(`SAVE_FILES: - data.json: ${dataJsonPath}`);
 

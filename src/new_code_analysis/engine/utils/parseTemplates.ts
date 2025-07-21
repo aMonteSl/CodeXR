@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { generateNonce } from '../../../utils/nonceGenerator';
+import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
 
 export interface ParsedTemplateFiles {
     indexHtml: string;
@@ -126,6 +127,64 @@ export class ParseTemplates {
         } catch (error) {
             console.error(`PARSE_TEMPLATES: Error parsing CSS template:`, error);
             return cssTemplate; // Return original if parsing fails
+        }
+    }
+
+    /**
+     * Parse DOM Visualization template for HTML DOM analysis
+     */
+    static async parseDOMVisualizationTemplate(
+        context: vscode.ExtensionContext,
+        domData: { htmlContent: string; fileName: string; filePath: string; title?: string }
+    ): Promise<ParsedTemplateFiles> {
+        try {
+            console.log(`PARSE_TEMPLATES: Starting DOM Visualization template parsing`);
+            console.log(`PARSE_TEMPLATES: File: ${domData.fileName}`);
+            console.log(`PARSE_TEMPLATES: HTML content length: ${domData.htmlContent.length}`);
+
+            // Validate template data
+            const templateData: HTMLTemplateData = {
+                htmlContent: domData.htmlContent,
+                fileName: domData.fileName,
+                filePath: domData.filePath,
+                title: domData.title
+            };
+
+            if (!TemplateHTMLProcessor.validateTemplateData(templateData)) {
+                throw new Error('Invalid template data provided');
+            }
+
+            // Process HTML template using TemplateHTMLProcessor
+            const processingResult = await TemplateHTMLProcessor.processHTMLTemplate(
+                templateData,
+                context
+            );
+
+            if (!processingResult.success) {
+                throw new Error(`Template processing failed: ${processingResult.error}`);
+            }
+
+            console.log(`PARSE_TEMPLATES: DOM Visualization template processing completed successfully`);
+            console.log(`PARSE_TEMPLATES: Generated HTML length: ${processingResult.indexHtml?.length || 0}`);
+            console.log(`PARSE_TEMPLATES: Generated JS length: ${processingResult.jsContent?.length || 0}`);
+
+            return {
+                indexHtml: processingResult.indexHtml || '',
+                cssContent: '', // DOM visualization uses inline styles in template
+                jsContent: processingResult.jsContent || '',
+                success: true,
+                error: undefined
+            };
+
+        } catch (error) {
+            console.error(`PARSE_TEMPLATES: Error parsing DOM Visualization template:`, error);
+            return {
+                indexHtml: '',
+                cssContent: '',
+                jsContent: '',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
         }
     }
 

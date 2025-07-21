@@ -13,6 +13,7 @@ import {
 } from './subsections';
 import { FileAnalysisCommands } from './file_analysis';
 import { CleanAnalysisCommands } from './clean_analysis';
+import { DOMVisualizationCommands } from './dom_visualization';
 import { CommandRegistration } from './subsections/analysis_settings/analysis_file_mode';
 import { AnalysisFileSetting } from '../views/subsections/analysis_settings/analysis_file_mode/analysisFileMode';
 import { ViewThemeSetting } from '../views/subsections/analysis_settings/view_theme/viewTheme';
@@ -93,6 +94,13 @@ export class NewCodeAnalysisCommands {
             defaultRefreshCallback
         );
         allCommandRegistrations.push(...cleanAnalysisCommands);
+
+        // Add DOM visualization commands
+        const domVisualizationCommands = DOMVisualizationCommands.getCommandRegistrations(
+            context, 
+            defaultRefreshCallback
+        );
+        allCommandRegistrations.push(...domVisualizationCommands);
 
         // Execute startup cleanup
         CleanAnalysisCommands.executeStartupCleanup(context);

@@ -101,6 +101,11 @@ export const SUPPORTED_LANGUAGES: Record<string, LanguageConfig> = {
     zig: { 
         extensions: ['.zig'], 
         name: 'Zig' 
+    },
+    // Web Technologies
+    html: { 
+        extensions: ['.html', '.htm', '.xhtml'], 
+        name: 'HTML' 
     }
 };
 

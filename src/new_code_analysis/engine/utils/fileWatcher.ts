@@ -10,6 +10,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PythonExecutor } from './pythonExecutor';
 import { sseManager } from '../../../servers/runtime/sse/SSEManager';
+import { GetNecessaryFiles } from './getNecessaryFiles';
+import { SaveFiles } from './saveFiles';
+import { fileToServerMap } from '../../../utils/fileToServerMap';
 
 interface WatcherInfo {
     watcher: fs.FSWatcher;
@@ -222,47 +225,109 @@ export class FileWatcher {
             console.log(`FILE_WATCHER: Re-executing analysis for: ${filePath}`);
             console.log(`FILE_WATCHER: Analysis type: ${analysisType}`);
 
-            // Execute Python analysis in LivePanel mode
-            const result = await PythonExecutor.executeAnalysis(
-                'FileLivePanel',
-                filePath,
-                context
-            );
-
-            if (result.success && result.stdout) {
-                // Update data.json in analysis directory
-                const dataJsonPath = path.join(analysisDir, 'data.json');
+            if (analysisType === 'DOMVisualization') {
+                // Re-execute DOM analysis
+                const analysisResult = await GetNecessaryFiles.getVisualizationDOM(filePath, context);
                 
-                try {
-                    // Parse the output to extract JSON data
-                    const jsonData = FileWatcher.extractJsonFromOutput(result.stdout);
-                    if (jsonData) {
-                        fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2), 'utf-8');
-                        console.log(`FILE_WATCHER: Updated data.json at: ${dataJsonPath}`);
+                if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
+                    console.log(`FILE_WATCHER: DOM analysis completed successfully`);
+                    
+                    // Update the HTML file with new content
+                    const indexHtmlPath = path.join(analysisDir, 'index.html');
+                    const jsPath = path.join(analysisDir, 'main.js');
+                    const dataJsonPath = path.join(analysisDir, 'data.json');
+                    
+                    try {
+                        // Update files with new analysis results
+                        await fs.promises.writeFile(indexHtmlPath, analysisResult.indexHtml, 'utf-8');
+                        if (analysisResult.jsContent) {
+                            await fs.promises.writeFile(jsPath, analysisResult.jsContent, 'utf-8');
+                        }
+                        await fs.promises.writeFile(dataJsonPath, JSON.stringify(analysisResult.data, null, 2), 'utf-8');
                         
-                        // Send SSE update to all clients listening for this file
+                        console.log(`FILE_WATCHER: Updated DOM visualization files in: ${analysisDir}`);
+                        
+                        // Send SSE update to clients with specific HTML update event
                         try {
-                            console.log(`FILE_WATCHER: Sending SSE update notification for file: ${filePath}`);
+                            console.log(`FILE_WATCHER: Sending SSE update for DOM visualization: ${filePath}`);
+                            console.log(`FILE_WATCHER: Checking file-to-server mapping for: ${filePath}`);
                             
-                            // Use the original SSEManager that matches the server
-                            sseManager.sendUpdate(filePath);
+                            // Debug: Check if mapping exists for this file
+                            const mapping = fileToServerMap.getServerInfo(filePath);
+                            if (mapping) {
+                                console.log(`FILE_WATCHER: Found server mapping - Port: ${mapping.port}, TempDir: ${mapping.tempDir}`);
+                            } else {
+                                console.warn(`FILE_WATCHER: No server mapping found for: ${filePath}`);
+                                console.warn(`FILE_WATCHER: Available mappings: ${fileToServerMap.getAllFileUris().join(', ')}`);
+                            }
                             
-                            console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                            // Send specific HTML update event for DOM visualization
+                            sseManager.sendCustomMessage(filePath, {
+                                type: 'htmlUpdated',
+                                htmlContent: analysisResult.data?.htmlContent || '',
+                                action: 'reload-html',
+                                message: 'HTML DOM content has been updated'
+                            });
+                            
+                            console.log(`FILE_WATCHER: SSE HTML update sent successfully for DOM visualization`);
                         } catch (sseError) {
                             console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
                         }
                         
                         // Show success message
-                        vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(filePath)}`);
-                    } else {
-                        console.error(`FILE_WATCHER: No valid JSON data found in Python output`);
+                        vscode.window.showInformationMessage(`🌐 DOM Visualization updated for: ${path.basename(filePath)}`);
+                        
+                    } catch (error) {
+                        console.error(`FILE_WATCHER: Error updating DOM visualization files:`, error);
                     }
-                } catch (error) {
-                    console.error(`FILE_WATCHER: Error updating data.json:`, error);
+                } else {
+                    console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
+                    vscode.window.showErrorMessage(`DOM visualization update failed: ${analysisResult.error}`);
                 }
+                
             } else {
-                console.error(`FILE_WATCHER: Python analysis failed:`, result.error);
-                vscode.window.showErrorMessage(`Analysis update failed: ${result.error}`);
+                // Original LivePanel logic
+                const result = await PythonExecutor.executeAnalysis(
+                    'FileLivePanel',
+                    filePath,
+                    context
+                );
+
+                if (result.success && result.stdout) {
+                    // Update data.json in analysis directory
+                    const dataJsonPath = path.join(analysisDir, 'data.json');
+                    
+                    try {
+                        // Parse the output to extract JSON data
+                        const jsonData = FileWatcher.extractJsonFromOutput(result.stdout);
+                        if (jsonData) {
+                            fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2), 'utf-8');
+                            console.log(`FILE_WATCHER: Updated data.json at: ${dataJsonPath}`);
+                            
+                            // Send SSE update to all clients listening for this file
+                            try {
+                                console.log(`FILE_WATCHER: Sending SSE update notification for file: ${filePath}`);
+                                
+                                // Use the original SSEManager that matches the server
+                                sseManager.sendUpdate(filePath);
+                                
+                                console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                            } catch (sseError) {
+                                console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
+                            }
+                            
+                            // Show success message
+                            vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(filePath)}`);
+                        } else {
+                            console.error(`FILE_WATCHER: No valid JSON data found in Python output`);
+                        }
+                    } catch (error) {
+                        console.error(`FILE_WATCHER: Error updating data.json:`, error);
+                    }
+                } else {
+                    console.error(`FILE_WATCHER: Python analysis failed:`, result.error);
+                    vscode.window.showErrorMessage(`Analysis update failed: ${result.error}`);
+                }
             }
 
         } catch (error) {

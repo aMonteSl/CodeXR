@@ -6,3 +6,4 @@
 export { NewCodeAnalysisCommands } from './newCodeAnalysisCommands';
 export { FileAnalysisCommands } from './file_analysis';
 export { CleanAnalysisCommands } from './clean_analysis';
+export { DOMVisualizationCommands } from './dom_visualization';

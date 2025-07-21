@@ -180,6 +180,11 @@
         "command": "newCodeAnalysis.analyzeFile",
         "title": "CodeXR: Analyze File",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "newCodeAnalysis.visualizeDOM",
+        "title": "CodeXR: Visualize DOM",
+        "icon": "$(browser)"
       }
     ],
     "viewsContainers": {
@@ -221,6 +226,11 @@
           "group": "codexr@1"
         },
         {
+          "command": "newCodeAnalysis.visualizeDOM",
+          "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
+          "group": "codexr@1"
+        },
+        {
           "command": "codexr.analysis.fileStatic",
           "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
           "group": "codexr@2"
@@ -235,6 +245,11 @@
         {
           "command": "newCodeAnalysis.analyzeFile",
           "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
+          "group": "codexr@1"
+        },
+        {
+          "command": "newCodeAnalysis.visualizeDOM",
+          "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
           "group": "codexr@1"
         },
         {

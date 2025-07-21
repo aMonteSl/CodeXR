@@ -8,7 +8,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { getPythonEnvCommands } from '../../../commands/python_env/pythonEnvCommands';
 
-export type AnalysisType = 'FileLivePanel';
+export type AnalysisType = 'FileLivePanel' | 'DOMVisualization';
 
 export interface PythonExecutionResult {
     success: boolean;
@@ -76,7 +76,7 @@ export class PythonExecutor {
             console.log(`PYTHON_EXECUTOR: Using script: ${scriptPath}`);
 
             // Execute the Python script using the virtual environment
-            const result = await PythonExecutor.runPythonScript(pythonExecutable, scriptPath, filePath);
+            const result = await PythonExecutor.runPythonScript(pythonExecutable, scriptPath, filePath, analysisType);
             
             if (result.success && result.stdout) {
                 try {
@@ -122,6 +122,8 @@ export class PythonExecutor {
         
         if (analysisType === 'FileLivePanel') {
             return path.join(pythonDir, 'livePanel_file_analysis_coordinator.py');
+        } else if (analysisType === 'DOMVisualization') {
+            return path.join(pythonDir, 'html_dom_parser.py');
         }
         
         console.error(`PYTHON_EXECUTOR: Unknown analysis type: ${analysisType}`);
@@ -131,11 +133,14 @@ export class PythonExecutor {
     /**
      * Run Python script with file path as argument using virtual environment
      */
-    private static async runPythonScript(pythonExecutable: string, scriptPath: string, filePath: string): Promise<PythonExecutionResult> {
+    private static async runPythonScript(pythonExecutable: string, scriptPath: string, filePath: string, analysisType?: AnalysisType): Promise<PythonExecutionResult> {
         return new Promise((resolve) => {
-            console.log(`PYTHON_EXECUTOR: Executing: "${pythonExecutable}" "${scriptPath}" "${filePath}"`);
+            // Build arguments array
+            const args = [scriptPath, filePath];
+            
+            console.log(`PYTHON_EXECUTOR: Executing: "${pythonExecutable}" ${args.map(arg => `"${arg}"`).join(' ')}`);
 
-            const pythonProcess = spawn(pythonExecutable, [scriptPath, filePath], {
+            const pythonProcess = spawn(pythonExecutable, args, {
                 cwd: path.dirname(scriptPath)
             });
 

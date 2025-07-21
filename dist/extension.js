@@ -43,14 +43,14 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
 const index_1 = __webpack_require__(2);
-const views_1 = __webpack_require__(114);
-const commonCommands_1 = __webpack_require__(113);
+const views_1 = __webpack_require__(120);
+const commonCommands_1 = __webpack_require__(119);
 const serverSettingsManager_1 = __webpack_require__(11);
 const activeServerRegistry_1 = __webpack_require__(26);
-const visualizeDataModel_1 = __webpack_require__(174);
-const tempStorageManager_1 = __webpack_require__(65);
-const fileWatcherManager_1 = __webpack_require__(147);
-const statusBarDelayTimer_1 = __webpack_require__(148);
+const visualizeDataModel_1 = __webpack_require__(180);
+const tempStorageManager_1 = __webpack_require__(66);
+const fileWatcherManager_1 = __webpack_require__(153);
+const statusBarDelayTimer_1 = __webpack_require__(154);
 const SSEManager_1 = __webpack_require__(18);
 const fileToServerMap_1 = __webpack_require__(20);
 // Global context reference for cleanup
@@ -203,11 +203,11 @@ const serverCommands_1 = __webpack_require__(3);
 const activeServersCommands_1 = __webpack_require__(32);
 const babiaExamplesCommands_1 = __webpack_require__(34);
 const visualizeDataCommands_1 = __webpack_require__(38);
-const analysisCommands_1 = __webpack_require__(57);
-const newCodeAnalysisCommands_1 = __webpack_require__(70);
-const pythonEnvCommands_1 = __webpack_require__(90);
-const visualizationSettingsCommands_1 = __webpack_require__(110);
-const generalCommands_1 = __webpack_require__(112);
+const analysisCommands_1 = __webpack_require__(58);
+const newCodeAnalysisCommands_1 = __webpack_require__(71);
+const pythonEnvCommands_1 = __webpack_require__(91);
+const visualizationSettingsCommands_1 = __webpack_require__(116);
+const generalCommands_1 = __webpack_require__(118);
 /**
  * Entry point that registers all extension commands
  */
@@ -4081,7 +4081,7 @@ class PortManager {
         }
         try {
             // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 175))).default;
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 181))).default;
             // Create a range array for get-port - limit to reasonable range for performance
             const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
             const ports = [];
@@ -6597,7 +6597,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const visualizationLauncher_1 = __webpack_require__(40);
-const visualizationRestorer_1 = __webpack_require__(56);
+const visualizationRestorer_1 = __webpack_require__(57);
 /**
  * Visualize Data Commands
  * VS Code command definitions for visualize data functionality
@@ -6783,7 +6783,7 @@ const visualizeDataState_1 = __webpack_require__(43);
 const jsonFieldAnalyzer_1 = __webpack_require__(44);
 const nonceGenerator_1 = __webpack_require__(12);
 const templateProcessor_1 = __webpack_require__(45);
-const index_1 = __webpack_require__(55);
+const index_1 = __webpack_require__(56);
 /**
  * Visualization Launcher
  * Manages visualization creation and launching using centralized template processing
@@ -8275,6 +8275,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TemplateProcessor = void 0;
 const dimensionValidator_1 = __webpack_require__(46);
 const templateCharts_1 = __webpack_require__(42);
+const getVisualizationConfiguration_1 = __webpack_require__(47);
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 /**
@@ -8333,14 +8334,7 @@ class TemplateProcessor {
      * Get visualization settings (palette, environment, colors)
      */
     static async getVisualizationSettings() {
-        // Import visualization settings functions directly (no dynamic import needed)
-        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(47);
-        return {
-            palette: await getSelectedPalette(),
-            environment: await getSelectedEnvironment(),
-            backgroundColor: await getSelectedBackgroundColor(),
-            groundColor: await getSelectedGroundColor()
-        };
+        return await (0, getVisualizationConfiguration_1.getVisualizationConfiguration)();
     }
     /**
      * Load XR base template from templates/xr/xr-visualization.html
@@ -8714,22 +8708,87 @@ exports.DimensionValidator = DimensionValidator;
 
 
 /**
+ * Visualization Configuration Utility
+ * Common functions for retrieving visualization settings across templates
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getVisualizationConfiguration = getVisualizationConfiguration;
+exports.getIndividualSetting = getIndividualSetting;
+/**
+ * Get visualization settings (palette, environment, colors)
+ * Centralized function used by all template processors
+ */
+async function getVisualizationConfiguration() {
+    try {
+        console.log('VISUALIZATION_CONFIG: Retrieving visualization settings...');
+        // Import visualization settings functions directly (no dynamic import needed)
+        const { getSelectedPalette, getSelectedEnvironment, getSelectedBackgroundColor, getSelectedGroundColor } = __webpack_require__(48);
+        const settings = {
+            palette: await getSelectedPalette(),
+            environment: await getSelectedEnvironment(),
+            backgroundColor: await getSelectedBackgroundColor(),
+            groundColor: await getSelectedGroundColor()
+        };
+        console.log('VISUALIZATION_CONFIG: Settings retrieved:', settings);
+        return settings;
+    }
+    catch (error) {
+        console.error('VISUALIZATION_CONFIG: Error retrieving settings:', error);
+        // Return default settings if there's an error
+        const defaultSettings = {
+            palette: 'blues',
+            environment: 'forest',
+            backgroundColor: '#001122',
+            groundColor: '#553311'
+        };
+        console.log('VISUALIZATION_CONFIG: Using default settings:', defaultSettings);
+        return defaultSettings;
+    }
+}
+/**
+ * Get individual setting with fallback
+ */
+async function getIndividualSetting(settingType) {
+    try {
+        const settings = await getVisualizationConfiguration();
+        return settings[settingType];
+    }
+    catch (error) {
+        console.error(`VISUALIZATION_CONFIG: Error getting ${settingType}:`, error);
+        // Default fallbacks
+        const defaults = {
+            palette: 'blues',
+            environment: 'forest',
+            backgroundColor: '#001122',
+            groundColor: '#553311'
+        };
+        return defaults[settingType];
+    }
+}
+
+
+/***/ }),
+/* 48 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
  * Visualization Settings Module
  * Main entry point for visualization configuration management
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getAllSelectedSettings = exports.getSelectedPalette = exports.getSelectedEnvironment = exports.getSelectedGroundColor = exports.getSelectedBackgroundColor = exports.initializeSettingsAccessors = exports.VisualizationSettingsInteractionHandler = exports.VisualizationSettingsTreeItem = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsStorage = exports.DEFAULT_VISUALIZATION_SETTINGS = void 0;
-var settingsModel_1 = __webpack_require__(48);
+var settingsModel_1 = __webpack_require__(49);
 Object.defineProperty(exports, "DEFAULT_VISUALIZATION_SETTINGS", ({ enumerable: true, get: function () { return settingsModel_1.DEFAULT_VISUALIZATION_SETTINGS; } }));
-var settingsStorage_1 = __webpack_require__(49);
+var settingsStorage_1 = __webpack_require__(50);
 Object.defineProperty(exports, "VisualizationSettingsStorage", ({ enumerable: true, get: function () { return settingsStorage_1.VisualizationSettingsStorage; } }));
-var visualizationSettingsItems_1 = __webpack_require__(50);
+var visualizationSettingsItems_1 = __webpack_require__(51);
 Object.defineProperty(exports, "VisualizationSettingsItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsItemFactory; } }));
 Object.defineProperty(exports, "VisualizationSettingsTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsTreeItem; } }));
-var handleSettingsInteraction_1 = __webpack_require__(52);
+var handleSettingsInteraction_1 = __webpack_require__(53);
 Object.defineProperty(exports, "VisualizationSettingsInteractionHandler", ({ enumerable: true, get: function () { return handleSettingsInteraction_1.VisualizationSettingsInteractionHandler; } }));
 // Export settings accessors for babia-templates integration
-var settingsAccessors_1 = __webpack_require__(54);
+var settingsAccessors_1 = __webpack_require__(55);
 Object.defineProperty(exports, "initializeSettingsAccessors", ({ enumerable: true, get: function () { return settingsAccessors_1.initializeSettingsAccessors; } }));
 Object.defineProperty(exports, "getSelectedBackgroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedBackgroundColor; } }));
 Object.defineProperty(exports, "getSelectedGroundColor", ({ enumerable: true, get: function () { return settingsAccessors_1.getSelectedGroundColor; } }));
@@ -8739,7 +8798,7 @@ Object.defineProperty(exports, "getAllSelectedSettings", ({ enumerable: true, ge
 
 
 /***/ }),
-/* 48 */
+/* 49 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -8844,7 +8903,7 @@ exports.SETTING_FIELDS = [
 
 
 /***/ }),
-/* 49 */
+/* 50 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8885,7 +8944,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsStorage = void 0;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(48);
+const settingsModel_1 = __webpack_require__(49);
 /**
  * Visualization Settings Storage
  * Manages persistent storage and retrieval of visualization configuration using file system
@@ -9059,7 +9118,7 @@ exports.VisualizationSettingsStorage = VisualizationSettingsStorage;
 
 
 /***/ }),
-/* 50 */
+/* 51 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9099,8 +9158,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsIcons = exports.VisualizationSettingsItemFactory = exports.VisualizationSettingsTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(48);
-const dynamicColorIconGenerator_1 = __webpack_require__(51);
+const settingsModel_1 = __webpack_require__(49);
+const dynamicColorIconGenerator_1 = __webpack_require__(52);
 /**
  * Tree item for visualization settings
  */
@@ -9207,7 +9266,7 @@ exports.VisualizationSettingsIcons = VisualizationSettingsIcons;
 
 
 /***/ }),
-/* 51 */
+/* 52 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9423,7 +9482,7 @@ exports.DynamicColorIconGenerator = DynamicColorIconGenerator;
 
 
 /***/ }),
-/* 52 */
+/* 53 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9463,10 +9522,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsInteractionHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const settingsModel_1 = __webpack_require__(48);
-const settingsStorage_1 = __webpack_require__(49);
-const colorPickerUtils_1 = __webpack_require__(53);
-const dynamicColorIconGenerator_1 = __webpack_require__(51);
+const settingsModel_1 = __webpack_require__(49);
+const settingsStorage_1 = __webpack_require__(50);
+const colorPickerUtils_1 = __webpack_require__(54);
+const dynamicColorIconGenerator_1 = __webpack_require__(52);
 /**
  * Handle Visualization Settings Interactions
  * Manages user interactions with visualization settings items
@@ -9748,7 +9807,7 @@ exports.VisualizationSettingsInteractionHandler = VisualizationSettingsInteracti
 
 
 /***/ }),
-/* 53 */
+/* 54 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9867,7 +9926,7 @@ exports.ColorPickerUtils = ColorPickerUtils;
 
 
 /***/ }),
-/* 54 */
+/* 55 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9913,7 +9972,7 @@ exports.getSelectedPalette = getSelectedPalette;
 exports.getAllSelectedSettings = getAllSelectedSettings;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const settingsModel_1 = __webpack_require__(48);
+const settingsModel_1 = __webpack_require__(49);
 /**
  * Settings Accessors
  * Clean utility functions to access visualization settings for babia-templates integration
@@ -10075,7 +10134,7 @@ async function getAllSelectedSettings() {
 
 
 /***/ }),
-/* 55 */
+/* 56 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10155,7 +10214,7 @@ function getSuggestedPorts(serviceType) {
 
 
 /***/ }),
-/* 56 */
+/* 57 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10197,7 +10256,7 @@ exports.VisualizationRestorer = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const index_1 = __webpack_require__(55);
+const index_1 = __webpack_require__(56);
 const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Visualization Restorer
@@ -10349,13 +10408,13 @@ exports.VisualizationRestorer = VisualizationRestorer;
 
 
 /***/ }),
-/* 57 */
+/* 58 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerCodeAnalysisCommands = registerCodeAnalysisCommands;
-const analysisCommands_1 = __webpack_require__(58);
+const analysisCommands_1 = __webpack_require__(59);
 /**
  * Register Code Analysis Commands
  * Entry point for registering all code analysis related commands
@@ -10368,7 +10427,7 @@ function registerCodeAnalysisCommands(context) {
 
 
 /***/ }),
-/* 58 */
+/* 59 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10411,16 +10470,16 @@ exports.executeFileAnalysis = executeFileAnalysis;
 exports.runXRFileAnalysisCoordinator = runXRFileAnalysisCoordinator;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const child_process_1 = __webpack_require__(59);
-const handleAnalysisClicks_1 = __webpack_require__(60);
-const analysisSettingsStorage_1 = __webpack_require__(61);
-const pythonEnvStorage_1 = __webpack_require__(62);
-const pythonEnvUtils_1 = __webpack_require__(63);
-const tempStorageManager_1 = __webpack_require__(65);
-const activeAnalysisRegistry_1 = __webpack_require__(68);
-const activeAnalysisModel_1 = __webpack_require__(69);
+const child_process_1 = __webpack_require__(60);
+const handleAnalysisClicks_1 = __webpack_require__(61);
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const pythonEnvStorage_1 = __webpack_require__(63);
+const pythonEnvUtils_1 = __webpack_require__(64);
+const tempStorageManager_1 = __webpack_require__(66);
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const activeAnalysisModel_1 = __webpack_require__(70);
 const chartRegistry_1 = __webpack_require__(41);
-const xrTemplateRenderer_1 = __webpack_require__(67);
+const xrTemplateRenderer_1 = __webpack_require__(68);
 /**
  * Code Analysis Commands
  * Handles all command registrations for the code analysis functionality
@@ -11129,13 +11188,13 @@ async function handleDimensionMappingFileSelection(context, dimensionName, dataT
 
 
 /***/ }),
-/* 59 */
+/* 60 */
 /***/ ((module) => {
 
 module.exports = require("child_process");
 
 /***/ }),
-/* 60 */
+/* 61 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11175,7 +11234,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisInteractionHandler = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisSettingsStorage_1 = __webpack_require__(61);
+const analysisSettingsStorage_1 = __webpack_require__(62);
 /**
  * Handle clicks and interactions for Code Analysis tree items
  */
@@ -11357,7 +11416,7 @@ exports.CodeAnalysisInteractionHandler = CodeAnalysisInteractionHandler;
 
 
 /***/ }),
-/* 61 */
+/* 62 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11705,7 +11764,7 @@ exports.AnalysisSettingsStorage = AnalysisSettingsStorage;
 
 
 /***/ }),
-/* 62 */
+/* 63 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11746,7 +11805,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvStorage = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const pythonEnvUtils_1 = __webpack_require__(63);
+const pythonEnvUtils_1 = __webpack_require__(64);
 /**
  * Manages persistent storage of Python environment metadata
  */
@@ -11946,7 +12005,7 @@ exports.PythonEnvStorage = PythonEnvStorage;
 
 
 /***/ }),
-/* 63 */
+/* 64 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11987,7 +12046,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvUtils = void 0;
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const os = __importStar(__webpack_require__(64));
+const os = __importStar(__webpack_require__(65));
 /**
  * Platform-specific utilities for Python environment management
  */
@@ -12141,13 +12200,13 @@ exports.PythonEnvUtils = PythonEnvUtils;
 
 
 /***/ }),
-/* 64 */
+/* 65 */
 /***/ ((module) => {
 
 module.exports = require("os");
 
 /***/ }),
-/* 65 */
+/* 66 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12192,13 +12251,13 @@ exports.prepareStaticAnalysisViewerAssets = prepareStaticAnalysisViewerAssets;
 exports.updateDataJson = updateDataJson;
 exports.prepareXRAnalysisViewerAssets = prepareXRAnalysisViewerAssets;
 const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(66));
+const fs = __importStar(__webpack_require__(67));
 const path = __importStar(__webpack_require__(5));
 const nonceGenerator_1 = __webpack_require__(12);
-const index_1 = __webpack_require__(55);
-const analysisSettingsStorage_1 = __webpack_require__(61);
+const index_1 = __webpack_require__(56);
+const analysisSettingsStorage_1 = __webpack_require__(62);
 const fileToServerMap_1 = __webpack_require__(20);
-const xrTemplateRenderer_1 = __webpack_require__(67);
+const xrTemplateRenderer_1 = __webpack_require__(68);
 /**
  * Temporary Storage Manager for Analysis Results
  *
@@ -12559,13 +12618,13 @@ async function prepareXRAnalysisViewerAssets(context, tempFolder, fileName) {
 
 
 /***/ }),
-/* 66 */
+/* 67 */
 /***/ ((module) => {
 
 module.exports = require("fs/promises");
 
 /***/ }),
-/* 67 */
+/* 68 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12605,7 +12664,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.XRTemplateRenderer = void 0;
 const path = __importStar(__webpack_require__(5));
-const analysisSettingsStorage_1 = __webpack_require__(61);
+const analysisSettingsStorage_1 = __webpack_require__(62);
 const templateProcessor_1 = __webpack_require__(45);
 /**
  * XR Template Renderer for File Analysis
@@ -12672,7 +12731,7 @@ exports.XRTemplateRenderer = XRTemplateRenderer;
 
 
 /***/ }),
-/* 68 */
+/* 69 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12712,7 +12771,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysisRegistry = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisModel_1 = __webpack_require__(69);
+const activeAnalysisModel_1 = __webpack_require__(70);
 const activeServerRegistry_1 = __webpack_require__(26);
 const fileToServerMap_1 = __webpack_require__(20);
 const SSEManager_1 = __webpack_require__(18);
@@ -12997,7 +13056,7 @@ exports.ActiveAnalysisRegistry = ActiveAnalysisRegistry;
 
 
 /***/ }),
-/* 69 */
+/* 70 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -13051,7 +13110,7 @@ exports.ActiveAnalysisFactory = ActiveAnalysisFactory;
 
 
 /***/ }),
-/* 70 */
+/* 71 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13096,7 +13155,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerNewCodeAnalysisCommands = registerNewCodeAnalysisCommands;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisCommands_1 = __webpack_require__(71);
+const newCodeAnalysisCommands_1 = __webpack_require__(72);
 /**
  * Register all new code analysis commands
  * This is the ONLY place where VS Code commands are actually registered
@@ -13146,7 +13205,7 @@ function registerNewCodeAnalysisCommands(context, refreshCallback) {
 
 
 /***/ }),
-/* 71 */
+/* 72 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13157,12 +13216,13 @@ function registerNewCodeAnalysisCommands(context, refreshCallback) {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisCommands = void 0;
-const subsections_1 = __webpack_require__(72);
-const file_analysis_1 = __webpack_require__(83);
-const clean_analysis_1 = __webpack_require__(100);
-const analysisFileMode_1 = __webpack_require__(102);
-const viewTheme_1 = __webpack_require__(108);
-const autoAnalysisDelay_1 = __webpack_require__(109);
+const subsections_1 = __webpack_require__(73);
+const file_analysis_1 = __webpack_require__(84);
+const clean_analysis_1 = __webpack_require__(103);
+const dom_visualization_1 = __webpack_require__(105);
+const analysisFileMode_1 = __webpack_require__(108);
+const viewTheme_1 = __webpack_require__(114);
+const autoAnalysisDelay_1 = __webpack_require__(115);
 /**
  * Main command coordinator for New Code Analysis
  * Follows the "nested dolls" pattern: collects all command registrations
@@ -13203,6 +13263,9 @@ class NewCodeAnalysisCommands {
         // Add clean analysis commands
         const cleanAnalysisCommands = clean_analysis_1.CleanAnalysisCommands.getCommandRegistrations(context, defaultRefreshCallback);
         allCommandRegistrations.push(...cleanAnalysisCommands);
+        // Add DOM visualization commands
+        const domVisualizationCommands = dom_visualization_1.DOMVisualizationCommands.getCommandRegistrations(context, defaultRefreshCallback);
+        allCommandRegistrations.push(...domVisualizationCommands);
         // Execute startup cleanup
         clean_analysis_1.CleanAnalysisCommands.executeStartupCleanup(context);
         console.log(`NEW_CODE_ANALYSIS: Collected total of ${allCommandRegistrations.length} command registrations + file analysis commands`);
@@ -13230,7 +13293,7 @@ exports.NewCodeAnalysisCommands = NewCodeAnalysisCommands;
 
 
 /***/ }),
-/* 72 */
+/* 73 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13240,18 +13303,18 @@ exports.NewCodeAnalysisCommands = NewCodeAnalysisCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageCommands = exports.ProjectByLanguageCommands = exports.ActiveAnalysesCommands = exports.AnalysisSettingsCommands = void 0;
-var analysisSettingsCommands_1 = __webpack_require__(73);
+var analysisSettingsCommands_1 = __webpack_require__(74);
 Object.defineProperty(exports, "AnalysisSettingsCommands", ({ enumerable: true, get: function () { return analysisSettingsCommands_1.AnalysisSettingsCommands; } }));
-var activeAnalysesCommands_1 = __webpack_require__(80);
+var activeAnalysesCommands_1 = __webpack_require__(81);
 Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
-var projectByLanguageCommands_1 = __webpack_require__(81);
+var projectByLanguageCommands_1 = __webpack_require__(82);
 Object.defineProperty(exports, "ProjectByLanguageCommands", ({ enumerable: true, get: function () { return projectByLanguageCommands_1.ProjectByLanguageCommands; } }));
-var filesByLanguageCommands_1 = __webpack_require__(82);
+var filesByLanguageCommands_1 = __webpack_require__(83);
 Object.defineProperty(exports, "FilesByLanguageCommands", ({ enumerable: true, get: function () { return filesByLanguageCommands_1.FilesByLanguageCommands; } }));
 
 
 /***/ }),
-/* 73 */
+/* 74 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13261,9 +13324,9 @@ Object.defineProperty(exports, "FilesByLanguageCommands", ({ enumerable: true, g
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsCommands = void 0;
-const analysis_file_mode_1 = __webpack_require__(74);
-const view_theme_1 = __webpack_require__(76);
-const auto_analysis_delay_1 = __webpack_require__(78);
+const analysis_file_mode_1 = __webpack_require__(75);
+const view_theme_1 = __webpack_require__(77);
+const auto_analysis_delay_1 = __webpack_require__(79);
 class AnalysisSettingsCommands {
     context;
     constructor(context) {
@@ -13293,7 +13356,7 @@ exports.AnalysisSettingsCommands = AnalysisSettingsCommands;
 
 
 /***/ }),
-/* 74 */
+/* 75 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13303,12 +13366,12 @@ exports.AnalysisSettingsCommands = AnalysisSettingsCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileModeCommands = void 0;
-var analysisFileModeCommands_1 = __webpack_require__(75);
+var analysisFileModeCommands_1 = __webpack_require__(76);
 Object.defineProperty(exports, "AnalysisFileModeCommands", ({ enumerable: true, get: function () { return analysisFileModeCommands_1.AnalysisFileModeCommands; } }));
 
 
 /***/ }),
-/* 75 */
+/* 76 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13422,7 +13485,7 @@ exports.AnalysisFileModeCommands = AnalysisFileModeCommands;
 
 
 /***/ }),
-/* 76 */
+/* 77 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13432,12 +13495,12 @@ exports.AnalysisFileModeCommands = AnalysisFileModeCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeCommands = void 0;
-var viewThemeCommands_1 = __webpack_require__(77);
+var viewThemeCommands_1 = __webpack_require__(78);
 Object.defineProperty(exports, "ViewThemeCommands", ({ enumerable: true, get: function () { return viewThemeCommands_1.ViewThemeCommands; } }));
 
 
 /***/ }),
-/* 77 */
+/* 78 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13554,7 +13617,7 @@ exports.ViewThemeCommands = ViewThemeCommands;
 
 
 /***/ }),
-/* 78 */
+/* 79 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13564,12 +13627,12 @@ exports.ViewThemeCommands = ViewThemeCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelayCommands = void 0;
-var autoAnalysisDelayCommands_1 = __webpack_require__(79);
+var autoAnalysisDelayCommands_1 = __webpack_require__(80);
 Object.defineProperty(exports, "AutoAnalysisDelayCommands", ({ enumerable: true, get: function () { return autoAnalysisDelayCommands_1.AutoAnalysisDelayCommands; } }));
 
 
 /***/ }),
-/* 79 */
+/* 80 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13784,7 +13847,7 @@ exports.AutoAnalysisDelayCommands = AutoAnalysisDelayCommands;
 
 
 /***/ }),
-/* 80 */
+/* 81 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -13821,7 +13884,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 81 */
+/* 82 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -13858,7 +13921,7 @@ exports.ProjectByLanguageCommands = ProjectByLanguageCommands;
 
 
 /***/ }),
-/* 82 */
+/* 83 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -13895,7 +13958,7 @@ exports.FilesByLanguageCommands = FilesByLanguageCommands;
 
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13905,12 +13968,12 @@ exports.FilesByLanguageCommands = FilesByLanguageCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisCommands = void 0;
-var fileAnalysisCommands_1 = __webpack_require__(84);
+var fileAnalysisCommands_1 = __webpack_require__(85);
 Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
 
 
 /***/ }),
-/* 84 */
+/* 85 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13954,7 +14017,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const engine_1 = __webpack_require__(85);
+const engine_1 = __webpack_require__(86);
 class FileAnalysisCommands {
     context;
     constructor(context) {
@@ -14006,7 +14069,7 @@ exports.FileAnalysisCommands = FileAnalysisCommands;
 
 
 /***/ }),
-/* 85 */
+/* 86 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -14015,16 +14078,18 @@ exports.FileAnalysisCommands = FileAnalysisCommands;
  * Exports for analysis engine functionality
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchAnalyzeFileLivePanel = void 0;
-var launchAnalyzeFileLivePanel_1 = __webpack_require__(86);
+exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchVisualizeDOMPanel = exports.LaunchAnalyzeFileLivePanel = void 0;
+var launchAnalyzeFileLivePanel_1 = __webpack_require__(87);
 Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
-var utils_1 = __webpack_require__(88);
+var launchVisualizeDOMPanel_1 = __webpack_require__(102);
+Object.defineProperty(exports, "LaunchVisualizeDOMPanel", ({ enumerable: true, get: function () { return launchVisualizeDOMPanel_1.LaunchVisualizeDOMPanel; } }));
+var utils_1 = __webpack_require__(89);
 Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
 Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return utils_1.GetNecessaryFiles; } }));
 
 
 /***/ }),
-/* 86 */
+/* 87 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14068,8 +14133,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchAnalyzeFileLivePanel = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(87);
-const utils_1 = __webpack_require__(88);
+const languageMetadata_1 = __webpack_require__(88);
+const utils_1 = __webpack_require__(89);
 class LaunchAnalyzeFileLivePanel {
     /**
      * Analyze a specific file using Live Panel mode
@@ -14194,7 +14259,7 @@ class LaunchAnalyzeFileLivePanel {
      */
     static getSupportedExtensions() {
         // This will return all extensions from our supported languages
-        const { getAllSupportedExtensions } = __webpack_require__(99);
+        const { getAllSupportedExtensions } = __webpack_require__(101);
         return getAllSupportedExtensions();
     }
 }
@@ -14202,7 +14267,7 @@ exports.LaunchAnalyzeFileLivePanel = LaunchAnalyzeFileLivePanel;
 
 
 /***/ }),
-/* 87 */
+/* 88 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14242,7 +14307,8 @@ exports.SupportedLanguages = [
     { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
     { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
     { name: "Vue", extensions: [".vue"], iconId: "vue" },
-    { name: "Zig", extensions: [".zig"], iconId: "zig" }
+    { name: "Zig", extensions: [".zig"], iconId: "zig" },
+    { name: "HTML", extensions: [".html", ".htm", ".xhtml"], iconId: "html" },
 ];
 /**
  * Create a map from file extension to language info for fast lookup
@@ -14290,7 +14356,7 @@ function isLanguageSupported(languageName) {
 
 
 /***/ }),
-/* 88 */
+/* 89 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -14300,22 +14366,22 @@ function isLanguageSupported(languageName) {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchServer = exports.FileWatcher = exports.SaveFiles = exports.ParseTemplates = exports.GetNecessaryFiles = exports.PythonExecutor = void 0;
-var pythonExecutor_1 = __webpack_require__(89);
+var pythonExecutor_1 = __webpack_require__(90);
 Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return pythonExecutor_1.PythonExecutor; } }));
-var getNecessaryFiles_1 = __webpack_require__(93);
+var getNecessaryFiles_1 = __webpack_require__(94);
 Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return getNecessaryFiles_1.GetNecessaryFiles; } }));
-var parseTemplates_1 = __webpack_require__(94);
+var parseTemplates_1 = __webpack_require__(95);
 Object.defineProperty(exports, "ParseTemplates", ({ enumerable: true, get: function () { return parseTemplates_1.ParseTemplates; } }));
-var saveFiles_1 = __webpack_require__(95);
+var saveFiles_1 = __webpack_require__(97);
 Object.defineProperty(exports, "SaveFiles", ({ enumerable: true, get: function () { return saveFiles_1.SaveFiles; } }));
-var fileWatcher_1 = __webpack_require__(96);
+var fileWatcher_1 = __webpack_require__(98);
 Object.defineProperty(exports, "FileWatcher", ({ enumerable: true, get: function () { return fileWatcher_1.FileWatcher; } }));
-var launchServer_1 = __webpack_require__(97);
+var launchServer_1 = __webpack_require__(99);
 Object.defineProperty(exports, "LaunchServer", ({ enumerable: true, get: function () { return launchServer_1.LaunchServer; } }));
 
 
 /***/ }),
-/* 89 */
+/* 90 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14359,8 +14425,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonExecutor = void 0;
 const path = __importStar(__webpack_require__(5));
-const child_process_1 = __webpack_require__(59);
-const pythonEnvCommands_1 = __webpack_require__(90);
+const child_process_1 = __webpack_require__(60);
+const pythonEnvCommands_1 = __webpack_require__(91);
 class PythonExecutor {
     /**
      * Execute Python analysis script based on analysis type
@@ -14405,7 +14471,7 @@ class PythonExecutor {
             }
             console.log(`PYTHON_EXECUTOR: Using script: ${scriptPath}`);
             // Execute the Python script using the virtual environment
-            const result = await PythonExecutor.runPythonScript(pythonExecutable, scriptPath, filePath);
+            const result = await PythonExecutor.runPythonScript(pythonExecutable, scriptPath, filePath, analysisType);
             if (result.success && result.stdout) {
                 try {
                     // Try to parse the stdout as JSON (data.json content)
@@ -14448,16 +14514,21 @@ class PythonExecutor {
         if (analysisType === 'FileLivePanel') {
             return path.join(pythonDir, 'livePanel_file_analysis_coordinator.py');
         }
+        else if (analysisType === 'DOMVisualization') {
+            return path.join(pythonDir, 'html_dom_parser.py');
+        }
         console.error(`PYTHON_EXECUTOR: Unknown analysis type: ${analysisType}`);
         return null;
     }
     /**
      * Run Python script with file path as argument using virtual environment
      */
-    static async runPythonScript(pythonExecutable, scriptPath, filePath) {
+    static async runPythonScript(pythonExecutable, scriptPath, filePath, analysisType) {
         return new Promise((resolve) => {
-            console.log(`PYTHON_EXECUTOR: Executing: "${pythonExecutable}" "${scriptPath}" "${filePath}"`);
-            const pythonProcess = (0, child_process_1.spawn)(pythonExecutable, [scriptPath, filePath], {
+            // Build arguments array
+            const args = [scriptPath, filePath];
+            console.log(`PYTHON_EXECUTOR: Executing: "${pythonExecutable}" ${args.map(arg => `"${arg}"`).join(' ')}`);
+            const pythonProcess = (0, child_process_1.spawn)(pythonExecutable, args, {
                 cwd: path.dirname(scriptPath)
             });
             let stdout = '';
@@ -14500,7 +14571,7 @@ exports.PythonExecutor = PythonExecutor;
 
 
 /***/ }),
-/* 90 */
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14542,7 +14613,7 @@ exports.registerPythonEnvCommands = registerPythonEnvCommands;
 exports.getPythonEnvCommands = getPythonEnvCommands;
 exports.deactivatePythonEnvCommands = deactivatePythonEnvCommands;
 const vscode = __importStar(__webpack_require__(1));
-const pythonEnvCommands_1 = __webpack_require__(91);
+const pythonEnvCommands_1 = __webpack_require__(92);
 /**
  * Python Environment Commands Wrapper
  * Re-exports python environment commands for centralized command registration
@@ -14588,7 +14659,7 @@ function deactivatePythonEnvCommands() {
 
 
 /***/ }),
-/* 91 */
+/* 92 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14628,7 +14699,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const venvManager_1 = __webpack_require__(92);
+const venvManager_1 = __webpack_require__(93);
 /**
  * Python environment command registration and handlers
  */
@@ -14885,7 +14956,7 @@ exports.PythonEnvCommands = PythonEnvCommands;
 
 
 /***/ }),
-/* 92 */
+/* 93 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14925,9 +14996,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VenvManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const cp = __importStar(__webpack_require__(59));
-const pythonEnvStorage_1 = __webpack_require__(62);
-const pythonEnvUtils_1 = __webpack_require__(63);
+const cp = __importStar(__webpack_require__(60));
+const pythonEnvStorage_1 = __webpack_require__(63);
+const pythonEnvUtils_1 = __webpack_require__(64);
 /**
  * Core virtual environment management functionality
  */
@@ -15302,7 +15373,7 @@ exports.VenvManager = VenvManager;
 
 
 /***/ }),
-/* 93 */
+/* 94 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -15312,9 +15383,92 @@ exports.VenvManager = VenvManager;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetNecessaryFiles = void 0;
-const pythonExecutor_1 = __webpack_require__(89);
-const parseTemplates_1 = __webpack_require__(94);
+const pythonExecutor_1 = __webpack_require__(90);
+const parseTemplates_1 = __webpack_require__(95);
 class GetNecessaryFiles {
+    /**
+     * Get analysis for DOM Visualization
+     */
+    static async getVisualizationDOM(filePath, context) {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting DOM visualization analysis for: ${filePath}`);
+            // Execute Python analysis using html_dom_parser.py
+            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('DOMVisualization', filePath, context);
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: DOM visualization analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: Received htmlContent:`, pythonResult.data.htmlContent ? 'YES' : 'NO');
+                // The python parser returns { htmlContent: "clean html content", originalFile: "path", preparedForVisualization: true }
+                // Extract the HTML content string for babia-html visualization
+                const htmlContentString = pythonResult.data.htmlContent || '';
+                if (htmlContentString) {
+                    console.log(`GET_NECESSARY_FILES: HTML content length: ${htmlContentString.length} characters`);
+                    // Parse templates to get HTML, CSS, and JS files for DOM visualization
+                    console.log(`GET_NECESSARY_FILES: Starting DOM visualization template parsing...`);
+                    const templateResult = await parseTemplates_1.ParseTemplates.parseDOMVisualizationTemplate(context, {
+                        htmlContent: htmlContentString,
+                        fileName: (__webpack_require__(5).basename)(filePath),
+                        filePath: filePath,
+                        title: `DOM Visualization - ${(__webpack_require__(5).basename)(filePath)}`
+                    });
+                    if (templateResult.success) {
+                        console.log(`GET_NECESSARY_FILES: DOM visualization template files received successfully`);
+                        console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                        console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
+                        console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+                        return {
+                            success: true,
+                            data: {
+                                htmlContent: htmlContentString,
+                                originalFile: filePath,
+                                preparedForVisualization: true
+                            },
+                            indexHtml: templateResult.indexHtml,
+                            cssContent: templateResult.cssContent,
+                            jsContent: templateResult.jsContent,
+                            filePath: filePath,
+                            analysisType: 'DOMVisualization'
+                        };
+                    }
+                    else {
+                        console.error(`GET_NECESSARY_FILES: DOM visualization template parsing failed:`, templateResult.error);
+                        return {
+                            success: false,
+                            error: `Template parsing failed: ${templateResult.error}`,
+                            filePath: filePath,
+                            analysisType: 'DOMVisualization'
+                        };
+                    }
+                }
+                else {
+                    console.error(`GET_NECESSARY_FILES: No HTML content received from parser`);
+                    return {
+                        success: false,
+                        error: 'No HTML content could be extracted from file',
+                        filePath: filePath,
+                        analysisType: 'DOMVisualization'
+                    };
+                }
+            }
+            else {
+                console.error(`GET_NECESSARY_FILES: DOM visualization analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during DOM analysis',
+                    filePath: filePath,
+                    analysisType: 'DOMVisualization'
+                };
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getVisualizationDOM:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: filePath,
+                analysisType: 'DOMVisualization'
+            };
+        }
+    }
     /**
      * Get analysis for File Live Panel mode
      */
@@ -15379,7 +15533,7 @@ exports.GetNecessaryFiles = GetNecessaryFiles;
 
 
 /***/ }),
-/* 94 */
+/* 95 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15425,6 +15579,7 @@ exports.ParseTemplates = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
 const nonceGenerator_1 = __webpack_require__(12);
+const templateHTMLProcessor_1 = __webpack_require__(96);
 class ParseTemplates {
     /**
      * Parse LivePanel Files template for File Live Panel analysis
@@ -15518,6 +15673,51 @@ class ParseTemplates {
         }
     }
     /**
+     * Parse DOM Visualization template for HTML DOM analysis
+     */
+    static async parseDOMVisualizationTemplate(context, domData) {
+        try {
+            console.log(`PARSE_TEMPLATES: Starting DOM Visualization template parsing`);
+            console.log(`PARSE_TEMPLATES: File: ${domData.fileName}`);
+            console.log(`PARSE_TEMPLATES: HTML content length: ${domData.htmlContent.length}`);
+            // Validate template data
+            const templateData = {
+                htmlContent: domData.htmlContent,
+                fileName: domData.fileName,
+                filePath: domData.filePath,
+                title: domData.title
+            };
+            if (!templateHTMLProcessor_1.TemplateHTMLProcessor.validateTemplateData(templateData)) {
+                throw new Error('Invalid template data provided');
+            }
+            // Process HTML template using TemplateHTMLProcessor
+            const processingResult = await templateHTMLProcessor_1.TemplateHTMLProcessor.processHTMLTemplate(templateData, context);
+            if (!processingResult.success) {
+                throw new Error(`Template processing failed: ${processingResult.error}`);
+            }
+            console.log(`PARSE_TEMPLATES: DOM Visualization template processing completed successfully`);
+            console.log(`PARSE_TEMPLATES: Generated HTML length: ${processingResult.indexHtml?.length || 0}`);
+            console.log(`PARSE_TEMPLATES: Generated JS length: ${processingResult.jsContent?.length || 0}`);
+            return {
+                indexHtml: processingResult.indexHtml || '',
+                cssContent: '', // DOM visualization uses inline styles in template
+                jsContent: processingResult.jsContent || '',
+                success: true,
+                error: undefined
+            };
+        }
+        catch (error) {
+            console.error(`PARSE_TEMPLATES: Error parsing DOM Visualization template:`, error);
+            return {
+                indexHtml: '',
+                cssContent: '',
+                jsContent: '',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
      * Parse JS template
      */
     static parseJsTemplate(jsTemplate) {
@@ -15537,7 +15737,246 @@ exports.ParseTemplates = ParseTemplates;
 
 
 /***/ }),
-/* 95 */
+/* 96 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Template HTML Processor
+ * Specialized processor for HTML DOM visualization templates
+ * Handles template processing, placeholder replacement, and HTML generation for DOM visualization
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TemplateHTMLProcessor = void 0;
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const getVisualizationConfiguration_1 = __webpack_require__(47);
+const nonceGenerator_1 = __webpack_require__(12);
+/**
+ * Template HTML Processor for DOM Visualization
+ */
+class TemplateHTMLProcessor {
+    /**
+     * Process HTML DOM visualization template
+     * @param templateData The HTML content and metadata
+     * @param context VS Code extension context
+     * @returns Processed HTML and JS content
+     */
+    static async processHTMLTemplate(templateData, context) {
+        try {
+            console.log('TEMPLATE_HTML_PROCESSOR: Starting HTML template processing...');
+            console.log('TEMPLATE_HTML_PROCESSOR: File:', templateData.fileName);
+            console.log('TEMPLATE_HTML_PROCESSOR: HTML content length:', templateData.htmlContent.length);
+            // 1. Load DOM visualization template
+            const templateHtml = await this.loadDOMTemplate(context);
+            if (!templateHtml) {
+                return {
+                    success: false,
+                    error: 'Failed to load DOM visualization template'
+                };
+            }
+            // 2. Load HTML live reload JavaScript
+            const jsContent = await this.loadHTMLLiveReloadJS(context);
+            if (!jsContent) {
+                return {
+                    success: false,
+                    error: 'Failed to load HTML live reload JavaScript'
+                };
+            }
+            // 3. Get visualization settings
+            const visualizationSettings = await (0, getVisualizationConfiguration_1.getVisualizationConfiguration)();
+            // 4. Prepare template variables
+            const templateVariables = this.prepareTemplateVariables(templateData, visualizationSettings);
+            // 5. Replace placeholders in HTML template
+            const processedHtml = this.replacePlaceholders(templateHtml, templateVariables);
+            // 6. Process JavaScript if needed (for now, return as-is)
+            const processedJs = jsContent;
+            console.log('TEMPLATE_HTML_PROCESSOR: Template processing completed successfully');
+            console.log('TEMPLATE_HTML_PROCESSOR: Generated HTML length:', processedHtml.length);
+            console.log('TEMPLATE_HTML_PROCESSOR: Generated JS length:', processedJs.length);
+            return {
+                success: true,
+                indexHtml: processedHtml,
+                jsContent: processedJs
+            };
+        }
+        catch (error) {
+            console.error('TEMPLATE_HTML_PROCESSOR: Error processing HTML template:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Load DOM visualization template from templates/xr/html/dom-visualization-template.html
+     * @private
+     */
+    static async loadDOMTemplate(context) {
+        try {
+            const templatePath = path.join(context.extensionPath, 'templates', 'xr', 'html', 'dom-visualization-template.html');
+            console.log('TEMPLATE_HTML_PROCESSOR: Loading template from:', templatePath);
+            if (!fs.existsSync(templatePath)) {
+                console.error('TEMPLATE_HTML_PROCESSOR: Template file not found:', templatePath);
+                return null;
+            }
+            const templateContent = fs.readFileSync(templatePath, 'utf-8');
+            console.log('TEMPLATE_HTML_PROCESSOR: Template loaded successfully, length:', templateContent.length);
+            return templateContent;
+        }
+        catch (error) {
+            console.error('TEMPLATE_HTML_PROCESSOR: Error loading DOM template:', error);
+            return null;
+        }
+    }
+    /**
+     * Load HTML live reload JavaScript from templates/xr/html/htmlLiveReload.js
+     * @private
+     */
+    static async loadHTMLLiveReloadJS(context) {
+        try {
+            const jsPath = path.join(context.extensionPath, 'templates', 'xr', 'html', 'htmlLiveReload.js');
+            console.log('TEMPLATE_HTML_PROCESSOR: Loading JS from:', jsPath);
+            if (!fs.existsSync(jsPath)) {
+                console.error('TEMPLATE_HTML_PROCESSOR: JS file not found:', jsPath);
+                return null;
+            }
+            const jsContent = fs.readFileSync(jsPath, 'utf-8');
+            console.log('TEMPLATE_HTML_PROCESSOR: JS loaded successfully, length:', jsContent.length);
+            return jsContent;
+        }
+        catch (error) {
+            console.error('TEMPLATE_HTML_PROCESSOR: Error loading HTML live reload JS:', error);
+            return null;
+        }
+    }
+    /**
+     * Prepare template variables for placeholder replacement
+     * @private
+     */
+    static prepareTemplateVariables(templateData, visualizationSettings) {
+        // Escape HTML content for safe injection into babia-html attribute
+        const escapedHtmlContent = this.escapeHtmlForAttribute(templateData.htmlContent);
+        // Generate nonce for security
+        const nonce = (0, nonceGenerator_1.generateNonce)();
+        const variables = {
+            // File metadata
+            TITLE: templateData.title || `DOM Visualization - ${templateData.fileName}`,
+            FILE_NAME: templateData.fileName,
+            FILE_PATH: templateData.filePath,
+            // HTML content for babia-html component
+            HTML_CONTENT: escapedHtmlContent,
+            // Visualization settings
+            BACKGROUND_COLOR: visualizationSettings.backgroundColor,
+            ENVIRONMENT_PRESET: visualizationSettings.environment,
+            GROUND_COLOR: visualizationSettings.groundColor,
+            PALETTE: visualizationSettings.palette,
+            // Script loading (matches saveFiles.ts pattern)
+            nonce: nonce,
+            scriptUri: './main.js'
+        };
+        console.log('TEMPLATE_HTML_PROCESSOR: Template variables prepared:');
+        console.log('TEMPLATE_HTML_PROCESSOR: - Title:', variables.TITLE);
+        console.log('TEMPLATE_HTML_PROCESSOR: - File:', variables.FILE_NAME);
+        console.log('TEMPLATE_HTML_PROCESSOR: - HTML content length:', templateData.htmlContent.length);
+        console.log('TEMPLATE_HTML_PROCESSOR: - Environment:', variables.ENVIRONMENT_PRESET);
+        console.log('TEMPLATE_HTML_PROCESSOR: - Background:', variables.BACKGROUND_COLOR);
+        console.log('TEMPLATE_HTML_PROCESSOR: - Nonce:', variables.nonce);
+        console.log('TEMPLATE_HTML_PROCESSOR: - Script URI:', variables.scriptUri);
+        return variables;
+    }
+    /**
+     * Replace placeholders in template with actual values
+     * @private
+     */
+    static replacePlaceholders(template, variables) {
+        let processedTemplate = template;
+        // Replace each variable placeholder
+        for (const [key, value] of Object.entries(variables)) {
+            const placeholder = `\${${key}}`;
+            const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            processedTemplate = processedTemplate.replace(regex, value);
+            console.log(`TEMPLATE_HTML_PROCESSOR: Replaced ${placeholder} with value (${value.length} chars)`);
+        }
+        return processedTemplate;
+    }
+    /**
+     * Escape HTML content for safe injection into HTML attribute
+     * @private
+     */
+    static escapeHtmlForAttribute(htmlContent) {
+        return htmlContent
+            // Replace quotes
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            // Keep other HTML entities as-is since they're handled by babia-html
+            // Remove extra whitespace
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    /**
+     * Get supported HTML file extensions
+     */
+    static getSupportedExtensions() {
+        return ['.html', '.htm', '.xhtml'];
+    }
+    /**
+     * Validate HTML template data
+     */
+    static validateTemplateData(templateData) {
+        if (!templateData.htmlContent || templateData.htmlContent.trim().length === 0) {
+            console.error('TEMPLATE_HTML_PROCESSOR: No HTML content provided');
+            return false;
+        }
+        if (!templateData.fileName || templateData.fileName.trim().length === 0) {
+            console.error('TEMPLATE_HTML_PROCESSOR: No file name provided');
+            return false;
+        }
+        if (!templateData.filePath || templateData.filePath.trim().length === 0) {
+            console.error('TEMPLATE_HTML_PROCESSOR: No file path provided');
+            return false;
+        }
+        return true;
+    }
+}
+exports.TemplateHTMLProcessor = TemplateHTMLProcessor;
+
+
+/***/ }),
+/* 97 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15613,12 +16052,18 @@ class SaveFiles {
             const dataJsonPath = path.join(analysisSessionDir, 'data.json');
             // Write files to storage
             await fs.promises.writeFile(indexHtmlPath, filesToSave.indexHtml, 'utf-8');
-            await fs.promises.writeFile(cssPath, filesToSave.cssContent, 'utf-8');
+            // Only save CSS if provided (DOM visualization doesn't need it)
+            if (filesToSave.cssContent) {
+                await fs.promises.writeFile(cssPath, filesToSave.cssContent, 'utf-8');
+                console.log(`SAVE_FILES: - style.css: ${cssPath}`);
+            }
+            else {
+                console.log(`SAVE_FILES: - style.css: Skipped (not needed for DOM visualization)`);
+            }
             await fs.promises.writeFile(jsPath, filesToSave.jsContent, 'utf-8');
             await fs.promises.writeFile(dataJsonPath, JSON.stringify(filesToSave.dataJson, null, 2), 'utf-8');
             console.log(`SAVE_FILES: Successfully saved all files:`);
             console.log(`SAVE_FILES: - index.html: ${indexHtmlPath}`);
-            console.log(`SAVE_FILES: - style.css: ${cssPath}`);
             console.log(`SAVE_FILES: - main.js: ${jsPath}`);
             console.log(`SAVE_FILES: - data.json: ${dataJsonPath}`);
             return {
@@ -15706,7 +16151,7 @@ exports.SaveFiles = SaveFiles;
 
 
 /***/ }),
-/* 96 */
+/* 98 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15754,8 +16199,10 @@ exports.FileWatcher = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
-const pythonExecutor_1 = __webpack_require__(89);
+const pythonExecutor_1 = __webpack_require__(90);
 const SSEManager_1 = __webpack_require__(18);
+const getNecessaryFiles_1 = __webpack_require__(94);
+const fileToServerMap_1 = __webpack_require__(20);
 class FileWatcher {
     static activeWatchers = new Map();
     static DEBOUNCE_DELAY = 300; // 300ms debounce to avoid duplicate executions
@@ -15918,41 +16365,97 @@ class FileWatcher {
         try {
             console.log(`FILE_WATCHER: Re-executing analysis for: ${filePath}`);
             console.log(`FILE_WATCHER: Analysis type: ${analysisType}`);
-            // Execute Python analysis in LivePanel mode
-            const result = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileLivePanel', filePath, context);
-            if (result.success && result.stdout) {
-                // Update data.json in analysis directory
-                const dataJsonPath = path.join(analysisDir, 'data.json');
-                try {
-                    // Parse the output to extract JSON data
-                    const jsonData = FileWatcher.extractJsonFromOutput(result.stdout);
-                    if (jsonData) {
-                        fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2), 'utf-8');
-                        console.log(`FILE_WATCHER: Updated data.json at: ${dataJsonPath}`);
-                        // Send SSE update to all clients listening for this file
+            if (analysisType === 'DOMVisualization') {
+                // Re-execute DOM analysis
+                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getVisualizationDOM(filePath, context);
+                if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
+                    console.log(`FILE_WATCHER: DOM analysis completed successfully`);
+                    // Update the HTML file with new content
+                    const indexHtmlPath = path.join(analysisDir, 'index.html');
+                    const jsPath = path.join(analysisDir, 'main.js');
+                    const dataJsonPath = path.join(analysisDir, 'data.json');
+                    try {
+                        // Update files with new analysis results
+                        await fs.promises.writeFile(indexHtmlPath, analysisResult.indexHtml, 'utf-8');
+                        if (analysisResult.jsContent) {
+                            await fs.promises.writeFile(jsPath, analysisResult.jsContent, 'utf-8');
+                        }
+                        await fs.promises.writeFile(dataJsonPath, JSON.stringify(analysisResult.data, null, 2), 'utf-8');
+                        console.log(`FILE_WATCHER: Updated DOM visualization files in: ${analysisDir}`);
+                        // Send SSE update to clients with specific HTML update event
                         try {
-                            console.log(`FILE_WATCHER: Sending SSE update notification for file: ${filePath}`);
-                            // Use the original SSEManager that matches the server
-                            SSEManager_1.sseManager.sendUpdate(filePath);
-                            console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                            console.log(`FILE_WATCHER: Sending SSE update for DOM visualization: ${filePath}`);
+                            console.log(`FILE_WATCHER: Checking file-to-server mapping for: ${filePath}`);
+                            // Debug: Check if mapping exists for this file
+                            const mapping = fileToServerMap_1.fileToServerMap.getServerInfo(filePath);
+                            if (mapping) {
+                                console.log(`FILE_WATCHER: Found server mapping - Port: ${mapping.port}, TempDir: ${mapping.tempDir}`);
+                            }
+                            else {
+                                console.warn(`FILE_WATCHER: No server mapping found for: ${filePath}`);
+                                console.warn(`FILE_WATCHER: Available mappings: ${fileToServerMap_1.fileToServerMap.getAllFileUris().join(', ')}`);
+                            }
+                            // Send specific HTML update event for DOM visualization
+                            SSEManager_1.sseManager.sendCustomMessage(filePath, {
+                                type: 'htmlUpdated',
+                                htmlContent: analysisResult.data?.htmlContent || '',
+                                action: 'reload-html',
+                                message: 'HTML DOM content has been updated'
+                            });
+                            console.log(`FILE_WATCHER: SSE HTML update sent successfully for DOM visualization`);
                         }
                         catch (sseError) {
                             console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
                         }
                         // Show success message
-                        vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(filePath)}`);
+                        vscode.window.showInformationMessage(`🌐 DOM Visualization updated for: ${path.basename(filePath)}`);
                     }
-                    else {
-                        console.error(`FILE_WATCHER: No valid JSON data found in Python output`);
+                    catch (error) {
+                        console.error(`FILE_WATCHER: Error updating DOM visualization files:`, error);
                     }
                 }
-                catch (error) {
-                    console.error(`FILE_WATCHER: Error updating data.json:`, error);
+                else {
+                    console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
+                    vscode.window.showErrorMessage(`DOM visualization update failed: ${analysisResult.error}`);
                 }
             }
             else {
-                console.error(`FILE_WATCHER: Python analysis failed:`, result.error);
-                vscode.window.showErrorMessage(`Analysis update failed: ${result.error}`);
+                // Original LivePanel logic
+                const result = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileLivePanel', filePath, context);
+                if (result.success && result.stdout) {
+                    // Update data.json in analysis directory
+                    const dataJsonPath = path.join(analysisDir, 'data.json');
+                    try {
+                        // Parse the output to extract JSON data
+                        const jsonData = FileWatcher.extractJsonFromOutput(result.stdout);
+                        if (jsonData) {
+                            fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2), 'utf-8');
+                            console.log(`FILE_WATCHER: Updated data.json at: ${dataJsonPath}`);
+                            // Send SSE update to all clients listening for this file
+                            try {
+                                console.log(`FILE_WATCHER: Sending SSE update notification for file: ${filePath}`);
+                                // Use the original SSEManager that matches the server
+                                SSEManager_1.sseManager.sendUpdate(filePath);
+                                console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                            }
+                            catch (sseError) {
+                                console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
+                            }
+                            // Show success message
+                            vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(filePath)}`);
+                        }
+                        else {
+                            console.error(`FILE_WATCHER: No valid JSON data found in Python output`);
+                        }
+                    }
+                    catch (error) {
+                        console.error(`FILE_WATCHER: Error updating data.json:`, error);
+                    }
+                }
+                else {
+                    console.error(`FILE_WATCHER: Python analysis failed:`, result.error);
+                    vscode.window.showErrorMessage(`Analysis update failed: ${result.error}`);
+                }
             }
         }
         catch (error) {
@@ -15997,7 +16500,7 @@ exports.FileWatcher = FileWatcher;
 
 
 /***/ }),
-/* 97 */
+/* 99 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16043,7 +16546,7 @@ exports.LaunchServer = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const multiServerLauncher_1 = __webpack_require__(14);
-const enhancedSSEManager_1 = __webpack_require__(98);
+const enhancedSSEManager_1 = __webpack_require__(100);
 const fileToServerMap_1 = __webpack_require__(20);
 class LaunchServer {
     /**
@@ -16219,7 +16722,7 @@ exports.LaunchServer = LaunchServer;
 
 
 /***/ }),
-/* 98 */
+/* 100 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -16461,7 +16964,7 @@ exports.EnhancedSSEManager = EnhancedSSEManager;
 
 
 /***/ }),
-/* 99 */
+/* 101 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -16567,6 +17070,11 @@ exports.SUPPORTED_LANGUAGES = {
     zig: {
         extensions: ['.zig'],
         name: 'Zig'
+    },
+    // Web Technologies
+    html: {
+        extensions: ['.html', '.htm', '.xhtml'],
+        name: 'HTML'
     }
 };
 /**
@@ -16608,7 +17116,180 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 100 */
+/* 102 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Launch Visualize DOM Panel
+ * DOM visualization engine for HTML files
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LaunchVisualizeDOMPanel = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const languageMetadata_1 = __webpack_require__(88);
+const supportedLanguages_1 = __webpack_require__(101);
+const getNecessaryFiles_1 = __webpack_require__(94);
+const saveFiles_1 = __webpack_require__(97);
+const fileWatcher_1 = __webpack_require__(98);
+const launchServer_1 = __webpack_require__(99);
+class LaunchVisualizeDOMPanel {
+    /**
+     * Visualize HTML DOM structure
+     */
+    static async visualizeDOM(filePath, context) {
+        try {
+            // Get file language information
+            const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
+            if (!languageInfo || languageInfo.name !== 'HTML') {
+                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" - Not an HTML file for DOM visualization`);
+                return;
+            }
+            console.log(`DOM_VISUALIZATION_ENGINE: DOM visualization requested for file: ${filePath}`);
+            console.log(`DOM_VISUALIZATION_ENGINE: Detected language: ${languageInfo.name}`);
+            console.log(`DOM_VISUALIZATION_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
+            // Show start message to user
+            vscode.window.showInformationMessage(`CodeXR: Starting DOM analysis for "${filePath}" (${languageInfo.name})`, { modal: false });
+            // Get DOM analysis using python html_dom_parser.py
+            console.log(`DOM_VISUALIZATION_ENGINE: Calling DOM analysis...`);
+            const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getVisualizationDOM(filePath, context);
+            if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
+                console.log(`DOM_VISUALIZATION_ENGINE: DOM analysis completed successfully`);
+                console.log(`DOM_VISUALIZATION_ENGINE: DOM data received:`, analysisResult.data);
+                console.log(`DOM_VISUALIZATION_ENGINE: Template files generated - HTML: ${analysisResult.indexHtml.length} chars, JS: ${analysisResult.jsContent?.length || 0} chars`);
+                // Prepare files for saving (no CSS needed for DOM visualization)
+                const filesToSave = {
+                    indexHtml: analysisResult.indexHtml,
+                    jsContent: analysisResult.jsContent || '',
+                    dataJson: analysisResult.data
+                };
+                // Save files to workspace storage using the same pattern as LivePanel
+                console.log(`DOM_VISUALIZATION_ENGINE: Saving DOM visualization files...`);
+                const saveResult = await saveFiles_1.SaveFiles.saveAnalysisFiles(filesToSave, (__webpack_require__(5).basename)(filePath), 'DOMVisualization', context);
+                if (saveResult.success) {
+                    console.log(`DOM_VISUALIZATION_ENGINE: Files saved successfully to: ${saveResult.analysisDirectoryPath}`);
+                    // Start file watcher for live updates
+                    console.log(`DOM_VISUALIZATION_ENGINE: Starting file watcher for HTML DOM updates...`);
+                    const watcherId = fileWatcher_1.FileWatcher.startWatching(context, filePath, saveResult.analysisDirectoryPath, 'DOMVisualization');
+                    if (watcherId) {
+                        console.log(`DOM_VISUALIZATION_ENGINE: File watcher started with ID: ${watcherId}`);
+                    }
+                    else {
+                        console.warn(`DOM_VISUALIZATION_ENGINE: Failed to start file watcher for: ${filePath}`);
+                    }
+                    // Launch SSE server for DOM visualization
+                    const serverLaunchResult = await launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                        filePath: filePath,
+                        analysisType: 'DOMVisualization',
+                        enableSSE: true,
+                        analysisDirectoryPath: saveResult.analysisDirectoryPath,
+                        indexHtmlPath: saveResult.indexHtmlPath
+                    });
+                    if (serverLaunchResult.success) {
+                        console.log(`DOM_VISUALIZATION_ENGINE: Server launched successfully!`);
+                        console.log(`DOM_VISUALIZATION_ENGINE: Server URL: ${serverLaunchResult.serverUrl}`);
+                        console.log(`DOM_VISUALIZATION_ENGINE: Server ID: ${serverLaunchResult.serverId}`);
+                        console.log(`DOM_VISUALIZATION_ENGINE: SSE Channel: ${serverLaunchResult.sseChannel}`);
+                        // Show enhanced success message with server information
+                        const fileName = (__webpack_require__(5).basename)(filePath);
+                        vscode.window.showInformationMessage(`🌐 DOM Visualization launched! Analysis: ${saveResult.nonce} | Server: ${serverLaunchResult.serverUrl} | Live HTML updates enabled`, 'Open in Browser', 'View Servers').then(action => {
+                            if (action === 'Open in Browser') {
+                                vscode.env.openExternal(vscode.Uri.parse(serverLaunchResult.serverUrl));
+                            }
+                            else if (action === 'View Servers') {
+                                vscode.commands.executeCommand('codexr.servers.view');
+                            }
+                        });
+                    }
+                    else {
+                        console.log(`DOM_VISUALIZATION_ENGINE: Server launch failed: ${serverLaunchResult.error}`);
+                        // Still show success for analysis, but note server issue
+                        const fileName = (__webpack_require__(5).basename)(filePath);
+                        vscode.window.showWarningMessage(`🌐 DOM Visualization completed for "${fileName}" (Session: ${saveResult.nonce}) but server launch failed: ${serverLaunchResult.error}`, 'Retry Server Launch', 'View Analysis Files').then(action => {
+                            if (action === 'Retry Server Launch') {
+                                // Re-attempt server launch
+                                launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                                    filePath: filePath,
+                                    analysisType: 'DOMVisualization',
+                                    enableSSE: true,
+                                    analysisDirectoryPath: saveResult.analysisDirectoryPath,
+                                    indexHtmlPath: saveResult.indexHtmlPath
+                                });
+                            }
+                            else if (action === 'View Analysis Files') {
+                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(saveResult.analysisDirectoryPath));
+                            }
+                        });
+                    }
+                }
+                else {
+                    console.error(`DOM_VISUALIZATION_ENGINE: Failed to save files:`, saveResult.error);
+                    vscode.window.showErrorMessage(`CodeXR: Failed to save DOM visualization files: ${saveResult.error}`);
+                }
+            }
+            else {
+                console.error(`DOM_VISUALIZATION_ENGINE: DOM analysis failed:`, analysisResult.error);
+                vscode.window.showErrorMessage(`CodeXR: DOM analysis failed for "${filePath}": ${analysisResult.error}`);
+            }
+        }
+        catch (error) {
+            console.error('DOM_VISUALIZATION_ENGINE: Error visualizing DOM:', error);
+            vscode.window.showErrorMessage(`CodeXR: Failed to visualize DOM for "${filePath}": ${error}`);
+        }
+    }
+    /**
+     * Check if a file can be visualized as DOM
+     */
+    static canVisualizeFile(filePath) {
+        const extension = (__webpack_require__(5).extname)(filePath).toLowerCase();
+        const htmlConfig = supportedLanguages_1.SUPPORTED_LANGUAGES.html;
+        return htmlConfig.extensions.includes(extension);
+    }
+    /**
+     * Get supported HTML file extensions
+     */
+    static getSupportedExtensions() {
+        return [...supportedLanguages_1.SUPPORTED_LANGUAGES.html.extensions];
+    }
+}
+exports.LaunchVisualizeDOMPanel = LaunchVisualizeDOMPanel;
+
+
+/***/ }),
+/* 103 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -16618,12 +17299,12 @@ function getLanguageStats() {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
-var cleanAnalysisCommands_1 = __webpack_require__(101);
+var cleanAnalysisCommands_1 = __webpack_require__(104);
 Object.defineProperty(exports, "CleanAnalysisCommands", ({ enumerable: true, get: function () { return cleanAnalysisCommands_1.CleanAnalysisCommands; } }));
 
 
 /***/ }),
-/* 101 */
+/* 104 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16667,7 +17348,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const utils_1 = __webpack_require__(88);
+const utils_1 = __webpack_require__(89);
 class CleanAnalysisCommands {
     /**
      * Get command registrations for clean analysis functionality (Nested Dolls pattern)
@@ -16746,7 +17427,305 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
 
 
 /***/ }),
-/* 102 */
+/* 105 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * DOM Visualization Commands Index
+ * Central export point for DOM visualization commands
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DOMVisualizationCommands = void 0;
+var domVisualizationCommands_1 = __webpack_require__(106);
+Object.defineProperty(exports, "DOMVisualizationCommands", ({ enumerable: true, get: function () { return domVisualizationCommands_1.DOMVisualizationCommands; } }));
+
+
+/***/ }),
+/* 106 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * DOM Visualization Commands
+ * Handles commands for visualizing HTML DOM structure
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DOMVisualizationCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const engine_1 = __webpack_require__(86);
+const uriPathConverter_1 = __webpack_require__(107);
+class DOMVisualizationCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+        console.log('DOM_VISUALIZATION_COMMANDS: DOM Visualization commands initialized');
+    }
+    /**
+     * Get command registrations for DOM visualization (nested dolls pattern)
+     */
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('DOM_VISUALIZATION_COMMANDS: Collecting DOM visualization command registrations');
+        const domVisualizationInstance = new DOMVisualizationCommands(context);
+        const commandRegistrations = [
+            {
+                commandId: 'newCodeAnalysis.visualizeDOM',
+                callback: (filePath) => domVisualizationInstance.visualizeDOM(filePath),
+                description: 'Visualize HTML DOM structure'
+            }
+        ];
+        console.log(`DOM_VISUALIZATION_COMMANDS: Collected ${commandRegistrations.length} command registrations`);
+        return commandRegistrations;
+    }
+    /**
+     * Handle DOM visualization command for HTML files
+     */
+    async visualizeDOM(filePath) {
+        try {
+            console.log('DOM_VISUALIZATION_COMMANDS: DOM visualization requested');
+            console.log('DOM_VISUALIZATION_COMMANDS: Input type:', typeof filePath, 'Input value:', filePath);
+            // Convert input to file system path using utility
+            const fsPath = (0, uriPathConverter_1.getFileSystemPathFromEditorOrInput)(filePath);
+            if (!fsPath) {
+                vscode.window.showErrorMessage('No HTML file selected or file path could not be determined');
+                return;
+            }
+            console.log(`DOM_VISUALIZATION_COMMANDS: File system path: ${fsPath}`);
+            // Validate file is HTML
+            if (!engine_1.LaunchVisualizeDOMPanel.canVisualizeFile(fsPath)) {
+                vscode.window.showWarningMessage(`File "${fsPath}" is not a supported HTML file for DOM visualization`);
+                return;
+            }
+            console.log(`DOM_VISUALIZATION_COMMANDS: Starting DOM visualization for: ${fsPath}`);
+            // Launch DOM visualization
+            await engine_1.LaunchVisualizeDOMPanel.visualizeDOM(fsPath, this.context);
+        }
+        catch (error) {
+            console.error('DOM_VISUALIZATION_COMMANDS: Error visualizing DOM:', error);
+            vscode.window.showErrorMessage(`Failed to visualize DOM: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Show available DOM visualization options
+     */
+    async showDOMVisualizationOptions() {
+        const options = [
+            {
+                label: '$(browser) DOM Structure Tree',
+                description: 'Visualize HTML DOM as an interactive tree structure',
+                command: 'tree'
+            },
+            {
+                label: '$(graph) DOM Hierarchy Graph',
+                description: 'Show DOM elements and their relationships as a graph',
+                command: 'graph'
+            },
+            {
+                label: '$(pie-chart) DOM Element Statistics',
+                description: 'Analyze DOM element distribution and usage',
+                command: 'stats'
+            }
+        ];
+        const selected = await vscode.window.showQuickPick(options, {
+            placeHolder: 'Select DOM visualization type',
+            canPickMany: false
+        });
+        if (selected) {
+            console.log(`DOM_VISUALIZATION_COMMANDS: Selected visualization type: ${selected.command}`);
+            // TODO: Implement different visualization types
+            vscode.window.showInformationMessage(`DOM ${selected.command} visualization will be implemented soon!`);
+        }
+    }
+}
+exports.DOMVisualizationCommands = DOMVisualizationCommands;
+
+
+/***/ }),
+/* 107 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * URI Path Converter Utility
+ * Handles conversion between VS Code URIs and file system paths
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.convertToFileSystemPath = convertToFileSystemPath;
+exports.getFileSystemPathFromEditorOrInput = getFileSystemPathFromEditorOrInput;
+exports.isValidFileSystemPath = isValidFileSystemPath;
+const vscode = __importStar(__webpack_require__(1));
+/**
+ * Convert VS Code URI or file path to a standard file system path
+ * Handles various input types that VS Code commands can receive
+ */
+function convertToFileSystemPath(input) {
+    try {
+        // Handle null/undefined
+        if (!input) {
+            return null;
+        }
+        console.log('URI_PATH_CONVERTER: Processing input:', typeof input, input);
+        // If it's already a string path
+        if (typeof input === 'string') {
+            // Check if it's a URI string
+            if (input.startsWith('file://') || input.startsWith('vscode-')) {
+                const uri = vscode.Uri.parse(input);
+                console.log('URI_PATH_CONVERTER: Converted URI string to path:', uri.fsPath);
+                return uri.fsPath;
+            }
+            // It's already a file system path
+            console.log('URI_PATH_CONVERTER: Input is already a file system path:', input);
+            return input;
+        }
+        // If it's a VS Code URI object
+        if (input && typeof input === 'object') {
+            // Check if it has fsPath property (VS Code URI)
+            if ('fsPath' in input && typeof input.fsPath === 'string') {
+                console.log('URI_PATH_CONVERTER: Extracted fsPath from URI object:', input.fsPath);
+                return input.fsPath;
+            }
+            // Check if it has scheme and path properties (URI-like object)
+            if ('scheme' in input && 'path' in input) {
+                const uri = vscode.Uri.from(input);
+                console.log('URI_PATH_CONVERTER: Created URI from object and extracted path:', uri.fsPath);
+                return uri.fsPath;
+            }
+            // Try to convert object to string and parse as URI
+            const stringified = String(input);
+            if (stringified.startsWith('file://') || stringified.startsWith('vscode-')) {
+                const uri = vscode.Uri.parse(stringified);
+                console.log('URI_PATH_CONVERTER: Converted stringified object to path:', uri.fsPath);
+                return uri.fsPath;
+            }
+        }
+        console.warn('URI_PATH_CONVERTER: Could not convert input to file system path:', input);
+        return null;
+    }
+    catch (error) {
+        console.error('URI_PATH_CONVERTER: Error converting input to file system path:', error);
+        return null;
+    }
+}
+/**
+ * Get file system path from active editor or provided input
+ */
+function getFileSystemPathFromEditorOrInput(input) {
+    try {
+        // First try to convert the provided input
+        if (input) {
+            const convertedPath = convertToFileSystemPath(input);
+            if (convertedPath) {
+                return convertedPath;
+            }
+        }
+        // Fallback to active editor
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            const editorPath = activeEditor.document.uri.fsPath;
+            console.log('URI_PATH_CONVERTER: Using active editor path:', editorPath);
+            return editorPath;
+        }
+        console.warn('URI_PATH_CONVERTER: No valid file path found from input or active editor');
+        return null;
+    }
+    catch (error) {
+        console.error('URI_PATH_CONVERTER: Error getting file system path:', error);
+        return null;
+    }
+}
+/**
+ * Validate that a path is a valid file system path
+ */
+function isValidFileSystemPath(path) {
+    try {
+        if (!path || typeof path !== 'string') {
+            return false;
+        }
+        // Basic validation - path should not contain URI schemes
+        if (path.includes('://')) {
+            return false;
+        }
+        // Should contain file separators (/ or \)
+        if (!path.includes('/') && !path.includes('\\')) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        console.error('URI_PATH_CONVERTER: Error validating file system path:', error);
+        return false;
+    }
+}
+
+
+/***/ }),
+/* 108 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16790,8 +17769,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
-const storage_1 = __webpack_require__(104);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
+const storage_1 = __webpack_require__(110);
 class AnalysisFileSetting {
     context;
     currentMode = 'XR'; // Default mode (will be loaded from storage)
@@ -16873,7 +17852,7 @@ exports.AnalysisFileSetting = AnalysisFileSetting;
 
 
 /***/ }),
-/* 103 */
+/* 109 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16972,7 +17951,7 @@ exports.NewCodeAnalysisItemFactory = NewCodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 104 */
+/* 110 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16996,13 +17975,13 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisConfigurationStorage = void 0;
-var analysisConfigurationStorage_1 = __webpack_require__(105);
+var analysisConfigurationStorage_1 = __webpack_require__(111);
 Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
-__exportStar(__webpack_require__(107), exports);
+__exportStar(__webpack_require__(113), exports);
 
 
 /***/ }),
-/* 105 */
+/* 111 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17047,7 +18026,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisConfigurationStorage = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisConfiguration_1 = __webpack_require__(106);
+const analysisConfiguration_1 = __webpack_require__(112);
 class AnalysisConfigurationStorage {
     static instance;
     STORAGE_FOLDER = 'codexr_analysis';
@@ -17238,7 +18217,7 @@ exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
 
 
 /***/ }),
-/* 106 */
+/* 112 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -17273,7 +18252,7 @@ exports.DEFAULT_CONFIGURATION_FILE = {
 
 
 /***/ }),
-/* 107 */
+/* 113 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -17283,13 +18262,13 @@ exports.DEFAULT_CONFIGURATION_FILE = {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-var analysisConfiguration_1 = __webpack_require__(106);
+var analysisConfiguration_1 = __webpack_require__(112);
 Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
 Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
 
 
 /***/ }),
-/* 108 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17333,8 +18312,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
-const storage_1 = __webpack_require__(104);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
+const storage_1 = __webpack_require__(110);
 class ViewThemeSetting {
     context;
     currentTheme = 'Dark';
@@ -17427,7 +18406,7 @@ exports.ViewThemeSetting = ViewThemeSetting;
 
 
 /***/ }),
-/* 109 */
+/* 115 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17471,8 +18450,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
-const storage_1 = __webpack_require__(104);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
+const storage_1 = __webpack_require__(110);
 class AutoAnalysisDelaySetting {
     context;
     currentDelayConfig = { type: 'RealTime' };
@@ -17622,13 +18601,13 @@ exports.AutoAnalysisDelaySetting = AutoAnalysisDelaySetting;
 
 
 /***/ }),
-/* 110 */
+/* 116 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
-const visualizationSettingsCommands_1 = __webpack_require__(111);
+const visualizationSettingsCommands_1 = __webpack_require__(117);
 /**
  * Visualization Settings Commands Wrapper
  * Re-exports visualization settings commands for centralized command registration
@@ -17644,7 +18623,7 @@ function registerVisualizationSettingsCommands(context) {
 
 
 /***/ }),
-/* 111 */
+/* 117 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17684,8 +18663,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const handleSettingsInteraction_1 = __webpack_require__(52);
-const settingsAccessors_1 = __webpack_require__(54);
+const handleSettingsInteraction_1 = __webpack_require__(53);
+const settingsAccessors_1 = __webpack_require__(55);
 /**
  * Visualization Settings Commands Class
  * Defines what each visualization settings command does
@@ -17744,7 +18723,7 @@ exports.VisualizationSettingsCommands = VisualizationSettingsCommands;
 
 
 /***/ }),
-/* 112 */
+/* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17784,7 +18763,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerGeneralCommands = registerGeneralCommands;
 const vscode = __importStar(__webpack_require__(1));
-const commonCommands_1 = __webpack_require__(113);
+const commonCommands_1 = __webpack_require__(119);
 /**
  * Register general/common commands used throughout the extension
  */
@@ -17812,7 +18791,7 @@ function registerGeneralCommands(context) {
 
 
 /***/ }),
-/* 113 */
+/* 119 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17898,7 +18877,7 @@ exports.CommonCommands = CommonCommands;
 
 
 /***/ }),
-/* 114 */
+/* 120 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17923,24 +18902,24 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 // Main modular tree provider
-var ModularTreeDataProvider_1 = __webpack_require__(115);
+var ModularTreeDataProvider_1 = __webpack_require__(121);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
-__exportStar(__webpack_require__(116), exports);
-__exportStar(__webpack_require__(170), exports);
+__exportStar(__webpack_require__(122), exports);
+__exportStar(__webpack_require__(176), exports);
 // Section providers
-__exportStar(__webpack_require__(117), exports);
-__exportStar(__webpack_require__(121), exports);
-__exportStar(__webpack_require__(125), exports);
-__exportStar(__webpack_require__(130), exports);
+__exportStar(__webpack_require__(123), exports);
+__exportStar(__webpack_require__(127), exports);
+__exportStar(__webpack_require__(131), exports);
 __exportStar(__webpack_require__(136), exports);
-__exportStar(__webpack_require__(166), exports);
+__exportStar(__webpack_require__(142), exports);
+__exportStar(__webpack_require__(172), exports);
 // New code analysis views (experimental)
-__exportStar(__webpack_require__(171), exports);
+__exportStar(__webpack_require__(177), exports);
 
 
 /***/ }),
-/* 115 */
+/* 121 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17980,14 +18959,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const baseInterfaces_1 = __webpack_require__(116);
-const servers_1 = __webpack_require__(117);
-const active_servers_1 = __webpack_require__(121);
-const babia_examples_1 = __webpack_require__(125);
-const visualize_data_1 = __webpack_require__(130);
-const code_analysis_1 = __webpack_require__(136);
-const NewCodeAnalysisSectionProvider_1 = __webpack_require__(152);
-const visualization_settings_1 = __webpack_require__(166);
+const baseInterfaces_1 = __webpack_require__(122);
+const servers_1 = __webpack_require__(123);
+const active_servers_1 = __webpack_require__(127);
+const babia_examples_1 = __webpack_require__(131);
+const visualize_data_1 = __webpack_require__(136);
+const code_analysis_1 = __webpack_require__(142);
+const NewCodeAnalysisSectionProvider_1 = __webpack_require__(158);
+const visualization_settings_1 = __webpack_require__(172);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -18143,37 +19122,37 @@ class ModularTreeDataProvider {
         switch (sectionName) {
             case 'SERVERS':
                 // Import and create ServerTreeItem
-                const { ServerTreeItem } = __webpack_require__(119);
+                const { ServerTreeItem } = __webpack_require__(125);
                 const serverItem = new ServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.serverItemType || 'config-option', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return serverItem;
             case 'activeServers':
                 // Import and create ActiveServerTreeItem
-                const { ActiveServerTreeItem } = __webpack_require__(123);
+                const { ActiveServerTreeItem } = __webpack_require__(129);
                 const activeServerItem = new ActiveServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.activeServerItemType || 'server-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.activeServer);
                 return activeServerItem;
             case 'babiaExamples':
                 // Import and create BabiaExampleTreeItem
-                const { BabiaExampleTreeItem } = __webpack_require__(127);
+                const { BabiaExampleTreeItem } = __webpack_require__(133);
                 const babiaItem = new BabiaExampleTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.babiaItemType || 'example-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.babiaExample);
                 return babiaItem;
             case 'visualizeData':
                 // Import and create VisualizeDataModularTreeItem
-                const { VisualizeDataModularTreeItem } = __webpack_require__(132);
+                const { VisualizeDataModularTreeItem } = __webpack_require__(138);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
             case 'codeAnalysis':
                 // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(138);
+                const { CodeAnalysisModularTreeItem } = __webpack_require__(144);
                 const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
                 return codeAnalysisItem;
             case 'newCodeAnalysis':
                 // Import and create NewCodeAnalysisTreeItem
-                const { NewCodeAnalysisTreeItem } = __webpack_require__(103);
+                const { NewCodeAnalysisTreeItem } = __webpack_require__(109);
                 const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.type || 'item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return newCodeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(168);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(174);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -18233,7 +19212,7 @@ exports.ModularTreeDataProvider = ModularTreeDataProvider;
 
 
 /***/ }),
-/* 116 */
+/* 122 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18335,7 +19314,7 @@ exports.TreeViewUtils = TreeViewUtils;
 
 
 /***/ }),
-/* 117 */
+/* 123 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18346,19 +19325,19 @@ exports.TreeViewUtils = TreeViewUtils;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerClickHandler = exports.ServerItemFactory = exports.ServerTreeItem = exports.ServersSectionProvider = void 0;
 // Section Provider
-var ServersSectionProvider_1 = __webpack_require__(118);
+var ServersSectionProvider_1 = __webpack_require__(124);
 Object.defineProperty(exports, "ServersSectionProvider", ({ enumerable: true, get: function () { return ServersSectionProvider_1.ServersSectionProvider; } }));
 // Items
-var serverItems_1 = __webpack_require__(119);
+var serverItems_1 = __webpack_require__(125);
 Object.defineProperty(exports, "ServerTreeItem", ({ enumerable: true, get: function () { return serverItems_1.ServerTreeItem; } }));
 Object.defineProperty(exports, "ServerItemFactory", ({ enumerable: true, get: function () { return serverItems_1.ServerItemFactory; } }));
 // Interactions
-var handleServerClicks_1 = __webpack_require__(120);
+var handleServerClicks_1 = __webpack_require__(126);
 Object.defineProperty(exports, "ServerClickHandler", ({ enumerable: true, get: function () { return handleServerClicks_1.ServerClickHandler; } }));
 
 
 /***/ }),
-/* 118 */
+/* 124 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18398,8 +19377,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverItems_1 = __webpack_require__(119);
-const handleServerClicks_1 = __webpack_require__(120);
+const serverItems_1 = __webpack_require__(125);
+const handleServerClicks_1 = __webpack_require__(126);
 const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Servers section provider for the modular tree view architecture
@@ -18532,7 +19511,7 @@ exports.ServersSectionProvider = ServersSectionProvider;
 
 
 /***/ }),
-/* 119 */
+/* 125 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18650,7 +19629,7 @@ exports.ServerItemFactory = ServerItemFactory;
 
 
 /***/ }),
-/* 120 */
+/* 126 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18748,7 +19727,7 @@ exports.ServerClickHandler = ServerClickHandler;
 
 
 /***/ }),
-/* 121 */
+/* 127 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18759,19 +19738,19 @@ exports.ServerClickHandler = ServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = exports.ActiveServerItemFactory = exports.ActiveServerTreeItem = exports.ActiveServersSectionProvider = void 0;
 // Section Provider
-var ActiveServersSectionProvider_1 = __webpack_require__(122);
+var ActiveServersSectionProvider_1 = __webpack_require__(128);
 Object.defineProperty(exports, "ActiveServersSectionProvider", ({ enumerable: true, get: function () { return ActiveServersSectionProvider_1.ActiveServersSectionProvider; } }));
 // Items
-var activeServerItems_1 = __webpack_require__(123);
+var activeServerItems_1 = __webpack_require__(129);
 Object.defineProperty(exports, "ActiveServerTreeItem", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerTreeItem; } }));
 Object.defineProperty(exports, "ActiveServerItemFactory", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerItemFactory; } }));
 // Interactions
-var handleActiveServerClicks_1 = __webpack_require__(124);
+var handleActiveServerClicks_1 = __webpack_require__(130);
 Object.defineProperty(exports, "ActiveServerClickHandler", ({ enumerable: true, get: function () { return handleActiveServerClicks_1.ActiveServerClickHandler; } }));
 
 
 /***/ }),
-/* 122 */
+/* 128 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18811,8 +19790,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerItems_1 = __webpack_require__(123);
-const handleActiveServerClicks_1 = __webpack_require__(124);
+const activeServerItems_1 = __webpack_require__(129);
+const handleActiveServerClicks_1 = __webpack_require__(130);
 const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Active Servers section provider - manages running servers display and control
@@ -18909,7 +19888,7 @@ exports.ActiveServersSectionProvider = ActiveServersSectionProvider;
 
 
 /***/ }),
-/* 123 */
+/* 129 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19077,7 +20056,7 @@ exports.ActiveServerItemFactory = ActiveServerItemFactory;
 
 
 /***/ }),
-/* 124 */
+/* 130 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19193,7 +20172,7 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 
 
 /***/ }),
-/* 125 */
+/* 131 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19204,19 +20183,19 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = exports.BabiaExamplesSectionProvider = void 0;
 // Section Provider
-var BabiaExamplesSectionProvider_1 = __webpack_require__(126);
+var BabiaExamplesSectionProvider_1 = __webpack_require__(132);
 Object.defineProperty(exports, "BabiaExamplesSectionProvider", ({ enumerable: true, get: function () { return BabiaExamplesSectionProvider_1.BabiaExamplesSectionProvider; } }));
 // Items
-var babiaExampleItems_1 = __webpack_require__(127);
+var babiaExampleItems_1 = __webpack_require__(133);
 Object.defineProperty(exports, "BabiaExampleTreeItem", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleTreeItem; } }));
 Object.defineProperty(exports, "BabiaExampleItemFactory", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleItemFactory; } }));
 // Interactions
-var handleBabiaExampleClicks_1 = __webpack_require__(129);
+var handleBabiaExampleClicks_1 = __webpack_require__(135);
 Object.defineProperty(exports, "BabiaExampleClickHandler", ({ enumerable: true, get: function () { return handleBabiaExampleClicks_1.BabiaExampleClickHandler; } }));
 
 
 /***/ }),
-/* 126 */
+/* 132 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19256,8 +20235,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const babiaExampleItems_1 = __webpack_require__(127);
-const handleBabiaExampleClicks_1 = __webpack_require__(129);
+const babiaExampleItems_1 = __webpack_require__(133);
+const handleBabiaExampleClicks_1 = __webpack_require__(135);
 const exampleLauncher_1 = __webpack_require__(37);
 /**
  * Babia Examples section provider - manages example loading and launching
@@ -19338,7 +20317,7 @@ exports.BabiaExamplesSectionProvider = BabiaExamplesSectionProvider;
 
 
 /***/ }),
-/* 127 */
+/* 133 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19378,7 +20357,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleItems_1 = __webpack_require__(128);
+const exampleItems_1 = __webpack_require__(134);
 /**
  * Babia Example tree items for the Babia Examples section
  */
@@ -19460,7 +20439,7 @@ exports.BabiaExampleItemFactory = BabiaExampleItemFactory;
 
 
 /***/ }),
-/* 128 */
+/* 134 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19621,7 +20600,7 @@ exports.ExampleIcons = ExampleIcons;
 
 
 /***/ }),
-/* 129 */
+/* 135 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19800,7 +20779,7 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 
 
 /***/ }),
-/* 130 */
+/* 136 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19811,19 +20790,19 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataClickHandler = exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = exports.VisualizeDataSectionProvider = void 0;
 // Section Provider
-var VisualizeDataSectionProvider_1 = __webpack_require__(131);
+var VisualizeDataSectionProvider_1 = __webpack_require__(137);
 Object.defineProperty(exports, "VisualizeDataSectionProvider", ({ enumerable: true, get: function () { return VisualizeDataSectionProvider_1.VisualizeDataSectionProvider; } }));
 // Items
-var visualizeDataItems_1 = __webpack_require__(132);
+var visualizeDataItems_1 = __webpack_require__(138);
 Object.defineProperty(exports, "VisualizeDataModularTreeItem", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizeDataModularItemFactory", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularItemFactory; } }));
 // Interactions
-var handleVisualizeDataClicks_1 = __webpack_require__(135);
+var handleVisualizeDataClicks_1 = __webpack_require__(141);
 Object.defineProperty(exports, "VisualizeDataClickHandler", ({ enumerable: true, get: function () { return handleVisualizeDataClicks_1.VisualizeDataClickHandler; } }));
 
 
 /***/ }),
-/* 131 */
+/* 137 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19863,8 +20842,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(132);
-const handleVisualizeDataClicks_1 = __webpack_require__(135);
+const visualizeDataItems_1 = __webpack_require__(138);
+const handleVisualizeDataClicks_1 = __webpack_require__(141);
 const visualizeDataState_1 = __webpack_require__(43);
 /**
  * Visualize Data section provider - manages data visualization configuration and launch
@@ -19970,7 +20949,7 @@ exports.VisualizeDataSectionProvider = VisualizeDataSectionProvider;
 
 
 /***/ }),
-/* 132 */
+/* 138 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20010,9 +20989,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(133);
-const visualizationRestorer_1 = __webpack_require__(56);
-const visualizationItem_1 = __webpack_require__(134);
+const visualizeDataItems_1 = __webpack_require__(139);
+const visualizationRestorer_1 = __webpack_require__(57);
+const visualizationItem_1 = __webpack_require__(140);
 /**
  * Visualize Data tree items for the Visualize Data section
  */
@@ -20129,7 +21108,7 @@ exports.VisualizeDataModularItemFactory = VisualizeDataModularItemFactory;
 
 
 /***/ }),
-/* 133 */
+/* 139 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20390,7 +21369,7 @@ exports.VisualizeDataIcons = VisualizeDataIcons;
 
 
 /***/ }),
-/* 134 */
+/* 140 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20510,7 +21489,7 @@ exports.BrowseVisualizationItemFactory = BrowseVisualizationItemFactory;
 
 
 /***/ }),
-/* 135 */
+/* 141 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20709,7 +21688,7 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 
 /***/ }),
-/* 136 */
+/* 142 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20720,19 +21699,19 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
 // Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(137);
+var CodeAnalysisSectionProvider_1 = __webpack_require__(143);
 Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
 // Items
-var codeAnalysisItems_1 = __webpack_require__(138);
+var codeAnalysisItems_1 = __webpack_require__(144);
 Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
 Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
 // Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(141);
+var handleCodeAnalysisClicks_1 = __webpack_require__(147);
 Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
 
 
 /***/ }),
-/* 137 */
+/* 143 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20772,10 +21751,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(138);
-const handleCodeAnalysisClicks_1 = __webpack_require__(141);
-const codeAnalysisTreeView_1 = __webpack_require__(142);
-const projectStructureAdapter_1 = __webpack_require__(149);
+const codeAnalysisItems_1 = __webpack_require__(144);
+const handleCodeAnalysisClicks_1 = __webpack_require__(147);
+const codeAnalysisTreeView_1 = __webpack_require__(148);
+const projectStructureAdapter_1 = __webpack_require__(155);
 /**
  * Code Analysis section provider - manages code analysis and file organization
  */
@@ -20920,7 +21899,7 @@ exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 138 */
+/* 144 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20960,7 +21939,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(139);
+const analysisTreeItems_1 = __webpack_require__(145);
 /**
  * Code Analysis tree items for the Code Analysis section
  */
@@ -21083,7 +22062,7 @@ exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
 
 
 /***/ }),
-/* 139 */
+/* 145 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21124,8 +22103,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const fileDisplayUtils_1 = __webpack_require__(140);
-const analysisSettingsStorage_1 = __webpack_require__(61);
+const fileDisplayUtils_1 = __webpack_require__(146);
+const analysisSettingsStorage_1 = __webpack_require__(62);
 const chartRegistry_1 = __webpack_require__(41);
 /**
  * Get user-friendly display name for data field
@@ -21484,7 +22463,7 @@ exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 140 */
+/* 146 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21527,7 +22506,7 @@ exports.getFileIcon = getFileIcon;
 exports.getFileDescription = getFileDescription;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(87);
+const languageMetadata_1 = __webpack_require__(88);
 /**
  * Shared utility for consistent file display across Code Analysis views
  */
@@ -21746,7 +22725,7 @@ function getFileDescription(filePath, viewType, fileSize) {
 
 
 /***/ }),
-/* 141 */
+/* 147 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21961,7 +22940,7 @@ exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
 
 
 /***/ }),
-/* 142 */
+/* 148 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22001,11 +22980,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(139);
-const fileScanner_1 = __webpack_require__(143);
-const activeAnalysesTreeView_1 = __webpack_require__(144);
-const activeAnalysesCommands_1 = __webpack_require__(146);
-const fileWatcherManager_1 = __webpack_require__(147);
+const analysisTreeItems_1 = __webpack_require__(145);
+const fileScanner_1 = __webpack_require__(149);
+const activeAnalysesTreeView_1 = __webpack_require__(150);
+const activeAnalysesCommands_1 = __webpack_require__(152);
+const fileWatcherManager_1 = __webpack_require__(153);
 /**
  * Code Analysis tree data provider that manages the analysis sections
  *
@@ -22263,7 +23242,7 @@ exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
 
 
 /***/ }),
-/* 143 */
+/* 149 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22304,7 +23283,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(87);
+const languageMetadata_1 = __webpack_require__(88);
 /**
  * Scanner for analyzing workspace files and grouping them by programming language
  */
@@ -22436,7 +23415,7 @@ exports.FileScanner = FileScanner;
 
 
 /***/ }),
-/* 144 */
+/* 150 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22476,9 +23455,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisRegistry_1 = __webpack_require__(68);
-const activeAnalysisItems_1 = __webpack_require__(145);
-const analysisTreeItems_1 = __webpack_require__(139);
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const activeAnalysisItems_1 = __webpack_require__(151);
+const analysisTreeItems_1 = __webpack_require__(145);
 /**
  * Tree data provider for the Active Analyses section
  * This handles the rendering and management of the Active Analyses tree view
@@ -22628,7 +23607,7 @@ exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
 
 
 /***/ }),
-/* 145 */
+/* 151 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22821,7 +23800,7 @@ exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
 
 
 /***/ }),
-/* 146 */
+/* 152 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22862,7 +23841,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(68);
+const activeAnalysisRegistry_1 = __webpack_require__(69);
 const serverControl_1 = __webpack_require__(28);
 const activeServerRegistry_1 = __webpack_require__(26);
 /**
@@ -23130,7 +24109,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 147 */
+/* 153 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23171,11 +24150,11 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileWatcherManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(68);
-const statusBarDelayTimer_1 = __webpack_require__(148);
-const analysisSettingsStorage_1 = __webpack_require__(61);
-const analysisCommands_1 = __webpack_require__(58);
-const tempStorageManager_1 = __webpack_require__(65);
+const activeAnalysisRegistry_1 = __webpack_require__(69);
+const statusBarDelayTimer_1 = __webpack_require__(154);
+const analysisSettingsStorage_1 = __webpack_require__(62);
+const analysisCommands_1 = __webpack_require__(59);
+const tempStorageManager_1 = __webpack_require__(66);
 const SSEManager_1 = __webpack_require__(18);
 /**
  * Manages file watchers for files under analysis
@@ -23444,7 +24423,7 @@ exports.FileWatcherManager = FileWatcherManager;
 
 
 /***/ }),
-/* 148 */
+/* 154 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23642,7 +24621,7 @@ exports.StatusBarDelayTimer = StatusBarDelayTimer;
 
 
 /***/ }),
-/* 149 */
+/* 155 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23682,9 +24661,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureModularAdapter = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(150);
-const analysisTreeItems_1 = __webpack_require__(139);
-const fileDisplayUtils_1 = __webpack_require__(140);
+const projectStructureTreeView_1 = __webpack_require__(156);
+const analysisTreeItems_1 = __webpack_require__(145);
+const fileDisplayUtils_1 = __webpack_require__(146);
 /**
  * Adapter to integrate Project Structure Tree View with the modular Code Analysis system
  */
@@ -23824,7 +24803,7 @@ exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
 
 
 /***/ }),
-/* 150 */
+/* 156 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23865,9 +24844,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
 exports.createProjectStructureModularItem = createProjectStructureModularItem;
 const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(151);
-const baseInterfaces_1 = __webpack_require__(116);
-const fileDisplayUtils_1 = __webpack_require__(140);
+const directoryScanner_1 = __webpack_require__(157);
+const baseInterfaces_1 = __webpack_require__(122);
+const fileDisplayUtils_1 = __webpack_require__(146);
 /**
  * Tree data provider for the Project Directory Tree View
  */
@@ -24205,7 +25184,7 @@ exports.ProjectStructureCommands = ProjectStructureCommands;
 
 
 /***/ }),
-/* 151 */
+/* 157 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24246,7 +25225,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DirectoryScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(87);
+const languageMetadata_1 = __webpack_require__(88);
 /**
  * Scanner for creating a hierarchical project directory structure
  */
@@ -24580,7 +25559,7 @@ exports.DirectoryScanner = DirectoryScanner;
 
 
 /***/ }),
-/* 152 */
+/* 158 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24624,9 +25603,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
-const handleNewCodeAnalysisClicks_1 = __webpack_require__(153);
-const subsections_1 = __webpack_require__(154);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
+const handleNewCodeAnalysisClicks_1 = __webpack_require__(159);
+const subsections_1 = __webpack_require__(160);
 /**
  * TODO: Implement tree data provider for new code analysis
  * - Provide tree structure for analysis results
@@ -24726,7 +25705,7 @@ exports.NewCodeAnalysisSectionProvider = NewCodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 153 */
+/* 159 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -24787,7 +25766,7 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
 
 
 /***/ }),
-/* 154 */
+/* 160 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24797,19 +25776,19 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = exports.ProjectByLanguageSubsectionProvider = exports.ActiveAnalysesSubsectionProvider = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysis_settings_1 = __webpack_require__(155);
+var analysis_settings_1 = __webpack_require__(161);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisSettingsSubsectionProvider; } }));
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisFileSetting; } }));
-var active_analyses_1 = __webpack_require__(160);
+var active_analyses_1 = __webpack_require__(166);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return active_analyses_1.ActiveAnalysesSubsectionProvider; } }));
-var project_by_language_1 = __webpack_require__(162);
+var project_by_language_1 = __webpack_require__(168);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return project_by_language_1.ProjectByLanguageSubsectionProvider; } }));
-var files_by_language_1 = __webpack_require__(164);
+var files_by_language_1 = __webpack_require__(170);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return files_by_language_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 155 */
+/* 161 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24819,18 +25798,18 @@ Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = exports.ViewThemeSetting = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysisSettingsSubsectionProvider_1 = __webpack_require__(156);
+var analysisSettingsSubsectionProvider_1 = __webpack_require__(162);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysisSettingsSubsectionProvider_1.AnalysisSettingsSubsectionProvider; } }));
-var analysis_file_mode_1 = __webpack_require__(157);
+var analysis_file_mode_1 = __webpack_require__(163);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_file_mode_1.AnalysisFileSetting; } }));
-var view_theme_1 = __webpack_require__(158);
+var view_theme_1 = __webpack_require__(164);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return view_theme_1.ViewThemeSetting; } }));
-var auto_analysis_delay_1 = __webpack_require__(159);
+var auto_analysis_delay_1 = __webpack_require__(165);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return auto_analysis_delay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 156 */
+/* 162 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24878,10 +25857,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
-const analysis_file_mode_1 = __webpack_require__(157);
-const view_theme_1 = __webpack_require__(158);
-const auto_analysis_delay_1 = __webpack_require__(159);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
+const analysis_file_mode_1 = __webpack_require__(163);
+const view_theme_1 = __webpack_require__(164);
+const auto_analysis_delay_1 = __webpack_require__(165);
 class AnalysisSettingsSubsectionProvider {
     context;
     analysisFileSetting;
@@ -24944,7 +25923,7 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
 
 
 /***/ }),
-/* 157 */
+/* 163 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24954,12 +25933,12 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
-var analysisFileMode_1 = __webpack_require__(102);
+var analysisFileMode_1 = __webpack_require__(108);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysisFileMode_1.AnalysisFileSetting; } }));
 
 
 /***/ }),
-/* 158 */
+/* 164 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24969,12 +25948,12 @@ Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: 
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
-var viewTheme_1 = __webpack_require__(108);
+var viewTheme_1 = __webpack_require__(114);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return viewTheme_1.ViewThemeSetting; } }));
 
 
 /***/ }),
-/* 159 */
+/* 165 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24984,12 +25963,12 @@ Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: fun
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
-var autoAnalysisDelay_1 = __webpack_require__(109);
+var autoAnalysisDelay_1 = __webpack_require__(115);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return autoAnalysisDelay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 160 */
+/* 166 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24999,12 +25978,12 @@ Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, 
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesSubsectionProvider = void 0;
-var activeAnalysesSubsectionProvider_1 = __webpack_require__(161);
+var activeAnalysesSubsectionProvider_1 = __webpack_require__(167);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return activeAnalysesSubsectionProvider_1.ActiveAnalysesSubsectionProvider; } }));
 
 
 /***/ }),
-/* 161 */
+/* 167 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25048,7 +26027,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
 class ActiveAnalysesSubsectionProvider {
     context;
     constructor(context) {
@@ -25083,7 +26062,7 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
 
 
 /***/ }),
-/* 162 */
+/* 168 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -25093,12 +26072,12 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
-var projectByLanguageSubsectionProvider_1 = __webpack_require__(163);
+var projectByLanguageSubsectionProvider_1 = __webpack_require__(169);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return projectByLanguageSubsectionProvider_1.ProjectByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 163 */
+/* 169 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25142,7 +26121,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
 class ProjectByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -25178,7 +26157,7 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
 
 
 /***/ }),
-/* 164 */
+/* 170 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -25188,12 +26167,12 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
-var filesByLanguageSubsectionProvider_1 = __webpack_require__(165);
+var filesByLanguageSubsectionProvider_1 = __webpack_require__(171);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return filesByLanguageSubsectionProvider_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 165 */
+/* 171 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25237,7 +26216,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(103);
+const newCodeAnalysisItems_1 = __webpack_require__(109);
 class FilesByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -25273,7 +26252,7 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 
 
 /***/ }),
-/* 166 */
+/* 172 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -25284,19 +26263,19 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(167);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(173);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(168);
+var visualizationSettingsItems_1 = __webpack_require__(174);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(169);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(175);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 167 */
+/* 173 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25336,9 +26315,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(168);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(169);
-const settingsStorage_1 = __webpack_require__(49);
+const visualizationSettingsItems_1 = __webpack_require__(174);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(175);
+const settingsStorage_1 = __webpack_require__(50);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
  */
@@ -25426,7 +26405,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 168 */
+/* 174 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25466,7 +26445,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(50);
+const visualizationSettingsItems_1 = __webpack_require__(51);
 /**
  * Visualization Settings tree items for the Visualization Settings section
  */
@@ -25519,7 +26498,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 169 */
+/* 175 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25702,7 +26681,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 170 */
+/* 176 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -25863,7 +26842,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 171 */
+/* 177 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -25873,17 +26852,17 @@ function getLanguageStats() {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = exports.NewCodeAnalysisSectionProvider = void 0;
-var NewCodeAnalysisSectionProvider_1 = __webpack_require__(152);
+var NewCodeAnalysisSectionProvider_1 = __webpack_require__(158);
 Object.defineProperty(exports, "NewCodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider; } }));
-var items_1 = __webpack_require__(172);
+var items_1 = __webpack_require__(178);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisItemFactory; } }));
-var interactions_1 = __webpack_require__(173);
+var interactions_1 = __webpack_require__(179);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return interactions_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 172 */
+/* 178 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -25893,13 +26872,13 @@ Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
-var newCodeAnalysisItems_1 = __webpack_require__(103);
+var newCodeAnalysisItems_1 = __webpack_require__(109);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisItemFactory; } }));
 
 
 /***/ }),
-/* 173 */
+/* 179 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -25909,12 +26888,12 @@ Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = void 0;
-var handleNewCodeAnalysisClicks_1 = __webpack_require__(153);
+var handleNewCodeAnalysisClicks_1 = __webpack_require__(159);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 174 */
+/* 180 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26057,14 +27036,14 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 175 */,
-/* 176 */
+/* 181 */,
+/* 182 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 177 */
+/* 183 */
 /***/ ((module) => {
 
 module.exports = require("node:os");

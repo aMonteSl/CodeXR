@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-HTML DOM Parser
+HTML Content Extractor
 
-This script parses HTML files and extracts DOM structure information.
+This script extracts and prepares HTML content for visualization.
 It's designed to be called from the TypeScript code in the CodeXR extension.
 
 Usage: python html_dom_parser.py <file_path>
@@ -11,105 +11,12 @@ Usage: python html_dom_parser.py <file_path>
 import sys
 import json
 import os
-from html.parser import HTMLParser
-from typing import Dict, List, Any, Optional
+import re
+from typing import Dict, Any
 
 
-class DOMElement:
-    """Represents a DOM element with its properties"""
-    
-    def __init__(self, tag_name: str, attributes: Dict[str, str], depth: int = 0):
-        self.tag_name = tag_name.lower()
-        self.attributes = attributes
-        self.children: List['DOMElement'] = []
-        self.text_content: str = ""
-        self.depth = depth
-        self.id = attributes.get('id')
-        self.classes = attributes.get('class', '').split() if attributes.get('class') else []
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization"""
-        return {
-            'tagName': self.tag_name,
-            'attributes': self.attributes,
-            'children': [child.to_dict() for child in self.children],
-            'textContent': self.text_content,
-            'depth': self.depth,
-            'id': self.id,
-            'classes': self.classes
-        }
-
-
-class HTMLDOMParser(HTMLParser):
-    """Custom HTML parser for extracting DOM structure"""
-    
-    def __init__(self):
-        super().__init__()
-        self.root: Optional[DOMElement] = None
-        self.element_stack: List[DOMElement] = []
-        self.current_depth = 0
-        self.element_counts: Dict[str, int] = {}
-        self.total_elements = 0
-        self.max_depth = 0
-        self.current_text = ""
-    
-    def handle_starttag(self, tag: str, attrs: List[tuple]):
-        """Handle opening tags"""
-        # Convert attributes to dictionary
-        attributes = dict(attrs)
-        
-        # Create new element
-        element = DOMElement(tag, attributes, self.current_depth)
-        
-        # Update statistics
-        self.total_elements += 1
-        self.max_depth = max(self.max_depth, self.current_depth)
-        self.element_counts[tag.lower()] = self.element_counts.get(tag.lower(), 0) + 1
-        
-        # Add to parent or set as root
-        if self.element_stack:
-            self.element_stack[-1].children.append(element)
-        else:
-            self.root = element
-        
-        # Push to stack and increase depth
-        self.element_stack.append(element)
-        self.current_depth += 1
-        
-        # Clear any accumulated text
-        self.current_text = ""
-    
-    def handle_endtag(self, tag: str):
-        """Handle closing tags"""
-        if self.element_stack and self.element_stack[-1].tag_name == tag.lower():
-            # Add accumulated text content
-            if self.current_text.strip():
-                self.element_stack[-1].text_content = self.current_text.strip()
-            
-            # Pop from stack and decrease depth
-            self.element_stack.pop()
-            self.current_depth -= 1
-            self.current_text = ""
-    
-    def handle_data(self, data: str):
-        """Handle text content"""
-        self.current_text += data
-    
-    def get_analysis_result(self, file_path: str) -> Dict[str, Any]:
-        """Get the complete analysis result"""
-        return {
-            'fileName': os.path.basename(file_path),
-            'filePath': file_path,
-            'totalElements': self.total_elements,
-            'maxDepth': self.max_depth,
-            'domTree': self.root.to_dict() if self.root else None,
-            'elementCounts': self.element_counts,
-            'timestamp': '',  # Will be set by TypeScript
-        }
-
-
-def analyze_html_file(file_path: str) -> Dict[str, Any]:
-    """Analyze an HTML file and return DOM structure"""
+def extract_html_content(file_path: str) -> Dict[str, Any]:
+    """Extract and prepare HTML content for visualization"""
     try:
         # Check if file exists
         if not os.path.exists(file_path):
@@ -119,24 +26,34 @@ def analyze_html_file(file_path: str) -> Dict[str, Any]:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
             html_content = file.read()
         
-        # Parse the HTML
-        parser = HTMLDOMParser()
-        parser.feed(html_content)
+        # Prepare the HTML content
+        prepared_html = prepare_html_for_visualization(html_content, os.path.basename(file_path))
         
-        # Get analysis result
-        result = parser.get_analysis_result(file_path)
-        result['htmlContent'] = html_content
-        
-        return result
+        return {
+            "htmlContent": prepared_html,
+            "originalFile": file_path,
+            "preparedForVisualization": True
+        }
         
     except Exception as e:
-        return {"error": f"Error parsing HTML file: {str(e)}"}
+        return {"error": f"Error processing HTML file: {str(e)}"}
 
 
-def prepare_html_for_template(html_content: str, file_name: str) -> str:
-    """Prepare HTML content for babia-html template injection"""
+def prepare_html_for_visualization(html_content: str, file_name: str) -> str:
+    """Prepare HTML content for babia-html visualization"""
     try:
-        # Extract body content
+        original_content = html_content
+        extracted_title = ""
+        
+        # First, try to extract title from head if it exists
+        title_start = html_content.lower().find('<title>')
+        title_end = html_content.lower().find('</title>')
+        if title_start != -1 and title_end != -1:
+            title_content = html_content[title_start + 7:title_end].strip()
+            if title_content:
+                extracted_title = f"<h1>{title_content}</h1>"
+        
+        # Try to extract body content
         body_start = html_content.lower().find('<body')
         body_end = html_content.lower().find('</body>')
         
@@ -165,32 +82,42 @@ def prepare_html_for_template(html_content: str, file_name: str) -> str:
                             content = content[:head_start] + content[head_end_tag + 1:]
                     
                     html_content = content.strip()
+            else:
+                # If no html/body tags, use original content
+                html_content = original_content
         
-        # Clean up the HTML content
-        import re
-        
+        # Clean up the HTML content but preserve ALL elements and structure
         # Remove comments, scripts, and styles
         html_content = re.sub(r'<!--[\s\S]*?-->', '', html_content)
         html_content = re.sub(r'<script[\s\S]*?</script>', '', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<style[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
         
-        # Normalize whitespace
-        html_content = re.sub(r'\r\n|\n|\r|\t', ' ', html_content)
-        html_content = re.sub(r'\s+', ' ', html_content)
+        # Clean up excessive whitespace but preserve structure
+        html_content = re.sub(r'\r\n|\r', ' ', html_content)  # Convert line endings to spaces
+        html_content = re.sub(r'\n', ' ', html_content)       # Convert newlines to spaces
+        html_content = re.sub(r'[ \t]+', ' ', html_content)   # Normalize multiple spaces/tabs to single space
+        html_content = re.sub(r'>\s+<', '> <', html_content)  # Keep single space between tags
         html_content = html_content.strip()
         
-        # Truncate if too long
-        if len(html_content) > 3000:
-            # Try to find a good cutting point
-            cut_point = html_content.rfind('>', 0, 3000)
-            if cut_point > 2500:
-                html_content = html_content[:cut_point + 1]
-            else:
-                html_content = html_content[:3000]
+        # Remove doctype declaration if present
+        html_content = re.sub(r'<!DOCTYPE[^>]*>', '', html_content, flags=re.IGNORECASE).strip()
+        
+        # Prepend title if extracted and not already present
+        if extracted_title and not html_content.lower().startswith('<h1>'):
+            html_content = extracted_title + ' ' + html_content
         
         # Ensure we have some content
         if not html_content or len(html_content) < 10:
             html_content = f'<div><h1>Sample Content</h1><p>HTML content extracted from {file_name}</p></div>'
+        
+        # If content is still too long, try to truncate at a reasonable point
+        if len(html_content) > 5000:
+            # Try to find a good cutting point (end of a tag)
+            cut_point = html_content.rfind('>', 0, 4500)
+            if cut_point > 3000:
+                html_content = html_content[:cut_point + 1]
+            else:
+                html_content = html_content[:4500] + '...'
         
         return html_content
         
@@ -207,25 +134,11 @@ def main():
 
     file_path = sys.argv[1]
     
-    # Check if this is a template preparation request
-    if len(sys.argv) > 2 and sys.argv[2] == '--prepare-template':
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-                html_content = file.read()
-            
-            prepared_html = prepare_html_for_template(html_content, os.path.basename(file_path))
-            result = {"preparedHTML": prepared_html}
-            print(json.dumps(result))
-        except Exception as e:
-            error_msg = {"error": f"Failed to prepare HTML template: {str(e)}"}
-            print(json.dumps(error_msg))
-        return
-    
-    # Regular DOM analysis
-    result = analyze_html_file(file_path)
+    # Extract and prepare HTML content
+    result = extract_html_content(file_path)
     
     # Output as JSON
-    print(json.dumps(result))
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":

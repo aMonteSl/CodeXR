@@ -36,7 +36,8 @@ export const SupportedLanguages: LanguageInfo[] = [
     { name: "TypeScript", extensions: [".ts", ".tsx"], iconId: "typescript" },
     { name: "TTCN-3", extensions: [".ttcn", ".ttcn3"], iconId: "ttcn3" },
     { name: "Vue", extensions: [".vue"], iconId: "vue" },
-    { name: "Zig", extensions: [".zig"], iconId: "zig" }
+    { name: "Zig", extensions: [".zig"], iconId: "zig" },
+    { name: "HTML", extensions: [".html", ".htm", ".xhtml"], iconId: "html" },
 ];
 
 /**
