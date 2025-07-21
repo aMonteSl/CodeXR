@@ -124,7 +124,8 @@ export class GetNecessaryFiles {
      */
     static async getAnalysisFileLivePanel(
         filePath: string,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        theme?: string
     ): Promise<AnalysisResult> {
         try {
             console.log(`GET_NECESSARY_FILES: Starting FileLivePanel analysis for: ${filePath}`);
@@ -144,7 +145,8 @@ export class GetNecessaryFiles {
                 console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Files...`);
                 const templateResult: ParsedTemplateFiles = await ParseTemplates.parseLivePanelFilesTemplate(
                     context,
-                    pythonResult.data
+                    pythonResult.data,
+                    theme
                 );
 
                 if (templateResult.success) {

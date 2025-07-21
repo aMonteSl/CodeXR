@@ -5,9 +5,9 @@
 
 import * as vscode from 'vscode';
 import { NewCodeAnalysisTreeItem } from '../../../items/newCodeAnalysisItems';
-import { AnalysisConfigurationStorage, AutoAnalysisDelayConfig, AutoAnalysisDelay } from '../../../../storage';
+import { AnalysisConfigurationStorage, AutoAnalysisDelayConfig, AutoAnalysisDelay } from '../../../../configuration';
 
-export { AutoAnalysisDelayConfig, AutoAnalysisDelay } from '../../../../storage';
+export { AutoAnalysisDelayConfig, AutoAnalysisDelay } from '../../../../configuration';
 
 export class AutoAnalysisDelaySetting {
     private currentDelayConfig: AutoAnalysisDelayConfig = { type: 'RealTime' };

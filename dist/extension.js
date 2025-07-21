@@ -13522,9 +13522,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisCommands = void 0;
 const subsections_1 = __webpack_require__(74);
 const file_analysis_1 = __webpack_require__(85);
-const clean_analysis_1 = __webpack_require__(107);
-const dom_visualization_1 = __webpack_require__(109);
-const analysisFileMode_1 = __webpack_require__(112);
+const clean_analysis_1 = __webpack_require__(109);
+const dom_visualization_1 = __webpack_require__(111);
+const analysisFileMode_1 = __webpack_require__(114);
 const viewTheme_1 = __webpack_require__(118);
 const autoAnalysisDelay_1 = __webpack_require__(119);
 /**
@@ -14277,7 +14277,7 @@ var fileAnalysisCommands_1 = __webpack_require__(86);
 Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
 var fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
 Object.defineProperty(exports, "FileAnalysisLivePanelCommands", ({ enumerable: true, get: function () { return fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands; } }));
-var fileAnalysisXRCommands_1 = __webpack_require__(105);
+var fileAnalysisXRCommands_1 = __webpack_require__(107);
 Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, get: function () { return fileAnalysisXRCommands_1.FileAnalysisXRCommands; } }));
 
 
@@ -14294,7 +14294,7 @@ Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisCommands = void 0;
 const fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
-const fileAnalysisXRCommands_1 = __webpack_require__(105);
+const fileAnalysisXRCommands_1 = __webpack_require__(107);
 class FileAnalysisCommands {
     /**
      * Register all file analysis commands (coordinates LivePanel and XR)
@@ -14429,7 +14429,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchVisualizeDOMPanel = exports.LaunchAnalyzeFileLivePanel = void 0;
 var launchAnalyzeFileLivePanel_1 = __webpack_require__(89);
 Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
-var launchVisualizeDOMPanel_1 = __webpack_require__(104);
+var launchVisualizeDOMPanel_1 = __webpack_require__(106);
 Object.defineProperty(exports, "LaunchVisualizeDOMPanel", ({ enumerable: true, get: function () { return launchVisualizeDOMPanel_1.LaunchVisualizeDOMPanel; } }));
 var utils_1 = __webpack_require__(92);
 Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
@@ -14484,6 +14484,7 @@ const vscode = __importStar(__webpack_require__(1));
 const languageMetadata_1 = __webpack_require__(90);
 const supportedLanguages_1 = __webpack_require__(91);
 const utils_1 = __webpack_require__(92);
+const analysisConfigurationStorage_1 = __webpack_require__(104);
 class LaunchAnalyzeFileLivePanel {
     /**
      * Analyze a specific file using Live Panel mode
@@ -14499,10 +14500,14 @@ class LaunchAnalyzeFileLivePanel {
             console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis requested for file: ${filePath}`);
             console.log(`NEW_CODE_ANALYSIS_ENGINE: Detected language: ${languageInfo.name}`);
             console.log(`NEW_CODE_ANALYSIS_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
+            // Get current theme configuration
+            const configStorage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+            const currentTheme = await configStorage.getViewTheme();
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Using theme: ${currentTheme}`);
             // Show confirmation message to user
             vscode.window.showInformationMessage(`CodeXR: LivePanel analysis started for "${filePath}" (${languageInfo.name})`, { modal: false });
             // Get analysis data using the new system
-            const analysisResult = await utils_1.GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context);
+            const analysisResult = await utils_1.GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme);
             if (analysisResult.success && analysisResult.data) {
                 console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);
                 console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis data.json:`, JSON.stringify(analysisResult.data, null, 2));
@@ -16008,7 +16013,7 @@ class GetNecessaryFiles {
     /**
      * Get analysis for File Live Panel mode
      */
-    static async getAnalysisFileLivePanel(filePath, context) {
+    static async getAnalysisFileLivePanel(filePath, context, theme) {
         try {
             console.log(`GET_NECESSARY_FILES: Starting FileLivePanel analysis for: ${filePath}`);
             // Execute Python analysis using PythonExecutor
@@ -16018,7 +16023,7 @@ class GetNecessaryFiles {
                 console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
                 // Parse templates to get HTML, CSS, and JS files
                 console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Files...`);
-                const templateResult = await parseTemplates_1.ParseTemplates.parseLivePanelFilesTemplate(context, pythonResult.data);
+                const templateResult = await parseTemplates_1.ParseTemplates.parseLivePanelFilesTemplate(context, pythonResult.data, theme);
                 if (templateResult.success) {
                     console.log(`GET_NECESSARY_FILES: Template files received successfully`);
                     console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
@@ -16184,7 +16189,7 @@ class ParseTemplates {
     /**
      * Parse LivePanel Files template for File Live Panel analysis
      */
-    static async parseLivePanelFilesTemplate(context, analysisData) {
+    static async parseLivePanelFilesTemplate(context, analysisData, theme) {
         try {
             console.log(`PARSE_TEMPLATES: Starting LivePanel Files template parsing`);
             // Define template paths
@@ -16209,10 +16214,16 @@ class ParseTemplates {
             const jsTemplate = fs.readFileSync(jsPath, 'utf-8');
             // Generate nonce for security and process HTML directly
             const nonce = (0, nonceGenerator_1.generateNonce)();
+            const themeClass = theme === 'Light' ? 'light-theme' : 'dark-theme';
+            const themeValue = theme === 'Light' ? 'light' : 'dark';
+            // Inject theme initialization script
+            const themeScript = `<script nonce="${nonce}">window.initialTheme = '${themeValue}';</script>`;
             const parsedHtml = htmlTemplate
                 .replace(/\$\{nonce\}/g, nonce)
                 .replace(/\$\{styleUri\}/g, './style.css')
-                .replace(/\$\{scriptUri\}/g, './main.js');
+                .replace(/\$\{scriptUri\}/g, './main.js')
+                .replace(/\$\{theme\}/g, themeClass)
+                .replace(/<\/head>/, `${themeScript}\n</head>`);
             console.log(`PARSE_TEMPLATES: Template parsing completed successfully`);
             return {
                 indexHtml: parsedHtml,
@@ -17605,6 +17616,277 @@ exports.EnhancedSSEManager = EnhancedSSEManager;
 
 
 /**
+ * Analysis Configuration Storage Manager
+ * Handles reading/writing configuration to VS Code globalStorage
+ * Path: codexr_analysis/configuration_analysis.json
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisConfiguration_1 = __webpack_require__(105);
+class AnalysisConfigurationStorage {
+    static instance;
+    STORAGE_FOLDER = 'codexr_analysis';
+    CONFIG_FILE = 'configuration_analysis.json';
+    context;
+    cachedConfiguration = null;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance(context) {
+        if (!AnalysisConfigurationStorage.instance) {
+            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
+        }
+        return AnalysisConfigurationStorage.instance;
+    }
+    /**
+     * Get the full file path for configuration
+     */
+    getConfigurationPath() {
+        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
+    }
+    /**
+     * Load configuration from storage
+     */
+    async loadConfiguration() {
+        try {
+            // Return cached if available
+            if (this.cachedConfiguration) {
+                return this.cachedConfiguration;
+            }
+            const configPath = this.getConfigurationPath();
+            // Check if file exists
+            try {
+                const configData = await vscode.workspace.fs.readFile(configPath);
+                const configString = Buffer.from(configData).toString('utf8');
+                const configFile = JSON.parse(configString);
+                // Validate and merge with defaults (in case new settings were added)
+                const configuration = {
+                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
+                    ...configFile.configuration
+                };
+                this.cachedConfiguration = configuration;
+                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
+                return configuration;
+            }
+            catch (readError) {
+                // File doesn't exist or is corrupted, return defaults
+                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
+                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+                // Create default file
+                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
+            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+        }
+    }
+    /**
+     * Save configuration to storage
+     */
+    async saveConfiguration(configuration) {
+        try {
+            const configPath = this.getConfigurationPath();
+            // Ensure directory exists
+            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
+            await vscode.workspace.fs.createDirectory(folderPath);
+            // Create configuration file structure
+            const configFile = {
+                metadata: {
+                    version: '1.0.0',
+                    lastModified: Date.now(),
+                    createdBy: 'CodeXR New Code Analysis'
+                },
+                configuration: configuration
+            };
+            // Write to file
+            const configString = JSON.stringify(configFile, null, 2);
+            const configData = Buffer.from(configString, 'utf8');
+            await vscode.workspace.fs.writeFile(configPath, configData);
+            // Update cache
+            this.cachedConfiguration = configuration;
+            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get specific setting value
+     */
+    async getAnalysisFileMode() {
+        const config = await this.loadConfiguration();
+        return config.analysisFileMode;
+    }
+    /**
+     * Set specific setting value
+     */
+    async setAnalysisFileMode(mode) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            analysisFileMode: mode
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Get view theme setting
+     */
+    async getViewTheme() {
+        const config = await this.loadConfiguration();
+        return config.viewTheme;
+    }
+    /**
+     * Set view theme setting
+     */
+    async setViewTheme(theme) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            viewTheme: theme
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Get auto-analysis delay setting
+     */
+    async getAutoAnalysisDelay() {
+        const config = await this.loadConfiguration();
+        return config.autoAnalysisDelay;
+    }
+    /**
+     * Set auto-analysis delay setting
+     */
+    async setAutoAnalysisDelay(delayConfig) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            autoAnalysisDelay: delayConfig
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Update multiple settings at once
+     */
+    async updateConfiguration(updates) {
+        const currentConfig = await this.loadConfiguration();
+        const updatedConfig = {
+            ...currentConfig,
+            ...updates
+        };
+        await this.saveConfiguration(updatedConfig);
+    }
+    /**
+     * Reset configuration to defaults
+     */
+    async resetConfiguration() {
+        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+        this.cachedConfiguration = null; // Clear cache
+    }
+    /**
+     * Get configuration file path for debugging
+     */
+    getConfigurationFilePath() {
+        return this.getConfigurationPath().fsPath;
+    }
+    /**
+     * Check if configuration file exists
+     */
+    async configurationExists() {
+        try {
+            const configPath = this.getConfigurationPath();
+            await vscode.workspace.fs.stat(configPath);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+}
+exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
+
+
+/***/ }),
+/* 105 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Analysis Configuration Models
+ * Types and interfaces for all analysis configuration data
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+/**
+ * Default configuration values
+ */
+exports.DEFAULT_ANALYSIS_CONFIGURATION = {
+    analysisFileMode: 'XR', // Default to XR as requested
+    viewTheme: 'Dark', // Default to Dark theme
+    autoAnalysisDelay: {
+        type: 'RealTime', // Default to Real Time (0s)
+        customMs: undefined
+    }
+};
+/**
+ * Default configuration file structure
+ */
+exports.DEFAULT_CONFIGURATION_FILE = {
+    metadata: {
+        version: '1.0.0',
+        lastModified: Date.now(),
+        createdBy: 'CodeXR New Code Analysis'
+    },
+    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
+};
+
+
+/***/ }),
+/* 106 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
  * Launch Visualize DOM Panel
  * DOM visualization engine for HTML files
  */
@@ -17773,7 +18055,7 @@ exports.LaunchVisualizeDOMPanel = LaunchVisualizeDOMPanel;
 
 
 /***/ }),
-/* 105 */
+/* 107 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17817,7 +18099,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisXRCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const launchAnalyzeFileXR_1 = __webpack_require__(106);
+const launchAnalyzeFileXR_1 = __webpack_require__(108);
 class FileAnalysisXRCommands {
     context;
     constructor(context) {
@@ -17872,7 +18154,7 @@ exports.FileAnalysisXRCommands = FileAnalysisXRCommands;
 
 
 /***/ }),
-/* 106 */
+/* 108 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18064,7 +18346,7 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
 
 
 /***/ }),
-/* 107 */
+/* 109 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18074,12 +18356,12 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
-var cleanAnalysisCommands_1 = __webpack_require__(108);
+var cleanAnalysisCommands_1 = __webpack_require__(110);
 Object.defineProperty(exports, "CleanAnalysisCommands", ({ enumerable: true, get: function () { return cleanAnalysisCommands_1.CleanAnalysisCommands; } }));
 
 
 /***/ }),
-/* 108 */
+/* 110 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18202,7 +18484,7 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
 
 
 /***/ }),
-/* 109 */
+/* 111 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -18212,12 +18494,12 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
-var domVisualizationCommands_1 = __webpack_require__(110);
+var domVisualizationCommands_1 = __webpack_require__(112);
 Object.defineProperty(exports, "DOMVisualizationCommands", ({ enumerable: true, get: function () { return domVisualizationCommands_1.DOMVisualizationCommands; } }));
 
 
 /***/ }),
-/* 110 */
+/* 112 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18262,7 +18544,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const engine_1 = __webpack_require__(88);
-const uriPathConverter_1 = __webpack_require__(111);
+const uriPathConverter_1 = __webpack_require__(113);
 class DOMVisualizationCommands {
     context;
     constructor(context) {
@@ -18349,7 +18631,7 @@ exports.DOMVisualizationCommands = DOMVisualizationCommands;
 
 
 /***/ }),
-/* 111 */
+/* 113 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18500,7 +18782,7 @@ function isValidFileSystemPath(path) {
 
 
 /***/ }),
-/* 112 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18544,8 +18826,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
-const storage_1 = __webpack_require__(114);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
+const configuration_1 = __webpack_require__(116);
 class AnalysisFileSetting {
     context;
     currentMode = 'XR'; // Default mode (will be loaded from storage)
@@ -18553,7 +18835,7 @@ class AnalysisFileSetting {
     constructor(context) {
         this.context = context;
         console.log('NEW_CODE_ANALYSIS: Initializing Analysis File setting');
-        this.storage = storage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
         this.loadSavedMode();
     }
     /**
@@ -18627,7 +18909,7 @@ exports.AnalysisFileSetting = AnalysisFileSetting;
 
 
 /***/ }),
-/* 113 */
+/* 115 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18726,13 +19008,13 @@ exports.NewCodeAnalysisItemFactory = NewCodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 114 */
+/* 116 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- * Storage Module
- * Central exports for all storage functionality
+ * Configuration Module
+ * Central exports for all configuration functionality
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -18750,280 +19032,9 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisConfigurationStorage = void 0;
-var analysisConfigurationStorage_1 = __webpack_require__(115);
+var analysisConfigurationStorage_1 = __webpack_require__(104);
 Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
 __exportStar(__webpack_require__(117), exports);
-
-
-/***/ }),
-/* 115 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Analysis Configuration Storage Manager
- * Handles reading/writing configuration to VS Code globalStorage
- * Path: codexr_analysis/configuration_analysis.json
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisConfigurationStorage = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisConfiguration_1 = __webpack_require__(116);
-class AnalysisConfigurationStorage {
-    static instance;
-    STORAGE_FOLDER = 'codexr_analysis';
-    CONFIG_FILE = 'configuration_analysis.json';
-    context;
-    cachedConfiguration = null;
-    constructor(context) {
-        this.context = context;
-        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
-    }
-    /**
-     * Get singleton instance
-     */
-    static getInstance(context) {
-        if (!AnalysisConfigurationStorage.instance) {
-            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
-        }
-        return AnalysisConfigurationStorage.instance;
-    }
-    /**
-     * Get the full file path for configuration
-     */
-    getConfigurationPath() {
-        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
-    }
-    /**
-     * Load configuration from storage
-     */
-    async loadConfiguration() {
-        try {
-            // Return cached if available
-            if (this.cachedConfiguration) {
-                return this.cachedConfiguration;
-            }
-            const configPath = this.getConfigurationPath();
-            // Check if file exists
-            try {
-                const configData = await vscode.workspace.fs.readFile(configPath);
-                const configString = Buffer.from(configData).toString('utf8');
-                const configFile = JSON.parse(configString);
-                // Validate and merge with defaults (in case new settings were added)
-                const configuration = {
-                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
-                    ...configFile.configuration
-                };
-                this.cachedConfiguration = configuration;
-                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
-                return configuration;
-            }
-            catch (readError) {
-                // File doesn't exist or is corrupted, return defaults
-                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
-                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-                // Create default file
-                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
-                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-            }
-        }
-        catch (error) {
-            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
-            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-        }
-    }
-    /**
-     * Save configuration to storage
-     */
-    async saveConfiguration(configuration) {
-        try {
-            const configPath = this.getConfigurationPath();
-            // Ensure directory exists
-            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
-            await vscode.workspace.fs.createDirectory(folderPath);
-            // Create configuration file structure
-            const configFile = {
-                metadata: {
-                    version: '1.0.0',
-                    lastModified: Date.now(),
-                    createdBy: 'CodeXR New Code Analysis'
-                },
-                configuration: configuration
-            };
-            // Write to file
-            const configString = JSON.stringify(configFile, null, 2);
-            const configData = Buffer.from(configString, 'utf8');
-            await vscode.workspace.fs.writeFile(configPath, configData);
-            // Update cache
-            this.cachedConfiguration = configuration;
-            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
-        }
-        catch (error) {
-            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
-            throw error;
-        }
-    }
-    /**
-     * Get specific setting value
-     */
-    async getAnalysisFileMode() {
-        const config = await this.loadConfiguration();
-        return config.analysisFileMode;
-    }
-    /**
-     * Set specific setting value
-     */
-    async setAnalysisFileMode(mode) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            analysisFileMode: mode
-        };
-        await this.saveConfiguration(updatedConfig);
-    }
-    /**
-     * Get view theme setting
-     */
-    async getViewTheme() {
-        const config = await this.loadConfiguration();
-        return config.viewTheme;
-    }
-    /**
-     * Set view theme setting
-     */
-    async setViewTheme(theme) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            viewTheme: theme
-        };
-        await this.saveConfiguration(updatedConfig);
-    }
-    /**
-     * Get auto-analysis delay setting
-     */
-    async getAutoAnalysisDelay() {
-        const config = await this.loadConfiguration();
-        return config.autoAnalysisDelay;
-    }
-    /**
-     * Set auto-analysis delay setting
-     */
-    async setAutoAnalysisDelay(delayConfig) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            autoAnalysisDelay: delayConfig
-        };
-        await this.saveConfiguration(updatedConfig);
-    }
-    /**
-     * Update multiple settings at once
-     */
-    async updateConfiguration(updates) {
-        const currentConfig = await this.loadConfiguration();
-        const updatedConfig = {
-            ...currentConfig,
-            ...updates
-        };
-        await this.saveConfiguration(updatedConfig);
-    }
-    /**
-     * Reset configuration to defaults
-     */
-    async resetConfiguration() {
-        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
-        this.cachedConfiguration = null; // Clear cache
-    }
-    /**
-     * Get configuration file path for debugging
-     */
-    getConfigurationFilePath() {
-        return this.getConfigurationPath().fsPath;
-    }
-    /**
-     * Check if configuration file exists
-     */
-    async configurationExists() {
-        try {
-            const configPath = this.getConfigurationPath();
-            await vscode.workspace.fs.stat(configPath);
-            return true;
-        }
-        catch {
-            return false;
-        }
-    }
-}
-exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
-
-
-/***/ }),
-/* 116 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-/**
- * Analysis Configuration Models
- * Types and interfaces for all analysis configuration data
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-/**
- * Default configuration values
- */
-exports.DEFAULT_ANALYSIS_CONFIGURATION = {
-    analysisFileMode: 'XR', // Default to XR as requested
-    viewTheme: 'Dark', // Default to Dark theme
-    autoAnalysisDelay: {
-        type: 'RealTime', // Default to Real Time (0s)
-        customMs: undefined
-    }
-};
-/**
- * Default configuration file structure
- */
-exports.DEFAULT_CONFIGURATION_FILE = {
-    metadata: {
-        version: '1.0.0',
-        lastModified: Date.now(),
-        createdBy: 'CodeXR New Code Analysis'
-    },
-    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
-};
 
 
 /***/ }),
@@ -19037,7 +19048,7 @@ exports.DEFAULT_CONFIGURATION_FILE = {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-var analysisConfiguration_1 = __webpack_require__(116);
+var analysisConfiguration_1 = __webpack_require__(105);
 Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
 Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
 
@@ -19087,15 +19098,15 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
-const storage_1 = __webpack_require__(114);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
+const configuration_1 = __webpack_require__(116);
 class ViewThemeSetting {
     context;
     currentTheme = 'Dark';
     storage;
     constructor(context) {
         this.context = context;
-        this.storage = storage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
         this.loadSavedTheme();
     }
     /**
@@ -19225,8 +19236,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
-const storage_1 = __webpack_require__(114);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
+const configuration_1 = __webpack_require__(116);
 class AutoAnalysisDelaySetting {
     context;
     currentDelayConfig = { type: 'RealTime' };
@@ -19241,7 +19252,7 @@ class AutoAnalysisDelaySetting {
     };
     constructor(context) {
         this.context = context;
-        this.storage = storage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
         this.loadSavedDelay();
     }
     /**
@@ -19922,7 +19933,7 @@ class ModularTreeDataProvider {
                 return codeAnalysisItem;
             case 'newCodeAnalysis':
                 // Import and create NewCodeAnalysisTreeItem
-                const { NewCodeAnalysisTreeItem } = __webpack_require__(113);
+                const { NewCodeAnalysisTreeItem } = __webpack_require__(115);
                 const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.type || 'item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return newCodeAnalysisItem;
             case 'visualizationSettings':
@@ -26378,7 +26389,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
 const handleNewCodeAnalysisClicks_1 = __webpack_require__(163);
 const subsections_1 = __webpack_require__(164);
 /**
@@ -26632,7 +26643,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
 const analysis_file_mode_1 = __webpack_require__(167);
 const view_theme_1 = __webpack_require__(168);
 const auto_analysis_delay_1 = __webpack_require__(169);
@@ -26708,7 +26719,7 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
-var analysisFileMode_1 = __webpack_require__(112);
+var analysisFileMode_1 = __webpack_require__(114);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysisFileMode_1.AnalysisFileSetting; } }));
 
 
@@ -26802,7 +26813,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
 class ActiveAnalysesSubsectionProvider {
     context;
     constructor(context) {
@@ -26896,7 +26907,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
 class ProjectByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -26991,7 +27002,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(113);
+const newCodeAnalysisItems_1 = __webpack_require__(115);
 class FilesByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -27647,7 +27658,7 @@ Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
-var newCodeAnalysisItems_1 = __webpack_require__(113);
+var newCodeAnalysisItems_1 = __webpack_require__(115);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisItemFactory; } }));
 

@@ -25,7 +25,8 @@ export class ParseTemplates {
      */
     static async parseLivePanelFilesTemplate(
         context: vscode.ExtensionContext,
-        analysisData: any
+        analysisData: any,
+        theme?: string
     ): Promise<ParsedTemplateFiles> {
         try {
             console.log(`PARSE_TEMPLATES: Starting LivePanel Files template parsing`);
@@ -55,10 +56,18 @@ export class ParseTemplates {
 
             // Generate nonce for security and process HTML directly
             const nonce = generateNonce();
+            const themeClass = theme === 'Light' ? 'light-theme' : 'dark-theme';
+            const themeValue = theme === 'Light' ? 'light' : 'dark';
+            
+            // Inject theme initialization script
+            const themeScript = `<script nonce="${nonce}">window.initialTheme = '${themeValue}';</script>`;
+            
             const parsedHtml = htmlTemplate
                 .replace(/\$\{nonce\}/g, nonce)
                 .replace(/\$\{styleUri\}/g, './style.css')
-                .replace(/\$\{scriptUri\}/g, './main.js');
+                .replace(/\$\{scriptUri\}/g, './main.js')
+                .replace(/\$\{theme\}/g, themeClass)
+                .replace(/<\/head>/, `${themeScript}\n</head>`);
 
             console.log(`PARSE_TEMPLATES: Template parsing completed successfully`);
             

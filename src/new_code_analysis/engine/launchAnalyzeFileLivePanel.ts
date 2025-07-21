@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { getLanguageForFile } from '../../utils/languageMetadata';
 import { SUPPORTED_LANGUAGES } from '../../utils/supportedLanguages';
 import { GetNecessaryFiles, SaveFiles, FilesToSave, FileWatcher, LaunchServer } from './utils';
+import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
 
 export class LaunchAnalyzeFileLivePanel {
 
@@ -29,6 +30,11 @@ export class LaunchAnalyzeFileLivePanel {
             console.log(`NEW_CODE_ANALYSIS_ENGINE: Detected language: ${languageInfo.name}`);
             console.log(`NEW_CODE_ANALYSIS_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
             
+            // Get current theme configuration
+            const configStorage = AnalysisConfigurationStorage.getInstance(context);
+            const currentTheme = await configStorage.getViewTheme();
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Using theme: ${currentTheme}`);
+            
             // Show confirmation message to user
             vscode.window.showInformationMessage(
                 `CodeXR: LivePanel analysis started for "${filePath}" (${languageInfo.name})`,
@@ -36,7 +42,7 @@ export class LaunchAnalyzeFileLivePanel {
             );
 
             // Get analysis data using the new system
-            const analysisResult = await GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context);
+            const analysisResult = await GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme);
 
             if (analysisResult.success && analysisResult.data) {
                 console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);

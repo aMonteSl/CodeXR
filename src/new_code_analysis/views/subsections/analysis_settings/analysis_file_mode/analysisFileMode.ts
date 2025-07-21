@@ -5,9 +5,9 @@
 
 import * as vscode from 'vscode';
 import { NewCodeAnalysisTreeItem } from '../../../items/newCodeAnalysisItems';
-import { AnalysisConfigurationStorage, AnalysisFileMode } from '../../../../storage';
+import { AnalysisConfigurationStorage, AnalysisFileMode } from '../../../../configuration';
 
-export { AnalysisFileMode } from '../../../../storage';
+export { AnalysisFileMode } from '../../../../configuration';
 
 export class AnalysisFileSetting {
     private currentMode: AnalysisFileMode = 'XR'; // Default mode (will be loaded from storage)

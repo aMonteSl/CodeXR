@@ -1,6 +1,6 @@
 /**
- * Storage Module
- * Central exports for all storage functionality
+ * Configuration Module
+ * Central exports for all configuration functionality
  */
 
 export { AnalysisConfigurationStorage } from './analysisConfigurationStorage';

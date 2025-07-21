@@ -5,9 +5,9 @@
 
 import * as vscode from 'vscode';
 import { NewCodeAnalysisTreeItem } from '../../../items/newCodeAnalysisItems';
-import { AnalysisConfigurationStorage, ViewTheme } from '../../../../storage';
+import { AnalysisConfigurationStorage, ViewTheme } from '../../../../configuration';
 
-export { ViewTheme } from '../../../../storage';
+export { ViewTheme } from '../../../../configuration';
 
 export class ViewThemeSetting {
     private currentTheme: ViewTheme = 'Dark';
