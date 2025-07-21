@@ -1,6 +1,6 @@
 /**
- * Auto-Analysis Delay Setting Item
- * Manages the auto-analysis delay configuration with predefined and custom values
+ * Debounce Time Setting Item
+ * Manages the debounce time configuration with predefined and custom values
  */
 
 import * as vscode from 'vscode';
@@ -35,7 +35,7 @@ export class AutoAnalysisDelaySetting {
         const currentDelay = await this.storage.getAutoAnalysisDelay();
         const delayDisplayText = this.getDelayDisplayText(currentDelay);
         
-        const delayText = `Auto-Analysis Timing: ${delayDisplayText}`;
+        const delayText = `Debounce Time: ${delayDisplayText}`;
         const iconPath = this.getDelayIcon(currentDelay);
 
         return new NewCodeAnalysisTreeItem(
@@ -44,7 +44,7 @@ export class AutoAnalysisDelaySetting {
             'analysis-result',
             {
                 command: 'newCodeAnalysis.selectAutoAnalysisDelay',
-                title: 'Select Auto-Analysis Delay',
+                title: 'Select Debounce Time',
                 arguments: []
             },
             iconPath,

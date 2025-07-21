@@ -14,15 +14,12 @@ import { GetNecessaryFiles } from './getNecessaryFiles';
 import { SaveFiles } from './saveFiles';
 import { fileToServerMap } from '../../../utils/fileToServerMap';
 import { ManageDebounceTime, DebounceManager } from './manageDebounceTime';
-import { AnalysisSessionManager } from '../registry/analysisSessionManager';
-import { AnalysisSessionRegistry } from '../registry/analysisSessionRegistry';
 
 interface WatcherInfo {
     watcher: fs.FSWatcher;
     filePath: string;
     analysisDir: string;
     analysisType: string;
-    sessionId: string; // Add sessionId to watcher info
     debounceManager?: DebounceManager;
     lastProcessedTime?: number;
 }
@@ -43,45 +40,39 @@ export class FileWatcher {
      * Start watching a file for changes and re-execute analysis when detected
      */
     static async startWatching(
-        sessionId: string,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        filePath: string,
+        analysisDir: string,
+        analysisType: string = 'LivePanel'
     ): Promise<string> {
         try {
-            const sessionManager = AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
-            
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
-            }
-
-            console.log(`FILE_WATCHER: Starting to watch file: ${session.filePath}`);
-            console.log(`FILE_WATCHER: Analysis directory: ${session.outputPath}`);
-            console.log(`FILE_WATCHER: Session ID: ${sessionId}`);
-            console.log(`FILE_WATCHER: Analysis type: ${session.analysisType}`);
+            console.log(`FILE_WATCHER: Starting to watch file: ${filePath}`);
+            console.log(`FILE_WATCHER: Analysis directory: ${analysisDir}`);
+            console.log(`FILE_WATCHER: Analysis type: ${analysisType}`);
 
             // Get debounce delay from configuration
             const debounceMs = await FileWatcher.getDebounceDelay(context);
             console.log(`FILE_WATCHER: Using debounce delay: ${debounceMs}ms`);
 
             // Create unique watcher ID
-            const watcherId = `${path.basename(session.filePath)}_${Date.now()}`;
+            const watcherId = `${path.basename(filePath)}_${Date.now()}`;
 
             // Check if file exists
-            if (!fs.existsSync(session.filePath)) {
-                console.error(`FILE_WATCHER: File does not exist: ${session.filePath}`);
+            if (!fs.existsSync(filePath)) {
+                console.error(`FILE_WATCHER: File does not exist: ${filePath}`);
                 return '';
             }
 
             // Check if analysis directory exists
-            if (!fs.existsSync(session.outputPath)) {
-                console.error(`FILE_WATCHER: Analysis directory does not exist: ${session.outputPath}`);
+            if (!fs.existsSync(analysisDir)) {
+                console.error(`FILE_WATCHER: Analysis directory does not exist: ${analysisDir}`);
                 return '';
             }
 
             // Create file watcher
-            const watcher = fs.watch(session.filePath, { persistent: true }, async (eventType, filename) => {
+            const watcher = fs.watch(filePath, { persistent: true }, async (eventType, filename) => {
                 if (eventType === 'change') {
-                    console.log(`FILE_WATCHER: File changed detected: ${session.filePath}`);
+                    console.log(`FILE_WATCHER: File changed detected: ${filePath}`);
                     console.log(`FILE_WATCHER: Event type: ${eventType}, filename: ${filename}`);
 
                     // Get current watcher info for debouncing
@@ -94,7 +85,7 @@ export class FileWatcher {
                     // Clear existing debounce manager if it exists (this will dispose status bar)
                     if (currentWatcherInfo.debounceManager) {
                         ManageDebounceTime.dispose(currentWatcherInfo.debounceManager);
-                        console.log(`FILE_WATCHER: Disposed previous debounce manager for: ${session.filePath}`);
+                        console.log(`FILE_WATCHER: Disposed previous debounce manager for: ${filePath}`);
                         currentWatcherInfo.debounceManager = undefined;
                     }
 
@@ -105,12 +96,12 @@ export class FileWatcher {
                     const now = Date.now();
                     if (currentWatcherInfo.lastProcessedTime && 
                         (now - currentWatcherInfo.lastProcessedTime) < currentDebounceMs) {
-                        console.log(`FILE_WATCHER: Skipping duplicate change event (too recent): ${session.filePath}`);
+                        console.log(`FILE_WATCHER: Skipping duplicate change event (too recent): ${filePath}`);
                         return;
                     }
 
                     // Create new debounce manager for this change
-                    const debounceManager = ManageDebounceTime.createDebounceManager(session.filePath, currentDebounceMs);
+                    const debounceManager = ManageDebounceTime.createDebounceManager(filePath, currentDebounceMs);
                     currentWatcherInfo.debounceManager = debounceManager;
 
                     // Set up debounced execution using ManageDebounceTime
@@ -119,36 +110,29 @@ export class FileWatcher {
                         context,
                         async () => {
                             try {
-                                console.log(`FILE_WATCHER: Executing debounced analysis for: ${session.filePath}`);
+                                console.log(`FILE_WATCHER: Executing debounced analysis for: ${filePath}`);
                                 currentWatcherInfo.lastProcessedTime = Date.now();
                                 
-                                // **CLAVE: Poner sesión en estado "analyzing" cuando debounce llega a 0**
-                                await sessionManager.setAnalyzing(sessionId);
-                                console.log(`FILE_WATCHER: Session ${sessionId} set to ANALYZING state`);
-                                
-                                // Re-execute analysis with session
-                                await FileWatcher.reExecuteAnalysis(sessionId, context);
+                                // Re-execute analysis
+                                await FileWatcher.reExecuteAnalysis(context, filePath, analysisDir, analysisType);
                                 
                             } catch (error) {
                                 console.error(`FILE_WATCHER: Error re-executing analysis:`, error);
-                                const registry = AnalysisSessionRegistry.getInstance();
-                                registry.updateSessionStatus(sessionId, 'failed', undefined, error instanceof Error ? error.message : String(error));
                                 vscode.window.showErrorMessage(`Error updating analysis: ${error instanceof Error ? error.message : String(error)}`);
                             }
                         }
                     );
 
-                    console.log(`FILE_WATCHER: Debounce timer set for: ${session.filePath} (${currentDebounceMs}ms)`);
+                    console.log(`FILE_WATCHER: Debounce timer set for: ${filePath} (${currentDebounceMs}ms)`);
                 }
             });
 
-            // Store watcher info with sessionId
+            // Store watcher info
             const watcherInfo: WatcherInfo = {
                 watcher,
-                filePath: session.filePath,
-                analysisDir: session.outputPath,
-                analysisType: session.analysisType,
-                sessionId: sessionId,
+                filePath,
+                analysisDir,
+                analysisType,
                 debounceManager: undefined,
                 lastProcessedTime: undefined
             };
@@ -251,80 +235,81 @@ export class FileWatcher {
      * Re-execute analysis when file changes are detected
      */
     private static async reExecuteAnalysis(
-        sessionId: string,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        filePath: string,
+        analysisDir: string,
+        analysisType: string
     ): Promise<void> {
         try {
-            const sessionManager = AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
-            
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
-            }
+            console.log(`FILE_WATCHER: Re-executing analysis for: ${filePath}`);
+            console.log(`FILE_WATCHER: Analysis type: ${analysisType}`);
 
-            console.log(`FILE_WATCHER: Re-executing analysis for: ${session.filePath}`);
-            console.log(`FILE_WATCHER: Analysis type: ${session.analysisType}`);
-
-            if (session.analysisType === 'DOMVisualization') {
-                // Re-execute DOM analysis with session
-                const analysisResult = await GetNecessaryFiles.getVisualizationDOM(session.filePath, context, sessionId);
+            if (analysisType === 'DOMVisualization') {
+                // Re-execute DOM analysis
+                const analysisResult = await GetNecessaryFiles.getVisualizationDOM(filePath, context);
                 
                 if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
                     console.log(`FILE_WATCHER: DOM analysis completed successfully`);
-                    await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    await FileWatcher.updateAnalysisFiles(analysisResult, analysisDir, filePath, 'DOMVisualization');
                 } else {
                     console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
-                    const registry = AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'DOM analysis failed');
                     vscode.window.showErrorMessage(`DOM visualization update failed: ${analysisResult.error}`);
                 }
                 
-            } else if (session.analysisType === 'FileXRAnalysis') {
-                // Re-execute XR analysis with session
-                const analysisResult = await GetNecessaryFiles.getAnalysisFileXR(session.filePath, context, sessionId);
+            } else if (analysisType === 'FileXRAnalysis') {
+                // Re-execute XR analysis
+                const analysisResult = await GetNecessaryFiles.getAnalysisFileXR(filePath, context);
                 
                 if (analysisResult.success && analysisResult.data) {
                     console.log(`FILE_WATCHER: XR analysis completed successfully`);
-                    await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    await FileWatcher.updateAnalysisFiles(analysisResult, analysisDir, filePath, 'FileXRAnalysis');
                 } else {
                     console.error(`FILE_WATCHER: XR analysis failed:`, analysisResult.error);
-                    const registry = AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'XR analysis failed');
                     vscode.window.showErrorMessage(`XR visualization update failed: ${analysisResult.error}`);
                 }
                 
             } else {
-                // LivePanel logic with session
-                const analysisResult = await GetNecessaryFiles.getAnalysisFileLivePanel(
-                    session.filePath, 
-                    context, 
-                    undefined, // theme
-                    sessionId
+                // Original LivePanel logic
+                const result = await PythonExecutor.executeAnalysis(
+                    'FileLivePanel',
+                    filePath,
+                    context
                 );
 
-                if (analysisResult.success && analysisResult.data) {
-                    console.log(`FILE_WATCHER: LivePanel analysis completed successfully`);
-                    await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                if (result.success && result.stdout) {
+                    // Update data.json in analysis directory
+                    const dataJsonPath = path.join(analysisDir, 'data.json');
                     
-                    // Send SSE update to all clients listening for this file
                     try {
-                        console.log(`FILE_WATCHER: Sending SSE update notification for file: ${session.filePath}`);
-                        
-                        // Use the original SSEManager that matches the server
-                        sseManager.sendUpdate(session.filePath);
-                        
-                        console.log(`FILE_WATCHER: SSE update notification sent successfully`);
-                    } catch (sseError) {
-                        console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
+                        // Parse the output to extract JSON data
+                        const jsonData = FileWatcher.extractJsonFromOutput(result.stdout);
+                        if (jsonData) {
+                            fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2), 'utf-8');
+                            console.log(`FILE_WATCHER: Updated data.json at: ${dataJsonPath}`);
+                            
+                            // Send SSE update to all clients listening for this file
+                            try {
+                                console.log(`FILE_WATCHER: Sending SSE update notification for file: ${filePath}`);
+                                
+                                // Use the original SSEManager that matches the server
+                                sseManager.sendUpdate(filePath);
+                                
+                                console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                            } catch (sseError) {
+                                console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
+                            }
+                            
+                            // Show success message
+                            vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(filePath)}`);
+                        } else {
+                            console.error(`FILE_WATCHER: No valid JSON data found in Python output`);
+                        }
+                    } catch (error) {
+                        console.error(`FILE_WATCHER: Error updating data.json:`, error);
                     }
-                    
-                    // Show success message
-                    vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(session.filePath)}`);
                 } else {
-                    console.error(`FILE_WATCHER: LivePanel analysis failed:`, analysisResult.error);
-                    const registry = AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'LivePanel analysis failed');
-                    vscode.window.showErrorMessage(`Analysis update failed: ${analysisResult.error}`);
+                    console.error(`FILE_WATCHER: Python analysis failed:`, result.error);
+                    vscode.window.showErrorMessage(`Analysis update failed: ${result.error}`);
                 }
             }
 

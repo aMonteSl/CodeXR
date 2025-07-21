@@ -7,7 +7,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { generateNonce } from '../../../utils/nonceGenerator';
-import { AnalysisSessionManager } from '../registry/analysisSessionManager';
 
 export interface SavedAnalysisFiles {
     success: boolean;
@@ -27,36 +26,42 @@ export interface FilesToSave {
 export class SaveFiles {
 
     /**
-     * Save analysis files to workspace storage using session
+     * Save analysis files to workspace storage
      */
     static async saveAnalysisFiles(
         filesToSave: FilesToSave,
-        sessionId: string,
+        originalFileName: string,
+        analysisType: string,
         context: vscode.ExtensionContext
     ): Promise<SavedAnalysisFiles> {
         try {
-            console.log(`SAVE_FILES: Starting to save analysis files for session: ${sessionId}`);
+            console.log(`SAVE_FILES: Starting to save analysis files for: ${originalFileName}`);
 
-            const sessionManager = AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
+            // Generate nonce for this analysis session
+            const nonce = generateNonce();
             
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
+            // Get workspace storage path
+            const workspaceStorage = context.workspaceState;
+            const storageUri = context.storageUri;
+            
+            if (!storageUri) {
+                throw new Error('Workspace storage URI is not available');
             }
-            
-            console.log(`SAVE_FILES: Using session data - Directory: ${session.outputDirectory}, Path: ${session.outputPath}`);
-            
-            // Use session-provided paths
-            const analysisSessionDir = session.outputPath;
-            const indexHtmlPath = path.join(analysisSessionDir, 'index.html');
+
+            // Create analysis directory structure
+            const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
+            const fileName = path.basename(originalFileName, path.extname(originalFileName));
+            // Create analysis session directory with new naming pattern: fileName_analysisType_nonce
+            const analysisSessionDir = path.join(analysisBaseDir, `${fileName}_${analysisType}_${nonce}`);
 
             // Ensure directories exist
-            await SaveFiles.ensureDirectoryExists(path.dirname(analysisSessionDir));
+            await SaveFiles.ensureDirectoryExists(analysisBaseDir);
             await SaveFiles.ensureDirectoryExists(analysisSessionDir);
 
             console.log(`SAVE_FILES: Created analysis directory: ${analysisSessionDir}`);
 
             // Save files
+            const indexHtmlPath = path.join(analysisSessionDir, 'index.html');
             const cssPath = path.join(analysisSessionDir, 'style.css');
             const jsPath = path.join(analysisSessionDir, 'main.js');
             const dataJsonPath = path.join(analysisSessionDir, 'data.json');
@@ -82,7 +87,7 @@ export class SaveFiles {
 
             return {
                 success: true,
-                nonce: session.id,
+                nonce: nonce,
                 analysisDirectoryPath: analysisSessionDir,
                 indexHtmlPath: indexHtmlPath
             };
@@ -94,7 +99,7 @@ export class SaveFiles {
                 nonce: '',
                 analysisDirectoryPath: '',
                 indexHtmlPath: '',
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error ? error.message : String(error)
             };
         }
     }

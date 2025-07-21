@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import { PythonExecutor, AnalysisType, PythonExecutionResult } from './pythonExecutor';
 import { ParseTemplates, ParsedTemplateFiles } from './parseTemplates';
+import { AnalysisSessionManager } from '../registry/analysisSessionManager';
 
 export interface AnalysisResult {
     success: boolean;
@@ -25,10 +26,13 @@ export class GetNecessaryFiles {
      */
     static async getVisualizationDOM(
         filePath: string,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        sessionId: string
     ): Promise<AnalysisResult> {
         try {
             console.log(`GET_NECESSARY_FILES: Starting DOM visualization analysis for: ${filePath}`);
+
+            const sessionManager = AnalysisSessionManager.getInstance();
 
             // Execute Python analysis using html_dom_parser.py
             const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysis(
@@ -48,6 +52,8 @@ export class GetNecessaryFiles {
                 if (htmlContentString) {
                     console.log(`GET_NECESSARY_FILES: HTML content length: ${htmlContentString.length} characters`);
                     
+                    // Add HTML content to session
+                    await sessionManager.addFileToSession(sessionId, 'source.html', htmlContentString);
                     // Parse templates to get HTML, CSS, and JS files for DOM visualization
                     console.log(`GET_NECESSARY_FILES: Starting DOM visualization template parsing...`);
                     const templateResult: ParsedTemplateFiles = await ParseTemplates.parseDOMVisualizationTemplate(
@@ -65,6 +71,19 @@ export class GetNecessaryFiles {
                         console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
                         console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
                         console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+
+                        // Add template files to session
+                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
+                        await sessionManager.addFileToSession(sessionId, 'style.css', templateResult.cssContent);
+                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
+                        
+                        // Add analysis data as JSON to session
+                        const dataJson = JSON.stringify({
+                            htmlContent: htmlContentString,
+                            originalFile: filePath,
+                            preparedForVisualization: true
+                        }, null, 2);
+                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
 
                         return {
                             success: true,
@@ -125,10 +144,13 @@ export class GetNecessaryFiles {
     static async getAnalysisFileLivePanel(
         filePath: string,
         context: vscode.ExtensionContext,
-        theme?: string
+        theme?: string,
+        sessionId?: string
     ): Promise<AnalysisResult> {
         try {
             console.log(`GET_NECESSARY_FILES: Starting FileLivePanel analysis for: ${filePath}`);
+
+            const sessionManager = AnalysisSessionManager.getInstance();
 
             // Execute Python analysis using PythonExecutor
             const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysis(
@@ -140,6 +162,18 @@ export class GetNecessaryFiles {
             if (pythonResult.success && pythonResult.data) {
                 console.log(`GET_NECESSARY_FILES: FileLivePanel analysis completed successfully`);
                 console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
+
+                // Add source file content to session if sessionId provided
+                if (sessionId) {
+                    try {
+                        const fileUri = vscode.Uri.file(filePath);
+                        const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                        const sourceContent = Buffer.from(fileContent).toString('utf8');
+                        await sessionManager.addFileToSession(sessionId, require('path').basename(filePath), sourceContent);
+                    } catch (error) {
+                        console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
+                    }
+                }
 
                 // Parse templates to get HTML, CSS, and JS files
                 console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Files...`);
@@ -154,6 +188,17 @@ export class GetNecessaryFiles {
                     console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
                     console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
                     console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+
+                    // Add template files to session if sessionId provided
+                    if (sessionId) {
+                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
+                        await sessionManager.addFileToSession(sessionId, 'style.css', templateResult.cssContent);
+                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
+                        
+                        // Add analysis data as JSON to session
+                        const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
+                    }
 
                     return {
                         success: true,
@@ -199,10 +244,13 @@ export class GetNecessaryFiles {
      */
     static async getAnalysisFileXR(
         filePath: string,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        sessionId?: string
     ): Promise<AnalysisResult> {
         try {
             console.log(`GET_NECESSARY_FILES: Starting FileXR analysis for: ${filePath}`);
+
+            const sessionManager = AnalysisSessionManager.getInstance();
 
             // Execute Python analysis using PythonExecutor
             const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysis(
@@ -214,6 +262,18 @@ export class GetNecessaryFiles {
             if (pythonResult.success && pythonResult.data) {
                 console.log(`GET_NECESSARY_FILES: FileXR analysis completed successfully`);
                 console.log(`GET_NECESSARY_FILES: XR Analysis data.json:`, JSON.stringify(pythonResult.data, null, 2));
+
+                // Add source file content to session if sessionId provided
+                if (sessionId) {
+                    try {
+                        const fileUri = vscode.Uri.file(filePath);
+                        const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                        const sourceContent = Buffer.from(fileContent).toString('utf8');
+                        await sessionManager.addFileToSession(sessionId, require('path').basename(filePath), sourceContent);
+                    } catch (error) {
+                        console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
+                    }
+                }
 
                 // Parse XR visualization template using boats chart
                 console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing...`);
@@ -232,6 +292,16 @@ export class GetNecessaryFiles {
                     console.log(`GET_NECESSARY_FILES: XR visualization template files received successfully`);
                     console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
                     console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+
+                    // Add template files to session if sessionId provided
+                    if (sessionId) {
+                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
+                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
+                        
+                        // Add analysis data as JSON to session
+                        const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
+                    }
 
                     return {
                         success: true,

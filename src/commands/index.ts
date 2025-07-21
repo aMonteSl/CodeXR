@@ -9,6 +9,7 @@ import { registerPythonEnvCommands } from './python_env/pythonEnvCommands';
 import { registerVisualizationSettingsCommands } from './visualization_settings/visualizationSettingsCommands';
 import { registerGeneralCommands } from './common/generalCommands';
 import { BabiaExamplesTreeDataProvider } from '../babia_examples/views/babiaExamplesTreeView';
+import { DebugThemeProblem } from '../new_code_analysis/configuration/debugThemeProblem';
 
 /**
  * Interface for tree data providers that support refresh
@@ -68,6 +69,10 @@ export function registerAllCommands(
     // Register visualization settings commands
     registerVisualizationSettingsCommands(context);
     
+    // Register debug commands for theme configuration problem
+    const debugCommands = DebugThemeProblem.registerDebugCommands(context);
+    context.subscriptions.push(...debugCommands);
+
     // Register the existing hello world command
     const helloWorldCommand = vscode.commands.registerCommand('CodeXR.helloWorld', () => {
         vscode.window.showInformationMessage('Hello World from Code-XR!');

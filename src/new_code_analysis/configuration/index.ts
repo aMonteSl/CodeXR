@@ -4,4 +4,5 @@
  */
 
 export { AnalysisConfigurationStorage } from './analysisConfigurationStorage';
+export { debugConfiguration, testConfigurationChanges } from './debugConfiguration';
 export * from './models';

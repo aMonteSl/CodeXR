@@ -147,6 +147,7 @@ export class AnalysisConfigurationStorage {
             analysisFileMode: mode
         };
         await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Analysis file mode changed to: ${mode}`);
     }
 
     /**
@@ -167,6 +168,7 @@ export class AnalysisConfigurationStorage {
             viewTheme: theme
         };
         await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: View theme changed to: ${theme}`);
     }
 
     /**
@@ -187,6 +189,7 @@ export class AnalysisConfigurationStorage {
             autoAnalysisDelay: delayConfig
         };
         await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay changed to: ${JSON.stringify(delayConfig)}`);
     }
 
     /**
@@ -199,6 +202,7 @@ export class AnalysisConfigurationStorage {
             ...updates
         };
         await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Configuration updated with: ${JSON.stringify(updates)}`);
     }
 
     /**
@@ -227,5 +231,27 @@ export class AnalysisConfigurationStorage {
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Debug method to get current configuration file content
+     */
+    public async debugGetConfigurationFileContent(): Promise<string | null> {
+        try {
+            const configPath = this.getConfigurationPath();
+            const configData = await vscode.workspace.fs.readFile(configPath);
+            return Buffer.from(configData).toString('utf8');
+        } catch (error) {
+            console.log('NEW_CODE_ANALYSIS: Configuration file not found or error reading:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Force reload configuration from disk (bypassing cache)
+     */
+    public async forceReloadConfiguration(): Promise<AnalysisConfiguration> {
+        this.cachedConfiguration = null;
+        return await this.loadConfiguration();
     }
 }

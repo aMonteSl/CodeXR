@@ -8,6 +8,8 @@ import { getLanguageForFile } from '../../utils/languageMetadata';
 import { SUPPORTED_LANGUAGES } from '../../utils/supportedLanguages';
 import { GetNecessaryFiles, SaveFiles, FilesToSave, FileWatcher, LaunchServer } from './utils';
 import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
+import { AnalysisSessionManager } from './registry/analysisSessionManager';
+import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
 
 export class LaunchAnalyzeFileLivePanel {
 
@@ -30,6 +32,18 @@ export class LaunchAnalyzeFileLivePanel {
             console.log(`NEW_CODE_ANALYSIS_ENGINE: Detected language: ${languageInfo.name}`);
             console.log(`NEW_CODE_ANALYSIS_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
             
+            // **CHECK: Verify no conflicting analysis is already running**
+            const canProceed = await CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(filePath, 'LivePanel');
+            if (!canProceed) {
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis cancelled due to conflicts`);
+                return;
+            }
+            
+            // Create analysis session
+            const sessionManager = AnalysisSessionManager.getInstance();
+            const session = await sessionManager.startAnalysis(filePath, 'LivePanel', context);
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Created session ${session.id} for LivePanel analysis`);
+            
             // Get current theme configuration
             const configStorage = AnalysisConfigurationStorage.getInstance(context);
             const currentTheme = await configStorage.getViewTheme();
@@ -41,8 +55,8 @@ export class LaunchAnalyzeFileLivePanel {
                 { modal: false }
             );
 
-            // Get analysis data using the new system
-            const analysisResult = await GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme);
+            // Get analysis data using the new system with session
+            const analysisResult = await GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme, session.id);
 
             if (analysisResult.success && analysisResult.data) {
                 console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);
@@ -59,7 +73,7 @@ export class LaunchAnalyzeFileLivePanel {
                     console.log(`NEW_CODE_ANALYSIS_ENGINE: Received JS file (${analysisResult.jsContent.length} characters)`);
                 }
 
-                // Save all files to workspace storage
+                // Save all files to workspace storage using session
                 console.log(`NEW_CODE_ANALYSIS_ENGINE: Saving analysis files to workspace storage...`);
                 const filesToSave: FilesToSave = {
                     indexHtml: analysisResult.indexHtml!,
@@ -70,8 +84,7 @@ export class LaunchAnalyzeFileLivePanel {
 
                 const saveResult = await SaveFiles.saveAnalysisFiles(
                     filesToSave,
-                    filePath,
-                    'FileLivePanel',
+                    session.id,
                     context
                 );
 
@@ -81,12 +94,10 @@ export class LaunchAnalyzeFileLivePanel {
                     console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis directory: ${saveResult.analysisDirectoryPath}`);
                     console.log(`NEW_CODE_ANALYSIS_ENGINE: Index.html path: ${saveResult.indexHtmlPath}`);
 
-                    // Start file watcher for live updates
-                    const watcherId = FileWatcher.startWatching(
-                        context,
-                        filePath,
-                        saveResult.analysisDirectoryPath,
-                        'LivePanel'
+                    // Start file watcher for live updates with session
+                    const watcherId = await FileWatcher.startWatching(
+                        session.id,
+                        context
                     );
 
                     if (watcherId) {
@@ -97,11 +108,8 @@ export class LaunchAnalyzeFileLivePanel {
 
                     // Launch SSE server for real-time updates
                     const serverLaunchResult = await LaunchServer.launchAnalysisServer(context, {
-                        filePath: filePath,
-                        analysisType: 'LivePanel',
-                        enableSSE: true,
-                        analysisDirectoryPath: saveResult.analysisDirectoryPath,
-                        indexHtmlPath: saveResult.indexHtmlPath
+                        sessionId: session.id,
+                        enableSSE: true
                     });
 
                     if (serverLaunchResult.success) {

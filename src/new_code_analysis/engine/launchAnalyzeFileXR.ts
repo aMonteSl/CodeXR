@@ -10,6 +10,8 @@ import { GetNecessaryFiles } from './utils/getNecessaryFiles';
 import { SaveFiles, FilesToSave } from './utils/saveFiles';
 import { FileWatcher } from './utils/fileWatcher';
 import { LaunchServer } from './utils/launchServer';
+import { AnalysisSessionManager } from './registry/analysisSessionManager';
+import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
 
 export class LaunchAnalyzeFileXR {
 
@@ -31,6 +33,18 @@ export class LaunchAnalyzeFileXR {
             console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis requested for file: ${filePath}`);
             console.log(`ANALYZE_FILE_XR_ENGINE: Detected language: ${languageInfo.name}`);
             
+            // **CHECK: Verify no conflicting analysis is already running**
+            const canProceed = await CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(filePath, 'FileXRAnalysis');
+            if (!canProceed) {
+                console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis cancelled due to conflicts`);
+                return;
+            }
+            
+            // Create analysis session
+            const sessionManager = AnalysisSessionManager.getInstance();
+            const session = await sessionManager.startAnalysis(filePath, 'FileXRAnalysis', context);
+            console.log(`ANALYZE_FILE_XR_ENGINE: Created session ${session.id} for XR analysis`);
+            
             // Show start message to user
             const fileName = require('path').basename(filePath);
             vscode.window.showInformationMessage(
@@ -38,9 +52,9 @@ export class LaunchAnalyzeFileXR {
                 { modal: false }
             );
 
-            // Get file analysis using python xr_file_analysis_coordinator.py
+            // Get file analysis using python xr_file_analysis_coordinator.py with session
             console.log(`ANALYZE_FILE_XR_ENGINE: Calling XR file analysis...`);
-            const analysisResult = await GetNecessaryFiles.getAnalysisFileXR(filePath, context);
+            const analysisResult = await GetNecessaryFiles.getAnalysisFileXR(filePath, context, session.id);
 
             if (analysisResult.success && analysisResult.data) {
                 console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis completed successfully!`);
@@ -69,7 +83,7 @@ export class LaunchAnalyzeFileXR {
                 console.log(`ANALYZE_FILE_XR_ENGINE: Color Dimension: complexity (cyclomatic complexity)`);
                 console.log(`ANALYZE_FILE_XR_ENGINE: ============================================`);
 
-                // Save all files to workspace storage
+                // Save all files to workspace storage using session
                 console.log(`ANALYZE_FILE_XR_ENGINE: Saving XR analysis files to workspace storage...`);
                 const filesToSave: FilesToSave = {
                     indexHtml: analysisResult.indexHtml!,
@@ -80,8 +94,7 @@ export class LaunchAnalyzeFileXR {
 
                 const saveResult = await SaveFiles.saveAnalysisFiles(
                     filesToSave,
-                    filePath,
-                    'FileXRAnalysis',
+                    session.id,
                     context
                 );
 
@@ -91,28 +104,23 @@ export class LaunchAnalyzeFileXR {
                     console.log(`ANALYZE_FILE_XR_ENGINE: XR Analysis directory: ${saveResult.analysisDirectoryPath}`);
                     console.log(`ANALYZE_FILE_XR_ENGINE: XR Index.html path: ${saveResult.indexHtmlPath}`);
 
-                    // Start file watcher for live updates
-                    const watcherId = FileWatcher.startWatching(
-                        context,
-                        filePath,
-                        saveResult.analysisDirectoryPath,
-                        'FileXRAnalysis'
+                    // Start file watcher for live updates with session
+                    const watcherId = await FileWatcher.startWatching(
+                        session.id,
+                        context
                     );
 
                     if (watcherId) {
                         console.log(`ANALYZE_FILE_XR_ENGINE: XR File watcher started with ID: ${watcherId}`);
                     }
 
-                    // Launch server for XR visualization
+                    // Launch server for XR visualization with session
                     console.log(`ANALYZE_FILE_XR_ENGINE: Launching server for XR visualization...`);
                     const serverResult = await LaunchServer.launchAnalysisServer(
                         context,
                         {
-                            filePath: filePath,
-                            analysisType: 'FileXRAnalysis',
-                            enableSSE: true,
-                            analysisDirectoryPath: saveResult.analysisDirectoryPath,
-                            indexHtmlPath: saveResult.indexHtmlPath
+                            sessionId: session.id,
+                            enableSSE: true
                         }
                     );
 

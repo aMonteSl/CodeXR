@@ -8,14 +8,17 @@ import * as path from 'path';
 import { MultiServerLauncher } from '../../../servers/runtime/multiServerLauncher';
 import { EnhancedSSEManager } from '../../../servers/runtime/sse/enhancedSSEManager';
 import { fileToServerMap } from '../../../utils/fileToServerMap';
+import { AnalysisSessionManager } from '../registry/analysisSessionManager';
+import { AnalysisSessionRegistry } from '../registry/analysisSessionRegistry';
 
 export interface ServerLaunchOptions {
-    filePath: string;
-    analysisType: string;
+    filePath?: string; // Make optional since we'll get it from session
+    analysisType?: string; // Make optional since we'll get it from session
+    sessionId?: string; // Add sessionId
     port?: number;
     enableSSE?: boolean;
-    analysisDirectoryPath?: string;
-    indexHtmlPath?: string;
+    analysisDirectoryPath?: string; // Keep for backward compatibility
+    indexHtmlPath?: string; // Keep for backward compatibility
 }
 
 export interface ServerLaunchResult {
@@ -37,8 +40,37 @@ export class LaunchServer {
         options: ServerLaunchOptions
     ): Promise<ServerLaunchResult> {
         try {
-            console.log(`LAUNCH_SERVER: Preparing to launch server for: ${options.filePath}`);
-            console.log(`LAUNCH_SERVER: Analysis type: ${options.analysisType}`);
+            // Get session data if sessionId provided
+            let session;
+            let filePath: string;
+            let analysisType: string;
+            let analysisDirectoryPath: string;
+            let indexHtmlPath: string;
+
+            if (options.sessionId) {
+                const sessionManager = AnalysisSessionManager.getInstance();
+                session = sessionManager.getSession(options.sessionId);
+                
+                if (!session) {
+                    throw new Error(`Session ${options.sessionId} not found`);
+                }
+                
+                filePath = session.filePath;
+                analysisType = session.analysisType;
+                analysisDirectoryPath = session.outputPath;
+                indexHtmlPath = path.join(session.outputPath, 'index.html');
+                
+                console.log(`LAUNCH_SERVER: Using session ${options.sessionId} for server launch`);
+            } else {
+                // Fallback to options for backward compatibility
+                filePath = options.filePath!;
+                analysisType = options.analysisType!;
+                analysisDirectoryPath = options.analysisDirectoryPath!;
+                indexHtmlPath = options.indexHtmlPath!;
+            }
+
+            console.log(`LAUNCH_SERVER: Preparing to launch server for: ${filePath}`);
+            console.log(`LAUNCH_SERVER: Analysis type: ${analysisType}`);
             console.log(`LAUNCH_SERVER: SSE enabled: ${options.enableSSE ?? true}`);
 
             // Use the existing MultiServerLauncher to launch the server
@@ -46,11 +78,11 @@ export class LaunchServer {
             
             // Determine HTML file path - use analysis index.html if available
             let htmlFile: string | undefined;
-            if (options.indexHtmlPath && await this.fileExists(options.indexHtmlPath)) {
-                htmlFile = options.indexHtmlPath;
+            if (indexHtmlPath && await this.fileExists(indexHtmlPath)) {
+                htmlFile = indexHtmlPath;
                 console.log(`LAUNCH_SERVER: Using analysis index.html: ${htmlFile}`);
-            } else if (options.analysisDirectoryPath) {
-                const analysisIndex = path.join(options.analysisDirectoryPath, 'index.html');
+            } else if (analysisDirectoryPath) {
+                const analysisIndex = path.join(analysisDirectoryPath, 'index.html');
                 if (await this.fileExists(analysisIndex)) {
                     htmlFile = analysisIndex;
                     console.log(`LAUNCH_SERVER: Using analysis directory index.html: ${htmlFile}`);
@@ -58,7 +90,7 @@ export class LaunchServer {
             }
             
             // Generate custom name for the server
-            const fileName = path.basename(options.filePath);
+            const fileName = path.basename(filePath);
             const customName = `LivePanel Analysis: ${fileName}`;
             
             console.log(`LAUNCH_SERVER: Launching server with custom name: ${customName}`);
@@ -76,17 +108,24 @@ export class LaunchServer {
             console.log(`LAUNCH_SERVER: Server launched successfully: ${launchResult.serverUrl}`);
             console.log(`LAUNCH_SERVER: Server ID: ${launchResult.serverId}`);
             
+            // **CLAVE: Marcar sesión como "completed" con puerto**
+            if (session && options.sessionId) {
+                const registry = AnalysisSessionRegistry.getInstance();
+                registry.setSessionCompleted(options.sessionId, launchResult.port);
+                console.log(`LAUNCH_SERVER: Session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+            }
+            
             // Register file-to-server mapping for SSE support
             try {
                 console.log(`LAUNCH_SERVER: Registering file-to-server mapping...`);
-                console.log(`LAUNCH_SERVER: File path: ${options.filePath}`);
+                console.log(`LAUNCH_SERVER: File path: ${filePath}`);
                 console.log(`LAUNCH_SERVER: Server port: ${launchResult.port}`);
-                console.log(`LAUNCH_SERVER: Analysis directory: ${options.analysisDirectoryPath || 'N/A'}`);
+                console.log(`LAUNCH_SERVER: Analysis directory: ${analysisDirectoryPath || 'N/A'}`);
                 
-                fileToServerMap.registerMapping(options.filePath, {
+                fileToServerMap.registerMapping(filePath, {
                     port: launchResult.port!,
-                    tempDir: options.analysisDirectoryPath || '',
-                    fileUri: options.filePath,
+                    tempDir: analysisDirectoryPath || '',
+                    fileUri: filePath,
                     serverRef: null as any // We don't have direct access to server reference in MultiServerLauncher
                 });
                 
@@ -101,7 +140,7 @@ export class LaunchServer {
             let sseChannel: string | undefined;
             if (options.enableSSE !== false) {
                 try {
-                    sseChannel = this.setupSSEChannel(options.filePath, options.analysisType, launchResult.serverId!);
+                    sseChannel = this.setupSSEChannel(filePath, analysisType, launchResult.serverId!);
                     console.log(`LAUNCH_SERVER: SSE channel setup: ${sseChannel}`);
                 } catch (sseError) {
                     console.warn(`LAUNCH_SERVER: SSE setup failed (non-critical):`, sseError);

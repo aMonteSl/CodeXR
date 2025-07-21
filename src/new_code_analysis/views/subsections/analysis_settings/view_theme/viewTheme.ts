@@ -53,11 +53,11 @@ export class ViewThemeSetting {
         const themeToUse = theme || this.currentTheme;
         switch (themeToUse) {
             case 'Dark':
-                return new vscode.ThemeIcon('symbol-color', new vscode.ThemeColor('charts.foreground'));
+                return new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('charts.blue'));
             case 'Light':
-                return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
+                return new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('charts.yellow'));
             default:
-                return new vscode.ThemeIcon('gear', new vscode.ThemeColor('charts.blue'));
+                return new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('charts.foreground'));
         }
     }
 
