@@ -6,6 +6,14 @@
 export type AnalysisFileMode = 'XR' | 'LivePanel';
 export type ViewTheme = 'Dark' | 'Light';
 export type AutoAnalysisDelay = 'RealTime' | '1s' | '3s' | '5s' | '10s' | 'Custom';
+export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats';
+
+/**
+ * Dimension mapping object that maps dimension names to data field names
+ */
+export interface DimensionMapping {
+    [dimensionName: string]: string;
+}
 
 export interface AutoAnalysisDelayConfig {
     type: AutoAnalysisDelay;
@@ -29,6 +37,16 @@ export interface AnalysisConfiguration {
     autoAnalysisDelay: AutoAnalysisDelayConfig;
     
     /**
+     * Chart type for file analysis visualization
+     */
+    chartTypeFile: ChartType;
+    
+    /**
+     * Dimension mapping for file analysis
+     */
+    dimensionMappingFile: DimensionMapping;
+    
+    /**
      * TODO: Add more configuration settings here as they are implemented
      * Example future settings:
      */
@@ -49,7 +67,9 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
     autoAnalysisDelay: {
         type: 'RealTime', // Default to Real Time (0s)
         customMs: undefined
-    }
+    },
+    chartTypeFile: 'bars', // Default chart type (bars is the most common)
+    dimensionMappingFile: {} // Default empty dimension mapping
 };
 
 /**

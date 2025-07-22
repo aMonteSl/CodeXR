@@ -59,7 +59,7 @@ def analyze_file_for_xr(file_path):
         
         for func in lizard_data.get('functions', []):
             xr_function = {
-                "fileName": func.get('name', 'unknown'),
+                "functionName": func.get('name', 'unknown'),
                 "lineStart": func.get('lineStart', 0),  # Fixed: use correct field name
                 "lineEnd": func.get('lineEnd', 0),      # Fixed: use correct field name
                 "lineCount": func.get('lineCount', 0),  # Fixed: use correct field name
@@ -124,7 +124,7 @@ def generate_fallback_xr_data(file_path):
     
     # Generate a single fallback function entry
     fallback_function = {
-        "fileName": base_name,
+        "functionName": base_name,
         "lineStart": 1,
         "lineEnd": total_lines,
         "lineCount": total_lines,

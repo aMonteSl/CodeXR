@@ -275,8 +275,18 @@ export class GetNecessaryFiles {
                     }
                 }
 
-                // Parse XR visualization template using boats chart
+                // Parse XR visualization template using user configuration
                 console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing...`);
+                
+                // Get user chart configuration from settings
+                const { AnalysisConfigurationStorage } = require('../../configuration');
+                const storage = AnalysisConfigurationStorage.getInstance(context);
+                const userChartType = await storage.getChartTypeFile();
+                const userDimensionMapping = await storage.getDimensionMappingFile();
+                
+                console.log(`[CHART_CONFIGURED] User selected chart type: ${userChartType}`);
+                console.log(`[CHART_CONFIGURED] User dimension mappings:`, userDimensionMapping);
+                
                 const templateResult: ParsedTemplateFiles = await ParseTemplates.parseXRVisualizationTemplate(
                     context,
                     {
@@ -284,7 +294,8 @@ export class GetNecessaryFiles {
                         fileName: require('path').basename(filePath),
                         filePath: filePath,
                         title: `XR Analysis - ${require('path').basename(filePath)}`,
-                        chartId: 'boats' // Use boats chart for XR analysis
+                        chartId: userChartType,
+                        dimensionMapping: userDimensionMapping
                     }
                 );
 

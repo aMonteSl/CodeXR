@@ -43,17 +43,17 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(__webpack_require__(1));
 const index_1 = __webpack_require__(2);
-const views_1 = __webpack_require__(132);
-const commonCommands_1 = __webpack_require__(130);
+const views_1 = __webpack_require__(138);
+const commonCommands_1 = __webpack_require__(136);
 const serverSettingsManager_1 = __webpack_require__(11);
 const activeServerRegistry_1 = __webpack_require__(26);
-const visualizeDataModel_1 = __webpack_require__(196);
+const visualizeDataModel_1 = __webpack_require__(202);
 const tempStorageManager_1 = __webpack_require__(67);
-const fileWatcherManager_1 = __webpack_require__(165);
-const statusBarDelayTimer_1 = __webpack_require__(166);
+const fileWatcherManager_1 = __webpack_require__(171);
+const statusBarDelayTimer_1 = __webpack_require__(172);
 const SSEManager_1 = __webpack_require__(18);
 const fileToServerMap_1 = __webpack_require__(20);
-const serverWatcherIntegration_1 = __webpack_require__(111);
+const serverWatcherIntegration_1 = __webpack_require__(116);
 // Global context reference for cleanup
 let extensionContext;
 // This method is called when your extension is activated
@@ -210,10 +210,10 @@ const babiaExamplesCommands_1 = __webpack_require__(34);
 const visualizeDataCommands_1 = __webpack_require__(38);
 const analysisCommands_1 = __webpack_require__(59);
 const newCodeAnalysisCommands_1 = __webpack_require__(72);
-const pythonEnvCommands_1 = __webpack_require__(94);
-const visualizationSettingsCommands_1 = __webpack_require__(127);
-const generalCommands_1 = __webpack_require__(129);
-const debugThemeProblem_1 = __webpack_require__(131);
+const pythonEnvCommands_1 = __webpack_require__(96);
+const visualizationSettingsCommands_1 = __webpack_require__(133);
+const generalCommands_1 = __webpack_require__(135);
+const debugThemeProblem_1 = __webpack_require__(137);
 /**
  * Entry point that registers all extension commands
  */
@@ -4158,7 +4158,7 @@ class PortManager {
         }
         try {
             // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 197))).default;
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 203))).default;
             // Create a range array for get-port - limit to reasonable range for performance
             const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
             const ports = [];
@@ -7391,14 +7391,14 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'Categories (X-Axis)',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bar heights'
@@ -7428,21 +7428,21 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'X-Axis Categories',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
-                label: 'Z-Axis Categories',
+                label: 'Z-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bar heights'
@@ -7473,21 +7473,21 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'Categories',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for cylinder heights'
             },
             {
                 name: 'radius',
-                label: 'Radius Values',
+                label: 'Radius',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for cylinder radius'
@@ -7502,7 +7502,8 @@ exports.chartTemplates = [
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
                                 radius: {{RADIUS_FIELD}};
-                                axis_name: true"
+                                axis_name: true;
+                                radiusMax: 1;"
                     position="0 2 -10"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -7518,21 +7519,21 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'X-Axis Categories',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
-                label: 'Z-Axis Categories',
+                label: 'Z-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for cylinder heights'
@@ -7555,7 +7556,8 @@ exports.chartTemplates = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    radius: {{RADIUS_FIELD}};
-                                   axis_name: true"
+                                   axis_name: true;
+                                   radiusMax: 1;"
                     position="0 2 -10"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -7571,14 +7573,14 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'key',
-                label: 'Categories',
+                label: 'Key',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names'
             },
             {
                 name: 'size',
-                label: 'Values',
+                label: 'Size',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for each category'
@@ -7586,15 +7588,16 @@ exports.chartTemplates = [
         ],
         htmlTemplate: `<!-- Donut Chart -->
                 <a-entity id="chart"
-                    babia-donut="from: data;
+                    babia-doughnut="from: data;
                                  title: {{TITLE}};
+                                titlePosition: 2.5 0 -3;
                                  legend: true;
                                  palette: {{PALETTE}};
                                  key: {{KEY_FIELD}};
                                  size: {{SIZE_FIELD}};
                                  axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
+                    position="0 4 0"
+                    rotation="90 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
@@ -7608,14 +7611,14 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'key',
-                label: 'Categories',
+                label: 'Key',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names'
             },
             {
                 name: 'size',
-                label: 'Values',
+                label: 'Size',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for each sector'
@@ -7625,13 +7628,14 @@ exports.chartTemplates = [
                 <a-entity id="chart"
                     babia-pie="from: data;
                                title: {{TITLE}};
+                                titlePosition: 2.5 0 -3;
                                legend: true;
                                palette: {{PALETTE}};
                                key: {{KEY_FIELD}};
                                size: {{SIZE_FIELD}};
                                axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
+                    position="0 4 0"
+                    rotation="90 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
@@ -7645,28 +7649,28 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'X-Axis Values',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing values for x-axis positioning'
             },
             {
                 name: 'z_axis',
-                label: 'Z-Axis Values',
+                label: 'Z-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing values for z-axis positioning'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bubble height positioning'
             },
             {
                 name: 'radius',
-                label: 'Radius Values',
+                label: 'Radius',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bubble radius/size'
@@ -7682,7 +7686,10 @@ exports.chartTemplates = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    radius: {{RADIUS_FIELD}};
-                                   axis_name: true"
+                                   axis_name: true;
+                                   heightMax: 5;
+                                   radiusMax: 1;"
+
                     position="0 2 -10"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -7698,24 +7705,24 @@ exports.chartTemplates = [
         dimensions: [
             {
                 name: 'area',
-                label: 'Area Values',
-                dataType: 'numeric',
+                label: 'Area',
+                dataType: 'any',
                 required: true,
-                description: 'Field containing numeric values for boat area size (e.g., parameters, function count)'
+                description: 'Field containing any values for boat area size (e.g., parameters, function count)'
             },
             {
                 name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
+                label: 'Height',
+                dataType: 'any',
                 required: true,
-                description: 'Field containing numeric values for boat height (e.g., lines count, complexity)'
+                description: 'Field containing any values for boat height (e.g., lines count, complexity)'
             },
             {
                 name: 'color',
-                label: 'Color Values',
-                dataType: 'numeric',
+                label: 'Color',
+                dataType: 'any',
                 required: true,
-                description: 'Field containing numeric values for color mapping (e.g., complexity, density)'
+                description: 'Field containing any values for color mapping (e.g., complexity, density)'
             }
         ],
         htmlTemplate: `<!-- Boats Chart -->
@@ -13530,12 +13537,14 @@ function registerNewCodeAnalysisCommands(context, refreshCallback) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisCommands = void 0;
 const subsections_1 = __webpack_require__(74);
-const file_analysis_1 = __webpack_require__(85);
-const clean_analysis_1 = __webpack_require__(115);
-const dom_visualization_1 = __webpack_require__(117);
-const analysisFileMode_1 = __webpack_require__(120);
-const viewTheme_1 = __webpack_require__(125);
-const autoAnalysisDelay_1 = __webpack_require__(126);
+const file_analysis_1 = __webpack_require__(87);
+const clean_analysis_1 = __webpack_require__(121);
+const dom_visualization_1 = __webpack_require__(123);
+const analysisFileMode_1 = __webpack_require__(126);
+const viewTheme_1 = __webpack_require__(128);
+const autoAnalysisDelay_1 = __webpack_require__(129);
+const chartTypeFile_1 = __webpack_require__(130);
+const dimensionMappingFile_1 = __webpack_require__(132);
 /**
  * Main command coordinator for New Code Analysis
  * Follows the "nested dolls" pattern: collects all command registrations
@@ -13556,9 +13565,11 @@ class NewCodeAnalysisCommands {
         const tempAnalysisFileSetting = new analysisFileMode_1.AnalysisFileSetting(context);
         const tempViewThemeSetting = new viewTheme_1.ViewThemeSetting(context);
         const tempAutoAnalysisDelaySetting = new autoAnalysisDelay_1.AutoAnalysisDelaySetting(context);
+        const tempChartTypeFileSetting = new chartTypeFile_1.ChartTypeFileSetting(context);
+        const tempDimensionMappingFileSetting = new dimensionMappingFile_1.DimensionMappingFileSetting(context);
         const allCommandRegistrations = [];
         // Collect subsection command registrations
-        const analysisSettingsCommands = subsections_1.AnalysisSettingsCommands.getCommandRegistrations(context, tempAnalysisFileSetting, tempViewThemeSetting, tempAutoAnalysisDelaySetting, defaultRefreshCallback);
+        const analysisSettingsCommands = subsections_1.AnalysisSettingsCommands.getCommandRegistrations(context, tempAnalysisFileSetting, tempViewThemeSetting, tempAutoAnalysisDelaySetting, tempChartTypeFileSetting, tempDimensionMappingFileSetting, defaultRefreshCallback);
         allCommandRegistrations.push(...analysisSettingsCommands);
         const activeAnalysesCommands = subsections_1.ActiveAnalysesCommands.getCommandRegistrations(context, defaultRefreshCallback);
         allCommandRegistrations.push(...activeAnalysesCommands);
@@ -13619,11 +13630,11 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageCommands = exports.ProjectByLanguageCommands = exports.ActiveAnalysesCommands = exports.AnalysisSettingsCommands = void 0;
 var analysisSettingsCommands_1 = __webpack_require__(75);
 Object.defineProperty(exports, "AnalysisSettingsCommands", ({ enumerable: true, get: function () { return analysisSettingsCommands_1.AnalysisSettingsCommands; } }));
-var activeAnalysesCommands_1 = __webpack_require__(82);
+var activeAnalysesCommands_1 = __webpack_require__(84);
 Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
-var projectByLanguageCommands_1 = __webpack_require__(83);
+var projectByLanguageCommands_1 = __webpack_require__(85);
 Object.defineProperty(exports, "ProjectByLanguageCommands", ({ enumerable: true, get: function () { return projectByLanguageCommands_1.ProjectByLanguageCommands; } }));
-var filesByLanguageCommands_1 = __webpack_require__(84);
+var filesByLanguageCommands_1 = __webpack_require__(86);
 Object.defineProperty(exports, "FilesByLanguageCommands", ({ enumerable: true, get: function () { return filesByLanguageCommands_1.FilesByLanguageCommands; } }));
 
 
@@ -13641,6 +13652,8 @@ exports.AnalysisSettingsCommands = void 0;
 const analysis_file_mode_1 = __webpack_require__(76);
 const view_theme_1 = __webpack_require__(78);
 const auto_analysis_delay_1 = __webpack_require__(80);
+const chartTypeFileCommands_1 = __webpack_require__(82);
+const dimensionMappingFileCommands_1 = __webpack_require__(83);
 class AnalysisSettingsCommands {
     context;
     constructor(context) {
@@ -13650,7 +13663,7 @@ class AnalysisSettingsCommands {
      * Get all analysis settings command registrations (nested dolls pattern)
      * Collects commands from all sub-components without registering them
      */
-    static getCommandRegistrations(context, analysisFileSetting, viewThemeSetting, autoAnalysisDelaySetting, refreshCallback) {
+    static getCommandRegistrations(context, analysisFileSetting, viewThemeSetting, autoAnalysisDelaySetting, chartTypeFileSetting, dimensionMappingFileSetting, refreshCallback) {
         console.log('NEW_CODE_ANALYSIS: Collecting Analysis Settings command registrations');
         const commandRegistrations = [];
         // Collect analysis file mode command registrations
@@ -13659,6 +13672,12 @@ class AnalysisSettingsCommands {
         // Collect view theme command registrations
         const viewThemeCommands = view_theme_1.ViewThemeCommands.getCommandRegistrations(context, viewThemeSetting, refreshCallback);
         commandRegistrations.push(...viewThemeCommands);
+        // Collect chart type file command registrations
+        const chartTypeFileCommands = chartTypeFileCommands_1.ChartTypeFileCommands.getCommandRegistrations(context, chartTypeFileSetting, refreshCallback);
+        commandRegistrations.push(...chartTypeFileCommands);
+        // Collect dimension mapping file command registrations
+        const dimensionMappingFileCommands = dimensionMappingFileCommands_1.DimensionMappingFileCommands.getCommandRegistrations(context, dimensionMappingFileSetting, refreshCallback);
+        commandRegistrations.push(...dimensionMappingFileCommands);
         // Collect auto-analysis delay command registrations
         const autoAnalysisDelayCommands = auto_analysis_delay_1.AutoAnalysisDelayCommands.getCommandRegistrations(context, autoAnalysisDelaySetting, refreshCallback);
         commandRegistrations.push(...autoAnalysisDelayCommands);
@@ -14162,6 +14181,247 @@ exports.AutoAnalysisDelayCommands = AutoAnalysisDelayCommands;
 
 /***/ }),
 /* 82 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Chart Type File Commands
+ * Commands specific to the Chart Type (File) setting
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChartTypeFileCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class ChartTypeFileCommands {
+    context;
+    chartTypeFileSetting;
+    constructor(context, chartTypeFileSetting) {
+        this.context = context;
+        this.chartTypeFileSetting = chartTypeFileSetting;
+    }
+    /**
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
+     */
+    static getCommandRegistrations(context, chartTypeFileSetting, refreshCallback) {
+        const commands = new ChartTypeFileCommands(context, chartTypeFileSetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.selectChartTypeFile',
+                callback: async () => {
+                    await commands.selectChartType();
+                    refreshCallback();
+                },
+                description: 'Select chart type for file analysis visualization'
+            }
+        ];
+    }
+    /**
+     * Show chart type selection from quick pick menu
+     * Shows different chart types available for XR and LivePanel modes
+     */
+    async selectChartType() {
+        console.log('CHART_TYPE_FILE_COMMANDS: Chart type selection command executed');
+        try {
+            // Use the chart type setting's built-in selection dialog
+            await this.chartTypeFileSetting.showChartTypeSelection();
+        }
+        catch (error) {
+            console.error('CHART_TYPE_FILE_COMMANDS: Error selecting chart type:', error);
+            vscode.window.showErrorMessage(`Failed to select chart type: ${error}`);
+        }
+    }
+}
+exports.ChartTypeFileCommands = ChartTypeFileCommands;
+
+
+/***/ }),
+/* 83 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Dimension Mapping File Commands
+ * Commands specific to the Dimension Mapping (File) setting with real BabiaXR dimension mapping
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingFileCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class DimensionMappingFileCommands {
+    context;
+    dimensionMappingSetting;
+    constructor(context, dimensionMappingSetting) {
+        this.context = context;
+        this.dimensionMappingSetting = dimensionMappingSetting;
+    }
+    /**
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
+     */
+    static getCommandRegistrations(context, dimensionMappingSetting, refreshCallback) {
+        const commands = new DimensionMappingFileCommands(context, dimensionMappingSetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.selectDimensionMappingFile',
+                callback: async (dimension) => {
+                    await commands.selectDimensionMapping(dimension);
+                    refreshCallback();
+                },
+                description: 'Select dimension mapping for a specific chart dimension'
+            }
+        ];
+    }
+    /**
+     * Select dimension mapping for a specific dimension
+     */
+    async selectDimensionMapping(dimension) {
+        try {
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Selecting dimension mapping for dimension: "${dimension.name}"`);
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Dimension details - Label: "${dimension.label}", DataType: "${dimension.dataType}", Required: ${dimension.required}`);
+            // Get available fields for this dimension type using the filtering logic
+            const availableFields = this.dimensionMappingSetting.getAvailableFieldsForDimension(dimension);
+            if (availableFields.length === 0) {
+                vscode.window.showWarningMessage(`No available fields for dimension: ${dimension.label} (requires ${dimension.dataType} fields)`);
+                return;
+            }
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Available fields for "${dimension.name}":`, availableFields);
+            // Create quick pick items with detailed descriptions
+            const quickPickItems = availableFields.map(field => ({
+                label: field,
+                description: this.getFieldDescription(field),
+                detail: this.getFieldTypeDescription(field, dimension)
+            }));
+            // Add "Clear mapping" option if it's not required
+            if (!dimension.required) {
+                quickPickItems.unshift({
+                    label: '$(clear-all) Clear mapping',
+                    description: 'Remove the mapping for this dimension',
+                    detail: 'This optional dimension will not be mapped to any data field'
+                });
+            }
+            // Show validation info in the placeholder
+            const typeInfo = dimension.dataType === 'numeric' ? 'numeric fields only' : 'any field type';
+            const requiredInfo = dimension.required ? 'REQUIRED' : 'optional';
+            const selection = await vscode.window.showQuickPick(quickPickItems, {
+                title: `Map ${dimension.label}`,
+                placeHolder: `Select a data field for ${dimension.label} (${typeInfo}, ${requiredInfo})`,
+                ignoreFocusOut: true,
+                matchOnDescription: true,
+                matchOnDetail: true
+            });
+            if (!selection) {
+                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: User cancelled dimension mapping for "${dimension.name}"`);
+                return; // User cancelled
+            }
+            if (selection.label.includes('Clear mapping')) {
+                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Clearing mapping for dimension "${dimension.name}"`);
+                await this.dimensionMappingSetting.clearDimensionMapping(dimension.name);
+                vscode.window.showInformationMessage(`Cleared mapping for ${dimension.label}`);
+            }
+            else {
+                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Mapping dimension "${dimension.name}" to field "${selection.label}"`);
+                // Set the mapping using persistent storage
+                await this.dimensionMappingSetting.setDimensionMapping(dimension.name, selection.label);
+                vscode.window.showInformationMessage(`Mapped ${dimension.label} → ${selection.label}`);
+            }
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Dimension mapping operation completed for "${dimension.name}"`);
+        }
+        catch (error) {
+            console.error('DIMENSION_MAPPING_FILE_COMMANDS: Error selecting dimension mapping:', error);
+            vscode.window.showErrorMessage(`Failed to select dimension mapping: ${error}`);
+        }
+    }
+    /**
+     * Get detailed description for a data field (real analysis data fields)
+     */
+    getFieldDescription(field) {
+        const descriptions = {
+            'functionName': 'Unique identifier name of the function or method',
+            'parameters': 'Total count of input parameters in the function signature',
+            'lineCount': 'Total number of source code lines within the function body',
+            'complexity': 'Cyclomatic Complexity Number - measure of code complexity based on decision points',
+            'cyclomaticDensity': 'Cyclomatic Complexity Density ratio (complexity divided by line count)'
+        };
+        return descriptions[field] || 'Analysis data field';
+    }
+    /**
+     * Get type compatibility description (removed compatibility info, now just empty)
+     */
+    getFieldTypeDescription(field, dimension) {
+        // No type compatibility description in detail - that's now shown in dimension description
+        return '';
+    }
+}
+exports.DimensionMappingFileCommands = DimensionMappingFileCommands;
+
+
+/***/ }),
+/* 84 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14198,7 +14458,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 83 */
+/* 85 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14235,7 +14495,7 @@ exports.ProjectByLanguageCommands = ProjectByLanguageCommands;
 
 
 /***/ }),
-/* 84 */
+/* 86 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14272,7 +14532,7 @@ exports.FilesByLanguageCommands = FilesByLanguageCommands;
 
 
 /***/ }),
-/* 85 */
+/* 87 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -14282,16 +14542,16 @@ exports.FilesByLanguageCommands = FilesByLanguageCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisXRCommands = exports.FileAnalysisLivePanelCommands = exports.FileAnalysisCommands = void 0;
-var fileAnalysisCommands_1 = __webpack_require__(86);
+var fileAnalysisCommands_1 = __webpack_require__(88);
 Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
-var fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
+var fileAnalysisLivePanelCommands_1 = __webpack_require__(89);
 Object.defineProperty(exports, "FileAnalysisLivePanelCommands", ({ enumerable: true, get: function () { return fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands; } }));
-var fileAnalysisXRCommands_1 = __webpack_require__(113);
+var fileAnalysisXRCommands_1 = __webpack_require__(118);
 Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, get: function () { return fileAnalysisXRCommands_1.FileAnalysisXRCommands; } }));
 
 
 /***/ }),
-/* 86 */
+/* 88 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -14302,8 +14562,8 @@ Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, ge
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisCommands = void 0;
-const fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
-const fileAnalysisXRCommands_1 = __webpack_require__(113);
+const fileAnalysisLivePanelCommands_1 = __webpack_require__(89);
+const fileAnalysisXRCommands_1 = __webpack_require__(118);
 class FileAnalysisCommands {
     /**
      * Register all file analysis commands (coordinates LivePanel and XR)
@@ -14327,7 +14587,7 @@ exports.FileAnalysisCommands = FileAnalysisCommands;
 
 
 /***/ }),
-/* 87 */
+/* 89 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14371,7 +14631,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisLivePanelCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const engine_1 = __webpack_require__(88);
+const engine_1 = __webpack_require__(90);
 class FileAnalysisLivePanelCommands {
     context;
     constructor(context) {
@@ -14426,7 +14686,7 @@ exports.FileAnalysisLivePanelCommands = FileAnalysisLivePanelCommands;
 
 
 /***/ }),
-/* 88 */
+/* 90 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -14436,17 +14696,17 @@ exports.FileAnalysisLivePanelCommands = FileAnalysisLivePanelCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchVisualizeDOMPanel = exports.LaunchAnalyzeFileLivePanel = void 0;
-var launchAnalyzeFileLivePanel_1 = __webpack_require__(89);
+var launchAnalyzeFileLivePanel_1 = __webpack_require__(91);
 Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
-var launchVisualizeDOMPanel_1 = __webpack_require__(112);
+var launchVisualizeDOMPanel_1 = __webpack_require__(117);
 Object.defineProperty(exports, "LaunchVisualizeDOMPanel", ({ enumerable: true, get: function () { return launchVisualizeDOMPanel_1.LaunchVisualizeDOMPanel; } }));
-var utils_1 = __webpack_require__(92);
+var utils_1 = __webpack_require__(94);
 Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
 Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return utils_1.GetNecessaryFiles; } }));
 
 
 /***/ }),
-/* 89 */
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14490,12 +14750,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchAnalyzeFileLivePanel = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-const supportedLanguages_1 = __webpack_require__(91);
-const utils_1 = __webpack_require__(92);
+const languageMetadata_1 = __webpack_require__(92);
+const supportedLanguages_1 = __webpack_require__(93);
+const utils_1 = __webpack_require__(94);
 const analysisConfigurationStorage_1 = __webpack_require__(106);
-const analysisSessionManager_1 = __webpack_require__(100);
-const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(110);
+const analysisSessionManager_1 = __webpack_require__(102);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(115);
 class LaunchAnalyzeFileLivePanel {
     /**
      * Analyze a specific file using Live Panel mode
@@ -14647,7 +14907,7 @@ exports.LaunchAnalyzeFileLivePanel = LaunchAnalyzeFileLivePanel;
 
 
 /***/ }),
-/* 90 */
+/* 92 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14736,7 +14996,7 @@ function isLanguageSupported(languageName) {
 
 
 /***/ }),
-/* 91 */
+/* 93 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14888,7 +15148,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 92 */
+/* 94 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -14898,22 +15158,22 @@ function getLanguageStats() {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchServer = exports.FileWatcher = exports.SaveFiles = exports.ParseTemplates = exports.GetNecessaryFiles = exports.PythonExecutor = void 0;
-var pythonExecutor_1 = __webpack_require__(93);
+var pythonExecutor_1 = __webpack_require__(95);
 Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return pythonExecutor_1.PythonExecutor; } }));
-var getNecessaryFiles_1 = __webpack_require__(97);
+var getNecessaryFiles_1 = __webpack_require__(99);
 Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return getNecessaryFiles_1.GetNecessaryFiles; } }));
-var parseTemplates_1 = __webpack_require__(98);
+var parseTemplates_1 = __webpack_require__(100);
 Object.defineProperty(exports, "ParseTemplates", ({ enumerable: true, get: function () { return parseTemplates_1.ParseTemplates; } }));
-var saveFiles_1 = __webpack_require__(103);
+var saveFiles_1 = __webpack_require__(110);
 Object.defineProperty(exports, "SaveFiles", ({ enumerable: true, get: function () { return saveFiles_1.SaveFiles; } }));
-var fileWatcher_1 = __webpack_require__(104);
+var fileWatcher_1 = __webpack_require__(111);
 Object.defineProperty(exports, "FileWatcher", ({ enumerable: true, get: function () { return fileWatcher_1.FileWatcher; } }));
-var launchServer_1 = __webpack_require__(108);
+var launchServer_1 = __webpack_require__(113);
 Object.defineProperty(exports, "LaunchServer", ({ enumerable: true, get: function () { return launchServer_1.LaunchServer; } }));
 
 
 /***/ }),
-/* 93 */
+/* 95 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14958,7 +15218,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonExecutor = void 0;
 const path = __importStar(__webpack_require__(5));
 const child_process_1 = __webpack_require__(61);
-const pythonEnvCommands_1 = __webpack_require__(94);
+const pythonEnvCommands_1 = __webpack_require__(96);
 class PythonExecutor {
     /**
      * Execute Python analysis script based on analysis type
@@ -15130,7 +15390,7 @@ exports.PythonExecutor = PythonExecutor;
 
 
 /***/ }),
-/* 94 */
+/* 96 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15172,7 +15432,7 @@ exports.registerPythonEnvCommands = registerPythonEnvCommands;
 exports.getPythonEnvCommands = getPythonEnvCommands;
 exports.deactivatePythonEnvCommands = deactivatePythonEnvCommands;
 const vscode = __importStar(__webpack_require__(1));
-const pythonEnvCommands_1 = __webpack_require__(95);
+const pythonEnvCommands_1 = __webpack_require__(97);
 /**
  * Python Environment Commands Wrapper
  * Re-exports python environment commands for centralized command registration
@@ -15218,7 +15478,7 @@ function deactivatePythonEnvCommands() {
 
 
 /***/ }),
-/* 95 */
+/* 97 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15258,7 +15518,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const venvManager_1 = __webpack_require__(96);
+const venvManager_1 = __webpack_require__(98);
 /**
  * Python environment command registration and handlers
  */
@@ -15515,7 +15775,7 @@ exports.PythonEnvCommands = PythonEnvCommands;
 
 
 /***/ }),
-/* 96 */
+/* 98 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15932,7 +16192,7 @@ exports.VenvManager = VenvManager;
 
 
 /***/ }),
-/* 97 */
+/* 99 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15976,9 +16236,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetNecessaryFiles = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const pythonExecutor_1 = __webpack_require__(93);
-const parseTemplates_1 = __webpack_require__(98);
-const analysisSessionManager_1 = __webpack_require__(100);
+const pythonExecutor_1 = __webpack_require__(95);
+const parseTemplates_1 = __webpack_require__(100);
+const analysisSessionManager_1 = __webpack_require__(102);
 class GetNecessaryFiles {
     /**
      * Get analysis for DOM Visualization
@@ -16182,14 +16442,22 @@ class GetNecessaryFiles {
                         console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
                     }
                 }
-                // Parse XR visualization template using boats chart
+                // Parse XR visualization template using user configuration
                 console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing...`);
+                // Get user chart configuration from settings
+                const { AnalysisConfigurationStorage } = __webpack_require__(105);
+                const storage = AnalysisConfigurationStorage.getInstance(context);
+                const userChartType = await storage.getChartTypeFile();
+                const userDimensionMapping = await storage.getDimensionMappingFile();
+                console.log(`[CHART_CONFIGURED] User selected chart type: ${userChartType}`);
+                console.log(`[CHART_CONFIGURED] User dimension mappings:`, userDimensionMapping);
                 const templateResult = await parseTemplates_1.ParseTemplates.parseXRVisualizationTemplate(context, {
                     analysisData: pythonResult.data,
                     fileName: (__webpack_require__(5).basename)(filePath),
                     filePath: filePath,
                     title: `XR Analysis - ${(__webpack_require__(5).basename)(filePath)}`,
-                    chartId: 'boats' // Use boats chart for XR analysis
+                    chartId: userChartType,
+                    dimensionMapping: userDimensionMapping
                 });
                 if (templateResult.success) {
                     console.log(`GET_NECESSARY_FILES: XR visualization template files received successfully`);
@@ -16247,7 +16515,7 @@ exports.GetNecessaryFiles = GetNecessaryFiles;
 
 
 /***/ }),
-/* 98 */
+/* 100 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16293,7 +16561,7 @@ exports.ParseTemplates = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
 const nonceGenerator_1 = __webpack_require__(12);
-const templateHTMLProcessor_1 = __webpack_require__(99);
+const templateHTMLProcessor_1 = __webpack_require__(101);
 const templateProcessor_1 = __webpack_require__(45);
 class ParseTemplates {
     /**
@@ -16399,7 +16667,7 @@ class ParseTemplates {
         }
     }
     /**
-     * Parse XR Visualization template for XR analysis with boats chart
+     * Parse XR Visualization template for XR analysis with user-configured chart
      */
     static async parseXRVisualizationTemplate(context, xrData) {
         try {
@@ -16407,8 +16675,21 @@ class ParseTemplates {
             console.log(`PARSE_TEMPLATES: File: ${xrData.fileName}`);
             console.log(`PARSE_TEMPLATES: Chart ID: ${xrData.chartId}`);
             console.log(`PARSE_TEMPLATES: Analysis data:`, xrData.analysisData);
-            // Prepare dimension mappings for boats chart (area=parameters, height=lineCount, color=complexity)
-            const mappings = templateProcessor_1.TemplateProcessor.createDefaultXRMappings();
+            // Use user-configured dimension mappings or fall back to default
+            let mappings;
+            if (xrData.dimensionMapping && Object.keys(xrData.dimensionMapping).length > 0) {
+                console.log(`[CHART_CONFIGURED] Using user-configured dimension mappings:`, xrData.dimensionMapping);
+                // Convert user mapping format to DimensionMapping[] format
+                mappings = Object.entries(xrData.dimensionMapping).map(([dimension, dataField]) => ({
+                    dimension: dimension,
+                    dataField: dataField
+                }));
+                console.log(`[CHART_CONFIGURED] Converted mappings:`, mappings);
+            }
+            else {
+                console.log(`[CHART_CONFIGURED] No user dimension mappings found, using defaults`);
+                mappings = templateProcessor_1.TemplateProcessor.createDefaultXRMappings();
+            }
             console.log(`PARSE_TEMPLATES: Using dimension mappings:`, mappings);
             // Prepare data source path (this will be replaced with actual data.json path)
             const dataSource = './data.json';
@@ -16480,7 +16761,7 @@ exports.ParseTemplates = ParseTemplates;
 
 
 /***/ }),
-/* 99 */
+/* 101 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16719,7 +17000,7 @@ exports.TemplateHTMLProcessor = TemplateHTMLProcessor;
 
 
 /***/ }),
-/* 100 */
+/* 102 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -16729,7 +17010,7 @@ exports.TemplateHTMLProcessor = TemplateHTMLProcessor;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSessionManager = void 0;
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const analysisSessionRegistry_1 = __webpack_require__(103);
 class AnalysisSessionManager {
     static instance;
     registry;
@@ -16905,7 +17186,7 @@ exports.AnalysisSessionManager = AnalysisSessionManager;
 
 
 /***/ }),
-/* 101 */
+/* 103 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16951,7 +17232,7 @@ exports.AnalysisSessionRegistry = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const nonceGenerator_1 = __webpack_require__(12);
-const sha256Generator_1 = __webpack_require__(102);
+const sha256Generator_1 = __webpack_require__(104);
 class AnalysisSessionRegistry {
     static instance;
     sessions = new Map();
@@ -17221,7 +17502,7 @@ exports.AnalysisSessionRegistry = AnalysisSessionRegistry;
 
 
 /***/ }),
-/* 102 */
+/* 104 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17321,7 +17602,478 @@ exports.SHA256Generator = SHA256Generator;
 
 
 /***/ }),
-/* 103 */
+/* 105 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Configuration Module
+ * Central exports for all configuration functionality
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.testConfigurationChanges = exports.debugConfiguration = exports.AnalysisConfigurationStorage = void 0;
+var analysisConfigurationStorage_1 = __webpack_require__(106);
+Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
+var debugConfiguration_1 = __webpack_require__(108);
+Object.defineProperty(exports, "debugConfiguration", ({ enumerable: true, get: function () { return debugConfiguration_1.debugConfiguration; } }));
+Object.defineProperty(exports, "testConfigurationChanges", ({ enumerable: true, get: function () { return debugConfiguration_1.testConfigurationChanges; } }));
+__exportStar(__webpack_require__(109), exports);
+
+
+/***/ }),
+/* 106 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Analysis Configuration Storage Manager
+ * Handles reading/writing configuration to VS Code globalStorage
+ * Path: codexr_analysis/configuration_analysis.json
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisConfiguration_1 = __webpack_require__(107);
+class AnalysisConfigurationStorage {
+    static instance;
+    STORAGE_FOLDER = 'codexr_analysis';
+    CONFIG_FILE = 'configuration_analysis.json';
+    context;
+    cachedConfiguration = null;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance(context) {
+        if (!AnalysisConfigurationStorage.instance) {
+            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
+        }
+        return AnalysisConfigurationStorage.instance;
+    }
+    /**
+     * Get the full file path for configuration
+     */
+    getConfigurationPath() {
+        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
+    }
+    /**
+     * Load configuration from storage
+     */
+    async loadConfiguration() {
+        try {
+            // Return cached if available
+            if (this.cachedConfiguration) {
+                return this.cachedConfiguration;
+            }
+            const configPath = this.getConfigurationPath();
+            // Check if file exists
+            try {
+                const configData = await vscode.workspace.fs.readFile(configPath);
+                const configString = Buffer.from(configData).toString('utf8');
+                const configFile = JSON.parse(configString);
+                // Validate and merge with defaults (in case new settings were added)
+                const configuration = {
+                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
+                    ...configFile.configuration
+                };
+                this.cachedConfiguration = configuration;
+                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
+                return configuration;
+            }
+            catch (readError) {
+                // File doesn't exist or is corrupted, return defaults
+                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
+                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+                // Create default file
+                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
+            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+        }
+    }
+    /**
+     * Save configuration to storage
+     */
+    async saveConfiguration(configuration) {
+        try {
+            const configPath = this.getConfigurationPath();
+            // Ensure directory exists
+            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
+            await vscode.workspace.fs.createDirectory(folderPath);
+            // Create configuration file structure
+            const configFile = {
+                metadata: {
+                    version: '1.0.0',
+                    lastModified: Date.now(),
+                    createdBy: 'CodeXR New Code Analysis'
+                },
+                configuration: configuration
+            };
+            // Write to file
+            const configString = JSON.stringify(configFile, null, 2);
+            const configData = Buffer.from(configString, 'utf8');
+            await vscode.workspace.fs.writeFile(configPath, configData);
+            // Update cache
+            this.cachedConfiguration = configuration;
+            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get specific setting value
+     */
+    async getAnalysisFileMode() {
+        const config = await this.loadConfiguration();
+        return config.analysisFileMode;
+    }
+    /**
+     * Set specific setting value
+     */
+    async setAnalysisFileMode(mode) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            analysisFileMode: mode
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Analysis file mode changed to: ${mode}`);
+    }
+    /**
+     * Get view theme setting
+     */
+    async getViewTheme() {
+        const config = await this.loadConfiguration();
+        return config.viewTheme;
+    }
+    /**
+     * Set view theme setting
+     */
+    async setViewTheme(theme) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            viewTheme: theme
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: View theme changed to: ${theme}`);
+    }
+    /**
+     * Get auto-analysis delay setting
+     */
+    async getAutoAnalysisDelay() {
+        const config = await this.loadConfiguration();
+        return config.autoAnalysisDelay;
+    }
+    /**
+     * Set auto-analysis delay setting
+     */
+    async setAutoAnalysisDelay(delayConfig) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            autoAnalysisDelay: delayConfig
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay changed to: ${JSON.stringify(delayConfig)}`);
+    }
+    /**
+     * Update multiple settings at once
+     */
+    async updateConfiguration(updates) {
+        const currentConfig = await this.loadConfiguration();
+        const updatedConfig = {
+            ...currentConfig,
+            ...updates
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Configuration updated with: ${JSON.stringify(updates)}`);
+    }
+    /**
+     * Reset configuration to defaults
+     */
+    async resetConfiguration() {
+        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+        this.cachedConfiguration = null; // Clear cache
+    }
+    /**
+     * Get configuration file path for debugging
+     */
+    getConfigurationFilePath() {
+        return this.getConfigurationPath().fsPath;
+    }
+    /**
+     * Check if configuration file exists
+     */
+    async configurationExists() {
+        try {
+            const configPath = this.getConfigurationPath();
+            await vscode.workspace.fs.stat(configPath);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Debug method to get current configuration file content
+     */
+    async debugGetConfigurationFileContent() {
+        try {
+            const configPath = this.getConfigurationPath();
+            const configData = await vscode.workspace.fs.readFile(configPath);
+            return Buffer.from(configData).toString('utf8');
+        }
+        catch (error) {
+            console.log('NEW_CODE_ANALYSIS: Configuration file not found or error reading:', error);
+            return null;
+        }
+    }
+    /**
+     * Force reload configuration from disk (bypassing cache)
+     */
+    async forceReloadConfiguration() {
+        this.cachedConfiguration = null;
+        return await this.loadConfiguration();
+    }
+    /**
+     * Get chart type for file analysis
+     */
+    async getChartTypeFile() {
+        const config = await this.loadConfiguration();
+        return config.chartTypeFile;
+    }
+    /**
+     * Set chart type for file analysis
+     */
+    async setChartTypeFile(chartType) {
+        await this.updateConfiguration({ chartTypeFile: chartType });
+    }
+    /**
+     * Get dimension mapping for file analysis
+     */
+    async getDimensionMappingFile() {
+        const config = await this.loadConfiguration();
+        return config.dimensionMappingFile;
+    }
+    /**
+     * Set dimension mapping for file analysis
+     */
+    async setDimensionMappingFile(mapping) {
+        await this.updateConfiguration({ dimensionMappingFile: mapping });
+    }
+    /**
+     * Get current analysis mode (alias for getAnalysisFileMode for compatibility)
+     */
+    async getAnalysisMode() {
+        return await this.getAnalysisFileMode();
+    }
+    /**
+     * Set analysis mode (alias for setAnalysisFileMode for compatibility)
+     */
+    async setAnalysisMode(mode) {
+        await this.setAnalysisFileMode(mode);
+    }
+}
+exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
+
+
+/***/ }),
+/* 107 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Analysis Configuration Models
+ * Types and interfaces for all analysis configuration data
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+/**
+ * Default configuration values
+ */
+exports.DEFAULT_ANALYSIS_CONFIGURATION = {
+    analysisFileMode: 'XR', // Default to XR as requested
+    viewTheme: 'Dark', // Default to Dark theme
+    autoAnalysisDelay: {
+        type: 'RealTime', // Default to Real Time (0s)
+        customMs: undefined
+    },
+    chartTypeFile: 'bars', // Default chart type (bars is the most common)
+    dimensionMappingFile: {} // Default empty dimension mapping
+};
+/**
+ * Default configuration file structure
+ */
+exports.DEFAULT_CONFIGURATION_FILE = {
+    metadata: {
+        version: '1.0.0',
+        lastModified: Date.now(),
+        createdBy: 'CodeXR New Code Analysis'
+    },
+    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
+};
+
+
+/***/ }),
+/* 108 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Configuration Debug Tool
+ * Utility to debug configuration storage issues
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+exports.debugConfiguration = debugConfiguration;
+exports.testConfigurationChanges = testConfigurationChanges;
+const analysisConfigurationStorage_1 = __webpack_require__(106);
+Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
+/**
+ * Debug configuration storage
+ */
+async function debugConfiguration(context) {
+    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+    console.log('=== NEW_CODE_ANALYSIS DEBUG ===');
+    // Check if configuration file exists
+    const exists = await storage.configurationExists();
+    console.log(`Configuration file exists: ${exists}`);
+    console.log(`Configuration file path: ${storage.getConfigurationFilePath()}`);
+    // Get current configuration
+    const config = await storage.loadConfiguration();
+    console.log('Current configuration loaded:', JSON.stringify(config, null, 2));
+    // Get raw file content
+    const rawContent = await storage.debugGetConfigurationFileContent();
+    if (rawContent) {
+        console.log('Raw configuration file content:');
+        console.log(rawContent);
+    }
+    else {
+        console.log('No configuration file found');
+    }
+    // Test each setting
+    console.log('\n=== Testing individual settings ===');
+    // Test theme
+    const currentTheme = await storage.getViewTheme();
+    console.log(`Current theme from storage: ${currentTheme}`);
+    // Test analysis file mode
+    const currentMode = await storage.getAnalysisFileMode();
+    console.log(`Current analysis mode from storage: ${currentMode}`);
+    // Test auto-analysis delay
+    const currentDelay = await storage.getAutoAnalysisDelay();
+    console.log(`Current auto-analysis delay from storage:`, JSON.stringify(currentDelay, null, 2));
+    console.log('=== DEBUG COMPLETE ===');
+}
+/**
+ * Test configuration changes
+ */
+async function testConfigurationChanges(context) {
+    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+    console.log('=== TESTING CONFIGURATION CHANGES ===');
+    // Test theme change
+    console.log('\n1. Testing theme change...');
+    const originalTheme = await storage.getViewTheme();
+    console.log(`Original theme: ${originalTheme}`);
+    const newTheme = originalTheme === 'Dark' ? 'Light' : 'Dark';
+    await storage.setViewTheme(newTheme);
+    console.log(`Changed theme to: ${newTheme}`);
+    // Force reload and verify
+    const reloadedTheme = await storage.forceReloadConfiguration();
+    console.log(`Theme after reload: ${reloadedTheme.viewTheme}`);
+    // Test analysis mode change
+    console.log('\n2. Testing analysis mode change...');
+    const originalMode = await storage.getAnalysisFileMode();
+    console.log(`Original mode: ${originalMode}`);
+    const newMode = originalMode === 'XR' ? 'LivePanel' : 'XR';
+    await storage.setAnalysisFileMode(newMode);
+    console.log(`Changed mode to: ${newMode}`);
+    // Force reload and verify
+    const reloadedConfig = await storage.forceReloadConfiguration();
+    console.log(`Mode after reload: ${reloadedConfig.analysisFileMode}`);
+    // Restore original values
+    console.log('\n3. Restoring original values...');
+    await storage.setViewTheme(originalTheme);
+    await storage.setAnalysisFileMode(originalMode);
+    const finalConfig = await storage.forceReloadConfiguration();
+    console.log('Final configuration:', JSON.stringify(finalConfig, null, 2));
+    console.log('=== TEST COMPLETE ===');
+}
+
+
+/***/ }),
+/* 109 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Storage Models Module
+ * Exports for all storage-related models and types
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+var analysisConfiguration_1 = __webpack_require__(107);
+Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
+Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
+
+
+/***/ }),
+/* 110 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17366,7 +18118,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SaveFiles = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const analysisSessionManager_1 = __webpack_require__(100);
+const analysisSessionManager_1 = __webpack_require__(102);
 class SaveFiles {
     /**
      * Save analysis files to workspace storage using session
@@ -17491,7 +18243,7 @@ exports.SaveFiles = SaveFiles;
 
 
 /***/ }),
-/* 104 */
+/* 111 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17540,10 +18292,10 @@ const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 const SSEManager_1 = __webpack_require__(18);
-const getNecessaryFiles_1 = __webpack_require__(97);
-const manageDebounceTime_1 = __webpack_require__(105);
-const analysisSessionManager_1 = __webpack_require__(100);
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const getNecessaryFiles_1 = __webpack_require__(99);
+const manageDebounceTime_1 = __webpack_require__(112);
+const analysisSessionManager_1 = __webpack_require__(102);
+const analysisSessionRegistry_1 = __webpack_require__(103);
 class FileWatcher {
     static activeWatchers = new Map();
     /**
@@ -17888,7 +18640,7 @@ exports.FileWatcher = FileWatcher;
 
 
 /***/ }),
-/* 105 */
+/* 112 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18128,303 +18880,7 @@ exports.ManageDebounceTime = ManageDebounceTime;
 
 
 /***/ }),
-/* 106 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Analysis Configuration Storage Manager
- * Handles reading/writing configuration to VS Code globalStorage
- * Path: codexr_analysis/configuration_analysis.json
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisConfigurationStorage = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisConfiguration_1 = __webpack_require__(107);
-class AnalysisConfigurationStorage {
-    static instance;
-    STORAGE_FOLDER = 'codexr_analysis';
-    CONFIG_FILE = 'configuration_analysis.json';
-    context;
-    cachedConfiguration = null;
-    constructor(context) {
-        this.context = context;
-        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
-    }
-    /**
-     * Get singleton instance
-     */
-    static getInstance(context) {
-        if (!AnalysisConfigurationStorage.instance) {
-            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
-        }
-        return AnalysisConfigurationStorage.instance;
-    }
-    /**
-     * Get the full file path for configuration
-     */
-    getConfigurationPath() {
-        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
-    }
-    /**
-     * Load configuration from storage
-     */
-    async loadConfiguration() {
-        try {
-            // Return cached if available
-            if (this.cachedConfiguration) {
-                return this.cachedConfiguration;
-            }
-            const configPath = this.getConfigurationPath();
-            // Check if file exists
-            try {
-                const configData = await vscode.workspace.fs.readFile(configPath);
-                const configString = Buffer.from(configData).toString('utf8');
-                const configFile = JSON.parse(configString);
-                // Validate and merge with defaults (in case new settings were added)
-                const configuration = {
-                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
-                    ...configFile.configuration
-                };
-                this.cachedConfiguration = configuration;
-                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
-                return configuration;
-            }
-            catch (readError) {
-                // File doesn't exist or is corrupted, return defaults
-                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
-                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-                // Create default file
-                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
-                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-            }
-        }
-        catch (error) {
-            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
-            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-        }
-    }
-    /**
-     * Save configuration to storage
-     */
-    async saveConfiguration(configuration) {
-        try {
-            const configPath = this.getConfigurationPath();
-            // Ensure directory exists
-            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
-            await vscode.workspace.fs.createDirectory(folderPath);
-            // Create configuration file structure
-            const configFile = {
-                metadata: {
-                    version: '1.0.0',
-                    lastModified: Date.now(),
-                    createdBy: 'CodeXR New Code Analysis'
-                },
-                configuration: configuration
-            };
-            // Write to file
-            const configString = JSON.stringify(configFile, null, 2);
-            const configData = Buffer.from(configString, 'utf8');
-            await vscode.workspace.fs.writeFile(configPath, configData);
-            // Update cache
-            this.cachedConfiguration = configuration;
-            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
-        }
-        catch (error) {
-            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
-            throw error;
-        }
-    }
-    /**
-     * Get specific setting value
-     */
-    async getAnalysisFileMode() {
-        const config = await this.loadConfiguration();
-        return config.analysisFileMode;
-    }
-    /**
-     * Set specific setting value
-     */
-    async setAnalysisFileMode(mode) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            analysisFileMode: mode
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: Analysis file mode changed to: ${mode}`);
-    }
-    /**
-     * Get view theme setting
-     */
-    async getViewTheme() {
-        const config = await this.loadConfiguration();
-        return config.viewTheme;
-    }
-    /**
-     * Set view theme setting
-     */
-    async setViewTheme(theme) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            viewTheme: theme
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: View theme changed to: ${theme}`);
-    }
-    /**
-     * Get auto-analysis delay setting
-     */
-    async getAutoAnalysisDelay() {
-        const config = await this.loadConfiguration();
-        return config.autoAnalysisDelay;
-    }
-    /**
-     * Set auto-analysis delay setting
-     */
-    async setAutoAnalysisDelay(delayConfig) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            autoAnalysisDelay: delayConfig
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay changed to: ${JSON.stringify(delayConfig)}`);
-    }
-    /**
-     * Update multiple settings at once
-     */
-    async updateConfiguration(updates) {
-        const currentConfig = await this.loadConfiguration();
-        const updatedConfig = {
-            ...currentConfig,
-            ...updates
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: Configuration updated with: ${JSON.stringify(updates)}`);
-    }
-    /**
-     * Reset configuration to defaults
-     */
-    async resetConfiguration() {
-        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
-        this.cachedConfiguration = null; // Clear cache
-    }
-    /**
-     * Get configuration file path for debugging
-     */
-    getConfigurationFilePath() {
-        return this.getConfigurationPath().fsPath;
-    }
-    /**
-     * Check if configuration file exists
-     */
-    async configurationExists() {
-        try {
-            const configPath = this.getConfigurationPath();
-            await vscode.workspace.fs.stat(configPath);
-            return true;
-        }
-        catch {
-            return false;
-        }
-    }
-    /**
-     * Debug method to get current configuration file content
-     */
-    async debugGetConfigurationFileContent() {
-        try {
-            const configPath = this.getConfigurationPath();
-            const configData = await vscode.workspace.fs.readFile(configPath);
-            return Buffer.from(configData).toString('utf8');
-        }
-        catch (error) {
-            console.log('NEW_CODE_ANALYSIS: Configuration file not found or error reading:', error);
-            return null;
-        }
-    }
-    /**
-     * Force reload configuration from disk (bypassing cache)
-     */
-    async forceReloadConfiguration() {
-        this.cachedConfiguration = null;
-        return await this.loadConfiguration();
-    }
-}
-exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
-
-
-/***/ }),
-/* 107 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-/**
- * Analysis Configuration Models
- * Types and interfaces for all analysis configuration data
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-/**
- * Default configuration values
- */
-exports.DEFAULT_ANALYSIS_CONFIGURATION = {
-    analysisFileMode: 'XR', // Default to XR as requested
-    viewTheme: 'Dark', // Default to Dark theme
-    autoAnalysisDelay: {
-        type: 'RealTime', // Default to Real Time (0s)
-        customMs: undefined
-    }
-};
-/**
- * Default configuration file structure
- */
-exports.DEFAULT_CONFIGURATION_FILE = {
-    metadata: {
-        version: '1.0.0',
-        lastModified: Date.now(),
-        createdBy: 'CodeXR New Code Analysis'
-    },
-    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
-};
-
-
-/***/ }),
-/* 108 */
+/* 113 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18470,10 +18926,10 @@ exports.LaunchServer = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const multiServerLauncher_1 = __webpack_require__(14);
-const enhancedSSEManager_1 = __webpack_require__(109);
+const enhancedSSEManager_1 = __webpack_require__(114);
 const fileToServerMap_1 = __webpack_require__(20);
-const analysisSessionManager_1 = __webpack_require__(100);
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const analysisSessionManager_1 = __webpack_require__(102);
+const analysisSessionRegistry_1 = __webpack_require__(103);
 class LaunchServer {
     /**
      * Launch analysis server with SSE support
@@ -18679,7 +19135,7 @@ exports.LaunchServer = LaunchServer;
 
 
 /***/ }),
-/* 109 */
+/* 114 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -18921,7 +19377,7 @@ exports.EnhancedSSEManager = EnhancedSSEManager;
 
 
 /***/ }),
-/* 110 */
+/* 115 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18966,8 +19422,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CheckIfAnalysisAlreadyRunning = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const analysisSessionRegistry_1 = __webpack_require__(101);
-const serverWatcherIntegration_1 = __webpack_require__(111);
+const analysisSessionRegistry_1 = __webpack_require__(103);
+const serverWatcherIntegration_1 = __webpack_require__(116);
 class CheckIfAnalysisAlreadyRunning {
     /**
      * Check if analysis can be started for given file and type
@@ -19157,7 +19613,7 @@ exports.CheckIfAnalysisAlreadyRunning = CheckIfAnalysisAlreadyRunning;
 
 
 /***/ }),
-/* 111 */
+/* 116 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19201,8 +19657,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerWatcherIntegration = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisSessionRegistry_1 = __webpack_require__(101);
-const fileWatcher_1 = __webpack_require__(104);
+const analysisSessionRegistry_1 = __webpack_require__(103);
+const fileWatcher_1 = __webpack_require__(111);
 const activeServerRegistry_1 = __webpack_require__(26);
 const serverControl_1 = __webpack_require__(28);
 const fs = __importStar(__webpack_require__(6));
@@ -19407,7 +19863,7 @@ exports.ServerWatcherIntegration = ServerWatcherIntegration;
 
 
 /***/ }),
-/* 112 */
+/* 117 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19451,14 +19907,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchVisualizeDOMPanel = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-const supportedLanguages_1 = __webpack_require__(91);
-const getNecessaryFiles_1 = __webpack_require__(97);
-const saveFiles_1 = __webpack_require__(103);
-const fileWatcher_1 = __webpack_require__(104);
-const launchServer_1 = __webpack_require__(108);
-const analysisSessionManager_1 = __webpack_require__(100);
-const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(110);
+const languageMetadata_1 = __webpack_require__(92);
+const supportedLanguages_1 = __webpack_require__(93);
+const getNecessaryFiles_1 = __webpack_require__(99);
+const saveFiles_1 = __webpack_require__(110);
+const fileWatcher_1 = __webpack_require__(111);
+const launchServer_1 = __webpack_require__(113);
+const analysisSessionManager_1 = __webpack_require__(102);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(115);
 const serverSettingsManager_1 = __webpack_require__(11);
 class LaunchVisualizeDOMPanel {
     /**
@@ -19608,7 +20064,7 @@ exports.LaunchVisualizeDOMPanel = LaunchVisualizeDOMPanel;
 
 
 /***/ }),
-/* 113 */
+/* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19652,7 +20108,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisXRCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const launchAnalyzeFileXR_1 = __webpack_require__(114);
+const launchAnalyzeFileXR_1 = __webpack_require__(119);
 class FileAnalysisXRCommands {
     context;
     constructor(context) {
@@ -19707,7 +20163,7 @@ exports.FileAnalysisXRCommands = FileAnalysisXRCommands;
 
 
 /***/ }),
-/* 114 */
+/* 119 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19751,14 +20207,16 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchAnalyzeFileXR = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-const supportedLanguages_1 = __webpack_require__(91);
-const getNecessaryFiles_1 = __webpack_require__(97);
-const saveFiles_1 = __webpack_require__(103);
-const fileWatcher_1 = __webpack_require__(104);
-const launchServer_1 = __webpack_require__(108);
-const analysisSessionManager_1 = __webpack_require__(100);
-const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(110);
+const languageMetadata_1 = __webpack_require__(92);
+const supportedLanguages_1 = __webpack_require__(93);
+const getNecessaryFiles_1 = __webpack_require__(99);
+const saveFiles_1 = __webpack_require__(110);
+const fileWatcher_1 = __webpack_require__(111);
+const launchServer_1 = __webpack_require__(113);
+const analysisSessionManager_1 = __webpack_require__(102);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(115);
+const analysisConfigurationStorage_1 = __webpack_require__(106);
+const dimensionMappingValidator_1 = __webpack_require__(120);
 class LaunchAnalyzeFileXR {
     /**
      * Analyze file in XR mode
@@ -19783,9 +20241,41 @@ class LaunchAnalyzeFileXR {
             const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
             const session = await sessionManager.startAnalysis(filePath, 'FileXRAnalysis', context);
             console.log(`ANALYZE_FILE_XR_ENGINE: Created session ${session.id} for XR analysis`);
+            // **VALIDATION: Check dimension mappings before proceeding**
+            console.log(`ANALYZE_FILE_XR_ENGINE: Validating dimension mappings...`);
+            const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+            const chartType = await storage.getChartTypeFile();
+            const dimensionMappings = await storage.getDimensionMappingFile();
+            if (!chartType) {
+                const errorMessage = '🚫 XR Analysis Error: No chart type selected. Please select a chart type in the Analysis Settings first.';
+                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
+                vscode.window.showErrorMessage(errorMessage);
+                sessionManager.failAnalysis(session.id, 'No chart type selected');
+                return;
+            }
+            // Validate dimension mappings
+            const validationResult = dimensionMappingValidator_1.DimensionMappingValidator.validateMappingsForChart(chartType, dimensionMappings);
+            if (!validationResult.isValid) {
+                let errorMessage = `🚫 XR Analysis Error: Invalid dimension configuration for ${chartType} chart.\n\n`;
+                if (validationResult.hasMissingRequired) {
+                    errorMessage += `Missing required dimensions: ${validationResult.missingRequired.join(', ')}\n`;
+                }
+                if (validationResult.hasConflicts) {
+                    errorMessage += `Dimension conflicts detected:\n`;
+                    for (const conflict of validationResult.conflicts) {
+                        errorMessage += `• Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}\n`;
+                    }
+                }
+                errorMessage += '\nPlease fix the dimension mappings in Analysis Settings before running XR analysis.';
+                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
+                vscode.window.showErrorMessage(errorMessage, { modal: true });
+                sessionManager.failAnalysis(session.id, 'Invalid dimension configuration');
+                return;
+            }
+            console.log(`ANALYZE_FILE_XR_ENGINE: ✅ Dimension validation passed for ${chartType} chart`);
             // Show start message to user
             const fileName = (__webpack_require__(5).basename)(filePath);
-            vscode.window.showInformationMessage(`🥽 CodeXR: Starting XR analysis for "${fileName}" (${languageInfo.name})...`, { modal: false });
+            vscode.window.showInformationMessage(`🥽 CodeXR: Starting XR analysis for "${fileName}" (${languageInfo.name}) with ${chartType} chart...`, { modal: false });
             // Get file analysis using python xr_file_analysis_coordinator.py with session
             console.log(`ANALYZE_FILE_XR_ENGINE: Calling XR file analysis...`);
             const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileXR(filePath, context, session.id);
@@ -19808,11 +20298,23 @@ class LaunchAnalyzeFileXR {
                 else {
                     console.warn(`ANALYZE_FILE_XR_ENGINE: ❌ No SSE JavaScript generated`);
                 }
-                console.log(`ANALYZE_FILE_XR_ENGINE: ===== BOATS CHART CONFIGURATION =====`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Chart Type: boats`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Area Dimension: parameters (function parameters count)`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Height Dimension: lineCount (lines of code count)`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Color Dimension: complexity (cyclomatic complexity)`);
+                // Get user chart configuration
+                const { AnalysisConfigurationStorage } = __webpack_require__(105);
+                const storage = AnalysisConfigurationStorage.getInstance(context);
+                const userChartType = await storage.getChartTypeFile();
+                const userDimensionMapping = await storage.getDimensionMappingFile();
+                console.log(`ANALYZE_FILE_XR_ENGINE: ===== USER CHART CONFIGURATION =====`);
+                console.log(`[CHART_CONFIGURED] Chart Type: ${userChartType}`);
+                console.log(`[CHART_CONFIGURED] Dimension Mappings:`, userDimensionMapping);
+                // Show detailed mapping info
+                if (Object.keys(userDimensionMapping).length > 0) {
+                    for (const [dimension, dataField] of Object.entries(userDimensionMapping)) {
+                        console.log(`[CHART_CONFIGURED] ${dimension} → ${dataField}`);
+                    }
+                }
+                else {
+                    console.log(`[CHART_CONFIGURED] No custom dimension mappings, using defaults`);
+                }
                 console.log(`ANALYZE_FILE_XR_ENGINE: ============================================`);
                 // Save all files to workspace storage using session
                 console.log(`ANALYZE_FILE_XR_ENGINE: Saving XR analysis files to workspace storage...`);
@@ -19849,7 +20351,7 @@ class LaunchAnalyzeFileXR {
                         // Don't fail the entire process for server launch failure
                     }
                     // Show success message with data info
-                    vscode.window.showInformationMessage(`🥽 XR Analysis completed for "${fileName}"! Boats chart visualization saved, file watcher started, and server launched.`, 'Got it!', 'View File', 'Open XR Visualization').then(action => {
+                    vscode.window.showInformationMessage(`🥽 XR Analysis completed for "${fileName}"! ${userChartType} chart visualization saved, file watcher started, and server launched.`, 'Got it!', 'View File', 'Open XR Visualization').then(action => {
                         if (action === 'View File') {
                             vscode.window.showTextDocument(vscode.Uri.file(filePath));
                         }
@@ -19908,7 +20410,140 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
 
 
 /***/ }),
-/* 115 */
+/* 120 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Dimension Mapping Validator
+ * Validates dimension mappings for conflicts and completeness
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingValidator = void 0;
+const templateCharts_1 = __webpack_require__(42);
+class DimensionMappingValidator {
+    /**
+     * Validate dimension mappings for a specific chart
+     */
+    static validateMappingsForChart(chartType, currentMappings) {
+        console.log(`[DIMENSION_VALIDATOR] Validating mappings for chart: ${chartType}`);
+        console.log(`[DIMENSION_VALIDATOR] Current mappings:`, currentMappings);
+        const chart = templateCharts_1.chartTemplates.find(c => c.id === chartType);
+        if (!chart) {
+            return {
+                isValid: false,
+                hasConflicts: false,
+                hasMissingRequired: false,
+                conflicts: [],
+                missingRequired: [],
+                warnings: [],
+                errors: [`Chart type "${chartType}" not found`]
+            };
+        }
+        // Check for conflicts (same data field mapped to multiple dimensions)
+        const conflicts = this.findDimensionConflicts(currentMappings);
+        // Check for missing required dimensions
+        const missingRequired = this.findMissingRequiredDimensions(chart, currentMappings);
+        // Generate warnings and errors
+        const warnings = [];
+        const errors = [];
+        if (conflicts.length > 0) {
+            for (const conflict of conflicts) {
+                warnings.push(`Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}`);
+            }
+        }
+        if (missingRequired.length > 0) {
+            errors.push(`Missing required dimension mappings: ${missingRequired.join(', ')}`);
+        }
+        const result = {
+            isValid: conflicts.length === 0 && missingRequired.length === 0,
+            hasConflicts: conflicts.length > 0,
+            hasMissingRequired: missingRequired.length > 0,
+            conflicts,
+            missingRequired,
+            warnings,
+            errors
+        };
+        console.log(`[DIMENSION_VALIDATOR] Validation result:`, result);
+        return result;
+    }
+    /**
+     * Find conflicts where the same data field is mapped to multiple dimensions
+     */
+    static findDimensionConflicts(mappings) {
+        const dataFieldUsage = {};
+        // Group dimensions by data field
+        for (const [dimension, dataField] of Object.entries(mappings)) {
+            if (!dataFieldUsage[dataField]) {
+                dataFieldUsage[dataField] = [];
+            }
+            dataFieldUsage[dataField].push(dimension);
+        }
+        // Find conflicts (data fields used by multiple dimensions)
+        const conflicts = [];
+        for (const [dataField, dimensions] of Object.entries(dataFieldUsage)) {
+            if (dimensions.length > 1) {
+                conflicts.push({
+                    dataField,
+                    conflictingDimensions: dimensions
+                });
+            }
+        }
+        return conflicts;
+    }
+    /**
+     * Find missing required dimensions
+     */
+    static findMissingRequiredDimensions(chart, mappings) {
+        const missing = [];
+        for (const dimension of chart.dimensions) {
+            if (dimension.required && !mappings[dimension.name]) {
+                missing.push(dimension.name);
+            }
+        }
+        return missing;
+    }
+    /**
+     * Check if dimension mappings are ready for XR analysis
+     */
+    static canExecuteXRAnalysis(chartType, currentMappings) {
+        const validation = this.validateMappingsForChart(chartType, currentMappings);
+        if (validation.hasMissingRequired) {
+            return {
+                canExecute: false,
+                reason: `Missing required dimensions: ${validation.missingRequired.join(', ')}`
+            };
+        }
+        // Allow execution even with conflicts (user can choose to do it)
+        return { canExecute: true };
+    }
+    /**
+     * Get dimension status for UI display
+     */
+    static getDimensionStatus(dimensionName, chartType, currentMappings) {
+        const validation = this.validateMappingsForChart(chartType, currentMappings);
+        // Check if this dimension has conflicts
+        for (const conflict of validation.conflicts) {
+            if (conflict.conflictingDimensions.includes(dimensionName)) {
+                return 'conflict';
+            }
+        }
+        // Check if this dimension is missing and required
+        if (validation.missingRequired.includes(dimensionName)) {
+            return 'missing';
+        }
+        // Check if mapped
+        if (currentMappings[dimensionName]) {
+            return 'valid';
+        }
+        return 'optional';
+    }
+}
+exports.DimensionMappingValidator = DimensionMappingValidator;
+
+
+/***/ }),
+/* 121 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19918,12 +20553,12 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
-var cleanAnalysisCommands_1 = __webpack_require__(116);
+var cleanAnalysisCommands_1 = __webpack_require__(122);
 Object.defineProperty(exports, "CleanAnalysisCommands", ({ enumerable: true, get: function () { return cleanAnalysisCommands_1.CleanAnalysisCommands; } }));
 
 
 /***/ }),
-/* 116 */
+/* 122 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19967,7 +20602,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const utils_1 = __webpack_require__(92);
+const utils_1 = __webpack_require__(94);
 class CleanAnalysisCommands {
     /**
      * Get command registrations for clean analysis functionality (Nested Dolls pattern)
@@ -20046,7 +20681,7 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
 
 
 /***/ }),
-/* 117 */
+/* 123 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20056,12 +20691,12 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
-var domVisualizationCommands_1 = __webpack_require__(118);
+var domVisualizationCommands_1 = __webpack_require__(124);
 Object.defineProperty(exports, "DOMVisualizationCommands", ({ enumerable: true, get: function () { return domVisualizationCommands_1.DOMVisualizationCommands; } }));
 
 
 /***/ }),
-/* 118 */
+/* 124 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20105,8 +20740,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const engine_1 = __webpack_require__(88);
-const uriPathConverter_1 = __webpack_require__(119);
+const engine_1 = __webpack_require__(90);
+const uriPathConverter_1 = __webpack_require__(125);
 class DOMVisualizationCommands {
     context;
     constructor(context) {
@@ -20193,7 +20828,7 @@ exports.DOMVisualizationCommands = DOMVisualizationCommands;
 
 
 /***/ }),
-/* 119 */
+/* 125 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20344,7 +20979,7 @@ function isValidFileSystemPath(path) {
 
 
 /***/ }),
-/* 120 */
+/* 126 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20388,8 +21023,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const configuration_1 = __webpack_require__(105);
 class AnalysisFileSetting {
     context;
     currentMode = 'XR'; // Default mode (will be loaded from storage)
@@ -20471,7 +21106,7 @@ exports.AnalysisFileSetting = AnalysisFileSetting;
 
 
 /***/ }),
-/* 121 */
+/* 127 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20570,142 +21205,7 @@ exports.NewCodeAnalysisItemFactory = NewCodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 122 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Configuration Module
- * Central exports for all configuration functionality
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.testConfigurationChanges = exports.debugConfiguration = exports.AnalysisConfigurationStorage = void 0;
-var analysisConfigurationStorage_1 = __webpack_require__(106);
-Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
-var debugConfiguration_1 = __webpack_require__(123);
-Object.defineProperty(exports, "debugConfiguration", ({ enumerable: true, get: function () { return debugConfiguration_1.debugConfiguration; } }));
-Object.defineProperty(exports, "testConfigurationChanges", ({ enumerable: true, get: function () { return debugConfiguration_1.testConfigurationChanges; } }));
-__exportStar(__webpack_require__(124), exports);
-
-
-/***/ }),
-/* 123 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Configuration Debug Tool
- * Utility to debug configuration storage issues
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisConfigurationStorage = void 0;
-exports.debugConfiguration = debugConfiguration;
-exports.testConfigurationChanges = testConfigurationChanges;
-const analysisConfigurationStorage_1 = __webpack_require__(106);
-Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
-/**
- * Debug configuration storage
- */
-async function debugConfiguration(context) {
-    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-    console.log('=== NEW_CODE_ANALYSIS DEBUG ===');
-    // Check if configuration file exists
-    const exists = await storage.configurationExists();
-    console.log(`Configuration file exists: ${exists}`);
-    console.log(`Configuration file path: ${storage.getConfigurationFilePath()}`);
-    // Get current configuration
-    const config = await storage.loadConfiguration();
-    console.log('Current configuration loaded:', JSON.stringify(config, null, 2));
-    // Get raw file content
-    const rawContent = await storage.debugGetConfigurationFileContent();
-    if (rawContent) {
-        console.log('Raw configuration file content:');
-        console.log(rawContent);
-    }
-    else {
-        console.log('No configuration file found');
-    }
-    // Test each setting
-    console.log('\n=== Testing individual settings ===');
-    // Test theme
-    const currentTheme = await storage.getViewTheme();
-    console.log(`Current theme from storage: ${currentTheme}`);
-    // Test analysis file mode
-    const currentMode = await storage.getAnalysisFileMode();
-    console.log(`Current analysis mode from storage: ${currentMode}`);
-    // Test auto-analysis delay
-    const currentDelay = await storage.getAutoAnalysisDelay();
-    console.log(`Current auto-analysis delay from storage:`, JSON.stringify(currentDelay, null, 2));
-    console.log('=== DEBUG COMPLETE ===');
-}
-/**
- * Test configuration changes
- */
-async function testConfigurationChanges(context) {
-    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-    console.log('=== TESTING CONFIGURATION CHANGES ===');
-    // Test theme change
-    console.log('\n1. Testing theme change...');
-    const originalTheme = await storage.getViewTheme();
-    console.log(`Original theme: ${originalTheme}`);
-    const newTheme = originalTheme === 'Dark' ? 'Light' : 'Dark';
-    await storage.setViewTheme(newTheme);
-    console.log(`Changed theme to: ${newTheme}`);
-    // Force reload and verify
-    const reloadedTheme = await storage.forceReloadConfiguration();
-    console.log(`Theme after reload: ${reloadedTheme.viewTheme}`);
-    // Test analysis mode change
-    console.log('\n2. Testing analysis mode change...');
-    const originalMode = await storage.getAnalysisFileMode();
-    console.log(`Original mode: ${originalMode}`);
-    const newMode = originalMode === 'XR' ? 'LivePanel' : 'XR';
-    await storage.setAnalysisFileMode(newMode);
-    console.log(`Changed mode to: ${newMode}`);
-    // Force reload and verify
-    const reloadedConfig = await storage.forceReloadConfiguration();
-    console.log(`Mode after reload: ${reloadedConfig.analysisFileMode}`);
-    // Restore original values
-    console.log('\n3. Restoring original values...');
-    await storage.setViewTheme(originalTheme);
-    await storage.setAnalysisFileMode(originalMode);
-    const finalConfig = await storage.forceReloadConfiguration();
-    console.log('Final configuration:', JSON.stringify(finalConfig, null, 2));
-    console.log('=== TEST COMPLETE ===');
-}
-
-
-/***/ }),
-/* 124 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Storage Models Module
- * Exports for all storage-related models and types
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-var analysisConfiguration_1 = __webpack_require__(107);
-Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
-Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
-
-
-/***/ }),
-/* 125 */
+/* 128 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20749,8 +21249,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const configuration_1 = __webpack_require__(105);
 class ViewThemeSetting {
     context;
     currentTheme = 'Dark';
@@ -20843,7 +21343,7 @@ exports.ViewThemeSetting = ViewThemeSetting;
 
 
 /***/ }),
-/* 126 */
+/* 129 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20887,8 +21387,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const configuration_1 = __webpack_require__(105);
 class AutoAnalysisDelaySetting {
     context;
     currentDelayConfig = { type: 'RealTime' };
@@ -21038,13 +21538,501 @@ exports.AutoAnalysisDelaySetting = AutoAnalysisDelaySetting;
 
 
 /***/ }),
-/* 127 */
+/* 130 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Chart Type File Setting Item
+ * Manages the chart type configuration for file analysis
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChartTypeFileSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const configuration_1 = __webpack_require__(105);
+const chartRegistry_1 = __webpack_require__(41);
+const dimensionMappingCleaner_1 = __webpack_require__(131);
+class ChartTypeFileSetting {
+    storage;
+    chartRegistry;
+    constructor(context) {
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
+        this.chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        // Get current values from storage
+        const currentMode = await this.storage.getAnalysisMode();
+        const currentChartType = await this.storage.getChartTypeFile();
+        // Get chart metadata for better display
+        const chartMetadata = this.chartRegistry.getChart(currentChartType);
+        const chartName = chartMetadata ? chartMetadata.name : currentChartType;
+        const label = `Chart Type (File): ${chartName}`;
+        const description = `${chartName} for ${currentMode} mode`;
+        // Dynamic icon color based on analysis mode
+        let iconColor = 'charts.foreground';
+        if (currentMode === 'XR') {
+            iconColor = 'charts.purple'; // Purple for XR mode
+        }
+        else if (currentMode === 'LivePanel') {
+            iconColor = 'charts.green'; // Green for LivePanel mode
+        }
+        const iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(iconColor));
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectChartTypeFile',
+            title: 'Select Chart Type for File Analysis',
+            arguments: []
+        }, iconPath, `Current chart type: ${chartName} for ${currentMode} mode. Click to change chart type.`, description, 'chartTypeFileSetting');
+    }
+    /**
+     * Get current analysis mode
+     */
+    async getCurrentAnalysisMode() {
+        return this.storage.getAnalysisMode();
+    }
+    /**
+     * Get available chart types based on analysis mode
+     */
+    async getAvailableChartTypes(mode) {
+        console.log(`CHART_TYPE_FILE: Getting available charts for mode: ${mode}`);
+        // Get all charts from registry
+        const allCharts = this.chartRegistry.getAllCharts();
+        // Convert to ChartTypeInfo format
+        const chartTypeInfos = allCharts.map((chart) => ({
+            id: chart.id,
+            name: chart.name,
+            description: chart.description,
+            category: chart.category,
+            supportsMode: ['XR', 'LivePanel'] // All charts support both modes
+        }));
+        console.log(`CHART_TYPE_FILE: Found ${chartTypeInfos.length} available charts`);
+        return chartTypeInfos;
+    }
+    /**
+     * Show chart type selection dialog
+     */
+    async showChartTypeSelection() {
+        console.log('CHART_TYPE_FILE: Opening chart type selection dialog');
+        try {
+            const currentMode = await this.getCurrentAnalysisMode();
+            const availableCharts = await this.getAvailableChartTypes(currentMode);
+            if (availableCharts.length === 0) {
+                console.error('CHART_TYPE_FILE: No chart types found');
+                vscode.window.showErrorMessage('No chart templates available');
+                return;
+            }
+            // Create quick pick items for available charts
+            const quickPickItems = availableCharts.map(chart => ({
+                label: chart.name,
+                description: chart.description,
+                detail: `Category: ${chart.category} | Supports: ${chart.supportsMode.join(', ')}`,
+                chart: chart
+            }));
+            // Show quick pick
+            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+                placeHolder: 'Select a chart type for file analysis visualization',
+                title: `Chart Type Selection for ${currentMode} Analysis`,
+                canPickMany: false
+            });
+            if (selectedItem && selectedItem.chart) {
+                const selectedChart = selectedItem.chart;
+                // Set the selected chart type
+                await this.setChartType(selectedChart.id);
+                console.log(`CHART_TYPE_FILE: Chart type selected: ${selectedChart.name} (${selectedChart.id})`);
+                vscode.window.showInformationMessage(`Chart type set to: ${selectedChart.name} for ${currentMode} mode`);
+            }
+            else {
+                console.log('CHART_TYPE_FILE: Chart type selection cancelled');
+            }
+        }
+        catch (error) {
+            console.error('CHART_TYPE_FILE: Error in chart type selection:', error);
+            vscode.window.showErrorMessage(`Failed to select chart type: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Set chart type and intelligently clean dimension mappings
+     */
+    async setChartType(chartType) {
+        console.log(`CHART_TYPE_FILE: Setting chart type to: ${chartType}`);
+        // Validate chart type exists
+        if (!this.chartRegistry.hasChart(chartType)) {
+            throw new Error(`Invalid chart type: ${chartType}`);
+        }
+        // Get current dimension mappings before changing chart type
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        console.log(`[DIMENSION_CLEANER] Current mappings before chart change:`, currentMappings);
+        // Clean dimension mappings for the new chart type
+        const cleanedMappings = dimensionMappingCleaner_1.DimensionMappingCleaner.cleanDimensionMappingsForNewChart(currentMappings, chartType);
+        // Save the new chart type
+        const validChartType = chartType;
+        await this.storage.setChartTypeFile(validChartType);
+        console.log(`CHART_TYPE_FILE: Chart type saved successfully: ${chartType}`);
+        // Save the cleaned dimension mappings
+        await this.storage.setDimensionMappingFile(cleanedMappings);
+        console.log(`[DIMENSION_CLEANER] Cleaned dimension mappings saved:`, cleanedMappings);
+    }
+    /**
+     * Get current chart type
+     */
+    async getCurrentChartType() {
+        return this.storage.getChartTypeFile();
+    }
+    /**
+     * Get current chart metadata
+     */
+    async getCurrentChartMetadata() {
+        const currentChartType = await this.getCurrentChartType();
+        return this.chartRegistry.getChart(currentChartType);
+    }
+    /**
+     * Save configuration
+     */
+    async saveConfiguration(configuration) {
+        console.log('CHART_TYPE_FILE: Saving configuration:', configuration);
+        if (configuration.chartType) {
+            await this.setChartType(configuration.chartType);
+        }
+    }
+    /**
+     * Load configuration
+     */
+    async loadConfiguration() {
+        const currentChartType = await this.storage.getChartTypeFile();
+        const currentMode = await this.storage.getAnalysisMode();
+        const chartMetadata = await this.getCurrentChartMetadata();
+        return {
+            chartType: currentChartType,
+            analysisMode: currentMode,
+            chartMetadata: chartMetadata
+        };
+    }
+}
+exports.ChartTypeFileSetting = ChartTypeFileSetting;
+
+
+/***/ }),
+/* 131 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Dimension Mapping Cleaner
+ * Utility for intelligently cleaning dimension mappings when chart type changes
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingCleaner = void 0;
+const templateCharts_1 = __webpack_require__(42);
+class DimensionMappingCleaner {
+    /**
+     * Clean dimension mappings when chart type changes
+     * Keep dimensions that exist in both old and new chart, remove residual dimensions
+     */
+    static cleanDimensionMappingsForNewChart(currentMappings, newChartType) {
+        console.log(`[DIMENSION_CLEANER] Cleaning mappings for new chart type: ${newChartType}`);
+        console.log(`[DIMENSION_CLEANER] Current mappings:`, currentMappings);
+        // Get new chart metadata
+        const newChart = templateCharts_1.chartTemplates.find((chart) => chart.id === newChartType);
+        if (!newChart) {
+            console.warn(`[DIMENSION_CLEANER] Chart type "${newChartType}" not found, clearing all mappings`);
+            return {};
+        }
+        // Get dimension names from new chart
+        const newChartDimensionNames = newChart.dimensions.map((dim) => dim.name);
+        console.log(`[DIMENSION_CLEANER] New chart dimensions:`, newChartDimensionNames);
+        // Keep only dimensions that exist in the new chart
+        const cleanedMappings = {};
+        let keptCount = 0;
+        let removedCount = 0;
+        for (const [dimensionName, dataField] of Object.entries(currentMappings)) {
+            if (newChartDimensionNames.includes(dimensionName)) {
+                cleanedMappings[dimensionName] = dataField;
+                keptCount++;
+                console.log(`[DIMENSION_CLEANER] ✅ Kept mapping: ${dimensionName} → ${dataField}`);
+            }
+            else {
+                removedCount++;
+                console.log(`[DIMENSION_CLEANER] ❌ Removed mapping: ${dimensionName} → ${dataField} (not in new chart)`);
+            }
+        }
+        console.log(`[DIMENSION_CLEANER] Cleanup complete: ${keptCount} kept, ${removedCount} removed`);
+        console.log(`[DIMENSION_CLEANER] Cleaned mappings:`, cleanedMappings);
+        return cleanedMappings;
+    }
+    /**
+     * Get chart dimensions for validation
+     */
+    static getChartDimensions(chartType) {
+        const chart = templateCharts_1.chartTemplates.find((chart) => chart.id === chartType);
+        return chart ? chart.dimensions.map((dim) => dim.name) : [];
+    }
+    /**
+     * Validate if a dimension mapping is valid for a chart
+     */
+    static validateMappingForChart(mappings, chartType) {
+        const validDimensions = this.getChartDimensions(chartType);
+        const invalidDimensions = Object.keys(mappings).filter(dimension => !validDimensions.includes(dimension));
+        return {
+            isValid: invalidDimensions.length === 0,
+            invalidDimensions
+        };
+    }
+}
+exports.DimensionMappingCleaner = DimensionMappingCleaner;
+
+
+/***/ }),
+/* 132 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Dimension Mapping File Setting Item
+ * Manages the dimension mapping configuration for file analysis with real BabiaXR chart integration
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingFileSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const configuration_1 = __webpack_require__(105);
+const templateCharts_1 = __webpack_require__(42);
+const dimensionMappingValidator_1 = __webpack_require__(120);
+class DimensionMappingFileSetting {
+    storage;
+    constructor(context) {
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        const currentMode = await this.storage.getAnalysisMode();
+        const chartType = await this.storage.getChartTypeFile();
+        const label = `Dimension Mapping (File)`;
+        const description = chartType ? `Dimensions for ${chartType} chart` : 'Select chart type first';
+        // Dynamic icon color based on analysis mode
+        let iconColor = 'charts.foreground';
+        if (currentMode === 'XR') {
+            iconColor = 'charts.purple'; // Purple for XR mode
+        }
+        else if (currentMode === 'LivePanel') {
+            iconColor = 'charts.green'; // Green for LivePanel mode
+        }
+        const iconPath = new vscode.ThemeIcon('symbol-misc', new vscode.ThemeColor(iconColor));
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, // No command on the main item
+        iconPath, description, chartType ? `Configure ${chartType} dimensions` : 'Select chart type first', 'dimensionMappingFileSetting');
+    }
+    /**
+     * Get children items (chart dimensions)
+     */
+    async getChildren() {
+        const chartType = await this.storage.getChartTypeFile();
+        console.log(`DIMENSION_MAPPING_FILE: Getting children for chart type: ${chartType}`);
+        if (!chartType) {
+            console.log('DIMENSION_MAPPING_FILE: No chart type selected, showing warning');
+            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Select Chart Type First', vscode.TreeItemCollapsibleState.None, 'subsection', {
+                    command: 'newCodeAnalysis.selectChartTypeFile',
+                    title: 'Select Chart Type',
+                    arguments: []
+                }, new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow')), 'You must select a chart type before configuring dimensions', 'Click to select chart type', 'select-chart-type-first')];
+        }
+        return await this.getDimensionItemsForChart(chartType);
+    }
+    async getDimensionItemsForChart(chartType) {
+        console.log(`DIMENSION_MAPPING_FILE: Looking for chart template for type: ${chartType}`);
+        const chart = templateCharts_1.chartTemplates.find((c) => c.id === chartType);
+        if (!chart || !chart.dimensions) {
+            console.log(`DIMENSION_MAPPING_FILE: No chart found or no dimensions for chart type: ${chartType}`);
+            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('No dimensions available', vscode.TreeItemCollapsibleState.None, 'subsection', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), 'This chart type has no configurable dimensions', undefined, 'no-dimensions')];
+        }
+        console.log(`DIMENSION_MAPPING_FILE: Found chart "${chart.name}" with ${chart.dimensions.length} dimensions:`, chart.dimensions.map(d => d.name).join(', '));
+        const dimensionItems = await Promise.all(chart.dimensions.map((dimension) => this.createDimensionItem(dimension)));
+        return dimensionItems;
+    }
+    async createDimensionItem(dimension) {
+        // Check if we have a persistent mapping for this dimension
+        const mappedValue = await this.getDimensionMapping(dimension.name) || 'Not configured';
+        const label = `${dimension.label}: ${mappedValue}`;
+        const description = this.getDimensionDescription(dimension);
+        console.log(`DIMENSION_MAPPING_FILE: Creating dimension item for "${dimension.name}" - ${dimension.label}, mapped to: ${mappedValue}`);
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectDimensionMappingFile',
+            title: 'Select Dimension Mapping',
+            arguments: [dimension]
+        }, await this.getDimensionIcon(dimension), description, 'Click to configure dimension mapping', `dimension-${dimension.name}`);
+    }
+    getDimensionDescription(dimension) {
+        const typeStr = dimension.dataType === 'numeric' ? 'numerical only' : 'any value';
+        const requiredStr = dimension.required ? 'Required' : 'Optional';
+        return `(${typeStr}) • ${requiredStr} • ${dimension.description}`;
+    }
+    async getDimensionIcon(dimension) {
+        const chartType = await this.storage.getChartTypeFile();
+        if (!chartType) {
+            return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.foreground'));
+        }
+        // Get current dimension mappings
+        const dimensionMappings = await this.storage.getDimensionMappingFile();
+        // Get validation result using the validator
+        const validationResult = dimensionMappingValidator_1.DimensionMappingValidator.validateMappingsForChart(chartType, dimensionMappings);
+        // Check if this dimension is mapped
+        const mapping = dimensionMappings[dimension.name];
+        if (!mapping) {
+            // Check if it's required
+            const isRequired = dimension.required === true;
+            return isRequired
+                ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'))
+                : new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.foreground'));
+        }
+        // Check if this dimension has conflicts
+        const hasConflict = validationResult.conflicts.some((conflict) => conflict.conflictingDimensions.includes(dimension.name));
+        if (hasConflict) {
+            return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'));
+        }
+        // Dimension is mapped without conflicts
+        return new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+    }
+    /**
+     * Available data fields for file analysis (real analysis output fields)
+     */
+    getAvailableDataFields() {
+        return ['functionName', 'parameters', 'lineCount', 'complexity', 'cyclomaticDensity'];
+    }
+    /**
+     * Get numeric-only fields (fields that contain numeric values)
+     */
+    getNumericDataFields() {
+        return ['parameters', 'lineCount', 'complexity', 'cyclomaticDensity'];
+    }
+    /**
+     * Get fields available for a specific dimension based on its dataType
+     */
+    getAvailableFieldsForDimension(dimension) {
+        console.log(`DIMENSION_MAPPING_FILE: Getting available fields for dimension "${dimension.name}" with dataType: ${dimension.dataType}`);
+        const allFields = this.getAvailableDataFields();
+        const numericFields = this.getNumericDataFields();
+        if (dimension.dataType === 'numeric') {
+            console.log(`DIMENSION_MAPPING_FILE: Dimension "${dimension.name}" requires numeric fields only:`, numericFields);
+            return numericFields;
+        }
+        console.log(`DIMENSION_MAPPING_FILE: Dimension "${dimension.name}" accepts any field type:`, allFields);
+        return allFields;
+    }
+    /**
+     * Set dimension mapping (persistent storage)
+     */
+    async setDimensionMapping(dimensionName, dataField) {
+        console.log(`DIMENSION_MAPPING_FILE: Setting mapping for "${dimensionName}" to "${dataField}"`);
+        // Get current mappings
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        // Update the mapping
+        const updatedMappings = { ...currentMappings, [dimensionName]: dataField };
+        // Save to persistent storage
+        await this.storage.setDimensionMappingFile(updatedMappings);
+        console.log(`DIMENSION_MAPPING_FILE: Successfully saved mapping for "${dimensionName}" to storage`);
+    }
+    /**
+     * Clear dimension mapping (persistent storage)
+     */
+    async clearDimensionMapping(dimensionName) {
+        console.log(`DIMENSION_MAPPING_FILE: Clearing mapping for "${dimensionName}"`);
+        // Get current mappings
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        // Remove the mapping
+        const updatedMappings = { ...currentMappings };
+        delete updatedMappings[dimensionName];
+        // Save to persistent storage
+        await this.storage.setDimensionMappingFile(updatedMappings);
+        console.log(`DIMENSION_MAPPING_FILE: Successfully cleared mapping for "${dimensionName}" from storage`);
+    }
+    /**
+     * Get current dimension mapping (persistent storage)
+     */
+    async getDimensionMapping(dimensionName) {
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        return currentMappings[dimensionName];
+    }
+}
+exports.DimensionMappingFileSetting = DimensionMappingFileSetting;
+
+
+/***/ }),
+/* 133 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerVisualizationSettingsCommands = registerVisualizationSettingsCommands;
-const visualizationSettingsCommands_1 = __webpack_require__(128);
+const visualizationSettingsCommands_1 = __webpack_require__(134);
 /**
  * Visualization Settings Commands Wrapper
  * Re-exports visualization settings commands for centralized command registration
@@ -21060,7 +22048,7 @@ function registerVisualizationSettingsCommands(context) {
 
 
 /***/ }),
-/* 128 */
+/* 134 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21160,7 +22148,7 @@ exports.VisualizationSettingsCommands = VisualizationSettingsCommands;
 
 
 /***/ }),
-/* 129 */
+/* 135 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21200,7 +22188,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerGeneralCommands = registerGeneralCommands;
 const vscode = __importStar(__webpack_require__(1));
-const commonCommands_1 = __webpack_require__(130);
+const commonCommands_1 = __webpack_require__(136);
 /**
  * Register general/common commands used throughout the extension
  */
@@ -21228,7 +22216,7 @@ function registerGeneralCommands(context) {
 
 
 /***/ }),
-/* 130 */
+/* 136 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21314,7 +22302,7 @@ exports.CommonCommands = CommonCommands;
 
 
 /***/ }),
-/* 131 */
+/* 137 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21510,7 +22498,7 @@ exports.DebugThemeProblem = DebugThemeProblem;
 
 
 /***/ }),
-/* 132 */
+/* 138 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21535,24 +22523,24 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 // Main modular tree provider
-var ModularTreeDataProvider_1 = __webpack_require__(133);
+var ModularTreeDataProvider_1 = __webpack_require__(139);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
-__exportStar(__webpack_require__(134), exports);
-__exportStar(__webpack_require__(192), exports);
+__exportStar(__webpack_require__(140), exports);
+__exportStar(__webpack_require__(198), exports);
 // Section providers
-__exportStar(__webpack_require__(135), exports);
-__exportStar(__webpack_require__(139), exports);
-__exportStar(__webpack_require__(143), exports);
-__exportStar(__webpack_require__(148), exports);
+__exportStar(__webpack_require__(141), exports);
+__exportStar(__webpack_require__(145), exports);
+__exportStar(__webpack_require__(149), exports);
 __exportStar(__webpack_require__(154), exports);
-__exportStar(__webpack_require__(188), exports);
+__exportStar(__webpack_require__(160), exports);
+__exportStar(__webpack_require__(194), exports);
 // New code analysis views (experimental)
-__exportStar(__webpack_require__(193), exports);
+__exportStar(__webpack_require__(199), exports);
 
 
 /***/ }),
-/* 133 */
+/* 139 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21592,14 +22580,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModularTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const baseInterfaces_1 = __webpack_require__(134);
-const servers_1 = __webpack_require__(135);
-const active_servers_1 = __webpack_require__(139);
-const babia_examples_1 = __webpack_require__(143);
-const visualize_data_1 = __webpack_require__(148);
-const code_analysis_1 = __webpack_require__(154);
-const NewCodeAnalysisSectionProvider_1 = __webpack_require__(170);
-const visualization_settings_1 = __webpack_require__(188);
+const baseInterfaces_1 = __webpack_require__(140);
+const servers_1 = __webpack_require__(141);
+const active_servers_1 = __webpack_require__(145);
+const babia_examples_1 = __webpack_require__(149);
+const visualize_data_1 = __webpack_require__(154);
+const code_analysis_1 = __webpack_require__(160);
+const NewCodeAnalysisSectionProvider_1 = __webpack_require__(176);
+const visualization_settings_1 = __webpack_require__(194);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -21755,37 +22743,37 @@ class ModularTreeDataProvider {
         switch (sectionName) {
             case 'SERVERS':
                 // Import and create ServerTreeItem
-                const { ServerTreeItem } = __webpack_require__(137);
+                const { ServerTreeItem } = __webpack_require__(143);
                 const serverItem = new ServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.serverItemType || 'config-option', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return serverItem;
             case 'activeServers':
                 // Import and create ActiveServerTreeItem
-                const { ActiveServerTreeItem } = __webpack_require__(141);
+                const { ActiveServerTreeItem } = __webpack_require__(147);
                 const activeServerItem = new ActiveServerTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.activeServerItemType || 'server-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.activeServer);
                 return activeServerItem;
             case 'babiaExamples':
                 // Import and create BabiaExampleTreeItem
-                const { BabiaExampleTreeItem } = __webpack_require__(145);
+                const { BabiaExampleTreeItem } = __webpack_require__(151);
                 const babiaItem = new BabiaExampleTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.babiaItemType || 'example-item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.babiaExample);
                 return babiaItem;
             case 'visualizeData':
                 // Import and create VisualizeDataModularTreeItem
-                const { VisualizeDataModularTreeItem } = __webpack_require__(150);
+                const { VisualizeDataModularTreeItem } = __webpack_require__(156);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
             case 'codeAnalysis':
                 // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(156);
+                const { CodeAnalysisModularTreeItem } = __webpack_require__(162);
                 const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
                 return codeAnalysisItem;
             case 'newCodeAnalysis':
                 // Import and create NewCodeAnalysisTreeItem
-                const { NewCodeAnalysisTreeItem } = __webpack_require__(121);
+                const { NewCodeAnalysisTreeItem } = __webpack_require__(127);
                 const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.type || 'item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return newCodeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(190);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(196);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -21845,7 +22833,7 @@ exports.ModularTreeDataProvider = ModularTreeDataProvider;
 
 
 /***/ }),
-/* 134 */
+/* 140 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21947,7 +22935,7 @@ exports.TreeViewUtils = TreeViewUtils;
 
 
 /***/ }),
-/* 135 */
+/* 141 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -21958,19 +22946,19 @@ exports.TreeViewUtils = TreeViewUtils;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerClickHandler = exports.ServerItemFactory = exports.ServerTreeItem = exports.ServersSectionProvider = void 0;
 // Section Provider
-var ServersSectionProvider_1 = __webpack_require__(136);
+var ServersSectionProvider_1 = __webpack_require__(142);
 Object.defineProperty(exports, "ServersSectionProvider", ({ enumerable: true, get: function () { return ServersSectionProvider_1.ServersSectionProvider; } }));
 // Items
-var serverItems_1 = __webpack_require__(137);
+var serverItems_1 = __webpack_require__(143);
 Object.defineProperty(exports, "ServerTreeItem", ({ enumerable: true, get: function () { return serverItems_1.ServerTreeItem; } }));
 Object.defineProperty(exports, "ServerItemFactory", ({ enumerable: true, get: function () { return serverItems_1.ServerItemFactory; } }));
 // Interactions
-var handleServerClicks_1 = __webpack_require__(138);
+var handleServerClicks_1 = __webpack_require__(144);
 Object.defineProperty(exports, "ServerClickHandler", ({ enumerable: true, get: function () { return handleServerClicks_1.ServerClickHandler; } }));
 
 
 /***/ }),
-/* 136 */
+/* 142 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22010,8 +22998,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const serverItems_1 = __webpack_require__(137);
-const handleServerClicks_1 = __webpack_require__(138);
+const serverItems_1 = __webpack_require__(143);
+const handleServerClicks_1 = __webpack_require__(144);
 const serverSettingsManager_1 = __webpack_require__(11);
 /**
  * Servers section provider for the modular tree view architecture
@@ -22144,7 +23132,7 @@ exports.ServersSectionProvider = ServersSectionProvider;
 
 
 /***/ }),
-/* 137 */
+/* 143 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22262,7 +23250,7 @@ exports.ServerItemFactory = ServerItemFactory;
 
 
 /***/ }),
-/* 138 */
+/* 144 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22360,7 +23348,7 @@ exports.ServerClickHandler = ServerClickHandler;
 
 
 /***/ }),
-/* 139 */
+/* 145 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22371,19 +23359,19 @@ exports.ServerClickHandler = ServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServerClickHandler = exports.ActiveServerItemFactory = exports.ActiveServerTreeItem = exports.ActiveServersSectionProvider = void 0;
 // Section Provider
-var ActiveServersSectionProvider_1 = __webpack_require__(140);
+var ActiveServersSectionProvider_1 = __webpack_require__(146);
 Object.defineProperty(exports, "ActiveServersSectionProvider", ({ enumerable: true, get: function () { return ActiveServersSectionProvider_1.ActiveServersSectionProvider; } }));
 // Items
-var activeServerItems_1 = __webpack_require__(141);
+var activeServerItems_1 = __webpack_require__(147);
 Object.defineProperty(exports, "ActiveServerTreeItem", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerTreeItem; } }));
 Object.defineProperty(exports, "ActiveServerItemFactory", ({ enumerable: true, get: function () { return activeServerItems_1.ActiveServerItemFactory; } }));
 // Interactions
-var handleActiveServerClicks_1 = __webpack_require__(142);
+var handleActiveServerClicks_1 = __webpack_require__(148);
 Object.defineProperty(exports, "ActiveServerClickHandler", ({ enumerable: true, get: function () { return handleActiveServerClicks_1.ActiveServerClickHandler; } }));
 
 
 /***/ }),
-/* 140 */
+/* 146 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22423,8 +23411,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveServersSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeServerItems_1 = __webpack_require__(141);
-const handleActiveServerClicks_1 = __webpack_require__(142);
+const activeServerItems_1 = __webpack_require__(147);
+const handleActiveServerClicks_1 = __webpack_require__(148);
 const activeServerRegistry_1 = __webpack_require__(26);
 /**
  * Active Servers section provider - manages running servers display and control
@@ -22521,7 +23509,7 @@ exports.ActiveServersSectionProvider = ActiveServersSectionProvider;
 
 
 /***/ }),
-/* 141 */
+/* 147 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22689,7 +23677,7 @@ exports.ActiveServerItemFactory = ActiveServerItemFactory;
 
 
 /***/ }),
-/* 142 */
+/* 148 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22805,7 +23793,7 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 
 
 /***/ }),
-/* 143 */
+/* 149 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22816,19 +23804,19 @@ exports.ActiveServerClickHandler = ActiveServerClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleClickHandler = exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = exports.BabiaExamplesSectionProvider = void 0;
 // Section Provider
-var BabiaExamplesSectionProvider_1 = __webpack_require__(144);
+var BabiaExamplesSectionProvider_1 = __webpack_require__(150);
 Object.defineProperty(exports, "BabiaExamplesSectionProvider", ({ enumerable: true, get: function () { return BabiaExamplesSectionProvider_1.BabiaExamplesSectionProvider; } }));
 // Items
-var babiaExampleItems_1 = __webpack_require__(145);
+var babiaExampleItems_1 = __webpack_require__(151);
 Object.defineProperty(exports, "BabiaExampleTreeItem", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleTreeItem; } }));
 Object.defineProperty(exports, "BabiaExampleItemFactory", ({ enumerable: true, get: function () { return babiaExampleItems_1.BabiaExampleItemFactory; } }));
 // Interactions
-var handleBabiaExampleClicks_1 = __webpack_require__(147);
+var handleBabiaExampleClicks_1 = __webpack_require__(153);
 Object.defineProperty(exports, "BabiaExampleClickHandler", ({ enumerable: true, get: function () { return handleBabiaExampleClicks_1.BabiaExampleClickHandler; } }));
 
 
 /***/ }),
-/* 144 */
+/* 150 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22868,8 +23856,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExamplesSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const babiaExampleItems_1 = __webpack_require__(145);
-const handleBabiaExampleClicks_1 = __webpack_require__(147);
+const babiaExampleItems_1 = __webpack_require__(151);
+const handleBabiaExampleClicks_1 = __webpack_require__(153);
 const exampleLauncher_1 = __webpack_require__(37);
 /**
  * Babia Examples section provider - manages example loading and launching
@@ -22950,7 +23938,7 @@ exports.BabiaExamplesSectionProvider = BabiaExamplesSectionProvider;
 
 
 /***/ }),
-/* 145 */
+/* 151 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22990,7 +23978,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BabiaExampleItemFactory = exports.BabiaExampleTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const exampleItems_1 = __webpack_require__(146);
+const exampleItems_1 = __webpack_require__(152);
 /**
  * Babia Example tree items for the Babia Examples section
  */
@@ -23072,7 +24060,7 @@ exports.BabiaExampleItemFactory = BabiaExampleItemFactory;
 
 
 /***/ }),
-/* 146 */
+/* 152 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23233,7 +24221,7 @@ exports.ExampleIcons = ExampleIcons;
 
 
 /***/ }),
-/* 147 */
+/* 153 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23412,7 +24400,7 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 
 
 /***/ }),
-/* 148 */
+/* 154 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -23423,19 +24411,19 @@ exports.BabiaExampleClickHandler = BabiaExampleClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataClickHandler = exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = exports.VisualizeDataSectionProvider = void 0;
 // Section Provider
-var VisualizeDataSectionProvider_1 = __webpack_require__(149);
+var VisualizeDataSectionProvider_1 = __webpack_require__(155);
 Object.defineProperty(exports, "VisualizeDataSectionProvider", ({ enumerable: true, get: function () { return VisualizeDataSectionProvider_1.VisualizeDataSectionProvider; } }));
 // Items
-var visualizeDataItems_1 = __webpack_require__(150);
+var visualizeDataItems_1 = __webpack_require__(156);
 Object.defineProperty(exports, "VisualizeDataModularTreeItem", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizeDataModularItemFactory", ({ enumerable: true, get: function () { return visualizeDataItems_1.VisualizeDataModularItemFactory; } }));
 // Interactions
-var handleVisualizeDataClicks_1 = __webpack_require__(153);
+var handleVisualizeDataClicks_1 = __webpack_require__(159);
 Object.defineProperty(exports, "VisualizeDataClickHandler", ({ enumerable: true, get: function () { return handleVisualizeDataClicks_1.VisualizeDataClickHandler; } }));
 
 
 /***/ }),
-/* 149 */
+/* 155 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23475,8 +24463,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(150);
-const handleVisualizeDataClicks_1 = __webpack_require__(153);
+const visualizeDataItems_1 = __webpack_require__(156);
+const handleVisualizeDataClicks_1 = __webpack_require__(159);
 const visualizeDataState_1 = __webpack_require__(43);
 /**
  * Visualize Data section provider - manages data visualization configuration and launch
@@ -23582,7 +24570,7 @@ exports.VisualizeDataSectionProvider = VisualizeDataSectionProvider;
 
 
 /***/ }),
-/* 150 */
+/* 156 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23622,9 +24610,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizeDataModularItemFactory = exports.VisualizeDataModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizeDataItems_1 = __webpack_require__(151);
+const visualizeDataItems_1 = __webpack_require__(157);
 const visualizationRestorer_1 = __webpack_require__(58);
-const visualizationItem_1 = __webpack_require__(152);
+const visualizationItem_1 = __webpack_require__(158);
 /**
  * Visualize Data tree items for the Visualize Data section
  */
@@ -23741,7 +24729,7 @@ exports.VisualizeDataModularItemFactory = VisualizeDataModularItemFactory;
 
 
 /***/ }),
-/* 151 */
+/* 157 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24002,7 +24990,7 @@ exports.VisualizeDataIcons = VisualizeDataIcons;
 
 
 /***/ }),
-/* 152 */
+/* 158 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24122,7 +25110,7 @@ exports.BrowseVisualizationItemFactory = BrowseVisualizationItemFactory;
 
 
 /***/ }),
-/* 153 */
+/* 159 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24321,7 +25309,7 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 
 /***/ }),
-/* 154 */
+/* 160 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24332,19 +25320,19 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
 // Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(155);
+var CodeAnalysisSectionProvider_1 = __webpack_require__(161);
 Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
 // Items
-var codeAnalysisItems_1 = __webpack_require__(156);
+var codeAnalysisItems_1 = __webpack_require__(162);
 Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
 Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
 // Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(159);
+var handleCodeAnalysisClicks_1 = __webpack_require__(165);
 Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
 
 
 /***/ }),
-/* 155 */
+/* 161 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24384,10 +25372,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(156);
-const handleCodeAnalysisClicks_1 = __webpack_require__(159);
-const codeAnalysisTreeView_1 = __webpack_require__(160);
-const projectStructureAdapter_1 = __webpack_require__(167);
+const codeAnalysisItems_1 = __webpack_require__(162);
+const handleCodeAnalysisClicks_1 = __webpack_require__(165);
+const codeAnalysisTreeView_1 = __webpack_require__(166);
+const projectStructureAdapter_1 = __webpack_require__(173);
 /**
  * Code Analysis section provider - manages code analysis and file organization
  */
@@ -24532,7 +25520,7 @@ exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 156 */
+/* 162 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24572,7 +25560,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(157);
+const analysisTreeItems_1 = __webpack_require__(163);
 /**
  * Code Analysis tree items for the Code Analysis section
  */
@@ -24695,7 +25683,7 @@ exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
 
 
 /***/ }),
-/* 157 */
+/* 163 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24736,7 +25724,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const fileDisplayUtils_1 = __webpack_require__(158);
+const fileDisplayUtils_1 = __webpack_require__(164);
 const analysisSettingsStorage_1 = __webpack_require__(63);
 const chartRegistry_1 = __webpack_require__(41);
 /**
@@ -25096,7 +26084,7 @@ exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 158 */
+/* 164 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25139,7 +26127,7 @@ exports.getFileIcon = getFileIcon;
 exports.getFileDescription = getFileDescription;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(90);
+const languageMetadata_1 = __webpack_require__(92);
 /**
  * Shared utility for consistent file display across Code Analysis views
  */
@@ -25358,7 +26346,7 @@ function getFileDescription(filePath, viewType, fileSize) {
 
 
 /***/ }),
-/* 159 */
+/* 165 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25573,7 +26561,7 @@ exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
 
 
 /***/ }),
-/* 160 */
+/* 166 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25613,11 +26601,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CodeAnalysisTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(157);
-const fileScanner_1 = __webpack_require__(161);
-const activeAnalysesTreeView_1 = __webpack_require__(162);
-const activeAnalysesCommands_1 = __webpack_require__(164);
-const fileWatcherManager_1 = __webpack_require__(165);
+const analysisTreeItems_1 = __webpack_require__(163);
+const fileScanner_1 = __webpack_require__(167);
+const activeAnalysesTreeView_1 = __webpack_require__(168);
+const activeAnalysesCommands_1 = __webpack_require__(170);
+const fileWatcherManager_1 = __webpack_require__(171);
 /**
  * Code Analysis tree data provider that manages the analysis sections
  *
@@ -25875,7 +26863,7 @@ exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
 
 
 /***/ }),
-/* 161 */
+/* 167 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -25916,7 +26904,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(90);
+const languageMetadata_1 = __webpack_require__(92);
 /**
  * Scanner for analyzing workspace files and grouping them by programming language
  */
@@ -26048,7 +27036,7 @@ exports.FileScanner = FileScanner;
 
 
 /***/ }),
-/* 162 */
+/* 168 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26089,8 +27077,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesTreeDataProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const activeAnalysisRegistry_1 = __webpack_require__(70);
-const activeAnalysisItems_1 = __webpack_require__(163);
-const analysisTreeItems_1 = __webpack_require__(157);
+const activeAnalysisItems_1 = __webpack_require__(169);
+const analysisTreeItems_1 = __webpack_require__(163);
 /**
  * Tree data provider for the Active Analyses section
  * This handles the rendering and management of the Active Analyses tree view
@@ -26240,7 +27228,7 @@ exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
 
 
 /***/ }),
-/* 163 */
+/* 169 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26433,7 +27421,7 @@ exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
 
 
 /***/ }),
-/* 164 */
+/* 170 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26742,7 +27730,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 165 */
+/* 171 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -26784,7 +27772,7 @@ exports.FileWatcherManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const activeAnalysisRegistry_1 = __webpack_require__(70);
-const statusBarDelayTimer_1 = __webpack_require__(166);
+const statusBarDelayTimer_1 = __webpack_require__(172);
 const analysisSettingsStorage_1 = __webpack_require__(63);
 const analysisCommands_1 = __webpack_require__(60);
 const tempStorageManager_1 = __webpack_require__(67);
@@ -27056,7 +28044,7 @@ exports.FileWatcherManager = FileWatcherManager;
 
 
 /***/ }),
-/* 166 */
+/* 172 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27254,7 +28242,7 @@ exports.StatusBarDelayTimer = StatusBarDelayTimer;
 
 
 /***/ }),
-/* 167 */
+/* 173 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27294,9 +28282,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureModularAdapter = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(168);
-const analysisTreeItems_1 = __webpack_require__(157);
-const fileDisplayUtils_1 = __webpack_require__(158);
+const projectStructureTreeView_1 = __webpack_require__(174);
+const analysisTreeItems_1 = __webpack_require__(163);
+const fileDisplayUtils_1 = __webpack_require__(164);
 /**
  * Adapter to integrate Project Structure Tree View with the modular Code Analysis system
  */
@@ -27436,7 +28424,7 @@ exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
 
 
 /***/ }),
-/* 168 */
+/* 174 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27477,9 +28465,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
 exports.createProjectStructureModularItem = createProjectStructureModularItem;
 const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(169);
-const baseInterfaces_1 = __webpack_require__(134);
-const fileDisplayUtils_1 = __webpack_require__(158);
+const directoryScanner_1 = __webpack_require__(175);
+const baseInterfaces_1 = __webpack_require__(140);
+const fileDisplayUtils_1 = __webpack_require__(164);
 /**
  * Tree data provider for the Project Directory Tree View
  */
@@ -27817,7 +28805,7 @@ exports.ProjectStructureCommands = ProjectStructureCommands;
 
 
 /***/ }),
-/* 169 */
+/* 175 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -27858,7 +28846,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DirectoryScanner = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(90);
+const languageMetadata_1 = __webpack_require__(92);
 /**
  * Scanner for creating a hierarchical project directory structure
  */
@@ -28192,7 +29180,7 @@ exports.DirectoryScanner = DirectoryScanner;
 
 
 /***/ }),
-/* 170 */
+/* 176 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28236,9 +29224,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const handleNewCodeAnalysisClicks_1 = __webpack_require__(171);
-const subsections_1 = __webpack_require__(172);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const handleNewCodeAnalysisClicks_1 = __webpack_require__(177);
+const subsections_1 = __webpack_require__(178);
+const analysisSessionRegistry_1 = __webpack_require__(103);
 /**
  * TODO: Implement tree data provider for new code analysis
  * - Provide tree structure for analysis results
@@ -28263,6 +29252,12 @@ class NewCodeAnalysisSectionProvider {
         this.analysisSettingsSubsection = new subsections_1.AnalysisSettingsSubsectionProvider(context);
         this.projectByLanguageSubsection = new subsections_1.ProjectByLanguageSubsectionProvider(context);
         this.filesByLanguageSubsection = new subsections_1.FilesByLanguageSubsectionProvider(context);
+        // Set up listener for analysis session changes to auto-refresh UI
+        const sessionRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+        sessionRegistry.onSessionChanged((session) => {
+            console.log(`NEW_CODE_ANALYSIS: Session ${session.id} changed to ${session.status} - auto-refreshing UI`);
+            this.refresh();
+        });
         // Commands are now registered centrally in src/commands/new_code_analysis
         // following the "nested dolls" architecture pattern
         console.log('NEW_CODE_ANALYSIS: Section provider initialized. Commands registered centrally.');
@@ -28277,7 +29272,7 @@ class NewCodeAnalysisSectionProvider {
      * Get the section header item
      */
     getSectionItem() {
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('NEW CODE ANALYSIS', vscode.TreeItemCollapsibleState.Collapsed, 'section', undefined, new vscode.ThemeIcon('search-view-icon'), 'New experimental code analysis tools', undefined, 'newCodeAnalysisSection');
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('NEW CODE ANALYSIS', vscode.TreeItemCollapsibleState.Expanded, 'section', undefined, new vscode.ThemeIcon('search-view-icon'), 'New experimental code analysis tools', undefined, 'newCodeAnalysisSection');
     }
     /**
      * Refresh the tree view and all subsections
@@ -28303,15 +29298,16 @@ class NewCodeAnalysisSectionProvider {
     /**
      * Get children for tree element
      */
-    getChildren(element) {
+    async getChildren(element) {
         if (!element) {
             // Return root subsections
-            return Promise.resolve([
+            const subsections = await Promise.all([
                 this.activeAnalysesSubsection.getSubsectionItem(),
                 this.analysisSettingsSubsection.getSubsectionItem(),
                 this.projectByLanguageSubsection.getSubsectionItem(),
                 this.filesByLanguageSubsection.getSubsectionItem()
             ]);
+            return subsections;
         }
         // Handle children for specific subsections
         switch (element.contextValue) {
@@ -28323,6 +29319,9 @@ class NewCodeAnalysisSectionProvider {
                 return this.projectByLanguageSubsection.getChildren();
             case 'filesByLanguageSubsection':
                 return this.filesByLanguageSubsection.getChildren();
+            // Handle nested settings like dimension mapping
+            case 'dimensionMappingFileSetting':
+                return this.analysisSettingsSubsection.getSettingChildren(element);
             default:
                 return Promise.resolve([]);
         }
@@ -28338,7 +29337,7 @@ exports.NewCodeAnalysisSectionProvider = NewCodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 171 */
+/* 177 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -28399,7 +29398,7 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
 
 
 /***/ }),
-/* 172 */
+/* 178 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28409,19 +29408,19 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = exports.ProjectByLanguageSubsectionProvider = exports.ActiveAnalysesSubsectionProvider = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysis_settings_1 = __webpack_require__(173);
+var analysis_settings_1 = __webpack_require__(179);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisSettingsSubsectionProvider; } }));
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisFileSetting; } }));
-var active_analyses_1 = __webpack_require__(178);
+var active_analyses_1 = __webpack_require__(184);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return active_analyses_1.ActiveAnalysesSubsectionProvider; } }));
-var project_by_language_1 = __webpack_require__(184);
+var project_by_language_1 = __webpack_require__(190);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return project_by_language_1.ProjectByLanguageSubsectionProvider; } }));
-var files_by_language_1 = __webpack_require__(186);
+var files_by_language_1 = __webpack_require__(192);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return files_by_language_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 173 */
+/* 179 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28431,27 +29430,23 @@ Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = exports.ViewThemeSetting = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysisSettingsSubsectionProvider_1 = __webpack_require__(174);
+var analysisSettingsSubsectionProvider_1 = __webpack_require__(180);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysisSettingsSubsectionProvider_1.AnalysisSettingsSubsectionProvider; } }));
-var analysis_file_mode_1 = __webpack_require__(175);
+var analysis_file_mode_1 = __webpack_require__(181);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_file_mode_1.AnalysisFileSetting; } }));
-var view_theme_1 = __webpack_require__(176);
+var view_theme_1 = __webpack_require__(182);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return view_theme_1.ViewThemeSetting; } }));
-var auto_analysis_delay_1 = __webpack_require__(177);
+var auto_analysis_delay_1 = __webpack_require__(183);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return auto_analysis_delay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 174 */
+/* 180 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- import * as vscode from 'vscode';
-import { NewCodeAnalysisTreeItem } from '../../items/newCodeAnalysisItems';
-import { AnalysisFileSetting } from './analysis_file_mode/analysisFileMode';
-import { ViewThemeSetting } from './view_theme';
-import { AutoAnalysisDelaySetting } from './auto_analysis_delay';lysis Settings Subsection Provider
+ * Analysis Settings Subsection Provider
  * Manages the Analysis Settings subsection of New Code Analysis
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -28490,14 +29485,18 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const analysis_file_mode_1 = __webpack_require__(175);
-const view_theme_1 = __webpack_require__(176);
-const auto_analysis_delay_1 = __webpack_require__(177);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const analysis_file_mode_1 = __webpack_require__(181);
+const view_theme_1 = __webpack_require__(182);
+const chartTypeFile_1 = __webpack_require__(130);
+const dimensionMappingFile_1 = __webpack_require__(132);
+const auto_analysis_delay_1 = __webpack_require__(183);
 class AnalysisSettingsSubsectionProvider {
     context;
     analysisFileSetting;
     viewThemeSetting;
+    chartTypeFileSetting;
+    dimensionMappingFileSetting;
     autoAnalysisDelaySetting;
     constructor(context) {
         this.context = context;
@@ -28505,58 +29504,81 @@ class AnalysisSettingsSubsectionProvider {
         // Initialize setting components
         this.analysisFileSetting = new analysis_file_mode_1.AnalysisFileSetting(context);
         this.viewThemeSetting = new view_theme_1.ViewThemeSetting(context);
+        this.chartTypeFileSetting = new chartTypeFile_1.ChartTypeFileSetting(context);
+        this.dimensionMappingFileSetting = new dimensionMappingFile_1.DimensionMappingFileSetting(context);
         this.autoAnalysisDelaySetting = new auto_analysis_delay_1.AutoAnalysisDelaySetting(context);
     }
     /**
-     * Get the subsection header item
+     * Get subsection item for Analysis Settings
      */
-    getSubsectionItem() {
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('settings-gear'), 'Configuration settings for analysis processes - File mode, theme, and timing', undefined, 'analysisSettingsSubsection');
+    async getSubsectionItem() {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Expanded, // Expanded by default as requested
+        'subsection', undefined, new vscode.ThemeIcon('gear'), 'Configure analysis behavior and preferences', 'Configuration options', 'analysisSettingsSubsection');
     }
     /**
-     * Get children for this subsection
+     * Get children items for Analysis Settings
      */
     async getChildren() {
-        return [
+        console.log('NEW_CODE_ANALYSIS: Getting Analysis Settings children');
+        try {
+            const children = [];
             // Analysis File Mode setting
-            await this.analysisFileSetting.getSettingItem(),
-            // View Theme setting  
-            await this.viewThemeSetting.getSettingItem(),
-            // Auto-Analysis Delay setting
-            await this.autoAnalysisDelaySetting.getSettingItem()
-        ];
+            const analysisFileItem = await this.analysisFileSetting.getSettingItem();
+            children.push(analysisFileItem);
+            // View Theme setting
+            const viewThemeItem = await this.viewThemeSetting.getSettingItem();
+            children.push(viewThemeItem);
+            // Chart Type (File) setting - NEW
+            const chartTypeFileItem = await this.chartTypeFileSetting.getSettingItem();
+            children.push(chartTypeFileItem);
+            // Dimension Mapping (File) setting - NEW
+            const dimensionMappingFileItem = await this.dimensionMappingFileSetting.getSettingItem();
+            children.push(dimensionMappingFileItem);
+            // Auto Analysis Delay setting
+            const autoAnalysisDelayItem = await this.autoAnalysisDelaySetting.getSettingItem();
+            children.push(autoAnalysisDelayItem);
+            console.log(`NEW_CODE_ANALYSIS: Analysis Settings children count: ${children.length}`);
+            return children;
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error getting Analysis Settings children:', error);
+            // Return error item
+            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Error loading settings', vscode.TreeItemCollapsibleState.None, 'error', undefined, new vscode.ThemeIcon('error'), `Failed to load analysis settings: ${error}`, 'Configuration error', 'analysisSettingsError')];
+        }
     }
     /**
-     * Get the analysis file setting instance (for command registration)
+     * Get specific children for a setting item (for nested items like Dimension Mapping)
      */
-    getAnalysisFileSetting() {
-        return this.analysisFileSetting;
+    async getSettingChildren(element) {
+        console.log(`NEW_CODE_ANALYSIS: Getting children for setting: ${element.contextValue}`);
+        try {
+            switch (element.contextValue) {
+                case 'dimensionMappingFileSetting':
+                    // Return children for Dimension Mapping (File) - TODO1, TODO2, TODO3
+                    return await this.dimensionMappingFileSetting.getChildren();
+                default:
+                    console.log(`NEW_CODE_ANALYSIS: No children available for setting: ${element.contextValue}`);
+                    return [];
+            }
+        }
+        catch (error) {
+            console.error(`NEW_CODE_ANALYSIS: Error getting children for setting ${element.contextValue}:`, error);
+            return [];
+        }
     }
     /**
-     * Get the view theme setting instance (for command registration)
+     * Refresh all settings (can be called when configuration changes)
      */
-    getViewThemeSetting() {
-        return this.viewThemeSetting;
-    }
-    /**
-     * Get the auto-analysis delay setting instance (for command registration)
-     */
-    getAutoAnalysisDelaySetting() {
-        return this.autoAnalysisDelaySetting;
-    }
-    /**
-     * Handle refresh for this subsection
-     */
-    refresh() {
+    async refresh() {
         console.log('NEW_CODE_ANALYSIS: Refreshing Analysis Settings subsection');
-        // Settings will be refreshed when tree view refreshes
+        // Settings will be refreshed automatically when getChildren() is called
     }
 }
 exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
 
 
 /***/ }),
-/* 175 */
+/* 181 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28566,12 +29588,12 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
-var analysisFileMode_1 = __webpack_require__(120);
+var analysisFileMode_1 = __webpack_require__(126);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysisFileMode_1.AnalysisFileSetting; } }));
 
 
 /***/ }),
-/* 176 */
+/* 182 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28581,12 +29603,12 @@ Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: 
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
-var viewTheme_1 = __webpack_require__(125);
+var viewTheme_1 = __webpack_require__(128);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return viewTheme_1.ViewThemeSetting; } }));
 
 
 /***/ }),
-/* 177 */
+/* 183 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28596,12 +29618,12 @@ Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: fun
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
-var autoAnalysisDelay_1 = __webpack_require__(126);
+var autoAnalysisDelay_1 = __webpack_require__(129);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return autoAnalysisDelay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 178 */
+/* 184 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28612,25 +29634,25 @@ Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesCommands = exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = exports.ActiveAnalysesDataService = exports.ActiveAnalysisModelMapper = exports.ActiveAnalysesSubsectionProvider = void 0;
 // Main provider
-var activeAnalysesSubsectionProvider_1 = __webpack_require__(179);
+var activeAnalysesSubsectionProvider_1 = __webpack_require__(185);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return activeAnalysesSubsectionProvider_1.ActiveAnalysesSubsectionProvider; } }));
 // Model components
-var activeAnalysisModel_1 = __webpack_require__(181);
+var activeAnalysisModel_1 = __webpack_require__(187);
 Object.defineProperty(exports, "ActiveAnalysisModelMapper", ({ enumerable: true, get: function () { return activeAnalysisModel_1.ActiveAnalysisModelMapper; } }));
 // Service components
-var activeAnalysesDataService_1 = __webpack_require__(180);
+var activeAnalysesDataService_1 = __webpack_require__(186);
 Object.defineProperty(exports, "ActiveAnalysesDataService", ({ enumerable: true, get: function () { return activeAnalysesDataService_1.ActiveAnalysesDataService; } }));
 // UI components
-var activeAnalysisItems_1 = __webpack_require__(182);
+var activeAnalysisItems_1 = __webpack_require__(188);
 Object.defineProperty(exports, "ActiveAnalysisTreeItem", ({ enumerable: true, get: function () { return activeAnalysisItems_1.ActiveAnalysisTreeItem; } }));
 Object.defineProperty(exports, "ActiveAnalysisItemFactory", ({ enumerable: true, get: function () { return activeAnalysisItems_1.ActiveAnalysisItemFactory; } }));
 // Command components
-var activeAnalysesCommands_1 = __webpack_require__(183);
+var activeAnalysesCommands_1 = __webpack_require__(189);
 Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
 
 
 /***/ }),
-/* 179 */
+/* 185 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28674,11 +29696,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const activeAnalysesDataService_1 = __webpack_require__(180);
-const activeAnalysisModel_1 = __webpack_require__(181);
-const activeAnalysisItems_1 = __webpack_require__(182);
-const activeAnalysesCommands_1 = __webpack_require__(183);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
+const activeAnalysesDataService_1 = __webpack_require__(186);
+const activeAnalysisModel_1 = __webpack_require__(187);
+const activeAnalysisItems_1 = __webpack_require__(188);
+const activeAnalysesCommands_1 = __webpack_require__(189);
 class ActiveAnalysesSubsectionProvider {
     context;
     dataService;
@@ -28719,7 +29741,7 @@ class ActiveAnalysesSubsectionProvider {
             icon = 'beaker';
             iconColor = 'descriptionForeground';
         }
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'subsection', {
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'subsection', {
             command: 'newCodeAnalysis.activeAnalyses.refreshAll',
             title: 'Refresh Active Analyses'
         }, new vscode.ThemeIcon(icon, new vscode.ThemeColor(iconColor)), 'Currently running and recent analysis processes. Click to refresh.', description, 'activeAnalysesSubsection');
@@ -28794,7 +29816,7 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
 
 
 /***/ }),
-/* 180 */
+/* 186 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28804,7 +29826,7 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesDataService = void 0;
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const analysisSessionRegistry_1 = __webpack_require__(103);
 const activeServerRegistry_1 = __webpack_require__(26);
 class ActiveAnalysesDataService {
     static instance;
@@ -29024,7 +30046,7 @@ exports.ActiveAnalysesDataService = ActiveAnalysesDataService;
 
 
 /***/ }),
-/* 181 */
+/* 187 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29209,7 +30231,7 @@ exports.ActiveAnalysisModelMapper = ActiveAnalysisModelMapper;
 
 
 /***/ }),
-/* 182 */
+/* 188 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29253,7 +30275,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
 class ActiveAnalysisTreeItem extends newCodeAnalysisItems_1.NewCodeAnalysisTreeItem {
     sessionData;
     constructor(uiItem) {
@@ -29393,7 +30415,7 @@ exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
 
 
 /***/ }),
-/* 183 */
+/* 189 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29437,12 +30459,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysesDataService_1 = __webpack_require__(180);
+const activeAnalysesDataService_1 = __webpack_require__(186);
 const activeServerRegistry_1 = __webpack_require__(26);
 const serverControl_1 = __webpack_require__(28);
-const serverWatcherIntegration_1 = __webpack_require__(111);
-const fileWatcher_1 = __webpack_require__(104);
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const serverWatcherIntegration_1 = __webpack_require__(116);
+const fileWatcher_1 = __webpack_require__(111);
+const analysisSessionRegistry_1 = __webpack_require__(103);
 const fs = __importStar(__webpack_require__(6));
 class ActiveAnalysesCommands {
     dataService;
@@ -29835,7 +30857,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 184 */
+/* 190 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -29845,12 +30867,12 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
-var projectByLanguageSubsectionProvider_1 = __webpack_require__(185);
+var projectByLanguageSubsectionProvider_1 = __webpack_require__(191);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return projectByLanguageSubsectionProvider_1.ProjectByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 185 */
+/* 191 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29894,7 +30916,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
 class ProjectByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -29930,7 +30952,7 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
 
 
 /***/ }),
-/* 186 */
+/* 192 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -29940,12 +30962,12 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
-var filesByLanguageSubsectionProvider_1 = __webpack_require__(187);
+var filesByLanguageSubsectionProvider_1 = __webpack_require__(193);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return filesByLanguageSubsectionProvider_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 187 */
+/* 193 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29989,7 +31011,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(127);
 class FilesByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -30025,7 +31047,7 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 
 
 /***/ }),
-/* 188 */
+/* 194 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30036,19 +31058,19 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(189);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(195);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(190);
+var visualizationSettingsItems_1 = __webpack_require__(196);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(191);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(197);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 189 */
+/* 195 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30088,8 +31110,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(190);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(191);
+const visualizationSettingsItems_1 = __webpack_require__(196);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(197);
 const settingsStorage_1 = __webpack_require__(49);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
@@ -30178,7 +31200,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 190 */
+/* 196 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30271,7 +31293,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 191 */
+/* 197 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30454,7 +31476,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 192 */
+/* 198 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -30615,7 +31637,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 193 */
+/* 199 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30625,17 +31647,17 @@ function getLanguageStats() {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = exports.NewCodeAnalysisSectionProvider = void 0;
-var NewCodeAnalysisSectionProvider_1 = __webpack_require__(170);
+var NewCodeAnalysisSectionProvider_1 = __webpack_require__(176);
 Object.defineProperty(exports, "NewCodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider; } }));
-var items_1 = __webpack_require__(194);
+var items_1 = __webpack_require__(200);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisItemFactory; } }));
-var interactions_1 = __webpack_require__(195);
+var interactions_1 = __webpack_require__(201);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return interactions_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 194 */
+/* 200 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30645,13 +31667,13 @@ Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
-var newCodeAnalysisItems_1 = __webpack_require__(121);
+var newCodeAnalysisItems_1 = __webpack_require__(127);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisItemFactory; } }));
 
 
 /***/ }),
-/* 195 */
+/* 201 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30661,12 +31683,12 @@ Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = void 0;
-var handleNewCodeAnalysisClicks_1 = __webpack_require__(171);
+var handleNewCodeAnalysisClicks_1 = __webpack_require__(177);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 196 */
+/* 202 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30809,14 +31831,14 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 197 */,
-/* 198 */
+/* 203 */,
+/* 204 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 199 */
+/* 205 */
 /***/ ((module) => {
 
 module.exports = require("node:os");

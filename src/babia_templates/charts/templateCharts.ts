@@ -14,14 +14,14 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'Categories (X-Axis)',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bar heights'
@@ -52,21 +52,21 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'X-Axis Categories',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
-                label: 'Z-Axis Categories',
+                label: 'Z-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bar heights'
@@ -98,21 +98,21 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'Categories',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for cylinder heights'
             },
             {
                 name: 'radius',
-                label: 'Radius Values',
+                label: 'Radius',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for cylinder radius'
@@ -127,7 +127,8 @@ export const chartTemplates: ChartMetadata[] = [
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
                                 radius: {{RADIUS_FIELD}};
-                                axis_name: true"
+                                axis_name: true;
+                                radiusMax: 1;"
                     position="0 2 -10"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -144,21 +145,21 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'X-Axis Categories',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
-                label: 'Z-Axis Categories',
+                label: 'Z-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for cylinder heights'
@@ -181,7 +182,8 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    radius: {{RADIUS_FIELD}};
-                                   axis_name: true"
+                                   axis_name: true;
+                                   radiusMax: 1;"
                     position="0 2 -10"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -198,14 +200,14 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'key',
-                label: 'Categories',
+                label: 'Key',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names'
             },
             {
                 name: 'size',
-                label: 'Values', 
+                label: 'Size', 
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for each category'
@@ -213,15 +215,16 @@ export const chartTemplates: ChartMetadata[] = [
         ],
         htmlTemplate: `<!-- Donut Chart -->
                 <a-entity id="chart"
-                    babia-donut="from: data;
+                    babia-doughnut="from: data;
                                  title: {{TITLE}};
+                                titlePosition: 2.5 0 -3;
                                  legend: true;
                                  palette: {{PALETTE}};
                                  key: {{KEY_FIELD}};
                                  size: {{SIZE_FIELD}};
                                  axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
+                    position="0 4 0"
+                    rotation="90 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
@@ -236,14 +239,14 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'key',
-                label: 'Categories',
+                label: 'Key',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing category names'
             },
             {
                 name: 'size',
-                label: 'Values',
+                label: 'Size',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for each sector'
@@ -253,13 +256,14 @@ export const chartTemplates: ChartMetadata[] = [
                 <a-entity id="chart"
                     babia-pie="from: data;
                                title: {{TITLE}};
+                                titlePosition: 2.5 0 -3;
                                legend: true;
                                palette: {{PALETTE}};
                                key: {{KEY_FIELD}};
                                size: {{SIZE_FIELD}};
                                axis_name: true"
-                    position="0 2 -10"
-                    rotation="0 0 0"
+                    position="0 4 0"
+                    rotation="90 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
@@ -274,28 +278,28 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'x_axis',
-                label: 'X-Axis Values',
+                label: 'X-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing values for x-axis positioning'
             },
             {
                 name: 'z_axis',
-                label: 'Z-Axis Values',
+                label: 'Z-Axis',
                 dataType: 'any',
                 required: true,
                 description: 'Field containing values for z-axis positioning'
             },
             {
                 name: 'height',
-                label: 'Height Values',
+                label: 'Height',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bubble height positioning'
             },
             {
                 name: 'radius',
-                label: 'Radius Values',
+                label: 'Radius',
                 dataType: 'numeric',
                 required: true,
                 description: 'Field containing numeric values for bubble radius/size'
@@ -311,7 +315,10 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    radius: {{RADIUS_FIELD}};
-                                   axis_name: true"
+                                   axis_name: true;
+                                   heightMax: 5;
+                                   radiusMax: 1;"
+
                     position="0 2 -10"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -328,24 +335,24 @@ export const chartTemplates: ChartMetadata[] = [
         dimensions: [
             {
                 name: 'area',
-                label: 'Area Values',
-                dataType: 'numeric',
+                label: 'Area',
+                dataType: 'any',
                 required: true,
-                description: 'Field containing numeric values for boat area size (e.g., parameters, function count)'
+                description: 'Field containing any values for boat area size (e.g., parameters, function count)'
             },
             {
                 name: 'height',
-                label: 'Height Values',
-                dataType: 'numeric',
+                label: 'Height',
+                dataType: 'any',
                 required: true,
-                description: 'Field containing numeric values for boat height (e.g., lines count, complexity)'
+                description: 'Field containing any values for boat height (e.g., lines count, complexity)'
             },
             {
                 name: 'color',
-                label: 'Color Values',
-                dataType: 'numeric',
+                label: 'Color',
+                dataType: 'any',
                 required: true,
-                description: 'Field containing numeric values for color mapping (e.g., complexity, density)'
+                description: 'Field containing any values for color mapping (e.g., complexity, density)'
             }
         ],
         htmlTemplate: `<!-- Boats Chart -->

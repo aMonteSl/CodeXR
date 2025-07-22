@@ -9,9 +9,13 @@ import {
     ViewThemeSetting, 
     AutoAnalysisDelaySetting 
 } from '../../../views/subsections/analysis_settings';
+import { ChartTypeFileSetting } from '../../../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
+import { DimensionMappingFileSetting } from '../../../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
 import { AnalysisFileModeCommands, CommandRegistration } from './analysis_file_mode';
 import { ViewThemeCommands } from './view_theme';
 import { AutoAnalysisDelayCommands } from './auto_analysis_delay';
+import { ChartTypeFileCommands } from './chart_type_file/chartTypeFileCommands';
+import { DimensionMappingFileCommands } from './dimension_mapping_file/dimensionMappingFileCommands';
 
 export class AnalysisSettingsCommands {
 
@@ -26,6 +30,8 @@ export class AnalysisSettingsCommands {
         analysisFileSetting: AnalysisFileSetting,
         viewThemeSetting: ViewThemeSetting,
         autoAnalysisDelaySetting: AutoAnalysisDelaySetting,
+        chartTypeFileSetting: ChartTypeFileSetting,
+        dimensionMappingFileSetting: DimensionMappingFileSetting,
         refreshCallback: () => void
     ): CommandRegistration[] {
         console.log('NEW_CODE_ANALYSIS: Collecting Analysis Settings command registrations');
@@ -47,6 +53,22 @@ export class AnalysisSettingsCommands {
             refreshCallback
         );
         commandRegistrations.push(...viewThemeCommands);
+
+        // Collect chart type file command registrations
+        const chartTypeFileCommands = ChartTypeFileCommands.getCommandRegistrations(
+            context,
+            chartTypeFileSetting,
+            refreshCallback
+        );
+        commandRegistrations.push(...chartTypeFileCommands);
+
+        // Collect dimension mapping file command registrations
+        const dimensionMappingFileCommands = DimensionMappingFileCommands.getCommandRegistrations(
+            context,
+            dimensionMappingFileSetting,
+            refreshCallback
+        );
+        commandRegistrations.push(...dimensionMappingFileCommands);
 
         // Collect auto-analysis delay command registrations
         const autoAnalysisDelayCommands = AutoAnalysisDelayCommands.getCommandRegistrations(

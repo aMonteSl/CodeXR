@@ -149,7 +149,7 @@ export class ParseTemplates {
     }
 
     /**
-     * Parse XR Visualization template for XR analysis with boats chart
+     * Parse XR Visualization template for XR analysis with user-configured chart
      */
     static async parseXRVisualizationTemplate(
         context: vscode.ExtensionContext,
@@ -159,6 +159,7 @@ export class ParseTemplates {
             filePath: string; 
             title?: string;
             chartId: string;
+            dimensionMapping?: Record<string, string>;
         }
     ): Promise<ParsedTemplateFiles> {
         try {
@@ -167,8 +168,21 @@ export class ParseTemplates {
             console.log(`PARSE_TEMPLATES: Chart ID: ${xrData.chartId}`);
             console.log(`PARSE_TEMPLATES: Analysis data:`, xrData.analysisData);
 
-            // Prepare dimension mappings for boats chart (area=parameters, height=lineCount, color=complexity)
-            const mappings = TemplateProcessor.createDefaultXRMappings();
+            // Use user-configured dimension mappings or fall back to default
+            let mappings;
+            if (xrData.dimensionMapping && Object.keys(xrData.dimensionMapping).length > 0) {
+                console.log(`[CHART_CONFIGURED] Using user-configured dimension mappings:`, xrData.dimensionMapping);
+                // Convert user mapping format to DimensionMapping[] format
+                mappings = Object.entries(xrData.dimensionMapping).map(([dimension, dataField]) => ({
+                    dimension: dimension,
+                    dataField: dataField
+                }));
+                console.log(`[CHART_CONFIGURED] Converted mappings:`, mappings);
+            } else {
+                console.log(`[CHART_CONFIGURED] No user dimension mappings found, using defaults`);
+                mappings = TemplateProcessor.createDefaultXRMappings();
+            }
+            
             console.log(`PARSE_TEMPLATES: Using dimension mappings:`, mappings);
 
             // Prepare data source path (this will be replaced with actual data.json path)

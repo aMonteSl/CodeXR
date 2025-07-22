@@ -12,6 +12,8 @@ import { FileWatcher } from './utils/fileWatcher';
 import { LaunchServer } from './utils/launchServer';
 import { AnalysisSessionManager } from './registry/analysisSessionManager';
 import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
+import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
+import { DimensionMappingValidator } from '../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingValidator';
 
 export class LaunchAnalyzeFileXR {
 
@@ -45,10 +47,54 @@ export class LaunchAnalyzeFileXR {
             const session = await sessionManager.startAnalysis(filePath, 'FileXRAnalysis', context);
             console.log(`ANALYZE_FILE_XR_ENGINE: Created session ${session.id} for XR analysis`);
             
+            // **VALIDATION: Check dimension mappings before proceeding**
+            console.log(`ANALYZE_FILE_XR_ENGINE: Validating dimension mappings...`);
+            const storage = AnalysisConfigurationStorage.getInstance(context);
+            const chartType = await storage.getChartTypeFile();
+            const dimensionMappings = await storage.getDimensionMappingFile();
+            
+            if (!chartType) {
+                const errorMessage = '🚫 XR Analysis Error: No chart type selected. Please select a chart type in the Analysis Settings first.';
+                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
+                vscode.window.showErrorMessage(errorMessage);
+                sessionManager.failAnalysis(session.id, 'No chart type selected');
+                return;
+            }
+            
+            // Validate dimension mappings
+            const validationResult = DimensionMappingValidator.validateMappingsForChart(
+                chartType,
+                dimensionMappings
+            );
+            
+            if (!validationResult.isValid) {
+                let errorMessage = `🚫 XR Analysis Error: Invalid dimension configuration for ${chartType} chart.\n\n`;
+                
+                if (validationResult.hasMissingRequired) {
+                    errorMessage += `Missing required dimensions: ${validationResult.missingRequired.join(', ')}\n`;
+                }
+                
+                if (validationResult.hasConflicts) {
+                    errorMessage += `Dimension conflicts detected:\n`;
+                    for (const conflict of validationResult.conflicts) {
+                        errorMessage += `• Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}\n`;
+                    }
+                }
+                
+                errorMessage += '\nPlease fix the dimension mappings in Analysis Settings before running XR analysis.';
+                
+                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
+                vscode.window.showErrorMessage(errorMessage, { modal: true });
+                sessionManager.failAnalysis(session.id, 'Invalid dimension configuration');
+                return;
+            }
+            
+            console.log(`ANALYZE_FILE_XR_ENGINE: ✅ Dimension validation passed for ${chartType} chart`);
+            
             // Show start message to user
             const fileName = require('path').basename(filePath);
             vscode.window.showInformationMessage(
-                `🥽 CodeXR: Starting XR analysis for "${fileName}" (${languageInfo.name})...`,
+                `🥽 CodeXR: Starting XR analysis for "${fileName}" (${languageInfo.name}) with ${chartType} chart...`,
                 { modal: false }
             );
 
@@ -76,11 +122,24 @@ export class LaunchAnalyzeFileXR {
                     console.warn(`ANALYZE_FILE_XR_ENGINE: ❌ No SSE JavaScript generated`);
                 }
                 
-                console.log(`ANALYZE_FILE_XR_ENGINE: ===== BOATS CHART CONFIGURATION =====`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Chart Type: boats`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Area Dimension: parameters (function parameters count)`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Height Dimension: lineCount (lines of code count)`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Color Dimension: complexity (cyclomatic complexity)`);
+                // Get user chart configuration
+                const { AnalysisConfigurationStorage } = require('../configuration');
+                const storage = AnalysisConfigurationStorage.getInstance(context);
+                const userChartType = await storage.getChartTypeFile();
+                const userDimensionMapping = await storage.getDimensionMappingFile();
+                
+                console.log(`ANALYZE_FILE_XR_ENGINE: ===== USER CHART CONFIGURATION =====`);
+                console.log(`[CHART_CONFIGURED] Chart Type: ${userChartType}`);
+                console.log(`[CHART_CONFIGURED] Dimension Mappings:`, userDimensionMapping);
+                
+                // Show detailed mapping info
+                if (Object.keys(userDimensionMapping).length > 0) {
+                    for (const [dimension, dataField] of Object.entries(userDimensionMapping)) {
+                        console.log(`[CHART_CONFIGURED] ${dimension} → ${dataField}`);
+                    }
+                } else {
+                    console.log(`[CHART_CONFIGURED] No custom dimension mappings, using defaults`);
+                }
                 console.log(`ANALYZE_FILE_XR_ENGINE: ============================================`);
 
                 // Save all files to workspace storage using session
@@ -135,7 +194,7 @@ export class LaunchAnalyzeFileXR {
 
                     // Show success message with data info
                     vscode.window.showInformationMessage(
-                        `🥽 XR Analysis completed for "${fileName}"! Boats chart visualization saved, file watcher started, and server launched.`,
+                        `🥽 XR Analysis completed for "${fileName}"! ${userChartType} chart visualization saved, file watcher started, and server launched.`,
                         'Got it!',
                         'View File',
                         'Open XR Visualization'

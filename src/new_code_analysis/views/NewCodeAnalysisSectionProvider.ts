@@ -13,6 +13,7 @@ import {
     ProjectByLanguageSubsectionProvider,
     FilesByLanguageSubsectionProvider
 } from './subsections';
+import { AnalysisSessionRegistry } from '../engine/registry/analysisSessionRegistry';
 
 /**
  * TODO: Implement tree data provider for new code analysis
@@ -42,6 +43,13 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         this.projectByLanguageSubsection = new ProjectByLanguageSubsectionProvider(context);
         this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context);
 
+        // Set up listener for analysis session changes to auto-refresh UI
+        const sessionRegistry = AnalysisSessionRegistry.getInstance();
+        sessionRegistry.onSessionChanged((session) => {
+            console.log(`NEW_CODE_ANALYSIS: Session ${session.id} changed to ${session.status} - auto-refreshing UI`);
+            this.refresh();
+        });
+
         // Commands are now registered centrally in src/commands/new_code_analysis
         // following the "nested dolls" architecture pattern
         console.log('NEW_CODE_ANALYSIS: Section provider initialized. Commands registered centrally.');
@@ -60,7 +68,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
     getSectionItem(): NewCodeAnalysisTreeItem {
         return new NewCodeAnalysisTreeItem(
             'NEW CODE ANALYSIS',
-            vscode.TreeItemCollapsibleState.Collapsed,
+            vscode.TreeItemCollapsibleState.Expanded,
             'section',
             undefined,
             new vscode.ThemeIcon('search-view-icon'),
@@ -97,15 +105,16 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
     /**
      * Get children for tree element
      */
-    getChildren(element?: NewCodeAnalysisTreeItem): Thenable<NewCodeAnalysisTreeItem[]> {
+    async getChildren(element?: NewCodeAnalysisTreeItem): Promise<NewCodeAnalysisTreeItem[]> {
         if (!element) {
             // Return root subsections
-            return Promise.resolve([
+            const subsections = await Promise.all([
                 this.activeAnalysesSubsection.getSubsectionItem(),
                 this.analysisSettingsSubsection.getSubsectionItem(),
                 this.projectByLanguageSubsection.getSubsectionItem(),
                 this.filesByLanguageSubsection.getSubsectionItem()
             ]);
+            return subsections;
         }
 
         // Handle children for specific subsections
@@ -118,6 +127,11 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
                 return this.projectByLanguageSubsection.getChildren();
             case 'filesByLanguageSubsection':
                 return this.filesByLanguageSubsection.getChildren();
+            
+            // Handle nested settings like dimension mapping
+            case 'dimensionMappingFileSetting':
+                return this.analysisSettingsSubsection.getSettingChildren(element);
+                
             default:
                 return Promise.resolve([]);
         }

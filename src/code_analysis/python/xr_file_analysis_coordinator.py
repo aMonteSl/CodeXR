@@ -59,17 +59,14 @@ def analyze_file_for_xr(file_path):
         
         for func in lizard_data.get('functions', []):
             xr_function = {
-                "fileName": func.get('name', 'unknown'),
-                "lineStart": func.get('start_line', 0),
-                "lineEnd": func.get('end_line', 0),
-                "lineCount": func.get('nloc', 0),  # NLOC = Non-comment Lines of Code
-                "complexity": func.get('cyclomatic_complexity', 1),
-                "parameters": func.get('parameter_count', 0),
-                "maxNestingDepth": func.get('max_nesting_depth', 0),
-                "cyclomaticDensity": calculate_cyclomatic_density(
-                    func.get('cyclomatic_complexity', 1),
-                    func.get('nloc', 1)
-                )
+                "functionName": func.get('name', 'unknown'),
+                "lineStart": func.get('lineStart', 0),
+                "lineEnd": func.get('lineEnd', 0),
+                "lineCount": func.get('lineCount', 0),  # NLOC = Non-comment Lines of Code
+                "complexity": func.get('complexity', 1),
+                "parameters": func.get('parameters', 0),
+                "maxNestingDepth": func.get('maxNestingDepth', 0),
+                "cyclomaticDensity": func.get('cyclomaticDensity', 0.0)
             }
             xr_functions.append(xr_function)
         
@@ -127,7 +124,7 @@ def generate_fallback_xr_data(file_path):
     
     # Generate a single fallback function entry
     fallback_function = {
-        "fileName": base_name,
+        "functionName": base_name,
         "lineStart": 1,
         "lineEnd": total_lines,
         "lineCount": total_lines,

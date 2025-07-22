@@ -55,7 +55,7 @@ export class ActiveAnalysesSubsectionProvider {
         
         return new NewCodeAnalysisTreeItem(
             label,
-            vscode.TreeItemCollapsibleState.Collapsed,
+            vscode.TreeItemCollapsibleState.Expanded,
             'subsection',
             {
                 command: 'newCodeAnalysis.activeAnalyses.refreshAll',

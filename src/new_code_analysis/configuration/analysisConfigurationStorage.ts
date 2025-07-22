@@ -11,6 +11,8 @@ import {
     AnalysisFileMode,
     ViewTheme,
     AutoAnalysisDelayConfig,
+    ChartType,
+    DimensionMapping,
     DEFAULT_CONFIGURATION_FILE,
     DEFAULT_ANALYSIS_CONFIGURATION
 } from './models/analysisConfiguration';
@@ -253,5 +255,49 @@ export class AnalysisConfigurationStorage {
     public async forceReloadConfiguration(): Promise<AnalysisConfiguration> {
         this.cachedConfiguration = null;
         return await this.loadConfiguration();
+    }
+
+    /**
+     * Get chart type for file analysis
+     */
+    public async getChartTypeFile(): Promise<import('./models/analysisConfiguration').ChartType> {
+        const config = await this.loadConfiguration();
+        return config.chartTypeFile;
+    }
+
+    /**
+     * Set chart type for file analysis
+     */
+    public async setChartTypeFile(chartType: import('./models/analysisConfiguration').ChartType): Promise<void> {
+        await this.updateConfiguration({ chartTypeFile: chartType });
+    }
+
+    /**
+     * Get dimension mapping for file analysis
+     */
+    public async getDimensionMappingFile(): Promise<import('./models/analysisConfiguration').DimensionMapping> {
+        const config = await this.loadConfiguration();
+        return config.dimensionMappingFile;
+    }
+
+    /**
+     * Set dimension mapping for file analysis
+     */
+    public async setDimensionMappingFile(mapping: import('./models/analysisConfiguration').DimensionMapping): Promise<void> {
+        await this.updateConfiguration({ dimensionMappingFile: mapping });
+    }
+
+    /**
+     * Get current analysis mode (alias for getAnalysisFileMode for compatibility)
+     */
+    public async getAnalysisMode(): Promise<import('./models/analysisConfiguration').AnalysisFileMode> {
+        return await this.getAnalysisFileMode();
+    }
+
+    /**
+     * Set analysis mode (alias for setAnalysisFileMode for compatibility)
+     */
+    public async setAnalysisMode(mode: import('./models/analysisConfiguration').AnalysisFileMode): Promise<void> {
+        await this.setAnalysisFileMode(mode);
     }
 }

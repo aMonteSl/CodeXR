@@ -162,21 +162,6 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "codexr.analysis.fileStatic",
-        "title": "Analyze File (Static)",
-        "icon": "$(file)"
-      },
-      {
-        "command": "codexr.analysis.fileXR",
-        "title": "Analyze File (XR)",
-        "icon": "$(file)"
-      },
-      {
-        "command": "codexr.activeAnalysis.stopAnalysis",
-        "title": "Stop Analysis",
-        "icon": "$(stop-circle)"
-      },
-      {
         "command": "newCodeAnalysis.analyzeFile",
         "title": "CodeXR: Analyze File (LivePanel)",
         "icon": "$(file-code)"
@@ -259,16 +244,6 @@
           "command": "newCodeAnalysis.visualizeDOM",
           "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
           "group": "codexr@1"
-        },
-        {
-          "command": "codexr.analysis.fileStatic",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
-          "group": "codexr@2"
-        },
-        {
-          "command": "codexr.analysis.fileXR",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
-          "group": "codexr@3"
         }
       ],
       "editor/context": [
@@ -286,16 +261,6 @@
           "command": "newCodeAnalysis.visualizeDOM",
           "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
           "group": "codexr@1"
-        },
-        {
-          "command": "codexr.analysis.fileStatic",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
-          "group": "codexr@2"
-        },
-        {
-          "command": "codexr.analysis.fileXR",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
-          "group": "codexr@3"
         }
       ],
       "view/item/context": [
@@ -313,11 +278,6 @@
           "command": "newCodeAnalysis.activeAnalyses.viewDetails",
           "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|completed|failed)$/",
           "group": "activeAnalyses@3"
-        },
-        {
-          "command": "codexr.activeAnalysis.stopAnalysis",
-          "when": "view == codexrTree && viewItem =~ /^active-analysis-(running|completed|failed|paused)$/",
-          "group": "codexr@1"
         }
       ]
     }
