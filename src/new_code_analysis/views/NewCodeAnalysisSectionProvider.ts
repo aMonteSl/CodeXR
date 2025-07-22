@@ -132,6 +132,9 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
             case 'dimensionMappingFileSetting':
                 return this.analysisSettingsSubsection.getSettingChildren(element);
             
+            case 'filesByLanguageSortingSetting':
+                return this.analysisSettingsSubsection.getSettingChildren(element);
+            
             // Handle Files by Language nested children
             case 'unsupportedFilesGroup':
                 return this.filesByLanguageSubsection.getNestedChildren(element);

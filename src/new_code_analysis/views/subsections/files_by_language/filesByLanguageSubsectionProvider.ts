@@ -6,14 +6,21 @@
 import * as vscode from 'vscode';
 import { NewCodeAnalysisTreeItem } from '../../items/newCodeAnalysisItems';
 import { WorkspaceFileScanner, WorkspaceFilesSummary } from '../../../utils/workspaceFileScanner';
+import { FilesByLanguageSortingUtils, LanguageGroupWithMetadata } from '../../../utils/filesByLanguageSortingUtils';
+import { AnalysisConfigurationStorage } from '../../../configuration/analysisConfigurationStorage';
+import { LaunchAnalyzeFileXR } from '../../../engine/launchAnalyzeFileXR';
+import { LaunchAnalyzeFileLivePanel } from '../../../engine/launchAnalyzeFileLivePanel';
+import { LaunchVisualizeDOMPanel } from '../../../engine/launchVisualizeDOMPanel';
 
 export class FilesByLanguageSubsectionProvider {
     private cachedSummary: WorkspaceFilesSummary | null = null;
     private lastScanTime: number = 0;
     private readonly CACHE_DURATION = 30000; // 30 seconds cache
+    private storage: AnalysisConfigurationStorage;
     
     constructor(private context: vscode.ExtensionContext) {
         console.log('NEW_CODE_ANALYSIS: Initializing Files by Language subsection provider');
+        this.storage = AnalysisConfigurationStorage.getInstance(context);
     }
 
     /**
@@ -22,16 +29,16 @@ export class FilesByLanguageSubsectionProvider {
     async getSubsectionItem(): Promise<NewCodeAnalysisTreeItem> {
         const summary = await this.getWorkspaceFilesSummary();
         
-        const description = `${summary.totalLanguages} programming languages - ${summary.totalFiles} files`;
+        const description = `(${summary.totalLanguages} languages - ${summary.totalFiles} files) - Individual files organized by programming language`;
         
         return new NewCodeAnalysisTreeItem(
             'Files by Language',
             vscode.TreeItemCollapsibleState.Collapsed,
             'subsection',
             undefined,
-            new vscode.ThemeIcon('files'),
-            description,
-            'Individual files organized by programming language',
+            new vscode.ThemeIcon('folder'), // Changed to folder icon in white as requested
+            description, // This goes to tooltip
+            description, // This goes to description (visible text)
             'filesByLanguageSubsection'
         );
     }
@@ -43,27 +50,30 @@ export class FilesByLanguageSubsectionProvider {
         console.log('NEW_CODE_ANALYSIS: Getting Files by Language children');
         
         const summary = await this.getWorkspaceFilesSummary();
+        const sortingConfig = await this.storage.getFilesByLanguageSorting();
         const children: NewCodeAnalysisTreeItem[] = [];
 
-        // Add supported language groups
-        const languageNames = Object.keys(summary.supportedFiles).sort();
+        // Sort language groups according to configuration
+        const sortedLanguageGroups = FilesByLanguageSortingUtils.sortLanguageGroups(
+            summary.supportedFiles,
+            sortingConfig
+        );
         
-        for (const languageName of languageNames) {
-            const languageGroup = summary.supportedFiles[languageName];
-            const fileCount = languageGroup.files.length;
+        for (const languageGroup of sortedLanguageGroups) {
+            const fileCount = languageGroup.fileCount;
             
             // Get icon for this language
-            const iconUri = WorkspaceFileScanner.getLanguageIconUri(this.context, languageName);
+            const iconUri = WorkspaceFileScanner.getLanguageIconUri(this.context, languageGroup.languageName);
             
             const languageItem = new NewCodeAnalysisTreeItem(
-                languageName,
+                languageGroup.languageName,
                 vscode.TreeItemCollapsibleState.Collapsed,
                 'subsection',
                 undefined,
                 iconUri,
                 `${fileCount} files`,
-                `${fileCount} files of ${languageName}`,
-                `languageGroup_${languageName}`
+                `${fileCount} files of ${languageGroup.languageName}`,
+                `languageGroup_${languageGroup.languageName}`
             );
             
             children.push(languageItem);
@@ -103,10 +113,17 @@ export class FilesByLanguageSubsectionProvider {
             return [];
         }
 
+        // Get sorting configuration and sort files
+        const sortingConfig = await this.storage.getFilesByLanguageSorting();
+        const sortedFiles = await FilesByLanguageSortingUtils.sortFilesInGroup(
+            languageGroup.files,
+            sortingConfig
+        );
+
         const children: NewCodeAnalysisTreeItem[] = [];
         const iconUri = WorkspaceFileScanner.getLanguageIconUri(this.context, languageName);
 
-        for (const filePath of languageGroup.files) {
+        for (const filePath of sortedFiles) {
             const fileName = require('path').basename(filePath);
             
             const fileItem = new NewCodeAnalysisTreeItem(
@@ -114,13 +131,13 @@ export class FilesByLanguageSubsectionProvider {
                 vscode.TreeItemCollapsibleState.None,
                 'file-item',
                 {
-                    command: 'vscode.open',
-                    title: 'Open File',
-                    arguments: [vscode.Uri.file(require('path').resolve(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', filePath))]
+                    command: 'newCodeAnalysis.runAndAnalyzeFile',
+                    title: 'Run and Analyze File',
+                    arguments: [filePath, languageName]
                 },
                 iconUri,
                 filePath,
-                `Click to open ${fileName}`,
+                `${vscode.workspace.asRelativePath(filePath)} - Click to run and analyze`, // Added file path before description
                 `languageFile_${languageName}_${encodeURIComponent(filePath)}`
             );
             
@@ -138,9 +155,12 @@ export class FilesByLanguageSubsectionProvider {
         console.log(`NEW_CODE_ANALYSIS: Getting unsupported files`);
         
         const summary = await this.getWorkspaceFilesSummary();
+        
+        // Sort unsupported files alphabetically for consistency
+        const sortedUnsupportedFiles = [...summary.unsupportedFiles].sort();
         const children: NewCodeAnalysisTreeItem[] = [];
 
-        for (const filePath of summary.unsupportedFiles) {
+        for (const filePath of sortedUnsupportedFiles) {
             const fileName = require('path').basename(filePath);
             const fileExtension = require('path').extname(filePath);
             

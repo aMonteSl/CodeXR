@@ -10,6 +10,7 @@ import { ViewThemeSetting } from './view_theme';
 import { ChartTypeFileSetting } from './chart_type_file/chartTypeFile';
 import { DimensionMappingFileSetting } from './dimension_mapping_file/dimensionMappingFile';
 import { AutoAnalysisDelaySetting } from './auto_analysis_delay';
+import { FilesByLanguageSortingSetting } from './files_by_language_sorting';
 
 export class AnalysisSettingsSubsectionProvider {
     private analysisFileSetting: AnalysisFileSetting;
@@ -17,6 +18,7 @@ export class AnalysisSettingsSubsectionProvider {
     private chartTypeFileSetting: ChartTypeFileSetting;
     private dimensionMappingFileSetting: DimensionMappingFileSetting;
     private autoAnalysisDelaySetting: AutoAnalysisDelaySetting;
+    private filesByLanguageSortingSetting: FilesByLanguageSortingSetting;
     
     constructor(private context: vscode.ExtensionContext) {
         console.log('NEW_CODE_ANALYSIS: Initializing Analysis Settings subsection provider');
@@ -27,6 +29,7 @@ export class AnalysisSettingsSubsectionProvider {
         this.chartTypeFileSetting = new ChartTypeFileSetting(context);
         this.dimensionMappingFileSetting = new DimensionMappingFileSetting(context);
         this.autoAnalysisDelaySetting = new AutoAnalysisDelaySetting(context);
+        this.filesByLanguageSortingSetting = new FilesByLanguageSortingSetting(context);
     }
 
     /**
@@ -74,6 +77,10 @@ export class AnalysisSettingsSubsectionProvider {
             const autoAnalysisDelayItem = await this.autoAnalysisDelaySetting.getSettingItem();
             children.push(autoAnalysisDelayItem);
             
+            // Files by Language Sorting setting - NEW
+            const filesByLanguageSortingItem = await this.filesByLanguageSortingSetting.getSettingItem();
+            children.push(filesByLanguageSortingItem);
+            
             console.log(`NEW_CODE_ANALYSIS: Analysis Settings children count: ${children.length}`);
             return children;
             
@@ -105,6 +112,10 @@ export class AnalysisSettingsSubsectionProvider {
                 case 'dimensionMappingFileSetting':
                     // Return children for Dimension Mapping (File) - TODO1, TODO2, TODO3
                     return await this.dimensionMappingFileSetting.getChildren();
+                
+                case 'filesByLanguageSortingSetting':
+                    // Return children for Files by Language Sorting
+                    return await this.filesByLanguageSortingSetting.getChildren();
                 
                 default:
                     console.log(`NEW_CODE_ANALYSIS: No children available for setting: ${element.contextValue}`);

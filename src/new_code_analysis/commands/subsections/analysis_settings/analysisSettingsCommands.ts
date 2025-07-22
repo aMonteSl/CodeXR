@@ -11,11 +11,13 @@ import {
 } from '../../../views/subsections/analysis_settings';
 import { ChartTypeFileSetting } from '../../../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
 import { DimensionMappingFileSetting } from '../../../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
+import { FilesByLanguageSortingSetting } from '../../../views/subsections/analysis_settings/files_by_language_sorting';
 import { AnalysisFileModeCommands, CommandRegistration } from './analysis_file_mode';
 import { ViewThemeCommands } from './view_theme';
 import { AutoAnalysisDelayCommands } from './auto_analysis_delay';
 import { ChartTypeFileCommands } from './chart_type_file/chartTypeFileCommands';
 import { DimensionMappingFileCommands } from './dimension_mapping_file/dimensionMappingFileCommands';
+import { FilesByLanguageSortingCommands } from './filesByLanguageSortingCommands';
 
 export class AnalysisSettingsCommands {
 
@@ -32,6 +34,7 @@ export class AnalysisSettingsCommands {
         autoAnalysisDelaySetting: AutoAnalysisDelaySetting,
         chartTypeFileSetting: ChartTypeFileSetting,
         dimensionMappingFileSetting: DimensionMappingFileSetting,
+        filesByLanguageSortingSetting: FilesByLanguageSortingSetting,
         refreshCallback: () => void
     ): CommandRegistration[] {
         console.log('NEW_CODE_ANALYSIS: Collecting Analysis Settings command registrations');
@@ -77,6 +80,14 @@ export class AnalysisSettingsCommands {
             refreshCallback
         );
         commandRegistrations.push(...autoAnalysisDelayCommands);
+
+        // Collect files by language sorting command registrations
+        const filesByLanguageSortingCommands = FilesByLanguageSortingCommands.getCommandRegistrations(
+            context,
+            filesByLanguageSortingSetting,
+            refreshCallback
+        );
+        commandRegistrations.push(...filesByLanguageSortingCommands);
 
         console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Analysis Settings command registrations`);
         return commandRegistrations;

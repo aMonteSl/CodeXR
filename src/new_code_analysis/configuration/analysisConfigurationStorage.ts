@@ -13,6 +13,7 @@ import {
     AutoAnalysisDelayConfig,
     ChartType,
     DimensionMapping,
+    FilesByLanguageSortingConfig,
     DEFAULT_CONFIGURATION_FILE,
     DEFAULT_ANALYSIS_CONFIGURATION
 } from './models/analysisConfiguration';
@@ -299,5 +300,21 @@ export class AnalysisConfigurationStorage {
      */
     public async setAnalysisMode(mode: import('./models/analysisConfiguration').AnalysisFileMode): Promise<void> {
         await this.setAnalysisFileMode(mode);
+    }
+
+    /**
+     * Get Files by Language sorting configuration
+     */
+    public async getFilesByLanguageSorting(): Promise<import('./models/analysisConfiguration').FilesByLanguageSortingConfig> {
+        const config = await this.loadConfiguration();
+        return config.filesByLanguageSorting;
+    }
+
+    /**
+     * Set Files by Language sorting configuration
+     */
+    public async setFilesByLanguageSorting(sortingConfig: import('./models/analysisConfiguration').FilesByLanguageSortingConfig): Promise<void> {
+        await this.updateConfiguration({ filesByLanguageSorting: sortingConfig });
+        console.log('NEW_CODE_ANALYSIS: Files by Language sorting configuration updated:', sortingConfig);
     }
 }

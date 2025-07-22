@@ -20,6 +20,7 @@ import { ViewThemeSetting } from '../views/subsections/analysis_settings/view_th
 import { AutoAnalysisDelaySetting } from '../views/subsections/analysis_settings/auto_analysis_delay/autoAnalysisDelay';
 import { ChartTypeFileSetting } from '../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
 import { DimensionMappingFileSetting } from '../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
+import { FilesByLanguageSortingSetting } from '../views/subsections/analysis_settings/files_by_language_sorting';
 
 /**
  * Main command coordinator for New Code Analysis
@@ -49,6 +50,7 @@ export class NewCodeAnalysisCommands {
         const tempAutoAnalysisDelaySetting = new AutoAnalysisDelaySetting(context);
         const tempChartTypeFileSetting = new ChartTypeFileSetting(context);
         const tempDimensionMappingFileSetting = new DimensionMappingFileSetting(context);
+        const tempFilesByLanguageSortingSetting = new FilesByLanguageSortingSetting(context);
 
         const allCommandRegistrations: CommandRegistration[] = [];
 
@@ -60,6 +62,7 @@ export class NewCodeAnalysisCommands {
             tempAutoAnalysisDelaySetting,
             tempChartTypeFileSetting,
             tempDimensionMappingFileSetting,
+            tempFilesByLanguageSortingSetting,
             defaultRefreshCallback
         );
         allCommandRegistrations.push(...analysisSettingsCommands);
