@@ -131,8 +131,16 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
             // Handle nested settings like dimension mapping
             case 'dimensionMappingFileSetting':
                 return this.analysisSettingsSubsection.getSettingChildren(element);
+            
+            // Handle Files by Language nested children
+            case 'unsupportedFilesGroup':
+                return this.filesByLanguageSubsection.getNestedChildren(element);
                 
             default:
+                // Check if it's a language group
+                if (element.contextValue?.startsWith('languageGroup_')) {
+                    return this.filesByLanguageSubsection.getNestedChildren(element);
+                }
                 return Promise.resolve([]);
         }
     }
