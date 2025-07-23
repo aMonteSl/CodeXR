@@ -5,15 +5,13 @@ import { CommonCommands } from './utils/commonCommands';
 import { ServerSettingsManager } from './servers/storage/serverSettingsManager';
 import { getActiveServerRegistry } from './active_servers/registry/activeServerRegistry';
 import { VisualizeDataModel } from './visualize_data/model/visualizeDataModel';
-import { cleanupAnalysisTemp } from './code_analysis/utils/tempStorageManager';
-import { FileWatcherManager } from './code_analysis/runtime/fileWatcherManager';
-import { StatusBarDelayTimer } from './code_analysis/runtime/statusBarDelayTimer';
 import { sseManager } from './servers/runtime/sse/SSEManager';
 import { fileToServerMap } from './utils/fileToServerMap';
 import { ServerWatcherIntegration } from './new_code_analysis/services/serverWatcherIntegration';
 
 // Global context reference for cleanup
 let extensionContext: vscode.ExtensionContext;
+let globalModularTreeDataProvider: ModularTreeDataProvider | null = null;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -46,6 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Step 3: Register the modular tree view AFTER settings are restored
 		console.log('MODULAR_TREE: Registering modular tree view with all sections');
 		const modularTreeDataProvider = new ModularTreeDataProvider(context);
+		globalModularTreeDataProvider = modularTreeDataProvider; // Store globally for cleanup
 		const modularTreeView = vscode.window.createTreeView('codexrTree', {
 			treeDataProvider: modularTreeDataProvider,
 			showCollapseAll: true,
@@ -96,30 +95,6 @@ export async function deactivate() {
 		console.error('ACTIVE_SERVERS: Error during registry cleanup:', error);
 	}
 	
-	// Cleanup file watcher manager and status bar timers
-	try {
-		console.log('CODE_ANALYSIS: Cleaning up file watchers and status bar timers');
-		
-		const fileWatcherManager = FileWatcherManager.getInstance();
-		fileWatcherManager.dispose();
-		
-		const statusBarTimer = StatusBarDelayTimer.getInstance();
-		statusBarTimer.dispose();
-		
-		console.log('CODE_ANALYSIS: File watcher and timer cleanup completed');
-	} catch (error) {
-		console.error('CODE_ANALYSIS: Error during cleanup:', error);
-	}
-	
-	// Cleanup analysis temporary storage
-	try {
-		console.log('ANALYSIS_STORAGE: Cleaning up temporary analysis files');
-		await cleanupAnalysisTemp(extensionContext);
-		console.log('ANALYSIS_STORAGE: Temporary analysis cleanup completed');
-	} catch (error) {
-		console.error('ANALYSIS_STORAGE: Error during analysis temp cleanup:', error);
-	}
-	
 	// Cleanup SSE manager and file-to-server mapping
 	try {
 		console.log('SSE: Cleaning up SSE manager and file mappings');
@@ -130,5 +105,19 @@ export async function deactivate() {
 		console.log('SSE: SSE and file mapping cleanup completed');
 	} catch (error) {
 		console.error('SSE: Error during SSE cleanup:', error);
+	}
+
+	// Cleanup modular tree data provider and file watchers
+	try {
+		console.log('MODULAR_TREE: Cleaning up modular tree data provider');
+		
+		if (globalModularTreeDataProvider) {
+			globalModularTreeDataProvider.dispose();
+			globalModularTreeDataProvider = null;
+		}
+		
+		console.log('MODULAR_TREE: Modular tree cleanup completed');
+	} catch (error) {
+		console.error('MODULAR_TREE: Error during modular tree cleanup:', error);
 	}
 }

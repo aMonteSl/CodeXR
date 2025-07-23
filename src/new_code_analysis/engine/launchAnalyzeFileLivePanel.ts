@@ -6,7 +6,7 @@
 import * as vscode from 'vscode';
 import { getLanguageForFile } from '../../utils/languageMetadata';
 import { SUPPORTED_LANGUAGES } from '../../utils/supportedLanguages';
-import { GetNecessaryFiles, SaveFiles, FilesToSave, FileWatcher, LaunchServer } from './utils';
+import { GetNecessaryFiles, SaveFiles, FilesToSave, ManageWatcher, LaunchServer } from './utils';
 import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
 import { AnalysisSessionManager } from './registry/analysisSessionManager';
 import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
@@ -95,7 +95,7 @@ export class LaunchAnalyzeFileLivePanel {
                     console.log(`NEW_CODE_ANALYSIS_ENGINE: Index.html path: ${saveResult.indexHtmlPath}`);
 
                     // Start file watcher for live updates with session
-                    const watcherId = await FileWatcher.startWatching(
+                    const watcherId = await ManageWatcher.startWatching(
                         session.id,
                         context
                     );

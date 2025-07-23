@@ -9,7 +9,7 @@ import { ActiveAnalysisData } from '../model/activeAnalysisModel';
 import { getActiveServerRegistry } from '../../../../../active_servers/registry/activeServerRegistry';
 import { ServerControl } from '../../../../../active_servers/runtime/serverControl';
 import { ServerWatcherIntegration } from '../../../../services/serverWatcherIntegration';
-import { FileWatcher } from '../../../../engine/utils/fileWatcher';
+import { ManageWatcher } from '../../../../engine/utils/manageWatcher';
 import { AnalysisSessionRegistry } from '../../../../engine/registry/analysisSessionRegistry';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -194,7 +194,7 @@ export class ActiveAnalysesCommands {
             console.log(`ACTIVE_ANALYSES_COMMANDS: Stopping file watcher for session ${sessionId}`);
             
             // Get all active watchers and find the one for this session
-            const watchersInfo = FileWatcher.getActiveWatchersInfo();
+            const watchersInfo = ManageWatcher.getActiveWatchersInfo();
             
             // Find watcher by checking if the sessionId is in the watcher ID or by matching file path
             const registry = AnalysisSessionRegistry.getInstance();
@@ -202,10 +202,10 @@ export class ActiveAnalysesCommands {
             
             if (session) {
                 // Try to find watcher by file path
-                const watcherInfo = watchersInfo.find(w => w.filePath === session.filePath);
+                const watcherInfo = watchersInfo.find((w: any) => w.filePath === session.filePath);
                 
                 if (watcherInfo) {
-                    const stopped = FileWatcher.stopWatching(watcherInfo.id);
+                    const stopped = ManageWatcher.stopWatching(watcherInfo.id);
                     
                     if (stopped) {
                         console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully stopped file watcher ${watcherInfo.id}`);

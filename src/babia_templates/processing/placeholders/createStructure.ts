@@ -130,7 +130,7 @@ export class CreateStructure {
         // Tree builder is only needed for boats chart in XR analysis
         if (analysisType === 'xr' && chartType === 'boats') {
             console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart`);
-            return '<a-entity id="tree" babia-treebuilder="field: fileName; split_by: /; from: data"></a-entity>';
+            return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';
         }
 
         console.log(`CREATE_STRUCTURE: No tree builder needed for this configuration`);

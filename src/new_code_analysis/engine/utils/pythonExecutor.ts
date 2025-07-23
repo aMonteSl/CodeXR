@@ -8,7 +8,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { getPythonEnvCommands } from '../../../commands/python_env/pythonEnvCommands';
 
-export type AnalysisType = 'FileLivePanel' | 'DOMVisualization' | 'FileXRAnalysis';
+export type AnalysisType = 'FileLivePanel' | 'DOMVisualization' | 'FileXRAnalysis' | 'DirectoryLivePanel' | 'DirectoryLivePanelDeep';
 
 export interface PythonExecutionResult {
     success: boolean;
@@ -216,5 +216,152 @@ export class PythonExecutor {
         console.log(`PYTHON_EXECUTOR: Extracted JSON (${result.length} chars), lines ${jsonStart}-${jsonEnd}`);
         
         return result;
+    }
+
+    /**
+     * Execute Python analysis script for file resume (for watcher updates)
+     */
+    static async executeFileResumeAnalysis(
+        filePath: string,
+        context: vscode.ExtensionContext
+    ): Promise<PythonExecutionResult> {
+        try {
+            console.log(`PYTHON_EXECUTOR: Starting file resume analysis for: ${filePath}`);
+
+            // Get the global PythonEnvCommands instance
+            const pythonEnvCommands = getPythonEnvCommands();
+            if (!pythonEnvCommands) {
+                return {
+                    success: false,
+                    error: 'Python environment system is not initialized. Please restart VS Code.'
+                };
+            }
+
+            // Get VenvManager from the global instance
+            const venvManager = pythonEnvCommands.getVenvManager();
+            
+            // Check if environment is available
+            const status = venvManager.getEnvironmentStatus();
+            if (!status.exists || !status.isValid) {
+                return {
+                    success: false,
+                    error: 'Python virtual environment is not available or invalid. Please check Python environment settings.'
+                };
+            }
+
+            // Get Python executable path
+            const pythonExecutable = venvManager.getPythonExecutablePath();
+            if (!pythonExecutable) {
+                return {
+                    success: false,
+                    error: 'Failed to get Python executable path'
+                };
+            }
+            console.log(`PYTHON_EXECUTOR: Using Python executable: ${pythonExecutable}`);
+
+            // Get path to the file analysis coordinator script
+            const scriptPath = path.join(context.extensionPath, 'src', 'new_code_analysis', 'python', 'livePanel_file_analysis_coordinator.py');
+            console.log(`PYTHON_EXECUTOR: Using file analysis script: ${scriptPath}`);
+
+            // Execute Python script with --resume flag
+            const result = await PythonExecutor.runPythonFileResumeAnalysis(pythonExecutable, scriptPath, filePath);
+            
+            if (result.success && result.stdout) {
+                try {
+                    const jsonOutput = PythonExecutor.extractJsonFromOutput(result.stdout);
+                    const analysisData = JSON.parse(jsonOutput);
+                    
+                    console.log(`PYTHON_EXECUTOR: File resume analysis completed successfully`);
+                    console.log(`PYTHON_EXECUTOR: Resume data for ${analysisData.fileName}:`, {
+                        totalLines: analysisData.totalLines,
+                        functionCount: analysisData.functionCount,
+                        cyclomaticComplexityNumber: analysisData.cyclomaticComplexityNumber
+                    });
+                    
+                    return {
+                        success: true,
+                        data: analysisData,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    };
+                } catch (parseError) {
+                    console.error(`PYTHON_EXECUTOR: Failed to parse resume analysis result as JSON:`, parseError);
+                    console.log(`PYTHON_EXECUTOR: Raw stdout:`, result.stdout);
+                    return {
+                        success: false,
+                        error: `Failed to parse resume analysis result: ${parseError}`,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    };
+                }
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error(`PYTHON_EXECUTOR: Error during file resume analysis:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+
+    /**
+     * Run Python file analysis coordinator with --resume flag
+     */
+    private static async runPythonFileResumeAnalysis(pythonExecutable: string, scriptPath: string, filePath: string): Promise<PythonExecutionResult> {
+        console.log(`PYTHON_EXECUTOR: Executing file resume analysis: "${pythonExecutable}" "${scriptPath}" --resume "${filePath}"`);
+        
+        return new Promise((resolve) => {
+            const args = [scriptPath, '--resume', filePath];
+            const childProcess = spawn(pythonExecutable, args, {
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: { ...process.env },
+                shell: false
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            childProcess.stdout?.on('data', (data: any) => {
+                stdout += data.toString();
+            });
+
+            childProcess.stderr?.on('data', (data: any) => {
+                stderr += data.toString();
+            });
+
+            childProcess.on('close', (code: number | null) => {
+                console.log(`PYTHON_EXECUTOR: Python file resume analysis exited with code: ${code}`);
+                
+                if (code === 0) {
+                    resolve({
+                        success: true,
+                        stdout: stdout,
+                        stderr: stderr
+                    });
+                } else {
+                    console.error(`PYTHON_EXECUTOR: Python file resume analysis failed with code ${code}`);
+                    console.error(`PYTHON_EXECUTOR: stderr: ${stderr}`);
+                    resolve({
+                        success: false,
+                        error: `Python file resume analysis exited with code ${code}`,
+                        stdout: stdout,
+                        stderr: stderr
+                    });
+                }
+            });
+
+            childProcess.on('error', (error: Error) => {
+                console.error(`PYTHON_EXECUTOR: Error running Python file resume analysis:`, error);
+                resolve({
+                    success: false,
+                    error: `Error running Python file resume analysis: ${error.message}`,
+                    stdout: stdout,
+                    stderr: stderr
+                });
+            });
+        });
     }
 }

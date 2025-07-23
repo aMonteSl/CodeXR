@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { PythonExecutor, AnalysisType, PythonExecutionResult } from './pythonExecutor';
 import { ParseTemplates, ParsedTemplateFiles } from './parseTemplates';
 import { AnalysisSessionManager } from '../registry/analysisSessionManager';
+import { DirectoryAnalysisSessionRegistry } from '../registry/directoryAnalysisSessionRegistry';
 
 export interface AnalysisResult {
     success: boolean;
@@ -350,5 +351,182 @@ export class GetNecessaryFiles {
                 analysisType: 'FileXRAnalysis'
             };
         }
+    }
+
+    /**
+     * Get necessary files for Directory analysis (universal dispatcher)
+     * Determines which analysis type to use based on session configuration
+     */
+    static async getAnalysisDirectoryLivePanel(
+        rootDirectoryPath: string,
+        context: vscode.ExtensionContext,
+        sessionId: string,
+        theme?: string
+    ): Promise<AnalysisResult> {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting Directory analysis for: ${rootDirectoryPath}`);
+
+            const directorySessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+            
+            // Get session to determine analysis type
+            const session = directorySessionRegistry.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            
+            console.log(`GET_NECESSARY_FILES: Session configuration - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+            
+            // Dispatch to appropriate analysis method based on session configuration
+            if (session.isXR) {
+                // XR Analysis
+                console.log('GET_NECESSARY_FILES: ===== DISPATCHING TO XR ANALYSIS =====');
+                return await this.getForDirectoryXR(rootDirectoryPath, context, sessionId, theme);
+            } else {
+                // LivePanel Analysis
+                console.log('GET_NECESSARY_FILES: ===== DISPATCHING TO LIVEPANEL ANALYSIS =====');
+                return await this.getForDirectoryLivePanel(rootDirectoryPath, context, sessionId, theme);
+            }
+
+        } catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getAnalysisDirectoryLivePanel:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: rootDirectoryPath,
+                analysisType: 'DirectoryLivePanel'
+            };
+        }
+    }
+
+    /**
+     * Get necessary files for Directory LivePanel analysis (specific implementation)
+     */
+    private static async getForDirectoryLivePanel(
+        rootDirectoryPath: string,
+        context: vscode.ExtensionContext,
+        sessionId: string,
+        theme?: string
+    ): Promise<AnalysisResult> {
+        try {
+            console.log('GET_NECESSARY_FILES: ===== STARTING LIVEPANEL DIRECTORY ANALYSIS =====');
+            console.log(`GET_NECESSARY_FILES: Directory: ${rootDirectoryPath}`);
+            console.log(`GET_NECESSARY_FILES: Session ID: ${sessionId}`);
+            console.log(`GET_NECESSARY_FILES: Theme: ${theme || 'default'}`);
+
+            const directorySessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+            
+            // Get session details for logging
+            const session = directorySessionRegistry.getSession(sessionId);
+            if (session) {
+                console.log(`GET_NECESSARY_FILES: Session config - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+                console.log(`GET_NECESSARY_FILES: Files in session: ${session.filesList.size}`);
+                
+                // Log first few files for debugging
+                let fileCount = 0;
+                for (const [relativePath, absolutePath] of session.filesList) {
+                    if (fileCount < 3) {
+                        console.log(`GET_NECESSARY_FILES: File ${fileCount + 1}: ${relativePath} -> ${absolutePath}`);
+                        fileCount++;
+                    } else if (fileCount === 3) {
+                        console.log(`GET_NECESSARY_FILES: ... and ${session.filesList.size - 3} more files`);
+                        break;
+                    }
+                }
+            }
+
+            // Execute Python analysis using PythonExecutor
+            // Choose the appropriate analysis type based on whether it's deep or not
+            const analysisType = session?.isDeep ? 'DirectoryLivePanelDeep' : 'DirectoryLivePanel';
+            console.log(`GET_NECESSARY_FILES: Using analysis type: ${analysisType}`);
+            
+            const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysis(
+                analysisType as AnalysisType,
+                rootDirectoryPath,
+                context
+            );
+
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: Directory LivePanel analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
+
+                // Parse templates to get HTML, CSS, and JS files
+                console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Directory...`);
+                const templateResult: ParsedTemplateFiles = await ParseTemplates.parseLivePanelDirectoryTemplate(
+                    context,
+                    pythonResult.data,
+                    theme
+                );
+
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: Template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+
+                    // Add template files to session registry
+                    directorySessionRegistry.addRequiredFile(sessionId, 'index.html', templateResult.indexHtml);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'style.css', templateResult.cssContent);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'main.js', templateResult.jsContent);
+                    
+                    // Add analysis data as JSON to session
+                    const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'data.json', dataJson);
+
+                    return {
+                        success: true,
+                        data: pythonResult.data,
+                        indexHtml: templateResult.indexHtml,
+                        cssContent: templateResult.cssContent,
+                        jsContent: templateResult.jsContent,
+                        filePath: rootDirectoryPath,
+                        analysisType: 'DirectoryLivePanel'
+                    };
+                } else {
+                    console.error(`GET_NECESSARY_FILES: Template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `Template parsing failed: ${templateResult.error}`,
+                        filePath: rootDirectoryPath,
+                        analysisType: 'DirectoryLivePanel'
+                    };
+                }
+            } else {
+                console.error(`GET_NECESSARY_FILES: Directory LivePanel analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during directory analysis',
+                    filePath: rootDirectoryPath,
+                    analysisType: 'DirectoryLivePanel'
+                };
+            }
+
+        } catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getForDirectoryLivePanel:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: rootDirectoryPath,
+                analysisType: 'DirectoryLivePanel'
+            };
+        }
+    }
+
+    /**
+     * Get necessary files for Directory XR analysis (TODO: implement)
+     */
+    private static async getForDirectoryXR(
+        rootDirectoryPath: string,
+        context: vscode.ExtensionContext,
+        sessionId: string,
+        theme?: string
+    ): Promise<AnalysisResult> {
+        // TODO: Implement XR directory analysis
+        console.log('GET_NECESSARY_FILES: XR directory analysis not yet implemented');
+        return {
+            success: false,
+            error: 'XR directory analysis not yet implemented',
+            filePath: rootDirectoryPath,
+            analysisType: 'DirectoryLivePanel' // Temporal, cambiar cuando se implemente XR
+        };
     }
 }

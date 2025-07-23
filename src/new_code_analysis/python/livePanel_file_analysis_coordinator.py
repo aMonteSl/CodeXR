@@ -15,17 +15,18 @@ import subprocess
 import time
 from pathlib import Path
 
-def analyze_file_comprehensive(file_path):
+def analyze_file_comprehensive(file_path, resume_only=False):
     """
     Coordinate all analyzers to generate comprehensive file analysis data
     
     Args:
         file_path (str): Path to the file to analyze
+        resume_only (bool): If True, return only file summary data (for watcher updates)
         
     Returns:
         dict: Complete analysis data structure for visualization
     """
-    print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Starting comprehensive analysis for {file_path}"}), file=sys.stderr)
+    print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Starting comprehensive analysis for {file_path} (resume_only: {resume_only})"}), file=sys.stderr)
     
     # Get the directory containing this script
     script_dir = Path(__file__).parent
@@ -109,6 +110,65 @@ def analyze_file_comprehensive(file_path):
         # Step 4: Calculate comment ratio
         if result["totalLines"] > 0:
             result["commentRatio"] = round(result["commentLines"] / result["totalLines"], 3)
+        
+        # Step 5: Return resume format if requested
+        if resume_only:
+            print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Generating resume format for file"}), file=sys.stderr)
+            
+            # Calculate required metrics from lizard complexity data
+            mean_complexity = 0.0
+            max_complexity = 0
+            cyclomaticComplexityNumber = 0.0
+            cyclomaticComplexityDensity = 0.0
+            averageFunctionParameters = 0
+            maxFunctionParameters = 0
+            fileSizeBytes = 0
+            
+            # Extract metrics from complexity data
+            if "complexity" in result and result["complexity"]:
+                mean_complexity = result["complexity"].get("averageComplexity", 0.0)
+                max_complexity = result["complexity"].get("maxComplexity", 0)
+                cyclomaticComplexityNumber = mean_complexity  # Same as mean for file summary
+                
+                # Calculate CCN density (CCN / LOC)
+                if result["totalLines"] > 0:
+                    cyclomaticComplexityDensity = cyclomaticComplexityNumber / result["totalLines"]
+            
+            # Calculate average and max function parameters
+            if result["functions"]:
+                param_counts = [func.get("parameters", 0) for func in result["functions"]]
+                averageFunctionParameters = sum(param_counts) / len(param_counts) if param_counts else 0
+                maxFunctionParameters = max(param_counts) if param_counts else 0
+            
+            # Get file size
+            try:
+                fileSizeBytes = os.path.getsize(file_path)
+            except Exception:
+                fileSizeBytes = 0
+            
+            # Return resume format for watcher updates
+            resume_result = {
+                "fileName": result["fileName"],
+                "filePath": result["filePath"],
+                "relativePath": os.path.basename(file_path),  # Will be updated by caller if needed
+                "language": result["language"],
+                "status": result["status"],
+                "totalLines": result["totalLines"],
+                "codeLines": result["codeLines"],
+                "commentLines": result["commentLines"],
+                "blankLines": result["blankLines"],
+                "classCount": result["classCount"],
+                "functionCount": result["functionCount"],
+                "maxComplexity": max_complexity,
+                "cyclomaticComplexityNumber": round(cyclomaticComplexityNumber, 2),
+                "cyclomaticComplexityDensity": round(cyclomaticComplexityDensity, 8),
+                "averageFunctionParameters": round(averageFunctionParameters, 2),
+                "maxFunctionParameters": maxFunctionParameters,
+                "fileSizeBytes": fileSizeBytes
+            }
+            
+            print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Resume format generated. File: {resume_result['fileName']}, Functions: {resume_result['functionCount']}, CCN: {resume_result['cyclomaticComplexityNumber']}"}), file=sys.stderr)
+            return resume_result
         
         print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Analysis completed successfully. Functions: {len(result['functions'])}, Classes: {result['classCount']}, Comments: {result['commentLines']}"}), file=sys.stderr)
         
@@ -210,11 +270,9 @@ def get_language_from_extension(file_path):
         '.sc': 'Scala',
         '.dart': 'Dart',
         '.vue': 'Vue',
-        '.html': 'HTML',
         '.css': 'CSS',
         '.scss': 'SCSS',
         '.less': 'Less',
-        # Additional languages for analysis
         '.sol': 'Solidity',
         '.m': 'Objective-C',
         '.mm': 'Objective-C++',
@@ -239,14 +297,30 @@ def get_language_from_extension(file_path):
 
 def main():
     """Main entry point"""
-    if len(sys.argv) < 2:
-        error_msg = {"error": "No file path provided", "status": "error"}
-        print(json.dumps(error_msg))
-        sys.exit(1)
-
-    file_path = sys.argv[1]
-    print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Lizard dependency available"}), file=sys.stderr)
-    print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Received file path: {file_path}"}), file=sys.stderr)
+    import argparse
+    
+    # Handle legacy mode first (no argparse, just direct arguments)
+    if len(sys.argv) == 2 and not sys.argv[1].startswith('-'):
+        # Legacy mode: python script.py file_path
+        file_path = sys.argv[1]
+        resume_only = False
+        print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Lizard dependency available"}), file=sys.stderr)
+        print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Legacy mode - Received file path: {file_path}"}), file=sys.stderr)
+        print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Resume mode: {resume_only}"}), file=sys.stderr)
+    else:
+        # New mode with argparse
+        parser = argparse.ArgumentParser(description='File Analysis Coordinator')
+        parser.add_argument('file_path', help='Path to the file to analyze')
+        parser.add_argument('-r', '--resume', action='store_true', 
+                           help='Generate resume format for file (for watcher updates)')
+        
+        args = parser.parse_args()
+        file_path = args.file_path
+        resume_only = args.resume
+        
+        print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Lizard dependency available"}), file=sys.stderr)
+        print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Argparse mode - Received file path: {file_path}"}), file=sys.stderr)
+        print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Resume mode: {resume_only}"}), file=sys.stderr)
     
     # Fix malformed URI paths from VS Code
     if file_path.startswith('/file:'):
@@ -264,7 +338,7 @@ def main():
         sys.exit(1)
     
     # Perform comprehensive analysis
-    result = analyze_file_comprehensive(file_path)
+    result = analyze_file_comprehensive(file_path, resume_only)
     
     # Output the complete data.json structure
     print(json.dumps(result, indent=2))

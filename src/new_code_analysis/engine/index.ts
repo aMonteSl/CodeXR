@@ -4,5 +4,6 @@
  */
 
 export { LaunchAnalyzeFileLivePanel } from './launchAnalyzeFileLivePanel';
+export { LaunchAnalyzeDirectoryLivePanel } from './launchAnalyzeDirectoryLivePanel';
 export { LaunchVisualizeDOMPanel } from './launchVisualizeDOMPanel';
 export { PythonExecutor, GetNecessaryFiles, AnalysisType, AnalysisResult } from './utils';

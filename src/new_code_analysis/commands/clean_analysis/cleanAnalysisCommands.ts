@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { SaveFiles, FileWatcher } from '../../engine/utils';
+import { SaveFiles, ManageWatcher } from '../../engine/utils';
 import { CommandRegistration } from '../subsections/analysis_settings/analysis_file_mode';
 
 export class CleanAnalysisCommands {
@@ -45,7 +45,7 @@ export class CleanAnalysisCommands {
             
             // Stop all file watchers (in case of restart)
             console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
-            FileWatcher.stopAllWatchers();
+            ManageWatcher.stopAllWatchers();
             
             const cleanupResult = await SaveFiles.cleanAllAnalysisDirectories(context);
             
@@ -82,7 +82,7 @@ export class CleanAnalysisCommands {
 
             // Stop all file watchers first
             console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
-            FileWatcher.stopAllWatchers();
+            ManageWatcher.stopAllWatchers();
 
             // Execute cleanup
             const cleanupResult = await SaveFiles.cleanAllAnalysisDirectories(context);

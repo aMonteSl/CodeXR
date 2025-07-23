@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { generateNonce } from '../../../utils/nonceGenerator';
 import { AnalysisSessionManager } from '../registry/analysisSessionManager';
+import { DirectoryAnalysisSessionRegistry } from '../registry/directoryAnalysisSessionRegistry';
 
 export interface SavedAnalysisFiles {
     success: boolean;
@@ -37,17 +38,43 @@ export class SaveFiles {
         try {
             console.log(`SAVE_FILES: Starting to save analysis files for session: ${sessionId}`);
 
-            const sessionManager = AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
+            // Try to find session and get necessary paths
+            let sessionInfo: { outputDirectory: string; outputPath: string; id: string } | null = null;
             
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
+            // Try file analysis registry first
+            const sessionManager = AnalysisSessionManager.getInstance();
+            const fileSession = sessionManager.getSession(sessionId);
+            
+            if (fileSession) {
+                sessionInfo = {
+                    outputDirectory: fileSession.outputDirectory,
+                    outputPath: fileSession.outputPath,
+                    id: fileSession.id
+                };
+                console.log(`SAVE_FILES: Using file session data`);
+            } else {
+                // Try directory analysis registry
+                const directorySessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+                const directorySession = directorySessionRegistry.getSession(sessionId);
+                
+                if (directorySession) {
+                    sessionInfo = {
+                        outputDirectory: directorySession.outputDirectory,
+                        outputPath: directorySession.outputPath,
+                        id: directorySession.id
+                    };
+                    console.log(`SAVE_FILES: Using directory session data`);
+                }
             }
             
-            console.log(`SAVE_FILES: Using session data - Directory: ${session.outputDirectory}, Path: ${session.outputPath}`);
+            if (!sessionInfo) {
+                throw new Error(`Session ${sessionId} not found in either file or directory registries`);
+            }
+            
+            console.log(`SAVE_FILES: Session found - Directory: ${sessionInfo.outputDirectory}, Path: ${sessionInfo.outputPath}`);
             
             // Use session-provided paths
-            const analysisSessionDir = session.outputPath;
+            const analysisSessionDir = sessionInfo.outputPath;
             const indexHtmlPath = path.join(analysisSessionDir, 'index.html');
 
             // Ensure directories exist
@@ -82,7 +109,7 @@ export class SaveFiles {
 
             return {
                 success: true,
-                nonce: session.id,
+                nonce: sessionInfo.id,
                 analysisDirectoryPath: analysisSessionDir,
                 indexHtmlPath: indexHtmlPath
             };
@@ -113,39 +140,80 @@ export class SaveFiles {
             }
 
             const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
+            const directoryAnalysisBaseDir = path.join(storageUri.fsPath, 'directory_analysis');
             
-            if (!fs.existsSync(analysisBaseDir)) {
-                console.log(`SAVE_FILES: Analysis directory doesn't exist - nothing to clean`);
-                return true;
-            }
+            let success = true;
 
-            // Get all analysis directories that follow the new pattern {fileName}_{analysisType}_{nonce}
-            const allAnalysisDirs = fs.readdirSync(analysisBaseDir, { withFileTypes: true })
-                .filter(entry => entry.isDirectory())
-                .filter(entry => entry.name.includes('_')) // Pattern: fileName_analysisType_nonce or fileName_nonce (legacy)
-                .map(entry => path.join(analysisBaseDir, entry.name));
+            // Clean file analysis directories
+            if (fs.existsSync(analysisBaseDir)) {
+                // Get all analysis directories that follow the new pattern {fileName}_{analysisType}_{nonce}
+                const allAnalysisDirs = fs.readdirSync(analysisBaseDir, { withFileTypes: true })
+                    .filter(entry => entry.isDirectory())
+                    .filter(entry => entry.name.includes('_')) // Pattern: fileName_analysisType_nonce or fileName_nonce (legacy)
+                    .map(entry => path.join(analysisBaseDir, entry.name));
 
-            console.log(`SAVE_FILES: Found ${allAnalysisDirs.length} analysis directories to clean`);
+                console.log(`SAVE_FILES: Found ${allAnalysisDirs.length} file analysis directories to clean`);
 
-            // Remove all analysis directories
-            for (const dirPath of allAnalysisDirs) {
-                try {
-                    await fs.promises.rm(dirPath, { recursive: true, force: true });
-                    console.log(`SAVE_FILES: Cleaned directory: ${dirPath}`);
-                } catch (dirError) {
-                    console.error(`SAVE_FILES: Failed to clean directory ${dirPath}:`, dirError);
+                // Remove all file analysis directories
+                for (const dirPath of allAnalysisDirs) {
+                    try {
+                        await fs.promises.rm(dirPath, { recursive: true, force: true });
+                        console.log(`SAVE_FILES: Cleaned file analysis directory: ${dirPath}`);
+                    } catch (dirError) {
+                        console.error(`SAVE_FILES: Failed to clean file analysis directory ${dirPath}:`, dirError);
+                        success = false;
+                    }
                 }
+
+                // If analysis base directory is empty, remove it too
+                try {
+                    const remainingEntries = await fs.promises.readdir(analysisBaseDir);
+                    if (remainingEntries.length === 0) {
+                        await fs.promises.rmdir(analysisBaseDir);
+                        console.log(`SAVE_FILES: Removed empty file analysis base directory`);
+                    }
+                } catch (error) {
+                    console.warn(`SAVE_FILES: Could not remove file analysis base directory:`, error);
+                }
+            } else {
+                console.log(`SAVE_FILES: File analysis directory doesn't exist - nothing to clean`);
             }
 
-            // If analysis base directory is empty, remove it too
-            const remainingEntries = await fs.promises.readdir(analysisBaseDir);
-            if (remainingEntries.length === 0) {
-                await fs.promises.rmdir(analysisBaseDir);
-                console.log(`SAVE_FILES: Removed empty analysis base directory`);
+            // Clean directory analysis directories
+            if (fs.existsSync(directoryAnalysisBaseDir)) {
+                const allDirectoryAnalysisDirs = fs.readdirSync(directoryAnalysisBaseDir, { withFileTypes: true })
+                    .filter(entry => entry.isDirectory())
+                    .map(entry => path.join(directoryAnalysisBaseDir, entry.name));
+
+                console.log(`SAVE_FILES: Found ${allDirectoryAnalysisDirs.length} directory analysis directories to clean`);
+
+                // Remove all directory analysis directories
+                for (const dirPath of allDirectoryAnalysisDirs) {
+                    try {
+                        await fs.promises.rm(dirPath, { recursive: true, force: true });
+                        console.log(`SAVE_FILES: Cleaned directory analysis directory: ${dirPath}`);
+                    } catch (dirError) {
+                        console.error(`SAVE_FILES: Failed to clean directory analysis directory ${dirPath}:`, dirError);
+                        success = false;
+                    }
+                }
+
+                // If directory analysis base directory is empty, remove it too
+                try {
+                    const remainingEntries = await fs.promises.readdir(directoryAnalysisBaseDir);
+                    if (remainingEntries.length === 0) {
+                        await fs.promises.rmdir(directoryAnalysisBaseDir);
+                        console.log(`SAVE_FILES: Removed empty directory analysis base directory`);
+                    }
+                } catch (error) {
+                    console.warn(`SAVE_FILES: Could not remove directory analysis base directory:`, error);
+                }
+            } else {
+                console.log(`SAVE_FILES: Directory analysis directory doesn't exist - nothing to clean`);
             }
 
             console.log(`SAVE_FILES: Analysis directories cleanup completed`);
-            return true;
+            return success;
 
         } catch (error) {
             console.error(`SAVE_FILES: Error during analysis directories cleanup:`, error);

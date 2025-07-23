@@ -172,6 +172,26 @@
         "icon": "$(device-camera-video)"
       },
       {
+        "command": "newCodeAnalysis.analyzeDirectory",
+        "title": "CodeXR: Analyze Directory (LivePanel)",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "newCodeAnalysis.analyzeDirectoryDeep",
+        "title": "CodeXR: Analyze Directory (LivePanel Deep)",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "newCodeAnalysis.analyzeProject",
+        "title": "CodeXR: Analyze Project (LivePanel)",
+        "icon": "$(project)"
+      },
+      {
+        "command": "newCodeAnalysis.analyzeProjectDeep",
+        "title": "CodeXR: Analyze Project (LivePanel Deep)",
+        "icon": "$(layers)"
+      },
+      {
         "command": "newCodeAnalysis.visualizeDOM",
         "title": "CodeXR: Visualize DOM",
         "icon": "$(browser)"
@@ -241,6 +261,24 @@
           "group": "codexr@2"
         },
         {
+          "command": "newCodeAnalysis.analyzeDirectory",
+          "when": "explorerResourceIsFolder",
+          "group": "codexr@3"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeDirectoryDeep",
+          "when": "explorerResourceIsFolder",
+          "group": "codexr@4"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProject",
+          "group": "codexr@5"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectDeep",
+          "group": "codexr@6"
+        },
+        {
           "command": "newCodeAnalysis.visualizeDOM",
           "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
           "group": "codexr@1"
@@ -256,6 +294,14 @@
           "command": "newCodeAnalysis.analyzeFileXR",
           "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
           "group": "codexr@2"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProject",
+          "group": "codexr@3"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectDeep",
+          "group": "codexr@4"
         },
         {
           "command": "newCodeAnalysis.visualizeDOM",

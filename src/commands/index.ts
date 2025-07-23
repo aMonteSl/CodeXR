@@ -3,7 +3,6 @@ import { registerServerCommands } from './servers/serverCommands';
 import { registerActiveServersCommands } from './active_servers/activeServersCommands';
 import { registerBabiaExamplesCommands } from './babia_examples/babiaExamplesCommands';
 import { registerVisualizeDataCommands } from './visualize_data/visualizeDataCommands';
-import { registerCodeAnalysisCommands } from './code_analysis/analysisCommands';
 import { registerNewCodeAnalysisCommands } from './new_code_analysis/newCodeAnalysisCommands';
 import { registerPythonEnvCommands } from './python_env/pythonEnvCommands';
 import { registerVisualizationSettingsCommands } from './visualization_settings/visualizationSettingsCommands';
@@ -40,9 +39,6 @@ export function registerAllCommands(
     
     // Register visualize data commands
     registerVisualizeDataCommands(context);
-    
-    // Register code analysis commands
-    registerCodeAnalysisCommands(context);
     
     // Register new code analysis commands with specific section refresh callback
     const newCodeAnalysisRefreshCallback = () => {

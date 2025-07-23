@@ -10,6 +10,7 @@ import { EnhancedSSEManager } from '../../../servers/runtime/sse/enhancedSSEMana
 import { fileToServerMap } from '../../../utils/fileToServerMap';
 import { AnalysisSessionManager } from '../registry/analysisSessionManager';
 import { AnalysisSessionRegistry } from '../registry/analysisSessionRegistry';
+import { DirectoryAnalysisSessionRegistry } from '../registry/directoryAnalysisSessionRegistry';
 
 export interface ServerLaunchOptions {
     filePath?: string; // Make optional since we'll get it from session
@@ -48,19 +49,33 @@ export class LaunchServer {
             let indexHtmlPath: string;
 
             if (options.sessionId) {
+                // Try to find session in file analysis registry first
                 const sessionManager = AnalysisSessionManager.getInstance();
-                session = sessionManager.getSession(options.sessionId);
+                const fileSession = sessionManager.getSession(options.sessionId);
                 
-                if (!session) {
-                    throw new Error(`Session ${options.sessionId} not found`);
+                if (fileSession) {
+                    session = fileSession;
+                    filePath = fileSession.filePath;
+                    analysisType = fileSession.analysisType;
+                    analysisDirectoryPath = fileSession.outputPath;
+                    indexHtmlPath = path.join(fileSession.outputPath, 'index.html');
+                    console.log(`LAUNCH_SERVER: Using file session ${options.sessionId} for server launch`);
+                } else {
+                    // Try directory analysis registry
+                    const directorySessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+                    const directorySession = directorySessionRegistry.getSession(options.sessionId);
+                    
+                    if (directorySession) {
+                        session = directorySession;
+                        filePath = directorySession.filePath;
+                        analysisType = directorySession.analysisType;
+                        analysisDirectoryPath = directorySession.outputPath;
+                        indexHtmlPath = path.join(directorySession.outputPath, 'index.html');
+                        console.log(`LAUNCH_SERVER: Using directory session ${options.sessionId} for server launch`);
+                    } else {
+                        throw new Error(`Session ${options.sessionId} not found in either file or directory registries`);
+                    }
                 }
-                
-                filePath = session.filePath;
-                analysisType = session.analysisType;
-                analysisDirectoryPath = session.outputPath;
-                indexHtmlPath = path.join(session.outputPath, 'index.html');
-                
-                console.log(`LAUNCH_SERVER: Using session ${options.sessionId} for server launch`);
             } else {
                 // Fallback to options for backward compatibility
                 filePath = options.filePath!;
@@ -110,9 +125,18 @@ export class LaunchServer {
             
             // **CLAVE: Marcar sesión como "completed" con puerto**
             if (session && options.sessionId) {
-                const registry = AnalysisSessionRegistry.getInstance();
-                registry.setSessionCompleted(options.sessionId, launchResult.port);
-                console.log(`LAUNCH_SERVER: Session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+                // Determine if this is a directory or file analysis session
+                const isDirectoryAnalysis = analysisType && analysisType.startsWith('D_');
+                
+                if (isDirectoryAnalysis) {
+                    const directoryRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+                    directoryRegistry.setSessionCompleted(options.sessionId, launchResult.port);
+                    console.log(`LAUNCH_SERVER: Directory session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+                } else {
+                    const fileRegistry = AnalysisSessionRegistry.getInstance();
+                    fileRegistry.setSessionCompleted(options.sessionId, launchResult.port);
+                    console.log(`LAUNCH_SERVER: File session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+                }
             }
             
             // Register file-to-server mapping for SSE support

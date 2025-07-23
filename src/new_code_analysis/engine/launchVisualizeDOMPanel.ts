@@ -8,7 +8,7 @@ import { getLanguageForFile } from '../../utils/languageMetadata';
 import { SUPPORTED_LANGUAGES, getLanguageByExtension } from '../../utils/supportedLanguages';
 import { GetNecessaryFiles } from './utils/getNecessaryFiles';
 import { SaveFiles, FilesToSave } from './utils/saveFiles';
-import { FileWatcher } from './utils/fileWatcher';
+import { ManageWatcher } from './utils/manageWatcher';
 import { LaunchServer } from './utils/launchServer';
 import { AnalysisSessionManager } from './registry/analysisSessionManager';
 import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
@@ -106,7 +106,7 @@ export class LaunchVisualizeDOMPanel {
                     
                     // Start file watcher for live updates with session
                     console.log(`DOM_VISUALIZATION_ENGINE: Starting file watcher for HTML DOM updates...`);
-                    const watcherId = await FileWatcher.startWatching(
+                    const watcherId = await ManageWatcher.startWatching(
                         session.id,
                         context
                     );

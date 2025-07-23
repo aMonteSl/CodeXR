@@ -7,5 +7,5 @@ export { PythonExecutor, AnalysisType, PythonExecutionResult } from './pythonExe
 export { GetNecessaryFiles, AnalysisResult } from './getNecessaryFiles';
 export { ParseTemplates } from './parseTemplates';
 export { SaveFiles, FilesToSave, SavedAnalysisFiles } from './saveFiles';
-export { FileWatcher } from './fileWatcher';
+export { ManageWatcher } from './manageWatcher';
 export { LaunchServer, ServerLaunchOptions, ServerLaunchResult } from './launchServer';

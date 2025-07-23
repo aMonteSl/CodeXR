@@ -12,6 +12,7 @@ import {
     FilesByLanguageCommands
 } from './subsections';
 import { FileAnalysisCommands } from './file_analysis';
+import { DirectoryAnalysisCommands, ProjectAnalysisCommands } from './directory_analysis';
 import { CleanAnalysisCommands } from './clean_analysis';
 import { DOMVisualizationCommands } from './dom_visualization';
 import { CommandRegistration } from './subsections/analysis_settings/analysis_file_mode';
@@ -97,6 +98,15 @@ export class NewCodeAnalysisCommands {
         const fileAnalysisCommands = FileAnalysisCommands.registerCommands(context);
         // Note: FileAnalysisCommands returns disposables directly, not CommandRegistrations
         // These will be automatically added to the context subscriptions
+
+        // Add directory analysis commands
+        const directoryAnalysisCommands = DirectoryAnalysisCommands.registerCommands(context);
+        // Note: DirectoryAnalysisCommands returns disposables directly, not CommandRegistrations
+        // This includes DirectoryAnalysisLivePanelCommands internally
+
+        // Add project analysis commands
+        const projectAnalysisCommands = ProjectAnalysisCommands.registerCommands(context);
+        // Note: ProjectAnalysisCommands returns disposables directly, not CommandRegistrations
 
         // Add clean analysis commands
         const cleanAnalysisCommands = CleanAnalysisCommands.getCommandRegistrations(

@@ -47,15 +47,13 @@ const views_1 = __webpack_require__(132);
 const commonCommands_1 = __webpack_require__(130);
 const serverSettingsManager_1 = __webpack_require__(11);
 const activeServerRegistry_1 = __webpack_require__(26);
-const visualizeDataModel_1 = __webpack_require__(196);
-const tempStorageManager_1 = __webpack_require__(67);
-const fileWatcherManager_1 = __webpack_require__(165);
-const statusBarDelayTimer_1 = __webpack_require__(166);
+const visualizeDataModel_1 = __webpack_require__(182);
 const SSEManager_1 = __webpack_require__(18);
 const fileToServerMap_1 = __webpack_require__(20);
-const serverWatcherIntegration_1 = __webpack_require__(111);
+const serverWatcherIntegration_1 = __webpack_require__(103);
 // Global context reference for cleanup
 let extensionContext;
+let globalModularTreeDataProvider = null;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 async function activate(context) {
@@ -81,6 +79,7 @@ async function activate(context) {
         // Step 3: Register the modular tree view AFTER settings are restored
         console.log('MODULAR_TREE: Registering modular tree view with all sections');
         const modularTreeDataProvider = new views_1.ModularTreeDataProvider(context);
+        globalModularTreeDataProvider = modularTreeDataProvider; // Store globally for cleanup
         const modularTreeView = vscode.window.createTreeView('codexrTree', {
             treeDataProvider: modularTreeDataProvider,
             showCollapseAll: true,
@@ -123,27 +122,6 @@ async function deactivate() {
     catch (error) {
         console.error('ACTIVE_SERVERS: Error during registry cleanup:', error);
     }
-    // Cleanup file watcher manager and status bar timers
-    try {
-        console.log('CODE_ANALYSIS: Cleaning up file watchers and status bar timers');
-        const fileWatcherManager = fileWatcherManager_1.FileWatcherManager.getInstance();
-        fileWatcherManager.dispose();
-        const statusBarTimer = statusBarDelayTimer_1.StatusBarDelayTimer.getInstance();
-        statusBarTimer.dispose();
-        console.log('CODE_ANALYSIS: File watcher and timer cleanup completed');
-    }
-    catch (error) {
-        console.error('CODE_ANALYSIS: Error during cleanup:', error);
-    }
-    // Cleanup analysis temporary storage
-    try {
-        console.log('ANALYSIS_STORAGE: Cleaning up temporary analysis files');
-        await (0, tempStorageManager_1.cleanupAnalysisTemp)(extensionContext);
-        console.log('ANALYSIS_STORAGE: Temporary analysis cleanup completed');
-    }
-    catch (error) {
-        console.error('ANALYSIS_STORAGE: Error during analysis temp cleanup:', error);
-    }
     // Cleanup SSE manager and file-to-server mapping
     try {
         console.log('SSE: Cleaning up SSE manager and file mappings');
@@ -153,6 +131,18 @@ async function deactivate() {
     }
     catch (error) {
         console.error('SSE: Error during SSE cleanup:', error);
+    }
+    // Cleanup modular tree data provider and file watchers
+    try {
+        console.log('MODULAR_TREE: Cleaning up modular tree data provider');
+        if (globalModularTreeDataProvider) {
+            globalModularTreeDataProvider.dispose();
+            globalModularTreeDataProvider = null;
+        }
+        console.log('MODULAR_TREE: Modular tree cleanup completed');
+    }
+    catch (error) {
+        console.error('MODULAR_TREE: Error during modular tree cleanup:', error);
     }
 }
 
@@ -208,9 +198,8 @@ const serverCommands_1 = __webpack_require__(3);
 const activeServersCommands_1 = __webpack_require__(32);
 const babiaExamplesCommands_1 = __webpack_require__(34);
 const visualizeDataCommands_1 = __webpack_require__(38);
-const analysisCommands_1 = __webpack_require__(59);
-const newCodeAnalysisCommands_1 = __webpack_require__(72);
-const pythonEnvCommands_1 = __webpack_require__(94);
+const newCodeAnalysisCommands_1 = __webpack_require__(59);
+const pythonEnvCommands_1 = __webpack_require__(83);
 const visualizationSettingsCommands_1 = __webpack_require__(127);
 const generalCommands_1 = __webpack_require__(129);
 const debugThemeProblem_1 = __webpack_require__(131);
@@ -228,8 +217,6 @@ function registerAllCommands(context, treeDataProvider, babiaExamplesTreeDataPro
     (0, babiaExamplesCommands_1.registerBabiaExamplesCommands)(context, babiaExamplesTreeDataProvider);
     // Register visualize data commands
     (0, visualizeDataCommands_1.registerVisualizeDataCommands)(context);
-    // Register code analysis commands
-    (0, analysisCommands_1.registerCodeAnalysisCommands)(context);
     // Register new code analysis commands with specific section refresh callback
     const newCodeAnalysisRefreshCallback = () => {
         if (treeDataProvider) {
@@ -4158,7 +4145,7 @@ class PortManager {
         }
         try {
             // Use get-port for more reliable port detection
-            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 197))).default;
+            const getPort = (await __webpack_require__.e(/* import() */ 1).then(__webpack_require__.bind(__webpack_require__, 183))).default;
             // Create a range array for get-port - limit to reasonable range for performance
             const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
             const ports = [];
@@ -10317,7 +10304,7 @@ class CreateStructure {
         // Tree builder is only needed for boats chart in XR analysis
         if (analysisType === 'xr' && chartType === 'boats') {
             console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart`);
-            return '<a-entity id="tree" babia-treebuilder="field: fileName; split_by: /; from: data"></a-entity>';
+            return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';
         }
         console.log(`CREATE_STRUCTURE: No tree builder needed for this configuration`);
         return '';
@@ -10729,2708 +10716,6 @@ exports.VisualizationRestorer = VisualizationRestorer;
 
 /***/ }),
 /* 59 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.registerCodeAnalysisCommands = registerCodeAnalysisCommands;
-const analysisCommands_1 = __webpack_require__(60);
-/**
- * Register Code Analysis Commands
- * Entry point for registering all code analysis related commands
- */
-function registerCodeAnalysisCommands(context) {
-    console.log('[CODE_ANALYSIS] Registering code analysis commands...');
-    analysisCommands_1.CodeAnalysisCommands.registerCommands(context);
-    console.log('[CODE_ANALYSIS] Code analysis commands registration complete');
-}
-
-
-/***/ }),
-/* 60 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisCommands = void 0;
-exports.executeFileAnalysis = executeFileAnalysis;
-exports.runXRFileAnalysisCoordinator = runXRFileAnalysisCoordinator;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const child_process_1 = __webpack_require__(61);
-const handleAnalysisClicks_1 = __webpack_require__(62);
-const analysisSettingsStorage_1 = __webpack_require__(63);
-const pythonEnvStorage_1 = __webpack_require__(64);
-const pythonEnvUtils_1 = __webpack_require__(65);
-const tempStorageManager_1 = __webpack_require__(67);
-const activeAnalysisRegistry_1 = __webpack_require__(70);
-const activeAnalysisModel_1 = __webpack_require__(71);
-const chartRegistry_1 = __webpack_require__(41);
-const xrTemplateRenderer_1 = __webpack_require__(69);
-/**
- * Code Analysis Commands
- * Handles all command registrations for the code analysis functionality
- */
-class CodeAnalysisCommands {
-    /**
-     * Register all code analysis commands
-     */
-    static registerCommands(context) {
-        console.log('[CODE_ANALYSIS] Registering code analysis commands...');
-        // Main section commands
-        const showActiveAnalysesCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.showActiveAnalyses', () => {
-            console.log('[CODE_ANALYSIS] Command: showActiveAnalyses executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handleSectionClick('active-analyses', context);
-        });
-        const showAnalysisSettingsCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.showAnalysisSettings', () => {
-            console.log('[CODE_ANALYSIS] Command: showAnalysisSettings executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handleSectionClick('analysis-settings', context);
-        });
-        const showFilesByLanguageCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.showFilesByLanguage', () => {
-            console.log('[CODE_ANALYSIS] Command: showFilesByLanguage executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handleSectionClick('files-by-language', context);
-        });
-        // Placeholder commands
-        const placeholderActiveAnalysesCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.placeholder.activeAnalyses', () => {
-            console.log('[CODE_ANALYSIS] Command: placeholder.activeAnalyses executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handlePlaceholderClick('activeAnalyses');
-        });
-        const placeholderAnalysisSettingsCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.placeholder.analysisSettings', () => {
-            console.log('[CODE_ANALYSIS] Command: placeholder.analysisSettings executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handlePlaceholderClick('analysisSettings');
-        });
-        const placeholderFilesByLanguageCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.placeholder.filesByLanguage', () => {
-            console.log('[CODE_ANALYSIS] Command: placeholder.filesByLanguage executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handlePlaceholderClick('filesByLanguage');
-        });
-        // Analysis mode toggle command
-        const toggleAnalysisModeCommand = vscode.commands.registerCommand('codexr.analysis.toggleMode', async () => {
-            console.log('[CODE_ANALYSIS] Command: toggleMode executed');
-            try {
-                const newMode = await analysisSettingsStorage_1.AnalysisSettingsStorage.toggleAnalysisMode(context);
-                vscode.window.showInformationMessage(`Analysis mode switched to: ${newMode}`);
-                // Refresh the tree view to show the updated mode
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error toggling analysis mode:', error);
-                vscode.window.showErrorMessage('Failed to toggle analysis mode');
-            }
-        });
-        // File analysis commands
-        const analyzeFileStaticCommand = vscode.commands.registerCommand('codexr.analysis.fileStatic', async (uri) => {
-            console.log('[CODE_ANALYSIS] Command: analyzeFileStatic executed');
-            let analysisId;
-            try {
-                const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
-                if (!targetUri) {
-                    vscode.window.showErrorMessage('No file selected for analysis');
-                    return;
-                }
-                // Check if file is saved (for unsaved files, suggest saving first)
-                if (targetUri.scheme !== 'file') {
-                    vscode.window.showWarningMessage('Please save the file before analyzing it.');
-                    return;
-                }
-                console.log(`ANALYSIS_FILE_STATS: Starting static analysis for ${targetUri.fsPath}`);
-                // Check if file type is supported
-                const supportedExtensions = [
-                    '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp',
-                    '.cs', '.go', '.rs', '.php', '.rb', '.swift', '.kt', '.kts', '.scala', '.sc', '.dart',
-                    '.vue', '.html', '.css', '.scss', '.less',
-                    // Additional languages for comprehensive analysis
-                    '.sol', '.m', '.mm', '.zig', '.ttcn', '.ttcn3', '.erl', '.hrl', '.lua', '.pl', '.pm',
-                    '.pod', '.t', '.f90', '.f95', '.f03', '.f08', '.gd'
-                ];
-                const fileExtension = path.extname(targetUri.fsPath).toLowerCase();
-                if (!supportedExtensions.includes(fileExtension)) {
-                    vscode.window.showWarningMessage(`File type ${fileExtension} is not currently supported for analysis.`);
-                    return;
-                }
-                vscode.window.showInformationMessage(`Analyzing ${path.basename(targetUri.fsPath)} in Static mode...`);
-                // Ensure we have a proper file system path
-                let actualFilePath = targetUri.fsPath;
-                // Fix URI path if it contains the file:// protocol prefix or similar issues
-                if (actualFilePath.startsWith('/file:')) {
-                    actualFilePath = actualFilePath.replace('/file:', '');
-                    // Remove any leading extra slashes
-                    while (actualFilePath.startsWith('//')) {
-                        actualFilePath = actualFilePath.substring(1);
-                    }
-                }
-                console.log(`ANALYSIS_FILE_STATS: Corrected file path: ${actualFilePath}`);
-                // 🔥 REGISTER ANALYSIS IN ACTIVE ANALYSES
-                console.log('[CODE_ANALYSIS] 📋 Registering file analysis in Active Analyses...');
-                const registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-                {
-                    const analysisTemplate = activeAnalysisModel_1.ActiveAnalysisFactory.createFileAnalysis(actualFilePath, 'Static', path.extname(actualFilePath).toLowerCase().substring(1) || 'unknown');
-                    // Convert to ActiveAnalysisData by removing the id
-                    const { id, ...registrationData } = analysisTemplate;
-                    analysisId = registry.registerAnalysis(registrationData);
-                    console.log(`[CODE_ANALYSIS] ✅ Registered analysis with ID: ${analysisId}`);
-                }
-                // Run the Python analysis coordinator
-                const analysisData = await executeFileAnalysis(context, actualFilePath);
-                if (analysisData) {
-                    console.log(`ANALYSIS_FILE_STATS: Generated data.json for ${path.basename(targetUri.fsPath)}`, analysisData);
-                    // Get current analysis mode to determine how to handle the result
-                    const currentMode = await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context);
-                    if (currentMode === 'Static') {
-                        // For Static mode: Create viewer assets and launch server
-                        try {
-                            console.log(`ANALYSIS_FILE_STATS: Preparing static analysis viewer for ${path.basename(targetUri.fsPath)}`);
-                            await (0, tempStorageManager_1.prepareStaticAnalysisViewerAssets)(context, targetUri.fsPath, analysisData);
-                            console.log(`ANALYSIS_FILE_STATS: Static analysis viewer launched successfully`);
-                        }
-                        catch (viewerError) {
-                            console.error(`ANALYSIS_FILE_STATS: Failed to prepare static analysis viewer: ${viewerError}`);
-                            vscode.window.showErrorMessage(`Failed to launch static analysis viewer: ${viewerError}`);
-                            // Fallback: Still store the data for manual access
-                            try {
-                                const storageUri = await (0, tempStorageManager_1.storeAnalysisJson)(context, targetUri.fsPath, analysisData);
-                                console.log(`ANALYSIS_FILE_STATS: Analysis data stored at ${storageUri.fsPath} (fallback)`);
-                            }
-                            catch (storageError) {
-                                console.error(`ANALYSIS_FILE_STATS: Fallback storage also failed: ${storageError}`);
-                            }
-                        }
-                    }
-                    else {
-                        // For XR mode or other modes: Just store the data
-                        try {
-                            const storageUri = await (0, tempStorageManager_1.storeAnalysisJson)(context, targetUri.fsPath, analysisData);
-                            console.log(`ANALYSIS_FILE_STATS: Analysis data stored at ${storageUri.fsPath}`);
-                        }
-                        catch (storageError) {
-                            console.error(`ANALYSIS_FILE_STATS: Failed to store analysis data: ${storageError}`);
-                            // Continue with the rest of the process even if storage fails
-                        }
-                    }
-                    const stats = analysisData;
-                    const functionCount = stats.functionCount || 0;
-                    const classCount = stats.classCount || 0;
-                    const complexity = stats.complexity?.averageComplexity || 0;
-                    const commentRatio = Math.round((stats.commentRatio || 0) * 100);
-                    const modeMessage = currentMode === 'Static' ? ' (viewer launched)' : '';
-                    vscode.window.showInformationMessage(`Analysis completed: ${functionCount} functions, ${classCount} classes, ` +
-                        `${commentRatio}% comments, avg complexity ${complexity.toFixed(1)}${modeMessage}`);
-                    // 🔥 UPDATE ANALYSIS STATUS TO COMPLETED
-                    console.log(`[CODE_ANALYSIS] 🎉 Updating analysis ${analysisId} status to completed`);
-                    registry.updateAnalysis(analysisId, 'completed', 100, undefined, {
-                        totalLines: stats.totalLines,
-                        totalFunctions: functionCount,
-                        complexity: complexity
-                    });
-                }
-                else {
-                    console.error('ANALYSIS_FILE_STATS: Failed to generate analysis data');
-                    vscode.window.showErrorMessage('Analysis failed - no data generated');
-                    // 🔥 UPDATE ANALYSIS STATUS TO FAILED
-                    console.log(`[CODE_ANALYSIS] ❌ Updating analysis ${analysisId} status to failed`);
-                    registry.updateAnalysis(analysisId, 'failed', 0, 'Failed to generate analysis data');
-                }
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error analyzing file (Static):', error);
-                vscode.window.showErrorMessage('Failed to analyze file in Static mode');
-                // 🔥 UPDATE ANALYSIS STATUS TO FAILED (if analysisId exists)
-                try {
-                    if (typeof analysisId !== 'undefined') {
-                        console.log(`[CODE_ANALYSIS] ❌ Updating analysis ${analysisId} status to failed due to exception`);
-                        const registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-                        registry.updateAnalysis(analysisId, 'failed', 0, `Analysis failed: ${error}`);
-                    }
-                }
-                catch (registryError) {
-                    console.error('[CODE_ANALYSIS] Failed to update analysis status in catch block:', registryError);
-                }
-            }
-        });
-        const analyzeFileXRCommand = vscode.commands.registerCommand('codexr.analysis.fileXR', async (uri) => {
-            console.log('[CODE_ANALYSIS] Command: analyzeFileXR executed');
-            let analysisId;
-            try {
-                const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
-                if (!targetUri) {
-                    vscode.window.showErrorMessage('No file selected for analysis');
-                    return;
-                }
-                // Check if file type is supported (same check as static analysis)
-                const supportedExtensions = [
-                    '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp',
-                    '.cs', '.go', '.rs', '.php', '.rb', '.swift', '.kt', '.kts', '.scala', '.sc', '.dart',
-                    '.vue', '.html', '.css', '.scss', '.less',
-                    // Additional languages for comprehensive analysis
-                    '.sol', '.m', '.mm', '.zig', '.ttcn', '.ttcn3', '.erl', '.hrl', '.lua', '.pl', '.pm',
-                    '.pod', '.t', '.f90', '.f95', '.f03', '.f08', '.gd'
-                ];
-                const fileExtension = path.extname(targetUri.fsPath).toLowerCase();
-                if (!supportedExtensions.includes(fileExtension)) {
-                    vscode.window.showWarningMessage(`File type ${fileExtension} is not currently supported for XR analysis.`);
-                    return;
-                }
-                // Ensure we have a proper file system path
-                let actualFilePath = targetUri.fsPath;
-                // Fix URI path if it contains the file:// protocol prefix or similar issues
-                if (actualFilePath.startsWith('/file:')) {
-                    actualFilePath = actualFilePath.replace('/file:', '');
-                    // Remove any leading extra slashes
-                    while (actualFilePath.startsWith('//')) {
-                        actualFilePath = actualFilePath.substring(1);
-                    }
-                }
-                console.log(`[CODE_ANALYSIS] Corrected XR file path: ${actualFilePath}`);
-                console.log(`[CODE_ANALYSIS] Analyzing file in XR mode: ${actualFilePath}`);
-                vscode.window.showInformationMessage(`Analyzing ${path.basename(actualFilePath)} in XR mode...`);
-                // 🔥 REGISTER ANALYSIS IN ACTIVE ANALYSES
-                console.log('[CODE_ANALYSIS] 📋 Registering XR file analysis in Active Analyses...');
-                const registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-                {
-                    const analysisTemplate = activeAnalysisModel_1.ActiveAnalysisFactory.createFileAnalysis(actualFilePath, 'XR', path.extname(actualFilePath).toLowerCase().substring(1) || 'unknown');
-                    // Convert to ActiveAnalysisData by removing the id
-                    const { id, ...registrationData } = analysisTemplate;
-                    analysisId = registry.registerAnalysis(registrationData);
-                    console.log(`[CODE_ANALYSIS] ✅ Registered XR analysis with ID: ${analysisId}`);
-                }
-                // Run the XR Python analysis coordinator
-                const analysisData = await runXRFileAnalysisCoordinator(context, actualFilePath);
-                if (analysisData) {
-                    console.log(`[CODE_ANALYSIS] Generated XR analysis data.json for ${path.basename(actualFilePath)}`, analysisData);
-                    // Store the analysis data using the same temp storage as static analysis
-                    try {
-                        const tempFolder = await (0, tempStorageManager_1.storeAnalysisJson)(context, actualFilePath, analysisData);
-                        console.log(`[CODE_ANALYSIS] XR analysis data stored at: ${tempFolder.fsPath}`);
-                        // Generate XR visualization index.html
-                        try {
-                            console.log(`[CODE_ANALYSIS] Generating XR visualization HTML for ${path.basename(actualFilePath)}`);
-                            await xrTemplateRenderer_1.XRTemplateRenderer.generateXRVisualization(context, tempFolder, actualFilePath, analysisData);
-                            console.log(`[CODE_ANALYSIS] ✅ XR visualization HTML generated successfully`);
-                            // Launch XR server with the generated assets
-                            try {
-                                console.log(`[CODE_ANALYSIS] Launching XR viewer server for ${path.basename(actualFilePath)}`);
-                                await (0, tempStorageManager_1.prepareXRAnalysisViewerAssets)(context, tempFolder, actualFilePath);
-                                console.log(`[CODE_ANALYSIS] ✅ XR viewer server launched successfully`);
-                            }
-                            catch (serverError) {
-                                console.error(`[CODE_ANALYSIS] ⚠️ Failed to launch XR viewer server: ${serverError}`);
-                                vscode.window.showWarningMessage(`XR analysis completed but failed to launch viewer: ${serverError}`);
-                            }
-                        }
-                        catch (htmlError) {
-                            console.error(`[CODE_ANALYSIS] ⚠️ Failed to generate XR visualization HTML: ${htmlError}`);
-                            // Don't fail the entire analysis, just warn
-                            vscode.window.showWarningMessage(`XR analysis completed but failed to generate visualization: ${htmlError}`);
-                        }
-                        // Update analysis status to completed
-                        registry.updateAnalysis(analysisId, 'completed', 100, undefined, {
-                            totalLines: analysisData.totalLines || 0,
-                            totalFunctions: analysisData.functionCount || 0,
-                            complexity: analysisData.complexity?.averageComplexity || 0
-                        });
-                        vscode.window.showInformationMessage(`XR analysis completed for ${path.basename(actualFilePath)}`);
-                    }
-                    catch (storageError) {
-                        console.error(`[CODE_ANALYSIS] Failed to store XR analysis data: ${storageError}`);
-                        vscode.window.showErrorMessage(`Failed to store XR analysis data: ${storageError}`);
-                        registry.updateAnalysis(analysisId, 'failed', 0, `Storage failed: ${storageError}`);
-                    }
-                }
-                else {
-                    console.error(`[CODE_ANALYSIS] XR analysis returned no data for ${actualFilePath}`);
-                    vscode.window.showErrorMessage(`XR analysis failed for ${path.basename(actualFilePath)}`);
-                    registry.updateAnalysis(analysisId, 'failed', 0, 'Analysis returned no data');
-                }
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error analyzing file (XR):', error);
-                vscode.window.showErrorMessage('Failed to analyze file in XR mode');
-                // 🔥 UPDATE ANALYSIS STATUS TO FAILED (if analysisId exists)
-                try {
-                    if (typeof analysisId !== 'undefined') {
-                        console.log(`[CODE_ANALYSIS] ❌ Updating XR analysis ${analysisId} status to failed due to exception`);
-                        const registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-                        registry.updateAnalysis(analysisId, 'failed', 0, `XR Analysis failed: ${error}`);
-                    }
-                }
-                catch (registryError) {
-                    console.error('[CODE_ANALYSIS] Failed to update XR analysis status in catch block:', registryError);
-                }
-            }
-        });
-        // Refresh command
-        const refreshCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.refresh', () => {
-            console.log('[CODE_ANALYSIS] Command: refresh executed');
-            vscode.commands.executeCommand('codexr.servers.refresh');
-        });
-        // File click command
-        const fileClickedCommand = vscode.commands.registerCommand('codeXR.codeAnalysis.fileClicked', (filePath) => {
-            console.log('[CODE_ANALYSIS] Command: fileClicked executed');
-            handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handleFileClick(filePath, context);
-        });
-        // Theme toggle command
-        const toggleThemeCommand = vscode.commands.registerCommand('codexr.analysis.toggleTheme', async () => {
-            console.log('[CODE_ANALYSIS] Command: toggleTheme executed');
-            try {
-                const newTheme = await analysisSettingsStorage_1.AnalysisSettingsStorage.toggleTheme(context);
-                vscode.window.showInformationMessage(`Analysis viewer theme switched to: ${newTheme}`);
-                // Refresh the tree view to show the updated theme
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error toggling theme:', error);
-                vscode.window.showErrorMessage('Failed to toggle analysis viewer theme');
-            }
-        });
-        // Set theme commands
-        const setLightThemeCommand = vscode.commands.registerCommand('codexr.analysis.setLightTheme', async () => {
-            console.log('[CODE_ANALYSIS] Command: setLightTheme executed');
-            try {
-                await analysisSettingsStorage_1.AnalysisSettingsStorage.setTheme(context, 'light');
-                vscode.window.showInformationMessage('Analysis viewer theme set to light');
-                // Refresh the tree view to show the updated theme
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error setting light theme:', error);
-                vscode.window.showErrorMessage('Failed to set light theme');
-            }
-        });
-        const setDarkThemeCommand = vscode.commands.registerCommand('codexr.analysis.setDarkTheme', async () => {
-            console.log('[CODE_ANALYSIS] Command: setDarkTheme executed');
-            try {
-                await analysisSettingsStorage_1.AnalysisSettingsStorage.setTheme(context, 'dark');
-                vscode.window.showInformationMessage('Analysis viewer theme set to dark');
-                // Refresh the tree view to show the updated theme
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error setting dark theme:', error);
-                vscode.window.showErrorMessage('Failed to set dark theme');
-            }
-        });
-        // Auto-Analysis Delay command
-        const setAutoAnalysisDelayCommand = vscode.commands.registerCommand('codexr.analysis.setAutoAnalysisDelay', async () => {
-            console.log('[CODE_ANALYSIS] Command: setAutoAnalysisDelay executed');
-            try {
-                await handleAnalysisClicks_1.CodeAnalysisInteractionHandler.handleAutoAnalysisDelaySelection(context);
-                // Refresh the tree view to show the updated delay
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error setting auto-analysis delay:', error);
-                vscode.window.showErrorMessage('Failed to set auto-analysis delay');
-            }
-        });
-        // Command: Select Chart Type for File Analysis
-        const selectChartTypeFileCommand = vscode.commands.registerCommand('codexr.analysis.selectChartTypeFile', async () => {
-            console.log('[CODE_ANALYSIS] Command: selectChartTypeFile executed');
-            try {
-                await handleChartTypeFileSelection(context);
-                // Refresh the tree view to show the updated chart type
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error selecting chart type for file analysis:', error);
-                vscode.window.showErrorMessage('Failed to select chart type for file analysis');
-            }
-        });
-        // Command: Map Dimension for File Analysis
-        const mapDimensionFileCommand = vscode.commands.registerCommand('codexr.analysis.mapDimensionFile', async (dimensionName, dataType, required) => {
-            console.log('[CODE_ANALYSIS] Command: mapDimensionFile executed', { dimensionName, dataType, required });
-            // Validate arguments
-            if (!dimensionName || typeof dimensionName !== 'string') {
-                console.error('[CODE_ANALYSIS] Invalid dimensionName argument:', dimensionName);
-                vscode.window.showErrorMessage('Invalid dimension name provided');
-                return;
-            }
-            try {
-                await handleDimensionMappingFileSelection(context, dimensionName, dataType, required);
-                // Refresh the tree view to show the updated mapping
-                vscode.commands.executeCommand('codexr.servers.refresh');
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error mapping dimension for file analysis:', error);
-                vscode.window.showErrorMessage('Failed to map dimension for file analysis');
-            }
-        });
-        // Command: Reset Analysis Settings to Defaults
-        const resetSettingsCommand = vscode.commands.registerCommand('codexr.analysis.resetSettings', async () => {
-            console.log('[CODE_ANALYSIS] Command: resetSettings executed');
-            try {
-                // Show confirmation dialog
-                const result = await vscode.window.showWarningMessage('Reset all analysis settings to default values? This will restore chart type to "boats" and clear all dimension mappings.', { modal: true }, 'Reset Settings', 'Cancel');
-                if (result === 'Reset Settings') {
-                    // Reset to default configuration
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.resetToDefaults(context);
-                    // Refresh the tree view to show the updated settings
-                    vscode.commands.executeCommand('codexr.servers.refresh');
-                    vscode.window.showInformationMessage('Analysis settings have been reset to default values');
-                }
-            }
-            catch (error) {
-                console.error('[CODE_ANALYSIS] Error resetting analysis settings:', error);
-                vscode.window.showErrorMessage('Failed to reset analysis settings');
-            }
-        });
-        // Add all commands to subscriptions
-        context.subscriptions.push(showActiveAnalysesCommand, showAnalysisSettingsCommand, showFilesByLanguageCommand, placeholderActiveAnalysesCommand, placeholderAnalysisSettingsCommand, placeholderFilesByLanguageCommand, toggleAnalysisModeCommand, analyzeFileStaticCommand, analyzeFileXRCommand, refreshCommand, fileClickedCommand, toggleThemeCommand, setLightThemeCommand, setDarkThemeCommand, setAutoAnalysisDelayCommand, selectChartTypeFileCommand, mapDimensionFileCommand, resetSettingsCommand);
-        console.log('[CODE_ANALYSIS] All code analysis commands registered successfully');
-    }
-}
-exports.CodeAnalysisCommands = CodeAnalysisCommands;
-/**
- * Run analysis for a file and return the analysis data
- * This is a reusable function that can be called from various contexts
- *
- * @param context - VS Code extension context
- * @param filePath - Absolute file path to analyze
- * @returns Promise<any> - Analysis data object
- */
-async function executeFileAnalysis(context, filePath) {
-    console.log(`[ANALYSIS_EXECUTION] Starting analysis for ${path.basename(filePath)}`);
-    try {
-        // Run the Python static analysis coordinator
-        const analysisData = await runStaticFileAnalysisCoordinator(context, filePath);
-        if (!analysisData) {
-            throw new Error('Analysis coordinator returned no data');
-        }
-        console.log(`[ANALYSIS_EXECUTION] Analysis completed for ${path.basename(filePath)}`);
-        return analysisData;
-    }
-    catch (error) {
-        console.error(`[ANALYSIS_EXECUTION] Analysis failed for ${path.basename(filePath)}:`, error);
-        throw error;
-    }
-}
-/**
- * Run the Python static file analysis coordinator
- */
-async function runStaticFileAnalysisCoordinator(context, filePath) {
-    return new Promise((resolve, reject) => {
-        console.log(`STATIC_ANALYSIS: Running static coordinator for ${filePath}`);
-        // Get the path to the Python coordinator script
-        const extensionPath = context.extensionPath;
-        const coordinatorPath = path.join(extensionPath, 'src', 'code_analysis', 'python', 'static_file_analysis_coordinator.py');
-        console.log(`STATIC_ANALYSIS: Using coordinator script: ${coordinatorPath}`);
-        // Get virtual environment paths
-        const pythonEnvStorage = new pythonEnvStorage_1.PythonEnvStorage(context);
-        const venvPath = pythonEnvStorage.getVenvPath();
-        const pythonExecutable = pythonEnvUtils_1.PythonEnvUtils.getVenvPythonPath(venvPath);
-        console.log(`STATIC_ANALYSIS: Using Python virtual environment: ${venvPath}`);
-        console.log(`STATIC_ANALYSIS: Using Python executable: ${pythonExecutable}`);
-        // Check if virtual environment exists and use it, otherwise fallback to system Python
-        let pythonCommand = 'python3';
-        try {
-            if (pythonEnvUtils_1.PythonEnvUtils.isValidVenv(venvPath)) {
-                pythonCommand = pythonExecutable;
-                console.log(`STATIC_ANALYSIS: Using virtual environment Python: ${pythonCommand}`);
-            }
-            else {
-                console.log(`STATIC_ANALYSIS: Virtual environment not found, using system Python: ${pythonCommand}`);
-            }
-        }
-        catch (error) {
-            console.log(`STATIC_ANALYSIS: Error checking virtual environment, using system Python: ${error}`);
-        }
-        // Spawn the Python process
-        const pythonProcess = (0, child_process_1.spawn)(pythonCommand, [coordinatorPath, filePath], {
-            cwd: path.dirname(coordinatorPath)
-        });
-        let stdout = '';
-        let stderr = '';
-        pythonProcess.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-        pythonProcess.stderr.on('data', (data) => {
-            const stderrText = data.toString();
-            stderr += stderrText;
-            // Log debug messages from the Python script
-            const lines = stderrText.split('\n').filter((line) => line.trim());
-            lines.forEach((line) => {
-                try {
-                    const debugMsg = JSON.parse(line);
-                    if (debugMsg.debug) {
-                        console.log(debugMsg.debug);
-                    }
-                }
-                catch {
-                    // Not a JSON debug message, log as is
-                    console.log(`STATIC_ANALYSIS: ${line}`);
-                }
-            });
-        });
-        pythonProcess.on('close', (code) => {
-            if (code === 0) {
-                try {
-                    const result = JSON.parse(stdout.trim());
-                    console.log(`STATIC_ANALYSIS: Analysis completed with status: ${result.status}`);
-                    resolve(result);
-                }
-                catch (error) {
-                    console.error(`STATIC_ANALYSIS: Failed to parse JSON output: ${error}`);
-                    console.error(`STATIC_ANALYSIS: Raw stdout: ${stdout}`);
-                    reject(new Error('Failed to parse static analysis output'));
-                }
-            }
-            else {
-                console.error(`STATIC_ANALYSIS: Python process exited with code ${code}`);
-                console.error(`STATIC_ANALYSIS: stderr: ${stderr}`);
-                reject(new Error(`Static analysis process failed with code ${code}`));
-            }
-        });
-        pythonProcess.on('error', (error) => {
-            console.error(`STATIC_ANALYSIS: Failed to start Python process: ${error}`);
-            reject(error);
-        });
-    });
-}
-/**
- * Run the Python XR file analysis coordinator
- */
-async function runXRFileAnalysisCoordinator(context, filePath) {
-    return new Promise((resolve, reject) => {
-        console.log(`XR_ANALYSIS: Running XR coordinator for ${filePath}`);
-        // Get the path to the Python coordinator script
-        const extensionPath = context.extensionPath;
-        const coordinatorPath = path.join(extensionPath, 'src', 'code_analysis', 'python', 'xr_file_analysis_coordinator.py');
-        console.log(`XR_ANALYSIS: Using coordinator script: ${coordinatorPath}`);
-        // Get virtual environment paths
-        const pythonEnvStorage = new pythonEnvStorage_1.PythonEnvStorage(context);
-        const venvPath = pythonEnvStorage.getVenvPath();
-        const pythonExecutable = pythonEnvUtils_1.PythonEnvUtils.getVenvPythonPath(venvPath);
-        console.log(`XR_ANALYSIS: Using Python virtual environment: ${venvPath}`);
-        console.log(`XR_ANALYSIS: Using Python executable: ${pythonExecutable}`);
-        // Check if virtual environment exists and use it, otherwise fallback to system Python
-        let pythonCommand = 'python3';
-        try {
-            if (pythonEnvUtils_1.PythonEnvUtils.isValidVenv(venvPath)) {
-                pythonCommand = pythonExecutable;
-                console.log(`XR_ANALYSIS: Using virtual environment Python: ${pythonCommand}`);
-            }
-            else {
-                console.log(`XR_ANALYSIS: Virtual environment not found, using system Python: ${pythonCommand}`);
-            }
-        }
-        catch (error) {
-            console.log(`XR_ANALYSIS: Error checking virtual environment, using system Python: ${error}`);
-        }
-        // Spawn the Python process
-        const pythonProcess = (0, child_process_1.spawn)(pythonCommand, [coordinatorPath, filePath], {
-            cwd: path.dirname(coordinatorPath)
-        });
-        let stdout = '';
-        let stderr = '';
-        pythonProcess.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-        pythonProcess.stderr.on('data', (data) => {
-            const stderrText = data.toString();
-            stderr += stderrText;
-            // Log debug messages from the Python script
-            const lines = stderrText.split('\n').filter((line) => line.trim());
-            lines.forEach((line) => {
-                try {
-                    const debugMsg = JSON.parse(line);
-                    if (debugMsg.debug) {
-                        console.log(debugMsg.debug);
-                    }
-                }
-                catch {
-                    // Not a JSON debug message, log as is
-                    console.log(`XR_ANALYSIS: ${line}`);
-                }
-            });
-        });
-        pythonProcess.on('close', (code) => {
-            if (code === 0) {
-                try {
-                    const result = JSON.parse(stdout.trim());
-                    console.log(`XR_ANALYSIS: Analysis completed, found ${Array.isArray(result) ? result.length : 'N/A'} functions`);
-                    resolve(result);
-                }
-                catch (error) {
-                    console.error(`XR_ANALYSIS: Failed to parse JSON output: ${error}`);
-                    console.error(`XR_ANALYSIS: Raw stdout: ${stdout}`);
-                    reject(new Error('Failed to parse XR analysis output'));
-                }
-            }
-            else {
-                console.error(`XR_ANALYSIS: Python process exited with code ${code}`);
-                console.error(`XR_ANALYSIS: stderr: ${stderr}`);
-                reject(new Error(`XR analysis process failed with code ${code}`));
-            }
-        });
-        pythonProcess.on('error', (error) => {
-            console.error(`XR_ANALYSIS: Failed to start Python process: ${error}`);
-            reject(error);
-        });
-    });
-}
-/**
- * Handle chart type selection for file analysis
- */
-async function handleChartTypeFileSelection(context) {
-    console.log('[CODE_ANALYSIS] Handling chart type selection for file analysis');
-    try {
-        // Get available charts from BabiaXR registry
-        const chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
-        const availableCharts = chartRegistry.getAllCharts();
-        if (availableCharts.length === 0) {
-            console.error('[CODE_ANALYSIS] No chart types found in registry');
-            vscode.window.showErrorMessage('No chart templates available');
-            return;
-        }
-        // Create quick pick items for available charts
-        const quickPickItems = availableCharts.map(chart => ({
-            label: chart.name,
-            description: chart.description,
-            detail: `Category: ${chart.category} | Dimensions: ${chart.dimensions.map(d => d.name).join(', ')}`,
-            chartId: chart.id
-        }));
-        // Show quick pick
-        const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
-            placeHolder: 'Select a chart type for file analysis visualization',
-            title: 'Chart Type Selection for File Analysis'
-        });
-        if (selectedItem && selectedItem.chartId) {
-            // Update settings with selected chart type
-            await analysisSettingsStorage_1.AnalysisSettingsStorage.setChartTypeFile(context, selectedItem.chartId);
-            console.log(`[CODE_ANALYSIS] Chart type selected for file analysis: ${selectedItem.label}`);
-            vscode.window.showInformationMessage(`Chart type set to ${selectedItem.label} for file analysis`);
-        }
-        else {
-            console.log('[CODE_ANALYSIS] Chart type selection cancelled');
-        }
-    }
-    catch (error) {
-        console.error('[CODE_ANALYSIS] Error in chart type selection:', error);
-        vscode.window.showErrorMessage(`Failed to select chart type: ${error instanceof Error ? error.message : String(error)}`);
-    }
-}
-/**
- * Handle dimension mapping selection for file analysis
- */
-async function handleDimensionMappingFileSelection(context, dimensionName, dataType, required) {
-    console.log(`[CODE_ANALYSIS] Handling dimension mapping for file analysis: ${dimensionName}`);
-    try {
-        // Define available data fields from file analysis
-        const fieldOptions = [
-            {
-                label: 'parameters',
-                description: 'Number of parameters in functions',
-                dataType: 'numeric'
-            },
-            {
-                label: 'lines_count',
-                description: 'Lines of code count',
-                dataType: 'numeric'
-            },
-            {
-                label: 'ccn',
-                description: 'Cyclomatic Complexity Number (McCabe complexity)',
-                dataType: 'numeric'
-            },
-            {
-                label: 'function_name',
-                description: 'Name of the function',
-                dataType: 'text'
-            },
-            {
-                label: 'ccn_density',
-                description: 'CCN density (complexity per line of code)',
-                dataType: 'numeric'
-            }
-        ];
-        // Filter options based on data type if numeric only
-        let availableOptions = fieldOptions;
-        if (dataType === 'numeric') {
-            availableOptions = fieldOptions.filter(option => option.dataType === 'numeric');
-        }
-        // Create quick pick items
-        const quickPickItems = availableOptions.map(option => ({
-            label: option.label,
-            description: option.description,
-            detail: option.dataType === 'numeric' ? 'Numeric values only' : 'Any value type'
-        }));
-        // Show quick pick
-        const selectedField = await vscode.window.showQuickPick(quickPickItems, {
-            placeHolder: `Select field to map to dimension "${dimensionName}"`,
-            title: `Map Dimension: ${dimensionName} (${dataType}${required ? ', required' : ''})`
-        });
-        if (selectedField && selectedField.label) {
-            // Update dimension mapping
-            await analysisSettingsStorage_1.AnalysisSettingsStorage.updateDimensionMappingFile(context, dimensionName, selectedField.label);
-            console.log(`[CODE_ANALYSIS] Dimension mapped: ${dimensionName} → ${selectedField.label}`);
-            vscode.window.showInformationMessage(`Mapped ${dimensionName} to ${selectedField.label}`);
-        }
-        else {
-            console.log(`[CODE_ANALYSIS] Dimension mapping cancelled for ${dimensionName}`);
-        }
-    }
-    catch (error) {
-        console.error(`[CODE_ANALYSIS] Error mapping dimension ${dimensionName}:`, error);
-        vscode.window.showErrorMessage(`Failed to map dimension: ${error instanceof Error ? error.message : String(error)}`);
-    }
-}
-
-
-/***/ }),
-/* 61 */
-/***/ ((module) => {
-
-module.exports = require("child_process");
-
-/***/ }),
-/* 62 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisInteractionHandler = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisSettingsStorage_1 = __webpack_require__(63);
-/**
- * Handle clicks and interactions for Code Analysis tree items
- */
-class CodeAnalysisInteractionHandler {
-    /**
-     * Handle main section clicks
-     */
-    static handleSectionClick(sectionType, context) {
-        console.log(`[CODE_ANALYSIS] User clicked on ${sectionType}`);
-        switch (sectionType) {
-            case 'active-analyses':
-                console.log('[CODE_ANALYSIS] User clicked on Active Analyses');
-                vscode.window.showInformationMessage('TODO: Implement Active Analyses view logic');
-                break;
-            case 'analysis-settings':
-                console.log('[CODE_ANALYSIS] User clicked on Analysis Settings');
-                if (context) {
-                    this.showAnalysisSettingsMenu(context);
-                }
-                else {
-                    vscode.window.showErrorMessage('Extension context not available for settings');
-                }
-                break;
-            case 'files-by-language':
-                console.log('[CODE_ANALYSIS] User clicked on Files by Language');
-                // This will trigger the file scan when the section is expanded
-                // No need for a placeholder message anymore
-                break;
-            default:
-                console.log(`[CODE_ANALYSIS] Unknown section type: ${sectionType}`);
-                vscode.window.showWarningMessage(`Unknown analysis section: ${sectionType}`);
-        }
-    }
-    /**
-     * Handle placeholder item clicks
-     */
-    static handlePlaceholderClick(placeholderType) {
-        console.log(`[CODE_ANALYSIS] User clicked on placeholder: ${placeholderType}`);
-        switch (placeholderType) {
-            case 'activeAnalyses':
-                vscode.window.showInformationMessage('TODO: Implement Active Analyses functionality');
-                break;
-            case 'analysisSettings':
-                vscode.window.showInformationMessage('TODO: Implement Analysis Settings functionality');
-                break;
-            case 'filesByLanguage':
-                vscode.window.showInformationMessage('TODO: Implement Files by Language functionality');
-                break;
-            default:
-                vscode.window.showInformationMessage(`TODO: Implement ${placeholderType} functionality`);
-        }
-    }
-    /**
-     * Handle file click - analyzes based on current mode
-     */
-    static async handleFileClick(filePath, context) {
-        console.log(`ANALYSIS: File clicked: ${filePath}`);
-        try {
-            // Get current analysis mode
-            const currentMode = await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context);
-            console.log(`[CODE_ANALYSIS] Using analysis mode: ${currentMode}`);
-            // Create URI from file path
-            const fileUri = vscode.Uri.file(filePath);
-            // Execute the appropriate analysis command based on current mode
-            if (currentMode === 'XR') {
-                await vscode.commands.executeCommand('codexr.analysis.fileXR', fileUri);
-            }
-            else {
-                await vscode.commands.executeCommand('codexr.analysis.fileStatic', fileUri);
-            }
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error handling file click:', error);
-            vscode.window.showErrorMessage('Failed to analyze file');
-        }
-    }
-    /**
-     * Show analysis settings menu with all options
-     */
-    static async showAnalysisSettingsMenu(context) {
-        const items = [
-            {
-                label: '$(file) Analysis Mode',
-                description: 'Switch between XR and Static analysis modes',
-                action: 'analysisMode'
-            },
-            {
-                label: '$(color-mode) Theme',
-                description: 'Switch between light and dark themes',
-                action: 'theme'
-            },
-            {
-                label: '$(clock) Auto-Analysis Delay',
-                description: 'Set delay before re-analyzing changed files',
-                action: 'autoAnalysisDelay'
-            }
-        ];
-        const selection = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Select analysis setting to configure'
-        });
-        if (selection) {
-            switch (selection.action) {
-                case 'analysisMode':
-                    await this.handleAnalysisModeSelection(context);
-                    break;
-                case 'theme':
-                    await this.handleThemeSelection(context);
-                    break;
-                case 'autoAnalysisDelay':
-                    await this.handleAutoAnalysisDelaySelection(context);
-                    break;
-            }
-        }
-    }
-    /**
-     * Handle analysis mode selection
-     */
-    static async handleAnalysisModeSelection(context) {
-        const items = [
-            { label: 'XR Analysis Mode', value: 'XR' },
-            { label: 'Static Analysis Mode', value: 'Static' }
-        ];
-        const selection = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Select analysis mode'
-        });
-        if (selection) {
-            await analysisSettingsStorage_1.AnalysisSettingsStorage.setAnalysisMode(context, selection.value);
-        }
-    }
-    /**
-     * Handle theme selection
-     */
-    static async handleThemeSelection(context) {
-        const items = [
-            { label: 'Light Theme', value: 'light' },
-            { label: 'Dark Theme', value: 'dark' }
-        ];
-        const selection = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Select theme'
-        });
-        if (selection) {
-            await analysisSettingsStorage_1.AnalysisSettingsStorage.setTheme(context, selection.value);
-        }
-    }
-    /**
-     * Handle auto-analysis delay selection
-     */
-    static async handleAutoAnalysisDelaySelection(context) {
-        const options = analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayOptions();
-        const selection = await vscode.window.showQuickPick(options, {
-            placeHolder: 'Select auto-analysis delay'
-        });
-        if (selection) {
-            if (selection.value === -1) {
-                // Custom input
-                const customInput = await vscode.window.showInputBox({
-                    prompt: 'Enter custom delay in milliseconds',
-                    placeHolder: 'e.g., 2500',
-                    validateInput: (value) => {
-                        const num = parseInt(value);
-                        if (isNaN(num) || num < 0) {
-                            return 'Please enter a valid number (0 or greater)';
-                        }
-                        return null;
-                    }
-                });
-                if (customInput) {
-                    const customDelay = parseInt(customInput);
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.setAutoAnalysisDelay(context, customDelay);
-                }
-            }
-            else {
-                await analysisSettingsStorage_1.AnalysisSettingsStorage.setAutoAnalysisDelay(context, selection.value);
-            }
-        }
-    }
-}
-exports.CodeAnalysisInteractionHandler = CodeAnalysisInteractionHandler;
-
-
-/***/ }),
-/* 63 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisSettingsStorage = exports.AUTO_ANALYSIS_DELAYS = void 0;
-const vscode = __importStar(__webpack_require__(1));
-/**
- * Auto-analysis delay presets in milliseconds
- */
-exports.AUTO_ANALYSIS_DELAYS = {
-    REAL_TIME: 0,
-    HALF_SECOND: 500,
-    ONE_SECOND: 1000,
-    THREE_SECONDS: 3000,
-    FIVE_SECONDS: 5000,
-    TEN_SECONDS: 10000
-};
-/**
- * Default analysis configuration
- */
-const DEFAULT_CONFIG = {
-    analysisModeFile: 'XR',
-    theme: 'light',
-    autoAnalysisDelay: exports.AUTO_ANALYSIS_DELAYS.REAL_TIME,
-    // Default chart and dimension mapping for file analysis - using boats chart with XR field names
-    chartTypeFile: 'boats', // Default to boats chart for file analysis
-    dimensionMappingFile: [
-        {
-            dimension: 'area',
-            dataField: 'parameters' // Same in XR format
-        },
-        {
-            dimension: 'height',
-            dataField: 'lineCount' // Updated to XR field name
-        },
-        {
-            dimension: 'color',
-            dataField: 'complexity' // Updated to XR field name (was 'ccn')
-        }
-    ]
-};
-/**
- * Utility class for managing analysis settings storage
- * Stores configuration in globalStorage/codexr_analysis/configuration.json
- */
-class AnalysisSettingsStorage {
-    static STORAGE_FOLDER = 'codexr_analysis';
-    static CONFIG_FILE = 'configuration.json';
-    /**
-     * Get the full path to the configuration file
-     */
-    static getConfigPath(context) {
-        return vscode.Uri.joinPath(context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
-    }
-    /**
-     * Load analysis configuration from storage
-     */
-    static async loadConfiguration(context) {
-        try {
-            const configPath = this.getConfigPath(context);
-            console.log(`ANALYSIS: Loading configuration from ${configPath.fsPath}`);
-            const configData = await vscode.workspace.fs.readFile(configPath);
-            const configString = Buffer.from(configData).toString('utf8');
-            const loadedConfig = JSON.parse(configString);
-            // Validate and merge with defaults
-            const config = {
-                analysisModeFile: loadedConfig.analysisModeFile || DEFAULT_CONFIG.analysisModeFile,
-                theme: loadedConfig.theme || DEFAULT_CONFIG.theme,
-                autoAnalysisDelay: loadedConfig.autoAnalysisDelay !== undefined ? loadedConfig.autoAnalysisDelay : DEFAULT_CONFIG.autoAnalysisDelay,
-                chartTypeFile: loadedConfig.chartTypeFile || DEFAULT_CONFIG.chartTypeFile,
-                dimensionMappingFile: loadedConfig.dimensionMappingFile || DEFAULT_CONFIG.dimensionMappingFile
-            };
-            console.log(`ANALYSIS: Loaded configuration:`, config);
-            return config;
-        }
-        catch (error) {
-            console.log(`ANALYSIS: Could not load configuration, using defaults:`, error);
-            // Try to detect theme from VS Code when config is not available
-            const detectedTheme = this.getDefaultThemeFromVscode();
-            console.log(`ANALYSIS: Detected VS Code theme: ${detectedTheme}`);
-            return {
-                ...DEFAULT_CONFIG,
-                theme: detectedTheme
-            };
-        }
-    }
-    /**
-     * Save analysis configuration to storage
-     */
-    static async saveConfiguration(context, config) {
-        try {
-            const configPath = this.getConfigPath(context);
-            console.log(`ANALYSIS: Saving configuration to ${configPath.fsPath}:`, config);
-            // Ensure the storage folder exists
-            const storageFolder = vscode.Uri.joinPath(context.globalStorageUri, this.STORAGE_FOLDER);
-            try {
-                await vscode.workspace.fs.createDirectory(storageFolder);
-            }
-            catch (error) {
-                // Directory might already exist, that's fine
-            }
-            // Save configuration
-            const configString = JSON.stringify(config, null, 2);
-            const configData = Buffer.from(configString, 'utf8');
-            await vscode.workspace.fs.writeFile(configPath, configData);
-            console.log(`ANALYSIS: Configuration saved successfully`);
-        }
-        catch (error) {
-            console.error(`ANALYSIS: Failed to save configuration:`, error);
-            vscode.window.showErrorMessage(`Failed to save analysis configuration: ${error}`);
-        }
-    }
-    /**
-     * Get the current analysis mode
-     */
-    static async getCurrentAnalysisMode(context) {
-        const config = await this.loadConfiguration(context);
-        return config.analysisModeFile;
-    }
-    /**
-     * Set the analysis mode and save configuration
-     */
-    static async setAnalysisMode(context, mode) {
-        console.log(`ANALYSIS: Setting analysis mode to: ${mode}`);
-        const config = await this.loadConfiguration(context);
-        config.analysisModeFile = mode;
-        await this.saveConfiguration(context, config);
-        // Show confirmation message
-        const modeDisplay = mode === 'XR' ? 'XR Analysis Mode' : 'Static Analysis Mode';
-        vscode.window.showInformationMessage(`Switched to ${modeDisplay}`);
-    }
-    /**
-     * Toggle between XR and Static analysis modes
-     */
-    static async toggleAnalysisMode(context) {
-        const currentMode = await this.getCurrentAnalysisMode(context);
-        const newMode = currentMode === 'XR' ? 'Static' : 'XR';
-        await this.setAnalysisMode(context, newMode);
-        return newMode;
-    }
-    /**
-     * Get icon for analysis mode
-     */
-    static getAnalysisModeIcon(mode) {
-        switch (mode) {
-            case 'XR':
-                return new vscode.ThemeIcon('file', new vscode.ThemeColor('charts.purple'));
-            case 'Static':
-                return new vscode.ThemeIcon('file', new vscode.ThemeColor('charts.green'));
-            default:
-                return new vscode.ThemeIcon('file');
-        }
-    }
-    /**
-     * Get display label for analysis mode
-     */
-    static getAnalysisModeLabel(mode) {
-        return `Analysis Mode (${mode})`;
-    }
-    /**
-     * Get the current theme mode
-     */
-    static async getCurrentTheme(context) {
-        const config = await this.loadConfiguration(context);
-        return config.theme;
-    }
-    /**
-     * Set the theme mode and save configuration
-     */
-    static async setTheme(context, theme) {
-        console.log(`ANALYSIS: Setting theme to: ${theme}`);
-        const config = await this.loadConfiguration(context);
-        config.theme = theme;
-        await this.saveConfiguration(context, config);
-        console.log(`ANALYSIS: Theme updated to ${theme}`);
-    }
-    /**
-     * Toggle between light and dark themes
-     */
-    static async toggleTheme(context) {
-        const currentTheme = await this.getCurrentTheme(context);
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        await this.setTheme(context, newTheme);
-        return newTheme;
-    }
-    /**
-     * Get default theme from VS Code's active color theme
-     */
-    static getDefaultThemeFromVscode() {
-        const theme = vscode.window.activeColorTheme.kind;
-        if (theme === vscode.ColorThemeKind.Dark || theme === vscode.ColorThemeKind.HighContrast) {
-            return 'dark';
-        }
-        return 'light';
-    }
-    /**
-     * Get the current auto-analysis delay
-     */
-    static async getAutoAnalysisDelay(context) {
-        const config = await this.loadConfiguration(context);
-        return config.autoAnalysisDelay;
-    }
-    /**
-     * Set the auto-analysis delay and save configuration
-     */
-    static async setAutoAnalysisDelay(context, delay) {
-        console.log(`ANALYSIS: Setting auto-analysis delay to: ${delay}ms`);
-        const config = await this.loadConfiguration(context);
-        config.autoAnalysisDelay = delay;
-        await this.saveConfiguration(context, config);
-        // Show confirmation message
-        const delayDisplay = delay === 0 ? 'Real Time' : `${delay}ms`;
-        vscode.window.showInformationMessage(`Auto-analysis delay set to ${delayDisplay}`);
-    }
-    /**
-     * Get display label for auto-analysis delay
-     */
-    static getAutoAnalysisDelayLabel(delay) {
-        switch (delay) {
-            case exports.AUTO_ANALYSIS_DELAYS.REAL_TIME:
-                return 'Real Time (0s)';
-            case exports.AUTO_ANALYSIS_DELAYS.HALF_SECOND:
-                return '0.5s';
-            case exports.AUTO_ANALYSIS_DELAYS.ONE_SECOND:
-                return '1s';
-            case exports.AUTO_ANALYSIS_DELAYS.THREE_SECONDS:
-                return '3s';
-            case exports.AUTO_ANALYSIS_DELAYS.FIVE_SECONDS:
-                return '5s';
-            case exports.AUTO_ANALYSIS_DELAYS.TEN_SECONDS:
-                return '10s';
-            default:
-                return `${delay}ms (Custom)`;
-        }
-    }
-    /**
-     * Get preset delay options for UI
-     */
-    static getAutoAnalysisDelayOptions() {
-        return [
-            { label: 'Real Time (0s)', value: exports.AUTO_ANALYSIS_DELAYS.REAL_TIME },
-            { label: '0.5s', value: exports.AUTO_ANALYSIS_DELAYS.HALF_SECOND },
-            { label: '1s', value: exports.AUTO_ANALYSIS_DELAYS.ONE_SECOND },
-            { label: '3s', value: exports.AUTO_ANALYSIS_DELAYS.THREE_SECONDS },
-            { label: '5s', value: exports.AUTO_ANALYSIS_DELAYS.FIVE_SECONDS },
-            { label: '10s', value: exports.AUTO_ANALYSIS_DELAYS.TEN_SECONDS },
-            { label: 'Custom...', value: -1 } // Special value to indicate custom input
-        ];
-    }
-    /**
-     * Get the current chart type for file analysis
-     */
-    static async getChartTypeFile(context) {
-        const config = await this.loadConfiguration(context);
-        return config.chartTypeFile;
-    }
-    /**
-     * Set the chart type for file analysis and save configuration
-     */
-    static async setChartTypeFile(context, chartType) {
-        console.log(`ANALYSIS: Setting chart type for file analysis to: ${chartType}`);
-        const config = await this.loadConfiguration(context);
-        config.chartTypeFile = chartType;
-        // Reset dimension mappings when chart type changes
-        config.dimensionMappingFile = [];
-        await this.saveConfiguration(context, config);
-        vscode.window.showInformationMessage(`Chart type set to ${chartType}`);
-    }
-    /**
-     * Get the current dimension mapping for file analysis
-     */
-    static async getDimensionMappingFile(context) {
-        const config = await this.loadConfiguration(context);
-        return config.dimensionMappingFile;
-    }
-    /**
-     * Set the dimension mapping for file analysis and save configuration
-     */
-    static async setDimensionMappingFile(context, dimensionMappings) {
-        console.log(`ANALYSIS: Setting dimension mapping for file analysis:`, dimensionMappings);
-        const config = await this.loadConfiguration(context);
-        config.dimensionMappingFile = dimensionMappings;
-        await this.saveConfiguration(context, config);
-        const mappedCount = dimensionMappings.length;
-        vscode.window.showInformationMessage(`${mappedCount} dimension mappings configured`);
-    }
-    /**
-     * Update a single dimension mapping for file analysis
-     */
-    static async updateDimensionMappingFile(context, dimensionName, dataField) {
-        const config = await this.loadConfiguration(context);
-        // Remove any existing mapping for this dimension
-        config.dimensionMappingFile = config.dimensionMappingFile.filter(m => m.dimension !== dimensionName);
-        // Add the new mapping
-        config.dimensionMappingFile.push({
-            dimension: dimensionName,
-            dataField: dataField
-        });
-        await this.saveConfiguration(context, config);
-        console.log(`ANALYSIS: Updated dimension mapping: ${dimensionName} → ${dataField}`);
-    }
-    /**
-     * Reset all settings to default values
-     */
-    static async resetToDefaults(context) {
-        console.log('[ANALYSIS] Resetting all settings to default values...');
-        await this.saveConfiguration(context, DEFAULT_CONFIG);
-        console.log('[ANALYSIS] Settings reset to defaults successfully');
-    }
-}
-exports.AnalysisSettingsStorage = AnalysisSettingsStorage;
-
-
-/***/ }),
-/* 64 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.PythonEnvStorage = void 0;
-const path = __importStar(__webpack_require__(5));
-const fs = __importStar(__webpack_require__(6));
-const pythonEnvUtils_1 = __webpack_require__(65);
-/**
- * Manages persistent storage of Python environment metadata
- */
-class PythonEnvStorage {
-    static PYTHON_ENV_DIR = 'python-env';
-    static STATE_FILE = 'state.json';
-    static VENV_DIR = 'venv';
-    context;
-    pythonEnvPath;
-    stateFilePath;
-    venvPath;
-    constructor(context) {
-        this.context = context;
-        // Initialize paths using global storage
-        const globalStorageUri = this.context.globalStorageUri;
-        this.pythonEnvPath = path.join(globalStorageUri.fsPath, PythonEnvStorage.PYTHON_ENV_DIR);
-        this.stateFilePath = path.join(this.pythonEnvPath, PythonEnvStorage.STATE_FILE);
-        this.venvPath = path.join(this.pythonEnvPath, PythonEnvStorage.VENV_DIR);
-        console.log(`PYTHON_ENV: Storage initialized at ${this.pythonEnvPath}`);
-        console.log(`PYTHON_ENV: Virtual environment path: ${this.venvPath}`);
-        console.log(`PYTHON_ENV: State file path: ${this.stateFilePath}`);
-        // Ensure the python-env directory exists
-        this.ensurePythonEnvDirectory();
-    }
-    /**
-     * Get the virtual environment path
-     */
-    getVenvPath() {
-        return this.venvPath;
-    }
-    /**
-     * Get the Python environment storage path
-     */
-    getPythonEnvPath() {
-        return this.pythonEnvPath;
-    }
-    /**
-     * Save environment metadata to state.json
-     */
-    async saveMetadata(metadata) {
-        try {
-            const jsonData = JSON.stringify(metadata, null, 2);
-            fs.writeFileSync(this.stateFilePath, jsonData, 'utf-8');
-            console.log('PYTHON_ENV: Metadata saved to state file', metadata);
-        }
-        catch (error) {
-            console.error('PYTHON_ENV: Failed to save metadata:', error);
-            throw new Error(`Failed to save Python environment metadata: ${error}`);
-        }
-    }
-    /**
-     * Load environment metadata from state.json
-     */
-    loadMetadata() {
-        try {
-            if (!fs.existsSync(this.stateFilePath)) {
-                console.log('PYTHON_ENV: No state file found, returning null');
-                return null;
-            }
-            const jsonData = fs.readFileSync(this.stateFilePath, 'utf-8');
-            const metadata = JSON.parse(jsonData);
-            console.log('PYTHON_ENV: Metadata loaded from state file', metadata);
-            return metadata;
-        }
-        catch (error) {
-            console.error('PYTHON_ENV: Failed to load metadata:', error);
-            return null;
-        }
-    }
-    /**
-     * Check if virtual environment exists and is valid
-     */
-    isVenvValid() {
-        const isValid = pythonEnvUtils_1.PythonEnvUtils.isValidVenv(this.venvPath);
-        console.log(`PYTHON_ENV: Virtual environment validation result: ${isValid}`);
-        return isValid;
-    }
-    /**
-     * Delete the virtual environment and metadata
-     */
-    async deleteEnvironment() {
-        try {
-            // Remove virtual environment directory
-            if (fs.existsSync(this.venvPath)) {
-                fs.rmSync(this.venvPath, { recursive: true, force: true });
-                console.log('PYTHON_ENV: Virtual environment directory deleted');
-            }
-            // Remove state file
-            if (fs.existsSync(this.stateFilePath)) {
-                fs.unlinkSync(this.stateFilePath);
-                console.log('PYTHON_ENV: State file deleted');
-            }
-            console.log('PYTHON_ENV: Environment successfully deleted');
-        }
-        catch (error) {
-            console.error('PYTHON_ENV: Failed to delete environment:', error);
-            throw new Error(`Failed to delete Python environment: ${error}`);
-        }
-    }
-    /**
-     * Update metadata with new validation timestamp
-     */
-    async updateValidation() {
-        try {
-            const metadata = this.loadMetadata();
-            if (metadata) {
-                metadata.lastValidated = new Date().toISOString();
-                await this.saveMetadata(metadata);
-                console.log('PYTHON_ENV: Validation timestamp updated');
-            }
-        }
-        catch (error) {
-            console.error('PYTHON_ENV: Failed to update validation:', error);
-        }
-    }
-    /**
-     * Update dependencies list in metadata
-     */
-    async updateDependencies(dependencies) {
-        try {
-            const metadata = this.loadMetadata();
-            if (metadata) {
-                metadata.dependencies = dependencies;
-                await this.saveMetadata(metadata);
-                console.log(`PYTHON_ENV: Dependencies updated (${dependencies.length} packages)`);
-            }
-        }
-        catch (error) {
-            console.error('PYTHON_ENV: Failed to update dependencies:', error);
-        }
-    }
-    /**
-     * Create initial metadata for a new environment
-     */
-    createInitialMetadata(pythonVersion) {
-        const now = new Date().toISOString();
-        return {
-            venvPath: this.venvPath,
-            createdAt: now,
-            pythonVersion: pythonVersion,
-            isActive: true,
-            lastValidated: now,
-            dependencies: []
-        };
-    }
-    /**
-     * Ensure the python-env directory exists
-     */
-    ensurePythonEnvDirectory() {
-        try {
-            if (!pythonEnvUtils_1.PythonEnvUtils.ensureDirectoryExists(this.pythonEnvPath)) {
-                throw new Error(`Failed to create python-env directory at ${this.pythonEnvPath}`);
-            }
-        }
-        catch (error) {
-            console.error('PYTHON_ENV: Failed to ensure directory exists:', error);
-            throw error;
-        }
-    }
-    /**
-     * Get storage statistics
-     */
-    getStorageStats() {
-        const stats = {
-            envExists: fs.existsSync(this.pythonEnvPath),
-            stateExists: fs.existsSync(this.stateFilePath),
-            venvSize: undefined
-        };
-        if (fs.existsSync(this.venvPath)) {
-            try {
-                // Calculate approximate venv size (simplified)
-                const getDirectorySize = (dirPath) => {
-                    let size = 0;
-                    const items = fs.readdirSync(dirPath);
-                    for (const item of items) {
-                        const itemPath = path.join(dirPath, item);
-                        const stat = fs.statSync(itemPath);
-                        if (stat.isDirectory()) {
-                            size += getDirectorySize(itemPath);
-                        }
-                        else {
-                            size += stat.size;
-                        }
-                    }
-                    return size;
-                };
-                stats.venvSize = Math.round(getDirectorySize(this.venvPath) / (1024 * 1024)); // MB
-            }
-            catch (error) {
-                console.log('PYTHON_ENV: Could not calculate venv size:', error);
-            }
-        }
-        return stats;
-    }
-}
-exports.PythonEnvStorage = PythonEnvStorage;
-
-
-/***/ }),
-/* 65 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.PythonEnvUtils = void 0;
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-const os = __importStar(__webpack_require__(66));
-/**
- * Platform-specific utilities for Python environment management
- */
-class PythonEnvUtils {
-    /**
-     * Get the Python executable command for the current platform
-     */
-    static getPythonCommand() {
-        const platform = os.platform();
-        // On Windows, try python first, then python3
-        if (platform === 'win32') {
-            return 'python';
-        }
-        // On Unix-like systems (Linux, macOS), prefer python3
-        return 'python3';
-    }
-    /**
-     * Get the virtual environment activation command for the current platform
-     */
-    static getActivationCommand(venvPath) {
-        const platform = os.platform();
-        if (platform === 'win32') {
-            return path.join(venvPath, 'Scripts', 'activate.bat');
-        }
-        else {
-            return `source ${path.join(venvPath, 'bin', 'activate')}`;
-        }
-    }
-    /**
-     * Get the Python executable path within a virtual environment
-     */
-    static getVenvPythonPath(venvPath) {
-        const platform = os.platform();
-        if (platform === 'win32') {
-            return path.join(venvPath, 'Scripts', 'python.exe');
-        }
-        else {
-            return path.join(venvPath, 'bin', 'python');
-        }
-    }
-    /**
-     * Get the pip executable path within a virtual environment
-     */
-    static getVenvPipPath(venvPath) {
-        const platform = os.platform();
-        if (platform === 'win32') {
-            return path.join(venvPath, 'Scripts', 'pip.exe');
-        }
-        else {
-            return path.join(venvPath, 'bin', 'pip');
-        }
-    }
-    /**
-     * Check if a path points to a valid virtual environment
-     */
-    static isValidVenv(venvPath) {
-        try {
-            // Check if directory exists
-            if (!fs.existsSync(venvPath)) {
-                return false;
-            }
-            // Check for Python executable
-            const pythonPath = this.getVenvPythonPath(venvPath);
-            if (!fs.existsSync(pythonPath)) {
-                return false;
-            }
-            // Check for pip executable
-            const pipPath = this.getVenvPipPath(venvPath);
-            if (!fs.existsSync(pipPath)) {
-                return false;
-            }
-            // Check for pyvenv.cfg (standard virtual environment marker)
-            const configPath = path.join(venvPath, 'pyvenv.cfg');
-            if (!fs.existsSync(configPath)) {
-                return false;
-            }
-            return true;
-        }
-        catch (error) {
-            console.log(`PYTHON_ENV: Error validating venv at ${venvPath}:`, error);
-            return false;
-        }
-    }
-    /**
-     * Validate a path is safe for virtual environment creation
-     */
-    static isValidPath(targetPath) {
-        try {
-            // Check if parent directory exists and is writable
-            const parentDir = path.dirname(targetPath);
-            if (!fs.existsSync(parentDir)) {
-                return false;
-            }
-            // Check if target path already exists and is not empty
-            if (fs.existsSync(targetPath)) {
-                const stats = fs.statSync(targetPath);
-                if (stats.isDirectory()) {
-                    const contents = fs.readdirSync(targetPath);
-                    return contents.length === 0; // Only valid if empty
-                }
-                return false; // File exists at target path
-            }
-            return true;
-        }
-        catch (error) {
-            console.log(`PYTHON_ENV: Error validating path ${targetPath}:`, error);
-            return false;
-        }
-    }
-    /**
-     * Extract Python version from a pyvenv.cfg file
-     */
-    static extractPythonVersion(venvPath) {
-        try {
-            const configPath = path.join(venvPath, 'pyvenv.cfg');
-            if (!fs.existsSync(configPath)) {
-                return null;
-            }
-            const configContent = fs.readFileSync(configPath, 'utf-8');
-            const versionMatch = configContent.match(/version\s*=\s*([^\s\n]+)/);
-            return versionMatch ? versionMatch[1] : null;
-        }
-        catch (error) {
-            console.log(`PYTHON_ENV: Error extracting version from ${venvPath}:`, error);
-            return null;
-        }
-    }
-    /**
-     * Get platform-specific environment separator
-     */
-    static getPathSeparator() {
-        return os.platform() === 'win32' ? ';' : ':';
-    }
-    /**
-     * Ensure directory exists, creating it if necessary
-     */
-    static ensureDirectoryExists(dirPath) {
-        try {
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, { recursive: true });
-            }
-            return true;
-        }
-        catch (error) {
-            console.error(`PYTHON_ENV: Failed to create directory ${dirPath}:`, error);
-            return false;
-        }
-    }
-}
-exports.PythonEnvUtils = PythonEnvUtils;
-
-
-/***/ }),
-/* 66 */
-/***/ ((module) => {
-
-module.exports = require("os");
-
-/***/ }),
-/* 67 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.storeAnalysisJson = storeAnalysisJson;
-exports.cleanupAnalysisTemp = cleanupAnalysisTemp;
-exports.listStoredAnalyses = listStoredAnalyses;
-exports.prepareStaticAnalysisViewerAssets = prepareStaticAnalysisViewerAssets;
-exports.updateDataJson = updateDataJson;
-exports.prepareXRAnalysisViewerAssets = prepareXRAnalysisViewerAssets;
-const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(68));
-const path = __importStar(__webpack_require__(5));
-const nonceGenerator_1 = __webpack_require__(12);
-const index_1 = __webpack_require__(57);
-const analysisSettingsStorage_1 = __webpack_require__(63);
-const fileToServerMap_1 = __webpack_require__(20);
-const xrTemplateRenderer_1 = __webpack_require__(69);
-/**
- * Temporary Storage Manager for Analysis Results
- *
- * Manages the creation and storage of analysis result files in workspace-scoped
- * temporary directories under context.storageUri/analysis_temp/
- */
-/**
- * Store analysis JSON data in a temporary workspace-scoped folder
- *
- * Creates a unique folder structure:
- * {context.storageUri}/analysis_temp/{baseFileName}_{nonce}/data.json
- *
- * @param context - VS Code extension context providing storage URI
- * @param fileName - Name of the analyzed file (with or without path)
- * @param data - Analysis data object to be stored as JSON
- * @returns Promise<vscode.Uri> - URI of the created subfolder containing data.json
- */
-async function storeAnalysisJson(context, fileName, data) {
-    // Ensure we have a storage URI
-    if (!context.storageUri) {
-        throw new Error('Extension storage URI not available');
-    }
-    // Extract the base file name without extension or path
-    const baseName = path.parse(fileName).name;
-    // Generate a unique nonce for this analysis session
-    const nonce = (0, nonceGenerator_1.generateNonce)();
-    // Create the target folder path: analysis_temp/{baseName}_{nonce}
-    const targetFolder = vscode.Uri.joinPath(context.storageUri, 'analysis_temp', `${baseName}_${nonce}`);
-    try {
-        // Ensure the folder exists (create recursively)
-        await fs.mkdir(targetFolder.fsPath, { recursive: true });
-        // Create the data.json file path
-        const dataPath = vscode.Uri.joinPath(targetFolder, 'data.json');
-        // Write the analysis data as formatted JSON
-        await fs.writeFile(dataPath.fsPath, JSON.stringify(data, null, 2), 'utf8');
-        console.log(`ANALYSIS_STORAGE: Successfully stored analysis data at ${dataPath.fsPath}`);
-        // Return the folder URI (not the file URI)
-        return targetFolder;
-    }
-    catch (error) {
-        console.error(`ANALYSIS_STORAGE: Error storing analysis data: ${error}`);
-        throw new Error(`Failed to store analysis data: ${error}`);
-    }
-}
-/**
- * Clean up all temporary analysis folders
- *
- * Removes the entire analysis_temp directory and all its contents.
- * This should be called during extension deactivation.
- *
- * @param context - VS Code extension context providing storage URI
- */
-async function cleanupAnalysisTemp(context) {
-    if (!context.storageUri) {
-        console.log('ANALYSIS_STORAGE: No storage URI available for cleanup');
-        return;
-    }
-    const cleanupPath = vscode.Uri.joinPath(context.storageUri, 'analysis_temp');
-    try {
-        await fs.rm(cleanupPath.fsPath, { recursive: true, force: true });
-        console.log(`ANALYSIS_STORAGE: Successfully cleaned up temporary analysis folder at ${cleanupPath.fsPath}`);
-    }
-    catch (error) {
-        // Ignore errors if folder doesn't exist
-        console.log(`ANALYSIS_STORAGE: Cleanup completed (folder may not have existed): ${error}`);
-    }
-}
-/**
- * List all stored analysis results
- *
- * Returns information about all currently stored analysis results
- * in the analysis_temp directory.
- *
- * @param context - VS Code extension context providing storage URI
- * @returns Promise<string[]> - Array of folder names containing analysis results
- */
-async function listStoredAnalyses(context) {
-    if (!context.storageUri) {
-        return [];
-    }
-    const analysisTempPath = vscode.Uri.joinPath(context.storageUri, 'analysis_temp');
-    try {
-        const entries = await fs.readdir(analysisTempPath.fsPath, { withFileTypes: true });
-        return entries
-            .filter(entry => entry.isDirectory())
-            .map(entry => entry.name);
-    }
-    catch (error) {
-        // Return empty array if directory doesn't exist
-        return [];
-    }
-}
-/**
- * Prepare static analysis viewer assets and launch server
- *
- * Creates a complete static analysis viewer by:
- * 1. Creating a temporary folder with unique nonce
- * 2. Copying template files (HTML, CSS, JS)
- * 3. Saving analysis data as data.json
- * 4. Launching a local server to serve the viewer
- *
- * @param context - VS Code extension context providing storage URI
- * @param fileName - Name of the analyzed file (with or without path)
- * @param analysisData - Analysis data object to be stored and displayed
- * @returns Promise<vscode.Uri> - URI of the created viewer folder
- */
-async function prepareStaticAnalysisViewerAssets(context, fileName, analysisData) {
-    // Ensure we have a storage URI
-    if (!context.storageUri) {
-        throw new Error('Extension storage URI not available');
-    }
-    // Extract the base file name without extension or path
-    const baseName = path.parse(fileName).name;
-    // Get the full filename with extension for server name
-    const fullFileName = path.basename(fileName);
-    // Generate a unique nonce for this analysis viewer session
-    const nonce = (0, nonceGenerator_1.generateNonce)();
-    // Create the target folder path: analysis_temp/{baseName}_{nonce}
-    const targetFolder = vscode.Uri.joinPath(context.storageUri, 'analysis_temp', `${baseName}_${nonce}`);
-    try {
-        // Ensure the folder exists (create recursively)
-        await fs.mkdir(targetFolder.fsPath, { recursive: true });
-        console.log(`ANALYSIS_VIEWER: Created viewer folder at ${targetFolder.fsPath}`);
-        // Get extension path for source files
-        const extensionPath = context.extensionPath;
-        // Define source file paths
-        const templateHtmlPath = path.join(extensionPath, 'templates', 'analysis_static', 'fileAnalysis.html');
-        const mainJsPath = path.join(extensionPath, 'media', 'analysis', 'fileAnalysismain.js');
-        const styleCssPath = path.join(extensionPath, 'media', 'analysis', 'fileAnalysisstyle.css');
-        // Define destination file paths
-        const indexHtmlPath = path.join(targetFolder.fsPath, 'index.html');
-        const jsDestPath = path.join(targetFolder.fsPath, 'fileAnalysismain.js');
-        const cssDestPath = path.join(targetFolder.fsPath, 'fileAnalysisstyle.css');
-        const dataJsonPath = path.join(targetFolder.fsPath, 'data.json');
-        // Step 1: Copy the HTML template and rename to index.html
-        console.log(`ANALYSIS_VIEWER: Copying HTML template from ${templateHtmlPath}`);
-        let htmlContent = await fs.readFile(templateHtmlPath, 'utf8');
-        // Process the HTML template to work in static server mode
-        const currentTheme = await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentTheme(context);
-        htmlContent = processStaticAnalysisTemplate(htmlContent, analysisData, currentTheme);
-        await fs.writeFile(indexHtmlPath, htmlContent, 'utf8');
-        console.log(`ANALYSIS_VIEWER: Created index.html at ${indexHtmlPath}`);
-        // Step 2: Copy the JavaScript file
-        console.log(`ANALYSIS_VIEWER: Copying JavaScript from ${mainJsPath}`);
-        await fs.copyFile(mainJsPath, jsDestPath);
-        console.log(`ANALYSIS_VIEWER: Created fileAnalysismain.js at ${jsDestPath}`);
-        // Step 3: Copy the CSS file
-        console.log(`ANALYSIS_VIEWER: Copying CSS from ${styleCssPath}`);
-        await fs.copyFile(styleCssPath, cssDestPath);
-        console.log(`ANALYSIS_VIEWER: Created fileAnalysisstyle.css at ${cssDestPath}`);
-        // Step 4: Write the analysis data as data.json
-        await fs.writeFile(dataJsonPath, JSON.stringify(analysisData, null, 2), 'utf8');
-        console.log(`ANALYSIS_VIEWER: Created data.json at ${dataJsonPath}`);
-        // Step 5: Launch the local server
-        const customServerName = `Analysis Static ${fullFileName}`;
-        console.log(`ANALYSIS_VIEWER: Launching server with name: ${customServerName}`);
-        const launchResult = await (0, index_1.launchServerWithFile)(context, indexHtmlPath, customServerName);
-        if (launchResult.success) {
-            console.log(`ANALYSIS_VIEWER: Server launched successfully at ${launchResult.serverUrl}`);
-            // Register the file-to-server mapping for SSE notifications
-            if (launchResult.port) {
-                console.log(`ANALYSIS_VIEWER: Registering file-to-server mapping for ${fileName}`);
-                fileToServerMap_1.fileToServerMap.registerMapping(fileName, {
-                    port: launchResult.port,
-                    tempDir: targetFolder.fsPath,
-                    fileUri: fileName,
-                    serverRef: null // Server reference not available from launch result
-                });
-                console.log(`ANALYSIS_VIEWER: File-to-server mapping registered for ${fileName} on port ${launchResult.port}`);
-            }
-            // Show success message with server URL
-            vscode.window.showInformationMessage(`Static analysis viewer launched for ${fullFileName}`, 'Open in Browser').then(selection => {
-                if (selection === 'Open in Browser' && launchResult.serverUrl) {
-                    vscode.env.openExternal(vscode.Uri.parse(launchResult.serverUrl));
-                }
-            });
-        }
-        else {
-            throw new Error(`Failed to launch server: ${launchResult.error}`);
-        }
-        console.log(`ANALYSIS_VIEWER: Static analysis viewer assets prepared successfully at ${targetFolder.fsPath}`);
-        // Return the folder URI
-        return targetFolder;
-    }
-    catch (error) {
-        console.error(`ANALYSIS_VIEWER: Error preparing static analysis viewer: ${error}`);
-        throw new Error(`Failed to prepare static analysis viewer: ${error}`);
-    }
-}
-/**
- * Update the data.json file in an existing analysis folder
- *
- * Finds existing analysis folders for a file and updates the data.json
- * while preserving other assets (HTML, CSS, JS files).
- *
- * @param context - VS Code extension context providing storage URI
- * @param filePath - Path of the analyzed file
- * @param newData - New analysis data to write to data.json
- * @returns Promise<vscode.Uri[]> - URIs of updated folders
- */
-async function updateDataJson(context, filePath, newData) {
-    console.log(`[TEMP_STORAGE] Updating data.json for ${path.basename(filePath)}`);
-    if (!context.storageUri) {
-        throw new Error('Extension storage URI not available');
-    }
-    const baseName = path.parse(filePath).name;
-    const analysisTempPath = vscode.Uri.joinPath(context.storageUri, 'analysis_temp');
-    try {
-        // Read all directories in analysis_temp
-        const entries = await fs.readdir(analysisTempPath.fsPath, { withFileTypes: true });
-        const matchingFolders = [];
-        for (const entry of entries) {
-            if (entry.isDirectory() && entry.name.startsWith(`${baseName}_`)) {
-                const folderPath = vscode.Uri.joinPath(analysisTempPath, entry.name);
-                const dataJsonPath = vscode.Uri.joinPath(folderPath, 'data.json');
-                try {
-                    // Update the data.json file
-                    console.log(`[TEMP_STORAGE] DEBUG: Writing data.json to: ${dataJsonPath.fsPath}`);
-                    await fs.writeFile(dataJsonPath.fsPath, JSON.stringify(newData, null, 2), 'utf8');
-                    // Verify file was written by checking if it exists and reading size
-                    const stats = await fs.stat(dataJsonPath.fsPath);
-                    console.log(`[TEMP_STORAGE] DEBUG: Verified data.json written - Size: ${stats.size} bytes`);
-                    // Check if this is an XR analysis folder by looking for index.html
-                    const indexHtmlPath = vscode.Uri.joinPath(folderPath, 'index.html');
-                    try {
-                        await fs.access(indexHtmlPath.fsPath);
-                        // index.html exists, this is likely an XR analysis - regenerate it
-                        console.log(`[TEMP_STORAGE] Detected XR analysis folder, regenerating index.html for ${entry.name}`);
-                        try {
-                            await xrTemplateRenderer_1.XRTemplateRenderer.generateXRVisualization(context, folderPath, filePath, newData);
-                            console.log(`[TEMP_STORAGE] ✅ Regenerated XR index.html for ${entry.name}`);
-                        }
-                        catch (xrError) {
-                            console.error(`[TEMP_STORAGE] ⚠️ Failed to regenerate XR index.html for ${entry.name}: ${xrError}`);
-                            // Continue with the process even if XR HTML generation fails
-                        }
-                    }
-                    catch (indexError) {
-                        // index.html doesn't exist, probably a static analysis folder
-                        console.log(`[TEMP_STORAGE] No index.html found in ${entry.name}, assuming static analysis folder`);
-                    }
-                    console.log(`[TEMP_STORAGE] Updated data.json in ${entry.name}`);
-                    matchingFolders.push(folderPath);
-                }
-                catch (error) {
-                    console.error(`[TEMP_STORAGE] Failed to update data.json in ${entry.name}:`, error);
-                    // Continue with other folders
-                }
-            }
-        }
-        if (matchingFolders.length === 0) {
-            console.log(`[TEMP_STORAGE] No existing analysis folders found for ${baseName}`);
-        }
-        else {
-            console.log(`[TEMP_STORAGE] Updated ${matchingFolders.length} analysis folder(s) for ${baseName}`);
-        }
-        return matchingFolders;
-    }
-    catch (error) {
-        console.error(`[TEMP_STORAGE] Error updating data.json:`, error);
-        return [];
-    }
-}
-/**
- * Process the static analysis HTML template for standalone server use
- *
- * Replaces VS Code webview placeholders with static server equivalents
- * and injects analysis data directly into the HTML.
- *
- * @param htmlContent - Original HTML template content
- * @param analysisData - Analysis data to inject
- * @param theme - Theme mode ('light' or 'dark')
- * @returns Processed HTML content ready for static server
- */
-function processStaticAnalysisTemplate(htmlContent, analysisData, theme) {
-    // Replace VS Code webview placeholders with static equivalents
-    let processedHtml = htmlContent
-        // Replace CSS reference
-        .replace('${styleUri}', './fileAnalysisstyle.css')
-        // Replace JS reference  
-        .replace('${scriptUri}', './fileAnalysismain.js')
-        // Remove nonce references for static use
-        .replace(/nonce-\$\{nonce\}/g, '')
-        .replace(/\$\{nonce\}/g, '')
-        // Update CSP for static server
-        .replace(/content="default-src 'none'; style-src \$\{webview\.cspSource\}; script-src 'nonce-\$\{nonce\}' https:\/\/cdn\.jsdelivr\.net; img-src data:;"/, 'content="default-src \'self\'; script-src \'self\' \'unsafe-inline\' https://cdn.jsdelivr.net; style-src \'self\' \'unsafe-inline\'; img-src data: \'self\';"');
-    // Inject analysis data directly into the HTML
-    const dataInjectionScript = `
-    <script>
-        // Inject analysis data for static server mode
-        window.analysisData = ${JSON.stringify(analysisData)};
-        // Inject theme setting
-        window.initialTheme = '${theme}';
-        console.log('ANALYSIS_VIEWER: Analysis data injected into window.analysisData');
-        console.log('ANALYSIS_VIEWER: Theme set to:', window.initialTheme);
-    </script>`;
-    // Insert the data injection script before the main script
-    processedHtml = processedHtml.replace(/<script[^>]*src="\.\/fileAnalysismain\.js"[^>]*><\/script>/, dataInjectionScript + '\n    <script src="./fileAnalysismain.js"></script>');
-    return processedHtml;
-}
-/**
- * Prepare XR Analysis Viewer Assets and Launch Server
- *
- * Uses the existing index.html generated by XRTemplateRenderer and launches a server
- *
- * @param context - VS Code extension context
- * @param tempFolder - URI of the temp folder containing index.html and data.json
- * @param fileName - Name of the analyzed file
- * @returns Promise<vscode.Uri> - URI of the viewer folder
- */
-async function prepareXRAnalysisViewerAssets(context, tempFolder, fileName) {
-    try {
-        const baseName = path.basename(fileName);
-        const indexHtmlPath = path.join(tempFolder.fsPath, 'index.html');
-        // Verify that index.html exists (should be generated by XRTemplateRenderer)
-        try {
-            await fs.access(indexHtmlPath);
-            console.log(`XR_ANALYSIS_VIEWER: Found index.html at ${indexHtmlPath}`);
-        }
-        catch (error) {
-            throw new Error(`index.html not found at ${indexHtmlPath}. XR template generation may have failed.`);
-        }
-        // Launch the local server for XR analysis
-        const customServerName = `Analysis XR ${baseName}`;
-        console.log(`XR_ANALYSIS_VIEWER: Launching XR server with name: ${customServerName}`);
-        const launchResult = await (0, index_1.launchServerWithFile)(context, indexHtmlPath, customServerName);
-        if (launchResult.success) {
-            console.log(`XR_ANALYSIS_VIEWER: XR server launched successfully at ${launchResult.serverUrl}`);
-            // Register the file-to-server mapping for SSE notifications
-            if (launchResult.port) {
-                console.log(`XR_ANALYSIS_VIEWER: Registering file-to-server mapping for ${fileName}`);
-                fileToServerMap_1.fileToServerMap.registerMapping(fileName, {
-                    port: launchResult.port,
-                    tempDir: tempFolder.fsPath,
-                    fileUri: fileName,
-                    serverRef: null // Server reference not available from launch result
-                });
-                console.log(`XR_ANALYSIS_VIEWER: File-to-server mapping registered for ${fileName} on port ${launchResult.port}`);
-            }
-            // Show success message with server URL
-            vscode.window.showInformationMessage(`XR analysis viewer launched for ${baseName}`, 'Open in Browser').then(selection => {
-                if (selection === 'Open in Browser' && launchResult.serverUrl) {
-                    vscode.env.openExternal(vscode.Uri.parse(launchResult.serverUrl));
-                }
-            });
-        }
-        else {
-            throw new Error(`Failed to launch XR server: ${launchResult.error}`);
-        }
-        console.log(`XR_ANALYSIS_VIEWER: XR analysis viewer assets prepared successfully at ${tempFolder.fsPath}`);
-        return tempFolder;
-    }
-    catch (error) {
-        console.error(`XR_ANALYSIS_VIEWER: Error preparing XR analysis viewer: ${error}`);
-        throw new Error(`Failed to prepare XR analysis viewer: ${error}`);
-    }
-}
-
-
-/***/ }),
-/* 68 */
-/***/ ((module) => {
-
-module.exports = require("fs/promises");
-
-/***/ }),
-/* 69 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.XRTemplateRenderer = void 0;
-const path = __importStar(__webpack_require__(5));
-const analysisSettingsStorage_1 = __webpack_require__(63);
-const templateProcessor_1 = __webpack_require__(45);
-/**
- * XR Template Renderer for File Analysis
- * Delegates to centralized TemplateProcessor for HTML generation
- */
-class XRTemplateRenderer {
-    /**
-     * Generate and save index.html for XR file analysis using centralized TemplateProcessor
-     *
-     * @param context - VS Code extension context
-     * @param analysisFolder - URI of the analysis folder (contains data.json)
-     * @param filePath - Original file path being analyzed
-     * @param analysisData - Analysis data object
-     */
-    static async generateXRVisualization(context, analysisFolder, filePath, analysisData) {
-        console.log(`[XR_TEMPLATE_RENDERER] Generating XR visualization for ${path.basename(filePath)} using centralized TemplateProcessor`);
-        try {
-            // Get current chart configuration
-            const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
-            const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
-            console.log(`[XR_TEMPLATE_RENDERER] Using chart type: ${chartType}`);
-            console.log(`[XR_TEMPLATE_RENDERER] Dimension mappings:`, dimensionMappings);
-            // Convert field names to XR format if needed
-            const mappings = dimensionMappings.map(mapping => ({
-                dimension: mapping.dimension,
-                dataField: this.convertToXRFieldName(mapping.dataField),
-                label: mapping.label
-            }));
-            // Prepare output path for index.html
-            const indexHtmlPath = path.join(analysisFolder.fsPath, 'index.html');
-            // Use centralized TemplateProcessor to generate the complete XR visualization
-            const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(chartType, mappings, `File Analysis: ${path.basename(filePath)}`, './data.json', context, indexHtmlPath);
-            if (!result.success) {
-                console.error(`[XR_TEMPLATE_RENDERER] TemplateProcessor failed:`, result.error);
-                throw new Error(`Template processing failed: ${result.error}`);
-            }
-            console.log(`[XR_TEMPLATE_RENDERER] Successfully generated index.html using TemplateProcessor at: ${indexHtmlPath}`);
-        }
-        catch (error) {
-            console.error(`[XR_TEMPLATE_RENDERER] Failed to generate XR visualization:`, error);
-            throw error;
-        }
-    }
-    /**
-     * Convert field names from static analysis format to XR format
-     * Maps legacy field names to standardized XR field names
-     */
-    static convertToXRFieldName(fieldName) {
-        const fieldMappings = {
-            'ccn': 'complexity',
-            'lines_count': 'lineCount',
-            'line_start': 'lineStart',
-            'line_end': 'lineEnd',
-            'function_name': 'fileName',
-            'nloc': 'lineCount',
-            'parameters': 'parameters',
-            'max_nesting_depth': 'maxNestingDepth',
-            'cyclomatic_density': 'cyclomaticDensity'
-        };
-        return fieldMappings[fieldName] || fieldName;
-    }
-}
-exports.XRTemplateRenderer = XRTemplateRenderer;
-
-
-/***/ }),
-/* 70 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysisRegistry = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisModel_1 = __webpack_require__(71);
-const activeServerRegistry_1 = __webpack_require__(26);
-const fileToServerMap_1 = __webpack_require__(20);
-const SSEManager_1 = __webpack_require__(18);
-/**
- * Registry that manages currently tracked active analyses
- * This is a singleton that maintains the state of all active analyses
- */
-class ActiveAnalysisRegistry {
-    static instance = null;
-    activeAnalyses = new Map();
-    _onDidChangeAnalyses = new vscode.EventEmitter();
-    serverEventSubscription = null;
-    /**
-     * Event fired when the registry of active analyses changes
-     */
-    onDidChangeAnalyses = this._onDidChangeAnalyses.event;
-    constructor() {
-        console.log('[ACTIVE_ANALYSIS_REGISTRY] Initializing active analysis registry');
-        this.setupServerEventIntegration();
-    }
-    /**
-     * Set up integration with server events to auto-unregister analyses when servers stop
-     */
-    setupServerEventIntegration() {
-        try {
-            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-            // Subscribe to server registry changes
-            this.serverEventSubscription = serverRegistry.onRegistryChange((event) => {
-                console.log('[ACTIVE_ANALYSIS_REGISTRY] 📡 Received server registry event:', event.type);
-                if (event.type === 'serverRemoved' && event.server) {
-                    console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔌 Server removed: ${event.server.url} (port ${event.server.port})`);
-                    // Use file-to-server mapping to find associated analysis
-                    const fileUri = fileToServerMap_1.fileToServerMap.findFileByPort(event.server.port);
-                    let removedAnalysis = false;
-                    if (fileUri) {
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🎯 Found analysis file via mapping: ${fileUri}`);
-                        // Find and remove the analysis for this file
-                        let foundAnalysisId = null;
-                        for (const [id, analysis] of this.activeAnalyses.entries()) {
-                            if (analysis.path === fileUri) {
-                                foundAnalysisId = id;
-                                console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis: ${id}`);
-                                break;
-                            }
-                        }
-                        if (foundAnalysisId) {
-                            this.unregisterAnalysis(foundAnalysisId);
-                            removedAnalysis = true;
-                            console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🗑️ Auto-removed analysis via file mapping: ${foundAnalysisId}`);
-                        }
-                        // Clean up SSE clients for this file
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🧹 Cleaning up SSE clients for: ${fileUri}`);
-                        SSEManager_1.sseManager.removeAllClients(fileUri);
-                        // Remove the mapping
-                        fileToServerMap_1.fileToServerMap.unregisterMapping(fileUri);
-                    }
-                    // Fallback to the old smart matching logic if mapping didn't work
-                    if (!removedAnalysis && event.server.customName) {
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔍 Direct path match failed, trying smart matching for server: ${event.server.customName}`);
-                        // Extract filename from custom name (e.g., "Analysis Static tryCodeXr.kt" -> "tryCodeXr.kt")
-                        const customNameParts = event.server.customName.split(' ');
-                        const possibleFileName = customNameParts[customNameParts.length - 1]; // Last part is usually the filename
-                        if (possibleFileName) {
-                            console.log(`[ACTIVE_ANALYSIS_REGISTRY] � Looking for analysis with filename: ${possibleFileName}`);
-                            // Find analysis by matching filename
-                            let foundAnalysisId = null;
-                            for (const [id, analysis] of this.activeAnalyses.entries()) {
-                                const analysisFileName = analysis.path.split('/').pop() || analysis.path.split('\\').pop();
-                                if (analysisFileName === possibleFileName) {
-                                    foundAnalysisId = id;
-                                    console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis by filename: ${id}`);
-                                    break;
-                                }
-                            }
-                            if (foundAnalysisId) {
-                                this.unregisterAnalysis(foundAnalysisId);
-                                removedAnalysis = true;
-                                console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🗑️ Auto-removed analysis via smart matching: ${foundAnalysisId}`);
-                            }
-                        }
-                    }
-                    if (!removedAnalysis) {
-                        console.log(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Could not find associated analysis for stopped server: ${event.server.url}`);
-                    }
-                }
-            });
-            console.log('[ACTIVE_ANALYSIS_REGISTRY] 🔗 Server event integration setup complete');
-        }
-        catch (error) {
-            console.warn('[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Error setting up server integration:', error);
-        }
-    }
-    /**
-     * Dispose of resources
-     */
-    dispose() {
-        if (this.serverEventSubscription) {
-            this.serverEventSubscription.dispose();
-            this.serverEventSubscription = null;
-            console.log('[ACTIVE_ANALYSIS_REGISTRY] 🧹 Disposed server event subscription');
-        }
-    }
-    /**
-     * Get the singleton instance of the registry
-     */
-    static getInstance() {
-        if (!ActiveAnalysisRegistry.instance) {
-            ActiveAnalysisRegistry.instance = new ActiveAnalysisRegistry();
-        }
-        return ActiveAnalysisRegistry.instance;
-    }
-    /**
-     * Register a new analysis
-     */
-    registerAnalysis(analysis) {
-        const analysisId = `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const newAnalysis = {
-            ...analysis,
-            id: analysisId
-        };
-        console.log('[ACTIVE_ANALYSES_REGISTRY] 🔥 Registering new analysis:', {
-            id: analysisId,
-            mode: analysis.mode,
-            path: analysis.path,
-            status: analysis.status,
-            language: analysis.language
-        });
-        this.activeAnalyses.set(analysisId, newAnalysis);
-        console.log('[ACTIVE_ANALYSES_REGISTRY] 📊 Total analyses in registry:', this.activeAnalyses.size);
-        console.log('[ACTIVE_ANALYSES_REGISTRY] 🔔 Firing onDidChangeAnalyses event');
-        this._onDidChangeAnalyses.fire();
-        return analysisId;
-    }
-    /**
-     * Update an existing analysis
-     */
-    updateAnalysis(analysisId, status, progress, error, metadata) {
-        const analysis = this.activeAnalyses.get(analysisId);
-        if (analysis) {
-            console.log('[ACTIVE_ANALYSES_REGISTRY] 🔄 Updating analysis:', {
-                id: analysisId,
-                oldStatus: analysis.status,
-                newStatus: status,
-                progress: progress,
-                error: error,
-                metadata: metadata
-            });
-            const updatedAnalysis = activeAnalysisModel_1.ActiveAnalysisFactory.updateAnalysisStatus(analysis, status, progress, error, metadata);
-            this.activeAnalyses.set(analysisId, updatedAnalysis);
-            console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Updated analysis ${analysisId} status to ${status}`);
-            console.log('[ACTIVE_ANALYSES_REGISTRY] 🔔 Firing onDidChangeAnalyses event');
-            this._onDidChangeAnalyses.fire();
-        }
-        else {
-            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ Analysis ${analysisId} not found for update`);
-        }
-    }
-    /**
-     * Remove an analysis from the registry
-     */
-    unregisterAnalysis(analysisId) {
-        if (this.activeAnalyses.has(analysisId)) {
-            this.activeAnalyses.delete(analysisId);
-            console.log(`[ACTIVE_ANALYSIS_REGISTRY] Unregistered analysis: ${analysisId}`);
-            this._onDidChangeAnalyses.fire();
-        }
-        else {
-            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] Attempted to unregister non-existent analysis: ${analysisId}`);
-        }
-    }
-    /**
-     * Get all active analyses
-     */
-    getAllAnalyses() {
-        return Array.from(this.activeAnalyses.values());
-    }
-    /**
-     * Get a specific analysis by ID
-     */
-    getAnalysis(analysisId) {
-        return this.activeAnalyses.get(analysisId);
-    }
-    /**
-     * Get analyses for a specific file path
-     */
-    getAnalysesForPath(path) {
-        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.path === path);
-    }
-    /**
-     * Get count of active analyses
-     */
-    getActiveCount() {
-        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.status === 'running').length;
-    }
-    /**
-     * Get count of completed analyses
-     */
-    getCompletedCount() {
-        return Array.from(this.activeAnalyses.values()).filter(analysis => analysis.status === 'completed').length;
-    }
-    /**
-     * Get the current count of all active analyses (running + completed)
-     */
-    getActiveAnalysesCount() {
-        return this.activeAnalyses.size;
-    }
-    /**
-     * Remove an analysis by its associated file URI
-     * This is used when a server is stopped or the user closes the analysis
-     */
-    unregisterAnalysisByUri(uri) {
-        const targetPath = uri.fsPath;
-        console.log(`[ACTIVE_ANALYSIS_REGISTRY] 🔍 Looking for analysis with path: ${targetPath}`);
-        // Find analysis by matching file path
-        let foundAnalysisId = null;
-        for (const [id, analysis] of this.activeAnalyses.entries()) {
-            if (analysis.path === targetPath) {
-                foundAnalysisId = id;
-                console.log(`[ACTIVE_ANALYSIS_REGISTRY] ✅ Found matching analysis: ${id}`);
-                break;
-            }
-        }
-        if (foundAnalysisId) {
-            this.unregisterAnalysis(foundAnalysisId);
-            return true;
-        }
-        else {
-            console.warn(`[ACTIVE_ANALYSIS_REGISTRY] ⚠️ No analysis found for URI: ${targetPath}`);
-            return false;
-        }
-    }
-    /**
-     * Clear all analyses (useful for cleanup)
-     */
-    clearAll() {
-        console.log('[ACTIVE_ANALYSIS_REGISTRY] Clearing all analyses');
-        this.activeAnalyses.clear();
-        this._onDidChangeAnalyses.fire();
-    }
-    /**
-     * Start tracking a file analysis
-     */
-    startFileAnalysis(filePath, mode, language) {
-        const analysis = activeAnalysisModel_1.ActiveAnalysisFactory.createFileAnalysis(filePath, mode, language);
-        this.registerAnalysis(analysis);
-        return analysis.id;
-    }
-    /**
-     * Start tracking a directory analysis
-     */
-    startDirectoryAnalysis(directoryPath, mode) {
-        const analysis = activeAnalysisModel_1.ActiveAnalysisFactory.createDirectoryAnalysis(directoryPath, mode);
-        this.registerAnalysis(analysis);
-        return analysis.id;
-    }
-    /**
-     * Mark analysis as completed
-     */
-    completeAnalysis(analysisId, metadata) {
-        this.updateAnalysis(analysisId, 'completed', 100, undefined, metadata);
-    }
-    /**
-     * Mark analysis as failed
-     */
-    failAnalysis(analysisId, error) {
-        this.updateAnalysis(analysisId, 'failed', undefined, error);
-    }
-    /**
-     * Get summary statistics
-     */
-    getSummary() {
-        const all = this.getAllAnalyses();
-        return {
-            total: all.length,
-            running: all.filter(a => a.status === 'running').length,
-            completed: all.filter(a => a.status === 'completed').length,
-            failed: all.filter(a => a.status === 'failed').length
-        };
-    }
-}
-exports.ActiveAnalysisRegistry = ActiveAnalysisRegistry;
-
-
-/***/ }),
-/* 71 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysisFactory = void 0;
-/**
- * Factory for creating active analysis objects
- */
-class ActiveAnalysisFactory {
-    /**
-     * Create a new active analysis for a file
-     */
-    static createFileAnalysis(filePath, mode, language) {
-        return {
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            path: filePath,
-            mode,
-            timestamp: new Date(),
-            status: 'running',
-            language,
-            progress: 0
-        };
-    }
-    /**
-     * Create a new active analysis for a directory
-     */
-    static createDirectoryAnalysis(directoryPath, mode) {
-        return {
-            id: `dir-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            path: directoryPath,
-            mode,
-            timestamp: new Date(),
-            status: 'running',
-            progress: 0
-        };
-    }
-    /**
-     * Update the status of an existing analysis
-     */
-    static updateAnalysisStatus(analysis, status, progress, error, metadata) {
-        return {
-            ...analysis,
-            status,
-            progress,
-            error,
-            metadata: metadata || analysis.metadata
-        };
-    }
-}
-exports.ActiveAnalysisFactory = ActiveAnalysisFactory;
-
-
-/***/ }),
-/* 72 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13475,7 +10760,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.registerNewCodeAnalysisCommands = registerNewCodeAnalysisCommands;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisCommands_1 = __webpack_require__(73);
+const newCodeAnalysisCommands_1 = __webpack_require__(60);
 /**
  * Register all new code analysis commands
  * This is the ONLY place where VS Code commands are actually registered
@@ -13525,7 +10810,7 @@ function registerNewCodeAnalysisCommands(context, refreshCallback) {
 
 
 /***/ }),
-/* 73 */
+/* 60 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13536,16 +10821,17 @@ function registerNewCodeAnalysisCommands(context, refreshCallback) {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisCommands = void 0;
-const subsections_1 = __webpack_require__(74);
-const file_analysis_1 = __webpack_require__(85);
-const clean_analysis_1 = __webpack_require__(115);
-const dom_visualization_1 = __webpack_require__(117);
-const analysisFileMode_1 = __webpack_require__(120);
-const viewTheme_1 = __webpack_require__(125);
-const autoAnalysisDelay_1 = __webpack_require__(126);
-const chartTypeFile_1 = __webpack_require__(200);
-const dimensionMappingFile_1 = __webpack_require__(201);
-const files_by_language_sorting_1 = __webpack_require__(207);
+const subsections_1 = __webpack_require__(61);
+const file_analysis_1 = __webpack_require__(108);
+const directory_analysis_1 = __webpack_require__(186);
+const clean_analysis_1 = __webpack_require__(113);
+const dom_visualization_1 = __webpack_require__(115);
+const analysisFileMode_1 = __webpack_require__(118);
+const viewTheme_1 = __webpack_require__(120);
+const autoAnalysisDelay_1 = __webpack_require__(121);
+const chartTypeFile_1 = __webpack_require__(122);
+const dimensionMappingFile_1 = __webpack_require__(124);
+const files_by_language_sorting_1 = __webpack_require__(125);
 /**
  * Main command coordinator for New Code Analysis
  * Follows the "nested dolls" pattern: collects all command registrations
@@ -13587,6 +10873,13 @@ class NewCodeAnalysisCommands {
         const fileAnalysisCommands = file_analysis_1.FileAnalysisCommands.registerCommands(context);
         // Note: FileAnalysisCommands returns disposables directly, not CommandRegistrations
         // These will be automatically added to the context subscriptions
+        // Add directory analysis commands
+        const directoryAnalysisCommands = directory_analysis_1.DirectoryAnalysisCommands.registerCommands(context);
+        // Note: DirectoryAnalysisCommands returns disposables directly, not CommandRegistrations
+        // This includes DirectoryAnalysisLivePanelCommands internally
+        // Add project analysis commands
+        const projectAnalysisCommands = directory_analysis_1.ProjectAnalysisCommands.registerCommands(context);
+        // Note: ProjectAnalysisCommands returns disposables directly, not CommandRegistrations
         // Add clean analysis commands
         const cleanAnalysisCommands = clean_analysis_1.CleanAnalysisCommands.getCommandRegistrations(context, defaultRefreshCallback);
         allCommandRegistrations.push(...cleanAnalysisCommands);
@@ -13620,7 +10913,7 @@ exports.NewCodeAnalysisCommands = NewCodeAnalysisCommands;
 
 
 /***/ }),
-/* 74 */
+/* 61 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13630,18 +10923,18 @@ exports.NewCodeAnalysisCommands = NewCodeAnalysisCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageCommands = exports.ProjectByLanguageCommands = exports.ActiveAnalysesCommands = exports.AnalysisSettingsCommands = void 0;
-var analysisSettingsCommands_1 = __webpack_require__(75);
+var analysisSettingsCommands_1 = __webpack_require__(62);
 Object.defineProperty(exports, "AnalysisSettingsCommands", ({ enumerable: true, get: function () { return analysisSettingsCommands_1.AnalysisSettingsCommands; } }));
-var activeAnalysesCommands_1 = __webpack_require__(82);
+var activeAnalysesCommands_1 = __webpack_require__(74);
 Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
-var projectByLanguageCommands_1 = __webpack_require__(83);
+var projectByLanguageCommands_1 = __webpack_require__(75);
 Object.defineProperty(exports, "ProjectByLanguageCommands", ({ enumerable: true, get: function () { return projectByLanguageCommands_1.ProjectByLanguageCommands; } }));
-var filesByLanguageCommands_1 = __webpack_require__(84);
+var filesByLanguageCommands_1 = __webpack_require__(76);
 Object.defineProperty(exports, "FilesByLanguageCommands", ({ enumerable: true, get: function () { return filesByLanguageCommands_1.FilesByLanguageCommands; } }));
 
 
 /***/ }),
-/* 75 */
+/* 62 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13651,12 +10944,12 @@ Object.defineProperty(exports, "FilesByLanguageCommands", ({ enumerable: true, g
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsCommands = void 0;
-const analysis_file_mode_1 = __webpack_require__(76);
-const view_theme_1 = __webpack_require__(78);
-const auto_analysis_delay_1 = __webpack_require__(80);
-const chartTypeFileCommands_1 = __webpack_require__(202);
-const dimensionMappingFileCommands_1 = __webpack_require__(203);
-const filesByLanguageSortingCommands_1 = __webpack_require__(209);
+const analysis_file_mode_1 = __webpack_require__(63);
+const view_theme_1 = __webpack_require__(65);
+const auto_analysis_delay_1 = __webpack_require__(67);
+const chartTypeFileCommands_1 = __webpack_require__(69);
+const dimensionMappingFileCommands_1 = __webpack_require__(70);
+const filesByLanguageSortingCommands_1 = __webpack_require__(71);
 class AnalysisSettingsCommands {
     context;
     constructor(context) {
@@ -13695,7 +10988,7 @@ exports.AnalysisSettingsCommands = AnalysisSettingsCommands;
 
 
 /***/ }),
-/* 76 */
+/* 63 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13705,12 +10998,12 @@ exports.AnalysisSettingsCommands = AnalysisSettingsCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileModeCommands = void 0;
-var analysisFileModeCommands_1 = __webpack_require__(77);
+var analysisFileModeCommands_1 = __webpack_require__(64);
 Object.defineProperty(exports, "AnalysisFileModeCommands", ({ enumerable: true, get: function () { return analysisFileModeCommands_1.AnalysisFileModeCommands; } }));
 
 
 /***/ }),
-/* 77 */
+/* 64 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13824,7 +11117,7 @@ exports.AnalysisFileModeCommands = AnalysisFileModeCommands;
 
 
 /***/ }),
-/* 78 */
+/* 65 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13834,12 +11127,12 @@ exports.AnalysisFileModeCommands = AnalysisFileModeCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeCommands = void 0;
-var viewThemeCommands_1 = __webpack_require__(79);
+var viewThemeCommands_1 = __webpack_require__(66);
 Object.defineProperty(exports, "ViewThemeCommands", ({ enumerable: true, get: function () { return viewThemeCommands_1.ViewThemeCommands; } }));
 
 
 /***/ }),
-/* 79 */
+/* 66 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13956,7 +11249,7 @@ exports.ViewThemeCommands = ViewThemeCommands;
 
 
 /***/ }),
-/* 80 */
+/* 67 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -13966,12 +11259,12 @@ exports.ViewThemeCommands = ViewThemeCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelayCommands = void 0;
-var autoAnalysisDelayCommands_1 = __webpack_require__(81);
+var autoAnalysisDelayCommands_1 = __webpack_require__(68);
 Object.defineProperty(exports, "AutoAnalysisDelayCommands", ({ enumerable: true, get: function () { return autoAnalysisDelayCommands_1.AutoAnalysisDelayCommands; } }));
 
 
 /***/ }),
-/* 81 */
+/* 68 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14186,7 +11479,776 @@ exports.AutoAnalysisDelayCommands = AutoAnalysisDelayCommands;
 
 
 /***/ }),
-/* 82 */
+/* 69 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Chart Type File Commands
+ * Commands specific to the Chart Type (File) setting
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChartTypeFileCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class ChartTypeFileCommands {
+    context;
+    chartTypeFileSetting;
+    constructor(context, chartTypeFileSetting) {
+        this.context = context;
+        this.chartTypeFileSetting = chartTypeFileSetting;
+    }
+    /**
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
+     */
+    static getCommandRegistrations(context, chartTypeFileSetting, refreshCallback) {
+        const commands = new ChartTypeFileCommands(context, chartTypeFileSetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.selectChartTypeFile',
+                callback: async () => {
+                    await commands.selectChartType();
+                    refreshCallback();
+                },
+                description: 'Select chart type for file analysis visualization'
+            }
+        ];
+    }
+    /**
+     * Show chart type selection from quick pick menu
+     * Shows different chart types available for XR and LivePanel modes
+     */
+    async selectChartType() {
+        console.log('CHART_TYPE_FILE_COMMANDS: Chart type selection command executed');
+        try {
+            // Use the chart type setting's built-in selection dialog
+            await this.chartTypeFileSetting.showChartTypeSelection();
+        }
+        catch (error) {
+            console.error('CHART_TYPE_FILE_COMMANDS: Error selecting chart type:', error);
+            vscode.window.showErrorMessage(`Failed to select chart type: ${error}`);
+        }
+    }
+}
+exports.ChartTypeFileCommands = ChartTypeFileCommands;
+
+
+/***/ }),
+/* 70 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Dimension Mapping File Commands
+ * Commands specific to the Dimension Mapping (File) setting with real BabiaXR dimension mapping
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingFileCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class DimensionMappingFileCommands {
+    context;
+    dimensionMappingSetting;
+    constructor(context, dimensionMappingSetting) {
+        this.context = context;
+        this.dimensionMappingSetting = dimensionMappingSetting;
+    }
+    /**
+     * Get command registrations (don't register them yet)
+     * This follows the "nested dolls" architecture pattern
+     */
+    static getCommandRegistrations(context, dimensionMappingSetting, refreshCallback) {
+        const commands = new DimensionMappingFileCommands(context, dimensionMappingSetting);
+        return [
+            {
+                commandId: 'newCodeAnalysis.selectDimensionMappingFile',
+                callback: async (dimension) => {
+                    await commands.selectDimensionMapping(dimension);
+                    refreshCallback();
+                },
+                description: 'Select dimension mapping for a specific chart dimension'
+            }
+        ];
+    }
+    /**
+     * Select dimension mapping for a specific dimension
+     */
+    async selectDimensionMapping(dimension) {
+        try {
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Selecting dimension mapping for dimension: "${dimension.name}"`);
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Dimension details - Label: "${dimension.label}", DataType: "${dimension.dataType}", Required: ${dimension.required}`);
+            // Get available fields for this dimension type using the filtering logic
+            const availableFields = this.dimensionMappingSetting.getAvailableFieldsForDimension(dimension);
+            if (availableFields.length === 0) {
+                vscode.window.showWarningMessage(`No available fields for dimension: ${dimension.label} (requires ${dimension.dataType} fields)`);
+                return;
+            }
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Available fields for "${dimension.name}":`, availableFields);
+            // Create quick pick items with detailed descriptions
+            const quickPickItems = availableFields.map(field => ({
+                label: field,
+                description: this.getFieldDescription(field),
+                detail: this.getFieldTypeDescription(field, dimension)
+            }));
+            // Add "Clear mapping" option if it's not required
+            if (!dimension.required) {
+                quickPickItems.unshift({
+                    label: '$(clear-all) Clear mapping',
+                    description: 'Remove the mapping for this dimension',
+                    detail: 'This optional dimension will not be mapped to any data field'
+                });
+            }
+            // Show validation info in the placeholder
+            const typeInfo = dimension.dataType === 'numeric' ? 'numeric fields only' : 'any field type';
+            const requiredInfo = dimension.required ? 'REQUIRED' : 'optional';
+            const selection = await vscode.window.showQuickPick(quickPickItems, {
+                title: `Map ${dimension.label}`,
+                placeHolder: `Select a data field for ${dimension.label} (${typeInfo}, ${requiredInfo})`,
+                ignoreFocusOut: true,
+                matchOnDescription: true,
+                matchOnDetail: true
+            });
+            if (!selection) {
+                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: User cancelled dimension mapping for "${dimension.name}"`);
+                return; // User cancelled
+            }
+            if (selection.label.includes('Clear mapping')) {
+                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Clearing mapping for dimension "${dimension.name}"`);
+                await this.dimensionMappingSetting.clearDimensionMapping(dimension.name);
+                vscode.window.showInformationMessage(`Cleared mapping for ${dimension.label}`);
+            }
+            else {
+                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Mapping dimension "${dimension.name}" to field "${selection.label}"`);
+                // Set the mapping using persistent storage
+                await this.dimensionMappingSetting.setDimensionMapping(dimension.name, selection.label);
+                vscode.window.showInformationMessage(`Mapped ${dimension.label} → ${selection.label}`);
+            }
+            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Dimension mapping operation completed for "${dimension.name}"`);
+        }
+        catch (error) {
+            console.error('DIMENSION_MAPPING_FILE_COMMANDS: Error selecting dimension mapping:', error);
+            vscode.window.showErrorMessage(`Failed to select dimension mapping: ${error}`);
+        }
+    }
+    /**
+     * Get detailed description for a data field (real analysis data fields)
+     */
+    getFieldDescription(field) {
+        const descriptions = {
+            'functionName': 'Unique identifier name of the function or method',
+            'parameters': 'Total count of input parameters in the function signature',
+            'lineCount': 'Total number of source code lines within the function body',
+            'complexity': 'Cyclomatic Complexity Number - measure of code complexity based on decision points',
+            'cyclomaticDensity': 'Cyclomatic Complexity Density ratio (complexity divided by line count)'
+        };
+        return descriptions[field] || 'Analysis data field';
+    }
+    /**
+     * Get type compatibility description (removed compatibility info, now just empty)
+     */
+    getFieldTypeDescription(field, dimension) {
+        // No type compatibility description in detail - that's now shown in dimension description
+        return '';
+    }
+}
+exports.DimensionMappingFileCommands = DimensionMappingFileCommands;
+
+
+/***/ }),
+/* 71 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Files by Language Sorting Commands
+ * Commands for configuring Files by Language sorting
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSortingCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisConfigurationStorage_1 = __webpack_require__(72);
+class FilesByLanguageSortingCommands {
+    /**
+     * Get Files by Language Sorting command registrations
+     */
+    static getCommandRegistrations(context, filesByLanguageSortingSetting, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Collecting Files by Language Sorting command registrations');
+        const commandRegistrations = [
+            // Language Group Primary Sorting
+            {
+                commandId: 'newCodeAnalysis.selectLanguageGroupPrimarySorting',
+                callback: async () => {
+                    await FilesByLanguageSortingCommands.selectLanguageGroupPrimarySorting(context, filesByLanguageSortingSetting, refreshCallback);
+                },
+                description: 'Select primary sorting for language groups'
+            },
+            // Language Group Secondary Sorting
+            {
+                commandId: 'newCodeAnalysis.selectLanguageGroupSecondarySorting',
+                callback: async () => {
+                    await FilesByLanguageSortingCommands.selectLanguageGroupSecondarySorting(context, filesByLanguageSortingSetting, refreshCallback);
+                },
+                description: 'Select secondary sorting for language groups'
+            },
+            // Files Sorting
+            {
+                commandId: 'newCodeAnalysis.selectFilesSorting',
+                callback: async () => {
+                    await FilesByLanguageSortingCommands.selectFilesSorting(filesByLanguageSortingSetting, refreshCallback);
+                },
+                description: 'Select sorting for files within language groups'
+            }
+        ];
+        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Files by Language Sorting command registrations`);
+        return commandRegistrations;
+    }
+    /**
+     * Show picker for language group primary sorting
+     */
+    static async selectLanguageGroupPrimarySorting(context, setting, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Showing language group primary sorting picker');
+        // Get current configuration to check for conflicts
+        const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+        const currentConfig = await storage.getFilesByLanguageSorting();
+        const options = [
+            { label: 'Alphabetical Ascending', sortBy: 'alphabetical', direction: 'ascending' },
+            { label: 'Alphabetical Descending', sortBy: 'alphabetical', direction: 'descending' },
+            { label: 'File Count Ascending', sortBy: 'fileCount', direction: 'ascending' },
+            { label: 'File Count Descending', sortBy: 'fileCount', direction: 'descending' }
+        ];
+        const picked = await vscode.window.showQuickPick(options, {
+            placeHolder: 'Select primary sorting for language groups',
+            title: 'Language Groups Primary Sorting'
+        });
+        if (picked) {
+            // Check if the new primary conflicts with current secondary
+            const newPrimarySortBy = picked.sortBy;
+            const currentSecondarySortBy = currentConfig.languageGroupSecondarySortBy;
+            // If secondary uses the same type as the new primary, reset secondary to None
+            if (currentSecondarySortBy && currentSecondarySortBy === newPrimarySortBy) {
+                console.log('NEW_CODE_ANALYSIS: Primary conflicts with secondary, resetting secondary to None');
+                await setting.updateLanguageGroupSecondarySorting(undefined, undefined);
+                vscode.window.showInformationMessage(`Secondary sorting reset to None to avoid conflict with primary sorting`);
+            }
+            await setting.updateLanguageGroupPrimarySorting(picked.sortBy, picked.direction);
+            refreshCallback();
+            vscode.window.showInformationMessage(`Language groups primary sorting changed to: ${picked.label}`);
+        }
+    }
+    /**
+     * Show picker for language group secondary sorting
+     */
+    static async selectLanguageGroupSecondarySorting(context, setting, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Showing language group secondary sorting picker');
+        // Get current configuration to determine what's available for secondary
+        const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+        const currentConfig = await storage.getFilesByLanguageSorting();
+        const primarySortBy = currentConfig.languageGroupSortBy;
+        const options = [{ label: 'None', sortBy: undefined, direction: undefined }];
+        if (primarySortBy === 'alphabetical') {
+            // Primary is alphabetical, so secondary can be fileCount
+            options.push({ label: 'File Count Ascending', sortBy: 'fileCount', direction: 'ascending' }, { label: 'File Count Descending', sortBy: 'fileCount', direction: 'descending' });
+        }
+        else if (primarySortBy === 'fileCount') {
+            // Primary is fileCount, so secondary can be alphabetical
+            options.push({ label: 'Alphabetical Ascending', sortBy: 'alphabetical', direction: 'ascending' }, { label: 'Alphabetical Descending', sortBy: 'alphabetical', direction: 'descending' });
+        }
+        const picked = await vscode.window.showQuickPick(options, {
+            placeHolder: 'Select secondary sorting for language groups (optional)',
+            title: 'Language Groups Secondary Sorting'
+        });
+        if (picked) {
+            await setting.updateLanguageGroupSecondarySorting(picked.sortBy, picked.direction);
+            refreshCallback();
+            const message = picked.sortBy ?
+                `Language groups secondary sorting changed to: ${picked.label}` :
+                'Language groups secondary sorting disabled';
+            vscode.window.showInformationMessage(message);
+        }
+    }
+    /**
+     * Show picker for files sorting
+     */
+    static async selectFilesSorting(setting, refreshCallback) {
+        console.log('NEW_CODE_ANALYSIS: Showing files sorting picker');
+        const options = [
+            { label: 'Alphabetical Ascending', sortBy: 'alphabetical', direction: 'ascending' },
+            { label: 'Alphabetical Descending', sortBy: 'alphabetical', direction: 'descending' },
+            { label: 'Last Modified Ascending (Oldest First)', sortBy: 'lastModified', direction: 'ascending' },
+            { label: 'Last Modified Descending (Newest First)', sortBy: 'lastModified', direction: 'descending' }
+        ];
+        const picked = await vscode.window.showQuickPick(options, {
+            placeHolder: 'Select sorting for files within language groups',
+            title: 'Files Sorting'
+        });
+        if (picked) {
+            await setting.updateFilesSorting(picked.sortBy, picked.direction);
+            refreshCallback();
+            vscode.window.showInformationMessage(`Files sorting changed to: ${picked.label}`);
+        }
+    }
+}
+exports.FilesByLanguageSortingCommands = FilesByLanguageSortingCommands;
+
+
+/***/ }),
+/* 72 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Analysis Configuration Storage Manager
+ * Handles reading/writing configuration to VS Code globalStorage
+ * Path: codexr_analysis/configuration_analysis.json
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const analysisConfiguration_1 = __webpack_require__(73);
+class AnalysisConfigurationStorage {
+    static instance;
+    STORAGE_FOLDER = 'codexr_analysis';
+    CONFIG_FILE = 'configuration_analysis.json';
+    context;
+    cachedConfiguration = null;
+    constructor(context) {
+        this.context = context;
+        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
+    }
+    /**
+     * Get singleton instance
+     */
+    static getInstance(context) {
+        if (!AnalysisConfigurationStorage.instance) {
+            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
+        }
+        return AnalysisConfigurationStorage.instance;
+    }
+    /**
+     * Get the full file path for configuration
+     */
+    getConfigurationPath() {
+        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
+    }
+    /**
+     * Load configuration from storage
+     */
+    async loadConfiguration() {
+        try {
+            // Return cached if available
+            if (this.cachedConfiguration) {
+                return this.cachedConfiguration;
+            }
+            const configPath = this.getConfigurationPath();
+            // Check if file exists
+            try {
+                const configData = await vscode.workspace.fs.readFile(configPath);
+                const configString = Buffer.from(configData).toString('utf8');
+                const configFile = JSON.parse(configString);
+                // Validate and merge with defaults (in case new settings were added)
+                const configuration = {
+                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
+                    ...configFile.configuration
+                };
+                this.cachedConfiguration = configuration;
+                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
+                return configuration;
+            }
+            catch (readError) {
+                // File doesn't exist or is corrupted, return defaults
+                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
+                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+                // Create default file
+                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
+            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
+        }
+    }
+    /**
+     * Save configuration to storage
+     */
+    async saveConfiguration(configuration) {
+        try {
+            const configPath = this.getConfigurationPath();
+            // Ensure directory exists
+            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
+            await vscode.workspace.fs.createDirectory(folderPath);
+            // Create configuration file structure
+            const configFile = {
+                metadata: {
+                    version: '1.0.0',
+                    lastModified: Date.now(),
+                    createdBy: 'CodeXR New Code Analysis'
+                },
+                configuration: configuration
+            };
+            // Write to file
+            const configString = JSON.stringify(configFile, null, 2);
+            const configData = Buffer.from(configString, 'utf8');
+            await vscode.workspace.fs.writeFile(configPath, configData);
+            // Update cache
+            this.cachedConfiguration = configuration;
+            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get specific setting value
+     */
+    async getAnalysisFileMode() {
+        const config = await this.loadConfiguration();
+        return config.analysisFileMode;
+    }
+    /**
+     * Set specific setting value
+     */
+    async setAnalysisFileMode(mode) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            analysisFileMode: mode
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Analysis file mode changed to: ${mode}`);
+    }
+    /**
+     * Get view theme setting
+     */
+    async getViewTheme() {
+        const config = await this.loadConfiguration();
+        return config.viewTheme;
+    }
+    /**
+     * Set view theme setting
+     */
+    async setViewTheme(theme) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            viewTheme: theme
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: View theme changed to: ${theme}`);
+    }
+    /**
+     * Get auto-analysis delay setting
+     */
+    async getAutoAnalysisDelay() {
+        const config = await this.loadConfiguration();
+        return config.autoAnalysisDelay;
+    }
+    /**
+     * Set auto-analysis delay setting
+     */
+    async setAutoAnalysisDelay(delayConfig) {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            autoAnalysisDelay: delayConfig
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay changed to: ${JSON.stringify(delayConfig)}`);
+    }
+    /**
+     * Update multiple settings at once
+     */
+    async updateConfiguration(updates) {
+        const currentConfig = await this.loadConfiguration();
+        const updatedConfig = {
+            ...currentConfig,
+            ...updates
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Configuration updated with: ${JSON.stringify(updates)}`);
+    }
+    /**
+     * Reset configuration to defaults
+     */
+    async resetConfiguration() {
+        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
+        this.cachedConfiguration = null; // Clear cache
+    }
+    /**
+     * Get configuration file path for debugging
+     */
+    getConfigurationFilePath() {
+        return this.getConfigurationPath().fsPath;
+    }
+    /**
+     * Check if configuration file exists
+     */
+    async configurationExists() {
+        try {
+            const configPath = this.getConfigurationPath();
+            await vscode.workspace.fs.stat(configPath);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Debug method to get current configuration file content
+     */
+    async debugGetConfigurationFileContent() {
+        try {
+            const configPath = this.getConfigurationPath();
+            const configData = await vscode.workspace.fs.readFile(configPath);
+            return Buffer.from(configData).toString('utf8');
+        }
+        catch (error) {
+            console.log('NEW_CODE_ANALYSIS: Configuration file not found or error reading:', error);
+            return null;
+        }
+    }
+    /**
+     * Force reload configuration from disk (bypassing cache)
+     */
+    async forceReloadConfiguration() {
+        this.cachedConfiguration = null;
+        return await this.loadConfiguration();
+    }
+    /**
+     * Get chart type for file analysis
+     */
+    async getChartTypeFile() {
+        const config = await this.loadConfiguration();
+        return config.chartTypeFile;
+    }
+    /**
+     * Set chart type for file analysis
+     */
+    async setChartTypeFile(chartType) {
+        await this.updateConfiguration({ chartTypeFile: chartType });
+    }
+    /**
+     * Get dimension mapping for file analysis
+     */
+    async getDimensionMappingFile() {
+        const config = await this.loadConfiguration();
+        return config.dimensionMappingFile;
+    }
+    /**
+     * Set dimension mapping for file analysis
+     */
+    async setDimensionMappingFile(mapping) {
+        await this.updateConfiguration({ dimensionMappingFile: mapping });
+    }
+    /**
+     * Get current analysis mode (alias for getAnalysisFileMode for compatibility)
+     */
+    async getAnalysisMode() {
+        return await this.getAnalysisFileMode();
+    }
+    /**
+     * Set analysis mode (alias for setAnalysisFileMode for compatibility)
+     */
+    async setAnalysisMode(mode) {
+        await this.setAnalysisFileMode(mode);
+    }
+    /**
+     * Get Files by Language sorting configuration
+     */
+    async getFilesByLanguageSorting() {
+        const config = await this.loadConfiguration();
+        return config.filesByLanguageSorting;
+    }
+    /**
+     * Set Files by Language sorting configuration
+     */
+    async setFilesByLanguageSorting(sortingConfig) {
+        await this.updateConfiguration({ filesByLanguageSorting: sortingConfig });
+        console.log('NEW_CODE_ANALYSIS: Files by Language sorting configuration updated:', sortingConfig);
+    }
+}
+exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
+
+
+/***/ }),
+/* 73 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Analysis Configuration Models
+ * Types and interfaces for all analysis configuration data
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+/**
+ * Default configuration values
+ */
+exports.DEFAULT_ANALYSIS_CONFIGURATION = {
+    analysisFileMode: 'XR', // Default to XR as requested
+    viewTheme: 'Dark', // Default to Dark theme
+    autoAnalysisDelay: {
+        type: 'RealTime', // Default to Real Time (0s)
+        customMs: undefined
+    },
+    chartTypeFile: 'bars', // Default chart type (bars is the most common)
+    dimensionMappingFile: {}, // Default empty dimension mapping
+    filesByLanguageSorting: {
+        languageGroupSortBy: 'alphabetical',
+        languageGroupSortDirection: 'ascending',
+        languageGroupSecondarySortBy: 'fileCount',
+        languageGroupSecondarySortDirection: 'descending',
+        filesSortBy: 'alphabetical',
+        filesSortDirection: 'ascending'
+    }
+};
+/**
+ * Default configuration file structure
+ */
+exports.DEFAULT_CONFIGURATION_FILE = {
+    metadata: {
+        version: '1.0.0',
+        lastModified: Date.now(),
+        createdBy: 'CodeXR New Code Analysis'
+    },
+    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
+};
+
+
+/***/ }),
+/* 74 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14223,7 +12285,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 83 */
+/* 75 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14260,7 +12322,7 @@ exports.ProjectByLanguageCommands = ProjectByLanguageCommands;
 
 
 /***/ }),
-/* 84 */
+/* 76 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14304,10 +12366,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisConfigurationStorage_1 = __webpack_require__(106);
-const launchAnalyzeFileXR_1 = __webpack_require__(114);
-const launchAnalyzeFileLivePanel_1 = __webpack_require__(89);
-const launchVisualizeDOMPanel_1 = __webpack_require__(112);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
+const launchAnalyzeFileXR_1 = __webpack_require__(77);
+const launchAnalyzeFileLivePanel_1 = __webpack_require__(105);
+const launchVisualizeDOMPanel_1 = __webpack_require__(107);
 class FilesByLanguageCommands {
     context;
     constructor(context) {
@@ -14398,68 +12460,13 @@ exports.FilesByLanguageCommands = FilesByLanguageCommands;
 
 
 /***/ }),
-/* 85 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * File Analysis Commands Module
- * Exports for file analysis commands - Russian dolls pattern
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileAnalysisXRCommands = exports.FileAnalysisLivePanelCommands = exports.FileAnalysisCommands = void 0;
-var fileAnalysisCommands_1 = __webpack_require__(86);
-Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
-var fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
-Object.defineProperty(exports, "FileAnalysisLivePanelCommands", ({ enumerable: true, get: function () { return fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands; } }));
-var fileAnalysisXRCommands_1 = __webpack_require__(113);
-Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, get: function () { return fileAnalysisXRCommands_1.FileAnalysisXRCommands; } }));
-
-
-/***/ }),
-/* 86 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * File Analysis Commands
- * Main coordinator for all file analysis commands (LivePanel and XR)
- * Russian dolls pattern: FileAnalysisCommands -> LivePanel/XR Commands
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileAnalysisCommands = void 0;
-const fileAnalysisLivePanelCommands_1 = __webpack_require__(87);
-const fileAnalysisXRCommands_1 = __webpack_require__(113);
-class FileAnalysisCommands {
-    /**
-     * Register all file analysis commands (coordinates LivePanel and XR)
-     */
-    static registerCommands(context) {
-        console.log('FILE_ANALYSIS_COMMANDS: Registering all file analysis commands...');
-        const disposables = [];
-        // Register LivePanel commands
-        console.log('FILE_ANALYSIS_COMMANDS: Registering LivePanel commands...');
-        const livePanelCommands = fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands.registerCommands(context);
-        disposables.push(...livePanelCommands);
-        // Register XR commands  
-        console.log('FILE_ANALYSIS_COMMANDS: Registering XR commands...');
-        const xrCommands = fileAnalysisXRCommands_1.FileAnalysisXRCommands.registerCommands(context);
-        disposables.push(...xrCommands);
-        console.log(`FILE_ANALYSIS_COMMANDS: Successfully registered ${disposables.length} file analysis commands`);
-        return disposables;
-    }
-}
-exports.FileAnalysisCommands = FileAnalysisCommands;
-
-
-/***/ }),
-/* 87 */
+/* 77 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- * File Analysis LivePanel Commands
- * Commands for analyzing individual files in LivePanel mode
+ * Launch Analyze File XR
+ * XR mode analysis engine for code files
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -14495,258 +12502,185 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileAnalysisLivePanelCommands = void 0;
+exports.LaunchAnalyzeFileXR = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const engine_1 = __webpack_require__(88);
-class FileAnalysisLivePanelCommands {
-    context;
-    constructor(context) {
-        this.context = context;
-    }
+const languageMetadata_1 = __webpack_require__(78);
+const supportedLanguages_1 = __webpack_require__(79);
+const getNecessaryFiles_1 = __webpack_require__(80);
+const saveFiles_1 = __webpack_require__(97);
+const manageWatcher_1 = __webpack_require__(192);
+const launchServer_1 = __webpack_require__(100);
+const analysisSessionManager_1 = __webpack_require__(91);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(102);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
+const dimensionMappingValidator_1 = __webpack_require__(104);
+class LaunchAnalyzeFileXR {
     /**
-     * Register LivePanel file analysis commands
+     * Analyze file in XR mode
      */
-    static registerCommands(context) {
-        console.log('FILE_ANALYSIS_LIVEPANEL_COMMANDS: Registering LivePanel analysis commands...');
-        const commands = new FileAnalysisLivePanelCommands(context);
-        const analyzeFileCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeFile', (uri) => commands.analyzeFileLivePanel(uri));
-        console.log('FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel commands registered successfully');
-        return [analyzeFileCommand];
-    }
-    /**
-     * Analyze file in LivePanel mode command handler
-     */
-    async analyzeFileLivePanel(uri) {
-        try {
-            let filePath;
-            if (uri) {
-                // Called from context menu or command palette with URI
-                filePath = uri.fsPath;
-                console.log(`FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from context menu for: ${filePath}`);
-            }
-            else {
-                // Called from command palette without URI - use active editor
-                const activeEditor = vscode.window.activeTextEditor;
-                if (!activeEditor) {
-                    vscode.window.showWarningMessage('CodeXR: No file selected for LivePanel analysis');
-                    return;
-                }
-                filePath = activeEditor.document.fileName;
-                console.log(`FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from command palette for: ${filePath}`);
-            }
-            // Check if file can be analyzed
-            if (!engine_1.LaunchAnalyzeFileLivePanel.canAnalyzeFile(filePath)) {
-                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" is not a supported programming language for LivePanel analysis`);
-                return;
-            }
-            // Execute LivePanel analysis
-            await engine_1.LaunchAnalyzeFileLivePanel.analyzeFile(filePath, this.context);
-        }
-        catch (error) {
-            console.error('FILE_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel analyze file command:', error);
-            vscode.window.showErrorMessage(`CodeXR: LivePanel analysis failed - ${error}`);
-        }
-    }
-}
-exports.FileAnalysisLivePanelCommands = FileAnalysisLivePanelCommands;
-
-
-/***/ }),
-/* 88 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * New Code Analysis Engine Module
- * Exports for analysis engine functionality
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchVisualizeDOMPanel = exports.LaunchAnalyzeFileLivePanel = void 0;
-var launchAnalyzeFileLivePanel_1 = __webpack_require__(89);
-Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
-var launchVisualizeDOMPanel_1 = __webpack_require__(112);
-Object.defineProperty(exports, "LaunchVisualizeDOMPanel", ({ enumerable: true, get: function () { return launchVisualizeDOMPanel_1.LaunchVisualizeDOMPanel; } }));
-var utils_1 = __webpack_require__(92);
-Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
-Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return utils_1.GetNecessaryFiles; } }));
-
-
-/***/ }),
-/* 89 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Launch Analyze File Live Panel
- * Live Panel file analysis engine for CodeXR
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.LaunchAnalyzeFileLivePanel = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-const supportedLanguages_1 = __webpack_require__(91);
-const utils_1 = __webpack_require__(92);
-const analysisConfigurationStorage_1 = __webpack_require__(106);
-const analysisSessionManager_1 = __webpack_require__(100);
-const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(110);
-class LaunchAnalyzeFileLivePanel {
-    /**
-     * Analyze a specific file using Live Panel mode
-     */
-    static async analyzeFile(filePath, context) {
+    static async analyzeFileXR(filePath, context) {
         try {
             // Get file language information
             const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
             if (!languageInfo) {
-                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" - Language not supported for analysis`);
+                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" - Language not supported for XR analysis 🥽`);
                 return;
             }
-            console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis requested for file: ${filePath}`);
-            console.log(`NEW_CODE_ANALYSIS_ENGINE: Detected language: ${languageInfo.name}`);
-            console.log(`NEW_CODE_ANALYSIS_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
+            console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis requested for file: ${filePath}`);
+            console.log(`ANALYZE_FILE_XR_ENGINE: Detected language: ${languageInfo.name}`);
             // **CHECK: Verify no conflicting analysis is already running**
-            const canProceed = await checkIfAnalysisAlreadyRunning_1.CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(filePath, 'LivePanel');
+            const canProceed = await checkIfAnalysisAlreadyRunning_1.CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(filePath, 'FileXRAnalysis');
             if (!canProceed) {
-                console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis cancelled due to conflicts`);
+                console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis cancelled due to conflicts`);
                 return;
             }
             // Create analysis session
             const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            const session = await sessionManager.startAnalysis(filePath, 'LivePanel', context);
-            console.log(`NEW_CODE_ANALYSIS_ENGINE: Created session ${session.id} for LivePanel analysis`);
-            // Get current theme configuration
-            const configStorage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-            const currentTheme = await configStorage.getViewTheme();
-            console.log(`NEW_CODE_ANALYSIS_ENGINE: Using theme: ${currentTheme}`);
-            // Show confirmation message to user
-            vscode.window.showInformationMessage(`CodeXR: LivePanel analysis started for "${filePath}" (${languageInfo.name})`, { modal: false });
-            // Get analysis data using the new system with session
-            const analysisResult = await utils_1.GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme, session.id);
-            if (analysisResult.success && analysisResult.data) {
-                console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);
-                console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis data.json:`, JSON.stringify(analysisResult.data, null, 2));
-                // Log template files received
-                if (analysisResult.indexHtml) {
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received index.html (${analysisResult.indexHtml.length} characters)`);
+            const session = await sessionManager.startAnalysis(filePath, 'FileXRAnalysis', context);
+            console.log(`ANALYZE_FILE_XR_ENGINE: Created session ${session.id} for XR analysis`);
+            // **VALIDATION: Check dimension mappings before proceeding**
+            console.log(`ANALYZE_FILE_XR_ENGINE: Validating dimension mappings...`);
+            const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+            const chartType = await storage.getChartTypeFile();
+            const dimensionMappings = await storage.getDimensionMappingFile();
+            if (!chartType) {
+                const errorMessage = '🚫 XR Analysis Error: No chart type selected. Please select a chart type in the Analysis Settings first.';
+                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
+                vscode.window.showErrorMessage(errorMessage);
+                sessionManager.failAnalysis(session.id, 'No chart type selected');
+                return;
+            }
+            // Validate dimension mappings
+            const validationResult = dimensionMappingValidator_1.DimensionMappingValidator.validateMappingsForChart(chartType, dimensionMappings);
+            if (!validationResult.isValid) {
+                let errorMessage = `🚫 XR Analysis Error: Invalid dimension configuration for ${chartType} chart.\n\n`;
+                if (validationResult.hasMissingRequired) {
+                    errorMessage += `Missing required dimensions: ${validationResult.missingRequired.join(', ')}\n`;
                 }
-                if (analysisResult.cssContent) {
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received CSS file (${analysisResult.cssContent.length} characters)`);
+                if (validationResult.hasConflicts) {
+                    errorMessage += `Dimension conflicts detected:\n`;
+                    for (const conflict of validationResult.conflicts) {
+                        errorMessage += `• Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}\n`;
+                    }
+                }
+                errorMessage += '\nPlease fix the dimension mappings in Analysis Settings before running XR analysis.';
+                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
+                vscode.window.showErrorMessage(errorMessage, { modal: true });
+                sessionManager.failAnalysis(session.id, 'Invalid dimension configuration');
+                return;
+            }
+            console.log(`ANALYZE_FILE_XR_ENGINE: ✅ Dimension validation passed for ${chartType} chart`);
+            // Show start message to user
+            const fileName = (__webpack_require__(5).basename)(filePath);
+            vscode.window.showInformationMessage(`🥽 CodeXR: Starting XR analysis for "${fileName}" (${languageInfo.name}) with ${chartType} chart...`, { modal: false });
+            // Get file analysis using python xr_file_analysis_coordinator.py with session
+            console.log(`ANALYZE_FILE_XR_ENGINE: Calling XR file analysis...`);
+            const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileXR(filePath, context, session.id);
+            if (analysisResult.success && analysisResult.data) {
+                console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis completed successfully!`);
+                console.log(`ANALYZE_FILE_XR_ENGINE: ===== XR ANALYSIS RESULTS =====`);
+                console.log(`ANALYZE_FILE_XR_ENGINE: Data.json:`, JSON.stringify(analysisResult.data, null, 2));
+                // Check and log generated files
+                if (analysisResult.indexHtml) {
+                    console.log(`ANALYZE_FILE_XR_ENGINE: ✅ INDEX.HTML Generated - Length: ${analysisResult.indexHtml.length} characters`);
+                    console.log(`ANALYZE_FILE_XR_ENGINE: HTML Preview (first 200 chars):`, analysisResult.indexHtml.substring(0, 200) + '...');
+                }
+                else {
+                    console.warn(`ANALYZE_FILE_XR_ENGINE: ❌ No INDEX.HTML generated`);
                 }
                 if (analysisResult.jsContent) {
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received JS file (${analysisResult.jsContent.length} characters)`);
+                    console.log(`ANALYZE_FILE_XR_ENGINE: ✅ SSE JAVASCRIPT Generated - Length: ${analysisResult.jsContent.length} characters`);
+                    console.log(`ANALYZE_FILE_XR_ENGINE: JS Preview (first 200 chars):`, analysisResult.jsContent.substring(0, 200) + '...');
                 }
-                // Save all files to workspace storage using session
-                console.log(`NEW_CODE_ANALYSIS_ENGINE: Saving analysis files to workspace storage...`);
-                const filesToSave = {
-                    indexHtml: analysisResult.indexHtml,
-                    cssContent: analysisResult.cssContent,
-                    jsContent: analysisResult.jsContent,
-                    dataJson: analysisResult.data
-                };
-                const saveResult = await utils_1.SaveFiles.saveAnalysisFiles(filesToSave, session.id, context);
-                if (saveResult.success) {
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Files saved successfully!`);
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis nonce: ${saveResult.nonce}`);
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis directory: ${saveResult.analysisDirectoryPath}`);
-                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Index.html path: ${saveResult.indexHtmlPath}`);
-                    // Start file watcher for live updates with session
-                    const watcherId = await utils_1.FileWatcher.startWatching(session.id, context);
-                    if (watcherId) {
-                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Started file watcher with ID: ${watcherId}`);
-                    }
-                    else {
-                        console.warn(`NEW_CODE_ANALYSIS_ENGINE: Failed to start file watcher for: ${filePath}`);
-                    }
-                    // Launch SSE server for real-time updates
-                    const serverLaunchResult = await utils_1.LaunchServer.launchAnalysisServer(context, {
-                        sessionId: session.id,
-                        enableSSE: true
-                    });
-                    if (serverLaunchResult.success) {
-                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launched successfully!`);
-                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server URL: ${serverLaunchResult.serverUrl}`);
-                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server ID: ${serverLaunchResult.serverId}`);
-                        console.log(`NEW_CODE_ANALYSIS_ENGINE: SSE Channel: ${serverLaunchResult.sseChannel}`);
-                        // Show enhanced success message with server information
-                        vscode.window.showInformationMessage(`CodeXR: Live Panel launched! Analysis: ${saveResult.nonce} | Server: ${serverLaunchResult.serverUrl} | Live updates enabled`, 'Open in Browser', 'View Servers').then(action => {
-                            if (action === 'Open in Browser') {
-                                vscode.env.openExternal(vscode.Uri.parse(serverLaunchResult.serverUrl));
-                            }
-                            else if (action === 'View Servers') {
-                                vscode.commands.executeCommand('codexr.servers.view');
-                            }
-                        });
-                    }
-                    else {
-                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launch failed: ${serverLaunchResult.error}`);
-                        // Still show success for analysis, but note server issue
-                        vscode.window.showWarningMessage(`CodeXR: Analysis completed for "${filePath}" (Session: ${saveResult.nonce}) but server launch failed: ${serverLaunchResult.error}`, 'Retry Server Launch', 'View Analysis Files').then(action => {
-                            if (action === 'Retry Server Launch') {
-                                // Re-attempt server launch
-                                utils_1.LaunchServer.launchAnalysisServer(context, {
-                                    filePath: filePath,
-                                    analysisType: 'LivePanel',
-                                    enableSSE: true,
-                                    analysisDirectoryPath: saveResult.analysisDirectoryPath,
-                                    indexHtmlPath: saveResult.indexHtmlPath
-                                });
-                            }
-                            else if (action === 'View Analysis Files') {
-                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(saveResult.analysisDirectoryPath));
-                            }
-                        });
+                else {
+                    console.warn(`ANALYZE_FILE_XR_ENGINE: ❌ No SSE JavaScript generated`);
+                }
+                // Get user chart configuration
+                const { AnalysisConfigurationStorage } = __webpack_require__(94);
+                const storage = AnalysisConfigurationStorage.getInstance(context);
+                const userChartType = await storage.getChartTypeFile();
+                const userDimensionMapping = await storage.getDimensionMappingFile();
+                console.log(`ANALYZE_FILE_XR_ENGINE: ===== USER CHART CONFIGURATION =====`);
+                console.log(`[CHART_CONFIGURED] Chart Type: ${userChartType}`);
+                console.log(`[CHART_CONFIGURED] Dimension Mappings:`, userDimensionMapping);
+                // Show detailed mapping info
+                if (Object.keys(userDimensionMapping).length > 0) {
+                    for (const [dimension, dataField] of Object.entries(userDimensionMapping)) {
+                        console.log(`[CHART_CONFIGURED] ${dimension} → ${dataField}`);
                     }
                 }
                 else {
-                    console.error(`NEW_CODE_ANALYSIS_ENGINE: Failed to save files:`, saveResult.error);
-                    vscode.window.showErrorMessage(`CodeXR: Analysis completed but failed to save files: ${saveResult.error}`);
+                    console.log(`[CHART_CONFIGURED] No custom dimension mappings, using defaults`);
+                }
+                console.log(`ANALYZE_FILE_XR_ENGINE: ============================================`);
+                // Save all files to workspace storage using session
+                console.log(`ANALYZE_FILE_XR_ENGINE: Saving XR analysis files to workspace storage...`);
+                const filesToSave = {
+                    indexHtml: analysisResult.indexHtml,
+                    jsContent: analysisResult.jsContent,
+                    dataJson: analysisResult.data
+                    // Note: XR analysis doesn't use CSS file, only HTML + JS + JSON
+                };
+                const saveResult = await saveFiles_1.SaveFiles.saveAnalysisFiles(filesToSave, session.id, context);
+                if (saveResult.success) {
+                    console.log(`ANALYZE_FILE_XR_ENGINE: XR files saved successfully!`);
+                    console.log(`ANALYZE_FILE_XR_ENGINE: XR Analysis nonce: ${saveResult.nonce}`);
+                    console.log(`ANALYZE_FILE_XR_ENGINE: XR Analysis directory: ${saveResult.analysisDirectoryPath}`);
+                    console.log(`ANALYZE_FILE_XR_ENGINE: XR Index.html path: ${saveResult.indexHtmlPath}`);
+                    // Start file watcher for live updates with session
+                    const watcherId = await manageWatcher_1.ManageWatcher.startWatching(session.id, context);
+                    if (watcherId) {
+                        console.log(`ANALYZE_FILE_XR_ENGINE: XR File watcher started with ID: ${watcherId}`);
+                    }
+                    // Launch server for XR visualization with session
+                    console.log(`ANALYZE_FILE_XR_ENGINE: Launching server for XR visualization...`);
+                    const serverResult = await launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                        sessionId: session.id,
+                        enableSSE: true
+                    });
+                    if (serverResult.success) {
+                        console.log(`ANALYZE_FILE_XR_ENGINE: XR Server launched successfully!`);
+                        console.log(`ANALYZE_FILE_XR_ENGINE: XR Server URL: ${serverResult.serverUrl}`);
+                        console.log(`ANALYZE_FILE_XR_ENGINE: XR Server Port: ${serverResult.port}`);
+                    }
+                    else {
+                        console.error(`ANALYZE_FILE_XR_ENGINE: Failed to launch XR server:`, serverResult.error);
+                        // Don't fail the entire process for server launch failure
+                    }
+                    // Show success message with data info
+                    vscode.window.showInformationMessage(`🥽 XR Analysis completed for "${fileName}"! ${userChartType} chart visualization saved, file watcher started, and server launched.`, 'Got it!', 'View File', 'Open XR Visualization').then(action => {
+                        if (action === 'View File') {
+                            vscode.window.showTextDocument(vscode.Uri.file(filePath));
+                        }
+                        else if (action === 'Open XR Visualization') {
+                            if (serverResult.success && serverResult.serverUrl) {
+                                // Open the XR visualization from the launched server
+                                vscode.commands.executeCommand('simpleBrowser.show', serverResult.serverUrl);
+                            }
+                            else {
+                                // Fallback to local file
+                                vscode.commands.executeCommand('simpleBrowser.show', vscode.Uri.file(saveResult.indexHtmlPath));
+                            }
+                        }
+                    });
+                }
+                else {
+                    console.error(`ANALYZE_FILE_XR_ENGINE: Failed to save XR files:`, saveResult.error);
+                    vscode.window.showErrorMessage(`CodeXR: Failed to save XR analysis files for "${fileName}" 🥽: ${saveResult.error}`);
                 }
             }
             else {
-                console.error(`NEW_CODE_ANALYSIS_ENGINE: Analysis failed:`, analysisResult.error);
-                vscode.window.showErrorMessage(`CodeXR: Analysis failed for "${filePath}": ${analysisResult.error}`);
+                console.error(`ANALYZE_FILE_XR_ENGINE: XR analysis failed:`, analysisResult.error);
+                vscode.window.showErrorMessage(`CodeXR: XR analysis failed for "${fileName}" 🥽: ${analysisResult.error}`);
             }
         }
         catch (error) {
-            console.error('NEW_CODE_ANALYSIS_ENGINE: Error analyzing file:', error);
-            vscode.window.showErrorMessage(`CodeXR: Failed to analyze file "${filePath}": ${error}`);
+            console.error('ANALYZE_FILE_XR_ENGINE: Error in XR analysis:', error);
+            vscode.window.showErrorMessage(`CodeXR: XR analysis failed 🥽 - ${error}`);
         }
     }
     /**
-     * Check if a file can be analyzed
+     * Check if a file can be analyzed in XR mode
      */
     static canAnalyzeFile(filePath) {
         const extension = (__webpack_require__(5).extname)(filePath).toLowerCase();
@@ -14759,7 +12693,7 @@ class LaunchAnalyzeFileLivePanel {
         return false;
     }
     /**
-     * Get supported file extensions for analysis
+     * Get supported file extensions for XR analysis
      */
     static getSupportedExtensions() {
         const extensions = [];
@@ -14769,11 +12703,11 @@ class LaunchAnalyzeFileLivePanel {
         return [...new Set(extensions)]; // Remove duplicates
     }
 }
-exports.LaunchAnalyzeFileLivePanel = LaunchAnalyzeFileLivePanel;
+exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
 
 
 /***/ }),
-/* 90 */
+/* 78 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -14862,7 +12796,7 @@ function isLanguageSupported(languageName) {
 
 
 /***/ }),
-/* 91 */
+/* 79 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -15014,32 +12948,471 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 92 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/* 80 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- * Engine Utils Module
- * Exports for analysis engine utilities
+ * Get Necessary Files for Analysis
+ * Common functions for different types of analysis
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.LaunchServer = exports.FileWatcher = exports.SaveFiles = exports.ParseTemplates = exports.GetNecessaryFiles = exports.PythonExecutor = void 0;
-var pythonExecutor_1 = __webpack_require__(93);
-Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return pythonExecutor_1.PythonExecutor; } }));
-var getNecessaryFiles_1 = __webpack_require__(97);
-Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return getNecessaryFiles_1.GetNecessaryFiles; } }));
-var parseTemplates_1 = __webpack_require__(98);
-Object.defineProperty(exports, "ParseTemplates", ({ enumerable: true, get: function () { return parseTemplates_1.ParseTemplates; } }));
-var saveFiles_1 = __webpack_require__(103);
-Object.defineProperty(exports, "SaveFiles", ({ enumerable: true, get: function () { return saveFiles_1.SaveFiles; } }));
-var fileWatcher_1 = __webpack_require__(104);
-Object.defineProperty(exports, "FileWatcher", ({ enumerable: true, get: function () { return fileWatcher_1.FileWatcher; } }));
-var launchServer_1 = __webpack_require__(108);
-Object.defineProperty(exports, "LaunchServer", ({ enumerable: true, get: function () { return launchServer_1.LaunchServer; } }));
+exports.GetNecessaryFiles = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const pythonExecutor_1 = __webpack_require__(81);
+const parseTemplates_1 = __webpack_require__(89);
+const analysisSessionManager_1 = __webpack_require__(91);
+const directoryAnalysisSessionRegistry_1 = __webpack_require__(190);
+class GetNecessaryFiles {
+    /**
+     * Get analysis for DOM Visualization
+     */
+    static async getVisualizationDOM(filePath, context, sessionId) {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting DOM visualization analysis for: ${filePath}`);
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            // Execute Python analysis using html_dom_parser.py
+            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('DOMVisualization', filePath, context);
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: DOM visualization analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: Received htmlContent:`, pythonResult.data.htmlContent ? 'YES' : 'NO');
+                // The python parser returns { htmlContent: "clean html content", originalFile: "path", preparedForVisualization: true }
+                // Extract the HTML content string for babia-html visualization
+                const htmlContentString = pythonResult.data.htmlContent || '';
+                if (htmlContentString) {
+                    console.log(`GET_NECESSARY_FILES: HTML content length: ${htmlContentString.length} characters`);
+                    // Add HTML content to session
+                    await sessionManager.addFileToSession(sessionId, 'source.html', htmlContentString);
+                    // Parse templates to get HTML, CSS, and JS files for DOM visualization
+                    console.log(`GET_NECESSARY_FILES: Starting DOM visualization template parsing...`);
+                    const templateResult = await parseTemplates_1.ParseTemplates.parseDOMVisualizationTemplate(context, {
+                        htmlContent: htmlContentString,
+                        fileName: (__webpack_require__(5).basename)(filePath),
+                        filePath: filePath,
+                        title: `DOM Visualization - ${(__webpack_require__(5).basename)(filePath)}`
+                    });
+                    if (templateResult.success) {
+                        console.log(`GET_NECESSARY_FILES: DOM visualization template files received successfully`);
+                        console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                        console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
+                        console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+                        // Add template files to session
+                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
+                        await sessionManager.addFileToSession(sessionId, 'style.css', templateResult.cssContent);
+                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
+                        // Add analysis data as JSON to session
+                        const dataJson = JSON.stringify({
+                            htmlContent: htmlContentString,
+                            originalFile: filePath,
+                            preparedForVisualization: true
+                        }, null, 2);
+                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
+                        return {
+                            success: true,
+                            data: {
+                                htmlContent: htmlContentString,
+                                originalFile: filePath,
+                                preparedForVisualization: true
+                            },
+                            indexHtml: templateResult.indexHtml,
+                            cssContent: templateResult.cssContent,
+                            jsContent: templateResult.jsContent,
+                            filePath: filePath,
+                            analysisType: 'DOMVisualization'
+                        };
+                    }
+                    else {
+                        console.error(`GET_NECESSARY_FILES: DOM visualization template parsing failed:`, templateResult.error);
+                        return {
+                            success: false,
+                            error: `Template parsing failed: ${templateResult.error}`,
+                            filePath: filePath,
+                            analysisType: 'DOMVisualization'
+                        };
+                    }
+                }
+                else {
+                    console.error(`GET_NECESSARY_FILES: No HTML content received from parser`);
+                    return {
+                        success: false,
+                        error: 'No HTML content could be extracted from file',
+                        filePath: filePath,
+                        analysisType: 'DOMVisualization'
+                    };
+                }
+            }
+            else {
+                console.error(`GET_NECESSARY_FILES: DOM visualization analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during DOM analysis',
+                    filePath: filePath,
+                    analysisType: 'DOMVisualization'
+                };
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getVisualizationDOM:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: filePath,
+                analysisType: 'DOMVisualization'
+            };
+        }
+    }
+    /**
+     * Get analysis for File Live Panel mode
+     */
+    static async getAnalysisFileLivePanel(filePath, context, theme, sessionId) {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting FileLivePanel analysis for: ${filePath}`);
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            // Execute Python analysis using PythonExecutor
+            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileLivePanel', filePath, context);
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: FileLivePanel analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
+                // Add source file content to session if sessionId provided
+                if (sessionId) {
+                    try {
+                        const fileUri = vscode.Uri.file(filePath);
+                        const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                        const sourceContent = Buffer.from(fileContent).toString('utf8');
+                        await sessionManager.addFileToSession(sessionId, (__webpack_require__(5).basename)(filePath), sourceContent);
+                    }
+                    catch (error) {
+                        console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
+                    }
+                }
+                // Parse templates to get HTML, CSS, and JS files
+                console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Files...`);
+                const templateResult = await parseTemplates_1.ParseTemplates.parseLivePanelFilesTemplate(context, pythonResult.data, theme);
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: Template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+                    // Add template files to session if sessionId provided
+                    if (sessionId) {
+                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
+                        await sessionManager.addFileToSession(sessionId, 'style.css', templateResult.cssContent);
+                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
+                        // Add analysis data as JSON to session
+                        const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
+                    }
+                    return {
+                        success: true,
+                        data: pythonResult.data,
+                        indexHtml: templateResult.indexHtml,
+                        cssContent: templateResult.cssContent,
+                        jsContent: templateResult.jsContent,
+                        filePath: filePath,
+                        analysisType: 'FileLivePanel'
+                    };
+                }
+                else {
+                    console.error(`GET_NECESSARY_FILES: Template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `Template parsing failed: ${templateResult.error}`,
+                        filePath: filePath,
+                        analysisType: 'FileLivePanel'
+                    };
+                }
+            }
+            else {
+                console.error(`GET_NECESSARY_FILES: FileLivePanel analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during analysis',
+                    filePath: filePath,
+                    analysisType: 'FileLivePanel'
+                };
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getAnalysisFileLivePanel:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: filePath,
+                analysisType: 'FileLivePanel'
+            };
+        }
+    }
+    /**
+     * Get analysis for File XR mode
+     */
+    static async getAnalysisFileXR(filePath, context, sessionId) {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting FileXR analysis for: ${filePath}`);
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            // Execute Python analysis using PythonExecutor
+            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileXRAnalysis', filePath, context);
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: FileXR analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: XR Analysis data.json:`, JSON.stringify(pythonResult.data, null, 2));
+                // Add source file content to session if sessionId provided
+                if (sessionId) {
+                    try {
+                        const fileUri = vscode.Uri.file(filePath);
+                        const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                        const sourceContent = Buffer.from(fileContent).toString('utf8');
+                        await sessionManager.addFileToSession(sessionId, (__webpack_require__(5).basename)(filePath), sourceContent);
+                    }
+                    catch (error) {
+                        console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
+                    }
+                }
+                // Parse XR visualization template using user configuration
+                console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing...`);
+                // Get user chart configuration from settings
+                const { AnalysisConfigurationStorage } = __webpack_require__(94);
+                const storage = AnalysisConfigurationStorage.getInstance(context);
+                const userChartType = await storage.getChartTypeFile();
+                const userDimensionMapping = await storage.getDimensionMappingFile();
+                console.log(`[CHART_CONFIGURED] User selected chart type: ${userChartType}`);
+                console.log(`[CHART_CONFIGURED] User dimension mappings:`, userDimensionMapping);
+                const templateResult = await parseTemplates_1.ParseTemplates.parseXRVisualizationTemplate(context, {
+                    analysisData: pythonResult.data,
+                    fileName: (__webpack_require__(5).basename)(filePath),
+                    filePath: filePath,
+                    title: `XR Analysis - ${(__webpack_require__(5).basename)(filePath)}`,
+                    chartId: userChartType,
+                    dimensionMapping: userDimensionMapping
+                });
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: XR visualization template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+                    // Add template files to session if sessionId provided
+                    if (sessionId) {
+                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
+                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
+                        // Add analysis data as JSON to session
+                        const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
+                    }
+                    return {
+                        success: true,
+                        data: pythonResult.data,
+                        indexHtml: templateResult.indexHtml,
+                        jsContent: templateResult.jsContent,
+                        filePath: filePath,
+                        analysisType: 'FileXRAnalysis'
+                    };
+                }
+                else {
+                    console.error(`GET_NECESSARY_FILES: XR template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `XR template parsing failed: ${templateResult.error}`,
+                        filePath: filePath,
+                        analysisType: 'FileXRAnalysis'
+                    };
+                }
+            }
+            else {
+                console.error(`GET_NECESSARY_FILES: FileXR analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during XR analysis',
+                    filePath: filePath,
+                    analysisType: 'FileXRAnalysis'
+                };
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getAnalysisFileXR:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: filePath,
+                analysisType: 'FileXRAnalysis'
+            };
+        }
+    }
+    /**
+     * Get necessary files for Directory analysis (universal dispatcher)
+     * Determines which analysis type to use based on session configuration
+     */
+    static async getAnalysisDirectoryLivePanel(rootDirectoryPath, context, sessionId, theme) {
+        try {
+            console.log(`GET_NECESSARY_FILES: Starting Directory analysis for: ${rootDirectoryPath}`);
+            const directorySessionRegistry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+            // Get session to determine analysis type
+            const session = directorySessionRegistry.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            console.log(`GET_NECESSARY_FILES: Session configuration - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+            // Dispatch to appropriate analysis method based on session configuration
+            if (session.isXR) {
+                // XR Analysis
+                console.log('GET_NECESSARY_FILES: ===== DISPATCHING TO XR ANALYSIS =====');
+                return await this.getForDirectoryXR(rootDirectoryPath, context, sessionId, theme);
+            }
+            else {
+                // LivePanel Analysis
+                console.log('GET_NECESSARY_FILES: ===== DISPATCHING TO LIVEPANEL ANALYSIS =====');
+                return await this.getForDirectoryLivePanel(rootDirectoryPath, context, sessionId, theme);
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getAnalysisDirectoryLivePanel:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: rootDirectoryPath,
+                analysisType: 'DirectoryLivePanel'
+            };
+        }
+    }
+    /**
+     * Get necessary files for Directory LivePanel analysis (specific implementation)
+     */
+    static async getForDirectoryLivePanel(rootDirectoryPath, context, sessionId, theme) {
+        try {
+            console.log('GET_NECESSARY_FILES: ===== STARTING LIVEPANEL DIRECTORY ANALYSIS =====');
+            console.log(`GET_NECESSARY_FILES: Directory: ${rootDirectoryPath}`);
+            console.log(`GET_NECESSARY_FILES: Session ID: ${sessionId}`);
+            console.log(`GET_NECESSARY_FILES: Theme: ${theme || 'default'}`);
+            const directorySessionRegistry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+            // Get session details for logging
+            const session = directorySessionRegistry.getSession(sessionId);
+            if (session) {
+                console.log(`GET_NECESSARY_FILES: Session config - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+                console.log(`GET_NECESSARY_FILES: Files in session: ${session.filesList.size}`);
+                // Log first few files for debugging
+                let fileCount = 0;
+                for (const [relativePath, absolutePath] of session.filesList) {
+                    if (fileCount < 3) {
+                        console.log(`GET_NECESSARY_FILES: File ${fileCount + 1}: ${relativePath} -> ${absolutePath}`);
+                        fileCount++;
+                    }
+                    else if (fileCount === 3) {
+                        console.log(`GET_NECESSARY_FILES: ... and ${session.filesList.size - 3} more files`);
+                        break;
+                    }
+                }
+            }
+            // Execute Python analysis using PythonExecutor
+            // Choose the appropriate analysis type based on whether it's deep or not
+            const analysisType = session?.isDeep ? 'DirectoryLivePanelDeep' : 'DirectoryLivePanel';
+            console.log(`GET_NECESSARY_FILES: Using analysis type: ${analysisType}`);
+            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis(analysisType, rootDirectoryPath, context);
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: Directory LivePanel analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
+                // Parse templates to get HTML, CSS, and JS files
+                console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Directory...`);
+                const templateResult = await parseTemplates_1.ParseTemplates.parseLivePanelDirectoryTemplate(context, pythonResult.data, theme);
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: Template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+                    // Add template files to session registry
+                    directorySessionRegistry.addRequiredFile(sessionId, 'index.html', templateResult.indexHtml);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'style.css', templateResult.cssContent);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'main.js', templateResult.jsContent);
+                    // Add analysis data as JSON to session
+                    const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'data.json', dataJson);
+                    return {
+                        success: true,
+                        data: pythonResult.data,
+                        indexHtml: templateResult.indexHtml,
+                        cssContent: templateResult.cssContent,
+                        jsContent: templateResult.jsContent,
+                        filePath: rootDirectoryPath,
+                        analysisType: 'DirectoryLivePanel'
+                    };
+                }
+                else {
+                    console.error(`GET_NECESSARY_FILES: Template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `Template parsing failed: ${templateResult.error}`,
+                        filePath: rootDirectoryPath,
+                        analysisType: 'DirectoryLivePanel'
+                    };
+                }
+            }
+            else {
+                console.error(`GET_NECESSARY_FILES: Directory LivePanel analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during directory analysis',
+                    filePath: rootDirectoryPath,
+                    analysisType: 'DirectoryLivePanel'
+                };
+            }
+        }
+        catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getForDirectoryLivePanel:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: rootDirectoryPath,
+                analysisType: 'DirectoryLivePanel'
+            };
+        }
+    }
+    /**
+     * Get necessary files for Directory XR analysis (TODO: implement)
+     */
+    static async getForDirectoryXR(rootDirectoryPath, context, sessionId, theme) {
+        // TODO: Implement XR directory analysis
+        console.log('GET_NECESSARY_FILES: XR directory analysis not yet implemented');
+        return {
+            success: false,
+            error: 'XR directory analysis not yet implemented',
+            filePath: rootDirectoryPath,
+            analysisType: 'DirectoryLivePanel' // Temporal, cambiar cuando se implemente XR
+        };
+    }
+}
+exports.GetNecessaryFiles = GetNecessaryFiles;
 
 
 /***/ }),
-/* 93 */
+/* 81 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15083,8 +13456,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonExecutor = void 0;
 const path = __importStar(__webpack_require__(5));
-const child_process_1 = __webpack_require__(61);
-const pythonEnvCommands_1 = __webpack_require__(94);
+const child_process_1 = __webpack_require__(82);
+const pythonEnvCommands_1 = __webpack_require__(83);
 class PythonExecutor {
     /**
      * Execute Python analysis script based on analysis type
@@ -15251,12 +13624,145 @@ class PythonExecutor {
         console.log(`PYTHON_EXECUTOR: Extracted JSON (${result.length} chars), lines ${jsonStart}-${jsonEnd}`);
         return result;
     }
+    /**
+     * Execute Python analysis script for file resume (for watcher updates)
+     */
+    static async executeFileResumeAnalysis(filePath, context) {
+        try {
+            console.log(`PYTHON_EXECUTOR: Starting file resume analysis for: ${filePath}`);
+            // Get the global PythonEnvCommands instance
+            const pythonEnvCommands = (0, pythonEnvCommands_1.getPythonEnvCommands)();
+            if (!pythonEnvCommands) {
+                return {
+                    success: false,
+                    error: 'Python environment system is not initialized. Please restart VS Code.'
+                };
+            }
+            // Get VenvManager from the global instance
+            const venvManager = pythonEnvCommands.getVenvManager();
+            // Check if environment is available
+            const status = venvManager.getEnvironmentStatus();
+            if (!status.exists || !status.isValid) {
+                return {
+                    success: false,
+                    error: 'Python virtual environment is not available or invalid. Please check Python environment settings.'
+                };
+            }
+            // Get Python executable path
+            const pythonExecutable = venvManager.getPythonExecutablePath();
+            if (!pythonExecutable) {
+                return {
+                    success: false,
+                    error: 'Failed to get Python executable path'
+                };
+            }
+            console.log(`PYTHON_EXECUTOR: Using Python executable: ${pythonExecutable}`);
+            // Get path to the file analysis coordinator script
+            const scriptPath = path.join(context.extensionPath, 'src', 'new_code_analysis', 'python', 'livePanel_file_analysis_coordinator.py');
+            console.log(`PYTHON_EXECUTOR: Using file analysis script: ${scriptPath}`);
+            // Execute Python script with --resume flag
+            const result = await PythonExecutor.runPythonFileResumeAnalysis(pythonExecutable, scriptPath, filePath);
+            if (result.success && result.stdout) {
+                try {
+                    const jsonOutput = PythonExecutor.extractJsonFromOutput(result.stdout);
+                    const analysisData = JSON.parse(jsonOutput);
+                    console.log(`PYTHON_EXECUTOR: File resume analysis completed successfully`);
+                    console.log(`PYTHON_EXECUTOR: Resume data for ${analysisData.fileName}:`, {
+                        totalLines: analysisData.totalLines,
+                        functionCount: analysisData.functionCount,
+                        cyclomaticComplexityNumber: analysisData.cyclomaticComplexityNumber
+                    });
+                    return {
+                        success: true,
+                        data: analysisData,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    };
+                }
+                catch (parseError) {
+                    console.error(`PYTHON_EXECUTOR: Failed to parse resume analysis result as JSON:`, parseError);
+                    console.log(`PYTHON_EXECUTOR: Raw stdout:`, result.stdout);
+                    return {
+                        success: false,
+                        error: `Failed to parse resume analysis result: ${parseError}`,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    };
+                }
+            }
+            return result;
+        }
+        catch (error) {
+            console.error(`PYTHON_EXECUTOR: Error during file resume analysis:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Run Python file analysis coordinator with --resume flag
+     */
+    static async runPythonFileResumeAnalysis(pythonExecutable, scriptPath, filePath) {
+        console.log(`PYTHON_EXECUTOR: Executing file resume analysis: "${pythonExecutable}" "${scriptPath}" --resume "${filePath}"`);
+        return new Promise((resolve) => {
+            const args = [scriptPath, '--resume', filePath];
+            const childProcess = (0, child_process_1.spawn)(pythonExecutable, args, {
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: { ...process.env },
+                shell: false
+            });
+            let stdout = '';
+            let stderr = '';
+            childProcess.stdout?.on('data', (data) => {
+                stdout += data.toString();
+            });
+            childProcess.stderr?.on('data', (data) => {
+                stderr += data.toString();
+            });
+            childProcess.on('close', (code) => {
+                console.log(`PYTHON_EXECUTOR: Python file resume analysis exited with code: ${code}`);
+                if (code === 0) {
+                    resolve({
+                        success: true,
+                        stdout: stdout,
+                        stderr: stderr
+                    });
+                }
+                else {
+                    console.error(`PYTHON_EXECUTOR: Python file resume analysis failed with code ${code}`);
+                    console.error(`PYTHON_EXECUTOR: stderr: ${stderr}`);
+                    resolve({
+                        success: false,
+                        error: `Python file resume analysis exited with code ${code}`,
+                        stdout: stdout,
+                        stderr: stderr
+                    });
+                }
+            });
+            childProcess.on('error', (error) => {
+                console.error(`PYTHON_EXECUTOR: Error running Python file resume analysis:`, error);
+                resolve({
+                    success: false,
+                    error: `Error running Python file resume analysis: ${error.message}`,
+                    stdout: stdout,
+                    stderr: stderr
+                });
+            });
+        });
+    }
 }
 exports.PythonExecutor = PythonExecutor;
 
 
 /***/ }),
-/* 94 */
+/* 82 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
+
+/***/ }),
+/* 83 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15298,7 +13804,7 @@ exports.registerPythonEnvCommands = registerPythonEnvCommands;
 exports.getPythonEnvCommands = getPythonEnvCommands;
 exports.deactivatePythonEnvCommands = deactivatePythonEnvCommands;
 const vscode = __importStar(__webpack_require__(1));
-const pythonEnvCommands_1 = __webpack_require__(95);
+const pythonEnvCommands_1 = __webpack_require__(84);
 /**
  * Python Environment Commands Wrapper
  * Re-exports python environment commands for centralized command registration
@@ -15344,7 +13850,7 @@ function deactivatePythonEnvCommands() {
 
 
 /***/ }),
-/* 95 */
+/* 84 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15384,7 +13890,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PythonEnvCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const venvManager_1 = __webpack_require__(96);
+const venvManager_1 = __webpack_require__(85);
 /**
  * Python environment command registration and handlers
  */
@@ -15641,7 +14147,7 @@ exports.PythonEnvCommands = PythonEnvCommands;
 
 
 /***/ }),
-/* 96 */
+/* 85 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15681,9 +14187,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VenvManager = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const cp = __importStar(__webpack_require__(61));
-const pythonEnvStorage_1 = __webpack_require__(64);
-const pythonEnvUtils_1 = __webpack_require__(65);
+const cp = __importStar(__webpack_require__(82));
+const pythonEnvStorage_1 = __webpack_require__(86);
+const pythonEnvUtils_1 = __webpack_require__(87);
 /**
  * Core virtual environment management functionality
  */
@@ -16058,14 +14564,10 @@ exports.VenvManager = VenvManager;
 
 
 /***/ }),
-/* 97 */
+/* 86 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
-/**
- * Get Necessary Files for Analysis
- * Common functions for different types of analysis
- */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -16100,288 +14602,411 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GetNecessaryFiles = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const pythonExecutor_1 = __webpack_require__(93);
-const parseTemplates_1 = __webpack_require__(98);
-const analysisSessionManager_1 = __webpack_require__(100);
-class GetNecessaryFiles {
+exports.PythonEnvStorage = void 0;
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const pythonEnvUtils_1 = __webpack_require__(87);
+/**
+ * Manages persistent storage of Python environment metadata
+ */
+class PythonEnvStorage {
+    static PYTHON_ENV_DIR = 'python-env';
+    static STATE_FILE = 'state.json';
+    static VENV_DIR = 'venv';
+    context;
+    pythonEnvPath;
+    stateFilePath;
+    venvPath;
+    constructor(context) {
+        this.context = context;
+        // Initialize paths using global storage
+        const globalStorageUri = this.context.globalStorageUri;
+        this.pythonEnvPath = path.join(globalStorageUri.fsPath, PythonEnvStorage.PYTHON_ENV_DIR);
+        this.stateFilePath = path.join(this.pythonEnvPath, PythonEnvStorage.STATE_FILE);
+        this.venvPath = path.join(this.pythonEnvPath, PythonEnvStorage.VENV_DIR);
+        console.log(`PYTHON_ENV: Storage initialized at ${this.pythonEnvPath}`);
+        console.log(`PYTHON_ENV: Virtual environment path: ${this.venvPath}`);
+        console.log(`PYTHON_ENV: State file path: ${this.stateFilePath}`);
+        // Ensure the python-env directory exists
+        this.ensurePythonEnvDirectory();
+    }
     /**
-     * Get analysis for DOM Visualization
+     * Get the virtual environment path
      */
-    static async getVisualizationDOM(filePath, context, sessionId) {
+    getVenvPath() {
+        return this.venvPath;
+    }
+    /**
+     * Get the Python environment storage path
+     */
+    getPythonEnvPath() {
+        return this.pythonEnvPath;
+    }
+    /**
+     * Save environment metadata to state.json
+     */
+    async saveMetadata(metadata) {
         try {
-            console.log(`GET_NECESSARY_FILES: Starting DOM visualization analysis for: ${filePath}`);
-            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            // Execute Python analysis using html_dom_parser.py
-            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('DOMVisualization', filePath, context);
-            if (pythonResult.success && pythonResult.data) {
-                console.log(`GET_NECESSARY_FILES: DOM visualization analysis completed successfully`);
-                console.log(`GET_NECESSARY_FILES: Received htmlContent:`, pythonResult.data.htmlContent ? 'YES' : 'NO');
-                // The python parser returns { htmlContent: "clean html content", originalFile: "path", preparedForVisualization: true }
-                // Extract the HTML content string for babia-html visualization
-                const htmlContentString = pythonResult.data.htmlContent || '';
-                if (htmlContentString) {
-                    console.log(`GET_NECESSARY_FILES: HTML content length: ${htmlContentString.length} characters`);
-                    // Add HTML content to session
-                    await sessionManager.addFileToSession(sessionId, 'source.html', htmlContentString);
-                    // Parse templates to get HTML, CSS, and JS files for DOM visualization
-                    console.log(`GET_NECESSARY_FILES: Starting DOM visualization template parsing...`);
-                    const templateResult = await parseTemplates_1.ParseTemplates.parseDOMVisualizationTemplate(context, {
-                        htmlContent: htmlContentString,
-                        fileName: (__webpack_require__(5).basename)(filePath),
-                        filePath: filePath,
-                        title: `DOM Visualization - ${(__webpack_require__(5).basename)(filePath)}`
-                    });
-                    if (templateResult.success) {
-                        console.log(`GET_NECESSARY_FILES: DOM visualization template files received successfully`);
-                        console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
-                        console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
-                        console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
-                        // Add template files to session
-                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
-                        await sessionManager.addFileToSession(sessionId, 'style.css', templateResult.cssContent);
-                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
-                        // Add analysis data as JSON to session
-                        const dataJson = JSON.stringify({
-                            htmlContent: htmlContentString,
-                            originalFile: filePath,
-                            preparedForVisualization: true
-                        }, null, 2);
-                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
-                        return {
-                            success: true,
-                            data: {
-                                htmlContent: htmlContentString,
-                                originalFile: filePath,
-                                preparedForVisualization: true
-                            },
-                            indexHtml: templateResult.indexHtml,
-                            cssContent: templateResult.cssContent,
-                            jsContent: templateResult.jsContent,
-                            filePath: filePath,
-                            analysisType: 'DOMVisualization'
-                        };
-                    }
-                    else {
-                        console.error(`GET_NECESSARY_FILES: DOM visualization template parsing failed:`, templateResult.error);
-                        return {
-                            success: false,
-                            error: `Template parsing failed: ${templateResult.error}`,
-                            filePath: filePath,
-                            analysisType: 'DOMVisualization'
-                        };
-                    }
-                }
-                else {
-                    console.error(`GET_NECESSARY_FILES: No HTML content received from parser`);
-                    return {
-                        success: false,
-                        error: 'No HTML content could be extracted from file',
-                        filePath: filePath,
-                        analysisType: 'DOMVisualization'
-                    };
-                }
-            }
-            else {
-                console.error(`GET_NECESSARY_FILES: DOM visualization analysis failed:`, pythonResult.error);
-                return {
-                    success: false,
-                    error: pythonResult.error || 'Unknown error during DOM analysis',
-                    filePath: filePath,
-                    analysisType: 'DOMVisualization'
-                };
-            }
+            const jsonData = JSON.stringify(metadata, null, 2);
+            fs.writeFileSync(this.stateFilePath, jsonData, 'utf-8');
+            console.log('PYTHON_ENV: Metadata saved to state file', metadata);
         }
         catch (error) {
-            console.error(`GET_NECESSARY_FILES: Error in getVisualizationDOM:`, error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                filePath: filePath,
-                analysisType: 'DOMVisualization'
-            };
+            console.error('PYTHON_ENV: Failed to save metadata:', error);
+            throw new Error(`Failed to save Python environment metadata: ${error}`);
         }
     }
     /**
-     * Get analysis for File Live Panel mode
+     * Load environment metadata from state.json
      */
-    static async getAnalysisFileLivePanel(filePath, context, theme, sessionId) {
+    loadMetadata() {
         try {
-            console.log(`GET_NECESSARY_FILES: Starting FileLivePanel analysis for: ${filePath}`);
-            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            // Execute Python analysis using PythonExecutor
-            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileLivePanel', filePath, context);
-            if (pythonResult.success && pythonResult.data) {
-                console.log(`GET_NECESSARY_FILES: FileLivePanel analysis completed successfully`);
-                console.log(`GET_NECESSARY_FILES: Analysis data.json:`, pythonResult.data);
-                // Add source file content to session if sessionId provided
-                if (sessionId) {
-                    try {
-                        const fileUri = vscode.Uri.file(filePath);
-                        const fileContent = await vscode.workspace.fs.readFile(fileUri);
-                        const sourceContent = Buffer.from(fileContent).toString('utf8');
-                        await sessionManager.addFileToSession(sessionId, (__webpack_require__(5).basename)(filePath), sourceContent);
-                    }
-                    catch (error) {
-                        console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
-                    }
-                }
-                // Parse templates to get HTML, CSS, and JS files
-                console.log(`GET_NECESSARY_FILES: Starting template parsing for LivePanel Files...`);
-                const templateResult = await parseTemplates_1.ParseTemplates.parseLivePanelFilesTemplate(context, pythonResult.data, theme);
-                if (templateResult.success) {
-                    console.log(`GET_NECESSARY_FILES: Template files received successfully`);
-                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
-                    console.log(`GET_NECESSARY_FILES: - CSS file: ${templateResult.cssContent.length} characters`);
-                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
-                    // Add template files to session if sessionId provided
-                    if (sessionId) {
-                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
-                        await sessionManager.addFileToSession(sessionId, 'style.css', templateResult.cssContent);
-                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
-                        // Add analysis data as JSON to session
-                        const dataJson = JSON.stringify(pythonResult.data, null, 2);
-                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
-                    }
-                    return {
-                        success: true,
-                        data: pythonResult.data,
-                        indexHtml: templateResult.indexHtml,
-                        cssContent: templateResult.cssContent,
-                        jsContent: templateResult.jsContent,
-                        filePath: filePath,
-                        analysisType: 'FileLivePanel'
-                    };
-                }
-                else {
-                    console.error(`GET_NECESSARY_FILES: Template parsing failed:`, templateResult.error);
-                    return {
-                        success: false,
-                        error: `Template parsing failed: ${templateResult.error}`,
-                        filePath: filePath,
-                        analysisType: 'FileLivePanel'
-                    };
-                }
+            if (!fs.existsSync(this.stateFilePath)) {
+                console.log('PYTHON_ENV: No state file found, returning null');
+                return null;
             }
-            else {
-                console.error(`GET_NECESSARY_FILES: FileLivePanel analysis failed:`, pythonResult.error);
-                return {
-                    success: false,
-                    error: pythonResult.error || 'Unknown error during analysis',
-                    filePath: filePath,
-                    analysisType: 'FileLivePanel'
-                };
-            }
+            const jsonData = fs.readFileSync(this.stateFilePath, 'utf-8');
+            const metadata = JSON.parse(jsonData);
+            console.log('PYTHON_ENV: Metadata loaded from state file', metadata);
+            return metadata;
         }
         catch (error) {
-            console.error(`GET_NECESSARY_FILES: Error in getAnalysisFileLivePanel:`, error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                filePath: filePath,
-                analysisType: 'FileLivePanel'
-            };
+            console.error('PYTHON_ENV: Failed to load metadata:', error);
+            return null;
         }
     }
     /**
-     * Get analysis for File XR mode
+     * Check if virtual environment exists and is valid
      */
-    static async getAnalysisFileXR(filePath, context, sessionId) {
+    isVenvValid() {
+        const isValid = pythonEnvUtils_1.PythonEnvUtils.isValidVenv(this.venvPath);
+        console.log(`PYTHON_ENV: Virtual environment validation result: ${isValid}`);
+        return isValid;
+    }
+    /**
+     * Delete the virtual environment and metadata
+     */
+    async deleteEnvironment() {
         try {
-            console.log(`GET_NECESSARY_FILES: Starting FileXR analysis for: ${filePath}`);
-            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            // Execute Python analysis using PythonExecutor
-            const pythonResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileXRAnalysis', filePath, context);
-            if (pythonResult.success && pythonResult.data) {
-                console.log(`GET_NECESSARY_FILES: FileXR analysis completed successfully`);
-                console.log(`GET_NECESSARY_FILES: XR Analysis data.json:`, JSON.stringify(pythonResult.data, null, 2));
-                // Add source file content to session if sessionId provided
-                if (sessionId) {
-                    try {
-                        const fileUri = vscode.Uri.file(filePath);
-                        const fileContent = await vscode.workspace.fs.readFile(fileUri);
-                        const sourceContent = Buffer.from(fileContent).toString('utf8');
-                        await sessionManager.addFileToSession(sessionId, (__webpack_require__(5).basename)(filePath), sourceContent);
-                    }
-                    catch (error) {
-                        console.warn(`GET_NECESSARY_FILES: Could not read source file for session: ${error}`);
-                    }
-                }
-                // Parse XR visualization template using user configuration
-                console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing...`);
-                // Get user chart configuration from settings
-                const { AnalysisConfigurationStorage } = __webpack_require__(122);
-                const storage = AnalysisConfigurationStorage.getInstance(context);
-                const userChartType = await storage.getChartTypeFile();
-                const userDimensionMapping = await storage.getDimensionMappingFile();
-                console.log(`[CHART_CONFIGURED] User selected chart type: ${userChartType}`);
-                console.log(`[CHART_CONFIGURED] User dimension mappings:`, userDimensionMapping);
-                const templateResult = await parseTemplates_1.ParseTemplates.parseXRVisualizationTemplate(context, {
-                    analysisData: pythonResult.data,
-                    fileName: (__webpack_require__(5).basename)(filePath),
-                    filePath: filePath,
-                    title: `XR Analysis - ${(__webpack_require__(5).basename)(filePath)}`,
-                    chartId: userChartType,
-                    dimensionMapping: userDimensionMapping
-                });
-                if (templateResult.success) {
-                    console.log(`GET_NECESSARY_FILES: XR visualization template files received successfully`);
-                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
-                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
-                    // Add template files to session if sessionId provided
-                    if (sessionId) {
-                        await sessionManager.addFileToSession(sessionId, 'index.html', templateResult.indexHtml);
-                        await sessionManager.addFileToSession(sessionId, 'main.js', templateResult.jsContent);
-                        // Add analysis data as JSON to session
-                        const dataJson = JSON.stringify(pythonResult.data, null, 2);
-                        await sessionManager.addFileToSession(sessionId, 'data.json', dataJson);
-                    }
-                    return {
-                        success: true,
-                        data: pythonResult.data,
-                        indexHtml: templateResult.indexHtml,
-                        jsContent: templateResult.jsContent,
-                        filePath: filePath,
-                        analysisType: 'FileXRAnalysis'
-                    };
-                }
-                else {
-                    console.error(`GET_NECESSARY_FILES: XR template parsing failed:`, templateResult.error);
-                    return {
-                        success: false,
-                        error: `XR template parsing failed: ${templateResult.error}`,
-                        filePath: filePath,
-                        analysisType: 'FileXRAnalysis'
-                    };
-                }
+            // Remove virtual environment directory
+            if (fs.existsSync(this.venvPath)) {
+                fs.rmSync(this.venvPath, { recursive: true, force: true });
+                console.log('PYTHON_ENV: Virtual environment directory deleted');
             }
-            else {
-                console.error(`GET_NECESSARY_FILES: FileXR analysis failed:`, pythonResult.error);
-                return {
-                    success: false,
-                    error: pythonResult.error || 'Unknown error during XR analysis',
-                    filePath: filePath,
-                    analysisType: 'FileXRAnalysis'
-                };
+            // Remove state file
+            if (fs.existsSync(this.stateFilePath)) {
+                fs.unlinkSync(this.stateFilePath);
+                console.log('PYTHON_ENV: State file deleted');
+            }
+            console.log('PYTHON_ENV: Environment successfully deleted');
+        }
+        catch (error) {
+            console.error('PYTHON_ENV: Failed to delete environment:', error);
+            throw new Error(`Failed to delete Python environment: ${error}`);
+        }
+    }
+    /**
+     * Update metadata with new validation timestamp
+     */
+    async updateValidation() {
+        try {
+            const metadata = this.loadMetadata();
+            if (metadata) {
+                metadata.lastValidated = new Date().toISOString();
+                await this.saveMetadata(metadata);
+                console.log('PYTHON_ENV: Validation timestamp updated');
             }
         }
         catch (error) {
-            console.error(`GET_NECESSARY_FILES: Error in getAnalysisFileXR:`, error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                filePath: filePath,
-                analysisType: 'FileXRAnalysis'
-            };
+            console.error('PYTHON_ENV: Failed to update validation:', error);
         }
+    }
+    /**
+     * Update dependencies list in metadata
+     */
+    async updateDependencies(dependencies) {
+        try {
+            const metadata = this.loadMetadata();
+            if (metadata) {
+                metadata.dependencies = dependencies;
+                await this.saveMetadata(metadata);
+                console.log(`PYTHON_ENV: Dependencies updated (${dependencies.length} packages)`);
+            }
+        }
+        catch (error) {
+            console.error('PYTHON_ENV: Failed to update dependencies:', error);
+        }
+    }
+    /**
+     * Create initial metadata for a new environment
+     */
+    createInitialMetadata(pythonVersion) {
+        const now = new Date().toISOString();
+        return {
+            venvPath: this.venvPath,
+            createdAt: now,
+            pythonVersion: pythonVersion,
+            isActive: true,
+            lastValidated: now,
+            dependencies: []
+        };
+    }
+    /**
+     * Ensure the python-env directory exists
+     */
+    ensurePythonEnvDirectory() {
+        try {
+            if (!pythonEnvUtils_1.PythonEnvUtils.ensureDirectoryExists(this.pythonEnvPath)) {
+                throw new Error(`Failed to create python-env directory at ${this.pythonEnvPath}`);
+            }
+        }
+        catch (error) {
+            console.error('PYTHON_ENV: Failed to ensure directory exists:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get storage statistics
+     */
+    getStorageStats() {
+        const stats = {
+            envExists: fs.existsSync(this.pythonEnvPath),
+            stateExists: fs.existsSync(this.stateFilePath),
+            venvSize: undefined
+        };
+        if (fs.existsSync(this.venvPath)) {
+            try {
+                // Calculate approximate venv size (simplified)
+                const getDirectorySize = (dirPath) => {
+                    let size = 0;
+                    const items = fs.readdirSync(dirPath);
+                    for (const item of items) {
+                        const itemPath = path.join(dirPath, item);
+                        const stat = fs.statSync(itemPath);
+                        if (stat.isDirectory()) {
+                            size += getDirectorySize(itemPath);
+                        }
+                        else {
+                            size += stat.size;
+                        }
+                    }
+                    return size;
+                };
+                stats.venvSize = Math.round(getDirectorySize(this.venvPath) / (1024 * 1024)); // MB
+            }
+            catch (error) {
+                console.log('PYTHON_ENV: Could not calculate venv size:', error);
+            }
+        }
+        return stats;
     }
 }
-exports.GetNecessaryFiles = GetNecessaryFiles;
+exports.PythonEnvStorage = PythonEnvStorage;
 
 
 /***/ }),
-/* 98 */
+/* 87 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PythonEnvUtils = void 0;
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const os = __importStar(__webpack_require__(88));
+/**
+ * Platform-specific utilities for Python environment management
+ */
+class PythonEnvUtils {
+    /**
+     * Get the Python executable command for the current platform
+     */
+    static getPythonCommand() {
+        const platform = os.platform();
+        // On Windows, try python first, then python3
+        if (platform === 'win32') {
+            return 'python';
+        }
+        // On Unix-like systems (Linux, macOS), prefer python3
+        return 'python3';
+    }
+    /**
+     * Get the virtual environment activation command for the current platform
+     */
+    static getActivationCommand(venvPath) {
+        const platform = os.platform();
+        if (platform === 'win32') {
+            return path.join(venvPath, 'Scripts', 'activate.bat');
+        }
+        else {
+            return `source ${path.join(venvPath, 'bin', 'activate')}`;
+        }
+    }
+    /**
+     * Get the Python executable path within a virtual environment
+     */
+    static getVenvPythonPath(venvPath) {
+        const platform = os.platform();
+        if (platform === 'win32') {
+            return path.join(venvPath, 'Scripts', 'python.exe');
+        }
+        else {
+            return path.join(venvPath, 'bin', 'python');
+        }
+    }
+    /**
+     * Get the pip executable path within a virtual environment
+     */
+    static getVenvPipPath(venvPath) {
+        const platform = os.platform();
+        if (platform === 'win32') {
+            return path.join(venvPath, 'Scripts', 'pip.exe');
+        }
+        else {
+            return path.join(venvPath, 'bin', 'pip');
+        }
+    }
+    /**
+     * Check if a path points to a valid virtual environment
+     */
+    static isValidVenv(venvPath) {
+        try {
+            // Check if directory exists
+            if (!fs.existsSync(venvPath)) {
+                return false;
+            }
+            // Check for Python executable
+            const pythonPath = this.getVenvPythonPath(venvPath);
+            if (!fs.existsSync(pythonPath)) {
+                return false;
+            }
+            // Check for pip executable
+            const pipPath = this.getVenvPipPath(venvPath);
+            if (!fs.existsSync(pipPath)) {
+                return false;
+            }
+            // Check for pyvenv.cfg (standard virtual environment marker)
+            const configPath = path.join(venvPath, 'pyvenv.cfg');
+            if (!fs.existsSync(configPath)) {
+                return false;
+            }
+            return true;
+        }
+        catch (error) {
+            console.log(`PYTHON_ENV: Error validating venv at ${venvPath}:`, error);
+            return false;
+        }
+    }
+    /**
+     * Validate a path is safe for virtual environment creation
+     */
+    static isValidPath(targetPath) {
+        try {
+            // Check if parent directory exists and is writable
+            const parentDir = path.dirname(targetPath);
+            if (!fs.existsSync(parentDir)) {
+                return false;
+            }
+            // Check if target path already exists and is not empty
+            if (fs.existsSync(targetPath)) {
+                const stats = fs.statSync(targetPath);
+                if (stats.isDirectory()) {
+                    const contents = fs.readdirSync(targetPath);
+                    return contents.length === 0; // Only valid if empty
+                }
+                return false; // File exists at target path
+            }
+            return true;
+        }
+        catch (error) {
+            console.log(`PYTHON_ENV: Error validating path ${targetPath}:`, error);
+            return false;
+        }
+    }
+    /**
+     * Extract Python version from a pyvenv.cfg file
+     */
+    static extractPythonVersion(venvPath) {
+        try {
+            const configPath = path.join(venvPath, 'pyvenv.cfg');
+            if (!fs.existsSync(configPath)) {
+                return null;
+            }
+            const configContent = fs.readFileSync(configPath, 'utf-8');
+            const versionMatch = configContent.match(/version\s*=\s*([^\s\n]+)/);
+            return versionMatch ? versionMatch[1] : null;
+        }
+        catch (error) {
+            console.log(`PYTHON_ENV: Error extracting version from ${venvPath}:`, error);
+            return null;
+        }
+    }
+    /**
+     * Get platform-specific environment separator
+     */
+    static getPathSeparator() {
+        return os.platform() === 'win32' ? ';' : ':';
+    }
+    /**
+     * Ensure directory exists, creating it if necessary
+     */
+    static ensureDirectoryExists(dirPath) {
+        try {
+            if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true });
+            }
+            return true;
+        }
+        catch (error) {
+            console.error(`PYTHON_ENV: Failed to create directory ${dirPath}:`, error);
+            return false;
+        }
+    }
+}
+exports.PythonEnvUtils = PythonEnvUtils;
+
+
+/***/ }),
+/* 88 */
+/***/ ((module) => {
+
+module.exports = require("os");
+
+/***/ }),
+/* 89 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16427,7 +15052,7 @@ exports.ParseTemplates = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
 const nonceGenerator_1 = __webpack_require__(12);
-const templateHTMLProcessor_1 = __webpack_require__(99);
+const templateHTMLProcessor_1 = __webpack_require__(90);
 const templateProcessor_1 = __webpack_require__(45);
 class ParseTemplates {
     /**
@@ -16478,6 +15103,76 @@ class ParseTemplates {
         }
         catch (error) {
             console.log(`PARSE_TEMPLATES: Error parsing LivePanel Files template:`, error);
+            return {
+                indexHtml: '',
+                cssContent: '',
+                jsContent: '',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+    /**
+     * Parse LivePanel Directory template for Directory Live Panel analysis
+     */
+    static async parseLivePanelDirectoryTemplate(context, analysisData, theme) {
+        try {
+            console.log(`PARSE_TEMPLATES: Starting LivePanel Directory template parsing`);
+            // Define template paths
+            const templateDir = path.join(context.extensionPath, 'templates', 'analysis_livePanel', 'directory');
+            const htmlPath = path.join(templateDir, 'directoryAnalysis.html');
+            const cssPath = path.join(templateDir, 'directoryAnalysisstyle.css');
+            const jsPath = path.join(templateDir, 'directoryAnalysismain.js');
+            // Check if template files exist
+            if (!fs.existsSync(htmlPath)) {
+                throw new Error(`HTML template not found at: ${htmlPath}`);
+            }
+            if (!fs.existsSync(cssPath)) {
+                throw new Error(`CSS template not found at: ${cssPath}`);
+            }
+            if (!fs.existsSync(jsPath)) {
+                throw new Error(`JS template not found at: ${jsPath}`);
+            }
+            // Read template files
+            console.log(`PARSE_TEMPLATES: Reading directory template files from: ${templateDir}`);
+            const htmlTemplate = fs.readFileSync(htmlPath, 'utf-8');
+            const cssTemplate = fs.readFileSync(cssPath, 'utf-8');
+            const jsTemplate = fs.readFileSync(jsPath, 'utf-8');
+            // Generate nonce for security and process HTML directly
+            const nonce = (0, nonceGenerator_1.generateNonce)();
+            const themeClass = theme === 'Light' ? 'light-theme' : 'dark-theme';
+            const themeValue = theme === 'Light' ? 'light' : 'dark';
+            // Extract directory info from analysis data
+            const directoryPath = analysisData?.directoryPath || analysisData?.summary?.directoryPath || 'Unknown Directory';
+            const directoryName = analysisData?.directoryName || path.basename(directoryPath);
+            const totalFiles = analysisData?.summary?.totalFiles || 0;
+            const totalFilesAnalyzed = analysisData?.summary?.totalFilesAnalyzed || 0;
+            const timestamp = analysisData?.timestamp || new Date().toISOString();
+            // Inject theme initialization script
+            const themeScript = `<script nonce="${nonce}">window.initialTheme = '${themeValue}';</script>`;
+            const parsedHtml = htmlTemplate
+                .replace(/\$\{nonce\}/g, nonce)
+                .replace(/\$\{webview\.cspSource\}/g, "'self'")
+                .replace(/\$\{styleUri\}/g, './style.css')
+                .replace(/\$\{scriptUri\}/g, './main.js')
+                .replace(/\$\{theme\}/g, themeClass)
+                .replace(/\$\{directoryPath\}/g, directoryPath)
+                .replace(/\$\{totalFiles\}/g, totalFiles.toString())
+                .replace(/\$\{totalFilesAnalyzed\}/g, totalFilesAnalyzed.toString())
+                .replace(/\$\{timestamp\}/g, timestamp)
+                .replace(/<\/head>/, `${themeScript}\n</head>`);
+            console.log(`PARSE_TEMPLATES: Directory template parsing completed successfully`);
+            console.log(`PARSE_TEMPLATES: - Directory: ${directoryName} (${directoryPath})`);
+            console.log(`PARSE_TEMPLATES: - Files: ${totalFilesAnalyzed}/${totalFiles} analyzed`);
+            return {
+                indexHtml: parsedHtml,
+                cssContent: cssTemplate,
+                jsContent: jsTemplate,
+                success: true
+            };
+        }
+        catch (error) {
+            console.log(`PARSE_TEMPLATES: Error parsing LivePanel Directory template:`, error);
             return {
                 indexHtml: '',
                 cssContent: '',
@@ -16560,7 +15255,7 @@ class ParseTemplates {
             // Prepare data source path (this will be replaced with actual data.json path)
             const dataSource = './data.json';
             // Generate temporary output path for template processing
-            const tempOutputPath = (__webpack_require__(5).join)((__webpack_require__(66).tmpdir)(), 'xr-template-temp.html');
+            const tempOutputPath = (__webpack_require__(5).join)((__webpack_require__(88).tmpdir)(), 'xr-template-temp.html');
             // Generate XR visualization using the modular TemplateProcessor
             const result = await templateProcessor_1.TemplateProcessor.generateXRVisualization(xrData.chartId, mappings, xrData.title || `XR Analysis - ${xrData.fileName}`, dataSource, context, tempOutputPath);
             if (!result.success) {
@@ -16627,7 +15322,7 @@ exports.ParseTemplates = ParseTemplates;
 
 
 /***/ }),
-/* 99 */
+/* 90 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16866,7 +15561,7 @@ exports.TemplateHTMLProcessor = TemplateHTMLProcessor;
 
 
 /***/ }),
-/* 100 */
+/* 91 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -16876,7 +15571,7 @@ exports.TemplateHTMLProcessor = TemplateHTMLProcessor;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSessionManager = void 0;
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const analysisSessionRegistry_1 = __webpack_require__(92);
 class AnalysisSessionManager {
     static instance;
     registry;
@@ -17052,7 +15747,7 @@ exports.AnalysisSessionManager = AnalysisSessionManager;
 
 
 /***/ }),
-/* 101 */
+/* 92 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17098,7 +15793,7 @@ exports.AnalysisSessionRegistry = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const nonceGenerator_1 = __webpack_require__(12);
-const sha256Generator_1 = __webpack_require__(102);
+const sha256Generator_1 = __webpack_require__(93);
 class AnalysisSessionRegistry {
     static instance;
     sessions = new Map();
@@ -17368,7 +16063,7 @@ exports.AnalysisSessionRegistry = AnalysisSessionRegistry;
 
 
 /***/ }),
-/* 102 */
+/* 93 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17468,7 +16163,142 @@ exports.SHA256Generator = SHA256Generator;
 
 
 /***/ }),
-/* 103 */
+/* 94 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Configuration Module
+ * Central exports for all configuration functionality
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.testConfigurationChanges = exports.debugConfiguration = exports.AnalysisConfigurationStorage = void 0;
+var analysisConfigurationStorage_1 = __webpack_require__(72);
+Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
+var debugConfiguration_1 = __webpack_require__(95);
+Object.defineProperty(exports, "debugConfiguration", ({ enumerable: true, get: function () { return debugConfiguration_1.debugConfiguration; } }));
+Object.defineProperty(exports, "testConfigurationChanges", ({ enumerable: true, get: function () { return debugConfiguration_1.testConfigurationChanges; } }));
+__exportStar(__webpack_require__(96), exports);
+
+
+/***/ }),
+/* 95 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Configuration Debug Tool
+ * Utility to debug configuration storage issues
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AnalysisConfigurationStorage = void 0;
+exports.debugConfiguration = debugConfiguration;
+exports.testConfigurationChanges = testConfigurationChanges;
+const analysisConfigurationStorage_1 = __webpack_require__(72);
+Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
+/**
+ * Debug configuration storage
+ */
+async function debugConfiguration(context) {
+    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+    console.log('=== NEW_CODE_ANALYSIS DEBUG ===');
+    // Check if configuration file exists
+    const exists = await storage.configurationExists();
+    console.log(`Configuration file exists: ${exists}`);
+    console.log(`Configuration file path: ${storage.getConfigurationFilePath()}`);
+    // Get current configuration
+    const config = await storage.loadConfiguration();
+    console.log('Current configuration loaded:', JSON.stringify(config, null, 2));
+    // Get raw file content
+    const rawContent = await storage.debugGetConfigurationFileContent();
+    if (rawContent) {
+        console.log('Raw configuration file content:');
+        console.log(rawContent);
+    }
+    else {
+        console.log('No configuration file found');
+    }
+    // Test each setting
+    console.log('\n=== Testing individual settings ===');
+    // Test theme
+    const currentTheme = await storage.getViewTheme();
+    console.log(`Current theme from storage: ${currentTheme}`);
+    // Test analysis file mode
+    const currentMode = await storage.getAnalysisFileMode();
+    console.log(`Current analysis mode from storage: ${currentMode}`);
+    // Test auto-analysis delay
+    const currentDelay = await storage.getAutoAnalysisDelay();
+    console.log(`Current auto-analysis delay from storage:`, JSON.stringify(currentDelay, null, 2));
+    console.log('=== DEBUG COMPLETE ===');
+}
+/**
+ * Test configuration changes
+ */
+async function testConfigurationChanges(context) {
+    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+    console.log('=== TESTING CONFIGURATION CHANGES ===');
+    // Test theme change
+    console.log('\n1. Testing theme change...');
+    const originalTheme = await storage.getViewTheme();
+    console.log(`Original theme: ${originalTheme}`);
+    const newTheme = originalTheme === 'Dark' ? 'Light' : 'Dark';
+    await storage.setViewTheme(newTheme);
+    console.log(`Changed theme to: ${newTheme}`);
+    // Force reload and verify
+    const reloadedTheme = await storage.forceReloadConfiguration();
+    console.log(`Theme after reload: ${reloadedTheme.viewTheme}`);
+    // Test analysis mode change
+    console.log('\n2. Testing analysis mode change...');
+    const originalMode = await storage.getAnalysisFileMode();
+    console.log(`Original mode: ${originalMode}`);
+    const newMode = originalMode === 'XR' ? 'LivePanel' : 'XR';
+    await storage.setAnalysisFileMode(newMode);
+    console.log(`Changed mode to: ${newMode}`);
+    // Force reload and verify
+    const reloadedConfig = await storage.forceReloadConfiguration();
+    console.log(`Mode after reload: ${reloadedConfig.analysisFileMode}`);
+    // Restore original values
+    console.log('\n3. Restoring original values...');
+    await storage.setViewTheme(originalTheme);
+    await storage.setAnalysisFileMode(originalMode);
+    const finalConfig = await storage.forceReloadConfiguration();
+    console.log('Final configuration:', JSON.stringify(finalConfig, null, 2));
+    console.log('=== TEST COMPLETE ===');
+}
+
+
+/***/ }),
+/* 96 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Storage Models Module
+ * Exports for all storage-related models and types
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
+var analysisConfiguration_1 = __webpack_require__(73);
+Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
+Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
+
+
+/***/ }),
+/* 97 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17513,7 +16343,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SaveFiles = void 0;
 const path = __importStar(__webpack_require__(5));
 const fs = __importStar(__webpack_require__(6));
-const analysisSessionManager_1 = __webpack_require__(100);
+const analysisSessionManager_1 = __webpack_require__(91);
+const directoryAnalysisSessionRegistry_1 = __webpack_require__(190);
 class SaveFiles {
     /**
      * Save analysis files to workspace storage using session
@@ -17521,14 +16352,38 @@ class SaveFiles {
     static async saveAnalysisFiles(filesToSave, sessionId, context) {
         try {
             console.log(`SAVE_FILES: Starting to save analysis files for session: ${sessionId}`);
+            // Try to find session and get necessary paths
+            let sessionInfo = null;
+            // Try file analysis registry first
             const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
+            const fileSession = sessionManager.getSession(sessionId);
+            if (fileSession) {
+                sessionInfo = {
+                    outputDirectory: fileSession.outputDirectory,
+                    outputPath: fileSession.outputPath,
+                    id: fileSession.id
+                };
+                console.log(`SAVE_FILES: Using file session data`);
             }
-            console.log(`SAVE_FILES: Using session data - Directory: ${session.outputDirectory}, Path: ${session.outputPath}`);
+            else {
+                // Try directory analysis registry
+                const directorySessionRegistry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+                const directorySession = directorySessionRegistry.getSession(sessionId);
+                if (directorySession) {
+                    sessionInfo = {
+                        outputDirectory: directorySession.outputDirectory,
+                        outputPath: directorySession.outputPath,
+                        id: directorySession.id
+                    };
+                    console.log(`SAVE_FILES: Using directory session data`);
+                }
+            }
+            if (!sessionInfo) {
+                throw new Error(`Session ${sessionId} not found in either file or directory registries`);
+            }
+            console.log(`SAVE_FILES: Session found - Directory: ${sessionInfo.outputDirectory}, Path: ${sessionInfo.outputPath}`);
             // Use session-provided paths
-            const analysisSessionDir = session.outputPath;
+            const analysisSessionDir = sessionInfo.outputPath;
             const indexHtmlPath = path.join(analysisSessionDir, 'index.html');
             // Ensure directories exist
             await SaveFiles.ensureDirectoryExists(path.dirname(analysisSessionDir));
@@ -17556,7 +16411,7 @@ class SaveFiles {
             console.log(`SAVE_FILES: - data.json: ${dataJsonPath}`);
             return {
                 success: true,
-                nonce: session.id,
+                nonce: sessionInfo.id,
                 analysisDirectoryPath: analysisSessionDir,
                 indexHtmlPath: indexHtmlPath
             };
@@ -17584,34 +16439,76 @@ class SaveFiles {
                 return true;
             }
             const analysisBaseDir = path.join(storageUri.fsPath, 'analysis');
-            if (!fs.existsSync(analysisBaseDir)) {
-                console.log(`SAVE_FILES: Analysis directory doesn't exist - nothing to clean`);
-                return true;
-            }
-            // Get all analysis directories that follow the new pattern {fileName}_{analysisType}_{nonce}
-            const allAnalysisDirs = fs.readdirSync(analysisBaseDir, { withFileTypes: true })
-                .filter(entry => entry.isDirectory())
-                .filter(entry => entry.name.includes('_')) // Pattern: fileName_analysisType_nonce or fileName_nonce (legacy)
-                .map(entry => path.join(analysisBaseDir, entry.name));
-            console.log(`SAVE_FILES: Found ${allAnalysisDirs.length} analysis directories to clean`);
-            // Remove all analysis directories
-            for (const dirPath of allAnalysisDirs) {
+            const directoryAnalysisBaseDir = path.join(storageUri.fsPath, 'directory_analysis');
+            let success = true;
+            // Clean file analysis directories
+            if (fs.existsSync(analysisBaseDir)) {
+                // Get all analysis directories that follow the new pattern {fileName}_{analysisType}_{nonce}
+                const allAnalysisDirs = fs.readdirSync(analysisBaseDir, { withFileTypes: true })
+                    .filter(entry => entry.isDirectory())
+                    .filter(entry => entry.name.includes('_')) // Pattern: fileName_analysisType_nonce or fileName_nonce (legacy)
+                    .map(entry => path.join(analysisBaseDir, entry.name));
+                console.log(`SAVE_FILES: Found ${allAnalysisDirs.length} file analysis directories to clean`);
+                // Remove all file analysis directories
+                for (const dirPath of allAnalysisDirs) {
+                    try {
+                        await fs.promises.rm(dirPath, { recursive: true, force: true });
+                        console.log(`SAVE_FILES: Cleaned file analysis directory: ${dirPath}`);
+                    }
+                    catch (dirError) {
+                        console.error(`SAVE_FILES: Failed to clean file analysis directory ${dirPath}:`, dirError);
+                        success = false;
+                    }
+                }
+                // If analysis base directory is empty, remove it too
                 try {
-                    await fs.promises.rm(dirPath, { recursive: true, force: true });
-                    console.log(`SAVE_FILES: Cleaned directory: ${dirPath}`);
+                    const remainingEntries = await fs.promises.readdir(analysisBaseDir);
+                    if (remainingEntries.length === 0) {
+                        await fs.promises.rmdir(analysisBaseDir);
+                        console.log(`SAVE_FILES: Removed empty file analysis base directory`);
+                    }
                 }
-                catch (dirError) {
-                    console.error(`SAVE_FILES: Failed to clean directory ${dirPath}:`, dirError);
+                catch (error) {
+                    console.warn(`SAVE_FILES: Could not remove file analysis base directory:`, error);
                 }
             }
-            // If analysis base directory is empty, remove it too
-            const remainingEntries = await fs.promises.readdir(analysisBaseDir);
-            if (remainingEntries.length === 0) {
-                await fs.promises.rmdir(analysisBaseDir);
-                console.log(`SAVE_FILES: Removed empty analysis base directory`);
+            else {
+                console.log(`SAVE_FILES: File analysis directory doesn't exist - nothing to clean`);
+            }
+            // Clean directory analysis directories
+            if (fs.existsSync(directoryAnalysisBaseDir)) {
+                const allDirectoryAnalysisDirs = fs.readdirSync(directoryAnalysisBaseDir, { withFileTypes: true })
+                    .filter(entry => entry.isDirectory())
+                    .map(entry => path.join(directoryAnalysisBaseDir, entry.name));
+                console.log(`SAVE_FILES: Found ${allDirectoryAnalysisDirs.length} directory analysis directories to clean`);
+                // Remove all directory analysis directories
+                for (const dirPath of allDirectoryAnalysisDirs) {
+                    try {
+                        await fs.promises.rm(dirPath, { recursive: true, force: true });
+                        console.log(`SAVE_FILES: Cleaned directory analysis directory: ${dirPath}`);
+                    }
+                    catch (dirError) {
+                        console.error(`SAVE_FILES: Failed to clean directory analysis directory ${dirPath}:`, dirError);
+                        success = false;
+                    }
+                }
+                // If directory analysis base directory is empty, remove it too
+                try {
+                    const remainingEntries = await fs.promises.readdir(directoryAnalysisBaseDir);
+                    if (remainingEntries.length === 0) {
+                        await fs.promises.rmdir(directoryAnalysisBaseDir);
+                        console.log(`SAVE_FILES: Removed empty directory analysis base directory`);
+                    }
+                }
+                catch (error) {
+                    console.warn(`SAVE_FILES: Could not remove directory analysis base directory:`, error);
+                }
+            }
+            else {
+                console.log(`SAVE_FILES: Directory analysis directory doesn't exist - nothing to clean`);
             }
             console.log(`SAVE_FILES: Analysis directories cleanup completed`);
-            return true;
+            return success;
         }
         catch (error) {
             console.error(`SAVE_FILES: Error during analysis directories cleanup:`, error);
@@ -17638,15 +16535,13 @@ exports.SaveFiles = SaveFiles;
 
 
 /***/ }),
-/* 104 */
+/* 98 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- *
- *
- * File Watcher Utility
- * Manages file watchers for live analysis updates
+ * Project Analysis Commands
+ * Commands for analyzing projects from anywhere in VS Code
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -17682,360 +16577,165 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileWatcher = void 0;
+exports.ProjectAnalysisCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(6));
-const path = __importStar(__webpack_require__(5));
-const SSEManager_1 = __webpack_require__(18);
-const getNecessaryFiles_1 = __webpack_require__(97);
-const manageDebounceTime_1 = __webpack_require__(105);
-const analysisSessionManager_1 = __webpack_require__(100);
-const analysisSessionRegistry_1 = __webpack_require__(101);
-class FileWatcher {
-    static activeWatchers = new Map();
-    /**
-     * Get debounce delay from user configuration
-     */
-    static async getDebounceDelay(context) {
-        return await manageDebounceTime_1.ManageDebounceTime.getDebounceDelay(context);
+const engine_1 = __webpack_require__(111);
+class ProjectAnalysisCommands {
+    context;
+    constructor(context) {
+        this.context = context;
     }
     /**
-     * Start watching a file for changes and re-execute analysis when detected
+     * Register project analysis commands
      */
-    static async startWatching(sessionId, context) {
-        try {
-            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
-            }
-            console.log(`FILE_WATCHER: Starting to watch file: ${session.filePath}`);
-            console.log(`FILE_WATCHER: Analysis directory: ${session.outputPath}`);
-            console.log(`FILE_WATCHER: Session ID: ${sessionId}`);
-            console.log(`FILE_WATCHER: Analysis type: ${session.analysisType}`);
-            // Get debounce delay from configuration
-            const debounceMs = await FileWatcher.getDebounceDelay(context);
-            console.log(`FILE_WATCHER: Using debounce delay: ${debounceMs}ms`);
-            // Create unique watcher ID
-            const watcherId = `${path.basename(session.filePath)}_${Date.now()}`;
-            // Check if file exists
-            if (!fs.existsSync(session.filePath)) {
-                console.error(`FILE_WATCHER: File does not exist: ${session.filePath}`);
-                return '';
-            }
-            // Check if analysis directory exists
-            if (!fs.existsSync(session.outputPath)) {
-                console.error(`FILE_WATCHER: Analysis directory does not exist: ${session.outputPath}`);
-                return '';
-            }
-            // Create file watcher
-            const watcher = fs.watch(session.filePath, { persistent: true }, async (eventType, filename) => {
-                if (eventType === 'change') {
-                    console.log(`FILE_WATCHER: File changed detected: ${session.filePath}`);
-                    console.log(`FILE_WATCHER: Event type: ${eventType}, filename: ${filename}`);
-                    // Get current watcher info for debouncing
-                    const currentWatcherInfo = FileWatcher.activeWatchers.get(watcherId);
-                    if (!currentWatcherInfo) {
-                        console.error(`FILE_WATCHER: Watcher info not found for ID: ${watcherId}`);
-                        return;
-                    }
-                    // Clear existing debounce manager if it exists (this will dispose status bar)
-                    if (currentWatcherInfo.debounceManager) {
-                        manageDebounceTime_1.ManageDebounceTime.dispose(currentWatcherInfo.debounceManager);
-                        console.log(`FILE_WATCHER: Disposed previous debounce manager for: ${session.filePath}`);
-                        currentWatcherInfo.debounceManager = undefined;
-                    }
-                    // Get fresh debounce delay in case user changed it
-                    const currentDebounceMs = await FileWatcher.getDebounceDelay(context);
-                    // Check if we processed this change too recently (additional protection)
-                    const now = Date.now();
-                    if (currentWatcherInfo.lastProcessedTime &&
-                        (now - currentWatcherInfo.lastProcessedTime) < currentDebounceMs) {
-                        console.log(`FILE_WATCHER: Skipping duplicate change event (too recent): ${session.filePath}`);
-                        return;
-                    }
-                    // Create new debounce manager for this change
-                    const debounceManager = manageDebounceTime_1.ManageDebounceTime.createDebounceManager(session.filePath, currentDebounceMs);
-                    currentWatcherInfo.debounceManager = debounceManager;
-                    // Set up debounced execution using ManageDebounceTime
-                    manageDebounceTime_1.ManageDebounceTime.setupDebouncedExecution(debounceManager, context, async () => {
-                        try {
-                            console.log(`FILE_WATCHER: Executing debounced analysis for: ${session.filePath}`);
-                            currentWatcherInfo.lastProcessedTime = Date.now();
-                            // **CLAVE: Poner sesión en estado "analyzing" cuando debounce llega a 0**
-                            await sessionManager.setAnalyzing(sessionId);
-                            console.log(`FILE_WATCHER: Session ${sessionId} set to ANALYZING state`);
-                            // Re-execute analysis with session
-                            await FileWatcher.reExecuteAnalysis(sessionId, context);
-                        }
-                        catch (error) {
-                            console.error(`FILE_WATCHER: Error re-executing analysis:`, error);
-                            const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                            registry.updateSessionStatus(sessionId, 'failed', undefined, error instanceof Error ? error.message : String(error));
-                            vscode.window.showErrorMessage(`Error updating analysis: ${error instanceof Error ? error.message : String(error)}`);
-                        }
-                    });
-                    console.log(`FILE_WATCHER: Debounce timer set for: ${session.filePath} (${currentDebounceMs}ms)`);
-                }
-            });
-            // Store watcher info with sessionId
-            const watcherInfo = {
-                watcher,
-                filePath: session.filePath,
-                analysisDir: session.outputPath,
-                analysisType: session.analysisType,
-                sessionId: sessionId,
-                debounceManager: undefined,
-                lastProcessedTime: undefined
-            };
-            FileWatcher.activeWatchers.set(watcherId, watcherInfo);
-            console.log(`FILE_WATCHER: Successfully started watching with ID: ${watcherId}`);
-            console.log(`FILE_WATCHER: Total active watchers: ${FileWatcher.activeWatchers.size}`);
-            return watcherId;
-        }
-        catch (error) {
-            console.error(`FILE_WATCHER: Error starting file watcher:`, error);
-            vscode.window.showErrorMessage(`Error starting file watcher: ${error instanceof Error ? error.message : String(error)}`);
-            return '';
-        }
+    static registerCommands(context) {
+        console.log('PROJECT_ANALYSIS_COMMANDS: Registering project analysis commands...');
+        const commands = new ProjectAnalysisCommands(context);
+        const analyzeProjectCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeProject', () => commands.analyzeProjectLivePanel());
+        const analyzeProjectDeepCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeProjectDeep', () => commands.analyzeProjectLivePanelDeep());
+        console.log('PROJECT_ANALYSIS_COMMANDS: Project analysis commands registered successfully');
+        return [analyzeProjectCommand, analyzeProjectDeepCommand];
     }
     /**
-     * Stop watching a specific file
+     * Analyze current workspace/project in LivePanel mode
      */
-    static stopWatching(watcherId) {
+    async analyzeProjectLivePanel() {
         try {
-            const watcherInfo = FileWatcher.activeWatchers.get(watcherId);
-            if (!watcherInfo) {
-                console.log(`FILE_WATCHER: Watcher not found with ID: ${watcherId}`);
-                return false;
+            console.log('PROJECT_ANALYSIS_COMMANDS: LivePanel project analysis requested');
+            // Get the current workspace folder
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders || workspaceFolders.length === 0) {
+                vscode.window.showErrorMessage('No workspace is currently open. Please open a project folder to analyze.');
+                return;
             }
-            // Clear and dispose debounce manager if it exists
-            if (watcherInfo.debounceManager) {
-                manageDebounceTime_1.ManageDebounceTime.dispose(watcherInfo.debounceManager);
-                console.log(`FILE_WATCHER: Disposed debounce manager for: ${watcherInfo.filePath}`);
-            }
-            // Close the watcher
-            watcherInfo.watcher.close();
-            // Remove from active watchers
-            FileWatcher.activeWatchers.delete(watcherId);
-            console.log(`FILE_WATCHER: Stopped watching file: ${watcherInfo.filePath}`);
-            console.log(`FILE_WATCHER: Remaining active watchers: ${FileWatcher.activeWatchers.size}`);
-            return true;
-        }
-        catch (error) {
-            console.error(`FILE_WATCHER: Error stopping watcher:`, error);
-            return false;
-        }
-    } /**
-     * Stop all active watchers
-     */
-    static stopAllWatchers() {
-        try {
-            console.log(`FILE_WATCHER: Stopping all ${FileWatcher.activeWatchers.size} active watchers`);
-            for (const [watcherId, watcherInfo] of FileWatcher.activeWatchers) {
-                try {
-                    // Clear and dispose debounce manager if it exists
-                    if (watcherInfo.debounceManager) {
-                        manageDebounceTime_1.ManageDebounceTime.dispose(watcherInfo.debounceManager);
-                        console.log(`FILE_WATCHER: Disposed debounce manager for: ${watcherInfo.filePath}`);
-                    }
-                    watcherInfo.watcher.close();
-                    console.log(`FILE_WATCHER: Closed watcher for: ${watcherInfo.filePath}`);
-                }
-                catch (error) {
-                    console.error(`FILE_WATCHER: Error closing watcher ${watcherId}:`, error);
-                }
-            }
-            FileWatcher.activeWatchers.clear();
-            console.log(`FILE_WATCHER: All watchers stopped`);
-        }
-        catch (error) {
-            console.error(`FILE_WATCHER: Error stopping all watchers:`, error);
-        }
-    }
-    /**
-     * Get information about active watchers
-     */
-    static getActiveWatchersInfo() {
-        const info = [];
-        for (const [watcherId, watcherInfo] of FileWatcher.activeWatchers) {
-            info.push({
-                id: watcherId,
-                filePath: watcherInfo.filePath,
-                analysisDir: watcherInfo.analysisDir,
-                analysisType: watcherInfo.analysisType
-            });
-        }
-        return info;
-    }
-    /**
-     * Re-execute analysis when file changes are detected
-     */
-    static async reExecuteAnalysis(sessionId, context) {
-        try {
-            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            const session = sessionManager.getSession(sessionId);
-            if (!session) {
-                throw new Error(`Session ${sessionId} not found`);
-            }
-            console.log(`FILE_WATCHER: Re-executing analysis for: ${session.filePath}`);
-            console.log(`FILE_WATCHER: Analysis type: ${session.analysisType}`);
-            if (session.analysisType === 'DOMVisualization') {
-                // Re-execute DOM analysis with session
-                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getVisualizationDOM(session.filePath, context, sessionId);
-                if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
-                    console.log(`FILE_WATCHER: DOM analysis completed successfully`);
-                    await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
-                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
-                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'completed');
-                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after DOM analysis`);
-                }
-                else {
-                    console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
-                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'DOM analysis failed');
-                    vscode.window.showErrorMessage(`DOM visualization update failed: ${analysisResult.error}`);
-                }
-            }
-            else if (session.analysisType === 'FileXRAnalysis') {
-                // Re-execute XR analysis with session
-                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileXR(session.filePath, context, sessionId);
-                if (analysisResult.success && analysisResult.data) {
-                    console.log(`FILE_WATCHER: XR analysis completed successfully`);
-                    await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
-                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
-                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'completed');
-                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after XR analysis`);
-                }
-                else {
-                    console.error(`FILE_WATCHER: XR analysis failed:`, analysisResult.error);
-                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'XR analysis failed');
-                    vscode.window.showErrorMessage(`XR visualization update failed: ${analysisResult.error}`);
-                }
+            let projectPath;
+            if (workspaceFolders.length === 1) {
+                // Single workspace folder - use it directly
+                projectPath = workspaceFolders[0].uri.fsPath;
+                console.log(`PROJECT_ANALYSIS_COMMANDS: Using single workspace folder: ${projectPath}`);
             }
             else {
-                // LivePanel logic with session
-                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileLivePanel(session.filePath, context, undefined, // theme
-                sessionId);
-                if (analysisResult.success && analysisResult.data) {
-                    console.log(`FILE_WATCHER: LivePanel analysis completed successfully`);
-                    await FileWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
-                    // Send SSE update to all clients listening for this file
-                    try {
-                        console.log(`FILE_WATCHER: Sending SSE update notification for file: ${session.filePath}`);
-                        // Use the original SSEManager that matches the server
-                        SSEManager_1.sseManager.sendUpdate(session.filePath);
-                        console.log(`FILE_WATCHER: SSE update notification sent successfully`);
-                    }
-                    catch (sseError) {
-                        console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
-                    }
-                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS AND SSE NOTIFICATION**
-                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'completed');
-                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after LivePanel analysis and SSE notification`);
-                    // Show success message
-                    vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(session.filePath)}`);
+                // Multiple workspace folders - let user choose
+                const workspaceItems = workspaceFolders.map(folder => ({
+                    label: folder.name,
+                    description: folder.uri.fsPath,
+                    folder: folder
+                }));
+                const selectedItem = await vscode.window.showQuickPick(workspaceItems, {
+                    placeHolder: 'Select workspace folder to analyze',
+                    canPickMany: false
+                });
+                if (!selectedItem) {
+                    console.log('PROJECT_ANALYSIS_COMMANDS: User cancelled workspace selection');
+                    return;
                 }
-                else {
-                    console.error(`FILE_WATCHER: LivePanel analysis failed:`, analysisResult.error);
-                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'LivePanel analysis failed');
-                    vscode.window.showErrorMessage(`Analysis update failed: ${analysisResult.error}`);
-                }
+                projectPath = selectedItem.folder.uri.fsPath;
+                console.log(`PROJECT_ANALYSIS_COMMANDS: User selected workspace folder: ${projectPath}`);
             }
-        }
-        catch (error) {
-            console.error(`FILE_WATCHER: Error in reExecuteAnalysis:`, error);
-            throw error;
-        }
-    }
-    /**
-     * Update analysis files and send SSE notification
-     */
-    static async updateAnalysisFiles(analysisResult, analysisDir, filePath, analysisType) {
-        const indexHtmlPath = path.join(analysisDir, 'index.html');
-        const jsPath = path.join(analysisDir, 'main.js');
-        const dataJsonPath = path.join(analysisDir, 'data.json');
-        try {
-            // Update files with new analysis results
-            if (analysisResult.indexHtml) {
-                await fs.promises.writeFile(indexHtmlPath, analysisResult.indexHtml, 'utf-8');
-            }
-            if (analysisResult.jsContent) {
-                await fs.promises.writeFile(jsPath, analysisResult.jsContent, 'utf-8');
-            }
-            await fs.promises.writeFile(dataJsonPath, JSON.stringify(analysisResult.data, null, 2), 'utf-8');
-            console.log(`FILE_WATCHER: Updated ${analysisType} files in: ${analysisDir}`);
-            // Send SSE update based on analysis type
-            try {
-                console.log(`FILE_WATCHER: Sending SSE update for ${analysisType}: ${filePath}`);
-                if (analysisType === 'DOMVisualization') {
-                    SSEManager_1.sseManager.sendCustomMessage(filePath, {
-                        type: 'htmlUpdated',
-                        htmlContent: analysisResult.data?.htmlContent || '',
-                        action: 'reload-html',
-                        message: 'HTML DOM content has been updated'
+            // Show progress notification
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "Analyzing Project",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: "Starting project analysis..." });
+                try {
+                    // Use the existing directory analysis logic
+                    await engine_1.LaunchAnalyzeDirectoryLivePanel.analyzeDirectory(projectPath, this.context);
+                    vscode.window.showInformationMessage(`Project analysis completed successfully! ✅`, 'View Results').then(action => {
+                        if (action === 'View Results') {
+                            // The analysis will have opened the results automatically
+                            console.log('PROJECT_ANALYSIS_COMMANDS: User chose to view results');
+                        }
                     });
                 }
-                else if (analysisType === 'FileXRAnalysis') {
-                    SSEManager_1.sseManager.sendEventMessage(filePath, 'dataRefresh', 'refreshed');
+                catch (error) {
+                    console.error('PROJECT_ANALYSIS_COMMANDS: Project analysis failed:', error);
+                    vscode.window.showErrorMessage(`Project analysis failed: ${error instanceof Error ? error.message : String(error)}`);
                 }
-                console.log(`FILE_WATCHER: SSE ${analysisType} update sent successfully`);
-            }
-            catch (sseError) {
-                console.warn(`FILE_WATCHER: Failed to send SSE ${analysisType} update (non-critical):`, sseError);
-            }
-            // Show success message with appropriate emoji
-            const emoji = analysisType === 'DOMVisualization' ? '🌐' : '🥽';
-            vscode.window.showInformationMessage(`${emoji} ${analysisType} updated for: ${path.basename(filePath)}`);
+            });
         }
         catch (error) {
-            console.error(`FILE_WATCHER: Error updating ${analysisType} files:`, error);
-            throw error;
+            console.error('PROJECT_ANALYSIS_COMMANDS: Error in analyzeProjectLivePanel:', error);
+            vscode.window.showErrorMessage(`Failed to start project analysis: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
-     * Extract JSON data from Python output
+     * Analyze current workspace/project in LivePanel Deep mode
      */
-    static extractJsonFromOutput(output) {
+    async analyzeProjectLivePanelDeep() {
         try {
-            // Look for JSON data in the output
-            // This might need to be adjusted based on how Python outputs the data
-            const lines = output.split('\n');
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
-                    try {
-                        return JSON.parse(trimmedLine);
-                    }
-                    catch (parseError) {
-                        // Continue looking for valid JSON
-                        continue;
-                    }
+            console.log('PROJECT_ANALYSIS_COMMANDS: LivePanel DEEP project analysis requested');
+            // Get the current workspace folder
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders || workspaceFolders.length === 0) {
+                vscode.window.showErrorMessage('No workspace is currently open. Please open a project folder to analyze.');
+                return;
+            }
+            let projectPath;
+            if (workspaceFolders.length === 1) {
+                // Single workspace folder - use it directly
+                projectPath = workspaceFolders[0].uri.fsPath;
+                console.log(`PROJECT_ANALYSIS_COMMANDS: Using single workspace folder for DEEP analysis: ${projectPath}`);
+            }
+            else {
+                // Multiple workspace folders - let user choose
+                const workspaceItems = workspaceFolders.map(folder => ({
+                    label: folder.name,
+                    description: folder.uri.fsPath,
+                    folder: folder
+                }));
+                const selectedItem = await vscode.window.showQuickPick(workspaceItems, {
+                    placeHolder: 'Select workspace folder to analyze (Deep)',
+                    canPickMany: false
+                });
+                if (!selectedItem) {
+                    console.log('PROJECT_ANALYSIS_COMMANDS: User cancelled workspace selection for DEEP analysis');
+                    return;
                 }
+                projectPath = selectedItem.folder.uri.fsPath;
+                console.log(`PROJECT_ANALYSIS_COMMANDS: User selected workspace folder for DEEP analysis: ${projectPath}`);
             }
-            // If no single-line JSON found, try to find multi-line JSON
-            const fullOutput = output.trim();
-            if (fullOutput.startsWith('{') && fullOutput.endsWith('}')) {
-                return JSON.parse(fullOutput);
+            // Show warning about deep analysis
+            const continueDeep = await vscode.window.showWarningMessage('Deep analysis will scan ALL subdirectories recursively. This may take longer for large projects. Continue?', 'Continue', 'Cancel');
+            if (continueDeep !== 'Continue') {
+                console.log('PROJECT_ANALYSIS_COMMANDS: User cancelled deep analysis warning');
+                return;
             }
-            return null;
+            // Show progress notification
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "Analyzing Project (Deep)",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: "Starting deep project analysis (all subdirectories)..." });
+                try {
+                    // Use the existing directory deep analysis logic
+                    await engine_1.LaunchAnalyzeDirectoryLivePanel.analyzeDirectoryDeep(projectPath, this.context);
+                    vscode.window.showInformationMessage(`Deep project analysis completed successfully! 🎯`, 'View Results').then(action => {
+                        if (action === 'View Results') {
+                            // The analysis will have opened the results automatically
+                            console.log('PROJECT_ANALYSIS_COMMANDS: User chose to view deep analysis results');
+                        }
+                    });
+                }
+                catch (error) {
+                    console.error('PROJECT_ANALYSIS_COMMANDS: Deep project analysis failed:', error);
+                    vscode.window.showErrorMessage(`Deep project analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            });
         }
         catch (error) {
-            console.error(`FILE_WATCHER: Error extracting JSON from output:`, error);
-            return null;
+            console.error('PROJECT_ANALYSIS_COMMANDS: Error in analyzeProjectLivePanelDeep:', error);
+            vscode.window.showErrorMessage(`Failed to start deep project analysis: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
-exports.FileWatcher = FileWatcher;
+exports.ProjectAnalysisCommands = ProjectAnalysisCommands;
 
 
 /***/ }),
-/* 105 */
+/* 99 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18080,7 +16780,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ManageDebounceTime = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const analysisConfigurationStorage_1 = __webpack_require__(106);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
 class ManageDebounceTime {
     /**
      * Get debounce delay from user configuration
@@ -18275,365 +16975,7 @@ exports.ManageDebounceTime = ManageDebounceTime;
 
 
 /***/ }),
-/* 106 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Analysis Configuration Storage Manager
- * Handles reading/writing configuration to VS Code globalStorage
- * Path: codexr_analysis/configuration_analysis.json
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisConfigurationStorage = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisConfiguration_1 = __webpack_require__(107);
-class AnalysisConfigurationStorage {
-    static instance;
-    STORAGE_FOLDER = 'codexr_analysis';
-    CONFIG_FILE = 'configuration_analysis.json';
-    context;
-    cachedConfiguration = null;
-    constructor(context) {
-        this.context = context;
-        console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
-    }
-    /**
-     * Get singleton instance
-     */
-    static getInstance(context) {
-        if (!AnalysisConfigurationStorage.instance) {
-            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
-        }
-        return AnalysisConfigurationStorage.instance;
-    }
-    /**
-     * Get the full file path for configuration
-     */
-    getConfigurationPath() {
-        return vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER, this.CONFIG_FILE);
-    }
-    /**
-     * Load configuration from storage
-     */
-    async loadConfiguration() {
-        try {
-            // Return cached if available
-            if (this.cachedConfiguration) {
-                return this.cachedConfiguration;
-            }
-            const configPath = this.getConfigurationPath();
-            // Check if file exists
-            try {
-                const configData = await vscode.workspace.fs.readFile(configPath);
-                const configString = Buffer.from(configData).toString('utf8');
-                const configFile = JSON.parse(configString);
-                // Validate and merge with defaults (in case new settings were added)
-                const configuration = {
-                    ...analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION,
-                    ...configFile.configuration
-                };
-                this.cachedConfiguration = configuration;
-                console.log('NEW_CODE_ANALYSIS: Configuration loaded from storage:', configuration);
-                return configuration;
-            }
-            catch (readError) {
-                // File doesn't exist or is corrupted, return defaults
-                console.log('NEW_CODE_ANALYSIS: Configuration file not found, using defaults');
-                this.cachedConfiguration = analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-                // Create default file
-                await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
-                return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-            }
-        }
-        catch (error) {
-            console.error('NEW_CODE_ANALYSIS: Error loading configuration:', error);
-            return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION;
-        }
-    }
-    /**
-     * Save configuration to storage
-     */
-    async saveConfiguration(configuration) {
-        try {
-            const configPath = this.getConfigurationPath();
-            // Ensure directory exists
-            const folderPath = vscode.Uri.joinPath(this.context.globalStorageUri, this.STORAGE_FOLDER);
-            await vscode.workspace.fs.createDirectory(folderPath);
-            // Create configuration file structure
-            const configFile = {
-                metadata: {
-                    version: '1.0.0',
-                    lastModified: Date.now(),
-                    createdBy: 'CodeXR New Code Analysis'
-                },
-                configuration: configuration
-            };
-            // Write to file
-            const configString = JSON.stringify(configFile, null, 2);
-            const configData = Buffer.from(configString, 'utf8');
-            await vscode.workspace.fs.writeFile(configPath, configData);
-            // Update cache
-            this.cachedConfiguration = configuration;
-            console.log('NEW_CODE_ANALYSIS: Configuration saved to storage:', configuration);
-        }
-        catch (error) {
-            console.error('NEW_CODE_ANALYSIS: Error saving configuration:', error);
-            throw error;
-        }
-    }
-    /**
-     * Get specific setting value
-     */
-    async getAnalysisFileMode() {
-        const config = await this.loadConfiguration();
-        return config.analysisFileMode;
-    }
-    /**
-     * Set specific setting value
-     */
-    async setAnalysisFileMode(mode) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            analysisFileMode: mode
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: Analysis file mode changed to: ${mode}`);
-    }
-    /**
-     * Get view theme setting
-     */
-    async getViewTheme() {
-        const config = await this.loadConfiguration();
-        return config.viewTheme;
-    }
-    /**
-     * Set view theme setting
-     */
-    async setViewTheme(theme) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            viewTheme: theme
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: View theme changed to: ${theme}`);
-    }
-    /**
-     * Get auto-analysis delay setting
-     */
-    async getAutoAnalysisDelay() {
-        const config = await this.loadConfiguration();
-        return config.autoAnalysisDelay;
-    }
-    /**
-     * Set auto-analysis delay setting
-     */
-    async setAutoAnalysisDelay(delayConfig) {
-        const config = await this.loadConfiguration();
-        const updatedConfig = {
-            ...config,
-            autoAnalysisDelay: delayConfig
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay changed to: ${JSON.stringify(delayConfig)}`);
-    }
-    /**
-     * Update multiple settings at once
-     */
-    async updateConfiguration(updates) {
-        const currentConfig = await this.loadConfiguration();
-        const updatedConfig = {
-            ...currentConfig,
-            ...updates
-        };
-        await this.saveConfiguration(updatedConfig);
-        console.log(`NEW_CODE_ANALYSIS: Configuration updated with: ${JSON.stringify(updates)}`);
-    }
-    /**
-     * Reset configuration to defaults
-     */
-    async resetConfiguration() {
-        await this.saveConfiguration(analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION);
-        this.cachedConfiguration = null; // Clear cache
-    }
-    /**
-     * Get configuration file path for debugging
-     */
-    getConfigurationFilePath() {
-        return this.getConfigurationPath().fsPath;
-    }
-    /**
-     * Check if configuration file exists
-     */
-    async configurationExists() {
-        try {
-            const configPath = this.getConfigurationPath();
-            await vscode.workspace.fs.stat(configPath);
-            return true;
-        }
-        catch {
-            return false;
-        }
-    }
-    /**
-     * Debug method to get current configuration file content
-     */
-    async debugGetConfigurationFileContent() {
-        try {
-            const configPath = this.getConfigurationPath();
-            const configData = await vscode.workspace.fs.readFile(configPath);
-            return Buffer.from(configData).toString('utf8');
-        }
-        catch (error) {
-            console.log('NEW_CODE_ANALYSIS: Configuration file not found or error reading:', error);
-            return null;
-        }
-    }
-    /**
-     * Force reload configuration from disk (bypassing cache)
-     */
-    async forceReloadConfiguration() {
-        this.cachedConfiguration = null;
-        return await this.loadConfiguration();
-    }
-    /**
-     * Get chart type for file analysis
-     */
-    async getChartTypeFile() {
-        const config = await this.loadConfiguration();
-        return config.chartTypeFile;
-    }
-    /**
-     * Set chart type for file analysis
-     */
-    async setChartTypeFile(chartType) {
-        await this.updateConfiguration({ chartTypeFile: chartType });
-    }
-    /**
-     * Get dimension mapping for file analysis
-     */
-    async getDimensionMappingFile() {
-        const config = await this.loadConfiguration();
-        return config.dimensionMappingFile;
-    }
-    /**
-     * Set dimension mapping for file analysis
-     */
-    async setDimensionMappingFile(mapping) {
-        await this.updateConfiguration({ dimensionMappingFile: mapping });
-    }
-    /**
-     * Get current analysis mode (alias for getAnalysisFileMode for compatibility)
-     */
-    async getAnalysisMode() {
-        return await this.getAnalysisFileMode();
-    }
-    /**
-     * Set analysis mode (alias for setAnalysisFileMode for compatibility)
-     */
-    async setAnalysisMode(mode) {
-        await this.setAnalysisFileMode(mode);
-    }
-    /**
-     * Get Files by Language sorting configuration
-     */
-    async getFilesByLanguageSorting() {
-        const config = await this.loadConfiguration();
-        return config.filesByLanguageSorting;
-    }
-    /**
-     * Set Files by Language sorting configuration
-     */
-    async setFilesByLanguageSorting(sortingConfig) {
-        await this.updateConfiguration({ filesByLanguageSorting: sortingConfig });
-        console.log('NEW_CODE_ANALYSIS: Files by Language sorting configuration updated:', sortingConfig);
-    }
-}
-exports.AnalysisConfigurationStorage = AnalysisConfigurationStorage;
-
-
-/***/ }),
-/* 107 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-/**
- * Analysis Configuration Models
- * Types and interfaces for all analysis configuration data
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-/**
- * Default configuration values
- */
-exports.DEFAULT_ANALYSIS_CONFIGURATION = {
-    analysisFileMode: 'XR', // Default to XR as requested
-    viewTheme: 'Dark', // Default to Dark theme
-    autoAnalysisDelay: {
-        type: 'RealTime', // Default to Real Time (0s)
-        customMs: undefined
-    },
-    chartTypeFile: 'bars', // Default chart type (bars is the most common)
-    dimensionMappingFile: {}, // Default empty dimension mapping
-    filesByLanguageSorting: {
-        languageGroupSortBy: 'alphabetical',
-        languageGroupSortDirection: 'ascending',
-        languageGroupSecondarySortBy: 'fileCount',
-        languageGroupSecondarySortDirection: 'descending',
-        filesSortBy: 'alphabetical',
-        filesSortDirection: 'ascending'
-    }
-};
-/**
- * Default configuration file structure
- */
-exports.DEFAULT_CONFIGURATION_FILE = {
-    metadata: {
-        version: '1.0.0',
-        lastModified: Date.now(),
-        createdBy: 'CodeXR New Code Analysis'
-    },
-    configuration: exports.DEFAULT_ANALYSIS_CONFIGURATION
-};
-
-
-/***/ }),
-/* 108 */
+/* 100 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18679,10 +17021,11 @@ exports.LaunchServer = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 const multiServerLauncher_1 = __webpack_require__(14);
-const enhancedSSEManager_1 = __webpack_require__(109);
+const enhancedSSEManager_1 = __webpack_require__(101);
 const fileToServerMap_1 = __webpack_require__(20);
-const analysisSessionManager_1 = __webpack_require__(100);
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const analysisSessionManager_1 = __webpack_require__(91);
+const analysisSessionRegistry_1 = __webpack_require__(92);
+const directoryAnalysisSessionRegistry_1 = __webpack_require__(190);
 class LaunchServer {
     /**
      * Launch analysis server with SSE support
@@ -18696,16 +17039,33 @@ class LaunchServer {
             let analysisDirectoryPath;
             let indexHtmlPath;
             if (options.sessionId) {
+                // Try to find session in file analysis registry first
                 const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-                session = sessionManager.getSession(options.sessionId);
-                if (!session) {
-                    throw new Error(`Session ${options.sessionId} not found`);
+                const fileSession = sessionManager.getSession(options.sessionId);
+                if (fileSession) {
+                    session = fileSession;
+                    filePath = fileSession.filePath;
+                    analysisType = fileSession.analysisType;
+                    analysisDirectoryPath = fileSession.outputPath;
+                    indexHtmlPath = path.join(fileSession.outputPath, 'index.html');
+                    console.log(`LAUNCH_SERVER: Using file session ${options.sessionId} for server launch`);
                 }
-                filePath = session.filePath;
-                analysisType = session.analysisType;
-                analysisDirectoryPath = session.outputPath;
-                indexHtmlPath = path.join(session.outputPath, 'index.html');
-                console.log(`LAUNCH_SERVER: Using session ${options.sessionId} for server launch`);
+                else {
+                    // Try directory analysis registry
+                    const directorySessionRegistry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+                    const directorySession = directorySessionRegistry.getSession(options.sessionId);
+                    if (directorySession) {
+                        session = directorySession;
+                        filePath = directorySession.filePath;
+                        analysisType = directorySession.analysisType;
+                        analysisDirectoryPath = directorySession.outputPath;
+                        indexHtmlPath = path.join(directorySession.outputPath, 'index.html');
+                        console.log(`LAUNCH_SERVER: Using directory session ${options.sessionId} for server launch`);
+                    }
+                    else {
+                        throw new Error(`Session ${options.sessionId} not found in either file or directory registries`);
+                    }
+                }
             }
             else {
                 // Fallback to options for backward compatibility
@@ -18748,9 +17108,18 @@ class LaunchServer {
             console.log(`LAUNCH_SERVER: Server ID: ${launchResult.serverId}`);
             // **CLAVE: Marcar sesión como "completed" con puerto**
             if (session && options.sessionId) {
-                const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
-                registry.setSessionCompleted(options.sessionId, launchResult.port);
-                console.log(`LAUNCH_SERVER: Session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+                // Determine if this is a directory or file analysis session
+                const isDirectoryAnalysis = analysisType && analysisType.startsWith('D_');
+                if (isDirectoryAnalysis) {
+                    const directoryRegistry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+                    directoryRegistry.setSessionCompleted(options.sessionId, launchResult.port);
+                    console.log(`LAUNCH_SERVER: Directory session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+                }
+                else {
+                    const fileRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    fileRegistry.setSessionCompleted(options.sessionId, launchResult.port);
+                    console.log(`LAUNCH_SERVER: File session ${options.sessionId} marked as COMPLETED with port ${launchResult.port}`);
+                }
             }
             // Register file-to-server mapping for SSE support
             try {
@@ -18888,7 +17257,7 @@ exports.LaunchServer = LaunchServer;
 
 
 /***/ }),
-/* 109 */
+/* 101 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -19130,7 +17499,7 @@ exports.EnhancedSSEManager = EnhancedSSEManager;
 
 
 /***/ }),
-/* 110 */
+/* 102 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19175,8 +17544,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CheckIfAnalysisAlreadyRunning = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
-const analysisSessionRegistry_1 = __webpack_require__(101);
-const serverWatcherIntegration_1 = __webpack_require__(111);
+const analysisSessionRegistry_1 = __webpack_require__(92);
+const serverWatcherIntegration_1 = __webpack_require__(103);
 class CheckIfAnalysisAlreadyRunning {
     /**
      * Check if analysis can be started for given file and type
@@ -19366,7 +17735,7 @@ exports.CheckIfAnalysisAlreadyRunning = CheckIfAnalysisAlreadyRunning;
 
 
 /***/ }),
-/* 111 */
+/* 103 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19410,8 +17779,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerWatcherIntegration = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisSessionRegistry_1 = __webpack_require__(101);
-const fileWatcher_1 = __webpack_require__(104);
+const analysisSessionRegistry_1 = __webpack_require__(92);
+const manageWatcher_1 = __webpack_require__(192);
 const activeServerRegistry_1 = __webpack_require__(26);
 const serverControl_1 = __webpack_require__(28);
 const fs = __importStar(__webpack_require__(6));
@@ -19506,21 +17875,22 @@ class ServerWatcherIntegration {
         try {
             console.log(`SERVER_WATCHER_INTEGRATION: Stopping file watcher for session ${sessionId}, file: ${filePath}`);
             // Get all active watchers and find the one for this session
-            const watchersInfo = fileWatcher_1.FileWatcher.getActiveWatchersInfo();
-            // Find watcher by file path
-            const watcherInfo = watchersInfo.find((w) => w.filePath === filePath);
-            if (watcherInfo) {
-                const stopped = fileWatcher_1.FileWatcher.stopWatching(watcherInfo.id);
-                if (stopped) {
-                    console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped file watcher ${watcherInfo.id}`);
-                }
-                else {
-                    console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop file watcher ${watcherInfo.id}`);
+            const watchersInfo = manageWatcher_1.ManageWatcher.getActiveWatchersInfo();
+            // Find and stop watcher for this file
+            for (const watcherInfo of watchersInfo) {
+                if (watcherInfo.filePath === filePath) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Stopping watcher ${watcherInfo.id} for ${filePath}`);
+                    const stopped = manageWatcher_1.ManageWatcher.stopWatching(watcherInfo.id);
+                    if (stopped) {
+                        console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped file watcher ${watcherInfo.id}`);
+                    }
+                    else {
+                        console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop file watcher ${watcherInfo.id}`);
+                    }
+                    break; // Found and processed, exit loop
                 }
             }
-            else {
-                console.log(`SERVER_WATCHER_INTEGRATION: No file watcher found for file: ${filePath}`);
-            }
+            console.log(`SERVER_WATCHER_INTEGRATION: File watcher cleanup completed for: ${filePath}`);
         }
         catch (error) {
             console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher:`, error);
@@ -19616,7 +17986,366 @@ exports.ServerWatcherIntegration = ServerWatcherIntegration;
 
 
 /***/ }),
-/* 112 */
+/* 104 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Dimension Mapping Validator
+ * Validates dimension mappings for conflicts and completeness
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingValidator = void 0;
+const templateCharts_1 = __webpack_require__(42);
+class DimensionMappingValidator {
+    /**
+     * Validate dimension mappings for a specific chart
+     */
+    static validateMappingsForChart(chartType, currentMappings) {
+        console.log(`[DIMENSION_VALIDATOR] Validating mappings for chart: ${chartType}`);
+        console.log(`[DIMENSION_VALIDATOR] Current mappings:`, currentMappings);
+        const chart = templateCharts_1.chartTemplates.find(c => c.id === chartType);
+        if (!chart) {
+            return {
+                isValid: false,
+                hasConflicts: false,
+                hasMissingRequired: false,
+                conflicts: [],
+                missingRequired: [],
+                warnings: [],
+                errors: [`Chart type "${chartType}" not found`]
+            };
+        }
+        // Check for conflicts (same data field mapped to multiple dimensions)
+        const conflicts = this.findDimensionConflicts(currentMappings);
+        // Check for missing required dimensions
+        const missingRequired = this.findMissingRequiredDimensions(chart, currentMappings);
+        // Generate warnings and errors
+        const warnings = [];
+        const errors = [];
+        if (conflicts.length > 0) {
+            for (const conflict of conflicts) {
+                warnings.push(`Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}`);
+            }
+        }
+        if (missingRequired.length > 0) {
+            errors.push(`Missing required dimension mappings: ${missingRequired.join(', ')}`);
+        }
+        const result = {
+            isValid: conflicts.length === 0 && missingRequired.length === 0,
+            hasConflicts: conflicts.length > 0,
+            hasMissingRequired: missingRequired.length > 0,
+            conflicts,
+            missingRequired,
+            warnings,
+            errors
+        };
+        console.log(`[DIMENSION_VALIDATOR] Validation result:`, result);
+        return result;
+    }
+    /**
+     * Find conflicts where the same data field is mapped to multiple dimensions
+     */
+    static findDimensionConflicts(mappings) {
+        const dataFieldUsage = {};
+        // Group dimensions by data field
+        for (const [dimension, dataField] of Object.entries(mappings)) {
+            if (!dataFieldUsage[dataField]) {
+                dataFieldUsage[dataField] = [];
+            }
+            dataFieldUsage[dataField].push(dimension);
+        }
+        // Find conflicts (data fields used by multiple dimensions)
+        const conflicts = [];
+        for (const [dataField, dimensions] of Object.entries(dataFieldUsage)) {
+            if (dimensions.length > 1) {
+                conflicts.push({
+                    dataField,
+                    conflictingDimensions: dimensions
+                });
+            }
+        }
+        return conflicts;
+    }
+    /**
+     * Find missing required dimensions
+     */
+    static findMissingRequiredDimensions(chart, mappings) {
+        const missing = [];
+        for (const dimension of chart.dimensions) {
+            if (dimension.required && !mappings[dimension.name]) {
+                missing.push(dimension.name);
+            }
+        }
+        return missing;
+    }
+    /**
+     * Check if dimension mappings are ready for XR analysis
+     */
+    static canExecuteXRAnalysis(chartType, currentMappings) {
+        const validation = this.validateMappingsForChart(chartType, currentMappings);
+        if (validation.hasMissingRequired) {
+            return {
+                canExecute: false,
+                reason: `Missing required dimensions: ${validation.missingRequired.join(', ')}`
+            };
+        }
+        // Allow execution even with conflicts (user can choose to do it)
+        return { canExecute: true };
+    }
+    /**
+     * Get dimension status for UI display
+     */
+    static getDimensionStatus(dimensionName, chartType, currentMappings) {
+        const validation = this.validateMappingsForChart(chartType, currentMappings);
+        // Check if this dimension has conflicts
+        for (const conflict of validation.conflicts) {
+            if (conflict.conflictingDimensions.includes(dimensionName)) {
+                return 'conflict';
+            }
+        }
+        // Check if this dimension is missing and required
+        if (validation.missingRequired.includes(dimensionName)) {
+            return 'missing';
+        }
+        // Check if mapped
+        if (currentMappings[dimensionName]) {
+            return 'valid';
+        }
+        return 'optional';
+    }
+}
+exports.DimensionMappingValidator = DimensionMappingValidator;
+
+
+/***/ }),
+/* 105 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Launch Analyze File Live Panel
+ * Live Panel file analysis engine for CodeXR
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LaunchAnalyzeFileLivePanel = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const languageMetadata_1 = __webpack_require__(78);
+const supportedLanguages_1 = __webpack_require__(79);
+const utils_1 = __webpack_require__(106);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
+const analysisSessionManager_1 = __webpack_require__(91);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(102);
+class LaunchAnalyzeFileLivePanel {
+    /**
+     * Analyze a specific file using Live Panel mode
+     */
+    static async analyzeFile(filePath, context) {
+        try {
+            // Get file language information
+            const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
+            if (!languageInfo) {
+                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" - Language not supported for analysis`);
+                return;
+            }
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis requested for file: ${filePath}`);
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Detected language: ${languageInfo.name}`);
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: File extension: ${languageInfo.extensions.join(', ')}`);
+            // **CHECK: Verify no conflicting analysis is already running**
+            const canProceed = await checkIfAnalysisAlreadyRunning_1.CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(filePath, 'LivePanel');
+            if (!canProceed) {
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: LivePanel analysis cancelled due to conflicts`);
+                return;
+            }
+            // Create analysis session
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            const session = await sessionManager.startAnalysis(filePath, 'LivePanel', context);
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Created session ${session.id} for LivePanel analysis`);
+            // Get current theme configuration
+            const configStorage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+            const currentTheme = await configStorage.getViewTheme();
+            console.log(`NEW_CODE_ANALYSIS_ENGINE: Using theme: ${currentTheme}`);
+            // Show confirmation message to user
+            vscode.window.showInformationMessage(`CodeXR: LivePanel analysis started for "${filePath}" (${languageInfo.name})`, { modal: false });
+            // Get analysis data using the new system with session
+            const analysisResult = await utils_1.GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme, session.id);
+            if (analysisResult.success && analysisResult.data) {
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis data.json:`, JSON.stringify(analysisResult.data, null, 2));
+                // Log template files received
+                if (analysisResult.indexHtml) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received index.html (${analysisResult.indexHtml.length} characters)`);
+                }
+                if (analysisResult.cssContent) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received CSS file (${analysisResult.cssContent.length} characters)`);
+                }
+                if (analysisResult.jsContent) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Received JS file (${analysisResult.jsContent.length} characters)`);
+                }
+                // Save all files to workspace storage using session
+                console.log(`NEW_CODE_ANALYSIS_ENGINE: Saving analysis files to workspace storage...`);
+                const filesToSave = {
+                    indexHtml: analysisResult.indexHtml,
+                    cssContent: analysisResult.cssContent,
+                    jsContent: analysisResult.jsContent,
+                    dataJson: analysisResult.data
+                };
+                const saveResult = await utils_1.SaveFiles.saveAnalysisFiles(filesToSave, session.id, context);
+                if (saveResult.success) {
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Files saved successfully!`);
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis nonce: ${saveResult.nonce}`);
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis directory: ${saveResult.analysisDirectoryPath}`);
+                    console.log(`NEW_CODE_ANALYSIS_ENGINE: Index.html path: ${saveResult.indexHtmlPath}`);
+                    // Start file watcher for live updates with session
+                    const watcherId = await utils_1.ManageWatcher.startWatching(session.id, context);
+                    if (watcherId) {
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Started file watcher with ID: ${watcherId}`);
+                    }
+                    else {
+                        console.warn(`NEW_CODE_ANALYSIS_ENGINE: Failed to start file watcher for: ${filePath}`);
+                    }
+                    // Launch SSE server for real-time updates
+                    const serverLaunchResult = await utils_1.LaunchServer.launchAnalysisServer(context, {
+                        sessionId: session.id,
+                        enableSSE: true
+                    });
+                    if (serverLaunchResult.success) {
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launched successfully!`);
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server URL: ${serverLaunchResult.serverUrl}`);
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server ID: ${serverLaunchResult.serverId}`);
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: SSE Channel: ${serverLaunchResult.sseChannel}`);
+                        // Show enhanced success message with server information
+                        vscode.window.showInformationMessage(`CodeXR: Live Panel launched! Analysis: ${saveResult.nonce} | Server: ${serverLaunchResult.serverUrl} | Live updates enabled`, 'Open in Browser', 'View Servers').then(action => {
+                            if (action === 'Open in Browser') {
+                                vscode.env.openExternal(vscode.Uri.parse(serverLaunchResult.serverUrl));
+                            }
+                            else if (action === 'View Servers') {
+                                vscode.commands.executeCommand('codexr.servers.view');
+                            }
+                        });
+                    }
+                    else {
+                        console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launch failed: ${serverLaunchResult.error}`);
+                        // Still show success for analysis, but note server issue
+                        vscode.window.showWarningMessage(`CodeXR: Analysis completed for "${filePath}" (Session: ${saveResult.nonce}) but server launch failed: ${serverLaunchResult.error}`, 'Retry Server Launch', 'View Analysis Files').then(action => {
+                            if (action === 'Retry Server Launch') {
+                                // Re-attempt server launch
+                                utils_1.LaunchServer.launchAnalysisServer(context, {
+                                    filePath: filePath,
+                                    analysisType: 'LivePanel',
+                                    enableSSE: true,
+                                    analysisDirectoryPath: saveResult.analysisDirectoryPath,
+                                    indexHtmlPath: saveResult.indexHtmlPath
+                                });
+                            }
+                            else if (action === 'View Analysis Files') {
+                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(saveResult.analysisDirectoryPath));
+                            }
+                        });
+                    }
+                }
+                else {
+                    console.error(`NEW_CODE_ANALYSIS_ENGINE: Failed to save files:`, saveResult.error);
+                    vscode.window.showErrorMessage(`CodeXR: Analysis completed but failed to save files: ${saveResult.error}`);
+                }
+            }
+            else {
+                console.error(`NEW_CODE_ANALYSIS_ENGINE: Analysis failed:`, analysisResult.error);
+                vscode.window.showErrorMessage(`CodeXR: Analysis failed for "${filePath}": ${analysisResult.error}`);
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS_ENGINE: Error analyzing file:', error);
+            vscode.window.showErrorMessage(`CodeXR: Failed to analyze file "${filePath}": ${error}`);
+        }
+    }
+    /**
+     * Check if a file can be analyzed
+     */
+    static canAnalyzeFile(filePath) {
+        const extension = (__webpack_require__(5).extname)(filePath).toLowerCase();
+        // Check if extension is supported by any language
+        for (const [langName, langConfig] of Object.entries(supportedLanguages_1.SUPPORTED_LANGUAGES)) {
+            if (langConfig.extensions.includes(extension)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Get supported file extensions for analysis
+     */
+    static getSupportedExtensions() {
+        const extensions = [];
+        for (const [langName, langConfig] of Object.entries(supportedLanguages_1.SUPPORTED_LANGUAGES)) {
+            extensions.push(...langConfig.extensions);
+        }
+        return [...new Set(extensions)]; // Remove duplicates
+    }
+}
+exports.LaunchAnalyzeFileLivePanel = LaunchAnalyzeFileLivePanel;
+
+
+/***/ }),
+/* 106 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Engine Utils Module
+ * Exports for analysis engine utilities
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LaunchServer = exports.ManageWatcher = exports.SaveFiles = exports.ParseTemplates = exports.GetNecessaryFiles = exports.PythonExecutor = void 0;
+var pythonExecutor_1 = __webpack_require__(81);
+Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return pythonExecutor_1.PythonExecutor; } }));
+var getNecessaryFiles_1 = __webpack_require__(80);
+Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return getNecessaryFiles_1.GetNecessaryFiles; } }));
+var parseTemplates_1 = __webpack_require__(89);
+Object.defineProperty(exports, "ParseTemplates", ({ enumerable: true, get: function () { return parseTemplates_1.ParseTemplates; } }));
+var saveFiles_1 = __webpack_require__(97);
+Object.defineProperty(exports, "SaveFiles", ({ enumerable: true, get: function () { return saveFiles_1.SaveFiles; } }));
+var manageWatcher_1 = __webpack_require__(192);
+Object.defineProperty(exports, "ManageWatcher", ({ enumerable: true, get: function () { return manageWatcher_1.ManageWatcher; } }));
+var launchServer_1 = __webpack_require__(100);
+Object.defineProperty(exports, "LaunchServer", ({ enumerable: true, get: function () { return launchServer_1.LaunchServer; } }));
+
+
+/***/ }),
+/* 107 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19660,14 +18389,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LaunchVisualizeDOMPanel = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-const supportedLanguages_1 = __webpack_require__(91);
-const getNecessaryFiles_1 = __webpack_require__(97);
-const saveFiles_1 = __webpack_require__(103);
-const fileWatcher_1 = __webpack_require__(104);
-const launchServer_1 = __webpack_require__(108);
-const analysisSessionManager_1 = __webpack_require__(100);
-const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(110);
+const languageMetadata_1 = __webpack_require__(78);
+const supportedLanguages_1 = __webpack_require__(79);
+const getNecessaryFiles_1 = __webpack_require__(80);
+const saveFiles_1 = __webpack_require__(97);
+const manageWatcher_1 = __webpack_require__(192);
+const launchServer_1 = __webpack_require__(100);
+const analysisSessionManager_1 = __webpack_require__(91);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(102);
 const serverSettingsManager_1 = __webpack_require__(11);
 class LaunchVisualizeDOMPanel {
     /**
@@ -19734,7 +18463,7 @@ class LaunchVisualizeDOMPanel {
                     console.log(`DOM_VISUALIZATION_ENGINE: Files saved successfully to: ${saveResult.analysisDirectoryPath}`);
                     // Start file watcher for live updates with session
                     console.log(`DOM_VISUALIZATION_ENGINE: Starting file watcher for HTML DOM updates...`);
-                    const watcherId = await fileWatcher_1.FileWatcher.startWatching(session.id, context);
+                    const watcherId = await manageWatcher_1.ManageWatcher.startWatching(session.id, context);
                     if (watcherId) {
                         console.log(`DOM_VISUALIZATION_ENGINE: File watcher started with ID: ${watcherId}`);
                     }
@@ -19817,7 +18546,183 @@ exports.LaunchVisualizeDOMPanel = LaunchVisualizeDOMPanel;
 
 
 /***/ }),
-/* 113 */
+/* 108 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * File Analysis Commands Module
+ * Exports for file analysis commands - Russian dolls pattern
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileAnalysisXRCommands = exports.FileAnalysisLivePanelCommands = exports.FileAnalysisCommands = void 0;
+var fileAnalysisCommands_1 = __webpack_require__(109);
+Object.defineProperty(exports, "FileAnalysisCommands", ({ enumerable: true, get: function () { return fileAnalysisCommands_1.FileAnalysisCommands; } }));
+var fileAnalysisLivePanelCommands_1 = __webpack_require__(110);
+Object.defineProperty(exports, "FileAnalysisLivePanelCommands", ({ enumerable: true, get: function () { return fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands; } }));
+var fileAnalysisXRCommands_1 = __webpack_require__(112);
+Object.defineProperty(exports, "FileAnalysisXRCommands", ({ enumerable: true, get: function () { return fileAnalysisXRCommands_1.FileAnalysisXRCommands; } }));
+
+
+/***/ }),
+/* 109 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * File Analysis Commands
+ * Main coordinator for all file analysis commands (LivePanel and XR)
+ * Russian dolls pattern: FileAnalysisCommands -> LivePanel/XR Commands
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileAnalysisCommands = void 0;
+const fileAnalysisLivePanelCommands_1 = __webpack_require__(110);
+const fileAnalysisXRCommands_1 = __webpack_require__(112);
+class FileAnalysisCommands {
+    /**
+     * Register all file analysis commands (coordinates LivePanel and XR)
+     */
+    static registerCommands(context) {
+        console.log('FILE_ANALYSIS_COMMANDS: Registering all file analysis commands...');
+        const disposables = [];
+        // Register LivePanel commands
+        console.log('FILE_ANALYSIS_COMMANDS: Registering LivePanel commands...');
+        const livePanelCommands = fileAnalysisLivePanelCommands_1.FileAnalysisLivePanelCommands.registerCommands(context);
+        disposables.push(...livePanelCommands);
+        // Register XR commands  
+        console.log('FILE_ANALYSIS_COMMANDS: Registering XR commands...');
+        const xrCommands = fileAnalysisXRCommands_1.FileAnalysisXRCommands.registerCommands(context);
+        disposables.push(...xrCommands);
+        console.log(`FILE_ANALYSIS_COMMANDS: Successfully registered ${disposables.length} file analysis commands`);
+        return disposables;
+    }
+}
+exports.FileAnalysisCommands = FileAnalysisCommands;
+
+
+/***/ }),
+/* 110 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * File Analysis LivePanel Commands
+ * Commands for analyzing individual files in LivePanel mode
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileAnalysisLivePanelCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const engine_1 = __webpack_require__(111);
+class FileAnalysisLivePanelCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Register LivePanel file analysis commands
+     */
+    static registerCommands(context) {
+        console.log('FILE_ANALYSIS_LIVEPANEL_COMMANDS: Registering LivePanel analysis commands...');
+        const commands = new FileAnalysisLivePanelCommands(context);
+        const analyzeFileCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeFile', (uri) => commands.analyzeFileLivePanel(uri));
+        console.log('FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel commands registered successfully');
+        return [analyzeFileCommand];
+    }
+    /**
+     * Analyze file in LivePanel mode command handler
+     */
+    async analyzeFileLivePanel(uri) {
+        try {
+            let filePath;
+            if (uri) {
+                // Called from context menu or command palette with URI
+                filePath = uri.fsPath;
+                console.log(`FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from context menu for: ${filePath}`);
+            }
+            else {
+                // Called from command palette without URI - use active editor
+                const activeEditor = vscode.window.activeTextEditor;
+                if (!activeEditor) {
+                    vscode.window.showWarningMessage('CodeXR: No file selected for LivePanel analysis');
+                    return;
+                }
+                filePath = activeEditor.document.fileName;
+                console.log(`FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from command palette for: ${filePath}`);
+            }
+            // Check if file can be analyzed
+            if (!engine_1.LaunchAnalyzeFileLivePanel.canAnalyzeFile(filePath)) {
+                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" is not a supported programming language for LivePanel analysis`);
+                return;
+            }
+            // Execute LivePanel analysis
+            await engine_1.LaunchAnalyzeFileLivePanel.analyzeFile(filePath, this.context);
+        }
+        catch (error) {
+            console.error('FILE_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel analyze file command:', error);
+            vscode.window.showErrorMessage(`CodeXR: LivePanel analysis failed - ${error}`);
+        }
+    }
+}
+exports.FileAnalysisLivePanelCommands = FileAnalysisLivePanelCommands;
+
+
+/***/ }),
+/* 111 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * New Code Analysis Engine Module
+ * Exports for analysis engine functionality
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GetNecessaryFiles = exports.PythonExecutor = exports.LaunchVisualizeDOMPanel = exports.LaunchAnalyzeDirectoryLivePanel = exports.LaunchAnalyzeFileLivePanel = void 0;
+var launchAnalyzeFileLivePanel_1 = __webpack_require__(105);
+Object.defineProperty(exports, "LaunchAnalyzeFileLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeFileLivePanel_1.LaunchAnalyzeFileLivePanel; } }));
+var launchAnalyzeDirectoryLivePanel_1 = __webpack_require__(188);
+Object.defineProperty(exports, "LaunchAnalyzeDirectoryLivePanel", ({ enumerable: true, get: function () { return launchAnalyzeDirectoryLivePanel_1.LaunchAnalyzeDirectoryLivePanel; } }));
+var launchVisualizeDOMPanel_1 = __webpack_require__(107);
+Object.defineProperty(exports, "LaunchVisualizeDOMPanel", ({ enumerable: true, get: function () { return launchVisualizeDOMPanel_1.LaunchVisualizeDOMPanel; } }));
+var utils_1 = __webpack_require__(106);
+Object.defineProperty(exports, "PythonExecutor", ({ enumerable: true, get: function () { return utils_1.PythonExecutor; } }));
+Object.defineProperty(exports, "GetNecessaryFiles", ({ enumerable: true, get: function () { return utils_1.GetNecessaryFiles; } }));
+
+
+/***/ }),
+/* 112 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19861,7 +18766,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileAnalysisXRCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const launchAnalyzeFileXR_1 = __webpack_require__(114);
+const launchAnalyzeFileXR_1 = __webpack_require__(77);
 class FileAnalysisXRCommands {
     context;
     constructor(context) {
@@ -19916,254 +18821,7 @@ exports.FileAnalysisXRCommands = FileAnalysisXRCommands;
 
 
 /***/ }),
-/* 114 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Launch Analyze File XR
- * XR mode analysis engine for code files
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.LaunchAnalyzeFileXR = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-const supportedLanguages_1 = __webpack_require__(91);
-const getNecessaryFiles_1 = __webpack_require__(97);
-const saveFiles_1 = __webpack_require__(103);
-const fileWatcher_1 = __webpack_require__(104);
-const launchServer_1 = __webpack_require__(108);
-const analysisSessionManager_1 = __webpack_require__(100);
-const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(110);
-const analysisConfigurationStorage_1 = __webpack_require__(106);
-const dimensionMappingValidator_1 = __webpack_require__(205);
-class LaunchAnalyzeFileXR {
-    /**
-     * Analyze file in XR mode
-     */
-    static async analyzeFileXR(filePath, context) {
-        try {
-            // Get file language information
-            const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
-            if (!languageInfo) {
-                vscode.window.showWarningMessage(`CodeXR: File "${filePath}" - Language not supported for XR analysis 🥽`);
-                return;
-            }
-            console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis requested for file: ${filePath}`);
-            console.log(`ANALYZE_FILE_XR_ENGINE: Detected language: ${languageInfo.name}`);
-            // **CHECK: Verify no conflicting analysis is already running**
-            const canProceed = await checkIfAnalysisAlreadyRunning_1.CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(filePath, 'FileXRAnalysis');
-            if (!canProceed) {
-                console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis cancelled due to conflicts`);
-                return;
-            }
-            // Create analysis session
-            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
-            const session = await sessionManager.startAnalysis(filePath, 'FileXRAnalysis', context);
-            console.log(`ANALYZE_FILE_XR_ENGINE: Created session ${session.id} for XR analysis`);
-            // **VALIDATION: Check dimension mappings before proceeding**
-            console.log(`ANALYZE_FILE_XR_ENGINE: Validating dimension mappings...`);
-            const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-            const chartType = await storage.getChartTypeFile();
-            const dimensionMappings = await storage.getDimensionMappingFile();
-            if (!chartType) {
-                const errorMessage = '🚫 XR Analysis Error: No chart type selected. Please select a chart type in the Analysis Settings first.';
-                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
-                vscode.window.showErrorMessage(errorMessage);
-                sessionManager.failAnalysis(session.id, 'No chart type selected');
-                return;
-            }
-            // Validate dimension mappings
-            const validationResult = dimensionMappingValidator_1.DimensionMappingValidator.validateMappingsForChart(chartType, dimensionMappings);
-            if (!validationResult.isValid) {
-                let errorMessage = `🚫 XR Analysis Error: Invalid dimension configuration for ${chartType} chart.\n\n`;
-                if (validationResult.hasMissingRequired) {
-                    errorMessage += `Missing required dimensions: ${validationResult.missingRequired.join(', ')}\n`;
-                }
-                if (validationResult.hasConflicts) {
-                    errorMessage += `Dimension conflicts detected:\n`;
-                    for (const conflict of validationResult.conflicts) {
-                        errorMessage += `• Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}\n`;
-                    }
-                }
-                errorMessage += '\nPlease fix the dimension mappings in Analysis Settings before running XR analysis.';
-                console.error(`ANALYZE_FILE_XR_ENGINE: ${errorMessage}`);
-                vscode.window.showErrorMessage(errorMessage, { modal: true });
-                sessionManager.failAnalysis(session.id, 'Invalid dimension configuration');
-                return;
-            }
-            console.log(`ANALYZE_FILE_XR_ENGINE: ✅ Dimension validation passed for ${chartType} chart`);
-            // Show start message to user
-            const fileName = (__webpack_require__(5).basename)(filePath);
-            vscode.window.showInformationMessage(`🥽 CodeXR: Starting XR analysis for "${fileName}" (${languageInfo.name}) with ${chartType} chart...`, { modal: false });
-            // Get file analysis using python xr_file_analysis_coordinator.py with session
-            console.log(`ANALYZE_FILE_XR_ENGINE: Calling XR file analysis...`);
-            const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileXR(filePath, context, session.id);
-            if (analysisResult.success && analysisResult.data) {
-                console.log(`ANALYZE_FILE_XR_ENGINE: XR analysis completed successfully!`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: ===== XR ANALYSIS RESULTS =====`);
-                console.log(`ANALYZE_FILE_XR_ENGINE: Data.json:`, JSON.stringify(analysisResult.data, null, 2));
-                // Check and log generated files
-                if (analysisResult.indexHtml) {
-                    console.log(`ANALYZE_FILE_XR_ENGINE: ✅ INDEX.HTML Generated - Length: ${analysisResult.indexHtml.length} characters`);
-                    console.log(`ANALYZE_FILE_XR_ENGINE: HTML Preview (first 200 chars):`, analysisResult.indexHtml.substring(0, 200) + '...');
-                }
-                else {
-                    console.warn(`ANALYZE_FILE_XR_ENGINE: ❌ No INDEX.HTML generated`);
-                }
-                if (analysisResult.jsContent) {
-                    console.log(`ANALYZE_FILE_XR_ENGINE: ✅ SSE JAVASCRIPT Generated - Length: ${analysisResult.jsContent.length} characters`);
-                    console.log(`ANALYZE_FILE_XR_ENGINE: JS Preview (first 200 chars):`, analysisResult.jsContent.substring(0, 200) + '...');
-                }
-                else {
-                    console.warn(`ANALYZE_FILE_XR_ENGINE: ❌ No SSE JavaScript generated`);
-                }
-                // Get user chart configuration
-                const { AnalysisConfigurationStorage } = __webpack_require__(122);
-                const storage = AnalysisConfigurationStorage.getInstance(context);
-                const userChartType = await storage.getChartTypeFile();
-                const userDimensionMapping = await storage.getDimensionMappingFile();
-                console.log(`ANALYZE_FILE_XR_ENGINE: ===== USER CHART CONFIGURATION =====`);
-                console.log(`[CHART_CONFIGURED] Chart Type: ${userChartType}`);
-                console.log(`[CHART_CONFIGURED] Dimension Mappings:`, userDimensionMapping);
-                // Show detailed mapping info
-                if (Object.keys(userDimensionMapping).length > 0) {
-                    for (const [dimension, dataField] of Object.entries(userDimensionMapping)) {
-                        console.log(`[CHART_CONFIGURED] ${dimension} → ${dataField}`);
-                    }
-                }
-                else {
-                    console.log(`[CHART_CONFIGURED] No custom dimension mappings, using defaults`);
-                }
-                console.log(`ANALYZE_FILE_XR_ENGINE: ============================================`);
-                // Save all files to workspace storage using session
-                console.log(`ANALYZE_FILE_XR_ENGINE: Saving XR analysis files to workspace storage...`);
-                const filesToSave = {
-                    indexHtml: analysisResult.indexHtml,
-                    jsContent: analysisResult.jsContent,
-                    dataJson: analysisResult.data
-                    // Note: XR analysis doesn't use CSS file, only HTML + JS + JSON
-                };
-                const saveResult = await saveFiles_1.SaveFiles.saveAnalysisFiles(filesToSave, session.id, context);
-                if (saveResult.success) {
-                    console.log(`ANALYZE_FILE_XR_ENGINE: XR files saved successfully!`);
-                    console.log(`ANALYZE_FILE_XR_ENGINE: XR Analysis nonce: ${saveResult.nonce}`);
-                    console.log(`ANALYZE_FILE_XR_ENGINE: XR Analysis directory: ${saveResult.analysisDirectoryPath}`);
-                    console.log(`ANALYZE_FILE_XR_ENGINE: XR Index.html path: ${saveResult.indexHtmlPath}`);
-                    // Start file watcher for live updates with session
-                    const watcherId = await fileWatcher_1.FileWatcher.startWatching(session.id, context);
-                    if (watcherId) {
-                        console.log(`ANALYZE_FILE_XR_ENGINE: XR File watcher started with ID: ${watcherId}`);
-                    }
-                    // Launch server for XR visualization with session
-                    console.log(`ANALYZE_FILE_XR_ENGINE: Launching server for XR visualization...`);
-                    const serverResult = await launchServer_1.LaunchServer.launchAnalysisServer(context, {
-                        sessionId: session.id,
-                        enableSSE: true
-                    });
-                    if (serverResult.success) {
-                        console.log(`ANALYZE_FILE_XR_ENGINE: XR Server launched successfully!`);
-                        console.log(`ANALYZE_FILE_XR_ENGINE: XR Server URL: ${serverResult.serverUrl}`);
-                        console.log(`ANALYZE_FILE_XR_ENGINE: XR Server Port: ${serverResult.port}`);
-                    }
-                    else {
-                        console.error(`ANALYZE_FILE_XR_ENGINE: Failed to launch XR server:`, serverResult.error);
-                        // Don't fail the entire process for server launch failure
-                    }
-                    // Show success message with data info
-                    vscode.window.showInformationMessage(`🥽 XR Analysis completed for "${fileName}"! ${userChartType} chart visualization saved, file watcher started, and server launched.`, 'Got it!', 'View File', 'Open XR Visualization').then(action => {
-                        if (action === 'View File') {
-                            vscode.window.showTextDocument(vscode.Uri.file(filePath));
-                        }
-                        else if (action === 'Open XR Visualization') {
-                            if (serverResult.success && serverResult.serverUrl) {
-                                // Open the XR visualization from the launched server
-                                vscode.commands.executeCommand('simpleBrowser.show', serverResult.serverUrl);
-                            }
-                            else {
-                                // Fallback to local file
-                                vscode.commands.executeCommand('simpleBrowser.show', vscode.Uri.file(saveResult.indexHtmlPath));
-                            }
-                        }
-                    });
-                }
-                else {
-                    console.error(`ANALYZE_FILE_XR_ENGINE: Failed to save XR files:`, saveResult.error);
-                    vscode.window.showErrorMessage(`CodeXR: Failed to save XR analysis files for "${fileName}" 🥽: ${saveResult.error}`);
-                }
-            }
-            else {
-                console.error(`ANALYZE_FILE_XR_ENGINE: XR analysis failed:`, analysisResult.error);
-                vscode.window.showErrorMessage(`CodeXR: XR analysis failed for "${fileName}" 🥽: ${analysisResult.error}`);
-            }
-        }
-        catch (error) {
-            console.error('ANALYZE_FILE_XR_ENGINE: Error in XR analysis:', error);
-            vscode.window.showErrorMessage(`CodeXR: XR analysis failed 🥽 - ${error}`);
-        }
-    }
-    /**
-     * Check if a file can be analyzed in XR mode
-     */
-    static canAnalyzeFile(filePath) {
-        const extension = (__webpack_require__(5).extname)(filePath).toLowerCase();
-        // Check if extension is supported by any language
-        for (const [langName, langConfig] of Object.entries(supportedLanguages_1.SUPPORTED_LANGUAGES)) {
-            if (langConfig.extensions.includes(extension)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    /**
-     * Get supported file extensions for XR analysis
-     */
-    static getSupportedExtensions() {
-        const extensions = [];
-        for (const [langName, langConfig] of Object.entries(supportedLanguages_1.SUPPORTED_LANGUAGES)) {
-            extensions.push(...langConfig.extensions);
-        }
-        return [...new Set(extensions)]; // Remove duplicates
-    }
-}
-exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
-
-
-/***/ }),
-/* 115 */
+/* 113 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20173,12 +18831,12 @@ exports.LaunchAnalyzeFileXR = LaunchAnalyzeFileXR;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
-var cleanAnalysisCommands_1 = __webpack_require__(116);
+var cleanAnalysisCommands_1 = __webpack_require__(114);
 Object.defineProperty(exports, "CleanAnalysisCommands", ({ enumerable: true, get: function () { return cleanAnalysisCommands_1.CleanAnalysisCommands; } }));
 
 
 /***/ }),
-/* 116 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20222,7 +18880,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CleanAnalysisCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const utils_1 = __webpack_require__(92);
+const utils_1 = __webpack_require__(106);
 class CleanAnalysisCommands {
     /**
      * Get command registrations for clean analysis functionality (Nested Dolls pattern)
@@ -20252,7 +18910,7 @@ class CleanAnalysisCommands {
             console.log('CLEAN_ANALYSIS_COMMANDS: Executing startup cleanup...');
             // Stop all file watchers (in case of restart)
             console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
-            utils_1.FileWatcher.stopAllWatchers();
+            utils_1.ManageWatcher.stopAllWatchers();
             const cleanupResult = await utils_1.SaveFiles.cleanAllAnalysisDirectories(context);
             if (cleanupResult) {
                 console.log('CLEAN_ANALYSIS_COMMANDS: Startup cleanup completed successfully');
@@ -20279,7 +18937,7 @@ class CleanAnalysisCommands {
             }
             // Stop all file watchers first
             console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
-            utils_1.FileWatcher.stopAllWatchers();
+            utils_1.ManageWatcher.stopAllWatchers();
             // Execute cleanup
             const cleanupResult = await utils_1.SaveFiles.cleanAllAnalysisDirectories(context);
             if (cleanupResult) {
@@ -20301,7 +18959,7 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
 
 
 /***/ }),
-/* 117 */
+/* 115 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -20311,12 +18969,12 @@ exports.CleanAnalysisCommands = CleanAnalysisCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
-var domVisualizationCommands_1 = __webpack_require__(118);
+var domVisualizationCommands_1 = __webpack_require__(116);
 Object.defineProperty(exports, "DOMVisualizationCommands", ({ enumerable: true, get: function () { return domVisualizationCommands_1.DOMVisualizationCommands; } }));
 
 
 /***/ }),
-/* 118 */
+/* 116 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20360,8 +19018,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DOMVisualizationCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const engine_1 = __webpack_require__(88);
-const uriPathConverter_1 = __webpack_require__(119);
+const engine_1 = __webpack_require__(111);
+const uriPathConverter_1 = __webpack_require__(117);
 class DOMVisualizationCommands {
     context;
     constructor(context) {
@@ -20448,7 +19106,7 @@ exports.DOMVisualizationCommands = DOMVisualizationCommands;
 
 
 /***/ }),
-/* 119 */
+/* 117 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20599,7 +19257,7 @@ function isValidFileSystemPath(path) {
 
 
 /***/ }),
-/* 120 */
+/* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20643,8 +19301,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const configuration_1 = __webpack_require__(94);
 class AnalysisFileSetting {
     context;
     currentMode = 'XR'; // Default mode (will be loaded from storage)
@@ -20726,7 +19384,7 @@ exports.AnalysisFileSetting = AnalysisFileSetting;
 
 
 /***/ }),
-/* 121 */
+/* 119 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20825,142 +19483,7 @@ exports.NewCodeAnalysisItemFactory = NewCodeAnalysisItemFactory;
 
 
 /***/ }),
-/* 122 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Configuration Module
- * Central exports for all configuration functionality
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.testConfigurationChanges = exports.debugConfiguration = exports.AnalysisConfigurationStorage = void 0;
-var analysisConfigurationStorage_1 = __webpack_require__(106);
-Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
-var debugConfiguration_1 = __webpack_require__(123);
-Object.defineProperty(exports, "debugConfiguration", ({ enumerable: true, get: function () { return debugConfiguration_1.debugConfiguration; } }));
-Object.defineProperty(exports, "testConfigurationChanges", ({ enumerable: true, get: function () { return debugConfiguration_1.testConfigurationChanges; } }));
-__exportStar(__webpack_require__(124), exports);
-
-
-/***/ }),
-/* 123 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Configuration Debug Tool
- * Utility to debug configuration storage issues
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AnalysisConfigurationStorage = void 0;
-exports.debugConfiguration = debugConfiguration;
-exports.testConfigurationChanges = testConfigurationChanges;
-const analysisConfigurationStorage_1 = __webpack_require__(106);
-Object.defineProperty(exports, "AnalysisConfigurationStorage", ({ enumerable: true, get: function () { return analysisConfigurationStorage_1.AnalysisConfigurationStorage; } }));
-/**
- * Debug configuration storage
- */
-async function debugConfiguration(context) {
-    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-    console.log('=== NEW_CODE_ANALYSIS DEBUG ===');
-    // Check if configuration file exists
-    const exists = await storage.configurationExists();
-    console.log(`Configuration file exists: ${exists}`);
-    console.log(`Configuration file path: ${storage.getConfigurationFilePath()}`);
-    // Get current configuration
-    const config = await storage.loadConfiguration();
-    console.log('Current configuration loaded:', JSON.stringify(config, null, 2));
-    // Get raw file content
-    const rawContent = await storage.debugGetConfigurationFileContent();
-    if (rawContent) {
-        console.log('Raw configuration file content:');
-        console.log(rawContent);
-    }
-    else {
-        console.log('No configuration file found');
-    }
-    // Test each setting
-    console.log('\n=== Testing individual settings ===');
-    // Test theme
-    const currentTheme = await storage.getViewTheme();
-    console.log(`Current theme from storage: ${currentTheme}`);
-    // Test analysis file mode
-    const currentMode = await storage.getAnalysisFileMode();
-    console.log(`Current analysis mode from storage: ${currentMode}`);
-    // Test auto-analysis delay
-    const currentDelay = await storage.getAutoAnalysisDelay();
-    console.log(`Current auto-analysis delay from storage:`, JSON.stringify(currentDelay, null, 2));
-    console.log('=== DEBUG COMPLETE ===');
-}
-/**
- * Test configuration changes
- */
-async function testConfigurationChanges(context) {
-    const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-    console.log('=== TESTING CONFIGURATION CHANGES ===');
-    // Test theme change
-    console.log('\n1. Testing theme change...');
-    const originalTheme = await storage.getViewTheme();
-    console.log(`Original theme: ${originalTheme}`);
-    const newTheme = originalTheme === 'Dark' ? 'Light' : 'Dark';
-    await storage.setViewTheme(newTheme);
-    console.log(`Changed theme to: ${newTheme}`);
-    // Force reload and verify
-    const reloadedTheme = await storage.forceReloadConfiguration();
-    console.log(`Theme after reload: ${reloadedTheme.viewTheme}`);
-    // Test analysis mode change
-    console.log('\n2. Testing analysis mode change...');
-    const originalMode = await storage.getAnalysisFileMode();
-    console.log(`Original mode: ${originalMode}`);
-    const newMode = originalMode === 'XR' ? 'LivePanel' : 'XR';
-    await storage.setAnalysisFileMode(newMode);
-    console.log(`Changed mode to: ${newMode}`);
-    // Force reload and verify
-    const reloadedConfig = await storage.forceReloadConfiguration();
-    console.log(`Mode after reload: ${reloadedConfig.analysisFileMode}`);
-    // Restore original values
-    console.log('\n3. Restoring original values...');
-    await storage.setViewTheme(originalTheme);
-    await storage.setAnalysisFileMode(originalMode);
-    const finalConfig = await storage.forceReloadConfiguration();
-    console.log('Final configuration:', JSON.stringify(finalConfig, null, 2));
-    console.log('=== TEST COMPLETE ===');
-}
-
-
-/***/ }),
-/* 124 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Storage Models Module
- * Exports for all storage-related models and types
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_CONFIGURATION_FILE = exports.DEFAULT_ANALYSIS_CONFIGURATION = void 0;
-var analysisConfiguration_1 = __webpack_require__(107);
-Object.defineProperty(exports, "DEFAULT_ANALYSIS_CONFIGURATION", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_ANALYSIS_CONFIGURATION; } }));
-Object.defineProperty(exports, "DEFAULT_CONFIGURATION_FILE", ({ enumerable: true, get: function () { return analysisConfiguration_1.DEFAULT_CONFIGURATION_FILE; } }));
-
-
-/***/ }),
-/* 125 */
+/* 120 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21004,8 +19527,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const configuration_1 = __webpack_require__(94);
 class ViewThemeSetting {
     context;
     currentTheme = 'Dark';
@@ -21098,7 +19621,7 @@ exports.ViewThemeSetting = ViewThemeSetting;
 
 
 /***/ }),
-/* 126 */
+/* 121 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21142,8 +19665,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const configuration_1 = __webpack_require__(94);
 class AutoAnalysisDelaySetting {
     context;
     currentDelayConfig = { type: 'RealTime' };
@@ -21290,6 +19813,647 @@ class AutoAnalysisDelaySetting {
     }
 }
 exports.AutoAnalysisDelaySetting = AutoAnalysisDelaySetting;
+
+
+/***/ }),
+/* 122 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Chart Type File Setting Item
+ * Manages the chart type configuration for file analysis
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChartTypeFileSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const configuration_1 = __webpack_require__(94);
+const chartRegistry_1 = __webpack_require__(41);
+const dimensionMappingCleaner_1 = __webpack_require__(123);
+class ChartTypeFileSetting {
+    storage;
+    chartRegistry;
+    constructor(context) {
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
+        this.chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        // Get current values from storage
+        const currentMode = await this.storage.getAnalysisMode();
+        const currentChartType = await this.storage.getChartTypeFile();
+        // Get chart metadata for better display
+        const chartMetadata = this.chartRegistry.getChart(currentChartType);
+        const chartName = chartMetadata ? chartMetadata.name : currentChartType;
+        const label = `Chart Type (File): ${chartName}`;
+        const description = `${chartName} for ${currentMode} mode`;
+        // Dynamic icon color based on analysis mode
+        let iconColor = 'charts.foreground';
+        if (currentMode === 'XR') {
+            iconColor = 'charts.purple'; // Purple for XR mode
+        }
+        else if (currentMode === 'LivePanel') {
+            iconColor = 'charts.green'; // Green for LivePanel mode
+        }
+        const iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(iconColor));
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectChartTypeFile',
+            title: 'Select Chart Type for File Analysis',
+            arguments: []
+        }, iconPath, `Current chart type: ${chartName} for ${currentMode} mode. Click to change chart type.`, description, 'chartTypeFileSetting');
+    }
+    /**
+     * Get current analysis mode
+     */
+    async getCurrentAnalysisMode() {
+        return this.storage.getAnalysisMode();
+    }
+    /**
+     * Get available chart types based on analysis mode
+     */
+    async getAvailableChartTypes(mode) {
+        console.log(`CHART_TYPE_FILE: Getting available charts for mode: ${mode}`);
+        // Get all charts from registry
+        const allCharts = this.chartRegistry.getAllCharts();
+        // Convert to ChartTypeInfo format
+        const chartTypeInfos = allCharts.map((chart) => ({
+            id: chart.id,
+            name: chart.name,
+            description: chart.description,
+            category: chart.category,
+            supportsMode: ['XR', 'LivePanel'] // All charts support both modes
+        }));
+        console.log(`CHART_TYPE_FILE: Found ${chartTypeInfos.length} available charts`);
+        return chartTypeInfos;
+    }
+    /**
+     * Show chart type selection dialog
+     */
+    async showChartTypeSelection() {
+        console.log('CHART_TYPE_FILE: Opening chart type selection dialog');
+        try {
+            const currentMode = await this.getCurrentAnalysisMode();
+            const availableCharts = await this.getAvailableChartTypes(currentMode);
+            if (availableCharts.length === 0) {
+                console.error('CHART_TYPE_FILE: No chart types found');
+                vscode.window.showErrorMessage('No chart templates available');
+                return;
+            }
+            // Create quick pick items for available charts
+            const quickPickItems = availableCharts.map(chart => ({
+                label: chart.name,
+                description: chart.description,
+                detail: `Category: ${chart.category} | Supports: ${chart.supportsMode.join(', ')}`,
+                chart: chart
+            }));
+            // Show quick pick
+            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+                placeHolder: 'Select a chart type for file analysis visualization',
+                title: `Chart Type Selection for ${currentMode} Analysis`,
+                canPickMany: false
+            });
+            if (selectedItem && selectedItem.chart) {
+                const selectedChart = selectedItem.chart;
+                // Set the selected chart type
+                await this.setChartType(selectedChart.id);
+                console.log(`CHART_TYPE_FILE: Chart type selected: ${selectedChart.name} (${selectedChart.id})`);
+                vscode.window.showInformationMessage(`Chart type set to: ${selectedChart.name} for ${currentMode} mode`);
+            }
+            else {
+                console.log('CHART_TYPE_FILE: Chart type selection cancelled');
+            }
+        }
+        catch (error) {
+            console.error('CHART_TYPE_FILE: Error in chart type selection:', error);
+            vscode.window.showErrorMessage(`Failed to select chart type: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Set chart type and intelligently clean dimension mappings
+     */
+    async setChartType(chartType) {
+        console.log(`CHART_TYPE_FILE: Setting chart type to: ${chartType}`);
+        // Validate chart type exists
+        if (!this.chartRegistry.hasChart(chartType)) {
+            throw new Error(`Invalid chart type: ${chartType}`);
+        }
+        // Get current dimension mappings before changing chart type
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        console.log(`[DIMENSION_CLEANER] Current mappings before chart change:`, currentMappings);
+        // Clean dimension mappings for the new chart type
+        const cleanedMappings = dimensionMappingCleaner_1.DimensionMappingCleaner.cleanDimensionMappingsForNewChart(currentMappings, chartType);
+        // Save the new chart type
+        const validChartType = chartType;
+        await this.storage.setChartTypeFile(validChartType);
+        console.log(`CHART_TYPE_FILE: Chart type saved successfully: ${chartType}`);
+        // Save the cleaned dimension mappings
+        await this.storage.setDimensionMappingFile(cleanedMappings);
+        console.log(`[DIMENSION_CLEANER] Cleaned dimension mappings saved:`, cleanedMappings);
+    }
+    /**
+     * Get current chart type
+     */
+    async getCurrentChartType() {
+        return this.storage.getChartTypeFile();
+    }
+    /**
+     * Get current chart metadata
+     */
+    async getCurrentChartMetadata() {
+        const currentChartType = await this.getCurrentChartType();
+        return this.chartRegistry.getChart(currentChartType);
+    }
+    /**
+     * Save configuration
+     */
+    async saveConfiguration(configuration) {
+        console.log('CHART_TYPE_FILE: Saving configuration:', configuration);
+        if (configuration.chartType) {
+            await this.setChartType(configuration.chartType);
+        }
+    }
+    /**
+     * Load configuration
+     */
+    async loadConfiguration() {
+        const currentChartType = await this.storage.getChartTypeFile();
+        const currentMode = await this.storage.getAnalysisMode();
+        const chartMetadata = await this.getCurrentChartMetadata();
+        return {
+            chartType: currentChartType,
+            analysisMode: currentMode,
+            chartMetadata: chartMetadata
+        };
+    }
+}
+exports.ChartTypeFileSetting = ChartTypeFileSetting;
+
+
+/***/ }),
+/* 123 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Dimension Mapping Cleaner
+ * Utility for intelligently cleaning dimension mappings when chart type changes
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingCleaner = void 0;
+const templateCharts_1 = __webpack_require__(42);
+class DimensionMappingCleaner {
+    /**
+     * Clean dimension mappings when chart type changes
+     * Keep dimensions that exist in both old and new chart, remove residual dimensions
+     */
+    static cleanDimensionMappingsForNewChart(currentMappings, newChartType) {
+        console.log(`[DIMENSION_CLEANER] Cleaning mappings for new chart type: ${newChartType}`);
+        console.log(`[DIMENSION_CLEANER] Current mappings:`, currentMappings);
+        // Get new chart metadata
+        const newChart = templateCharts_1.chartTemplates.find((chart) => chart.id === newChartType);
+        if (!newChart) {
+            console.warn(`[DIMENSION_CLEANER] Chart type "${newChartType}" not found, clearing all mappings`);
+            return {};
+        }
+        // Get dimension names from new chart
+        const newChartDimensionNames = newChart.dimensions.map((dim) => dim.name);
+        console.log(`[DIMENSION_CLEANER] New chart dimensions:`, newChartDimensionNames);
+        // Keep only dimensions that exist in the new chart
+        const cleanedMappings = {};
+        let keptCount = 0;
+        let removedCount = 0;
+        for (const [dimensionName, dataField] of Object.entries(currentMappings)) {
+            if (newChartDimensionNames.includes(dimensionName)) {
+                cleanedMappings[dimensionName] = dataField;
+                keptCount++;
+                console.log(`[DIMENSION_CLEANER] ✅ Kept mapping: ${dimensionName} → ${dataField}`);
+            }
+            else {
+                removedCount++;
+                console.log(`[DIMENSION_CLEANER] ❌ Removed mapping: ${dimensionName} → ${dataField} (not in new chart)`);
+            }
+        }
+        console.log(`[DIMENSION_CLEANER] Cleanup complete: ${keptCount} kept, ${removedCount} removed`);
+        console.log(`[DIMENSION_CLEANER] Cleaned mappings:`, cleanedMappings);
+        return cleanedMappings;
+    }
+    /**
+     * Get chart dimensions for validation
+     */
+    static getChartDimensions(chartType) {
+        const chart = templateCharts_1.chartTemplates.find((chart) => chart.id === chartType);
+        return chart ? chart.dimensions.map((dim) => dim.name) : [];
+    }
+    /**
+     * Validate if a dimension mapping is valid for a chart
+     */
+    static validateMappingForChart(mappings, chartType) {
+        const validDimensions = this.getChartDimensions(chartType);
+        const invalidDimensions = Object.keys(mappings).filter(dimension => !validDimensions.includes(dimension));
+        return {
+            isValid: invalidDimensions.length === 0,
+            invalidDimensions
+        };
+    }
+}
+exports.DimensionMappingCleaner = DimensionMappingCleaner;
+
+
+/***/ }),
+/* 124 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Dimension Mapping File Setting Item
+ * Manages the dimension mapping configuration for file analysis with real BabiaXR chart integration
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DimensionMappingFileSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const configuration_1 = __webpack_require__(94);
+const templateCharts_1 = __webpack_require__(42);
+const dimensionMappingValidator_1 = __webpack_require__(104);
+class DimensionMappingFileSetting {
+    storage;
+    constructor(context) {
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        const currentMode = await this.storage.getAnalysisMode();
+        const chartType = await this.storage.getChartTypeFile();
+        const label = `Dimension Mapping (File)`;
+        const description = chartType ? `Dimensions for ${chartType} chart` : 'Select chart type first';
+        // Dynamic icon color based on analysis mode
+        let iconColor = 'charts.foreground';
+        if (currentMode === 'XR') {
+            iconColor = 'charts.purple'; // Purple for XR mode
+        }
+        else if (currentMode === 'LivePanel') {
+            iconColor = 'charts.green'; // Green for LivePanel mode
+        }
+        const iconPath = new vscode.ThemeIcon('symbol-misc', new vscode.ThemeColor(iconColor));
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, // No command on the main item
+        iconPath, description, chartType ? `Configure ${chartType} dimensions` : 'Select chart type first', 'dimensionMappingFileSetting');
+    }
+    /**
+     * Get children items (chart dimensions)
+     */
+    async getChildren() {
+        const chartType = await this.storage.getChartTypeFile();
+        console.log(`DIMENSION_MAPPING_FILE: Getting children for chart type: ${chartType}`);
+        if (!chartType) {
+            console.log('DIMENSION_MAPPING_FILE: No chart type selected, showing warning');
+            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Select Chart Type First', vscode.TreeItemCollapsibleState.None, 'subsection', {
+                    command: 'newCodeAnalysis.selectChartTypeFile',
+                    title: 'Select Chart Type',
+                    arguments: []
+                }, new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow')), 'You must select a chart type before configuring dimensions', 'Click to select chart type', 'select-chart-type-first')];
+        }
+        return await this.getDimensionItemsForChart(chartType);
+    }
+    async getDimensionItemsForChart(chartType) {
+        console.log(`DIMENSION_MAPPING_FILE: Looking for chart template for type: ${chartType}`);
+        const chart = templateCharts_1.chartTemplates.find((c) => c.id === chartType);
+        if (!chart || !chart.dimensions) {
+            console.log(`DIMENSION_MAPPING_FILE: No chart found or no dimensions for chart type: ${chartType}`);
+            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('No dimensions available', vscode.TreeItemCollapsibleState.None, 'subsection', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), 'This chart type has no configurable dimensions', undefined, 'no-dimensions')];
+        }
+        console.log(`DIMENSION_MAPPING_FILE: Found chart "${chart.name}" with ${chart.dimensions.length} dimensions:`, chart.dimensions.map(d => d.name).join(', '));
+        const dimensionItems = await Promise.all(chart.dimensions.map((dimension) => this.createDimensionItem(dimension)));
+        return dimensionItems;
+    }
+    async createDimensionItem(dimension) {
+        // Check if we have a persistent mapping for this dimension
+        const mappedValue = await this.getDimensionMapping(dimension.name) || 'Not configured';
+        const label = `${dimension.label}: ${mappedValue}`;
+        const description = this.getDimensionDescription(dimension);
+        console.log(`DIMENSION_MAPPING_FILE: Creating dimension item for "${dimension.name}" - ${dimension.label}, mapped to: ${mappedValue}`);
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectDimensionMappingFile',
+            title: 'Select Dimension Mapping',
+            arguments: [dimension]
+        }, await this.getDimensionIcon(dimension), description, 'Click to configure dimension mapping', `dimension-${dimension.name}`);
+    }
+    getDimensionDescription(dimension) {
+        const typeStr = dimension.dataType === 'numeric' ? 'numerical only' : 'any value';
+        const requiredStr = dimension.required ? 'Required' : 'Optional';
+        return `(${typeStr}) • ${requiredStr} • ${dimension.description}`;
+    }
+    async getDimensionIcon(dimension) {
+        const chartType = await this.storage.getChartTypeFile();
+        if (!chartType) {
+            return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.foreground'));
+        }
+        // Get current dimension mappings
+        const dimensionMappings = await this.storage.getDimensionMappingFile();
+        // Get validation result using the validator
+        const validationResult = dimensionMappingValidator_1.DimensionMappingValidator.validateMappingsForChart(chartType, dimensionMappings);
+        // Check if this dimension is mapped
+        const mapping = dimensionMappings[dimension.name];
+        if (!mapping) {
+            // Check if it's required
+            const isRequired = dimension.required === true;
+            return isRequired
+                ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'))
+                : new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.foreground'));
+        }
+        // Check if this dimension has conflicts
+        const hasConflict = validationResult.conflicts.some((conflict) => conflict.conflictingDimensions.includes(dimension.name));
+        if (hasConflict) {
+            return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'));
+        }
+        // Dimension is mapped without conflicts
+        return new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+    }
+    /**
+     * Available data fields for file analysis (real analysis output fields)
+     */
+    getAvailableDataFields() {
+        return ['functionName', 'parameters', 'lineCount', 'complexity', 'cyclomaticDensity'];
+    }
+    /**
+     * Get numeric-only fields (fields that contain numeric values)
+     */
+    getNumericDataFields() {
+        return ['parameters', 'lineCount', 'complexity', 'cyclomaticDensity'];
+    }
+    /**
+     * Get fields available for a specific dimension based on its dataType
+     */
+    getAvailableFieldsForDimension(dimension) {
+        console.log(`DIMENSION_MAPPING_FILE: Getting available fields for dimension "${dimension.name}" with dataType: ${dimension.dataType}`);
+        const allFields = this.getAvailableDataFields();
+        const numericFields = this.getNumericDataFields();
+        if (dimension.dataType === 'numeric') {
+            console.log(`DIMENSION_MAPPING_FILE: Dimension "${dimension.name}" requires numeric fields only:`, numericFields);
+            return numericFields;
+        }
+        console.log(`DIMENSION_MAPPING_FILE: Dimension "${dimension.name}" accepts any field type:`, allFields);
+        return allFields;
+    }
+    /**
+     * Set dimension mapping (persistent storage)
+     */
+    async setDimensionMapping(dimensionName, dataField) {
+        console.log(`DIMENSION_MAPPING_FILE: Setting mapping for "${dimensionName}" to "${dataField}"`);
+        // Get current mappings
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        // Update the mapping
+        const updatedMappings = { ...currentMappings, [dimensionName]: dataField };
+        // Save to persistent storage
+        await this.storage.setDimensionMappingFile(updatedMappings);
+        console.log(`DIMENSION_MAPPING_FILE: Successfully saved mapping for "${dimensionName}" to storage`);
+    }
+    /**
+     * Clear dimension mapping (persistent storage)
+     */
+    async clearDimensionMapping(dimensionName) {
+        console.log(`DIMENSION_MAPPING_FILE: Clearing mapping for "${dimensionName}"`);
+        // Get current mappings
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        // Remove the mapping
+        const updatedMappings = { ...currentMappings };
+        delete updatedMappings[dimensionName];
+        // Save to persistent storage
+        await this.storage.setDimensionMappingFile(updatedMappings);
+        console.log(`DIMENSION_MAPPING_FILE: Successfully cleared mapping for "${dimensionName}" from storage`);
+    }
+    /**
+     * Get current dimension mapping (persistent storage)
+     */
+    async getDimensionMapping(dimensionName) {
+        const currentMappings = await this.storage.getDimensionMappingFile();
+        return currentMappings[dimensionName];
+    }
+}
+exports.DimensionMappingFileSetting = DimensionMappingFileSetting;
+
+
+/***/ }),
+/* 125 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Files by Language Sorting Setting Module
+ * Exports for Files by Language sorting configuration
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSortingSetting = void 0;
+var filesByLanguageSorting_1 = __webpack_require__(126);
+Object.defineProperty(exports, "FilesByLanguageSortingSetting", ({ enumerable: true, get: function () { return filesByLanguageSorting_1.FilesByLanguageSortingSetting; } }));
+
+
+/***/ }),
+/* 126 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Files by Language Sorting Setting
+ * Configuration for sorting Files by Language section
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSortingSetting = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const configuration_1 = __webpack_require__(94);
+class FilesByLanguageSortingSetting {
+    storage;
+    constructor(context) {
+        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
+    }
+    /**
+     * Get the tree item for this setting
+     */
+    async getSettingItem() {
+        const currentConfig = await this.storage.getFilesByLanguageSorting();
+        const primarySort = `${currentConfig.languageGroupSortBy} ${currentConfig.languageGroupSortDirection}`;
+        const secondarySort = currentConfig.languageGroupSecondarySortBy ?
+            `, ${currentConfig.languageGroupSecondarySortBy} ${currentConfig.languageGroupSecondarySortDirection}` : '';
+        const filesSort = `Files: ${currentConfig.filesSortBy} ${currentConfig.filesSortDirection}`;
+        const description = `Groups: ${primarySort}${secondarySort} | ${filesSort}`;
+        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Files by Language Sorting', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('list-filter'), // Changed to list-filter icon as requested
+        description, 'Configure sorting for Files by Language section', 'filesByLanguageSortingSetting');
+    }
+    /**
+     * Get children items (sorting options)
+     */
+    async getChildren() {
+        console.log('FILES_BY_LANGUAGE_SORTING: Getting children');
+        const children = [];
+        const currentConfig = await this.storage.getFilesByLanguageSorting();
+        // Language Groups Primary Sorting
+        children.push(new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(`Language Groups Primary: ${currentConfig.languageGroupSortBy} (${currentConfig.languageGroupSortDirection})`, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectLanguageGroupPrimarySorting',
+            title: 'Select Language Group Primary Sorting',
+            arguments: []
+        }, new vscode.ThemeIcon('menu'), // Changed to menu icon as requested
+        'Primary sorting for language groups', 'Click to change primary sorting for language groups', 'languageGroupPrimarySorting'));
+        // Language Groups Secondary Sorting
+        const secondaryLabel = currentConfig.languageGroupSecondarySortBy ?
+            `${currentConfig.languageGroupSecondarySortBy} (${currentConfig.languageGroupSecondarySortDirection})` :
+            'None';
+        children.push(new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(`Language Groups Secondary: ${secondaryLabel}`, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectLanguageGroupSecondarySorting',
+            title: 'Select Language Group Secondary Sorting',
+            arguments: []
+        }, new vscode.ThemeIcon('menu'), // Changed to menu icon as requested
+        'Secondary sorting for language groups', 'Click to change secondary sorting for language groups', 'languageGroupSecondarySorting'));
+        // Files Sorting
+        children.push(new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(`Files: ${currentConfig.filesSortBy} (${currentConfig.filesSortDirection})`, vscode.TreeItemCollapsibleState.None, 'subsection', {
+            command: 'newCodeAnalysis.selectFilesSorting',
+            title: 'Select Files Sorting',
+            arguments: []
+        }, new vscode.ThemeIcon('file-text'), 'Sorting for files within language groups', 'Click to change file sorting within language groups', 'filesSorting'));
+        console.log(`FILES_BY_LANGUAGE_SORTING: Generated ${children.length} sorting options`);
+        return children;
+    }
+    /**
+     * Update language group primary sorting
+     */
+    async updateLanguageGroupPrimarySorting(sortBy, direction) {
+        const currentConfig = await this.storage.getFilesByLanguageSorting();
+        const updatedConfig = {
+            ...currentConfig,
+            languageGroupSortBy: sortBy,
+            languageGroupSortDirection: direction
+        };
+        await this.storage.setFilesByLanguageSorting(updatedConfig);
+    }
+    /**
+     * Update language group secondary sorting
+     */
+    async updateLanguageGroupSecondarySorting(sortBy, direction) {
+        const currentConfig = await this.storage.getFilesByLanguageSorting();
+        const updatedConfig = {
+            ...currentConfig,
+            languageGroupSecondarySortBy: sortBy,
+            languageGroupSecondarySortDirection: direction
+        };
+        await this.storage.setFilesByLanguageSorting(updatedConfig);
+    }
+    /**
+     * Update files sorting
+     */
+    async updateFilesSorting(sortBy, direction) {
+        const currentConfig = await this.storage.getFilesByLanguageSorting();
+        const updatedConfig = {
+            ...currentConfig,
+            filesSortBy: sortBy,
+            filesSortDirection: direction
+        };
+        await this.storage.setFilesByLanguageSorting(updatedConfig);
+    }
+}
+exports.FilesByLanguageSortingSetting = FilesByLanguageSortingSetting;
 
 
 /***/ }),
@@ -21613,7 +20777,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DebugThemeProblem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const analysisConfigurationStorage_1 = __webpack_require__(106);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 class DebugThemeProblem {
@@ -21794,16 +20958,15 @@ var ModularTreeDataProvider_1 = __webpack_require__(133);
 Object.defineProperty(exports, "ModularTreeDataProvider", ({ enumerable: true, get: function () { return ModularTreeDataProvider_1.ModularTreeDataProvider; } }));
 // Common interfaces and utilities
 __exportStar(__webpack_require__(134), exports);
-__exportStar(__webpack_require__(192), exports);
+__exportStar(__webpack_require__(178), exports);
 // Section providers
 __exportStar(__webpack_require__(135), exports);
 __exportStar(__webpack_require__(139), exports);
 __exportStar(__webpack_require__(143), exports);
 __exportStar(__webpack_require__(148), exports);
-__exportStar(__webpack_require__(154), exports);
-__exportStar(__webpack_require__(188), exports);
+__exportStar(__webpack_require__(174), exports);
 // New code analysis views (experimental)
-__exportStar(__webpack_require__(193), exports);
+__exportStar(__webpack_require__(179), exports);
 
 
 /***/ }),
@@ -21852,9 +21015,8 @@ const servers_1 = __webpack_require__(135);
 const active_servers_1 = __webpack_require__(139);
 const babia_examples_1 = __webpack_require__(143);
 const visualize_data_1 = __webpack_require__(148);
-const code_analysis_1 = __webpack_require__(154);
-const NewCodeAnalysisSectionProvider_1 = __webpack_require__(170);
-const visualization_settings_1 = __webpack_require__(188);
+const NewCodeAnalysisSectionProvider_1 = __webpack_require__(154);
+const visualization_settings_1 = __webpack_require__(174);
 /**
  * Main modular tree data provider that orchestrates all section providers
  */
@@ -21880,7 +21042,6 @@ class ModularTreeDataProvider {
             new active_servers_1.ActiveServersSectionProvider(this.context),
             new babia_examples_1.BabiaExamplesSectionProvider(this.context),
             new visualize_data_1.VisualizeDataSectionProvider(this.context),
-            new code_analysis_1.CodeAnalysisSectionProvider(this.context),
             new NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider(this.context),
             new visualization_settings_1.VisualizationSettingsSectionProvider(this.context)
         ];
@@ -22028,19 +21189,14 @@ class ModularTreeDataProvider {
                 const { VisualizeDataModularTreeItem } = __webpack_require__(150);
                 const visualizeItem = new VisualizeDataModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizeDataItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.visualizeDataItem);
                 return visualizeItem;
-            case 'codeAnalysis':
-                // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = __webpack_require__(156);
-                const codeAnalysisItem = new CodeAnalysisModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.codeAnalysisItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalCodeAnalysisItem);
-                return codeAnalysisItem;
             case 'newCodeAnalysis':
                 // Import and create NewCodeAnalysisTreeItem
-                const { NewCodeAnalysisTreeItem } = __webpack_require__(121);
+                const { NewCodeAnalysisTreeItem } = __webpack_require__(119);
                 const newCodeAnalysisItem = new NewCodeAnalysisTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.type || 'item', element.command, element.iconPath, element.tooltip, element.description, element.contextValue);
                 return newCodeAnalysisItem;
             case 'visualizationSettings':
                 // Import and create VisualizationSettingsModularTreeItem
-                const { VisualizationSettingsModularTreeItem } = __webpack_require__(190);
+                const { VisualizationSettingsModularTreeItem } = __webpack_require__(176);
                 const settingsItem = new VisualizationSettingsModularTreeItem(typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown', element.collapsibleState || vscode.TreeItemCollapsibleState.None, element.visualizationSettingsItemType || 'error', element.command, element.iconPath, element.tooltip, element.description, element.contextValue, element.originalSettingsItem);
                 return settingsItem;
             default:
@@ -22094,6 +21250,20 @@ class ModularTreeDataProvider {
         else {
             console.log(`MODULAR_TREE: No context menu handler for section: ${sectionName}`);
         }
+    }
+    /**
+     * Dispose of resources
+     */
+    dispose() {
+        console.log('MODULAR_TREE: Disposing modular tree data provider');
+        // Dispose of all section providers
+        for (const [sectionName, provider] of this.sectionProviders) {
+            if (provider.dispose) {
+                console.log(`MODULAR_TREE: Disposing section provider: ${sectionName}`);
+                provider.dispose();
+            }
+        }
+        this.sectionProviders.clear();
     }
 }
 exports.ModularTreeDataProvider = ModularTreeDataProvider;
@@ -24577,3877 +23747,6 @@ exports.VisualizeDataClickHandler = VisualizeDataClickHandler;
 
 /***/ }),
 /* 154 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Code Analysis View Module
- * Exports for the modular Code Analysis section
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisClickHandler = exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = exports.CodeAnalysisSectionProvider = void 0;
-// Section Provider
-var CodeAnalysisSectionProvider_1 = __webpack_require__(155);
-Object.defineProperty(exports, "CodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return CodeAnalysisSectionProvider_1.CodeAnalysisSectionProvider; } }));
-// Items
-var codeAnalysisItems_1 = __webpack_require__(156);
-Object.defineProperty(exports, "CodeAnalysisModularTreeItem", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularTreeItem; } }));
-Object.defineProperty(exports, "CodeAnalysisModularItemFactory", ({ enumerable: true, get: function () { return codeAnalysisItems_1.CodeAnalysisModularItemFactory; } }));
-// Interactions
-var handleCodeAnalysisClicks_1 = __webpack_require__(159);
-Object.defineProperty(exports, "CodeAnalysisClickHandler", ({ enumerable: true, get: function () { return handleCodeAnalysisClicks_1.CodeAnalysisClickHandler; } }));
-
-
-/***/ }),
-/* 155 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisSectionProvider = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const codeAnalysisItems_1 = __webpack_require__(156);
-const handleCodeAnalysisClicks_1 = __webpack_require__(159);
-const codeAnalysisTreeView_1 = __webpack_require__(160);
-const projectStructureAdapter_1 = __webpack_require__(167);
-/**
- * Code Analysis section provider - manages code analysis and file organization
- */
-class CodeAnalysisSectionProvider {
-    context;
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    clickHandler;
-    codeAnalysisProvider;
-    projectStructureAdapter;
-    constructor(context) {
-        this.context = context;
-        console.log('CODE_ANALYSIS_MODULAR: Initializing Code Analysis section provider');
-        this.clickHandler = new handleCodeAnalysisClicks_1.CodeAnalysisClickHandler(context);
-        this.codeAnalysisProvider = new codeAnalysisTreeView_1.CodeAnalysisTreeDataProvider(context);
-        this.projectStructureAdapter = new projectStructureAdapter_1.ProjectStructureModularAdapter(context);
-        // Listen to changes from the original code analysis provider
-        this.codeAnalysisProvider.onDidChangeTreeData(() => {
-            console.log('CODE_ANALYSIS_MODULAR: Code analysis data changed, refreshing section');
-            this.refresh();
-        });
-    }
-    /**
-     * Get the section name for identification
-     */
-    getSectionName() {
-        return 'codeAnalysis';
-    }
-    /**
-     * Get the section header item
-     */
-    getSectionItem() {
-        return new codeAnalysisItems_1.CodeAnalysisModularTreeItem('CODE ANALYSIS', vscode.TreeItemCollapsibleState.Expanded, // Expanded by default
-        'section', undefined, new vscode.ThemeIcon('search-details'), 'Code analysis tools and metrics', undefined, 'codeAnalysisSection');
-    }
-    /**
-     * Get children items for the Code Analysis section
-     */
-    async getChildren(element) {
-        if (!element) {
-            // Root level - return main code analysis sections
-            console.log('CODE_ANALYSIS_MODULAR: Loading code analysis section children');
-            try {
-                // Get current state from the original provider
-                const filesByLanguage = this.codeAnalysisProvider.filesByLanguage;
-                const isScanning = this.codeAnalysisProvider.isScanning || false;
-                return codeAnalysisItems_1.CodeAnalysisModularItemFactory.createCodeAnalysisSections(filesByLanguage, isScanning, this.context);
-            }
-            catch (error) {
-                console.error('CODE_ANALYSIS_MODULAR: Error loading code analysis sections:', error);
-                return [codeAnalysisItems_1.CodeAnalysisModularItemFactory.createErrorItem()];
-            }
-        }
-        // Handle sub-items for collapsible sections
-        if (element.originalCodeAnalysisItem) {
-            console.log(`CODE_ANALYSIS_MODULAR: Loading sub-items for: ${element.label}`);
-            // Special handling for project structure
-            if (element.originalCodeAnalysisItem.type === 'project-structure') {
-                console.log('CODE_ANALYSIS_MODULAR: Loading project structure children');
-                const projectStructureChildren = await this.projectStructureAdapter.getProjectStructureChildren();
-                // Convert to modular items
-                return projectStructureChildren.map(child => {
-                    const iconPath = typeof child.iconPath === 'string'
-                        ? new vscode.ThemeIcon(child.iconPath)
-                        : child.iconPath;
-                    const tooltip = typeof child.tooltip === 'string'
-                        ? child.tooltip
-                        : child.tooltip?.value || undefined;
-                    const description = typeof child.description === 'string'
-                        ? child.description
-                        : undefined;
-                    return new codeAnalysisItems_1.CodeAnalysisModularTreeItem(typeof child.label === 'string' ? child.label : child.label?.label || 'Unknown', child.collapsibleState || vscode.TreeItemCollapsibleState.None, 'file-item', child.command, iconPath, tooltip, description, child.contextValue, child);
-                });
-            }
-            // Check if this is a project structure item that needs expansion
-            if (this.projectStructureAdapter.isProjectStructureItem(element.originalCodeAnalysisItem)) {
-                const projectStructureItem = this.projectStructureAdapter.getProjectStructureItem(element.originalCodeAnalysisItem);
-                if (projectStructureItem) {
-                    console.log(`CODE_ANALYSIS_MODULAR: Loading project structure item children for: ${projectStructureItem.name}`);
-                    const projectStructureChildren = await this.projectStructureAdapter.getProjectStructureItemChildren(projectStructureItem);
-                    // Convert to modular items
-                    return projectStructureChildren.map(child => {
-                        const iconPath = typeof child.iconPath === 'string'
-                            ? new vscode.ThemeIcon(child.iconPath)
-                            : child.iconPath;
-                        const tooltip = typeof child.tooltip === 'string'
-                            ? child.tooltip
-                            : child.tooltip?.value || undefined;
-                        const description = typeof child.description === 'string'
-                            ? child.description
-                            : undefined;
-                        return new codeAnalysisItems_1.CodeAnalysisModularTreeItem(typeof child.label === 'string' ? child.label : child.label?.label || 'Unknown', child.collapsibleState || vscode.TreeItemCollapsibleState.None, 'file-item', child.command, iconPath, tooltip, description, child.contextValue, child);
-                    });
-                }
-            }
-            return codeAnalysisItems_1.CodeAnalysisModularItemFactory.createCodeAnalysisSubItems(element.originalCodeAnalysisItem, this.codeAnalysisProvider);
-        }
-        // No sub-items for this element
-        return [];
-    }
-    /**
-     * Refresh the section
-     */
-    refresh() {
-        console.log('CODE_ANALYSIS_MODULAR: Refreshing Code Analysis section');
-        this._onDidChangeTreeData.fire();
-    }
-    /**
-     * Handle item clicks (additional method for interaction)
-     */
-    async handleClick(item) {
-        await this.clickHandler.handleCodeAnalysisClick(item);
-    }
-    /**
-     * Handle context menu actions (additional method for interaction)
-     */
-    async handleContextMenu(action, item) {
-        await this.clickHandler.handleContextMenuAction(action, item);
-    }
-    /**
-     * Get the underlying code analysis provider (for backward compatibility)
-     */
-    getCodeAnalysisProvider() {
-        return this.codeAnalysisProvider;
-    }
-    /**
-     * Force refresh the file scanning
-     */
-    async refreshFileScanning() {
-        console.log('CODE_ANALYSIS_MODULAR: Force refreshing file scanning');
-        // Delegate to the original provider
-        if (typeof this.codeAnalysisProvider.forceRefresh === 'function') {
-            await this.codeAnalysisProvider.forceRefresh();
-        }
-        else {
-            // Fallback to regular refresh
-            this.codeAnalysisProvider.refresh();
-        }
-    }
-}
-exports.CodeAnalysisSectionProvider = CodeAnalysisSectionProvider;
-
-
-/***/ }),
-/* 156 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisModularItemFactory = exports.CodeAnalysisModularTreeItem = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(157);
-/**
- * Code Analysis tree items for the Code Analysis section
- */
-class CodeAnalysisModularTreeItem extends vscode.TreeItem {
-    codeAnalysisItemType;
-    originalCodeAnalysisItem;
-    constructor(label, collapsibleState, codeAnalysisItemType, command, iconPath, tooltip, description, contextValue, originalCodeAnalysisItem) {
-        super(label, collapsibleState);
-        this.codeAnalysisItemType = codeAnalysisItemType;
-        this.originalCodeAnalysisItem = originalCodeAnalysisItem;
-        this.command = command;
-        this.iconPath = iconPath;
-        this.tooltip = tooltip || label;
-        this.description = description;
-        this.contextValue = contextValue;
-    }
-}
-exports.CodeAnalysisModularTreeItem = CodeAnalysisModularTreeItem;
-/**
- * Factory for creating Code Analysis-related tree items
- */
-class CodeAnalysisModularItemFactory {
-    /**
-     * Create "Error loading code analysis" message item
-     */
-    static createErrorItem() {
-        console.log('CODE_ANALYSIS_MODULAR: Creating error loading code analysis item');
-        return new CodeAnalysisModularTreeItem('Error loading code analysis', vscode.TreeItemCollapsibleState.None, 'error', undefined, new vscode.ThemeIcon('error'), 'Failed to load code analysis items');
-    }
-    /**
-     * Create "Scanning files..." message item
-     */
-    static createScanningItem() {
-        console.log('CODE_ANALYSIS_MODULAR: Creating scanning files item');
-        return new CodeAnalysisModularTreeItem('Scanning files...', vscode.TreeItemCollapsibleState.None, 'scanning', undefined, new vscode.ThemeIcon('loading~spin'), 'Scanning workspace files for analysis');
-    }
-    /**
-     * Create main code analysis section items
-     */
-    static createCodeAnalysisSections(filesByLanguage, isScanning, context) {
-        console.log('CODE_ANALYSIS_MODULAR: Creating code analysis section items');
-        if (isScanning) {
-            return [CodeAnalysisModularItemFactory.createScanningItem()];
-        }
-        try {
-            // Use the existing factory to get the sections with counts
-            const analysisItems = analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(filesByLanguage || undefined, isScanning);
-            const children = analysisItems.map((item) => {
-                // Handle iconPath type conversion
-                const iconPath = typeof item.iconPath === 'string'
-                    ? new vscode.ThemeIcon(item.iconPath)
-                    : item.iconPath;
-                // Handle tooltip type conversion
-                const tooltip = typeof item.tooltip === 'string'
-                    ? item.tooltip
-                    : item.tooltip?.value || undefined;
-                // Handle description type conversion
-                const description = typeof item.description === 'string'
-                    ? item.description
-                    : undefined;
-                // Determine collapsible state and item type
-                let itemType = 'subsection';
-                if (item.type === 'language-group') {
-                    itemType = 'language-group';
-                }
-                else if (item.type === 'file-item') {
-                    itemType = 'file-item';
-                }
-                return new CodeAnalysisModularTreeItem(typeof item.label === 'string' ? item.label : item.label?.label || 'Unknown', item.collapsibleState || vscode.TreeItemCollapsibleState.None, itemType, item.command, iconPath, tooltip, description, item.contextValue, item);
-            });
-            console.log(`CODE_ANALYSIS_MODULAR: Created ${children.length} code analysis section items`);
-            return children;
-        }
-        catch (error) {
-            console.error('CODE_ANALYSIS_MODULAR: Error creating code analysis sections:', error);
-            return [CodeAnalysisModularItemFactory.createErrorItem()];
-        }
-    }
-    /**
-     * Create sub-items for a code analysis item (delegate to original provider)
-     */
-    static async createCodeAnalysisSubItems(item, codeAnalysisProvider) {
-        console.log(`CODE_ANALYSIS_MODULAR: Creating sub-items for: ${item.label}`);
-        try {
-            // Delegate to the original code analysis provider
-            const subItems = await codeAnalysisProvider.getChildren(item);
-            const children = subItems.map((subItem) => {
-                // Handle iconPath type conversion
-                const iconPath = typeof subItem.iconPath === 'string'
-                    ? new vscode.ThemeIcon(subItem.iconPath)
-                    : subItem.iconPath;
-                // Handle tooltip type conversion
-                const tooltip = typeof subItem.tooltip === 'string'
-                    ? subItem.tooltip
-                    : subItem.tooltip?.value || undefined;
-                // Handle description type conversion
-                const description = typeof subItem.description === 'string'
-                    ? subItem.description
-                    : undefined;
-                // Determine item type
-                let itemType = 'subsection';
-                if (subItem.type === 'language-group') {
-                    itemType = 'language-group';
-                }
-                else if (subItem.type === 'file-item') {
-                    itemType = 'file-item';
-                }
-                return new CodeAnalysisModularTreeItem(typeof subItem.label === 'string' ? subItem.label : subItem.label?.label || 'Unknown', subItem.collapsibleState || vscode.TreeItemCollapsibleState.None, itemType, subItem.command, iconPath, tooltip, description, subItem.contextValue, subItem);
-            });
-            console.log(`CODE_ANALYSIS_MODULAR: Created ${children.length} sub-items`);
-            return children;
-        }
-        catch (error) {
-            console.error('CODE_ANALYSIS_MODULAR: Error creating sub-items:', error);
-            return [new CodeAnalysisModularTreeItem('Error loading sub-items', vscode.TreeItemCollapsibleState.None, 'error', undefined, new vscode.ThemeIcon('error'), 'Failed to load code analysis sub-items')];
-        }
-    }
-}
-exports.CodeAnalysisModularItemFactory = CodeAnalysisModularItemFactory;
-
-
-/***/ }),
-/* 157 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisItemFactory = exports.CodeAnalysisTreeItem = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const fileDisplayUtils_1 = __webpack_require__(158);
-const analysisSettingsStorage_1 = __webpack_require__(63);
-const chartRegistry_1 = __webpack_require__(41);
-/**
- * Get user-friendly display name for data field
- */
-function getFieldDisplayName(fieldName) {
-    const fieldNames = {
-        'parameters': 'Parameters',
-        'lines_count': 'Lines Count',
-        'ccn': 'CCN (Complexity)',
-        'function_name': 'Function Name',
-        'ccn_density': 'CCN Density'
-    };
-    return fieldNames[fieldName] || fieldName;
-}
-/**
- * Code Analysis tree item that represents different analysis sections and items
- */
-class CodeAnalysisTreeItem extends vscode.TreeItem {
-    // Declare properties explicitly (iconPath is inherited from TreeItem)
-    type;
-    fileInfo;
-    languageName;
-    constructor(labelOrUri, collapsibleState, type, command, iconPath, tooltip, description, contextValue, fileInfo, languageName) {
-        // Call super() FIRST with the appropriate arguments
-        if (labelOrUri instanceof vscode.Uri) {
-            super(labelOrUri, collapsibleState);
-            // After super(), we can set the label
-            this.label = path.basename(labelOrUri.fsPath);
-        }
-        else {
-            super(labelOrUri, collapsibleState);
-        }
-        // NOW assign all properties after super() has been called
-        this.type = type;
-        // Only assign iconPath if it's defined
-        if (iconPath !== undefined) {
-            this.iconPath = iconPath;
-        }
-        // Assign other properties
-        if (command !== undefined) {
-            this.command = command;
-        }
-        if (tooltip !== undefined) {
-            this.tooltip = tooltip;
-        }
-        if (description !== undefined) {
-            this.description = description;
-        }
-        if (contextValue !== undefined) {
-            this.contextValue = contextValue;
-        }
-        this.fileInfo = fileInfo;
-        this.languageName = languageName;
-    }
-}
-exports.CodeAnalysisTreeItem = CodeAnalysisTreeItem;
-/**
- * Factory for creating Code Analysis tree items
- */
-class CodeAnalysisItemFactory {
-    /**
-     * Create the main code analysis sections
-     */
-    static createCodeAnalysisSections() {
-        console.log('[CODE_ANALYSIS] Creating main analysis sections');
-        return [
-            new CodeAnalysisTreeItem('Active Analyses', vscode.TreeItemCollapsibleState.Collapsed, 'active-analyses', {
-                command: 'codeXR.codeAnalysis.showActiveAnalyses',
-                title: 'Show Active Analyses'
-            }, new vscode.ThemeIcon('pulse'), 'View currently running analyses', '', 'active-analyses'),
-            new CodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-settings', {
-                command: 'codeXR.codeAnalysis.showAnalysisSettings',
-                title: 'Show Analysis Settings'
-            }, new vscode.ThemeIcon('gear'), 'Configure analysis parameters', '', 'analysis-settings'),
-            new CodeAnalysisTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'project-structure', {
-                command: 'codexr.codeanalysis.refreshProjectStructure',
-                title: 'Refresh Project Structure'
-            }, new vscode.ThemeIcon('folder-library'), 'Browse complete project directory structure', '', 'project-structure'),
-            new CodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'files-by-language', undefined, // No command - let tree expansion handle the scanning
-            new vscode.ThemeIcon('files'), 'Browse project files grouped by language', '', 'files-by-language')
-        ];
-    }
-    /**
-     * Create the main code analysis sections with file counts
-     */
-    static createCodeAnalysisSectionsWithCounts(filesByLanguage, isScanning = false, activeAnalysesSummary) {
-        console.log('[CODE_ANALYSIS] Creating main analysis sections with file counts');
-        // Calculate file summary if data is available, excluding "Unknown Files"
-        let filesByLanguageDescription = '';
-        if (isScanning) {
-            filesByLanguageDescription = 'Scanning project files...';
-            console.log('[CODE_ANALYSIS] Scanning in progress, showing scanning message');
-        }
-        else if (filesByLanguage && Object.keys(filesByLanguage).length > 0) {
-            // Filter out "Unknown Files" from the count
-            const analyzableLanguages = Object.entries(filesByLanguage)
-                .filter(([languageName]) => languageName !== 'Unknown Files');
-            const languageCount = analyzableLanguages.length;
-            const totalAnalyzableFiles = analyzableLanguages.reduce((total, [, files]) => total + files.length, 0);
-            if (languageCount > 0 && totalAnalyzableFiles > 0) {
-                // Create descriptive text
-                const languageText = languageCount === 1 ? 'language' : 'languages';
-                const fileText = totalAnalyzableFiles === 1 ? 'file' : 'files';
-                filesByLanguageDescription = `${languageCount} ${languageText}, ${totalAnalyzableFiles} ${fileText} (analyzable)`;
-                console.log(`[CODE_ANALYSIS] Updated description: ${filesByLanguageDescription}`);
-            }
-            else {
-                filesByLanguageDescription = 'No analyzable files found';
-                console.log('[CODE_ANALYSIS] No analyzable files found in project');
-            }
-        }
-        else {
-            filesByLanguageDescription = 'Ready to analyze';
-            console.log('[CODE_ANALYSIS] No file data available, showing ready message');
-        }
-        // Use the provided active analyses summary or default
-        const activeAnalysesLabel = activeAnalysesSummary || 'Active Analyses';
-        return [
-            new CodeAnalysisTreeItem(activeAnalysesLabel, vscode.TreeItemCollapsibleState.Collapsed, 'active-analyses', {
-                command: 'codeXR.codeAnalysis.showActiveAnalyses',
-                title: 'Show Active Analyses'
-            }, new vscode.ThemeIcon('pulse'), 'View currently running analyses', '', 'active-analyses'),
-            new CodeAnalysisTreeItem('Analysis Settings', vscode.TreeItemCollapsibleState.Collapsed, 'analysis-settings', {
-                command: 'codeXR.codeAnalysis.showAnalysisSettings',
-                title: 'Show Analysis Settings'
-            }, new vscode.ThemeIcon('gear'), 'Configure analysis parameters', '', 'analysis-settings'),
-            new CodeAnalysisTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'project-structure', {
-                command: 'codexr.codeanalysis.refreshProjectStructure',
-                title: 'Refresh Project Structure'
-            }, new vscode.ThemeIcon('folder-library'), 'Browse complete project directory structure', 'Hierarchical file explorer', 'project-structure'),
-            new CodeAnalysisTreeItem('Files by Language', vscode.TreeItemCollapsibleState.Collapsed, 'files-by-language', undefined, // No command - let tree expansion handle the scanning
-            new vscode.ThemeIcon('files'), 'Browse project files grouped by language', filesByLanguageDescription, 'files-by-language')
-        ];
-    }
-    /**
-     * Create placeholder items for when sections are expanded
-     */
-    static async createPlaceholderItems(sectionKey, context) {
-        const placeholders = [];
-        switch (sectionKey) {
-            case 'analysis-settings':
-                // Get current analysis mode from storage
-                const currentMode = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
-                    'Static';
-                const modeItem = new CodeAnalysisTreeItem(`Analysis Mode: ${currentMode}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
-                    command: 'codexr.analysis.toggleMode',
-                    title: 'Toggle Analysis Mode',
-                    arguments: []
-                });
-                // Set icon based on current mode - use the returned ThemeIcon directly
-                const modeIcon = analysisSettingsStorage_1.AnalysisSettingsStorage.getAnalysisModeIcon(currentMode);
-                modeItem.iconPath = modeIcon;
-                modeItem.tooltip = `Current analysis mode: ${currentMode}. Click to toggle between XR and Static modes.`;
-                modeItem.description = `${currentMode === 'XR' ? 'VR/AR visualization' : 'Standard visualization'}`;
-                placeholders.push(modeItem);
-                // Get current theme from storage
-                const currentTheme = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentTheme(context) :
-                    'light';
-                const themeItem = new CodeAnalysisTreeItem(`Viewer Theme: ${currentTheme}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
-                    command: 'codexr.analysis.toggleTheme',
-                    title: 'Toggle Viewer Theme',
-                    arguments: []
-                });
-                // Set icon based on current theme
-                themeItem.iconPath = currentTheme === 'light' ?
-                    new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('foreground')) :
-                    new vscode.ThemeIcon('color-mode', new vscode.ThemeColor('charts.orange'));
-                themeItem.tooltip = `Current viewer theme: ${currentTheme}. Click to toggle between light and dark themes.`;
-                themeItem.description = `${currentTheme === 'light' ? 'Light appearance' : 'Dark appearance'}`;
-                placeholders.push(themeItem);
-                // Get current auto-analysis delay from storage
-                const currentDelay = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelay(context) :
-                    0;
-                const delayItem = new CodeAnalysisTreeItem(`Auto-Analysis Delay: ${analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayLabel(currentDelay)}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', {
-                    command: 'codexr.analysis.setAutoAnalysisDelay',
-                    title: 'Set Auto-Analysis Delay',
-                    arguments: []
-                });
-                // Set icon for delay setting
-                delayItem.iconPath = new vscode.ThemeIcon('clock', new vscode.ThemeColor('charts.blue'));
-                delayItem.tooltip = `Current auto-analysis delay: ${analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelayLabel(currentDelay)}. Click to change the delay before re-analyzing changed files.`;
-                delayItem.description = `${currentDelay === 0 ? 'Immediate analysis' : 'Delayed analysis'}`;
-                placeholders.push(delayItem);
-                // Get current chart type for file analysis
-                const currentChartType = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context) :
-                    'donut';
-                const chartTypeItem = new CodeAnalysisTreeItem(`Chart Type (File): ${currentChartType}`, vscode.TreeItemCollapsibleState.None, 'chart-type-file', {
-                    command: 'codexr.analysis.selectChartTypeFile',
-                    title: 'Select Chart Type for File Analysis',
-                    arguments: []
-                });
-                // Set icon for chart type setting - match analysis mode color
-                const chartCurrentMode = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
-                    'XR';
-                const chartModeColor = chartCurrentMode === 'XR' ? 'charts.purple' : 'charts.green';
-                chartTypeItem.iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(chartModeColor));
-                chartTypeItem.tooltip = `Current chart type for file analysis: ${currentChartType}. Click to select a different chart type.`;
-                chartTypeItem.description = `${currentChartType} chart visualization`;
-                placeholders.push(chartTypeItem);
-                // Add reset to defaults option
-                const resetItem = new CodeAnalysisTreeItem('Reset to default values', vscode.TreeItemCollapsibleState.None, 'reset-settings', {
-                    command: 'codexr.analysis.resetSettings',
-                    title: 'Reset Analysis Settings to Default Values',
-                    arguments: []
-                });
-                resetItem.iconPath = new vscode.ThemeIcon('refresh', new vscode.ThemeColor('charts.red'));
-                resetItem.tooltip = 'Reset all analysis settings to their default values (chart type: boats, default dimension mappings, etc.)';
-                resetItem.description = 'Restore defaults';
-                placeholders.push(resetItem);
-                // Get current dimension mappings for file analysis
-                const currentDimensionMappings = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context) :
-                    [];
-                const mappedCount = currentDimensionMappings.length;
-                const dimensionMappingItem = new CodeAnalysisTreeItem(`Dimension Mapping (File)`, vscode.TreeItemCollapsibleState.Collapsed, 'dimension-mapping-file', undefined, // No command - expandable section
-                undefined, // Will be set below based on mapping status
-                `Configure dimension mapping for file analysis visualization`, `${mappedCount} mapped`);
-                // Set icon based on mapping status - match analysis mode color
-                const dimCurrentMode = context ?
-                    await analysisSettingsStorage_1.AnalysisSettingsStorage.getCurrentAnalysisMode(context) :
-                    'XR';
-                const dimModeColor = dimCurrentMode === 'XR' ? 'charts.purple' : 'charts.green';
-                dimensionMappingItem.iconPath = mappedCount > 0 ?
-                    new vscode.ThemeIcon('settings-gear', new vscode.ThemeColor(dimModeColor)) :
-                    new vscode.ThemeIcon('settings-gear', new vscode.ThemeColor('charts.orange'));
-                placeholders.push(dimensionMappingItem);
-                break;
-            case 'dimension-mapping-file':
-                // Create dimension items based on the current chart type
-                if (context) {
-                    const chartType = await analysisSettingsStorage_1.AnalysisSettingsStorage.getChartTypeFile(context);
-                    const dimensionMappings = await analysisSettingsStorage_1.AnalysisSettingsStorage.getDimensionMappingFile(context);
-                    // Get chart metadata from the registry
-                    const chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
-                    const chartMetadata = chartRegistry.getChart(chartType);
-                    if (chartMetadata) {
-                        // Create dimension items for the current chart
-                        for (const dimension of chartMetadata.dimensions) {
-                            const currentMapping = dimensionMappings.find(m => m.dimension === dimension.name);
-                            let description = 'Not mapped';
-                            let tooltip = `${dimension.label} - ${dimension.description}`;
-                            let iconPath;
-                            // Add data type information to tooltip
-                            if (dimension.dataType === 'numeric') {
-                                tooltip += '\n(numeric values only)';
-                            }
-                            else {
-                                tooltip += '\n(any value type)';
-                            }
-                            if (currentMapping) {
-                                // Get user-friendly field name
-                                const fieldDisplayName = getFieldDisplayName(currentMapping.dataField);
-                                description = `→ ${fieldDisplayName}`;
-                                tooltip += `\nMapped to: ${fieldDisplayName}`;
-                                iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
-                            }
-                            else {
-                                tooltip += '\nNot mapped - Click to select field';
-                                iconPath = dimension.required
-                                    ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.orange'))
-                                    : new vscode.ThemeIcon('circle-outline');
-                            }
-                            const dimensionItem = new CodeAnalysisTreeItem(dimension.label || dimension.name, vscode.TreeItemCollapsibleState.None, 'dimension-item-file', {
-                                command: 'codexr.analysis.mapDimensionFile',
-                                title: 'Map Dimension for File Analysis',
-                                arguments: [dimension.name, dimension.dataType, dimension.required]
-                            }, iconPath, tooltip, description);
-                            placeholders.push(dimensionItem);
-                        }
-                    }
-                    else {
-                        // Chart type not found - show placeholder
-                        placeholders.push(new CodeAnalysisTreeItem(`Unknown chart type: ${chartType}`, vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), 'Chart type not found in registry'));
-                    }
-                }
-                else {
-                    // No context - show placeholder
-                    placeholders.push(new CodeAnalysisTreeItem('Placeholder dimensions (TODO1, TODO2, TODO3)', vscode.TreeItemCollapsibleState.None, 'dimension-item-file', undefined, new vscode.ThemeIcon('circle-outline'), 'Placeholder dimension mapping'));
-                }
-                break;
-            default:
-                // Generic placeholder for other sections
-                placeholders.push(new CodeAnalysisTreeItem("Configuration options", vscode.TreeItemCollapsibleState.None, 'analysis-item'));
-                break;
-        }
-        return placeholders;
-    } /**
-     * Create language group items from scanned files
-     */
-    static createLanguageGroupItems(filesByLanguage, context) {
-        console.log('[CODE_ANALYSIS] Creating language group items from scanned files');
-        const languageItems = [];
-        // Sort languages by file count (descending), but keep "Unknown Files" at the end
-        const sortedLanguages = Object.entries(filesByLanguage)
-            .sort(([nameA, filesA], [nameB, filesB]) => {
-            // Always put "Unknown Files" at the end
-            if (nameA === 'Unknown Files') {
-                return 1;
-            }
-            if (nameB === 'Unknown Files') {
-                return -1;
-            }
-            // Sort others by file count (descending)
-            return filesB.length - filesA.length;
-        });
-        sortedLanguages.forEach(([languageName, files]) => {
-            const fileCount = files.length;
-            const languageInfo = files.length > 0 ? files[0].language : null;
-            // Use shared utility for consistent icon display
-            let iconPath;
-            if (languageName === 'Unknown Files') {
-                iconPath = new vscode.ThemeIcon('question');
-            }
-            else {
-                iconPath = fileDisplayUtils_1.FileDisplayUtils.getFileIcon(languageInfo, context);
-            }
-            const languageItem = new CodeAnalysisTreeItem(languageName, vscode.TreeItemCollapsibleState.Collapsed, 'language-group', undefined, // No command for language groups
-            iconPath, `${languageName} - ${fileCount} files found`, `${fileCount} files`, 'language-group', undefined, languageName);
-            languageItems.push(languageItem);
-        });
-        console.log(`[CODE_ANALYSIS] Created ${languageItems.length} language group items`);
-        return languageItems;
-    }
-    /**
-     * Create file items for a specific language using shared utility for consistent display
-     */
-    static createFileItems(languageName, filesByLanguage, context) {
-        console.log(`[ANALYSIS] Creating file items for language: ${languageName}`);
-        const files = filesByLanguage[languageName] || [];
-        return files.map(fileInfo => {
-            const fileUri = vscode.Uri.file(fileInfo.fullPath);
-            // Use shared utility for consistent file display
-            const fileProperties = fileDisplayUtils_1.FileDisplayUtils.createFileTreeItemProperties(fileInfo.fileName, fileInfo.fullPath, 'language', // Use 'language' view type for relative path description
-            undefined, // No file size needed for language view
-            context, {
-                command: 'codeXR.codeAnalysis.fileClicked',
-                title: 'Open File',
-                arguments: [fileUri]
-            });
-            console.log(`[ANALYSIS] File icon setup - Path: ${fileUri.fsPath}, Language: ${fileInfo.language?.name || 'unknown'}`);
-            // Create tree item with unified display properties
-            const treeItem = new CodeAnalysisTreeItem(path.basename(fileInfo.fileName), vscode.TreeItemCollapsibleState.None, 'file-item', fileProperties.command, fileProperties.iconPath, fileProperties.tooltip, fileProperties.description, // Will show relative path
-            'file-item', fileInfo);
-            // Set the resource URI for context menu and other VS Code features
-            treeItem.resourceUri = fileUri;
-            return treeItem;
-        });
-    }
-}
-exports.CodeAnalysisItemFactory = CodeAnalysisItemFactory;
-
-
-/***/ }),
-/* 158 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileDisplayUtils = void 0;
-exports.getFileIcon = getFileIcon;
-exports.getFileDescription = getFileDescription;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(90);
-/**
- * Shared utility for consistent file display across Code Analysis views
- */
-class FileDisplayUtils {
-    /**
-     * Get the appropriate icon for a file based on its language or extension
-     * @param filePathOrLanguage - File path, extension, or language info
-     * @param context - VS Code extension context for accessing resources
-     * @returns vscode.Uri for colored icon or vscode.ThemeIcon for default
-     */
-    static getFileIcon(filePathOrLanguage, context) {
-        if (!context) {
-            console.log('FILE_RENDER: No context available — using default icon');
-            return vscode.ThemeIcon.File;
-        }
-        let languageInfo = null;
-        // Determine language info from input
-        if (typeof filePathOrLanguage === 'string') {
-            // If it's a file path, detect language
-            languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePathOrLanguage);
-        }
-        else if (filePathOrLanguage && typeof filePathOrLanguage === 'object') {
-            // If it's already a LanguageInfo object
-            languageInfo = filePathOrLanguage;
-        }
-        if (!languageInfo) {
-            console.log('FILE_RENDER: No language detected — using default icon');
-            return vscode.ThemeIcon.File;
-        }
-        // Map language names to colored SVG icon filenames
-        const iconMapping = {
-            'C': 'c.svg',
-            'C++': 'cplusplus.svg',
-            'C#': 'csharp.svg',
-            'Erlang': 'erlang.svg',
-            'Fortran': 'fortran.svg',
-            'GDScript': 'godot.svg',
-            'Go': 'go.svg',
-            'HTML': 'html5.svg',
-            'Java': 'java.svg',
-            'JavaScript': 'javascript.svg',
-            'Kotlin': 'kotlin.svg',
-            'Lua': 'lua.svg',
-            'Objective-C': 'objectivec.svg',
-            'Perl': 'perl.svg',
-            'PHP': 'php.svg',
-            'Python': 'python.svg',
-            'Ruby': 'ruby.svg',
-            'Rust': 'rust.svg',
-            'Scala': 'scala.svg',
-            'Solidity': 'solidity.svg',
-            'Swift': 'swift.svg',
-            'TTCN-3': 'ttcn3.svg',
-            'TypeScript': 'typescript.svg',
-            'Vue': 'vuejs.svg',
-            'Zig': 'zig.svg'
-        };
-        const iconFileName = iconMapping[languageInfo.name];
-        if (iconFileName) {
-            const iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'languages_icons', 'color', iconFileName);
-            console.log(`FILE_RENDER: Using colored icon for ${languageInfo.name}: ${iconFileName}`);
-            return iconPath;
-        }
-        console.log(`FILE_RENDER: No colored icon found for ${languageInfo.name} — using default icon`);
-        return vscode.ThemeIcon.File;
-    }
-    /**
-     * Get context-appropriate description for a file
-     * @param filePath - Full file path
-     * @param viewType - Type of view requesting the description
-     * @param fileSize - Optional file size in bytes (for project view)
-     * @returns Formatted description string
-     */
-    static getFileDescription(filePath, viewType, fileSize) {
-        if (viewType === 'project' && fileSize !== undefined) {
-            const formattedSize = this.formatFileSize(fileSize);
-            console.log(`FILE_RENDER: Project view description for ${path.basename(filePath)}: ${formattedSize}`);
-            return formattedSize;
-        }
-        if (viewType === 'language') {
-            // Get relative path from workspace root
-            let relativePath = filePath;
-            if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-                const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                if (filePath.startsWith(workspaceRoot)) {
-                    relativePath = path.relative(workspaceRoot, filePath);
-                }
-            }
-            console.log(`FILE_RENDER: Language view description for ${path.basename(filePath)}: ${relativePath}`);
-            return relativePath;
-        }
-        console.log(`FILE_RENDER: No description for ${path.basename(filePath)} in view type ${viewType}`);
-        return '';
-    }
-    /**
-     * Format file size in human-readable format
-     * @param bytes - File size in bytes
-     * @returns Formatted size string (e.g., "12.4 KB")
-     */
-    static formatFileSize(bytes) {
-        if (bytes === 0) {
-            return '0 B';
-        }
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-    /**
-     * Create a complete file tree item with unified display logic
-     * @param fileName - Name of the file
-     * @param filePath - Full path to the file
-     * @param viewType - Type of view for context-specific description
-     * @param fileSize - Optional file size in bytes
-     * @param context - VS Code extension context
-     * @param command - Optional command to execute on click
-     * @returns Configured vscode.TreeItem properties
-     */
-    static createFileTreeItemProperties(fileName, filePath, viewType, fileSize, context, command) {
-        const iconPath = this.getFileIcon(filePath, context);
-        const description = this.getFileDescription(filePath, viewType, fileSize);
-        // Create detailed tooltip
-        const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
-        const tooltipLines = [];
-        tooltipLines.push(`**${fileName}**`);
-        tooltipLines.push(`Path: ${filePath}`);
-        if (languageInfo) {
-            tooltipLines.push(`Language: ${languageInfo.name}`);
-        }
-        if (fileSize !== undefined) {
-            tooltipLines.push(`Size: ${this.formatFileSize(fileSize)}`);
-        }
-        // Add default file open command if none provided
-        const finalCommand = command || {
-            command: 'vscode.open',
-            title: 'Open File',
-            arguments: [vscode.Uri.file(filePath)]
-        };
-        console.log(`FILE_RENDER: Created tree item properties for ${fileName} in ${viewType} view`);
-        return {
-            iconPath,
-            description,
-            tooltip: tooltipLines.join('\n'),
-            command: finalCommand
-        };
-    }
-    /**
-     * Check if a colored icon exists for a given language
-     * @param languageName - Name of the programming language
-     * @param context - VS Code extension context
-     * @returns true if a colored icon is available
-     */
-    static hasColoredIcon(languageName, context) {
-        if (!context) {
-            return false;
-        }
-        const iconMapping = {
-            'C': 'c.svg',
-            'C++': 'cplusplus.svg',
-            'C#': 'csharp.svg',
-            'Erlang': 'erlang.svg',
-            'Fortran': 'fortran.svg',
-            'GDScript': 'godot.svg',
-            'Go': 'go.svg',
-            'HTML': 'html5.svg',
-            'Java': 'java.svg',
-            'JavaScript': 'javascript.svg',
-            'Kotlin': 'kotlin.svg',
-            'Lua': 'lua.svg',
-            'Objective-C': 'objectivec.svg',
-            'Perl': 'perl.svg',
-            'PHP': 'php.svg',
-            'Python': 'python.svg',
-            'Ruby': 'ruby.svg',
-            'Rust': 'rust.svg',
-            'Scala': 'scala.svg',
-            'Solidity': 'solidity.svg',
-            'Swift': 'swift.svg',
-            'TTCN-3': 'ttcn3.svg',
-            'TypeScript': 'typescript.svg',
-            'Vue': 'vuejs.svg',
-            'Zig': 'zig.svg'
-        };
-        return iconMapping[languageName] !== undefined;
-    }
-    /**
-     * Get all supported languages with colored icons
-     * @returns Array of language names that have colored icons
-     */
-    static getSupportedColoredLanguages() {
-        return [
-            'C', 'C++', 'C#', 'Erlang', 'Fortran', 'GDScript', 'Go', 'HTML',
-            'Java', 'JavaScript', 'Kotlin', 'Lua', 'Objective-C', 'Perl',
-            'PHP', 'Python', 'Ruby', 'Rust', 'Scala', 'Solidity', 'Swift',
-            'TTCN-3', 'TypeScript', 'Vue', 'Zig'
-        ];
-    }
-}
-exports.FileDisplayUtils = FileDisplayUtils;
-/**
- * Legacy compatibility - re-export for backwards compatibility
- * @deprecated Use FileDisplayUtils.getFileIcon instead
- */
-function getFileIcon(filePathOrLanguage, context) {
-    console.log('FILE_RENDER: Using deprecated getFileIcon function, please use FileDisplayUtils.getFileIcon');
-    return FileDisplayUtils.getFileIcon(filePathOrLanguage, context);
-}
-/**
- * Legacy compatibility - re-export for backwards compatibility
- * @deprecated Use FileDisplayUtils.getFileDescription instead
- */
-function getFileDescription(filePath, viewType, fileSize) {
-    console.log('FILE_RENDER: Using deprecated getFileDescription function, please use FileDisplayUtils.getFileDescription');
-    return FileDisplayUtils.getFileDescription(filePath, viewType, fileSize);
-}
-
-
-/***/ }),
-/* 159 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisClickHandler = void 0;
-const vscode = __importStar(__webpack_require__(1));
-/**
- * Handler for Code Analysis section interactions
- */
-class CodeAnalysisClickHandler {
-    context;
-    constructor(context) {
-        this.context = context;
-    }
-    /**
-     * Handle clicks on code analysis items
-     */
-    async handleCodeAnalysisClick(item) {
-        console.log(`CODE_ANALYSIS_MODULAR: Handling click on code analysis item: ${item.label} (type: ${item.codeAnalysisItemType})`);
-        // For most code analysis items, the command is already attached to the tree item
-        // and will be executed automatically by VS Code
-        switch (item.codeAnalysisItemType) {
-            case 'section':
-                console.log('CODE_ANALYSIS_MODULAR: Section item clicked');
-                // Section items are typically collapsible, no direct action needed
-                break;
-            case 'subsection':
-                console.log('CODE_ANALYSIS_MODULAR: Subsection item clicked');
-                // Subsection items may have commands or be collapsible
-                break;
-            case 'language-group':
-                console.log('CODE_ANALYSIS_MODULAR: Language group clicked');
-                // Language groups are typically collapsible to show files
-                break;
-            case 'file-item':
-                console.log('CODE_ANALYSIS_MODULAR: File item clicked');
-                // File items typically open the file for editing
-                await this.handleFileItemClick(item);
-                break;
-            case 'scanning':
-                console.log('CODE_ANALYSIS_MODULAR: Scanning item clicked - no action');
-                break;
-            case 'error':
-                console.log('CODE_ANALYSIS_MODULAR: Error item clicked - no action');
-                break;
-            default:
-                console.warn(`CODE_ANALYSIS_MODULAR: Unknown code analysis item type: ${item.codeAnalysisItemType}`);
-        }
-    }
-    /**
-     * Handle click on file item
-     */
-    async handleFileItemClick(item) {
-        // If the item has a command, let VS Code handle it
-        if (item.command) {
-            console.log(`CODE_ANALYSIS_MODULAR: File item has command: ${item.command.command}`);
-            return; // VS Code will execute the command automatically
-        }
-        // If no command but we have the original item with file info, try to open the file
-        if (item.originalCodeAnalysisItem?.fileInfo) {
-            const fileInfo = item.originalCodeAnalysisItem.fileInfo;
-            console.log(`CODE_ANALYSIS_MODULAR: Opening file: ${fileInfo.relativePath}`);
-            try {
-                const document = await vscode.workspace.openTextDocument(fileInfo.fullPath);
-                await vscode.window.showTextDocument(document);
-            }
-            catch (error) {
-                console.error(`CODE_ANALYSIS_MODULAR: Error opening file ${fileInfo.relativePath}:`, error);
-                vscode.window.showErrorMessage(`Failed to open file: ${fileInfo.relativePath}`);
-            }
-        }
-    }
-    /**
-     * Handle right-click context menu actions
-     */
-    async handleContextMenuAction(action, item) {
-        console.log(`CODE_ANALYSIS_MODULAR: Handling context menu action: ${action} on item: ${item.label}`);
-        switch (action) {
-            case 'refresh':
-                console.log('CODE_ANALYSIS_MODULAR: Refreshing code analysis view');
-                // Refresh will be triggered by the provider
-                break;
-            case 'openFile':
-                if (item.codeAnalysisItemType === 'file-item') {
-                    await this.handleFileItemClick(item);
-                }
-                break;
-            case 'analyzeFile':
-                await this.handleAnalyzeFile(item);
-                break;
-            case 'showInExplorer':
-                await this.handleShowInExplorer(item);
-                break;
-            case 'copyPath':
-                await this.handleCopyPath(item);
-                break;
-            case 'scanFiles':
-                await this.handleScanFiles();
-                break;
-            default:
-                console.warn(`CODE_ANALYSIS_MODULAR: Unknown context menu action: ${action}`);
-        }
-    }
-    /**
-     * Handle analyze file action
-     */
-    async handleAnalyzeFile(item) {
-        console.log(`CODE_ANALYSIS_MODULAR: Analyzing file: ${item.label}`);
-        if (item.originalCodeAnalysisItem?.fileInfo) {
-            const fileInfo = item.originalCodeAnalysisItem.fileInfo;
-            // Execute file analysis command if available
-            try {
-                await vscode.commands.executeCommand('codeXR.codeAnalysis.analyzeFile', fileInfo.fullPath);
-            }
-            catch (error) {
-                console.error(`CODE_ANALYSIS_MODULAR: Error analyzing file:`, error);
-                vscode.window.showErrorMessage(`Failed to analyze file: ${fileInfo.relativePath}`);
-            }
-        }
-        else {
-            vscode.window.showWarningMessage('Cannot analyze: file information not available');
-        }
-    }
-    /**
-     * Handle show in explorer action
-     */
-    async handleShowInExplorer(item) {
-        console.log(`CODE_ANALYSIS_MODULAR: Showing in explorer: ${item.label}`);
-        if (item.originalCodeAnalysisItem?.fileInfo) {
-            const fileInfo = item.originalCodeAnalysisItem.fileInfo;
-            try {
-                await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(fileInfo.fullPath));
-            }
-            catch (error) {
-                console.error(`CODE_ANALYSIS_MODULAR: Error showing in explorer:`, error);
-                vscode.window.showErrorMessage(`Failed to show in explorer: ${fileInfo.relativePath}`);
-            }
-        }
-        else {
-            vscode.window.showWarningMessage('Cannot show in explorer: file information not available');
-        }
-    }
-    /**
-     * Handle copy path action
-     */
-    async handleCopyPath(item) {
-        console.log(`CODE_ANALYSIS_MODULAR: Copying path: ${item.label}`);
-        if (item.originalCodeAnalysisItem?.fileInfo) {
-            const fileInfo = item.originalCodeAnalysisItem.fileInfo;
-            try {
-                await vscode.env.clipboard.writeText(fileInfo.fullPath);
-                vscode.window.showInformationMessage(`Copied path: ${fileInfo.relativePath}`);
-            }
-            catch (error) {
-                console.error(`CODE_ANALYSIS_MODULAR: Error copying path:`, error);
-                vscode.window.showErrorMessage(`Failed to copy path: ${fileInfo.relativePath}`);
-            }
-        }
-        else {
-            vscode.window.showWarningMessage('Cannot copy path: file information not available');
-        }
-    }
-    /**
-     * Handle scan files action
-     */
-    async handleScanFiles() {
-        console.log('CODE_ANALYSIS_MODULAR: Triggering file scan');
-        try {
-            await vscode.commands.executeCommand('codeXR.codeAnalysis.scanFiles');
-            vscode.window.showInformationMessage('File scanning initiated');
-        }
-        catch (error) {
-            console.error('CODE_ANALYSIS_MODULAR: Error triggering file scan:', error);
-            vscode.window.showErrorMessage('Failed to initiate file scanning');
-        }
-    }
-}
-exports.CodeAnalysisClickHandler = CodeAnalysisClickHandler;
-
-
-/***/ }),
-/* 160 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CodeAnalysisTreeDataProvider = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisTreeItems_1 = __webpack_require__(157);
-const fileScanner_1 = __webpack_require__(161);
-const activeAnalysesTreeView_1 = __webpack_require__(162);
-const activeAnalysesCommands_1 = __webpack_require__(164);
-const fileWatcherManager_1 = __webpack_require__(165);
-/**
- * Code Analysis tree data provider that manages the analysis sections
- *
- * Architecture Notes:
- * - This view provides code analysis functionality
- * - Displays active analyses, settings, and file organization
- * - Follows the same patterns as other sections in the unified view
- */
-class CodeAnalysisTreeDataProvider {
-    context;
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    filesByLanguage = null;
-    isScanning = false;
-    activeAnalysesProvider;
-    activeAnalysesCommands;
-    fileWatcherManager;
-    constructor(context) {
-        this.context = context;
-        console.log('[CODE_ANALYSIS] Code analysis tree data provider initialized');
-        // Initialize the active analyses provider and commands
-        this.activeAnalysesProvider = new activeAnalysesTreeView_1.ActiveAnalysesTreeDataProvider(context);
-        this.activeAnalysesCommands = new activeAnalysesCommands_1.ActiveAnalysesCommands(context);
-        this.fileWatcherManager = fileWatcherManager_1.FileWatcherManager.getInstance(context);
-        // Listen to Active Analyses changes to refresh the main tree
-        this.activeAnalysesProvider.onDidChangeTreeData(() => {
-            console.log('[CODE_ANALYSIS] 🔄 Active Analyses changed, refreshing main tree view');
-            this.refresh();
-        });
-        // Start file scanning in the background for better UX
-        this.initializeFileScanning();
-    }
-    /**
-     * Initialize file scanning in background for better user experience
-     */
-    async initializeFileScanning() {
-        try {
-            console.log('[CODE_ANALYSIS] Starting initial background file scanning...');
-            this.isScanning = true;
-            // Scan files in background
-            this.filesByLanguage = await fileScanner_1.FileScanner.scanWorkspaceFiles();
-            this.isScanning = false;
-            const status = this.getScanningStatus();
-            console.log(`[CODE_ANALYSIS] Initial background file scan completed - Found ${status.fileCount} files in ${status.languageCount} languages`);
-            // Refresh the tree to show updated counts
-            this.refresh();
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error during initial background file scanning:', error);
-            this.isScanning = false;
-        }
-    }
-    /**
-     * Force refresh file scan data (clears existing data and rescans)
-     */
-    async forceRefreshFilesScan() {
-        console.log('[CODE_ANALYSIS] Force refreshing files scan');
-        this.filesByLanguage = null;
-        this.isScanning = false;
-        // Trigger a new scan
-        await this.initializeFileScanning();
-    }
-    /**
-     * Get current scanning status
-     */
-    isCurrentlyScanning() {
-        return this.isScanning;
-    }
-    /**
-     * Check if files have been scanned
-     */
-    hasScannedFiles() {
-        return this.filesByLanguage !== null;
-    }
-    /**
-     * Get scanning status for debugging
-     */
-    getScanningStatus() {
-        const fileCount = this.filesByLanguage ?
-            Object.values(this.filesByLanguage).reduce((total, files) => total + files.length, 0) : 0;
-        const languageCount = this.filesByLanguage ? Object.keys(this.filesByLanguage).length : 0;
-        return {
-            isScanning: this.isScanning,
-            hasData: this.filesByLanguage !== null,
-            fileCount,
-            languageCount
-        };
-    }
-    /**
-     * Refresh the tree view
-     */
-    refresh() {
-        console.log('[CODE_ANALYSIS] Refreshing code analysis tree view');
-        this._onDidChangeTreeData.fire();
-    }
-    /**
-     * Get tree item representation
-     */
-    getTreeItem(element) {
-        return element;
-    }
-    /**
-     * Get children for the tree view
-     */
-    getChildren(element) {
-        if (!element) {
-            // Root level - return the main analysis sections with file counts if available
-            console.log('[CODE_ANALYSIS] Loading root analysis sections');
-            return Promise.resolve(analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(this.filesByLanguage || undefined, this.isScanning, this.activeAnalysesProvider.getActiveAnalysesSummary()));
-        }
-        // Handle expanding sections
-        switch (element.type) {
-            case 'active-analyses':
-                console.log('[CODE_ANALYSIS] Loading Active Analyses children');
-                return Promise.resolve(this.activeAnalysesProvider.getActiveAnalysesTreeItems());
-            case 'analysis-settings':
-                console.log('[CODE_ANALYSIS] Loading Analysis Settings children');
-                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('analysis-settings', this.context);
-            case 'project-structure':
-                console.log('[CODE_ANALYSIS] Loading Project Structure children');
-                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('project-structure', this.context);
-            case 'files-by-language':
-                console.log('[CODE_ANALYSIS] Loading Files by Language children');
-                return this.getFilesByLanguageChildren();
-            case 'language-group':
-                console.log(`[CODE_ANALYSIS] Loading files for language: ${element.languageName}`);
-                return this.getLanguageGroupChildren(element.languageName);
-            case 'dimension-mapping-file':
-                console.log('[CODE_ANALYSIS] Loading Dimension Mapping (File) children');
-                return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('dimension-mapping-file', this.context);
-            default:
-                console.log('[CODE_ANALYSIS] No children available for this item type');
-                return Promise.resolve([]);
-        }
-    }
-    /**
-     * Get the main code analysis sections for integration with unified view
-     */
-    getCodeAnalysisSections() {
-        console.log('[CODE_ANALYSIS] Getting code analysis sections for unified view');
-        return analysisTreeItems_1.CodeAnalysisItemFactory.createCodeAnalysisSectionsWithCounts(this.filesByLanguage || undefined, this.isScanning, this.activeAnalysesProvider.getActiveAnalysesSummary());
-    }
-    /**
-     * Get children for a specific section type (used by unified view)
-     */
-    getSectionChildren(sectionType) {
-        console.log(`[CODE_ANALYSIS] Getting children for section: ${sectionType}`);
-        if (sectionType === 'files-by-language') {
-            return this.getFilesByLanguageChildren();
-        }
-        if (sectionType === 'project-structure') {
-            return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('project-structure', this.context);
-        }
-        if (sectionType === 'dimension-mapping-file') {
-            return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems('dimension-mapping-file', this.context);
-        }
-        return analysisTreeItems_1.CodeAnalysisItemFactory.createPlaceholderItems(sectionType, this.context);
-    }
-    /**
-     * Get children for Files by Language section - triggers file scanning
-     */
-    async getFilesByLanguageChildren() {
-        console.log('[CODE_ANALYSIS] Getting Files by Language children');
-        // Prevent multiple concurrent scans
-        if (this.isScanning) {
-            console.log('[CODE_ANALYSIS] Scan already in progress, returning scanning indicator');
-            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Scanning files...', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('loading~spin'), 'File scan in progress', 'Please wait', 'scanning')];
-        }
-        try {
-            // Trigger file scan if not already done
-            if (!this.filesByLanguage) {
-                console.log('ANALYSIS: Scanning files for language analysis...');
-                this.isScanning = true;
-                this.filesByLanguage = await fileScanner_1.FileScanner.scanWorkspaceFiles();
-                this.isScanning = false;
-                console.log('[CODE_ANALYSIS] File scan completed, refreshing tree view');
-                // Refresh the entire tree to update the root label with counts
-                this.refresh();
-            }
-            // Create language group items
-            const languageItems = analysisTreeItems_1.CodeAnalysisItemFactory.createLanguageGroupItems(this.filesByLanguage, this.context);
-            if (languageItems.length === 0) {
-                return [new analysisTreeItems_1.CodeAnalysisTreeItem('No files found', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('info'), 'No files detected in workspace', '', 'no-files')];
-            }
-            console.log(`[CODE_ANALYSIS] Returning ${languageItems.length} language groups`);
-            return languageItems;
-        }
-        catch (error) {
-            console.error('[CODE_ANALYSIS] Error getting Files by Language children:', error);
-            this.isScanning = false;
-            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Error scanning files', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), `Failed to scan workspace files: ${error}`, 'Error', 'scan-error')];
-        }
-    }
-    /**
-     * Get children for a specific language group
-     */
-    getLanguageGroupChildren(languageName) {
-        console.log(`[CODE_ANALYSIS] Getting children for language group: ${languageName}`);
-        if (!this.filesByLanguage) {
-            console.warn('[CODE_ANALYSIS] No file data available for language group');
-            return Promise.resolve([]);
-        }
-        // ✅ Pass context for colored language icons
-        const fileItems = analysisTreeItems_1.CodeAnalysisItemFactory.createFileItems(languageName, this.filesByLanguage, this.context);
-        return Promise.resolve(fileItems);
-    }
-    /**
-     * Legacy method for backward compatibility - use forceRefreshFilesScan instead
-     * @deprecated Use forceRefreshFilesScan() instead
-     */
-    async refreshFilesScan() {
-        console.log('[CODE_ANALYSIS] Legacy refreshFilesScan called, delegating to forceRefreshFilesScan');
-        await this.forceRefreshFilesScan();
-    }
-    /**
-     * Get the active analyses provider for external access
-     */
-    getActiveAnalysesProvider() {
-        return this.activeAnalysesProvider;
-    }
-    /**
-     * Get the file watcher manager for external access
-     */
-    getFileWatcherManager() {
-        return this.fileWatcherManager;
-    }
-    /**
-     * Start tracking a file analysis
-     */
-    startFileAnalysis(filePath, mode, language) {
-        console.log(`[CODE_ANALYSIS] Starting file analysis tracking for ${filePath}`);
-        return this.activeAnalysesProvider.startFileAnalysis(filePath, mode, language);
-    }
-    /**
-     * Start tracking a directory analysis
-     */
-    startDirectoryAnalysis(directoryPath, mode) {
-        console.log(`[CODE_ANALYSIS] Starting directory analysis tracking for ${directoryPath}`);
-        return this.activeAnalysesProvider.startDirectoryAnalysis(directoryPath, mode);
-    }
-    /**
-     * Complete an analysis
-     */
-    completeAnalysis(analysisId, metadata) {
-        this.activeAnalysesProvider.completeAnalysis(analysisId, metadata);
-    }
-    /**
-     * Fail an analysis
-     */
-    failAnalysis(analysisId, error) {
-        this.activeAnalysesProvider.failAnalysis(analysisId, error);
-    }
-}
-exports.CodeAnalysisTreeDataProvider = CodeAnalysisTreeDataProvider;
-
-
-/***/ }),
-/* 161 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileScanner = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(90);
-/**
- * Scanner for analyzing workspace files and grouping them by programming language
- */
-class FileScanner {
-    /**
-     * Scan all workspace folders and group files by language
-     * @returns Promise with files grouped by language
-     */
-    static async scanWorkspaceFiles() {
-        console.log('ANALYSIS: Starting workspace file scan');
-        const startTime = Date.now();
-        const filesByLanguage = {};
-        try {
-            // Find all files in the workspace, excluding common build/cache directories and dot folders
-            console.log('ANALYSIS: Searching for files using vscode.workspace.findFiles');
-            const files = await vscode.workspace.findFiles('**/*', '{**/node_modules/**,**/.venv/**,**/.git/**,**/.svn/**,**/.hg/**,**/.*/**,**/build/**,**/dist/**,**/out/**,**/bin/**,**/__pycache__/**,**/.pytest_cache/**,**/.mypy_cache/**,**/.tox/**,**/.coverage/**}');
-            console.log(`ANALYSIS: Found ${files.length} files to analyze`);
-            // Filter out directories and process each file
-            let processedCount = 0;
-            let skippedCount = 0;
-            for (const fileUri of files) {
-                try {
-                    // Get file stats to check if it's a directory
-                    const stat = await vscode.workspace.fs.stat(fileUri);
-                    // Skip directories
-                    if (stat.type === vscode.FileType.Directory) {
-                        skippedCount++;
-                        continue;
-                    }
-                    // Process the file
-                    const fileInfo = this.createFileInfo(fileUri);
-                    this.addFileToLanguageGroup(filesByLanguage, fileInfo);
-                    processedCount++;
-                    // Log progress for large workspaces
-                    if (processedCount % 100 === 0) {
-                        console.log(`ANALYSIS: Processed ${processedCount} files so far...`);
-                    }
-                }
-                catch (error) {
-                    console.warn(`ANALYSIS: Error processing file ${fileUri.fsPath}:`, error);
-                    skippedCount++;
-                }
-            }
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            console.log(`ANALYSIS: File scan completed in ${duration}ms`);
-            console.log(`ANALYSIS: Processed ${processedCount} files, skipped ${skippedCount} items`);
-            console.log(`ANALYSIS: Found files in ${Object.keys(filesByLanguage).length} different languages`);
-            // Log language distribution
-            this.logLanguageDistribution(filesByLanguage);
-            return filesByLanguage;
-        }
-        catch (error) {
-            console.error('ANALYSIS: Error during workspace file scan:', error);
-            throw error;
-        }
-    }
-    /**
-     * Create file info object from VS Code URI
-     */
-    static createFileInfo(fileUri) {
-        const fullPath = fileUri.fsPath;
-        const fileName = path.basename(fullPath);
-        // Get relative path from workspace root
-        let relativePath = fullPath;
-        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-            const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-            if (fullPath.startsWith(workspaceRoot)) {
-                relativePath = path.relative(workspaceRoot, fullPath);
-            }
-        }
-        // Determine language based on file extension
-        const language = (0, languageMetadata_1.getLanguageForFile)(fullPath);
-        return {
-            fileName,
-            relativePath,
-            fullPath,
-            language
-        };
-    }
-    /**
-     * Add file to the appropriate language group
-     */
-    static addFileToLanguageGroup(filesByLanguage, fileInfo) {
-        const languageName = fileInfo.language?.name || 'Unknown Files';
-        if (!filesByLanguage[languageName]) {
-            filesByLanguage[languageName] = [];
-        }
-        filesByLanguage[languageName].push(fileInfo);
-    }
-    /**
-     * Log the distribution of files by language
-     */
-    static logLanguageDistribution(filesByLanguage) {
-        console.log('ANALYSIS: File distribution by language:');
-        // Sort languages by file count (descending)
-        const sortedLanguages = Object.entries(filesByLanguage)
-            .sort(([, filesA], [, filesB]) => filesB.length - filesA.length);
-        sortedLanguages.forEach(([language, files]) => {
-            console.log(`ANALYSIS: Detected ${files.length} files of ${language}`);
-        });
-        const totalLanguages = sortedLanguages.length;
-        const totalFiles = sortedLanguages.reduce((sum, [, files]) => sum + files.length, 0);
-        console.log(`ANALYSIS: Total: ${totalLanguages} languages, ${totalFiles} files detected`);
-    }
-    /**
-     * Get files for a specific language
-     */
-    static getFilesForLanguage(filesByLanguage, languageName) {
-        return filesByLanguage[languageName] || [];
-    }
-    /**
-     * Get all detected languages sorted by file count
-     */
-    static getLanguagesSortedByCount(filesByLanguage) {
-        return Object.entries(filesByLanguage)
-            .sort(([, filesA], [, filesB]) => filesB.length - filesA.length)
-            .map(([language]) => language);
-    }
-    /**
-     * Get total file count across all languages
-     */
-    static getTotalFileCount(filesByLanguage) {
-        return Object.values(filesByLanguage)
-            .reduce((total, files) => total + files.length, 0);
-    }
-}
-exports.FileScanner = FileScanner;
-
-
-/***/ }),
-/* 162 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysesTreeDataProvider = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const activeAnalysisRegistry_1 = __webpack_require__(70);
-const activeAnalysisItems_1 = __webpack_require__(163);
-const analysisTreeItems_1 = __webpack_require__(157);
-/**
- * Tree data provider for the Active Analyses section
- * This handles the rendering and management of the Active Analyses tree view
- */
-class ActiveAnalysesTreeDataProvider {
-    context;
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    registry;
-    constructor(context) {
-        this.context = context;
-        console.log('[ACTIVE_ANALYSES_TREE] Initializing Active Analyses tree data provider');
-        // Get the registry instance
-        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-        // Listen for changes in the registry
-        this.registry.onDidChangeAnalyses(() => {
-            console.log('[ACTIVE_ANALYSES_TREE] Registry changed, refreshing tree view');
-            this.refresh();
-        });
-    }
-    /**
-     * Refresh the tree view
-     */
-    refresh() {
-        console.log('[ACTIVE_ANALYSES_TREE] Refreshing active analyses tree view');
-        this._onDidChangeTreeData.fire();
-    }
-    /**
-     * Get tree item representation
-     */
-    getTreeItem(element) {
-        return element;
-    }
-    /**
-     * Get children for the tree view
-     */
-    getChildren(element) {
-        console.log('[ACTIVE_ANALYSES_TREE_VIEW] 🌲 getChildren called, element:', element?.label);
-        if (!element) {
-            // Root level - return all active analyses
-            const allAnalyses = this.registry.getAllAnalyses();
-            console.log('[ACTIVE_ANALYSES_TREE_VIEW] 📊 Retrieved analyses from registry:', allAnalyses.length);
-            const treeItems = activeAnalysisItems_1.ActiveAnalysisItemFactory.createActiveAnalysisItems(allAnalyses);
-            console.log('[ACTIVE_ANALYSES_TREE_VIEW] 🔄 Created tree items:', treeItems.length);
-            return treeItems;
-        }
-        // No children for individual analysis items
-        return [];
-    }
-    /**
-     * Get the active analyses items for display
-     */
-    getActiveAnalysesItems() {
-        const analyses = this.registry.getAllAnalyses();
-        console.log(`[ACTIVE_ANALYSES_TREE] Found ${analyses.length} active analyses`);
-        // Create items for each analysis
-        return activeAnalysisItems_1.ActiveAnalysisItemFactory.createActiveAnalysisItems(analyses);
-    }
-    /**
-     * Get summary of active analyses for the parent tree view
-     */
-    getActiveAnalysesSummary() {
-        const summary = this.registry.getSummary();
-        if (summary.total === 0) {
-            return 'Active Analyses';
-        }
-        if (summary.running > 0) {
-            return `Active Analyses (${summary.running} running)`;
-        }
-        return `Active Analyses (${summary.total} total)`;
-    }
-    /**
-     * Get the tree items that should be displayed when this section is expanded
-     * This method is called by the parent code analysis tree view
-     * Returns CodeAnalysisTreeItem for compatibility with parent tree
-     */
-    getActiveAnalysesTreeItems() {
-        const activeAnalysisItems = this.getActiveAnalysesItems();
-        // Convert ActiveAnalysisTreeItem to CodeAnalysisTreeItem for compatibility
-        return activeAnalysisItems.map(item => {
-            return new analysisTreeItems_1.CodeAnalysisTreeItem(item.label, item.collapsibleState || vscode.TreeItemCollapsibleState.None, 'analysis-item', // Use generic analysis-item type for compatibility
-            item.command, item.iconPath, item.tooltip, item.description, item.contextValue);
-        });
-    }
-    /**
-     * Check if there are any active analyses
-     */
-    hasActiveAnalyses() {
-        return this.registry.getAllAnalyses().length > 0;
-    }
-    /**
-     * Get count of running analyses
-     */
-    getRunningCount() {
-        return this.registry.getActiveCount();
-    }
-    /**
-     * Get count of total analyses
-     */
-    getTotalCount() {
-        return this.registry.getAllAnalyses().length;
-    }
-    /**
-     * Start tracking a new file analysis
-     */
-    startFileAnalysis(filePath, mode, language) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Starting file analysis for ${filePath} in ${mode} mode`);
-        return this.registry.startFileAnalysis(filePath, mode, language);
-    }
-    /**
-     * Start tracking a new directory analysis
-     */
-    startDirectoryAnalysis(directoryPath, mode) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Starting directory analysis for ${directoryPath} in ${mode} mode`);
-        return this.registry.startDirectoryAnalysis(directoryPath, mode);
-    }
-    /**
-     * Complete an analysis
-     */
-    completeAnalysis(analysisId, metadata) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Completing analysis ${analysisId}`);
-        this.registry.completeAnalysis(analysisId, metadata);
-    }
-    /**
-     * Fail an analysis
-     */
-    failAnalysis(analysisId, error) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Failing analysis ${analysisId}: ${error}`);
-        this.registry.failAnalysis(analysisId, error);
-    }
-    /**
-     * Remove an analysis from tracking
-     */
-    removeAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_TREE] Removing analysis ${analysisId}`);
-        this.registry.unregisterAnalysis(analysisId);
-    }
-    /**
-     * Clear all analyses
-     */
-    clearAllAnalyses() {
-        console.log('[ACTIVE_ANALYSES_TREE] Clearing all analyses');
-        this.registry.clearAll();
-    }
-}
-exports.ActiveAnalysesTreeDataProvider = ActiveAnalysesTreeDataProvider;
-
-
-/***/ }),
-/* 163 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-/**
- * Tree item representing an active analysis in the VS Code tree view
- */
-class ActiveAnalysisTreeItem extends vscode.TreeItem {
-    type;
-    analysis;
-    constructor(labelOrUri, collapsibleState, type, command, iconPath, tooltip, description, contextValue, analysis) {
-        // Call super() first with the appropriate arguments
-        if (labelOrUri instanceof vscode.Uri) {
-            super(labelOrUri, collapsibleState);
-            this.label = path.basename(labelOrUri.fsPath);
-        }
-        else {
-            super(labelOrUri, collapsibleState);
-        }
-        // Assign properties after super() call
-        this.type = type;
-        this.analysis = analysis;
-        if (iconPath !== undefined) {
-            this.iconPath = iconPath;
-        }
-        if (command !== undefined) {
-            this.command = command;
-        }
-        if (tooltip !== undefined) {
-            this.tooltip = tooltip;
-        }
-        if (description !== undefined) {
-            this.description = description;
-        }
-        if (contextValue !== undefined) {
-            this.contextValue = contextValue;
-        }
-    }
-}
-exports.ActiveAnalysisTreeItem = ActiveAnalysisTreeItem;
-/**
- * Factory for creating active analysis tree items
- */
-class ActiveAnalysisItemFactory {
-    /**
-     * Create tree items for active analyses
-     */
-    static createActiveAnalysisItems(analyses) {
-        console.log(`[ACTIVE_ANALYSIS_ITEMS] 🏗️ Creating ${analyses.length} active analysis items`);
-        if (analyses.length === 0) {
-            console.log('[ACTIVE_ANALYSIS_ITEMS] 📝 No analyses, creating placeholder item');
-            return [this.createNoAnalysesItem()];
-        }
-        const treeItems = analyses.map(analysis => {
-            console.log(`[ACTIVE_ANALYSIS_ITEMS] 🔧 Creating item for analysis:`, {
-                id: analysis.id,
-                path: analysis.path,
-                status: analysis.status,
-                mode: analysis.mode,
-                language: analysis.language
-            });
-            return this.createAnalysisItem(analysis);
-        });
-        console.log(`[ACTIVE_ANALYSIS_ITEMS] ✅ Created ${treeItems.length} tree items successfully`);
-        return treeItems;
-    }
-    /**
-     * Create a tree item for a single active analysis
-     */
-    static createAnalysisItem(analysis) {
-        const fileName = path.basename(analysis.path);
-        const isDirectory = analysis.id.startsWith('dir-');
-        // Determine label based on status and progress
-        let label = fileName;
-        if (analysis.progress !== undefined && analysis.status === 'running') {
-            label = `${fileName} (${analysis.progress}%)`;
-        }
-        // Determine icon based on status
-        let iconPath;
-        switch (analysis.status) {
-            case 'running':
-                iconPath = new vscode.ThemeIcon('loading~spin');
-                break;
-            case 'completed':
-                iconPath = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green'));
-                break;
-            case 'failed':
-                iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red'));
-                break;
-            case 'paused':
-                iconPath = new vscode.ThemeIcon('debug-pause', new vscode.ThemeColor('charts.yellow'));
-                break;
-            default:
-                iconPath = new vscode.ThemeIcon('pulse');
-        }
-        // Create description
-        let description = `${analysis.mode} analysis`;
-        if (analysis.language) {
-            description += ` • ${analysis.language}`;
-        }
-        // Create tooltip
-        let tooltip = `Path: ${analysis.path}\\n`;
-        tooltip += `Mode: ${analysis.mode}\\n`;
-        tooltip += `Status: ${analysis.status}\\n`;
-        tooltip += `Started: ${analysis.timestamp.toLocaleString()}`;
-        if (analysis.error) {
-            tooltip += `\\nError: ${analysis.error}`;
-        }
-        if (analysis.metadata) {
-            if (analysis.metadata.totalLines) {
-                tooltip += `\\nLines: ${analysis.metadata.totalLines}`;
-            }
-            if (analysis.metadata.totalFunctions) {
-                tooltip += `\\nFunctions: ${analysis.metadata.totalFunctions}`;
-            }
-        }
-        const type = isDirectory ? 'active-analysis-directory' : 'active-analysis-file';
-        return new ActiveAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, type, {
-            command: 'codexr.activeAnalysis.openAnalysis',
-            title: 'Open Analysis',
-            arguments: [analysis.id]
-        }, iconPath, tooltip, description, `active-analysis-${analysis.status}`, analysis);
-    }
-    /**
-     * Create a placeholder item when no analyses are active
-     */
-    static createNoAnalysesItem() {
-        return new ActiveAnalysisTreeItem('No active analyses', vscode.TreeItemCollapsibleState.None, 'active-analysis-placeholder', undefined, new vscode.ThemeIcon('info'), 'No analyses are currently running or tracked', 'Start an analysis to see it here', 'no-active-analyses');
-    }
-    /**
-     * Create summary items showing analysis statistics
-     */
-    static createSummaryItems(summary) {
-        const items = [];
-        if (summary.total === 0) {
-            return [this.createNoAnalysesItem()];
-        }
-        // Running analyses
-        if (summary.running > 0) {
-            items.push(new ActiveAnalysisTreeItem(`${summary.running} Running`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('loading~spin'), `${summary.running} analyses currently in progress`, 'In progress', 'running-analyses'));
-        }
-        // Completed analyses
-        if (summary.completed > 0) {
-            items.push(new ActiveAnalysisTreeItem(`${summary.completed} Completed`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green')), `${summary.completed} analyses completed successfully`, 'Finished', 'completed-analyses'));
-        }
-        // Failed analyses
-        if (summary.failed > 0) {
-            items.push(new ActiveAnalysisTreeItem(`${summary.failed} Failed`, vscode.TreeItemCollapsibleState.None, 'active-analysis-section', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), `${summary.failed} analyses failed`, 'Errors', 'failed-analyses'));
-        }
-        return items;
-    }
-}
-exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
-
-
-/***/ }),
-/* 164 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ActiveAnalysesCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(70);
-const serverControl_1 = __webpack_require__(28);
-const activeServerRegistry_1 = __webpack_require__(26);
-/**
- * Commands for managing active analyses
- */
-class ActiveAnalysesCommands {
-    context;
-    registry;
-    constructor(context) {
-        this.context = context;
-        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-        this.registerCommands();
-    }
-    /**
-     * Register all active analysis commands
-     */
-    registerCommands() {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Registering active analysis commands');
-        // Open analysis command
-        const openAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.openAnalysis', (analysisId) => this.openAnalysis(analysisId));
-        // Reveal analysis in explorer
-        const revealAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.revealAnalysis', (analysisId) => this.revealAnalysis(analysisId));
-        // Remove analysis
-        const removeAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.removeAnalysis', (analysisId) => this.removeAnalysis(analysisId));
-        // Clear all analyses
-        const clearAllCommand = vscode.commands.registerCommand('codexr.activeAnalysis.clearAll', () => this.clearAllAnalyses());
-        // Refresh active analyses view
-        const refreshCommand = vscode.commands.registerCommand('codexr.activeAnalysis.refresh', () => this.refreshView());
-        // Re-run analysis
-        const rerunAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.rerun', (analysisId) => this.rerunAnalysis(analysisId));
-        // Stop analysis (stops server and removes analysis)
-        const stopAnalysisCommand = vscode.commands.registerCommand('codexr.activeAnalysis.stopAnalysis', (analysisId) => this.stopAnalysis(analysisId));
-        // Add all commands to context subscriptions
-        this.context.subscriptions.push(openAnalysisCommand, revealAnalysisCommand, removeAnalysisCommand, clearAllCommand, refreshCommand, rerunAnalysisCommand, stopAnalysisCommand);
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Active analysis commands registered successfully');
-    }
-    /**
-     * Open the analysis file or result
-     */
-    async openAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Opening analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            // Try to open the file/directory
-            const uri = vscode.Uri.file(analysis.path);
-            if (analysis.id.startsWith('dir-')) {
-                // For directory analysis, try to show the results or open the directory
-                await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: false });
-            }
-            else {
-                // For file analysis, open the file
-                const document = await vscode.workspace.openTextDocument(uri);
-                await vscode.window.showTextDocument(document);
-            }
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error opening analysis:', error);
-            vscode.window.showErrorMessage(`Failed to open analysis: ${error}`);
-        }
-    }
-    /**
-     * Reveal analysis file in the explorer
-     */
-    async revealAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Revealing analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            const uri = vscode.Uri.file(analysis.path);
-            await vscode.commands.executeCommand('revealInExplorer', uri);
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error revealing analysis:', error);
-            vscode.window.showErrorMessage(`Failed to reveal analysis: ${error}`);
-        }
-    }
-    /**
-     * Remove an analysis from the active list
-     */
-    async removeAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Removing analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        const result = await vscode.window.showWarningMessage(`Remove analysis for ${analysis.path}?`, { modal: true }, 'Remove');
-        if (result === 'Remove') {
-            this.registry.unregisterAnalysis(analysisId);
-            vscode.window.showInformationMessage('Analysis removed from active list');
-        }
-    }
-    /**
-     * Clear all analyses with confirmation
-     */
-    async clearAllAnalyses() {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Clearing all analyses');
-        const analyses = this.registry.getAllAnalyses();
-        if (analyses.length === 0) {
-            vscode.window.showInformationMessage('No active analyses to clear');
-            return;
-        }
-        const result = await vscode.window.showWarningMessage(`Clear all ${analyses.length} active analyses?`, { modal: true }, 'Clear All');
-        if (result === 'Clear All') {
-            this.registry.clearAll();
-            vscode.window.showInformationMessage('All active analyses cleared');
-        }
-    }
-    /**
-     * Refresh the active analyses view
-     */
-    refreshView() {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Refreshing active analyses view');
-        // The registry will automatically fire events to refresh the view
-        // We could add manual refresh logic here if needed
-        vscode.window.showInformationMessage('Active analyses view refreshed');
-    }
-    /**
-     * Re-run an analysis
-     */
-    async rerunAnalysis(analysisId) {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] Re-running analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            // For now, just show a placeholder message
-            // In the future, this will trigger the actual analysis
-            vscode.window.showInformationMessage(`TODO: Re-run ${analysis.mode} analysis for ${analysis.path}`);
-            // Reset the analysis status to running
-            this.registry.updateAnalysis(analysisId, 'running', 0);
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error re-running analysis:', error);
-            vscode.window.showErrorMessage(`Failed to re-run analysis: ${error}`);
-        }
-    }
-    /**
-     * Stop an analysis (stops associated server and removes from registry)
-     */
-    async stopAnalysis(analysisIdOrTreeItem) {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] 🔍 stopAnalysis called with:', {
-            type: typeof analysisIdOrTreeItem,
-            isString: typeof analysisIdOrTreeItem === 'string',
-            value: analysisIdOrTreeItem,
-            hasAnalysis: analysisIdOrTreeItem?.analysis,
-            hasLabel: analysisIdOrTreeItem?.label,
-            contextValue: analysisIdOrTreeItem?.contextValue,
-            itemType: analysisIdOrTreeItem?.itemType,
-            sectionType: analysisIdOrTreeItem?.sectionType
-        });
-        // Handle both string ID and tree item object
-        let analysisId;
-        if (typeof analysisIdOrTreeItem === 'string') {
-            analysisId = analysisIdOrTreeItem;
-        }
-        else if (analysisIdOrTreeItem && analysisIdOrTreeItem.analysis && analysisIdOrTreeItem.analysis.id) {
-            // Tree item object with analysis property (from Active Analyses tree)
-            analysisId = analysisIdOrTreeItem.analysis.id;
-        }
-        else if (analysisIdOrTreeItem && analysisIdOrTreeItem.label) {
-            // Tree item from main code analysis tree - try to find analysis by file name
-            const fileName = analysisIdOrTreeItem.label;
-            console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔍 Looking for analysis by filename: ${fileName}`);
-            const allAnalyses = this.registry.getAllAnalyses();
-            const matchingAnalysis = allAnalyses.find(analysis => {
-                const analysisFileName = analysis.path.split('/').pop() || analysis.path.split('\\').pop();
-                return analysisFileName === fileName;
-            });
-            if (matchingAnalysis) {
-                analysisId = matchingAnalysis.id;
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found analysis by filename: ${analysisId}`);
-            }
-            else {
-                console.warn(`[ACTIVE_ANALYSES_COMMANDS] ⚠️ No analysis found for filename: ${fileName}`);
-                vscode.window.showWarningMessage(`No active analysis found for file: ${fileName}`);
-                return;
-            }
-        }
-        else {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Invalid argument for stopAnalysis:', analysisIdOrTreeItem);
-            vscode.window.showErrorMessage('Unable to identify analysis to stop');
-            return;
-        }
-        if (!analysisId) {
-            vscode.window.showErrorMessage('Unable to identify analysis to stop');
-            return;
-        }
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] 🛑 Stopping analysis: ${analysisId}`);
-        const analysis = this.registry.getAnalysis(analysisId);
-        if (!analysis) {
-            vscode.window.showWarningMessage(`Analysis ${analysisId} not found`);
-            return;
-        }
-        try {
-            const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
-            const servers = serverRegistry.getAllServers();
-            // Find server associated with this analysis
-            // Strategy 1: Match by HTML file path (exact match)
-            let associatedServer = servers.find((server) => server.htmlFile && server.htmlFile === analysis.path);
-            // Strategy 2: If no exact match, look for servers with similar filenames
-            if (!associatedServer) {
-                const analysisFileName = path.basename(analysis.path);
-                const analysisBaseName = path.parse(analysisFileName).name; // Remove extension
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔍 Looking for server matching filename: ${analysisFileName} (base: ${analysisBaseName})`);
-                // Look for servers whose custom name or HTML file path contains the analysis filename
-                associatedServer = servers.find((server) => {
-                    // Check custom name (e.g., "Analysis Static tryCodeXr.kt")
-                    if (server.customName && server.customName.includes(analysisFileName)) {
-                        console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found server by customName: ${server.customName}`);
-                        return true;
-                    }
-                    // Check if HTML file path contains the base filename
-                    if (server.htmlFile) {
-                        const serverBaseName = path.parse(path.basename(server.htmlFile)).name;
-                        const serverDirName = path.basename(path.dirname(server.htmlFile));
-                        // Check if the server directory or HTML file contains the analysis base name
-                        if (serverDirName.includes(analysisBaseName) || serverBaseName.includes(analysisBaseName)) {
-                            console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Found server by HTML path: ${server.htmlFile}`);
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-            }
-            if (associatedServer) {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] 🔌 Found associated server ${associatedServer.id}, stopping...`);
-                const stopped = await serverControl_1.ServerControl.stopServer(associatedServer.id);
-                if (stopped) {
-                    console.log(`[ACTIVE_ANALYSES_COMMANDS] ✅ Server stopped successfully`);
-                    // The server stop event will automatically remove the analysis via our event integration
-                    vscode.window.showInformationMessage(`Analysis stopped and server terminated`);
-                }
-                else {
-                    console.warn(`[ACTIVE_ANALYSES_COMMANDS] ⚠️ Failed to stop server, removing analysis anyway`);
-                    this.registry.unregisterAnalysis(analysisId);
-                    vscode.window.showWarningMessage(`Analysis removed, but server may still be running`);
-                }
-            }
-            else {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] 📝 No associated server found, just removing analysis`);
-                // No server found, just remove the analysis
-                this.registry.unregisterAnalysis(analysisId);
-                vscode.window.showInformationMessage(`Analysis removed`);
-            }
-        }
-        catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error stopping analysis:', error);
-            // Fallback: just remove the analysis from registry
-            this.registry.unregisterAnalysis(analysisId);
-            vscode.window.showErrorMessage(`Failed to stop server, but analysis was removed: ${error}`);
-        }
-    }
-}
-exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
-
-
-/***/ }),
-/* 165 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FileWatcherManager = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const activeAnalysisRegistry_1 = __webpack_require__(70);
-const statusBarDelayTimer_1 = __webpack_require__(166);
-const analysisSettingsStorage_1 = __webpack_require__(63);
-const analysisCommands_1 = __webpack_require__(60);
-const tempStorageManager_1 = __webpack_require__(67);
-const SSEManager_1 = __webpack_require__(18);
-/**
- * Manages file watchers for files under analysis
- * Detects changes to analyzed files and shows placeholder info messages
- */
-class FileWatcherManager {
-    context;
-    static instance = null;
-    watchers = new Map();
-    registry;
-    delayTimer;
-    constructor(context) {
-        this.context = context;
-        console.log('[FILE_WATCHER_MANAGER] Initializing file watcher manager');
-        this.registry = activeAnalysisRegistry_1.ActiveAnalysisRegistry.getInstance();
-        this.delayTimer = statusBarDelayTimer_1.StatusBarDelayTimer.getInstance();
-        // Listen for changes in active analyses to manage watchers
-        this.registry.onDidChangeAnalyses(() => {
-            this.updateWatchers();
-        });
-    }
-    /**
-     * Get the singleton instance of the file watcher manager
-     */
-    static getInstance(context) {
-        if (!FileWatcherManager.instance && context) {
-            FileWatcherManager.instance = new FileWatcherManager(context);
-        }
-        else if (!FileWatcherManager.instance) {
-            throw new Error('FileWatcherManager requires context for initialization');
-        }
-        return FileWatcherManager.instance;
-    }
-    /**
-     * Update watchers based on current active analyses
-     */
-    updateWatchers() {
-        console.log('[FILE_WATCHER_MANAGER] Updating file watchers');
-        const analyses = this.registry.getAllAnalyses();
-        const currentFiles = new Set();
-        // Collect all files that should be watched
-        analyses.forEach(analysis => {
-            if (analysis.status === 'running' || analysis.status === 'completed') {
-                if (!analysis.id.startsWith('dir-')) {
-                    // Only watch individual files, not directories for now
-                    currentFiles.add(analysis.path);
-                }
-            }
-        });
-        // Remove watchers for files no longer in active analyses
-        for (const [filePath, watcher] of this.watchers) {
-            if (!currentFiles.has(filePath)) {
-                console.log(`[FILE_WATCHER_MANAGER] Removing watcher for ${filePath}`);
-                watcher.dispose();
-                this.watchers.delete(filePath);
-            }
-        }
-        // Add watchers for new files
-        for (const filePath of currentFiles) {
-            if (!this.watchers.has(filePath)) {
-                this.addWatcher(filePath);
-            }
-        }
-        console.log(`[FILE_WATCHER_MANAGER] Now watching ${this.watchers.size} files`);
-    }
-    /**
-     * Add a file watcher for a specific file
-     */
-    addWatcher(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] Adding watcher for ${filePath}`);
-        try {
-            // Create a watcher for the specific file
-            const pattern = new vscode.RelativePattern(path.dirname(filePath), path.basename(filePath));
-            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-            // Handle file changes
-            watcher.onDidChange((uri) => {
-                this.onFileChanged(uri.fsPath);
-            });
-            // Handle file saves (more reliable than onChange for some editors)
-            watcher.onDidCreate((uri) => {
-                this.onFileChanged(uri.fsPath);
-            });
-            // Handle file deletion
-            watcher.onDidDelete((uri) => {
-                this.onFileDeleted(uri.fsPath);
-            });
-            this.watchers.set(filePath, watcher);
-            this.context.subscriptions.push(watcher);
-        }
-        catch (error) {
-            console.error(`[FILE_WATCHER_MANAGER] Error creating watcher for ${filePath}:`, error);
-        }
-    }
-    /**
-     * Handle file change events with auto-analysis delay
-     */
-    async onFileChanged(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] File changed: ${filePath}`);
-        // Get analyses for this file
-        const analyses = this.registry.getAnalysesForPath(filePath);
-        if (analyses.length === 0) {
-            return;
-        }
-        // Get the current auto-analysis delay setting
-        const delayMs = await analysisSettingsStorage_1.AnalysisSettingsStorage.getAutoAnalysisDelay(this.context);
-        const fileName = path.basename(filePath);
-        console.log(`[FILE_WATCHER_MANAGER] Starting auto-analysis delay: ${delayMs}ms for ${fileName}`);
-        // Start or restart the delay timer
-        const uri = vscode.Uri.file(filePath);
-        this.delayTimer.start(uri, delayMs, () => {
-            this.executeDelayedAnalysis(filePath, analyses);
-        });
-    }
-    /**
-     * Execute the analysis after the delay has completed
-     * Supports both Static and XR analysis modes
-     */
-    async executeDelayedAnalysis(filePath, analyses) {
-        const fileName = path.basename(filePath);
-        console.log(`[FILE_WATCHER_MANAGER] 🔄 Executing delayed re-analysis for ${fileName}`);
-        console.log(`[FILE_WATCHER_MANAGER] Found ${analyses.length} analysis(es) for this file`);
-        // Group analyses by mode
-        const staticAnalyses = analyses.filter(analysis => analysis.mode === 'Static');
-        const xrAnalyses = analyses.filter(analysis => analysis.mode === 'XR');
-        console.log(`[FILE_WATCHER_MANAGER] Static analyses: ${staticAnalyses.length}, XR analyses: ${xrAnalyses.length}`);
-        try {
-            let analysisData;
-            // Determine which analysis to run based on the modes present
-            if (xrAnalyses.length > 0) {
-                // Run XR analysis if there are any XR analyses
-                console.log(`[FILE_WATCHER_MANAGER] Running XR analysis for ${fileName}...`);
-                analysisData = await (0, analysisCommands_1.runXRFileAnalysisCoordinator)(this.context, filePath);
-            }
-            else if (staticAnalyses.length > 0) {
-                // Run static analysis if there are only static analyses
-                console.log(`[FILE_WATCHER_MANAGER] Running static analysis for ${fileName}...`);
-                analysisData = await (0, analysisCommands_1.executeFileAnalysis)(this.context, filePath);
-            }
-            else {
-                throw new Error('No valid analysis modes found');
-            }
-            if (!analysisData) {
-                throw new Error('Analysis returned no data');
-            }
-            console.log(`[FILE_WATCHER_MANAGER] ✅ Analysis completed for ${fileName}`);
-            // Step 2: Update existing temp folders with new data.json
-            console.log(`[FILE_WATCHER_MANAGER] Updating existing data.json files for ${fileName}...`);
-            const updatedFolders = await (0, tempStorageManager_1.updateDataJson)(this.context, filePath, analysisData);
-            if (updatedFolders.length > 0) {
-                console.log(`[FILE_WATCHER_MANAGER] ✅ Updated ${updatedFolders.length} analysis folder(s) for ${fileName}`);
-                // Step 3: Send SSE update notification to clients (for both modes)
-                console.log(`[FILE_WATCHER_MANAGER] Sending SSE update notification for ${fileName}...`);
-                try {
-                    SSEManager_1.sseManager.sendUpdate(filePath);
-                    console.log(`[FILE_WATCHER_MANAGER] ✅ SSE update notification sent for ${fileName}`);
-                }
-                catch (sseError) {
-                    console.error(`[FILE_WATCHER_MANAGER] ⚠️ Failed to send SSE update for ${fileName}:`, sseError);
-                    // Continue with the rest of the process even if SSE fails
-                }
-                // Show mode-specific success message to user
-                const modeInfo = [];
-                if (staticAnalyses.length > 0) {
-                    modeInfo.push(`${staticAnalyses.length} Static`);
-                }
-                if (xrAnalyses.length > 0) {
-                    modeInfo.push(`${xrAnalyses.length} XR`);
-                }
-                vscode.window.showInformationMessage(`Analysis updated: ${fileName} (${modeInfo.join(', ')} viewer${updatedFolders.length > 1 ? 's' : ''} refreshed)`, { modal: false });
-                // Update analysis status in registry for all modes
-                analyses.forEach(analysis => {
-                    console.log(`[FILE_WATCHER_MANAGER] Analysis ${analysis.id} (${analysis.mode}) updated due to file change`);
-                    // Update the analysis in registry - mark as completed
-                    try {
-                        this.registry.updateAnalysis(analysis.id, 'completed', 100);
-                    }
-                    catch (error) {
-                        console.log(`[FILE_WATCHER_MANAGER] Could not update analysis status: ${error}`);
-                    }
-                });
-            }
-            else {
-                console.log(`[FILE_WATCHER_MANAGER] ⚠️ No existing analysis folders found for ${fileName}`);
-                // Inform user that no viewers were found to update
-                vscode.window.showWarningMessage(`File ${fileName} changed, but no active analysis viewers found to update.`, { modal: false });
-            }
-        }
-        catch (error) {
-            console.error(`[FILE_WATCHER_MANAGER] ❌ Failed to execute delayed re-analysis for ${fileName}:`, error);
-            // Show error message to user
-            vscode.window.showErrorMessage(`Failed to update analysis for ${fileName}: ${error}`, { modal: false });
-            // Mark analyses as failed (both modes)
-            analyses.forEach(analysis => {
-                this.registry.failAnalysis(analysis.id, `Re-analysis failed: ${error}`);
-            });
-        }
-    }
-    /**
-     * Handle file deletion events
-     */
-    onFileDeleted(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] File deleted: ${filePath}`);
-        // Cancel any pending delay timer for this file
-        const uri = vscode.Uri.file(filePath);
-        this.delayTimer.cancel(uri);
-        // Get analyses for this file
-        const analyses = this.registry.getAnalysesForPath(filePath);
-        if (analyses.length > 0) {
-            const fileName = path.basename(filePath);
-            vscode.window.showWarningMessage(`File ${fileName} was deleted. Active analyses for this file will be marked as failed.`);
-            // Mark analyses as failed
-            analyses.forEach(analysis => {
-                this.registry.failAnalysis(analysis.id, `File was deleted: ${filePath}`);
-            });
-        }
-        // Remove the watcher since the file no longer exists
-        const watcher = this.watchers.get(filePath);
-        if (watcher) {
-            watcher.dispose();
-            this.watchers.delete(filePath);
-        }
-    }
-    /**
-     * Manually add a file to be watched
-     */
-    watchFile(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] Manually adding file to watch: ${filePath}`);
-        if (!this.watchers.has(filePath)) {
-            this.addWatcher(filePath);
-        }
-    }
-    /**
-     * Manually remove a file from being watched
-     */
-    unwatchFile(filePath) {
-        console.log(`[FILE_WATCHER_MANAGER] Manually removing file from watch: ${filePath}`);
-        // Cancel any pending delay timer for this file
-        const uri = vscode.Uri.file(filePath);
-        this.delayTimer.cancel(uri);
-        const watcher = this.watchers.get(filePath);
-        if (watcher) {
-            watcher.dispose();
-            this.watchers.delete(filePath);
-        }
-    }
-    /**
-     * Get list of currently watched files
-     */
-    getWatchedFiles() {
-        return Array.from(this.watchers.keys());
-    }
-    /**
-     * Dispose all watchers
-     */
-    dispose() {
-        console.log('[FILE_WATCHER_MANAGER] Disposing all file watchers');
-        // Cancel all delay timers
-        this.delayTimer.cancelAll();
-        for (const [filePath, watcher] of this.watchers) {
-            watcher.dispose();
-        }
-        this.watchers.clear();
-    }
-}
-exports.FileWatcherManager = FileWatcherManager;
-
-
-/***/ }),
-/* 166 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.StatusBarDelayTimer = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-/**
- * Manages countdown timers in the VS Code status bar for auto-analysis delays
- * Shows remaining time until re-analysis starts and handles timer resets
- */
-class StatusBarDelayTimer {
-    static instance = null;
-    timers = new Map();
-    updateInterval = null;
-    constructor() {
-        console.log('[STATUS_BAR_TIMER] Initializing status bar delay timer manager');
-        this.startUpdateLoop();
-    }
-    /**
-     * Get the singleton instance
-     */
-    static getInstance() {
-        if (!StatusBarDelayTimer.instance) {
-            StatusBarDelayTimer.instance = new StatusBarDelayTimer();
-        }
-        return StatusBarDelayTimer.instance;
-    }
-    /**
-     * Start or restart a delay timer for a file
-     * @param uri File URI that changed
-     * @param delayMs Delay in milliseconds before analysis
-     * @param onComplete Callback to execute when timer completes
-     */
-    start(uri, delayMs, onComplete) {
-        const filePath = uri.fsPath;
-        const fileName = path.basename(filePath);
-        console.log(`[STATUS_BAR_TIMER] Starting ${delayMs}ms delay timer for ${fileName}`);
-        // Cancel existing timer for this file if any
-        this.cancel(uri);
-        // For real-time (0ms), execute immediately
-        if (delayMs === 0) {
-            console.log(`[STATUS_BAR_TIMER] Real-time mode: executing immediately for ${fileName}`);
-            onComplete();
-            return;
-        }
-        // Create status bar item
-        const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100 // Priority
-        );
-        // Set up the timeout
-        const timeout = setTimeout(() => {
-            console.log(`[STATUS_BAR_TIMER] Timer completed for ${fileName}`);
-            onComplete();
-            this.cancel(uri);
-        }, delayMs);
-        // Store timer data
-        const timerData = {
-            statusBarItem,
-            timeout,
-            startTime: Date.now(),
-            delayMs,
-            filePath
-        };
-        this.timers.set(filePath, timerData);
-        // Show initial status
-        this.updateStatusDisplay(timerData, fileName);
-        statusBarItem.show();
-    }
-    /**
-     * Cancel the timer for a specific file
-     * @param uri File URI to cancel timer for
-     */
-    cancel(uri) {
-        const filePath = uri.fsPath;
-        const timerData = this.timers.get(filePath);
-        if (timerData) {
-            const fileName = path.basename(filePath);
-            console.log(`[STATUS_BAR_TIMER] Cancelling timer for ${fileName}`);
-            clearTimeout(timerData.timeout);
-            timerData.statusBarItem.dispose();
-            this.timers.delete(filePath);
-        }
-    }
-    /**
-     * Cancel all active timers
-     */
-    cancelAll() {
-        console.log(`[STATUS_BAR_TIMER] Cancelling all ${this.timers.size} active timers`);
-        for (const timerData of this.timers.values()) {
-            clearTimeout(timerData.timeout);
-            timerData.statusBarItem.dispose();
-        }
-        this.timers.clear();
-    }
-    /**
-     * Get list of files with active timers
-     */
-    getActiveTimers() {
-        return Array.from(this.timers.keys());
-    }
-    /**
-     * Check if a file has an active timer
-     */
-    hasActiveTimer(uri) {
-        return this.timers.has(uri.fsPath);
-    }
-    /**
-     * Start the update loop for status bar displays
-     */
-    startUpdateLoop() {
-        this.updateInterval = setInterval(() => {
-            for (const [filePath, timerData] of this.timers.entries()) {
-                const fileName = path.basename(filePath);
-                this.updateStatusDisplay(timerData, fileName);
-            }
-        }, 100); // Update every 100ms for smooth countdown
-    }
-    /**
-     * Update the status bar display for a timer
-     */
-    updateStatusDisplay(timerData, fileName) {
-        const elapsed = Date.now() - timerData.startTime;
-        const remaining = Math.max(0, timerData.delayMs - elapsed);
-        if (remaining <= 0) {
-            // Timer should have completed by now
-            return;
-        }
-        const remainingSeconds = (remaining / 1000).toFixed(1);
-        // Format the status message
-        timerData.statusBarItem.text = `$(clock) ${fileName}: ${remainingSeconds}s`;
-        timerData.statusBarItem.tooltip = `Auto-analysis for ${fileName} will start in ${remainingSeconds} seconds`;
-        timerData.statusBarItem.color = new vscode.ThemeColor('statusBarItem.warningForeground');
-    }
-    /**
-     * Get timing info for a file (for debugging)
-     */
-    getTimerInfo(uri) {
-        const timerData = this.timers.get(uri.fsPath);
-        if (!timerData) {
-            return null;
-        }
-        const elapsed = Date.now() - timerData.startTime;
-        const remaining = Math.max(0, timerData.delayMs - elapsed);
-        return {
-            remaining,
-            total: timerData.delayMs
-        };
-    }
-    /**
-     * Dispose all resources
-     */
-    dispose() {
-        console.log('[STATUS_BAR_TIMER] Disposing status bar delay timer manager');
-        this.cancelAll();
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-        }
-    }
-}
-exports.StatusBarDelayTimer = StatusBarDelayTimer;
-
-
-/***/ }),
-/* 167 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ProjectStructureModularAdapter = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const projectStructureTreeView_1 = __webpack_require__(168);
-const analysisTreeItems_1 = __webpack_require__(157);
-const fileDisplayUtils_1 = __webpack_require__(158);
-/**
- * Adapter to integrate Project Structure Tree View with the modular Code Analysis system
- */
-class ProjectStructureModularAdapter {
-    context;
-    projectStructureProvider;
-    commands;
-    constructor(context) {
-        this.context = context;
-        this.projectStructureProvider = new projectStructureTreeView_1.ProjectStructureTreeDataProvider(context);
-        this.commands = new projectStructureTreeView_1.ProjectStructureCommands(this.projectStructureProvider);
-        // Register commands
-        projectStructureTreeView_1.ProjectStructureCommands.registerCommands(context, this.projectStructureProvider);
-        console.log('PROJECT_STRUCTURE_ADAPTER: Initialized project structure adapter for modular system');
-    }
-    /**
-     * Get project structure children as CodeAnalysisTreeItem for integration
-     */
-    async getProjectStructureChildren() {
-        console.log('PROJECT_STRUCTURE_ADAPTER: Getting project structure children for modular view');
-        try {
-            // Get the actual project structure
-            const projectStructure = this.projectStructureProvider.getProjectStructure();
-            if (projectStructure.length === 0) {
-                return [new analysisTreeItems_1.CodeAnalysisTreeItem('Loading project structure...', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('loading~spin'), 'Project structure is being scanned', 'Please wait', 'loading')];
-            }
-            // Convert ProjectStructureItem to CodeAnalysisTreeItem
-            return this.convertProjectStructureItems(projectStructure);
-        }
-        catch (error) {
-            console.error('PROJECT_STRUCTURE_ADAPTER: Error getting project structure children:', error);
-            return [new analysisTreeItems_1.CodeAnalysisTreeItem('Error loading project structure', vscode.TreeItemCollapsibleState.None, 'analysis-item', undefined, new vscode.ThemeIcon('error'), `Failed to load project structure: ${error}`, 'Error', 'error')];
-        }
-    }
-    /**
-     * Convert ProjectStructureItem to CodeAnalysisTreeItem
-     */
-    convertProjectStructureItems(items) {
-        return items.map(item => this.convertSingleProjectStructureItem(item));
-    }
-    /**
-     * Convert a single ProjectStructureItem to CodeAnalysisTreeItem
-     */
-    convertSingleProjectStructureItem(item) {
-        const collapsibleState = item.type === 'directory' && item.children && item.children.length > 0
-            ? vscode.TreeItemCollapsibleState.Collapsed
-            : vscode.TreeItemCollapsibleState.None;
-        // For files, use the shared utility for consistent display
-        if (item.type === 'file') {
-            const fileProperties = fileDisplayUtils_1.FileDisplayUtils.createFileTreeItemProperties(item.name, item.fullPath, 'project', item.size, this.context);
-            // Create the tree item with file-specific properties
-            const treeItem = new analysisTreeItems_1.CodeAnalysisTreeItem(item.name, collapsibleState, 'analysis-item', fileProperties.command, fileProperties.iconPath, fileProperties.tooltip, fileProperties.description, 'project-structure-file');
-            // Add custom properties to identify this as a project structure item
-            treeItem.projectStructureItem = item;
-            treeItem.isProjectStructureItem = true;
-            return treeItem;
-        }
-        // Directory handling
-        const childCounts = item.children ? this.getChildCounts(item.children) : { directories: 0, files: 0 };
-        const total = childCounts.directories + childCounts.files;
-        let description = '';
-        if (total === 0) {
-            description = 'empty';
-        }
-        else if (total === 1) {
-            description = '1 item';
-        }
-        else {
-            description = `${total} items`;
-        }
-        // Create tooltip for directory
-        const tooltipLines = [];
-        tooltipLines.push(`**${item.name}**`);
-        tooltipLines.push(`Type: ${item.type}`);
-        tooltipLines.push(`Path: ${item.relativePath || '/'}`);
-        if (item.children && (childCounts.directories > 0 || childCounts.files > 0)) {
-            tooltipLines.push(`Contents: ${childCounts.directories} folders, ${childCounts.files} files`);
-        }
-        // Create the tree item for directory
-        const treeItem = new analysisTreeItems_1.CodeAnalysisTreeItem(item.name, collapsibleState, 'analysis-item', undefined, vscode.ThemeIcon.Folder, tooltipLines.join('\n'), description, 'project-structure-directory');
-        // Add custom properties to identify this as a project structure item
-        treeItem.projectStructureItem = item;
-        treeItem.isProjectStructureItem = true;
-        return treeItem;
-    }
-    /**
-     * Get children for a project structure directory item
-     */
-    async getProjectStructureItemChildren(item) {
-        if (item.type === 'directory' && item.children) {
-            return this.convertProjectStructureItems(item.children);
-        }
-        return [];
-    }
-    /**
-     * Check if a CodeAnalysisTreeItem is a project structure item
-     */
-    isProjectStructureItem(item) {
-        return item.isProjectStructureItem === true;
-    }
-    /**
-     * Get the project structure item from a CodeAnalysisTreeItem
-     */
-    getProjectStructureItem(item) {
-        return item.projectStructureItem;
-    }
-    /**
-     * Refresh the project structure
-     */
-    async refresh() {
-        await this.projectStructureProvider.refresh();
-    }
-    /**
-     * Get project statistics
-     */
-    getStatistics() {
-        return this.projectStructureProvider.getStatistics();
-    }
-    /**
-     * Get counts of child directories and files
-     */
-    getChildCounts(children) {
-        let directories = 0;
-        let files = 0;
-        for (const child of children) {
-            if (child.type === 'directory') {
-                directories++;
-            }
-            else if (child.type === 'file') {
-                files++;
-            }
-        }
-        return { directories, files };
-    }
-}
-exports.ProjectStructureModularAdapter = ProjectStructureModularAdapter;
-
-
-/***/ }),
-/* 168 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ProjectStructureCommands = exports.ProjectStructureTreeItem = exports.ProjectStructureTreeDataProvider = void 0;
-exports.createProjectStructureModularItem = createProjectStructureModularItem;
-const vscode = __importStar(__webpack_require__(1));
-const directoryScanner_1 = __webpack_require__(169);
-const baseInterfaces_1 = __webpack_require__(134);
-const fileDisplayUtils_1 = __webpack_require__(158);
-/**
- * Tree data provider for the Project Directory Tree View
- */
-class ProjectStructureTreeDataProvider {
-    context;
-    _onDidChangeTreeData = new vscode.EventEmitter();
-    onDidChangeTreeData = this._onDidChangeTreeData.event;
-    projectStructure = [];
-    scanOptions = {
-        maxDepth: 10,
-        includeHidden: false,
-        calculateSizes: true,
-        includeModificationDates: false
-    };
-    constructor(context) {
-        this.context = context;
-        // Initial scan
-        this.refresh();
-    }
-    /**
-     * Refresh the tree view by rescanning the project structure
-     */
-    async refresh() {
-        console.log('PROJECT_STRUCTURE_TREE: Refreshing project structure');
-        try {
-            this.projectStructure = await directoryScanner_1.DirectoryScanner.scanProjectStructure(this.scanOptions);
-            this._onDidChangeTreeData.fire();
-            console.log('PROJECT_STRUCTURE_TREE: Tree view refreshed successfully');
-        }
-        catch (error) {
-            console.error('PROJECT_STRUCTURE_TREE: Error refreshing tree view:', error);
-            vscode.window.showErrorMessage(`Failed to refresh project structure: ${error}`);
-        }
-    }
-    /**
-     * Update scan options and refresh
-     */
-    async updateScanOptions(options) {
-        this.scanOptions = { ...this.scanOptions, ...options };
-        await this.refresh();
-    }
-    /**
-     * Get tree item representation
-     */
-    getTreeItem(element) {
-        return element;
-    }
-    /**
-     * Get children of a tree item
-     */
-    getChildren(element) {
-        if (!element) {
-            // Root level - return top-level items
-            return Promise.resolve(this.projectStructure.map(item => new ProjectStructureTreeItem(item, this.context)));
-        }
-        // Return children of the element
-        if (element.item.children) {
-            return Promise.resolve(element.item.children.map(child => new ProjectStructureTreeItem(child, this.context)));
-        }
-        return Promise.resolve([]);
-    }
-    /**
-     * Get the project structure data
-     */
-    getProjectStructure() {
-        return this.projectStructure;
-    }
-    /**
-     * Find an item by its relative path
-     */
-    findItem(relativePath) {
-        return directoryScanner_1.DirectoryScanner.findItemByPath(this.projectStructure, relativePath);
-    }
-    /**
-     * Get project statistics
-     */
-    getStatistics() {
-        return directoryScanner_1.DirectoryScanner.getProjectStatistics(this.projectStructure);
-    }
-}
-exports.ProjectStructureTreeDataProvider = ProjectStructureTreeDataProvider;
-/**
- * Tree item for project structure elements
- */
-class ProjectStructureTreeItem extends vscode.TreeItem {
-    item;
-    context;
-    collapsibleState;
-    constructor(item, context, collapsibleState) {
-        super(item.name, collapsibleState !== undefined
-            ? collapsibleState
-            : (item.type === 'directory' && item.children && item.children.length > 0)
-                ? vscode.TreeItemCollapsibleState.Collapsed
-                : vscode.TreeItemCollapsibleState.None);
-        this.item = item;
-        this.context = context;
-        this.collapsibleState = collapsibleState;
-        this.setupTreeItem();
-    }
-    setupTreeItem() {
-        // For files, use the shared utility for consistent display
-        if (this.item.type === 'file') {
-            const fileProperties = fileDisplayUtils_1.FileDisplayUtils.createFileTreeItemProperties(this.item.name, this.item.fullPath, 'project', this.item.size, this.context);
-            this.iconPath = fileProperties.iconPath;
-            this.description = fileProperties.description;
-            this.tooltip = fileProperties.tooltip;
-            this.command = fileProperties.command;
-        }
-        else {
-            // Directory handling
-            this.tooltip = this.createTooltip();
-            this.description = this.createDescription();
-            this.iconPath = vscode.ThemeIcon.Folder;
-            // No command for directories
-        }
-        // Set context value for context menu commands
-        this.contextValue = this.item.type;
-        // Set resource URI for VS Code integration
-        this.resourceUri = vscode.Uri.file(this.item.fullPath);
-    }
-    createTooltip() {
-        const lines = [];
-        lines.push(`**${this.item.name}**`);
-        lines.push(`Type: ${this.item.type}`);
-        lines.push(`Path: ${this.item.relativePath || '/'}`);
-        if (this.item.language) {
-            lines.push(`Language: ${this.item.language.name}`);
-        }
-        if (this.item.size !== undefined) {
-            lines.push(`Size: ${fileDisplayUtils_1.FileDisplayUtils.formatFileSize(this.item.size)}`);
-        }
-        if (this.item.lastModified) {
-            lines.push(`Modified: ${this.item.lastModified.toLocaleString()}`);
-        }
-        if (this.item.type === 'directory' && this.item.children) {
-            const childCounts = this.getChildCounts(this.item.children);
-            if (childCounts.directories > 0 || childCounts.files > 0) {
-                lines.push(`Contents: ${childCounts.directories} folders, ${childCounts.files} files`);
-            }
-        }
-        return lines.join('\n');
-    }
-    createDescription() {
-        if (this.item.type === 'file' && this.item.size !== undefined) {
-            return fileDisplayUtils_1.FileDisplayUtils.formatFileSize(this.item.size);
-        }
-        if (this.item.type === 'directory' && this.item.children) {
-            const childCounts = this.getChildCounts(this.item.children);
-            const total = childCounts.directories + childCounts.files;
-            if (total === 0) {
-                return 'empty';
-            }
-            else if (total === 1) {
-                return '1 item';
-            }
-            else {
-                return `${total} items`;
-            }
-        }
-        return '';
-    }
-    getChildCounts(children) {
-        let directories = 0;
-        let files = 0;
-        for (const child of children) {
-            if (child.type === 'directory') {
-                directories++;
-            }
-            else if (child.type === 'file') {
-                files++;
-            }
-        }
-        return { directories, files };
-    }
-}
-exports.ProjectStructureTreeItem = ProjectStructureTreeItem;
-/**
- * Create a modular tree item for the project structure section
- */
-function createProjectStructureModularItem() {
-    const item = new baseInterfaces_1.ModularTreeItem('Project Directory Tree', vscode.TreeItemCollapsibleState.Collapsed, 'codeAnalysis', 'projectStructure', {
-        command: 'codexr.codeanalysis.refreshProjectStructure',
-        title: 'Refresh Project Structure'
-    }, new vscode.ThemeIcon('folder-library'), 'Browse project structure', 'Browse project structure');
-    // Set code analysis specific properties
-    item.codeAnalysisItemType = 'section';
-    item.originalCodeAnalysisItem = {
-        id: 'project-structure',
-        label: 'Project Directory Tree',
-        description: 'Browse project structure',
-        contextValue: 'codeAnalysis.projectStructure'
-    };
-    return item;
-}
-/**
- * Commands for project structure tree view
- */
-class ProjectStructureCommands {
-    treeDataProvider;
-    constructor(treeDataProvider) {
-        this.treeDataProvider = treeDataProvider;
-    }
-    /**
-     * Register all project structure commands
-     */
-    static registerCommands(context, treeDataProvider) {
-        const commands = new ProjectStructureCommands(treeDataProvider);
-        // Refresh command
-        const refreshDisposable = vscode.commands.registerCommand('codexr.codeanalysis.refreshProjectStructure', () => commands.refresh());
-        // Reveal in explorer command
-        const revealDisposable = vscode.commands.registerCommand('codexr.codeanalysis.revealInExplorer', (item) => commands.revealInExplorer(item));
-        // Copy path command
-        const copyPathDisposable = vscode.commands.registerCommand('codexr.codeanalysis.copyPath', (item) => commands.copyPath(item));
-        // Copy relative path command
-        const copyRelativePathDisposable = vscode.commands.registerCommand('codexr.codeanalysis.copyRelativePath', (item) => commands.copyRelativePath(item));
-        // Show statistics command
-        const showStatsDisposable = vscode.commands.registerCommand('codexr.codeanalysis.showProjectStatistics', () => commands.showStatistics());
-        // Configure scan options command
-        const configureDisposable = vscode.commands.registerCommand('codexr.codeanalysis.configureProjectScan', () => commands.configureScanOptions());
-        context.subscriptions.push(refreshDisposable, revealDisposable, copyPathDisposable, copyRelativePathDisposable, showStatsDisposable, configureDisposable);
-    }
-    /**
-     * Refresh the project structure
-     */
-    async refresh() {
-        await this.treeDataProvider.refresh();
-        vscode.window.showInformationMessage('Project structure refreshed');
-    }
-    /**
-     * Reveal item in file explorer
-     */
-    async revealInExplorer(item) {
-        const uri = vscode.Uri.file(item.item.fullPath);
-        await vscode.commands.executeCommand('revealFileInOS', uri);
-    }
-    /**
-     * Copy full path to clipboard
-     */
-    async copyPath(item) {
-        await vscode.env.clipboard.writeText(item.item.fullPath);
-        vscode.window.showInformationMessage(`Copied path: ${item.item.fullPath}`);
-    }
-    /**
-     * Copy relative path to clipboard
-     */
-    async copyRelativePath(item) {
-        const relativePath = item.item.relativePath || item.item.name;
-        await vscode.env.clipboard.writeText(relativePath);
-        vscode.window.showInformationMessage(`Copied relative path: ${relativePath}`);
-    }
-    /**
-     * Show project statistics
-     */
-    async showStatistics() {
-        const stats = this.treeDataProvider.getStatistics();
-        const lines = [];
-        lines.push(`**Project Structure Statistics**`);
-        lines.push('');
-        lines.push(`📁 Directories: ${stats.totalDirectories}`);
-        lines.push(`📄 Files: ${stats.totalFiles}`);
-        if (stats.totalSize !== undefined) {
-            lines.push(`💾 Total Size: ${fileDisplayUtils_1.FileDisplayUtils.formatFileSize(stats.totalSize)}`);
-        }
-        if (stats.largestFile) {
-            lines.push(`🔥 Largest File: ${stats.largestFile.name} (${fileDisplayUtils_1.FileDisplayUtils.formatFileSize(stats.largestFile.size || 0)})`);
-        }
-        lines.push('');
-        lines.push('**Files by Language:**');
-        const sortedLanguages = Object.entries(stats.filesByLanguage)
-            .sort(([, a], [, b]) => b - a);
-        for (const [language, count] of sortedLanguages) {
-            lines.push(`  ${language}: ${count} files`);
-        }
-        const content = lines.join('\n');
-        // Show in a new document
-        const doc = await vscode.workspace.openTextDocument({
-            content,
-            language: 'markdown'
-        });
-        await vscode.window.showTextDocument(doc);
-    }
-    /**
-     * Configure scan options
-     */
-    async configureScanOptions() {
-        const options = await this.showScanOptionsQuickPick();
-        if (options) {
-            await this.treeDataProvider.updateScanOptions(options);
-            vscode.window.showInformationMessage('Scan options updated and structure refreshed');
-        }
-    }
-    async showScanOptionsQuickPick() {
-        const items = [
-            {
-                label: 'Include Hidden Files',
-                description: 'Show files and folders starting with .',
-                picked: false
-            },
-            {
-                label: 'Calculate File Sizes',
-                description: 'Show file sizes in tree (may be slower)',
-                picked: true
-            },
-            {
-                label: 'Include Modification Dates',
-                description: 'Show last modified dates in tooltips',
-                picked: false
-            }
-        ];
-        const selected = await vscode.window.showQuickPick(items, {
-            canPickMany: true,
-            title: 'Configure Project Structure Scan Options'
-        });
-        if (!selected) {
-            return undefined;
-        }
-        const options = {};
-        for (const item of selected) {
-            switch (item.label) {
-                case 'Include Hidden Files':
-                    options.includeHidden = true;
-                    break;
-                case 'Calculate File Sizes':
-                    options.calculateSizes = true;
-                    break;
-                case 'Include Modification Dates':
-                    options.includeModificationDates = true;
-                    break;
-            }
-        }
-        return options;
-    }
-}
-exports.ProjectStructureCommands = ProjectStructureCommands;
-
-
-/***/ }),
-/* 169 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DirectoryScanner = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-const languageMetadata_1 = __webpack_require__(90);
-/**
- * Scanner for creating a hierarchical project directory structure
- */
-class DirectoryScanner {
-    /**
-     * Default ignore patterns for common build/cache directories
-     */
-    static DEFAULT_IGNORE_PATTERNS = [
-        'node_modules',
-        '.git',
-        '.svn',
-        '.hg',
-        '.venv',
-        '__pycache__',
-        '.pytest_cache',
-        '.mypy_cache',
-        '.tox',
-        '.coverage',
-        'build',
-        'dist',
-        'out',
-        'bin',
-        'target',
-        '.vscode',
-        '.idea',
-        '*.vsix',
-        '.DS_Store',
-        'Thumbs.db'
-    ];
-    /**
-     * Scan workspace folders and create hierarchical project structure
-     */
-    static async scanProjectStructure(options = {}) {
-        console.log('DIRECTORY_SCANNER: Starting project structure scan');
-        const startTime = Date.now();
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders || workspaceFolders.length === 0) {
-            console.log('DIRECTORY_SCANNER: No workspace folders found');
-            return [];
-        }
-        const projectStructure = [];
-        // Combine default and custom ignore patterns
-        const ignorePatterns = [
-            ...this.DEFAULT_IGNORE_PATTERNS,
-            ...(options.customIgnorePatterns || [])
-        ];
-        // Scan each workspace folder
-        for (const workspaceFolder of workspaceFolders) {
-            console.log(`DIRECTORY_SCANNER: Scanning workspace folder: ${workspaceFolder.name}`);
-            try {
-                const rootItem = await this.scanDirectory(workspaceFolder.uri, workspaceFolder.uri.fsPath, '', ignorePatterns, options, 0);
-                if (rootItem) {
-                    // For single workspace, use the folder contents directly
-                    if (workspaceFolders.length === 1 && rootItem.children) {
-                        projectStructure.push(...rootItem.children);
-                    }
-                    else {
-                        // For multiple workspaces, include the workspace folder as root
-                        projectStructure.push(rootItem);
-                    }
-                }
-            }
-            catch (error) {
-                console.error(`DIRECTORY_SCANNER: Error scanning workspace folder ${workspaceFolder.name}:`, error);
-            }
-        }
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        const totalItems = this.countItems(projectStructure);
-        console.log(`DIRECTORY_SCANNER: Project structure scan completed in ${duration}ms`);
-        console.log(`DIRECTORY_SCANNER: Found ${totalItems.directories} directories and ${totalItems.files} files`);
-        return projectStructure;
-    }
-    /**
-     * Recursively scan a directory and build its structure
-     */
-    static async scanDirectory(directoryUri, workspaceRoot, relativePath, ignorePatterns, options, currentDepth) {
-        // Check depth limit
-        if (options.maxDepth && currentDepth > options.maxDepth) {
-            return null;
-        }
-        const directoryName = path.basename(directoryUri.fsPath);
-        // Check if directory should be ignored
-        if (this.shouldIgnore(directoryName, ignorePatterns, options.includeHidden)) {
-            return null;
-        }
-        try {
-            // Get directory contents
-            const entries = await vscode.workspace.fs.readDirectory(directoryUri);
-            const children = [];
-            // Sort entries: directories first, then files, alphabetically
-            const sortedEntries = entries.sort((a, b) => {
-                // Directories first
-                if (a[1] === vscode.FileType.Directory && b[1] !== vscode.FileType.Directory) {
-                    return -1;
-                }
-                if (b[1] === vscode.FileType.Directory && a[1] !== vscode.FileType.Directory) {
-                    return 1;
-                }
-                // Then alphabetically
-                return a[0].localeCompare(b[0]);
-            });
-            // Process each entry
-            for (const [entryName, entryType] of sortedEntries) {
-                const entryUri = vscode.Uri.joinPath(directoryUri, entryName);
-                const entryRelativePath = relativePath ? path.join(relativePath, entryName) : entryName;
-                if (entryType === vscode.FileType.Directory) {
-                    // Recursively scan subdirectory
-                    const subDirectory = await this.scanDirectory(entryUri, workspaceRoot, entryRelativePath, ignorePatterns, options, currentDepth + 1);
-                    if (subDirectory) {
-                        children.push(subDirectory);
-                    }
-                }
-                else if (entryType === vscode.FileType.File) {
-                    // Check if file should be ignored
-                    if (!this.shouldIgnore(entryName, ignorePatterns, options.includeHidden)) {
-                        const fileItem = await this.createFileItem(entryUri, workspaceRoot, entryRelativePath, options);
-                        if (fileItem) {
-                            children.push(fileItem);
-                        }
-                    }
-                }
-            }
-            // Create directory item
-            const directoryItem = {
-                name: directoryName,
-                relativePath: relativePath,
-                fullPath: directoryUri.fsPath,
-                type: 'directory',
-                children: children
-            };
-            // Add modification date if requested
-            if (options.includeModificationDates) {
-                try {
-                    const stat = await vscode.workspace.fs.stat(directoryUri);
-                    directoryItem.lastModified = new Date(stat.mtime);
-                }
-                catch (error) {
-                    console.warn(`DIRECTORY_SCANNER: Could not get modification date for ${directoryUri.fsPath}`);
-                }
-            }
-            return directoryItem;
-        }
-        catch (error) {
-            console.warn(`DIRECTORY_SCANNER: Error reading directory ${directoryUri.fsPath}:`, error);
-            return null;
-        }
-    }
-    /**
-     * Create a file item with metadata
-     */
-    static async createFileItem(fileUri, workspaceRoot, relativePath, options) {
-        try {
-            const fileName = path.basename(fileUri.fsPath);
-            const language = (0, languageMetadata_1.getLanguageForFile)(fileUri.fsPath);
-            const fileItem = {
-                name: fileName,
-                relativePath: relativePath,
-                fullPath: fileUri.fsPath,
-                type: 'file',
-                language: language
-            };
-            // Add file size if requested
-            if (options.calculateSizes) {
-                try {
-                    const stat = await vscode.workspace.fs.stat(fileUri);
-                    fileItem.size = stat.size;
-                }
-                catch (error) {
-                    console.warn(`DIRECTORY_SCANNER: Could not get size for ${fileUri.fsPath}`);
-                }
-            }
-            // Add modification date if requested
-            if (options.includeModificationDates) {
-                try {
-                    const stat = await vscode.workspace.fs.stat(fileUri);
-                    fileItem.lastModified = new Date(stat.mtime);
-                }
-                catch (error) {
-                    console.warn(`DIRECTORY_SCANNER: Could not get modification date for ${fileUri.fsPath}`);
-                }
-            }
-            return fileItem;
-        }
-        catch (error) {
-            console.warn(`DIRECTORY_SCANNER: Error processing file ${fileUri.fsPath}:`, error);
-            return null;
-        }
-    }
-    /**
-     * Check if a file or directory should be ignored
-     */
-    static shouldIgnore(name, ignorePatterns, includeHidden = false) {
-        // Check hidden files/directories
-        if (!includeHidden && name.startsWith('.')) {
-            return true;
-        }
-        // Check against ignore patterns
-        return ignorePatterns.some(pattern => {
-            // Simple glob-like matching
-            if (pattern.includes('*')) {
-                const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-                return regex.test(name);
-            }
-            return name === pattern;
-        });
-    }
-    /**
-     * Count total directories and files in the structure
-     */
-    static countItems(items) {
-        let directories = 0;
-        let files = 0;
-        for (const item of items) {
-            if (item.type === 'directory') {
-                directories++;
-                if (item.children) {
-                    const childCounts = this.countItems(item.children);
-                    directories += childCounts.directories;
-                    files += childCounts.files;
-                }
-            }
-            else if (item.type === 'file') {
-                files++;
-            }
-        }
-        return { directories, files };
-    }
-    /**
-     * Find an item in the structure by relative path
-     */
-    static findItemByPath(items, targetPath) {
-        for (const item of items) {
-            if (item.relativePath === targetPath) {
-                return item;
-            }
-            if (item.children) {
-                const found = this.findItemByPath(item.children, targetPath);
-                if (found) {
-                    return found;
-                }
-            }
-        }
-        return null;
-    }
-    /**
-     * Get all files in the structure (flattened)
-     */
-    static getAllFiles(items) {
-        const files = [];
-        for (const item of items) {
-            if (item.type === 'file') {
-                files.push(item);
-            }
-            else if (item.children) {
-                files.push(...this.getAllFiles(item.children));
-            }
-        }
-        return files;
-    }
-    /**
-     * Get all directories in the structure (flattened)
-     */
-    static getAllDirectories(items) {
-        const directories = [];
-        for (const item of items) {
-            if (item.type === 'directory') {
-                directories.push(item);
-                if (item.children) {
-                    directories.push(...this.getAllDirectories(item.children));
-                }
-            }
-        }
-        return directories;
-    }
-    /**
-     * Filter items by file extension
-     */
-    static filterByExtension(items, extensions) {
-        const filtered = [];
-        for (const item of items) {
-            if (item.type === 'file') {
-                const ext = path.extname(item.name).toLowerCase();
-                if (extensions.includes(ext)) {
-                    filtered.push(item);
-                }
-            }
-            else if (item.children) {
-                const filteredChildren = this.filterByExtension(item.children, extensions);
-                if (filteredChildren.length > 0) {
-                    filtered.push({
-                        ...item,
-                        children: filteredChildren
-                    });
-                }
-            }
-        }
-        return filtered;
-    }
-    /**
-     * Get statistics about the project structure
-     */
-    static getProjectStatistics(items) {
-        const counts = this.countItems(items);
-        const allFiles = this.getAllFiles(items);
-        const filesByLanguage = {};
-        let totalSize = 0;
-        let largestFile;
-        for (const file of allFiles) {
-            // Count by language
-            const languageName = file.language?.name || 'Unknown';
-            filesByLanguage[languageName] = (filesByLanguage[languageName] || 0) + 1;
-            // Calculate sizes
-            if (file.size !== undefined) {
-                totalSize += file.size;
-                if (!largestFile || (file.size > (largestFile.size || 0))) {
-                    largestFile = file;
-                }
-            }
-        }
-        return {
-            totalDirectories: counts.directories,
-            totalFiles: counts.files,
-            filesByLanguage,
-            totalSize: totalSize > 0 ? totalSize : undefined,
-            largestFile
-        };
-    }
-}
-exports.DirectoryScanner = DirectoryScanner;
-
-
-/***/ }),
-/* 170 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28491,10 +23790,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const handleNewCodeAnalysisClicks_1 = __webpack_require__(171);
-const subsections_1 = __webpack_require__(172);
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const handleNewCodeAnalysisClicks_1 = __webpack_require__(155);
+const subsections_1 = __webpack_require__(156);
+const analysisSessionRegistry_1 = __webpack_require__(92);
 /**
  * TODO: Implement tree data provider for new code analysis
  * - Provide tree structure for analysis results
@@ -28519,6 +23818,11 @@ class NewCodeAnalysisSectionProvider {
         this.analysisSettingsSubsection = new subsections_1.AnalysisSettingsSubsectionProvider(context);
         this.projectByLanguageSubsection = new subsections_1.ProjectByLanguageSubsectionProvider(context);
         this.filesByLanguageSubsection = new subsections_1.FilesByLanguageSubsectionProvider(context);
+        // Setup real-time refresh callback for Files by Language
+        this.filesByLanguageSubsection.setRefreshCallback(() => {
+            console.log('NEW_CODE_ANALYSIS: Files by Language triggered refresh');
+            this.refresh();
+        });
         // Set up listener for analysis session changes to auto-refresh UI
         const sessionRegistry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
         sessionRegistry.onSessionChanged((session) => {
@@ -28608,12 +23912,23 @@ class NewCodeAnalysisSectionProvider {
     async onItemSelected(item) {
         await handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler.handleItemClick(item);
     }
+    /**
+     * Dispose of resources
+     */
+    dispose() {
+        console.log('NEW_CODE_ANALYSIS: Disposing New Code Analysis section provider');
+        // Dispose of subsections
+        if (this.filesByLanguageSubsection) {
+            this.filesByLanguageSubsection.dispose();
+        }
+        // Note: Other subsections can also implement dispose if needed
+    }
 }
 exports.NewCodeAnalysisSectionProvider = NewCodeAnalysisSectionProvider;
 
 
 /***/ }),
-/* 171 */
+/* 155 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -28674,7 +23989,7 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
 
 
 /***/ }),
-/* 172 */
+/* 156 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28684,19 +23999,19 @@ exports.NewCodeAnalysisInteractionHandler = NewCodeAnalysisInteractionHandler;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = exports.ProjectByLanguageSubsectionProvider = exports.ActiveAnalysesSubsectionProvider = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysis_settings_1 = __webpack_require__(173);
+var analysis_settings_1 = __webpack_require__(157);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisSettingsSubsectionProvider; } }));
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_settings_1.AnalysisFileSetting; } }));
-var active_analyses_1 = __webpack_require__(178);
+var active_analyses_1 = __webpack_require__(162);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return active_analyses_1.ActiveAnalysesSubsectionProvider; } }));
-var project_by_language_1 = __webpack_require__(184);
+var project_by_language_1 = __webpack_require__(168);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return project_by_language_1.ProjectByLanguageSubsectionProvider; } }));
-var files_by_language_1 = __webpack_require__(186);
+var files_by_language_1 = __webpack_require__(170);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return files_by_language_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 173 */
+/* 157 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28706,18 +24021,18 @@ Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = exports.ViewThemeSetting = exports.AnalysisFileSetting = exports.AnalysisSettingsSubsectionProvider = void 0;
-var analysisSettingsSubsectionProvider_1 = __webpack_require__(174);
+var analysisSettingsSubsectionProvider_1 = __webpack_require__(158);
 Object.defineProperty(exports, "AnalysisSettingsSubsectionProvider", ({ enumerable: true, get: function () { return analysisSettingsSubsectionProvider_1.AnalysisSettingsSubsectionProvider; } }));
-var analysis_file_mode_1 = __webpack_require__(175);
+var analysis_file_mode_1 = __webpack_require__(159);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysis_file_mode_1.AnalysisFileSetting; } }));
-var view_theme_1 = __webpack_require__(176);
+var view_theme_1 = __webpack_require__(160);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return view_theme_1.ViewThemeSetting; } }));
-var auto_analysis_delay_1 = __webpack_require__(177);
+var auto_analysis_delay_1 = __webpack_require__(161);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return auto_analysis_delay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 174 */
+/* 158 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28761,13 +24076,13 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisSettingsSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const analysis_file_mode_1 = __webpack_require__(175);
-const view_theme_1 = __webpack_require__(176);
-const chartTypeFile_1 = __webpack_require__(200);
-const dimensionMappingFile_1 = __webpack_require__(201);
-const auto_analysis_delay_1 = __webpack_require__(177);
-const files_by_language_sorting_1 = __webpack_require__(207);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const analysis_file_mode_1 = __webpack_require__(159);
+const view_theme_1 = __webpack_require__(160);
+const chartTypeFile_1 = __webpack_require__(122);
+const dimensionMappingFile_1 = __webpack_require__(124);
+const auto_analysis_delay_1 = __webpack_require__(161);
+const files_by_language_sorting_1 = __webpack_require__(125);
 class AnalysisSettingsSubsectionProvider {
     context;
     analysisFileSetting;
@@ -28863,7 +24178,7 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
 
 
 /***/ }),
-/* 175 */
+/* 159 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28873,12 +24188,12 @@ exports.AnalysisSettingsSubsectionProvider = AnalysisSettingsSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AnalysisFileSetting = void 0;
-var analysisFileMode_1 = __webpack_require__(120);
+var analysisFileMode_1 = __webpack_require__(118);
 Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: function () { return analysisFileMode_1.AnalysisFileSetting; } }));
 
 
 /***/ }),
-/* 176 */
+/* 160 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28888,12 +24203,12 @@ Object.defineProperty(exports, "AnalysisFileSetting", ({ enumerable: true, get: 
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViewThemeSetting = void 0;
-var viewTheme_1 = __webpack_require__(125);
+var viewTheme_1 = __webpack_require__(120);
 Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: function () { return viewTheme_1.ViewThemeSetting; } }));
 
 
 /***/ }),
-/* 177 */
+/* 161 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28903,12 +24218,12 @@ Object.defineProperty(exports, "ViewThemeSetting", ({ enumerable: true, get: fun
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoAnalysisDelaySetting = void 0;
-var autoAnalysisDelay_1 = __webpack_require__(126);
+var autoAnalysisDelay_1 = __webpack_require__(121);
 Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, get: function () { return autoAnalysisDelay_1.AutoAnalysisDelaySetting; } }));
 
 
 /***/ }),
-/* 178 */
+/* 162 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -28919,25 +24234,25 @@ Object.defineProperty(exports, "AutoAnalysisDelaySetting", ({ enumerable: true, 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesCommands = exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = exports.ActiveAnalysesDataService = exports.ActiveAnalysisModelMapper = exports.ActiveAnalysesSubsectionProvider = void 0;
 // Main provider
-var activeAnalysesSubsectionProvider_1 = __webpack_require__(179);
+var activeAnalysesSubsectionProvider_1 = __webpack_require__(163);
 Object.defineProperty(exports, "ActiveAnalysesSubsectionProvider", ({ enumerable: true, get: function () { return activeAnalysesSubsectionProvider_1.ActiveAnalysesSubsectionProvider; } }));
 // Model components
-var activeAnalysisModel_1 = __webpack_require__(181);
+var activeAnalysisModel_1 = __webpack_require__(165);
 Object.defineProperty(exports, "ActiveAnalysisModelMapper", ({ enumerable: true, get: function () { return activeAnalysisModel_1.ActiveAnalysisModelMapper; } }));
 // Service components
-var activeAnalysesDataService_1 = __webpack_require__(180);
+var activeAnalysesDataService_1 = __webpack_require__(164);
 Object.defineProperty(exports, "ActiveAnalysesDataService", ({ enumerable: true, get: function () { return activeAnalysesDataService_1.ActiveAnalysesDataService; } }));
 // UI components
-var activeAnalysisItems_1 = __webpack_require__(182);
+var activeAnalysisItems_1 = __webpack_require__(166);
 Object.defineProperty(exports, "ActiveAnalysisTreeItem", ({ enumerable: true, get: function () { return activeAnalysisItems_1.ActiveAnalysisTreeItem; } }));
 Object.defineProperty(exports, "ActiveAnalysisItemFactory", ({ enumerable: true, get: function () { return activeAnalysisItems_1.ActiveAnalysisItemFactory; } }));
 // Command components
-var activeAnalysesCommands_1 = __webpack_require__(183);
+var activeAnalysesCommands_1 = __webpack_require__(167);
 Object.defineProperty(exports, "ActiveAnalysesCommands", ({ enumerable: true, get: function () { return activeAnalysesCommands_1.ActiveAnalysesCommands; } }));
 
 
 /***/ }),
-/* 179 */
+/* 163 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -28981,11 +24296,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const activeAnalysesDataService_1 = __webpack_require__(180);
-const activeAnalysisModel_1 = __webpack_require__(181);
-const activeAnalysisItems_1 = __webpack_require__(182);
-const activeAnalysesCommands_1 = __webpack_require__(183);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const activeAnalysesDataService_1 = __webpack_require__(164);
+const activeAnalysisModel_1 = __webpack_require__(165);
+const activeAnalysisItems_1 = __webpack_require__(166);
+const activeAnalysesCommands_1 = __webpack_require__(167);
 class ActiveAnalysesSubsectionProvider {
     context;
     dataService;
@@ -29101,7 +24416,7 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
 
 
 /***/ }),
-/* 180 */
+/* 164 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -29111,7 +24426,7 @@ exports.ActiveAnalysesSubsectionProvider = ActiveAnalysesSubsectionProvider;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesDataService = void 0;
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const analysisSessionRegistry_1 = __webpack_require__(92);
 const activeServerRegistry_1 = __webpack_require__(26);
 class ActiveAnalysesDataService {
     static instance;
@@ -29331,7 +24646,7 @@ exports.ActiveAnalysesDataService = ActiveAnalysesDataService;
 
 
 /***/ }),
-/* 181 */
+/* 165 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29516,7 +24831,7 @@ exports.ActiveAnalysisModelMapper = ActiveAnalysisModelMapper;
 
 
 /***/ }),
-/* 182 */
+/* 166 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29560,7 +24875,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysisItemFactory = exports.ActiveAnalysisTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
 class ActiveAnalysisTreeItem extends newCodeAnalysisItems_1.NewCodeAnalysisTreeItem {
     sessionData;
     constructor(uiItem) {
@@ -29700,7 +25015,7 @@ exports.ActiveAnalysisItemFactory = ActiveAnalysisItemFactory;
 
 
 /***/ }),
-/* 183 */
+/* 167 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -29744,12 +25059,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActiveAnalysesCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const activeAnalysesDataService_1 = __webpack_require__(180);
+const activeAnalysesDataService_1 = __webpack_require__(164);
 const activeServerRegistry_1 = __webpack_require__(26);
 const serverControl_1 = __webpack_require__(28);
-const serverWatcherIntegration_1 = __webpack_require__(111);
-const fileWatcher_1 = __webpack_require__(104);
-const analysisSessionRegistry_1 = __webpack_require__(101);
+const serverWatcherIntegration_1 = __webpack_require__(103);
+const manageWatcher_1 = __webpack_require__(192);
+const analysisSessionRegistry_1 = __webpack_require__(92);
 const fs = __importStar(__webpack_require__(6));
 class ActiveAnalysesCommands {
     dataService;
@@ -29896,15 +25211,15 @@ class ActiveAnalysesCommands {
         try {
             console.log(`ACTIVE_ANALYSES_COMMANDS: Stopping file watcher for session ${sessionId}`);
             // Get all active watchers and find the one for this session
-            const watchersInfo = fileWatcher_1.FileWatcher.getActiveWatchersInfo();
+            const watchersInfo = manageWatcher_1.ManageWatcher.getActiveWatchersInfo();
             // Find watcher by checking if the sessionId is in the watcher ID or by matching file path
             const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
             const session = registry.getSession(sessionId);
             if (session) {
                 // Try to find watcher by file path
-                const watcherInfo = watchersInfo.find(w => w.filePath === session.filePath);
+                const watcherInfo = watchersInfo.find((w) => w.filePath === session.filePath);
                 if (watcherInfo) {
-                    const stopped = fileWatcher_1.FileWatcher.stopWatching(watcherInfo.id);
+                    const stopped = manageWatcher_1.ManageWatcher.stopWatching(watcherInfo.id);
                     if (stopped) {
                         console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully stopped file watcher ${watcherInfo.id}`);
                     }
@@ -30142,7 +25457,7 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
 
 
 /***/ }),
-/* 184 */
+/* 168 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30152,12 +25467,12 @@ exports.ActiveAnalysesCommands = ActiveAnalysesCommands;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
-var projectByLanguageSubsectionProvider_1 = __webpack_require__(185);
+var projectByLanguageSubsectionProvider_1 = __webpack_require__(169);
 Object.defineProperty(exports, "ProjectByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return projectByLanguageSubsectionProvider_1.ProjectByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 185 */
+/* 169 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30201,7 +25516,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ProjectByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
 class ProjectByLanguageSubsectionProvider {
     context;
     constructor(context) {
@@ -30237,7 +25552,7 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
 
 
 /***/ }),
-/* 186 */
+/* 170 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30247,12 +25562,12 @@ exports.ProjectByLanguageSubsectionProvider = ProjectByLanguageSubsectionProvide
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
-var filesByLanguageSubsectionProvider_1 = __webpack_require__(187);
+var filesByLanguageSubsectionProvider_1 = __webpack_require__(171);
 Object.defineProperty(exports, "FilesByLanguageSubsectionProvider", ({ enumerable: true, get: function () { return filesByLanguageSubsectionProvider_1.FilesByLanguageSubsectionProvider; } }));
 
 
 /***/ }),
-/* 187 */
+/* 171 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30296,20 +25611,23 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FilesByLanguageSubsectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const workspaceFileScanner_1 = __webpack_require__(206);
-const filesByLanguageSortingUtils_1 = __webpack_require__(210);
-const analysisConfigurationStorage_1 = __webpack_require__(106);
+const newCodeAnalysisItems_1 = __webpack_require__(119);
+const workspaceFileScanner_1 = __webpack_require__(172);
+const filesByLanguageSortingUtils_1 = __webpack_require__(173);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
 class FilesByLanguageSubsectionProvider {
     context;
     cachedSummary = null;
     lastScanTime = 0;
     CACHE_DURATION = 30000; // 30 seconds cache
     storage;
+    fileWatcher = null;
+    refreshCallback = null;
     constructor(context) {
         this.context = context;
         console.log('NEW_CODE_ANALYSIS: Initializing Files by Language subsection provider');
         this.storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+        this.setupFileWatcher();
     }
     /**
      * Get the subsection header item
@@ -30437,12 +25755,396 @@ class FilesByLanguageSubsectionProvider {
         }
         return [];
     }
+    /**
+     * Set refresh callback for real-time updates
+     */
+    setRefreshCallback(callback) {
+        this.refreshCallback = callback;
+    }
+    /**
+     * Setup file watcher for real-time updates
+     */
+    setupFileWatcher() {
+        try {
+            console.log('NEW_CODE_ANALYSIS: Setting up file watcher for Files by Language');
+            // Create file watcher for all files in workspace
+            this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
+            // Handle file creation
+            this.fileWatcher.onDidCreate((uri) => {
+                console.log('NEW_CODE_ANALYSIS: File created:', uri.fsPath);
+                this.handleFileChange();
+            });
+            // Handle file deletion
+            this.fileWatcher.onDidDelete((uri) => {
+                console.log('NEW_CODE_ANALYSIS: File deleted:', uri.fsPath);
+                this.handleFileChange();
+            });
+            // Handle file renaming/moving (this triggers delete + create)
+            // No need for onDidChange as we only care about structure changes
+            // Add to context subscriptions for cleanup
+            this.context.subscriptions.push(this.fileWatcher);
+            console.log('NEW_CODE_ANALYSIS: File watcher setup completed');
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error setting up file watcher:', error);
+        }
+    }
+    /**
+     * Handle file system changes
+     */
+    handleFileChange() {
+        try {
+            console.log('NEW_CODE_ANALYSIS: Handling file system change for Files by Language');
+            // Invalidate cache immediately
+            this.cachedSummary = null;
+            this.lastScanTime = 0;
+            // Trigger refresh if callback is available
+            if (this.refreshCallback) {
+                console.log('NEW_CODE_ANALYSIS: Triggering Files by Language refresh');
+                this.refreshCallback();
+            }
+        }
+        catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error handling file change:', error);
+        }
+    }
+    /**
+     * Dispose of resources
+     */
+    dispose() {
+        console.log('NEW_CODE_ANALYSIS: Disposing Files by Language subsection provider');
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+            this.fileWatcher = null;
+        }
+        this.refreshCallback = null;
+        this.cachedSummary = null;
+    }
 }
 exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 
 
 /***/ }),
-/* 188 */
+/* 172 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Workspace File Scanner
+ * Scans workspace for files and groups them by programming language
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkspaceFileScanner = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const languageMetadata_1 = __webpack_require__(78);
+class WorkspaceFileScanner {
+    /**
+     * Scan workspace for all files and group by programming language
+     */
+    static async scanWorkspaceFiles() {
+        console.log('WORKSPACE_FILE_SCANNER: Starting workspace file scan...');
+        const supportedFiles = {};
+        const unsupportedFiles = [];
+        try {
+            // Get all workspace folders
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders || workspaceFolders.length === 0) {
+                console.log('WORKSPACE_FILE_SCANNER: No workspace folders found');
+                return {
+                    supportedFiles,
+                    unsupportedFiles,
+                    totalLanguages: 0,
+                    totalFiles: 0
+                };
+            }
+            // Define patterns to exclude
+            const excludePatterns = [
+                '**/node_modules/**',
+                '**/.*/**',
+                '**/.git/**',
+                '**/dist/**',
+                '**/build/**',
+                '**/out/**',
+                '**/coverage/**',
+                '**/.vscode/**',
+                '**/target/**',
+                '**/__pycache__/**',
+                '**/*.pyc',
+                '**/*.pyo',
+                '**/*.min.js',
+                '**/*.min.css',
+                '**/package-lock.json',
+                '**/yarn.lock',
+                '**/Cargo.lock',
+                '**/Gemfile.lock'
+            ];
+            // Scan each workspace folder
+            for (const folder of workspaceFolders) {
+                console.log(`WORKSPACE_FILE_SCANNER: Scanning folder: ${folder.uri.fsPath}`);
+                // Find all files, excluding common build/dependency directories
+                const files = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, '**/*'), `{${excludePatterns.join(',')}}`, 10000 // Limit to prevent performance issues
+                );
+                console.log(`WORKSPACE_FILE_SCANNER: Found ${files.length} files in ${folder.name}`);
+                // Process each file
+                for (const fileUri of files) {
+                    const filePath = fileUri.fsPath;
+                    const relativePath = vscode.workspace.asRelativePath(fileUri);
+                    // Skip directories (just in case)
+                    try {
+                        const stat = await vscode.workspace.fs.stat(fileUri);
+                        if (stat.type === vscode.FileType.Directory) {
+                            continue;
+                        }
+                    }
+                    catch (error) {
+                        // Skip files that can't be accessed
+                        continue;
+                    }
+                    // Detect language
+                    const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
+                    if (languageInfo) {
+                        // File is supported
+                        if (!supportedFiles[languageInfo.name]) {
+                            supportedFiles[languageInfo.name] = {
+                                language: languageInfo,
+                                files: []
+                            };
+                        }
+                        supportedFiles[languageInfo.name].files.push(relativePath);
+                    }
+                    else {
+                        // File is not supported for analysis
+                        unsupportedFiles.push(relativePath);
+                    }
+                }
+            }
+            // Sort files within each language group
+            Object.values(supportedFiles).forEach(languageGroup => {
+                languageGroup.files.sort();
+            });
+            // Sort unsupported files
+            unsupportedFiles.sort();
+            const totalLanguages = Object.keys(supportedFiles).length;
+            const totalFiles = Object.values(supportedFiles).reduce((sum, group) => sum + group.files.length, 0) + unsupportedFiles.length;
+            console.log(`WORKSPACE_FILE_SCANNER: Scan complete - ${totalLanguages} languages, ${totalFiles} total files`);
+            console.log(`WORKSPACE_FILE_SCANNER: Supported languages:`, Object.keys(supportedFiles));
+            console.log(`WORKSPACE_FILE_SCANNER: Unsupported files count: ${unsupportedFiles.length}`);
+            return {
+                supportedFiles,
+                unsupportedFiles,
+                totalLanguages,
+                totalFiles
+            };
+        }
+        catch (error) {
+            console.error('WORKSPACE_FILE_SCANNER: Error scanning workspace:', error);
+            return {
+                supportedFiles,
+                unsupportedFiles,
+                totalLanguages: 0,
+                totalFiles: 0
+            };
+        }
+    }
+    /**
+     * Get icon URI for a programming language
+     */
+    static getLanguageIconUri(context, languageName) {
+        // Map language names to icon file names
+        const iconMapping = {
+            'Python': 'python.svg',
+            'JavaScript': 'javascript.svg',
+            'TypeScript': 'typescript.svg',
+            'Java': 'java.svg',
+            'C': 'c.svg',
+            'C++': 'cplusplus.svg',
+            'C#': 'csharp.svg',
+            'Go': 'go.svg',
+            'Ruby': 'ruby.svg',
+            'PHP': 'php.svg',
+            'Swift': 'swift.svg',
+            'Kotlin': 'kotlin.svg',
+            'Scala': 'scala.svg',
+            'Lua': 'lua.svg',
+            'Perl': 'perl.svg',
+            'Erlang': 'erlang.svg',
+            'Fortran': 'fortran.svg',
+            'Objective-C': 'objectivec.svg',
+            'Solidity': 'solidity.svg',
+            'TTCN-3': 'ttcn3.svg',
+            'Vue': 'vuejs.svg',
+            'Zig': 'zig.svg',
+            'HTML': 'html5.svg',
+            'GDScript': 'godot.svg'
+        };
+        const iconFileName = iconMapping[languageName] || 'default.svg';
+        return vscode.Uri.joinPath(context.extensionUri, 'resources', 'languages_icons', 'color', iconFileName);
+    }
+}
+exports.WorkspaceFileScanner = WorkspaceFileScanner;
+
+
+/***/ }),
+/* 173 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Files by Language Sorting Utility
+ * Provides sorting functionality for Files by Language section
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FilesByLanguageSortingUtils = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+class FilesByLanguageSortingUtils {
+    /**
+     * Sort language groups according to configuration
+     */
+    static sortLanguageGroups(filesByLanguage, sortingConfig) {
+        // Convert to array with metadata
+        const languageGroups = Object.entries(filesByLanguage).map(([languageName, group]) => ({
+            languageName,
+            files: group.files,
+            fileCount: group.files.length,
+            language: group.language
+        }));
+        // Apply primary sorting
+        languageGroups.sort((a, b) => {
+            const primaryResult = this.compareLanguageGroups(a, b, sortingConfig.languageGroupSortBy, sortingConfig.languageGroupSortDirection);
+            // If primary comparison is equal and there's secondary sorting
+            if (primaryResult === 0 && sortingConfig.languageGroupSecondarySortBy && sortingConfig.languageGroupSecondarySortDirection) {
+                return this.compareLanguageGroups(a, b, sortingConfig.languageGroupSecondarySortBy, sortingConfig.languageGroupSecondarySortDirection);
+            }
+            return primaryResult;
+        });
+        return languageGroups;
+    }
+    /**
+     * Sort files within a language group according to configuration
+     */
+    static async sortFilesInGroup(files, sortingConfig) {
+        const sortedFiles = [...files];
+        if (sortingConfig.filesSortBy === 'alphabetical') {
+            // Alphabetical sorting
+            sortedFiles.sort((a, b) => {
+                const comparison = path.basename(a).localeCompare(path.basename(b));
+                return sortingConfig.filesSortDirection === 'ascending' ? comparison : -comparison;
+            });
+        }
+        else if (sortingConfig.filesSortBy === 'lastModified') {
+            // Last modified sorting - need to get file stats
+            const fileStats = await Promise.all(sortedFiles.map(async (filePath) => {
+                try {
+                    // Get absolute path for workspace file
+                    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                    if (!workspaceFolder) {
+                        return { filePath, mtime: 0 };
+                    }
+                    const absolutePath = path.resolve(workspaceFolder.uri.fsPath, filePath);
+                    const fileUri = vscode.Uri.file(absolutePath);
+                    const stat = await vscode.workspace.fs.stat(fileUri);
+                    return { filePath, mtime: stat.mtime };
+                }
+                catch (error) {
+                    console.warn(`Failed to get stat for file: ${filePath}`, error);
+                    return { filePath, mtime: 0 };
+                }
+            }));
+            // Sort by modification time
+            fileStats.sort((a, b) => {
+                const comparison = a.mtime - b.mtime;
+                return sortingConfig.filesSortDirection === 'ascending' ? comparison : -comparison;
+            });
+            return fileStats.map(stat => stat.filePath);
+        }
+        return sortedFiles;
+    }
+    /**
+     * Compare two language groups for sorting
+     */
+    static compareLanguageGroups(a, b, sortBy, direction) {
+        let comparison = 0;
+        if (sortBy === 'alphabetical') {
+            comparison = a.languageName.localeCompare(b.languageName);
+        }
+        else if (sortBy === 'fileCount') {
+            comparison = a.fileCount - b.fileCount;
+        }
+        return direction === 'ascending' ? comparison : -comparison;
+    }
+}
+exports.FilesByLanguageSortingUtils = FilesByLanguageSortingUtils;
+
+
+/***/ }),
+/* 174 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -30453,19 +26155,19 @@ exports.FilesByLanguageSubsectionProvider = FilesByLanguageSubsectionProvider;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsClickHandler = exports.VisualizationSettingsModularItemFactory = exports.VisualizationSettingsModularTreeItem = exports.VisualizationSettingsSectionProvider = void 0;
 // Section Provider
-var VisualizationSettingsSectionProvider_1 = __webpack_require__(189);
+var VisualizationSettingsSectionProvider_1 = __webpack_require__(175);
 Object.defineProperty(exports, "VisualizationSettingsSectionProvider", ({ enumerable: true, get: function () { return VisualizationSettingsSectionProvider_1.VisualizationSettingsSectionProvider; } }));
 // Items
-var visualizationSettingsItems_1 = __webpack_require__(190);
+var visualizationSettingsItems_1 = __webpack_require__(176);
 Object.defineProperty(exports, "VisualizationSettingsModularTreeItem", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularTreeItem; } }));
 Object.defineProperty(exports, "VisualizationSettingsModularItemFactory", ({ enumerable: true, get: function () { return visualizationSettingsItems_1.VisualizationSettingsModularItemFactory; } }));
 // Interactions
-var handleVisualizationSettingsClicks_1 = __webpack_require__(191);
+var handleVisualizationSettingsClicks_1 = __webpack_require__(177);
 Object.defineProperty(exports, "VisualizationSettingsClickHandler", ({ enumerable: true, get: function () { return handleVisualizationSettingsClicks_1.VisualizationSettingsClickHandler; } }));
 
 
 /***/ }),
-/* 189 */
+/* 175 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30505,8 +26207,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationSettingsSectionProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const visualizationSettingsItems_1 = __webpack_require__(190);
-const handleVisualizationSettingsClicks_1 = __webpack_require__(191);
+const visualizationSettingsItems_1 = __webpack_require__(176);
+const handleVisualizationSettingsClicks_1 = __webpack_require__(177);
 const settingsStorage_1 = __webpack_require__(49);
 /**
  * Visualization Settings section provider - manages visualization rendering preferences
@@ -30595,7 +26297,7 @@ exports.VisualizationSettingsSectionProvider = VisualizationSettingsSectionProvi
 
 
 /***/ }),
-/* 190 */
+/* 176 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30688,7 +26390,7 @@ exports.VisualizationSettingsModularItemFactory = VisualizationSettingsModularIt
 
 
 /***/ }),
-/* 191 */
+/* 177 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -30871,7 +26573,7 @@ exports.VisualizationSettingsClickHandler = VisualizationSettingsClickHandler;
 
 
 /***/ }),
-/* 192 */
+/* 178 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -31032,7 +26734,7 @@ function getLanguageStats() {
 
 
 /***/ }),
-/* 193 */
+/* 179 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -31042,17 +26744,17 @@ function getLanguageStats() {
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = exports.NewCodeAnalysisSectionProvider = void 0;
-var NewCodeAnalysisSectionProvider_1 = __webpack_require__(170);
+var NewCodeAnalysisSectionProvider_1 = __webpack_require__(154);
 Object.defineProperty(exports, "NewCodeAnalysisSectionProvider", ({ enumerable: true, get: function () { return NewCodeAnalysisSectionProvider_1.NewCodeAnalysisSectionProvider; } }));
-var items_1 = __webpack_require__(194);
+var items_1 = __webpack_require__(180);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return items_1.NewCodeAnalysisItemFactory; } }));
-var interactions_1 = __webpack_require__(195);
+var interactions_1 = __webpack_require__(181);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return interactions_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 194 */
+/* 180 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -31062,13 +26764,13 @@ Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerabl
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisItemFactory = exports.NewCodeAnalysisTreeItem = void 0;
-var newCodeAnalysisItems_1 = __webpack_require__(121);
+var newCodeAnalysisItems_1 = __webpack_require__(119);
 Object.defineProperty(exports, "NewCodeAnalysisTreeItem", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisTreeItem; } }));
 Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true, get: function () { return newCodeAnalysisItems_1.NewCodeAnalysisItemFactory; } }));
 
 
 /***/ }),
-/* 195 */
+/* 181 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -31078,12 +26780,12 @@ Object.defineProperty(exports, "NewCodeAnalysisItemFactory", ({ enumerable: true
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NewCodeAnalysisInteractionHandler = void 0;
-var handleNewCodeAnalysisClicks_1 = __webpack_require__(171);
+var handleNewCodeAnalysisClicks_1 = __webpack_require__(155);
 Object.defineProperty(exports, "NewCodeAnalysisInteractionHandler", ({ enumerable: true, get: function () { return handleNewCodeAnalysisClicks_1.NewCodeAnalysisInteractionHandler; } }));
 
 
 /***/ }),
-/* 196 */
+/* 182 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -31226,888 +26928,46 @@ exports.VisualizeDataModel = VisualizeDataModel;
 
 
 /***/ }),
-/* 197 */,
-/* 198 */
+/* 183 */,
+/* 184 */
 /***/ ((module) => {
 
 module.exports = require("node:net");
 
 /***/ }),
-/* 199 */
+/* 185 */
 /***/ ((module) => {
 
 module.exports = require("node:os");
 
 /***/ }),
-/* 200 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Chart Type File Setting Item
- * Manages the chart type configuration for file analysis
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ChartTypeFileSetting = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
-const chartRegistry_1 = __webpack_require__(41);
-const dimensionMappingCleaner_1 = __webpack_require__(204);
-class ChartTypeFileSetting {
-    storage;
-    chartRegistry;
-    constructor(context) {
-        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
-        this.chartRegistry = chartRegistry_1.BabiaChartRegistry.getInstance();
-    }
-    /**
-     * Get the tree item for this setting
-     */
-    async getSettingItem() {
-        // Get current values from storage
-        const currentMode = await this.storage.getAnalysisMode();
-        const currentChartType = await this.storage.getChartTypeFile();
-        // Get chart metadata for better display
-        const chartMetadata = this.chartRegistry.getChart(currentChartType);
-        const chartName = chartMetadata ? chartMetadata.name : currentChartType;
-        const label = `Chart Type (File): ${chartName}`;
-        const description = `${chartName} for ${currentMode} mode`;
-        // Dynamic icon color based on analysis mode
-        let iconColor = 'charts.foreground';
-        if (currentMode === 'XR') {
-            iconColor = 'charts.purple'; // Purple for XR mode
-        }
-        else if (currentMode === 'LivePanel') {
-            iconColor = 'charts.green'; // Green for LivePanel mode
-        }
-        const iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(iconColor));
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'subsection', {
-            command: 'newCodeAnalysis.selectChartTypeFile',
-            title: 'Select Chart Type for File Analysis',
-            arguments: []
-        }, iconPath, `Current chart type: ${chartName} for ${currentMode} mode. Click to change chart type.`, description, 'chartTypeFileSetting');
-    }
-    /**
-     * Get current analysis mode
-     */
-    async getCurrentAnalysisMode() {
-        return this.storage.getAnalysisMode();
-    }
-    /**
-     * Get available chart types based on analysis mode
-     */
-    async getAvailableChartTypes(mode) {
-        console.log(`CHART_TYPE_FILE: Getting available charts for mode: ${mode}`);
-        // Get all charts from registry
-        const allCharts = this.chartRegistry.getAllCharts();
-        // Convert to ChartTypeInfo format
-        const chartTypeInfos = allCharts.map((chart) => ({
-            id: chart.id,
-            name: chart.name,
-            description: chart.description,
-            category: chart.category,
-            supportsMode: ['XR', 'LivePanel'] // All charts support both modes
-        }));
-        console.log(`CHART_TYPE_FILE: Found ${chartTypeInfos.length} available charts`);
-        return chartTypeInfos;
-    }
-    /**
-     * Show chart type selection dialog
-     */
-    async showChartTypeSelection() {
-        console.log('CHART_TYPE_FILE: Opening chart type selection dialog');
-        try {
-            const currentMode = await this.getCurrentAnalysisMode();
-            const availableCharts = await this.getAvailableChartTypes(currentMode);
-            if (availableCharts.length === 0) {
-                console.error('CHART_TYPE_FILE: No chart types found');
-                vscode.window.showErrorMessage('No chart templates available');
-                return;
-            }
-            // Create quick pick items for available charts
-            const quickPickItems = availableCharts.map(chart => ({
-                label: chart.name,
-                description: chart.description,
-                detail: `Category: ${chart.category} | Supports: ${chart.supportsMode.join(', ')}`,
-                chart: chart
-            }));
-            // Show quick pick
-            const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
-                placeHolder: 'Select a chart type for file analysis visualization',
-                title: `Chart Type Selection for ${currentMode} Analysis`,
-                canPickMany: false
-            });
-            if (selectedItem && selectedItem.chart) {
-                const selectedChart = selectedItem.chart;
-                // Set the selected chart type
-                await this.setChartType(selectedChart.id);
-                console.log(`CHART_TYPE_FILE: Chart type selected: ${selectedChart.name} (${selectedChart.id})`);
-                vscode.window.showInformationMessage(`Chart type set to: ${selectedChart.name} for ${currentMode} mode`);
-            }
-            else {
-                console.log('CHART_TYPE_FILE: Chart type selection cancelled');
-            }
-        }
-        catch (error) {
-            console.error('CHART_TYPE_FILE: Error in chart type selection:', error);
-            vscode.window.showErrorMessage(`Failed to select chart type: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-    /**
-     * Set chart type and intelligently clean dimension mappings
-     */
-    async setChartType(chartType) {
-        console.log(`CHART_TYPE_FILE: Setting chart type to: ${chartType}`);
-        // Validate chart type exists
-        if (!this.chartRegistry.hasChart(chartType)) {
-            throw new Error(`Invalid chart type: ${chartType}`);
-        }
-        // Get current dimension mappings before changing chart type
-        const currentMappings = await this.storage.getDimensionMappingFile();
-        console.log(`[DIMENSION_CLEANER] Current mappings before chart change:`, currentMappings);
-        // Clean dimension mappings for the new chart type
-        const cleanedMappings = dimensionMappingCleaner_1.DimensionMappingCleaner.cleanDimensionMappingsForNewChart(currentMappings, chartType);
-        // Save the new chart type
-        const validChartType = chartType;
-        await this.storage.setChartTypeFile(validChartType);
-        console.log(`CHART_TYPE_FILE: Chart type saved successfully: ${chartType}`);
-        // Save the cleaned dimension mappings
-        await this.storage.setDimensionMappingFile(cleanedMappings);
-        console.log(`[DIMENSION_CLEANER] Cleaned dimension mappings saved:`, cleanedMappings);
-    }
-    /**
-     * Get current chart type
-     */
-    async getCurrentChartType() {
-        return this.storage.getChartTypeFile();
-    }
-    /**
-     * Get current chart metadata
-     */
-    async getCurrentChartMetadata() {
-        const currentChartType = await this.getCurrentChartType();
-        return this.chartRegistry.getChart(currentChartType);
-    }
-    /**
-     * Save configuration
-     */
-    async saveConfiguration(configuration) {
-        console.log('CHART_TYPE_FILE: Saving configuration:', configuration);
-        if (configuration.chartType) {
-            await this.setChartType(configuration.chartType);
-        }
-    }
-    /**
-     * Load configuration
-     */
-    async loadConfiguration() {
-        const currentChartType = await this.storage.getChartTypeFile();
-        const currentMode = await this.storage.getAnalysisMode();
-        const chartMetadata = await this.getCurrentChartMetadata();
-        return {
-            chartType: currentChartType,
-            analysisMode: currentMode,
-            chartMetadata: chartMetadata
-        };
-    }
-}
-exports.ChartTypeFileSetting = ChartTypeFileSetting;
-
-
-/***/ }),
-/* 201 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Dimension Mapping File Setting Item
- * Manages the dimension mapping configuration for file analysis with real BabiaXR chart integration
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DimensionMappingFileSetting = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
-const templateCharts_1 = __webpack_require__(42);
-const dimensionMappingValidator_1 = __webpack_require__(205);
-class DimensionMappingFileSetting {
-    storage;
-    constructor(context) {
-        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
-    }
-    /**
-     * Get the tree item for this setting
-     */
-    async getSettingItem() {
-        const currentMode = await this.storage.getAnalysisMode();
-        const chartType = await this.storage.getChartTypeFile();
-        const label = `Dimension Mapping (File)`;
-        const description = chartType ? `Dimensions for ${chartType} chart` : 'Select chart type first';
-        // Dynamic icon color based on analysis mode
-        let iconColor = 'charts.foreground';
-        if (currentMode === 'XR') {
-            iconColor = 'charts.purple'; // Purple for XR mode
-        }
-        else if (currentMode === 'LivePanel') {
-            iconColor = 'charts.green'; // Green for LivePanel mode
-        }
-        const iconPath = new vscode.ThemeIcon('symbol-misc', new vscode.ThemeColor(iconColor));
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, // No command on the main item
-        iconPath, description, chartType ? `Configure ${chartType} dimensions` : 'Select chart type first', 'dimensionMappingFileSetting');
-    }
-    /**
-     * Get children items (chart dimensions)
-     */
-    async getChildren() {
-        const chartType = await this.storage.getChartTypeFile();
-        console.log(`DIMENSION_MAPPING_FILE: Getting children for chart type: ${chartType}`);
-        if (!chartType) {
-            console.log('DIMENSION_MAPPING_FILE: No chart type selected, showing warning');
-            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Select Chart Type First', vscode.TreeItemCollapsibleState.None, 'subsection', {
-                    command: 'newCodeAnalysis.selectChartTypeFile',
-                    title: 'Select Chart Type',
-                    arguments: []
-                }, new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow')), 'You must select a chart type before configuring dimensions', 'Click to select chart type', 'select-chart-type-first')];
-        }
-        return await this.getDimensionItemsForChart(chartType);
-    }
-    async getDimensionItemsForChart(chartType) {
-        console.log(`DIMENSION_MAPPING_FILE: Looking for chart template for type: ${chartType}`);
-        const chart = templateCharts_1.chartTemplates.find((c) => c.id === chartType);
-        if (!chart || !chart.dimensions) {
-            console.log(`DIMENSION_MAPPING_FILE: No chart found or no dimensions for chart type: ${chartType}`);
-            return [new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('No dimensions available', vscode.TreeItemCollapsibleState.None, 'subsection', undefined, new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')), 'This chart type has no configurable dimensions', undefined, 'no-dimensions')];
-        }
-        console.log(`DIMENSION_MAPPING_FILE: Found chart "${chart.name}" with ${chart.dimensions.length} dimensions:`, chart.dimensions.map(d => d.name).join(', '));
-        const dimensionItems = await Promise.all(chart.dimensions.map((dimension) => this.createDimensionItem(dimension)));
-        return dimensionItems;
-    }
-    async createDimensionItem(dimension) {
-        // Check if we have a persistent mapping for this dimension
-        const mappedValue = await this.getDimensionMapping(dimension.name) || 'Not configured';
-        const label = `${dimension.label}: ${mappedValue}`;
-        const description = this.getDimensionDescription(dimension);
-        console.log(`DIMENSION_MAPPING_FILE: Creating dimension item for "${dimension.name}" - ${dimension.label}, mapped to: ${mappedValue}`);
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(label, vscode.TreeItemCollapsibleState.None, 'subsection', {
-            command: 'newCodeAnalysis.selectDimensionMappingFile',
-            title: 'Select Dimension Mapping',
-            arguments: [dimension]
-        }, await this.getDimensionIcon(dimension), description, 'Click to configure dimension mapping', `dimension-${dimension.name}`);
-    }
-    getDimensionDescription(dimension) {
-        const typeStr = dimension.dataType === 'numeric' ? 'numerical only' : 'any value';
-        const requiredStr = dimension.required ? 'Required' : 'Optional';
-        return `(${typeStr}) • ${requiredStr} • ${dimension.description}`;
-    }
-    async getDimensionIcon(dimension) {
-        const chartType = await this.storage.getChartTypeFile();
-        if (!chartType) {
-            return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.foreground'));
-        }
-        // Get current dimension mappings
-        const dimensionMappings = await this.storage.getDimensionMappingFile();
-        // Get validation result using the validator
-        const validationResult = dimensionMappingValidator_1.DimensionMappingValidator.validateMappingsForChart(chartType, dimensionMappings);
-        // Check if this dimension is mapped
-        const mapping = dimensionMappings[dimension.name];
-        if (!mapping) {
-            // Check if it's required
-            const isRequired = dimension.required === true;
-            return isRequired
-                ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'))
-                : new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.foreground'));
-        }
-        // Check if this dimension has conflicts
-        const hasConflict = validationResult.conflicts.some((conflict) => conflict.conflictingDimensions.includes(dimension.name));
-        if (hasConflict) {
-            return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'));
-        }
-        // Dimension is mapped without conflicts
-        return new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
-    }
-    /**
-     * Available data fields for file analysis (real analysis output fields)
-     */
-    getAvailableDataFields() {
-        return ['functionName', 'parameters', 'lineCount', 'complexity', 'cyclomaticDensity'];
-    }
-    /**
-     * Get numeric-only fields (fields that contain numeric values)
-     */
-    getNumericDataFields() {
-        return ['parameters', 'lineCount', 'complexity', 'cyclomaticDensity'];
-    }
-    /**
-     * Get fields available for a specific dimension based on its dataType
-     */
-    getAvailableFieldsForDimension(dimension) {
-        console.log(`DIMENSION_MAPPING_FILE: Getting available fields for dimension "${dimension.name}" with dataType: ${dimension.dataType}`);
-        const allFields = this.getAvailableDataFields();
-        const numericFields = this.getNumericDataFields();
-        if (dimension.dataType === 'numeric') {
-            console.log(`DIMENSION_MAPPING_FILE: Dimension "${dimension.name}" requires numeric fields only:`, numericFields);
-            return numericFields;
-        }
-        console.log(`DIMENSION_MAPPING_FILE: Dimension "${dimension.name}" accepts any field type:`, allFields);
-        return allFields;
-    }
-    /**
-     * Set dimension mapping (persistent storage)
-     */
-    async setDimensionMapping(dimensionName, dataField) {
-        console.log(`DIMENSION_MAPPING_FILE: Setting mapping for "${dimensionName}" to "${dataField}"`);
-        // Get current mappings
-        const currentMappings = await this.storage.getDimensionMappingFile();
-        // Update the mapping
-        const updatedMappings = { ...currentMappings, [dimensionName]: dataField };
-        // Save to persistent storage
-        await this.storage.setDimensionMappingFile(updatedMappings);
-        console.log(`DIMENSION_MAPPING_FILE: Successfully saved mapping for "${dimensionName}" to storage`);
-    }
-    /**
-     * Clear dimension mapping (persistent storage)
-     */
-    async clearDimensionMapping(dimensionName) {
-        console.log(`DIMENSION_MAPPING_FILE: Clearing mapping for "${dimensionName}"`);
-        // Get current mappings
-        const currentMappings = await this.storage.getDimensionMappingFile();
-        // Remove the mapping
-        const updatedMappings = { ...currentMappings };
-        delete updatedMappings[dimensionName];
-        // Save to persistent storage
-        await this.storage.setDimensionMappingFile(updatedMappings);
-        console.log(`DIMENSION_MAPPING_FILE: Successfully cleared mapping for "${dimensionName}" from storage`);
-    }
-    /**
-     * Get current dimension mapping (persistent storage)
-     */
-    async getDimensionMapping(dimensionName) {
-        const currentMappings = await this.storage.getDimensionMappingFile();
-        return currentMappings[dimensionName];
-    }
-}
-exports.DimensionMappingFileSetting = DimensionMappingFileSetting;
-
-
-/***/ }),
-/* 202 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Chart Type File Commands
- * Commands specific to the Chart Type (File) setting
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ChartTypeFileCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-class ChartTypeFileCommands {
-    context;
-    chartTypeFileSetting;
-    constructor(context, chartTypeFileSetting) {
-        this.context = context;
-        this.chartTypeFileSetting = chartTypeFileSetting;
-    }
-    /**
-     * Get command registrations (don't register them yet)
-     * This follows the "nested dolls" architecture pattern
-     */
-    static getCommandRegistrations(context, chartTypeFileSetting, refreshCallback) {
-        const commands = new ChartTypeFileCommands(context, chartTypeFileSetting);
-        return [
-            {
-                commandId: 'newCodeAnalysis.selectChartTypeFile',
-                callback: async () => {
-                    await commands.selectChartType();
-                    refreshCallback();
-                },
-                description: 'Select chart type for file analysis visualization'
-            }
-        ];
-    }
-    /**
-     * Show chart type selection from quick pick menu
-     * Shows different chart types available for XR and LivePanel modes
-     */
-    async selectChartType() {
-        console.log('CHART_TYPE_FILE_COMMANDS: Chart type selection command executed');
-        try {
-            // Use the chart type setting's built-in selection dialog
-            await this.chartTypeFileSetting.showChartTypeSelection();
-        }
-        catch (error) {
-            console.error('CHART_TYPE_FILE_COMMANDS: Error selecting chart type:', error);
-            vscode.window.showErrorMessage(`Failed to select chart type: ${error}`);
-        }
-    }
-}
-exports.ChartTypeFileCommands = ChartTypeFileCommands;
-
-
-/***/ }),
-/* 203 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Dimension Mapping File Commands
- * Commands specific to the Dimension Mapping (File) setting with real BabiaXR dimension mapping
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DimensionMappingFileCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-class DimensionMappingFileCommands {
-    context;
-    dimensionMappingSetting;
-    constructor(context, dimensionMappingSetting) {
-        this.context = context;
-        this.dimensionMappingSetting = dimensionMappingSetting;
-    }
-    /**
-     * Get command registrations (don't register them yet)
-     * This follows the "nested dolls" architecture pattern
-     */
-    static getCommandRegistrations(context, dimensionMappingSetting, refreshCallback) {
-        const commands = new DimensionMappingFileCommands(context, dimensionMappingSetting);
-        return [
-            {
-                commandId: 'newCodeAnalysis.selectDimensionMappingFile',
-                callback: async (dimension) => {
-                    await commands.selectDimensionMapping(dimension);
-                    refreshCallback();
-                },
-                description: 'Select dimension mapping for a specific chart dimension'
-            }
-        ];
-    }
-    /**
-     * Select dimension mapping for a specific dimension
-     */
-    async selectDimensionMapping(dimension) {
-        try {
-            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Selecting dimension mapping for dimension: "${dimension.name}"`);
-            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Dimension details - Label: "${dimension.label}", DataType: "${dimension.dataType}", Required: ${dimension.required}`);
-            // Get available fields for this dimension type using the filtering logic
-            const availableFields = this.dimensionMappingSetting.getAvailableFieldsForDimension(dimension);
-            if (availableFields.length === 0) {
-                vscode.window.showWarningMessage(`No available fields for dimension: ${dimension.label} (requires ${dimension.dataType} fields)`);
-                return;
-            }
-            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Available fields for "${dimension.name}":`, availableFields);
-            // Create quick pick items with detailed descriptions
-            const quickPickItems = availableFields.map(field => ({
-                label: field,
-                description: this.getFieldDescription(field),
-                detail: this.getFieldTypeDescription(field, dimension)
-            }));
-            // Add "Clear mapping" option if it's not required
-            if (!dimension.required) {
-                quickPickItems.unshift({
-                    label: '$(clear-all) Clear mapping',
-                    description: 'Remove the mapping for this dimension',
-                    detail: 'This optional dimension will not be mapped to any data field'
-                });
-            }
-            // Show validation info in the placeholder
-            const typeInfo = dimension.dataType === 'numeric' ? 'numeric fields only' : 'any field type';
-            const requiredInfo = dimension.required ? 'REQUIRED' : 'optional';
-            const selection = await vscode.window.showQuickPick(quickPickItems, {
-                title: `Map ${dimension.label}`,
-                placeHolder: `Select a data field for ${dimension.label} (${typeInfo}, ${requiredInfo})`,
-                ignoreFocusOut: true,
-                matchOnDescription: true,
-                matchOnDetail: true
-            });
-            if (!selection) {
-                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: User cancelled dimension mapping for "${dimension.name}"`);
-                return; // User cancelled
-            }
-            if (selection.label.includes('Clear mapping')) {
-                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Clearing mapping for dimension "${dimension.name}"`);
-                await this.dimensionMappingSetting.clearDimensionMapping(dimension.name);
-                vscode.window.showInformationMessage(`Cleared mapping for ${dimension.label}`);
-            }
-            else {
-                console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Mapping dimension "${dimension.name}" to field "${selection.label}"`);
-                // Set the mapping using persistent storage
-                await this.dimensionMappingSetting.setDimensionMapping(dimension.name, selection.label);
-                vscode.window.showInformationMessage(`Mapped ${dimension.label} → ${selection.label}`);
-            }
-            console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Dimension mapping operation completed for "${dimension.name}"`);
-        }
-        catch (error) {
-            console.error('DIMENSION_MAPPING_FILE_COMMANDS: Error selecting dimension mapping:', error);
-            vscode.window.showErrorMessage(`Failed to select dimension mapping: ${error}`);
-        }
-    }
-    /**
-     * Get detailed description for a data field (real analysis data fields)
-     */
-    getFieldDescription(field) {
-        const descriptions = {
-            'functionName': 'Unique identifier name of the function or method',
-            'parameters': 'Total count of input parameters in the function signature',
-            'lineCount': 'Total number of source code lines within the function body',
-            'complexity': 'Cyclomatic Complexity Number - measure of code complexity based on decision points',
-            'cyclomaticDensity': 'Cyclomatic Complexity Density ratio (complexity divided by line count)'
-        };
-        return descriptions[field] || 'Analysis data field';
-    }
-    /**
-     * Get type compatibility description (removed compatibility info, now just empty)
-     */
-    getFieldTypeDescription(field, dimension) {
-        // No type compatibility description in detail - that's now shown in dimension description
-        return '';
-    }
-}
-exports.DimensionMappingFileCommands = DimensionMappingFileCommands;
-
-
-/***/ }),
-/* 204 */
+/* 186 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 /**
- * Dimension Mapping Cleaner
- * Utility for intelligently cleaning dimension mappings when chart type changes
+ * Directory Analysis Commands Index
+ * Exports for directory analysis command modules
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DimensionMappingCleaner = void 0;
-const templateCharts_1 = __webpack_require__(42);
-class DimensionMappingCleaner {
-    /**
-     * Clean dimension mappings when chart type changes
-     * Keep dimensions that exist in both old and new chart, remove residual dimensions
-     */
-    static cleanDimensionMappingsForNewChart(currentMappings, newChartType) {
-        console.log(`[DIMENSION_CLEANER] Cleaning mappings for new chart type: ${newChartType}`);
-        console.log(`[DIMENSION_CLEANER] Current mappings:`, currentMappings);
-        // Get new chart metadata
-        const newChart = templateCharts_1.chartTemplates.find((chart) => chart.id === newChartType);
-        if (!newChart) {
-            console.warn(`[DIMENSION_CLEANER] Chart type "${newChartType}" not found, clearing all mappings`);
-            return {};
-        }
-        // Get dimension names from new chart
-        const newChartDimensionNames = newChart.dimensions.map((dim) => dim.name);
-        console.log(`[DIMENSION_CLEANER] New chart dimensions:`, newChartDimensionNames);
-        // Keep only dimensions that exist in the new chart
-        const cleanedMappings = {};
-        let keptCount = 0;
-        let removedCount = 0;
-        for (const [dimensionName, dataField] of Object.entries(currentMappings)) {
-            if (newChartDimensionNames.includes(dimensionName)) {
-                cleanedMappings[dimensionName] = dataField;
-                keptCount++;
-                console.log(`[DIMENSION_CLEANER] ✅ Kept mapping: ${dimensionName} → ${dataField}`);
-            }
-            else {
-                removedCount++;
-                console.log(`[DIMENSION_CLEANER] ❌ Removed mapping: ${dimensionName} → ${dataField} (not in new chart)`);
-            }
-        }
-        console.log(`[DIMENSION_CLEANER] Cleanup complete: ${keptCount} kept, ${removedCount} removed`);
-        console.log(`[DIMENSION_CLEANER] Cleaned mappings:`, cleanedMappings);
-        return cleanedMappings;
-    }
-    /**
-     * Get chart dimensions for validation
-     */
-    static getChartDimensions(chartType) {
-        const chart = templateCharts_1.chartTemplates.find((chart) => chart.id === chartType);
-        return chart ? chart.dimensions.map((dim) => dim.name) : [];
-    }
-    /**
-     * Validate if a dimension mapping is valid for a chart
-     */
-    static validateMappingForChart(mappings, chartType) {
-        const validDimensions = this.getChartDimensions(chartType);
-        const invalidDimensions = Object.keys(mappings).filter(dimension => !validDimensions.includes(dimension));
-        return {
-            isValid: invalidDimensions.length === 0,
-            invalidDimensions
-        };
-    }
-}
-exports.DimensionMappingCleaner = DimensionMappingCleaner;
+exports.ProjectAnalysisCommands = exports.DirectoryAnalysisLivePanelCommands = exports.DirectoryAnalysisCommands = void 0;
+var directoryAnalysisCommands_1 = __webpack_require__(187);
+Object.defineProperty(exports, "DirectoryAnalysisCommands", ({ enumerable: true, get: function () { return directoryAnalysisCommands_1.DirectoryAnalysisCommands; } }));
+var directoryAnalysisLivePanelCommands_1 = __webpack_require__(191);
+Object.defineProperty(exports, "DirectoryAnalysisLivePanelCommands", ({ enumerable: true, get: function () { return directoryAnalysisLivePanelCommands_1.DirectoryAnalysisLivePanelCommands; } }));
+var projectAnalysisCommands_1 = __webpack_require__(98);
+Object.defineProperty(exports, "ProjectAnalysisCommands", ({ enumerable: true, get: function () { return projectAnalysisCommands_1.ProjectAnalysisCommands; } }));
 
 
 /***/ }),
-/* 205 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Dimension Mapping Validator
- * Validates dimension mappings for conflicts and completeness
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DimensionMappingValidator = void 0;
-const templateCharts_1 = __webpack_require__(42);
-class DimensionMappingValidator {
-    /**
-     * Validate dimension mappings for a specific chart
-     */
-    static validateMappingsForChart(chartType, currentMappings) {
-        console.log(`[DIMENSION_VALIDATOR] Validating mappings for chart: ${chartType}`);
-        console.log(`[DIMENSION_VALIDATOR] Current mappings:`, currentMappings);
-        const chart = templateCharts_1.chartTemplates.find(c => c.id === chartType);
-        if (!chart) {
-            return {
-                isValid: false,
-                hasConflicts: false,
-                hasMissingRequired: false,
-                conflicts: [],
-                missingRequired: [],
-                warnings: [],
-                errors: [`Chart type "${chartType}" not found`]
-            };
-        }
-        // Check for conflicts (same data field mapped to multiple dimensions)
-        const conflicts = this.findDimensionConflicts(currentMappings);
-        // Check for missing required dimensions
-        const missingRequired = this.findMissingRequiredDimensions(chart, currentMappings);
-        // Generate warnings and errors
-        const warnings = [];
-        const errors = [];
-        if (conflicts.length > 0) {
-            for (const conflict of conflicts) {
-                warnings.push(`Data field "${conflict.dataField}" is mapped to multiple dimensions: ${conflict.conflictingDimensions.join(', ')}`);
-            }
-        }
-        if (missingRequired.length > 0) {
-            errors.push(`Missing required dimension mappings: ${missingRequired.join(', ')}`);
-        }
-        const result = {
-            isValid: conflicts.length === 0 && missingRequired.length === 0,
-            hasConflicts: conflicts.length > 0,
-            hasMissingRequired: missingRequired.length > 0,
-            conflicts,
-            missingRequired,
-            warnings,
-            errors
-        };
-        console.log(`[DIMENSION_VALIDATOR] Validation result:`, result);
-        return result;
-    }
-    /**
-     * Find conflicts where the same data field is mapped to multiple dimensions
-     */
-    static findDimensionConflicts(mappings) {
-        const dataFieldUsage = {};
-        // Group dimensions by data field
-        for (const [dimension, dataField] of Object.entries(mappings)) {
-            if (!dataFieldUsage[dataField]) {
-                dataFieldUsage[dataField] = [];
-            }
-            dataFieldUsage[dataField].push(dimension);
-        }
-        // Find conflicts (data fields used by multiple dimensions)
-        const conflicts = [];
-        for (const [dataField, dimensions] of Object.entries(dataFieldUsage)) {
-            if (dimensions.length > 1) {
-                conflicts.push({
-                    dataField,
-                    conflictingDimensions: dimensions
-                });
-            }
-        }
-        return conflicts;
-    }
-    /**
-     * Find missing required dimensions
-     */
-    static findMissingRequiredDimensions(chart, mappings) {
-        const missing = [];
-        for (const dimension of chart.dimensions) {
-            if (dimension.required && !mappings[dimension.name]) {
-                missing.push(dimension.name);
-            }
-        }
-        return missing;
-    }
-    /**
-     * Check if dimension mappings are ready for XR analysis
-     */
-    static canExecuteXRAnalysis(chartType, currentMappings) {
-        const validation = this.validateMappingsForChart(chartType, currentMappings);
-        if (validation.hasMissingRequired) {
-            return {
-                canExecute: false,
-                reason: `Missing required dimensions: ${validation.missingRequired.join(', ')}`
-            };
-        }
-        // Allow execution even with conflicts (user can choose to do it)
-        return { canExecute: true };
-    }
-    /**
-     * Get dimension status for UI display
-     */
-    static getDimensionStatus(dimensionName, chartType, currentMappings) {
-        const validation = this.validateMappingsForChart(chartType, currentMappings);
-        // Check if this dimension has conflicts
-        for (const conflict of validation.conflicts) {
-            if (conflict.conflictingDimensions.includes(dimensionName)) {
-                return 'conflict';
-            }
-        }
-        // Check if this dimension is missing and required
-        if (validation.missingRequired.includes(dimensionName)) {
-            return 'missing';
-        }
-        // Check if mapped
-        if (currentMappings[dimensionName]) {
-            return 'valid';
-        }
-        return 'optional';
-    }
-}
-exports.DimensionMappingValidator = DimensionMappingValidator;
-
-
-/***/ }),
-/* 206 */
+/* 187 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- * Workspace File Scanner
- * Scans workspace for files and groups them by programming language
+ * Directory Analysis Commands
+ * Commands for analyzing directories
+ * Follows the "nested dolls" pattern
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -32143,487 +27003,53 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.WorkspaceFileScanner = void 0;
+exports.DirectoryAnalysisCommands = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const languageMetadata_1 = __webpack_require__(90);
-class WorkspaceFileScanner {
+const directoryAnalysisLivePanelCommands_1 = __webpack_require__(191);
+class DirectoryAnalysisCommands {
     /**
-     * Scan workspace for all files and group by programming language
+     * Register directory analysis commands
      */
-    static async scanWorkspaceFiles() {
-        console.log('WORKSPACE_FILE_SCANNER: Starting workspace file scan...');
-        const supportedFiles = {};
-        const unsupportedFiles = [];
-        try {
-            // Get all workspace folders
-            const workspaceFolders = vscode.workspace.workspaceFolders;
-            if (!workspaceFolders || workspaceFolders.length === 0) {
-                console.log('WORKSPACE_FILE_SCANNER: No workspace folders found');
-                return {
-                    supportedFiles,
-                    unsupportedFiles,
-                    totalLanguages: 0,
-                    totalFiles: 0
-                };
-            }
-            // Define patterns to exclude
-            const excludePatterns = [
-                '**/node_modules/**',
-                '**/.*/**',
-                '**/.git/**',
-                '**/dist/**',
-                '**/build/**',
-                '**/out/**',
-                '**/coverage/**',
-                '**/.vscode/**',
-                '**/target/**',
-                '**/__pycache__/**',
-                '**/*.pyc',
-                '**/*.pyo',
-                '**/*.min.js',
-                '**/*.min.css',
-                '**/package-lock.json',
-                '**/yarn.lock',
-                '**/Cargo.lock',
-                '**/Gemfile.lock'
-            ];
-            // Scan each workspace folder
-            for (const folder of workspaceFolders) {
-                console.log(`WORKSPACE_FILE_SCANNER: Scanning folder: ${folder.uri.fsPath}`);
-                // Find all files, excluding common build/dependency directories
-                const files = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, '**/*'), `{${excludePatterns.join(',')}}`, 10000 // Limit to prevent performance issues
-                );
-                console.log(`WORKSPACE_FILE_SCANNER: Found ${files.length} files in ${folder.name}`);
-                // Process each file
-                for (const fileUri of files) {
-                    const filePath = fileUri.fsPath;
-                    const relativePath = vscode.workspace.asRelativePath(fileUri);
-                    // Skip directories (just in case)
-                    try {
-                        const stat = await vscode.workspace.fs.stat(fileUri);
-                        if (stat.type === vscode.FileType.Directory) {
-                            continue;
-                        }
-                    }
-                    catch (error) {
-                        // Skip files that can't be accessed
-                        continue;
-                    }
-                    // Detect language
-                    const languageInfo = (0, languageMetadata_1.getLanguageForFile)(filePath);
-                    if (languageInfo) {
-                        // File is supported
-                        if (!supportedFiles[languageInfo.name]) {
-                            supportedFiles[languageInfo.name] = {
-                                language: languageInfo,
-                                files: []
-                            };
-                        }
-                        supportedFiles[languageInfo.name].files.push(relativePath);
-                    }
-                    else {
-                        // File is not supported for analysis
-                        unsupportedFiles.push(relativePath);
-                    }
-                }
-            }
-            // Sort files within each language group
-            Object.values(supportedFiles).forEach(languageGroup => {
-                languageGroup.files.sort();
-            });
-            // Sort unsupported files
-            unsupportedFiles.sort();
-            const totalLanguages = Object.keys(supportedFiles).length;
-            const totalFiles = Object.values(supportedFiles).reduce((sum, group) => sum + group.files.length, 0) + unsupportedFiles.length;
-            console.log(`WORKSPACE_FILE_SCANNER: Scan complete - ${totalLanguages} languages, ${totalFiles} total files`);
-            console.log(`WORKSPACE_FILE_SCANNER: Supported languages:`, Object.keys(supportedFiles));
-            console.log(`WORKSPACE_FILE_SCANNER: Unsupported files count: ${unsupportedFiles.length}`);
-            return {
-                supportedFiles,
-                unsupportedFiles,
-                totalLanguages,
-                totalFiles
-            };
-        }
-        catch (error) {
-            console.error('WORKSPACE_FILE_SCANNER: Error scanning workspace:', error);
-            return {
-                supportedFiles,
-                unsupportedFiles,
-                totalLanguages: 0,
-                totalFiles: 0
-            };
-        }
+    static registerCommands(context) {
+        console.log('DIRECTORY_ANALYSIS: Registering directory analysis commands');
+        const disposables = [];
+        // Register LivePanel directory analysis commands
+        const livePanelDisposables = directoryAnalysisLivePanelCommands_1.DirectoryAnalysisLivePanelCommands.registerCommands(context);
+        disposables.push(...livePanelDisposables);
+        context.subscriptions.push(...disposables);
+        console.log(`DIRECTORY_ANALYSIS: Registered ${disposables.length} directory analysis commands`);
+        return disposables;
     }
     /**
-     * Get icon URI for a programming language
+     * Get command registrations (nested dolls pattern)
      */
-    static getLanguageIconUri(context, languageName) {
-        // Map language names to icon file names
-        const iconMapping = {
-            'Python': 'python.svg',
-            'JavaScript': 'javascript.svg',
-            'TypeScript': 'typescript.svg',
-            'Java': 'java.svg',
-            'C': 'c.svg',
-            'C++': 'cplusplus.svg',
-            'C#': 'csharp.svg',
-            'Go': 'go.svg',
-            'Ruby': 'ruby.svg',
-            'PHP': 'php.svg',
-            'Swift': 'swift.svg',
-            'Kotlin': 'kotlin.svg',
-            'Scala': 'scala.svg',
-            'Lua': 'lua.svg',
-            'Perl': 'perl.svg',
-            'Erlang': 'erlang.svg',
-            'Fortran': 'fortran.svg',
-            'Objective-C': 'objectivec.svg',
-            'Solidity': 'solidity.svg',
-            'TTCN-3': 'ttcn3.svg',
-            'Vue': 'vuejs.svg',
-            'Zig': 'zig.svg',
-            'HTML': 'html5.svg',
-            'GDScript': 'godot.svg'
-        };
-        const iconFileName = iconMapping[languageName] || 'default.svg';
-        return vscode.Uri.joinPath(context.extensionUri, 'resources', 'languages_icons', 'color', iconFileName);
-    }
-}
-exports.WorkspaceFileScanner = WorkspaceFileScanner;
-
-
-/***/ }),
-/* 207 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-/**
- * Files by Language Sorting Setting Module
- * Exports for Files by Language sorting configuration
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FilesByLanguageSortingSetting = void 0;
-var filesByLanguageSorting_1 = __webpack_require__(208);
-Object.defineProperty(exports, "FilesByLanguageSortingSetting", ({ enumerable: true, get: function () { return filesByLanguageSorting_1.FilesByLanguageSortingSetting; } }));
-
-
-/***/ }),
-/* 208 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Files by Language Sorting Setting
- * Configuration for sorting Files by Language section
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FilesByLanguageSortingSetting = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const newCodeAnalysisItems_1 = __webpack_require__(121);
-const configuration_1 = __webpack_require__(122);
-class FilesByLanguageSortingSetting {
-    storage;
-    constructor(context) {
-        this.storage = configuration_1.AnalysisConfigurationStorage.getInstance(context);
-    }
-    /**
-     * Get the tree item for this setting
-     */
-    async getSettingItem() {
-        const currentConfig = await this.storage.getFilesByLanguageSorting();
-        const primarySort = `${currentConfig.languageGroupSortBy} ${currentConfig.languageGroupSortDirection}`;
-        const secondarySort = currentConfig.languageGroupSecondarySortBy ?
-            `, ${currentConfig.languageGroupSecondarySortBy} ${currentConfig.languageGroupSecondarySortDirection}` : '';
-        const filesSort = `Files: ${currentConfig.filesSortBy} ${currentConfig.filesSortDirection}`;
-        const description = `Groups: ${primarySort}${secondarySort} | ${filesSort}`;
-        return new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem('Files by Language Sorting', vscode.TreeItemCollapsibleState.Collapsed, 'subsection', undefined, new vscode.ThemeIcon('list-filter'), // Changed to list-filter icon as requested
-        description, 'Configure sorting for Files by Language section', 'filesByLanguageSortingSetting');
-    }
-    /**
-     * Get children items (sorting options)
-     */
-    async getChildren() {
-        console.log('FILES_BY_LANGUAGE_SORTING: Getting children');
-        const children = [];
-        const currentConfig = await this.storage.getFilesByLanguageSorting();
-        // Language Groups Primary Sorting
-        children.push(new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(`Language Groups Primary: ${currentConfig.languageGroupSortBy} (${currentConfig.languageGroupSortDirection})`, vscode.TreeItemCollapsibleState.None, 'subsection', {
-            command: 'newCodeAnalysis.selectLanguageGroupPrimarySorting',
-            title: 'Select Language Group Primary Sorting',
-            arguments: []
-        }, new vscode.ThemeIcon('menu'), // Changed to menu icon as requested
-        'Primary sorting for language groups', 'Click to change primary sorting for language groups', 'languageGroupPrimarySorting'));
-        // Language Groups Secondary Sorting
-        const secondaryLabel = currentConfig.languageGroupSecondarySortBy ?
-            `${currentConfig.languageGroupSecondarySortBy} (${currentConfig.languageGroupSecondarySortDirection})` :
-            'None';
-        children.push(new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(`Language Groups Secondary: ${secondaryLabel}`, vscode.TreeItemCollapsibleState.None, 'subsection', {
-            command: 'newCodeAnalysis.selectLanguageGroupSecondarySorting',
-            title: 'Select Language Group Secondary Sorting',
-            arguments: []
-        }, new vscode.ThemeIcon('menu'), // Changed to menu icon as requested
-        'Secondary sorting for language groups', 'Click to change secondary sorting for language groups', 'languageGroupSecondarySorting'));
-        // Files Sorting
-        children.push(new newCodeAnalysisItems_1.NewCodeAnalysisTreeItem(`Files: ${currentConfig.filesSortBy} (${currentConfig.filesSortDirection})`, vscode.TreeItemCollapsibleState.None, 'subsection', {
-            command: 'newCodeAnalysis.selectFilesSorting',
-            title: 'Select Files Sorting',
-            arguments: []
-        }, new vscode.ThemeIcon('file-text'), 'Sorting for files within language groups', 'Click to change file sorting within language groups', 'filesSorting'));
-        console.log(`FILES_BY_LANGUAGE_SORTING: Generated ${children.length} sorting options`);
-        return children;
-    }
-    /**
-     * Update language group primary sorting
-     */
-    async updateLanguageGroupPrimarySorting(sortBy, direction) {
-        const currentConfig = await this.storage.getFilesByLanguageSorting();
-        const updatedConfig = {
-            ...currentConfig,
-            languageGroupSortBy: sortBy,
-            languageGroupSortDirection: direction
-        };
-        await this.storage.setFilesByLanguageSorting(updatedConfig);
-    }
-    /**
-     * Update language group secondary sorting
-     */
-    async updateLanguageGroupSecondarySorting(sortBy, direction) {
-        const currentConfig = await this.storage.getFilesByLanguageSorting();
-        const updatedConfig = {
-            ...currentConfig,
-            languageGroupSecondarySortBy: sortBy,
-            languageGroupSecondarySortDirection: direction
-        };
-        await this.storage.setFilesByLanguageSorting(updatedConfig);
-    }
-    /**
-     * Update files sorting
-     */
-    async updateFilesSorting(sortBy, direction) {
-        const currentConfig = await this.storage.getFilesByLanguageSorting();
-        const updatedConfig = {
-            ...currentConfig,
-            filesSortBy: sortBy,
-            filesSortDirection: direction
-        };
-        await this.storage.setFilesByLanguageSorting(updatedConfig);
-    }
-}
-exports.FilesByLanguageSortingSetting = FilesByLanguageSortingSetting;
-
-
-/***/ }),
-/* 209 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-/**
- * Files by Language Sorting Commands
- * Commands for configuring Files by Language sorting
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FilesByLanguageSortingCommands = void 0;
-const vscode = __importStar(__webpack_require__(1));
-const analysisConfigurationStorage_1 = __webpack_require__(106);
-class FilesByLanguageSortingCommands {
-    /**
-     * Get Files by Language Sorting command registrations
-     */
-    static getCommandRegistrations(context, filesByLanguageSortingSetting, refreshCallback) {
-        console.log('NEW_CODE_ANALYSIS: Collecting Files by Language Sorting command registrations');
+    static getCommandRegistrations(context, refreshCallback) {
+        console.log('DIRECTORY_ANALYSIS: Collecting directory analysis command registrations');
         const commandRegistrations = [
-            // Language Group Primary Sorting
             {
-                commandId: 'newCodeAnalysis.selectLanguageGroupPrimarySorting',
-                callback: async () => {
-                    await FilesByLanguageSortingCommands.selectLanguageGroupPrimarySorting(context, filesByLanguageSortingSetting, refreshCallback);
+                commandId: 'newCodeAnalysis.analyzeDirectory',
+                callback: async (uri) => {
+                    // This will be handled by DirectoryAnalysisLivePanelCommands
+                    await vscode.commands.executeCommand('newCodeAnalysis.analyzeDirectory', uri);
                 },
-                description: 'Select primary sorting for language groups'
-            },
-            // Language Group Secondary Sorting
-            {
-                commandId: 'newCodeAnalysis.selectLanguageGroupSecondarySorting',
-                callback: async () => {
-                    await FilesByLanguageSortingCommands.selectLanguageGroupSecondarySorting(context, filesByLanguageSortingSetting, refreshCallback);
-                },
-                description: 'Select secondary sorting for language groups'
-            },
-            // Files Sorting
-            {
-                commandId: 'newCodeAnalysis.selectFilesSorting',
-                callback: async () => {
-                    await FilesByLanguageSortingCommands.selectFilesSorting(filesByLanguageSortingSetting, refreshCallback);
-                },
-                description: 'Select sorting for files within language groups'
+                description: 'Analyze directory with LivePanel'
             }
         ];
-        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Files by Language Sorting command registrations`);
+        console.log(`DIRECTORY_ANALYSIS: Collected ${commandRegistrations.length} directory analysis command registrations`);
         return commandRegistrations;
     }
-    /**
-     * Show picker for language group primary sorting
-     */
-    static async selectLanguageGroupPrimarySorting(context, setting, refreshCallback) {
-        console.log('NEW_CODE_ANALYSIS: Showing language group primary sorting picker');
-        // Get current configuration to check for conflicts
-        const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-        const currentConfig = await storage.getFilesByLanguageSorting();
-        const options = [
-            { label: 'Alphabetical Ascending', sortBy: 'alphabetical', direction: 'ascending' },
-            { label: 'Alphabetical Descending', sortBy: 'alphabetical', direction: 'descending' },
-            { label: 'File Count Ascending', sortBy: 'fileCount', direction: 'ascending' },
-            { label: 'File Count Descending', sortBy: 'fileCount', direction: 'descending' }
-        ];
-        const picked = await vscode.window.showQuickPick(options, {
-            placeHolder: 'Select primary sorting for language groups',
-            title: 'Language Groups Primary Sorting'
-        });
-        if (picked) {
-            // Check if the new primary conflicts with current secondary
-            const newPrimarySortBy = picked.sortBy;
-            const currentSecondarySortBy = currentConfig.languageGroupSecondarySortBy;
-            // If secondary uses the same type as the new primary, reset secondary to None
-            if (currentSecondarySortBy && currentSecondarySortBy === newPrimarySortBy) {
-                console.log('NEW_CODE_ANALYSIS: Primary conflicts with secondary, resetting secondary to None');
-                await setting.updateLanguageGroupSecondarySorting(undefined, undefined);
-                vscode.window.showInformationMessage(`Secondary sorting reset to None to avoid conflict with primary sorting`);
-            }
-            await setting.updateLanguageGroupPrimarySorting(picked.sortBy, picked.direction);
-            refreshCallback();
-            vscode.window.showInformationMessage(`Language groups primary sorting changed to: ${picked.label}`);
-        }
-    }
-    /**
-     * Show picker for language group secondary sorting
-     */
-    static async selectLanguageGroupSecondarySorting(context, setting, refreshCallback) {
-        console.log('NEW_CODE_ANALYSIS: Showing language group secondary sorting picker');
-        // Get current configuration to determine what's available for secondary
-        const storage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
-        const currentConfig = await storage.getFilesByLanguageSorting();
-        const primarySortBy = currentConfig.languageGroupSortBy;
-        const options = [{ label: 'None', sortBy: undefined, direction: undefined }];
-        if (primarySortBy === 'alphabetical') {
-            // Primary is alphabetical, so secondary can be fileCount
-            options.push({ label: 'File Count Ascending', sortBy: 'fileCount', direction: 'ascending' }, { label: 'File Count Descending', sortBy: 'fileCount', direction: 'descending' });
-        }
-        else if (primarySortBy === 'fileCount') {
-            // Primary is fileCount, so secondary can be alphabetical
-            options.push({ label: 'Alphabetical Ascending', sortBy: 'alphabetical', direction: 'ascending' }, { label: 'Alphabetical Descending', sortBy: 'alphabetical', direction: 'descending' });
-        }
-        const picked = await vscode.window.showQuickPick(options, {
-            placeHolder: 'Select secondary sorting for language groups (optional)',
-            title: 'Language Groups Secondary Sorting'
-        });
-        if (picked) {
-            await setting.updateLanguageGroupSecondarySorting(picked.sortBy, picked.direction);
-            refreshCallback();
-            const message = picked.sortBy ?
-                `Language groups secondary sorting changed to: ${picked.label}` :
-                'Language groups secondary sorting disabled';
-            vscode.window.showInformationMessage(message);
-        }
-    }
-    /**
-     * Show picker for files sorting
-     */
-    static async selectFilesSorting(setting, refreshCallback) {
-        console.log('NEW_CODE_ANALYSIS: Showing files sorting picker');
-        const options = [
-            { label: 'Alphabetical Ascending', sortBy: 'alphabetical', direction: 'ascending' },
-            { label: 'Alphabetical Descending', sortBy: 'alphabetical', direction: 'descending' },
-            { label: 'Last Modified Ascending (Oldest First)', sortBy: 'lastModified', direction: 'ascending' },
-            { label: 'Last Modified Descending (Newest First)', sortBy: 'lastModified', direction: 'descending' }
-        ];
-        const picked = await vscode.window.showQuickPick(options, {
-            placeHolder: 'Select sorting for files within language groups',
-            title: 'Files Sorting'
-        });
-        if (picked) {
-            await setting.updateFilesSorting(picked.sortBy, picked.direction);
-            refreshCallback();
-            vscode.window.showInformationMessage(`Files sorting changed to: ${picked.label}`);
-        }
-    }
 }
-exports.FilesByLanguageSortingCommands = FilesByLanguageSortingCommands;
+exports.DirectoryAnalysisCommands = DirectoryAnalysisCommands;
 
 
 /***/ }),
-/* 210 */
+/* 188 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 /**
- * Files by Language Sorting Utility
- * Provides sorting functionality for Files by Language section
+ * Launch Analyze Directory LivePanel
+ * Engine for directory analysis using LivePanel
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -32659,87 +27085,2485 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FilesByLanguageSortingUtils = void 0;
+exports.LaunchAnalyzeDirectoryLivePanel = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const path = __importStar(__webpack_require__(5));
-class FilesByLanguageSortingUtils {
+const directoryAnalysisSessionManager_1 = __webpack_require__(189);
+const getNecessaryFiles_1 = __webpack_require__(80);
+const saveFiles_1 = __webpack_require__(97);
+const launchServer_1 = __webpack_require__(100);
+const manageWatcher_1 = __webpack_require__(192);
+const analysisConfigurationStorage_1 = __webpack_require__(72);
+const checkIfAnalysisAlreadyRunning_1 = __webpack_require__(102);
+class LaunchAnalyzeDirectoryLivePanel {
     /**
-     * Sort language groups according to configuration
+     * Analyze directory using LivePanel
      */
-    static sortLanguageGroups(filesByLanguage, sortingConfig) {
-        // Convert to array with metadata
-        const languageGroups = Object.entries(filesByLanguage).map(([languageName, group]) => ({
-            languageName,
-            files: group.files,
-            fileCount: group.files.length,
-            language: group.language
-        }));
-        // Apply primary sorting
-        languageGroups.sort((a, b) => {
-            const primaryResult = this.compareLanguageGroups(a, b, sortingConfig.languageGroupSortBy, sortingConfig.languageGroupSortDirection);
-            // If primary comparison is equal and there's secondary sorting
-            if (primaryResult === 0 && sortingConfig.languageGroupSecondarySortBy && sortingConfig.languageGroupSecondarySortDirection) {
-                return this.compareLanguageGroups(a, b, sortingConfig.languageGroupSecondarySortBy, sortingConfig.languageGroupSecondarySortDirection);
+    static async analyzeDirectory(directoryPath, context) {
+        try {
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting directory analysis for:', directoryPath);
+            // Check if analysis is already running for this directory
+            const canProceed = await checkIfAnalysisAlreadyRunning_1.CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(directoryPath, 'DirectoryLivePanel');
+            if (!canProceed) {
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis cancelled due to conflict');
+                return;
             }
-            return primaryResult;
-        });
-        return languageGroups;
-    }
-    /**
-     * Sort files within a language group according to configuration
-     */
-    static async sortFilesInGroup(files, sortingConfig) {
-        const sortedFiles = [...files];
-        if (sortingConfig.filesSortBy === 'alphabetical') {
-            // Alphabetical sorting
-            sortedFiles.sort((a, b) => {
-                const comparison = path.basename(a).localeCompare(path.basename(b));
-                return sortingConfig.filesSortDirection === 'ascending' ? comparison : -comparison;
+            // Get the directory analysis session manager
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            // Create a new directory analysis session with D_LivePanel type
+            const session = await sessionManager.startDirectoryAnalysis(directoryPath, 'D_LivePanel', context);
+            // Print session details to console
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory analysis session created:');
+            console.log('==========================================');
+            console.log(`Session ID: ${session.id}`);
+            console.log(`Directory Name: ${session.nameDir}`);
+            console.log(`Directory Path: ${session.filePath}`);
+            console.log(`Output Directory: ${session.outputDirectory}`);
+            console.log(`Output Path: ${session.outputPath}`);
+            console.log(`Analysis Type: ${session.analysisType}`);
+            console.log(`Is XR: ${session.isXR}`);
+            console.log(`Is Deep: ${session.isDeep}`);
+            console.log(`Status: ${session.status}`);
+            console.log(`Hash256: ${session.hash256}`);
+            console.log(`Files Count: ${session.filesList.size}`);
+            console.log(`Subdirectories Count: ${session.subDirectoriesList.size}`);
+            console.log(`Start Time: ${session.startTime.toISOString()}`);
+            if (session.metadata) {
+                console.log(`Directory Size: ${session.metadata.directorySize} bytes`);
+                console.log(`Last Modified: ${session.metadata.lastModified.toISOString()}`);
+            }
+            console.log('Files List:');
+            session.filesList.forEach((fullPath, relativePath) => {
+                console.log(`  ${relativePath} -> ${fullPath}`);
             });
-        }
-        else if (sortingConfig.filesSortBy === 'lastModified') {
-            // Last modified sorting - need to get file stats
-            const fileStats = await Promise.all(sortedFiles.map(async (filePath) => {
-                try {
-                    // Get absolute path for workspace file
-                    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                    if (!workspaceFolder) {
-                        return { filePath, mtime: 0 };
+            console.log('Subdirectories List:');
+            if (session.subDirectoriesList.size === 0) {
+                console.log('  (Empty - only used for deep analysis)');
+            }
+            else {
+                session.subDirectoriesList.forEach((fullPath, relativePath) => {
+                    console.log(`  ${relativePath} -> ${fullPath}`);
+                });
+            }
+            console.log('==========================================');
+            // Update session status to analyzing
+            sessionManager.updateSessionStatus(session.id, 'analyzing');
+            // Log session configuration before starting analysis
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ====== SESSION CONFIGURATION ======');
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Session ID: ${session.id}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis Type: ${session.analysisType}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Is XR Analysis: ${session.isXR}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Is Deep Analysis: ${session.isDeep}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory Path: ${session.filePath}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Files Count: ${session.filesList.size}`);
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ===================================');
+            // Get current theme configuration
+            const configStorage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+            const currentTheme = await configStorage.getViewTheme();
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Using theme: ${currentTheme}`);
+            // Execute directory analysis using getNecessaryFiles
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting Python directory analysis...');
+            const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisDirectoryLivePanel(directoryPath, context, session.id, currentTheme);
+            if (analysisResult.success) {
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory analysis completed successfully!');
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis results received:');
+                if (analysisResult.data) {
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis data: ${Object.keys(analysisResult.data).length} keys`);
+                }
+                if (analysisResult.indexHtml) {
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Received HTML file (${analysisResult.indexHtml.length} characters)`);
+                }
+                if (analysisResult.cssContent) {
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Received CSS file (${analysisResult.cssContent.length} characters)`);
+                }
+                if (analysisResult.jsContent) {
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Received JS file (${analysisResult.jsContent.length} characters)`);
+                }
+                // Save all files to workspace storage using session
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Saving analysis files to workspace storage...`);
+                const filesToSave = {
+                    indexHtml: analysisResult.indexHtml,
+                    cssContent: analysisResult.cssContent,
+                    jsContent: analysisResult.jsContent,
+                    dataJson: analysisResult.data
+                };
+                const saveResult = await saveFiles_1.SaveFiles.saveAnalysisFiles(filesToSave, session.id, context);
+                if (saveResult.success) {
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Files saved successfully!`);
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis nonce: ${saveResult.nonce}`);
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis directory: ${saveResult.analysisDirectoryPath}`);
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Index.html path: ${saveResult.indexHtmlPath}`);
+                    // Start intelligent directory watching for real-time analysis updates (FIRST)
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Starting intelligent directory watching...`);
+                    try {
+                        const watcherId = await manageWatcher_1.ManageWatcher.startDirectoryWatching(session.id, context);
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Directory watching started successfully for: ${directoryPath}`);
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Watcher ID: ${watcherId}`);
                     }
-                    const absolutePath = path.resolve(workspaceFolder.uri.fsPath, filePath);
-                    const fileUri = vscode.Uri.file(absolutePath);
-                    const stat = await vscode.workspace.fs.stat(fileUri);
-                    return { filePath, mtime: stat.mtime };
+                    catch (watcherError) {
+                        console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Failed to start directory watching:`, watcherError);
+                        // Don't fail the entire process, just log the warning
+                        vscode.window.showWarningMessage(`Directory analysis completed but file watching failed: ${watcherError}`);
+                    }
+                    // Launch SSE server for real-time updates
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Launching server with SSE support...`);
+                    const serverLaunchResult = await launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                        sessionId: session.id,
+                        enableSSE: true
+                    });
+                    if (serverLaunchResult.success) {
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server launched successfully!`);
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server URL: ${serverLaunchResult.serverUrl}`);
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server ID: ${serverLaunchResult.serverId}`);
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: SSE Channel: ${serverLaunchResult.sseChannel}`);
+                        // Show enhanced success message with server information
+                        vscode.window.showInformationMessage(`Directory analysis completed for "${session.nameDir}"! Server: ${serverLaunchResult.serverUrl} | Live updates enabled`, 'Open in Browser', 'View Servers').then(action => {
+                            if (action === 'Open in Browser') {
+                                vscode.env.openExternal(vscode.Uri.parse(serverLaunchResult.serverUrl));
+                            }
+                            else if (action === 'View Servers') {
+                                vscode.commands.executeCommand('codexr.servers.view');
+                            }
+                        });
+                    }
+                    else {
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server launch failed: ${serverLaunchResult.error}`);
+                        // Still show success for analysis, but note server issue
+                        vscode.window.showWarningMessage(`Directory analysis completed for "${session.nameDir}" but server launch failed: ${serverLaunchResult.error}`, 'Retry Server Launch', 'View Analysis Files').then(action => {
+                            if (action === 'Retry Server Launch') {
+                                // Re-attempt server launch
+                                launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                                    sessionId: session.id,
+                                    enableSSE: true
+                                });
+                            }
+                            else if (action === 'View Analysis Files') {
+                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(saveResult.analysisDirectoryPath));
+                            }
+                        });
+                    }
+                    // Update session status to completed
+                    sessionManager.updateSessionStatus(session.id, 'completed', 100);
                 }
-                catch (error) {
-                    console.warn(`Failed to get stat for file: ${filePath}`, error);
-                    return { filePath, mtime: 0 };
+                else {
+                    console.error('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Failed to save files:', saveResult.error);
+                    // Update session status to failed
+                    sessionManager.updateSessionStatus(session.id, 'failed', undefined, `Failed to save files: ${saveResult.error}`);
+                    vscode.window.showErrorMessage(`Directory analysis completed but failed to save files: ${saveResult.error}`);
                 }
-            }));
-            // Sort by modification time
-            fileStats.sort((a, b) => {
-                const comparison = a.mtime - b.mtime;
-                return sortingConfig.filesSortDirection === 'ascending' ? comparison : -comparison;
-            });
-            return fileStats.map(stat => stat.filePath);
+            }
+            else {
+                console.error('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory analysis failed:', analysisResult.error);
+                // Update session status to failed
+                sessionManager.updateSessionStatus(session.id, 'failed', undefined, analysisResult.error);
+                // Show error message to user
+                vscode.window.showErrorMessage(`Directory analysis failed for "${session.nameDir}": ${analysisResult.error}`);
+            }
         }
-        return sortedFiles;
+        catch (error) {
+            console.error('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Error in directory analysis:', error);
+            vscode.window.showErrorMessage(`Failed to analyze directory: ${error}`);
+            throw error;
+        }
     }
     /**
-     * Compare two language groups for sorting
+     * Analyze directory using LivePanel Deep (recursive analysis)
      */
-    static compareLanguageGroups(a, b, sortBy, direction) {
-        let comparison = 0;
-        if (sortBy === 'alphabetical') {
-            comparison = a.languageName.localeCompare(b.languageName);
+    static async analyzeDirectoryDeep(directoryPath, context) {
+        try {
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting DEEP directory analysis for:', directoryPath);
+            // Check if analysis is already running for this directory
+            const canProceed = await checkIfAnalysisAlreadyRunning_1.CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(directoryPath, 'DirectoryLivePanelDeep');
+            if (!canProceed) {
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: DEEP Analysis cancelled due to conflict');
+                return;
+            }
+            // Get the directory analysis session manager
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            // Create a new directory analysis session with D_DeepLivePanel type
+            const session = await sessionManager.startDirectoryAnalysis(directoryPath, 'D_DeepLivePanel', context);
+            // Print session details to console
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory DEEP analysis session created:');
+            console.log('==========================================');
+            console.log(`Session ID: ${session.id}`);
+            console.log(`Directory Name: ${session.nameDir}`);
+            console.log(`Directory Path: ${session.filePath}`);
+            console.log(`Output Directory: ${session.outputDirectory}`);
+            console.log(`Output Path: ${session.outputPath}`);
+            console.log(`Analysis Type: ${session.analysisType}`);
+            console.log(`Is XR: ${session.isXR}`);
+            console.log(`Is Deep: ${session.isDeep}`);
+            console.log(`Status: ${session.status}`);
+            console.log(`Hash256: ${session.hash256}`);
+            console.log(`Files Count: ${session.filesList.size}`);
+            console.log(`Subdirectories Count: ${session.subDirectoriesList.size}`);
+            console.log(`Start Time: ${session.startTime.toISOString()}`);
+            if (session.metadata) {
+                console.log(`Directory Size: ${session.metadata.directorySize} bytes`);
+                console.log(`Last Modified: ${session.metadata.lastModified.toISOString()}`);
+            }
+            console.log('Files List (Deep Analysis):');
+            session.filesList.forEach((fullPath, relativePath) => {
+                console.log(`  ${relativePath} -> ${fullPath}`);
+            });
+            console.log('Subdirectories List (Deep Analysis):');
+            session.subDirectoriesList.forEach((fullPath, relativePath) => {
+                console.log(`  ${relativePath} -> ${fullPath}`);
+            });
+            console.log('==========================================');
+            // Update session status to analyzing
+            sessionManager.updateSessionStatus(session.id, 'analyzing');
+            // Log session configuration before starting analysis
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ====== DEEP SESSION CONFIGURATION ======');
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Session ID: ${session.id}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Analysis Type: ${session.analysisType}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Is XR Analysis: ${session.isXR}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Is Deep Analysis: ${session.isDeep}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory Path: ${session.filePath}`);
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Files Count: ${session.filesList.size}`);
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ===================================');
+            // Get current theme configuration
+            const configStorage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
+            const currentTheme = await configStorage.getViewTheme();
+            console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Using theme: ${currentTheme}`);
+            // Execute directory DEEP analysis using getNecessaryFiles
+            console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting Python directory DEEP analysis...');
+            const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisDirectoryLivePanel(directoryPath, context, session.id, currentTheme);
+            if (analysisResult.success) {
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory DEEP analysis completed successfully!');
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: DEEP Analysis results received:');
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: - Data: ${JSON.stringify(analysisResult.data).length} characters`);
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: - HTML: ${analysisResult.indexHtml?.length || 0} characters`);
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: - CSS: ${analysisResult.cssContent?.length || 0} characters`);
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: - JS: ${analysisResult.jsContent?.length || 0} characters`);
+                // Save analysis files using SaveFiles
+                console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Saving DEEP analysis files...');
+                const filesToSave = {
+                    indexHtml: analysisResult.indexHtml || '',
+                    cssContent: analysisResult.cssContent || '',
+                    jsContent: analysisResult.jsContent || '',
+                    dataJson: analysisResult.data
+                };
+                const saveResult = await saveFiles_1.SaveFiles.saveAnalysisFiles(filesToSave, session.id, context);
+                if (saveResult.success) {
+                    console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Files saved successfully to: ${saveResult.analysisDirectoryPath}`);
+                    // Start watcher for file changes
+                    console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting DEEP watcher for file changes...');
+                    manageWatcher_1.ManageWatcher.startDirectoryWatching(session.id, context);
+                    // Launch analysis server
+                    console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Launching server for DEEP analysis...');
+                    const serverLaunchResult = await launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                        sessionId: session.id,
+                        enableSSE: true
+                    });
+                    if (serverLaunchResult.success) {
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server launched successfully!`);
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server URL: ${serverLaunchResult.serverUrl}`);
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server ID: ${serverLaunchResult.serverId}`);
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: SSE Channel: ${serverLaunchResult.sseChannel}`);
+                        // Show enhanced success message with server information
+                        vscode.window.showInformationMessage(`Deep directory analysis completed for "${session.nameDir}"! Server: ${serverLaunchResult.serverUrl} | Live updates enabled`, 'Open in Browser', 'View Servers').then(action => {
+                            if (action === 'Open in Browser') {
+                                vscode.env.openExternal(vscode.Uri.parse(serverLaunchResult.serverUrl));
+                            }
+                            else if (action === 'View Servers') {
+                                vscode.commands.executeCommand('codexr.servers.view');
+                            }
+                        });
+                    }
+                    else {
+                        console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server launch failed: ${serverLaunchResult.error}`);
+                        // Still show success for analysis, but note server issue
+                        vscode.window.showWarningMessage(`Deep directory analysis completed for "${session.nameDir}" but server launch failed: ${serverLaunchResult.error}`, 'Retry Server Launch', 'View Analysis Files').then(action => {
+                            if (action === 'Retry Server Launch') {
+                                // Re-attempt server launch
+                                launchServer_1.LaunchServer.launchAnalysisServer(context, {
+                                    sessionId: session.id,
+                                    enableSSE: true
+                                });
+                            }
+                            else if (action === 'View Analysis Files') {
+                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(saveResult.analysisDirectoryPath));
+                            }
+                        });
+                    }
+                    // Update session status to completed
+                    sessionManager.updateSessionStatus(session.id, 'completed', 100);
+                }
+                else {
+                    console.error('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Failed to save files:', saveResult.error);
+                    // Update session status to failed
+                    sessionManager.updateSessionStatus(session.id, 'failed', undefined, `Failed to save files: ${saveResult.error}`);
+                    vscode.window.showErrorMessage(`Deep directory analysis completed but failed to save files: ${saveResult.error}`);
+                }
+            }
+            else {
+                console.error('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Directory DEEP analysis failed:', analysisResult.error);
+                // Update session status to failed
+                sessionManager.updateSessionStatus(session.id, 'failed', undefined, analysisResult.error);
+                // Show error message to user
+                vscode.window.showErrorMessage(`Deep directory analysis failed for "${session.nameDir}": ${analysisResult.error}`);
+            }
         }
-        else if (sortBy === 'fileCount') {
-            comparison = a.fileCount - b.fileCount;
+        catch (error) {
+            console.error('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Error in DEEP directory analysis:', error);
+            vscode.window.showErrorMessage(`Failed to analyze directory (deep): ${error}`);
+            throw error;
         }
-        return direction === 'ascending' ? comparison : -comparison;
     }
 }
-exports.FilesByLanguageSortingUtils = FilesByLanguageSortingUtils;
+exports.LaunchAnalyzeDirectoryLivePanel = LaunchAnalyzeDirectoryLivePanel;
+
+
+/***/ }),
+/* 189 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * Directory Analysis Session Manager
+ * Manages the lifecycle of directory analysis sessions
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DirectoryAnalysisSessionManager = void 0;
+const directoryAnalysisSessionRegistry_1 = __webpack_require__(190);
+class DirectoryAnalysisSessionManager {
+    static instance;
+    registry;
+    constructor() {
+        console.log('DIRECTORY_ANALYSIS_MANAGER: Initializing Directory Analysis Session Manager');
+        this.registry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+    }
+    static getInstance() {
+        if (!DirectoryAnalysisSessionManager.instance) {
+            DirectoryAnalysisSessionManager.instance = new DirectoryAnalysisSessionManager();
+        }
+        return DirectoryAnalysisSessionManager.instance;
+    }
+    /**
+     * Start a new directory analysis session
+     */
+    async startDirectoryAnalysis(directoryPath, analysisType, context) {
+        try {
+            console.log(`DIRECTORY_ANALYSIS_MANAGER: Starting ${analysisType} analysis for directory: ${directoryPath}`);
+            // Create new session
+            const session = await this.registry.createSession(directoryPath, analysisType, context);
+            console.log(`DIRECTORY_ANALYSIS_MANAGER: Session ${session.id} created successfully`);
+            return session;
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_MANAGER: Error starting directory analysis:', error);
+            throw error;
+        }
+    }
+    /**
+     * Update session status
+     */
+    updateSessionStatus(sessionId, status, progress, error) {
+        return this.registry.updateSessionStatus(sessionId, status, progress, error);
+    }
+    /**
+     * Complete a session
+     */
+    completeSession(sessionId, port) {
+        return this.registry.setSessionCompleted(sessionId, port);
+    }
+    /**
+     * Get session by ID
+     */
+    getSession(sessionId) {
+        return this.registry.getSession(sessionId);
+    }
+    /**
+     * Get all active sessions
+     */
+    getActiveSessions() {
+        return this.registry.getActiveSessions();
+    }
+    /**
+     * Close a session
+     */
+    closeSession(sessionId) {
+        return this.registry.closeSession(sessionId);
+    }
+    /**
+     * Check if directory has existing active sessions
+     */
+    hasActiveSessionsForDirectory(directoryPath) {
+        const sessions = this.registry.getSessionsByDirectoryPath(directoryPath);
+        return sessions.some(session => session.status === 'creating' ||
+            session.status === 'analyzing');
+    }
+    /**
+     * Get registry instance for direct access
+     */
+    getRegistry() {
+        return this.registry;
+    }
+    /**
+     * Clean up old completed/failed sessions
+     */
+    cleanupOldSessions(maxAge = 3600000) {
+        const sessions = this.registry.getAllSessions();
+        const now = new Date().getTime();
+        let cleanedCount = 0;
+        for (const session of sessions) {
+            if ((session.status === 'completed' || session.status === 'failed') && session.endTime) {
+                const age = now - session.endTime.getTime();
+                if (age > maxAge) {
+                    this.registry.removeSession(session.id);
+                    cleanedCount++;
+                }
+            }
+        }
+        if (cleanedCount > 0) {
+            console.log(`DIRECTORY_ANALYSIS_MANAGER: Cleaned up ${cleanedCount} old directory sessions`);
+        }
+        return cleanedCount;
+    }
+    /**
+     * Dispose of manager and clean up resources
+     */
+    dispose() {
+        this.registry.dispose();
+        console.log('DIRECTORY_ANALYSIS_MANAGER: Manager disposed');
+    }
+}
+exports.DirectoryAnalysisSessionManager = DirectoryAnalysisSessionManager;
+
+
+/***/ }),
+/* 190 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Directory Analysis Session Registry
+ * Central store for all directory analysis sessions and their states
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DirectoryAnalysisSessionRegistry = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(5));
+const fs = __importStar(__webpack_require__(6));
+const nonceGenerator_1 = __webpack_require__(12);
+const sha256Generator_1 = __webpack_require__(93);
+class DirectoryAnalysisSessionRegistry {
+    static instance;
+    sessions = new Map();
+    _onSessionChanged = new vscode.EventEmitter();
+    onSessionChanged = this._onSessionChanged.event;
+    constructor() {
+        console.log('DIRECTORY_ANALYSIS_REGISTRY: Initializing Directory Analysis Session Registry');
+    }
+    static getInstance() {
+        if (!DirectoryAnalysisSessionRegistry.instance) {
+            DirectoryAnalysisSessionRegistry.instance = new DirectoryAnalysisSessionRegistry();
+        }
+        return DirectoryAnalysisSessionRegistry.instance;
+    }
+    /**
+     * Create a new directory analysis session
+     */
+    async createSession(directoryPath, analysisType, context) {
+        try {
+            const id = (0, nonceGenerator_1.generateNonce)();
+            const nameDir = path.basename(directoryPath);
+            // Determine if this is a deep analysis
+            const isDeepAnalysis = analysisType === 'D_DeepLivePanel' || analysisType === 'D_XRDeep';
+            // Scan directory to get file list (filtered by analysis type)
+            const filesList = await this.scanDirectoryFiles(directoryPath, isDeepAnalysis);
+            // Only populate subDirectoriesList for deep analysis types
+            let subDirectoriesList = new Map();
+            if (isDeepAnalysis) {
+                subDirectoriesList = await this.scanSubDirectories(directoryPath);
+                console.log(`DIRECTORY_ANALYSIS_REGISTRY: Scanning subdirectories for deep analysis (${analysisType}): ${subDirectoriesList.size} found`);
+            }
+            else {
+                console.log(`DIRECTORY_ANALYSIS_REGISTRY: Skipping subdirectory scan for ${analysisType} (not needed)`);
+            }
+            const hash256 = await this.generateDirectoryHash(directoryPath, filesList);
+            let metadata = await this.calculateDirectoryMetadata(filesList);
+            // Calculate individual file hashes and store them in metadata
+            console.log(`DIRECTORY_ANALYSIS_REGISTRY: Calculating individual file hashes for ${filesList.size} files...`);
+            const fileHashes = await this.calculateAllFileHashes(filesList);
+            // Store file hashes in metadata
+            if (!metadata) {
+                metadata = {
+                    directorySize: 0,
+                    lastModified: new Date()
+                };
+            }
+            metadata.fileHashes = fileHashes;
+            console.log(`DIRECTORY_ANALYSIS_REGISTRY: Successfully calculated ${fileHashes.size} file hashes`);
+            // Generate output directory name and full path
+            const storageUri = context.storageUri;
+            if (!storageUri) {
+                throw new Error('Workspace storage URI is not available');
+            }
+            const outputDirectory = `${nameDir}_${analysisType}_${id}`;
+            const outputPath = path.join(storageUri.fsPath, 'directory_analysis', outputDirectory);
+            const session = {
+                id,
+                nameDir,
+                filePath: directoryPath,
+                outputDirectory,
+                outputPath,
+                analysisType,
+                isXR: analysisType === 'D_XR' || analysisType === 'D_XRDeep',
+                isDeep: isDeepAnalysis,
+                status: 'creating',
+                hash256,
+                filesList,
+                subDirectoriesList,
+                requiredFiles: new Map(),
+                startTime: new Date(),
+                metadata
+            };
+            this.sessions.set(id, session);
+            this._onSessionChanged.fire(session);
+            console.log(`DIRECTORY_ANALYSIS_REGISTRY: Created session ${id} for ${nameDir} (${analysisType})`);
+            console.log(`DIRECTORY_ANALYSIS_REGISTRY: Session details:`, {
+                id: session.id,
+                nameDir: session.nameDir,
+                filePath: session.filePath,
+                analysisType: session.analysisType,
+                isXR: session.isXR,
+                isDeep: session.isDeep,
+                status: session.status,
+                filesCount: session.filesList.size,
+                directorySize: session.metadata?.directorySize || 0,
+                hash256: session.hash256.substring(0, 16) + '...'
+            });
+            return session;
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_REGISTRY: Error creating session:', error);
+            throw error;
+        }
+    }
+    /**
+     * Scan directory for all analyzable files
+     * @param directoryPath The directory to scan
+     * @param isDeepAnalysis Whether to scan recursively or only first level
+     */
+    async scanDirectoryFiles(directoryPath, isDeepAnalysis) {
+        const filesList = new Map();
+        try {
+            if (isDeepAnalysis) {
+                // Deep analysis: scan recursively
+                await this.scanDirectoryRecursive(directoryPath, directoryPath, filesList);
+                console.log(`DIRECTORY_ANALYSIS_REGISTRY: Deep scan found ${filesList.size} files (recursive)`);
+            }
+            else {
+                // Non-deep analysis: scan only first level
+                await this.scanDirectoryFirstLevel(directoryPath, filesList);
+                console.log(`DIRECTORY_ANALYSIS_REGISTRY: Non-deep scan found ${filesList.size} files (first level only)`);
+            }
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_REGISTRY: Error scanning directory:', error);
+        }
+        return filesList;
+    }
+    /**
+     * Scan directory for all subdirectories (for future deep analysis)
+     */
+    async scanSubDirectories(directoryPath) {
+        const subDirectoriesList = new Map();
+        try {
+            await this.scanSubDirectoriesRecursive(directoryPath, directoryPath, subDirectoriesList);
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_REGISTRY: Error scanning subdirectories:', error);
+        }
+        return subDirectoriesList;
+    }
+    /**
+     * Recursively scan directory for files
+     */
+    async scanDirectoryRecursive(currentPath, basePath, filesList) {
+        try {
+            const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(currentPath, entry.name);
+                if (entry.isFile() && this.isAnalyzableFile(entry.name)) {
+                    // Create relative path from base directory
+                    const relativePath = path.relative(basePath, fullPath);
+                    filesList.set(relativePath, fullPath);
+                }
+                else if (entry.isDirectory() && !this.shouldSkipDirectory(entry.name)) {
+                    // Recursively scan subdirectories
+                    await this.scanDirectoryRecursive(fullPath, basePath, filesList);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`DIRECTORY_ANALYSIS_REGISTRY: Error scanning ${currentPath}:`, error);
+        }
+    }
+    /**
+     * Recursively scan directory for subdirectories
+     */
+    async scanSubDirectoriesRecursive(currentPath, basePath, subDirectoriesList) {
+        try {
+            const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(currentPath, entry.name);
+                if (entry.isDirectory() && !this.shouldSkipDirectory(entry.name)) {
+                    // Add this subdirectory to the list
+                    const relativePath = path.relative(basePath, fullPath);
+                    if (relativePath !== '') { // Don't include the base directory itself
+                        subDirectoriesList.set(relativePath, fullPath);
+                    }
+                    // Recursively scan subdirectories
+                    await this.scanSubDirectoriesRecursive(fullPath, basePath, subDirectoriesList);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`DIRECTORY_ANALYSIS_REGISTRY: Error scanning subdirectories in ${currentPath}:`, error);
+        }
+    }
+    /**
+     * Check if file is analyzable based on extension
+     */
+    isAnalyzableFile(fileName) {
+        const analyzableExtensions = [
+            '.py', '.js', '.ts', '.java', '.cpp', '.c', '.h', '.cs', '.rb', '.php',
+            '.go', '.rs', '.kt', '.swift', '.scala', '.clj', '.hs', '.ml', '.f90',
+            '.pas', '.pl', '.r', '.m', '.dart', '.lua', '.sh', '.ps1', '.vue',
+            '.jsx', '.tsx', '.html', '.htm', '.css', '.scss', '.less'
+        ];
+        const ext = path.extname(fileName).toLowerCase();
+        return analyzableExtensions.includes(ext);
+    }
+    /**
+     * Check if directory should be skipped
+     */
+    shouldSkipDirectory(dirName) {
+        const skipDirs = [
+            'node_modules', '.git', '.vscode', '__pycache__', '.pytest_cache',
+            'venv', 'env', '.env', 'dist', 'build', '.next', '.nuxt',
+            'coverage', '.coverage', 'tmp', 'temp', '.tmp'
+        ];
+        return skipDirs.includes(dirName) || dirName.startsWith('.');
+    }
+    /**
+     * Generate hash for directory based on file structure and content
+     */
+    async generateDirectoryHash(directoryPath, filesList) {
+        try {
+            // Create a string representation of the directory structure
+            const fileStructure = Array.from(filesList.keys()).sort().join('|');
+            // For now, use the structure as basis for hash (could be enhanced to include file content hashes)
+            const directoryInfo = `${directoryPath}|${fileStructure}|${filesList.size}`;
+            return await sha256Generator_1.SHA256Generator.generateStringHash(directoryInfo);
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_REGISTRY: Error generating directory hash:', error);
+            return 'hash-error-' + Date.now();
+        }
+    }
+    /**
+     * Calculate directory metadata
+     */
+    async calculateDirectoryMetadata(filesList) {
+        let totalSize = 0;
+        let lastModified = new Date(0);
+        try {
+            for (const [relativePath, fullPath] of filesList) {
+                try {
+                    const stats = await fs.promises.stat(fullPath);
+                    totalSize += stats.size;
+                    if (stats.mtime > lastModified) {
+                        lastModified = stats.mtime;
+                    }
+                }
+                catch (error) {
+                    console.warn(`DIRECTORY_ANALYSIS_REGISTRY: Could not stat file ${fullPath}:`, error);
+                }
+            }
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_REGISTRY: Error calculating metadata:', error);
+        }
+        return {
+            directorySize: totalSize,
+            lastModified
+        };
+    }
+    /**
+     * Update session status
+     */
+    updateSessionStatus(sessionId, status, progress, error) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            console.warn(`DIRECTORY_ANALYSIS_REGISTRY: Session ${sessionId} not found for status update`);
+            return false;
+        }
+        session.status = status;
+        if (progress !== undefined) {
+            session.progress = progress;
+        }
+        if (error) {
+            session.error = error;
+        }
+        if (status === 'completed' || status === 'failed') {
+            session.endTime = new Date();
+        }
+        this._onSessionChanged.fire(session);
+        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Updated session ${sessionId} status to ${status}`);
+        return true;
+    }
+    /**
+     * Set session status to completed (when analysis finishes and port is available)
+     */
+    setSessionCompleted(sessionId, port) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            console.warn(`DIRECTORY_ANALYSIS_REGISTRY: Session ${sessionId} not found for completion`);
+            return false;
+        }
+        session.status = 'completed';
+        session.endTime = new Date();
+        session.progress = 100;
+        if (port) {
+            session.port = port;
+        }
+        this._onSessionChanged.fire(session);
+        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Completed session ${sessionId}${port ? ` on port ${port}` : ''}`);
+        return true;
+    }
+    /**
+     * Add a file to the session's required files
+     */
+    addRequiredFile(sessionId, fileName, content) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            console.warn(`DIRECTORY_ANALYSIS_REGISTRY: Session ${sessionId} not found for adding file`);
+            return false;
+        }
+        session.requiredFiles.set(fileName, content);
+        this._onSessionChanged.fire(session);
+        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Added file ${fileName} to session ${sessionId}`);
+        return true;
+    }
+    /**
+     * Get a specific file from the session's required files
+     */
+    getRequiredFile(sessionId, fileName) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return undefined;
+        }
+        return session.requiredFiles.get(fileName);
+    }
+    /**
+     * Get all required files for a session
+     */
+    getAllRequiredFiles(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return undefined;
+        }
+        return session.requiredFiles;
+    }
+    /**
+     * Get session by ID
+     */
+    getSession(sessionId) {
+        return this.sessions.get(sessionId);
+    }
+    /**
+     * Get all active sessions
+     */
+    getActiveSessions() {
+        return Array.from(this.sessions.values()).filter(session => session.status === 'creating' || session.status === 'analyzing');
+    }
+    /**
+     * Get all sessions
+     */
+    getAllSessions() {
+        return Array.from(this.sessions.values());
+    }
+    /**
+     * Get sessions by directory path
+     */
+    getSessionsByDirectoryPath(directoryPath) {
+        return Array.from(this.sessions.values()).filter(session => session.filePath === directoryPath);
+    }
+    /**
+     * Remove session
+     */
+    removeSession(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            console.warn(`DIRECTORY_ANALYSIS_REGISTRY: Session ${sessionId} not found for removal`);
+            return false;
+        }
+        this.sessions.delete(sessionId);
+        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Removed session ${sessionId}`);
+        return true;
+    }
+    /**
+     * Close session
+     */
+    closeSession(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            console.warn(`DIRECTORY_ANALYSIS_REGISTRY: Session ${sessionId} not found for closing`);
+            return false;
+        }
+        session.status = 'closing';
+        session.endTime = new Date();
+        this._onSessionChanged.fire(session);
+        // Schedule removal after delay
+        setTimeout(() => {
+            this.removeSession(sessionId);
+        }, 2000);
+        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Closing session ${sessionId}`);
+        return true;
+    }
+    /**
+     * Dispose of registry and clean up resources
+     */
+    dispose() {
+        this._onSessionChanged.dispose();
+        this.sessions.clear();
+        console.log('DIRECTORY_ANALYSIS_REGISTRY: Registry disposed');
+    }
+    /**
+     * Scan only the first level of a directory (non-deep analysis)
+     * @param directoryPath The directory to scan
+     * @param filesList Map to store the found files
+     */
+    async scanDirectoryFirstLevel(directoryPath, filesList) {
+        try {
+            const entries = await fs.promises.readdir(directoryPath, { withFileTypes: true });
+            for (const entry of entries) {
+                if (entry.isFile()) {
+                    const fullPath = path.join(directoryPath, entry.name);
+                    // Check if file is analyzable
+                    if (this.isAnalyzableFile(fullPath)) {
+                        const relativePath = path.relative(directoryPath, fullPath);
+                        filesList.set(relativePath, fullPath);
+                        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Added first-level file: ${relativePath}`);
+                    }
+                }
+                // Skip subdirectories for non-deep analysis
+            }
+        }
+        catch (error) {
+            console.error(`DIRECTORY_ANALYSIS_REGISTRY: Error scanning first level of ${directoryPath}:`, error);
+        }
+    }
+    /**
+     * Calculate SHA256 hashes for all files in the files list
+     * @param filesList Map of relative path -> absolute path
+     * @returns Map of relative path -> SHA256 hash
+     */
+    async calculateAllFileHashes(filesList) {
+        const fileHashes = new Map();
+        let processedCount = 0;
+        try {
+            for (const [relativePath, absolutePath] of filesList.entries()) {
+                try {
+                    processedCount++;
+                    console.log(`DIRECTORY_ANALYSIS_REGISTRY: [${processedCount}/${filesList.size}] Calculating hash for: ${relativePath}`);
+                    const hash = await sha256Generator_1.SHA256Generator.generateFileHash(absolutePath);
+                    fileHashes.set(relativePath, hash);
+                }
+                catch (error) {
+                    console.error(`DIRECTORY_ANALYSIS_REGISTRY: Error calculating hash for ${relativePath}:`, error);
+                    // Continue with other files
+                }
+            }
+            console.log(`DIRECTORY_ANALYSIS_REGISTRY: Successfully calculated ${fileHashes.size}/${filesList.size} file hashes`);
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_REGISTRY: Error calculating file hashes:', error);
+        }
+        return fileHashes;
+    }
+}
+exports.DirectoryAnalysisSessionRegistry = DirectoryAnalysisSessionRegistry;
+
+
+/***/ }),
+/* 191 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Directory Analysis LivePanel Commands
+ * Commands for analyzing directories in LivePanel mode
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DirectoryAnalysisLivePanelCommands = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const engine_1 = __webpack_require__(111);
+class DirectoryAnalysisLivePanelCommands {
+    context;
+    constructor(context) {
+        this.context = context;
+    }
+    /**
+     * Register LivePanel directory analysis commands
+     */
+    static registerCommands(context) {
+        console.log('DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Registering LivePanel analysis commands...');
+        const commands = new DirectoryAnalysisLivePanelCommands(context);
+        const analyzeDirectoryCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeDirectory', (uri) => commands.analyzeDirectoryLivePanel(uri));
+        const analyzeDirectoryDeepCommand = vscode.commands.registerCommand('newCodeAnalysis.analyzeDirectoryDeep', (uri) => commands.analyzeDirectoryLivePanelDeep(uri));
+        console.log('DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel commands registered successfully');
+        return [analyzeDirectoryCommand, analyzeDirectoryDeepCommand];
+    }
+    /**
+     * Analyze directory in LivePanel mode command handler
+     */
+    async analyzeDirectoryLivePanel(uri) {
+        try {
+            let directoryPath;
+            if (uri) {
+                // Called from context menu or command palette with URI
+                if (uri.scheme === 'file') {
+                    const stat = await vscode.workspace.fs.stat(uri);
+                    if (stat.type === vscode.FileType.Directory) {
+                        directoryPath = uri.fsPath;
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from context menu for directory: ${directoryPath}`);
+                    }
+                    else {
+                        // If it's a file, use its parent directory
+                        const path = __webpack_require__(5);
+                        directoryPath = path.dirname(uri.fsPath);
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from file, using parent directory: ${directoryPath}`);
+                    }
+                }
+                else {
+                    vscode.window.showWarningMessage('CodeXR: Invalid URI for directory analysis');
+                    return;
+                }
+            }
+            else {
+                // Called from command palette without URI - use workspace folder or active file's directory
+                if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                    // If there's only one workspace folder, use it
+                    if (vscode.workspace.workspaceFolders.length === 1) {
+                        directoryPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Using workspace folder: ${directoryPath}`);
+                    }
+                    else {
+                        // Multiple workspace folders - let user pick
+                        const picked = await vscode.window.showWorkspaceFolderPick();
+                        if (!picked) {
+                            return; // User cancelled
+                        }
+                        directoryPath = picked.uri.fsPath;
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: User selected workspace folder: ${directoryPath}`);
+                    }
+                }
+                else {
+                    // No workspace folders - try to use active editor's directory
+                    const activeEditor = vscode.window.activeTextEditor;
+                    if (activeEditor) {
+                        const path = __webpack_require__(5);
+                        directoryPath = path.dirname(activeEditor.document.fileName);
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Using active file's directory: ${directoryPath}`);
+                    }
+                    else {
+                        vscode.window.showWarningMessage('CodeXR: No directory selected for LivePanel analysis');
+                        return;
+                    }
+                }
+            }
+            // Execute LivePanel directory analysis
+            console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Starting LivePanel analysis for directory: ${directoryPath}`);
+            await engine_1.LaunchAnalyzeDirectoryLivePanel.analyzeDirectory(directoryPath, this.context);
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel analyze directory command:', error);
+            vscode.window.showErrorMessage(`CodeXR: Directory LivePanel analysis failed - ${error}`);
+        }
+    }
+    /**
+     * Analyze directory in LivePanel Deep mode command handler
+     */
+    async analyzeDirectoryLivePanelDeep(uri) {
+        try {
+            let directoryPath;
+            if (uri) {
+                // Called from context menu or command palette with URI
+                if (uri.scheme === 'file') {
+                    const stat = await vscode.workspace.fs.stat(uri);
+                    if (stat.type === vscode.FileType.Directory) {
+                        directoryPath = uri.fsPath;
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel Deep analysis requested from context menu for directory: ${directoryPath}`);
+                    }
+                    else {
+                        // If it's a file, use its parent directory
+                        const path = __webpack_require__(5);
+                        directoryPath = path.dirname(uri.fsPath);
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel Deep analysis requested from file, using parent directory: ${directoryPath}`);
+                    }
+                }
+                else {
+                    vscode.window.showErrorMessage('CodeXR: Invalid directory URI for LivePanel Deep analysis');
+                    return;
+                }
+            }
+            else {
+                // Called from command palette without URI - ask user or use active file's directory
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    // Use the first workspace folder
+                    directoryPath = workspaceFolders[0].uri.fsPath;
+                    console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Using workspace folder for LivePanel Deep analysis: ${directoryPath}`);
+                }
+                else {
+                    // Try to use the directory of the active file
+                    const activeEditor = vscode.window.activeTextEditor;
+                    if (activeEditor) {
+                        const path = __webpack_require__(5);
+                        directoryPath = path.dirname(activeEditor.document.fileName);
+                        console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Using active file's directory for Deep analysis: ${directoryPath}`);
+                    }
+                    else {
+                        vscode.window.showWarningMessage('CodeXR: No directory selected for LivePanel Deep analysis');
+                        return;
+                    }
+                }
+            }
+            // TODO: Next step deep analyze of directories...
+            console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Deep analysis requested for directory: ${directoryPath}`);
+            await engine_1.LaunchAnalyzeDirectoryLivePanel.analyzeDirectoryDeep(directoryPath, this.context);
+        }
+        catch (error) {
+            console.error('DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel Deep analyze directory command:', error);
+            vscode.window.showErrorMessage(`CodeXR: Directory LivePanel Deep analysis failed - ${error}`);
+        }
+    }
+}
+exports.DirectoryAnalysisLivePanelCommands = DirectoryAnalysisLivePanelCommands;
+
+
+/***/ }),
+/* 192 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Smart Directory and File Watcher Utility
+ * Manages intelligent file watchers for live analysis updates with SHA256-based change detection
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ManageWatcher = void 0;
+const vscode = __importStar(__webpack_require__(1));
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const pythonExecutor_1 = __webpack_require__(81);
+const SSEManager_1 = __webpack_require__(18);
+const getNecessaryFiles_1 = __webpack_require__(80);
+const manageDebounceTime_1 = __webpack_require__(99);
+const analysisSessionManager_1 = __webpack_require__(91);
+const supportedLanguages_1 = __webpack_require__(79);
+const analysisSessionRegistry_1 = __webpack_require__(92);
+const directoryAnalysisSessionManager_1 = __webpack_require__(189);
+const directoryAnalysisSessionRegistry_1 = __webpack_require__(190);
+const checkFilesChanged_1 = __webpack_require__(193);
+const replaceInJson_1 = __webpack_require__(194);
+class ManageWatcher {
+    static activeWatchers = new Map();
+    static directoryWatchers = new Map();
+    /**
+     * Get debounce delay from user configuration
+     */
+    static async getDebounceDelay(context) {
+        return await manageDebounceTime_1.ManageDebounceTime.getDebounceDelay(context);
+    }
+    /**
+     * Start watching a directory for changes and intelligently re-analyze only changed files
+     */
+    static async startDirectoryWatching(sessionId, context) {
+        try {
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Directory session ${sessionId} not found`);
+            }
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Starting to watch directory: ${session.filePath}`);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Analysis directory: ${session.outputPath}`);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Session ID: ${sessionId}`);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Analysis type: ${session.analysisType}`);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Session configuration - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+            // Use session configuration directly instead of deducing from analysisType
+            const shouldWatchRecursively = session.isDeep;
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Recursive watching: ${shouldWatchRecursively} (Deep analysis: ${session.isDeep})`);
+            // Get debounce delay from configuration
+            const debounceMs = await ManageWatcher.getDebounceDelay(context);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using debounce delay: ${debounceMs}ms`);
+            // Create unique watcher ID
+            const watcherId = `dir_${path.basename(session.filePath)}_${Date.now()}`;
+            // Check if directory exists
+            if (!fs.existsSync(session.filePath)) {
+                console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Directory does not exist: ${session.filePath}`);
+                return '';
+            }
+            // Get initial list of files to watch
+            const watchedFiles = new Set();
+            ManageWatcher.collectWatchableFiles(session.filePath, watchedFiles);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Found ${watchedFiles.size} files to watch in directory`);
+            // Create directory watcher with appropriate recursion setting
+            const watcher = fs.watch(session.filePath, { recursive: shouldWatchRecursively, persistent: true }, async (eventType, filename) => {
+                if ((eventType === 'change' || eventType === 'rename') && filename) {
+                    const fullPath = path.join(session.filePath, filename);
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: File system event detected - Type: ${eventType}, File: ${filename}`);
+                    // Only process supported file types
+                    if (!ManageWatcher.isWatchableFile(fullPath)) {
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Skipping non-supported file type: ${fullPath}`);
+                        return;
+                    }
+                    // Determine the type of file system change
+                    let changeDescription = 'modified';
+                    if (eventType === 'rename') {
+                        if (fs.existsSync(fullPath)) {
+                            changeDescription = 'created';
+                        }
+                        else {
+                            changeDescription = 'deleted';
+                        }
+                    }
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: File ${changeDescription}: ${fullPath}`);
+                    // For non-deep analysis, only watch first-level files (no subdirectories)
+                    if (!session.isDeep) {
+                        const relativePath = path.relative(session.filePath, fullPath);
+                        const pathParts = relativePath.split(path.sep);
+                        // Skip files in subdirectories for non-deep analysis
+                        if (pathParts.length > 1) {
+                            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Skipping subdirectory file (non-deep): ${relativePath}`);
+                            return;
+                        }
+                    }
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Directory change detected: ${fullPath}`);
+                    // Get current watcher info for debouncing
+                    const currentWatcherInfo = ManageWatcher.directoryWatchers.get(watcherId);
+                    if (!currentWatcherInfo) {
+                        console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Directory watcher info not found for ID: ${watcherId}`);
+                        return;
+                    }
+                    // Clear existing debounce manager if it exists
+                    if (currentWatcherInfo.debounceManager) {
+                        manageDebounceTime_1.ManageDebounceTime.dispose(currentWatcherInfo.debounceManager);
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Disposed previous debounce manager for directory: ${session.filePath}`);
+                        currentWatcherInfo.debounceManager = undefined;
+                    }
+                    // Get fresh debounce delay
+                    const currentDebounceMs = await ManageWatcher.getDebounceDelay(context);
+                    // Check if we processed this change too recently
+                    const now = Date.now();
+                    if (currentWatcherInfo.lastProcessedTime &&
+                        (now - currentWatcherInfo.lastProcessedTime) < currentDebounceMs) {
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Skipping duplicate directory change event (too recent)`);
+                        return;
+                    }
+                    // Create new debounce manager for this change
+                    const debounceManager = manageDebounceTime_1.ManageDebounceTime.createDebounceManager(session.filePath, currentDebounceMs);
+                    currentWatcherInfo.debounceManager = debounceManager;
+                    // Set up debounced execution
+                    manageDebounceTime_1.ManageDebounceTime.setupDebouncedExecution(debounceManager, context, async () => {
+                        try {
+                            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Executing debounced directory analysis for: ${session.filePath}`);
+                            currentWatcherInfo.lastProcessedTime = Date.now();
+                            // Set session to analyzing state
+                            await ManageWatcher.setDirectoryAnalyzing(sessionId);
+                            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Directory session ${sessionId} set to ANALYZING state`);
+                            // Execute intelligent re-analysis
+                            await ManageWatcher.reExecuteDirectoryAnalysis(sessionId, context);
+                        }
+                        catch (error) {
+                            console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error re-executing directory analysis:`, error);
+                            ManageWatcher.setDirectoryFailed(sessionId, error instanceof Error ? error.message : String(error));
+                            vscode.window.showErrorMessage(`Error updating directory analysis: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                    });
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Directory debounce timer set for: ${session.filePath} (${currentDebounceMs}ms)`);
+                }
+            });
+            // Store directory watcher info
+            const watcherInfo = {
+                watcher,
+                directoryPath: session.filePath,
+                analysisDir: session.outputPath,
+                sessionId: sessionId,
+                debounceManager: undefined,
+                lastProcessedTime: undefined,
+                watchedFiles
+            };
+            ManageWatcher.directoryWatchers.set(watcherId, watcherInfo);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Successfully started directory watching with ID: ${watcherId}`);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Total active directory watchers: ${ManageWatcher.directoryWatchers.size}`);
+            return watcherId;
+        }
+        catch (error) {
+            console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error starting directory watcher:`, error);
+            vscode.window.showErrorMessage(`Error starting directory watcher: ${error instanceof Error ? error.message : String(error)}`);
+            return '';
+        }
+    }
+    /**
+     * Start watching a file for changes and re-execute analysis when detected
+     */
+    static async startWatching(sessionId, context) {
+        try {
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            console.log(`FILE_WATCHER: Starting to watch file: ${session.filePath}`);
+            console.log(`FILE_WATCHER: Analysis directory: ${session.outputPath}`);
+            console.log(`FILE_WATCHER: Session ID: ${sessionId}`);
+            console.log(`FILE_WATCHER: Analysis type: ${session.analysisType}`);
+            // Get debounce delay from configuration
+            const debounceMs = await ManageWatcher.getDebounceDelay(context);
+            console.log(`FILE_WATCHER: Using debounce delay: ${debounceMs}ms`);
+            // Create unique watcher ID
+            const watcherId = `${path.basename(session.filePath)}_${Date.now()}`;
+            // Check if file exists
+            if (!fs.existsSync(session.filePath)) {
+                console.error(`FILE_WATCHER: File does not exist: ${session.filePath}`);
+                return '';
+            }
+            // Check if analysis directory exists
+            if (!fs.existsSync(session.outputPath)) {
+                console.error(`FILE_WATCHER: Analysis directory does not exist: ${session.outputPath}`);
+                return '';
+            }
+            // Create file watcher
+            const watcher = fs.watch(session.filePath, { persistent: true }, async (eventType, filename) => {
+                if (eventType === 'change') {
+                    console.log(`FILE_WATCHER: File changed detected: ${session.filePath}`);
+                    console.log(`FILE_WATCHER: Event type: ${eventType}, filename: ${filename}`);
+                    // Get current watcher info for debouncing
+                    const currentWatcherInfo = ManageWatcher.activeWatchers.get(watcherId);
+                    if (!currentWatcherInfo) {
+                        console.error(`FILE_WATCHER: Watcher info not found for ID: ${watcherId}`);
+                        return;
+                    }
+                    // Clear existing debounce manager if it exists (this will dispose status bar)
+                    if (currentWatcherInfo.debounceManager) {
+                        manageDebounceTime_1.ManageDebounceTime.dispose(currentWatcherInfo.debounceManager);
+                        console.log(`FILE_WATCHER: Disposed previous debounce manager for: ${session.filePath}`);
+                        currentWatcherInfo.debounceManager = undefined;
+                    }
+                    // Get fresh debounce delay in case user changed it
+                    const currentDebounceMs = await ManageWatcher.getDebounceDelay(context);
+                    // Check if we processed this change too recently (additional protection)
+                    const now = Date.now();
+                    if (currentWatcherInfo.lastProcessedTime &&
+                        (now - currentWatcherInfo.lastProcessedTime) < currentDebounceMs) {
+                        console.log(`FILE_WATCHER: Skipping duplicate change event (too recent): ${session.filePath}`);
+                        return;
+                    }
+                    // Create new debounce manager for this change
+                    const debounceManager = manageDebounceTime_1.ManageDebounceTime.createDebounceManager(session.filePath, currentDebounceMs);
+                    currentWatcherInfo.debounceManager = debounceManager;
+                    // Set up debounced execution using ManageDebounceTime
+                    manageDebounceTime_1.ManageDebounceTime.setupDebouncedExecution(debounceManager, context, async () => {
+                        try {
+                            console.log(`FILE_WATCHER: Executing debounced analysis for: ${session.filePath}`);
+                            currentWatcherInfo.lastProcessedTime = Date.now();
+                            // **CLAVE: Poner sesión en estado "analyzing" cuando debounce llega a 0**
+                            await sessionManager.setAnalyzing(sessionId);
+                            console.log(`FILE_WATCHER: Session ${sessionId} set to ANALYZING state`);
+                            // Re-execute analysis with session
+                            await ManageWatcher.reExecuteAnalysis(sessionId, context);
+                        }
+                        catch (error) {
+                            console.error(`FILE_WATCHER: Error re-executing analysis:`, error);
+                            const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                            registry.updateSessionStatus(sessionId, 'failed', undefined, error instanceof Error ? error.message : String(error));
+                            vscode.window.showErrorMessage(`Error updating analysis: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                    });
+                    console.log(`FILE_WATCHER: Debounce timer set for: ${session.filePath} (${currentDebounceMs}ms)`);
+                }
+            });
+            // Store watcher info with sessionId
+            const watcherInfo = {
+                watcher,
+                filePath: session.filePath,
+                analysisDir: session.outputPath,
+                analysisType: session.analysisType,
+                sessionId: sessionId,
+                debounceManager: undefined,
+                lastProcessedTime: undefined
+            };
+            ManageWatcher.activeWatchers.set(watcherId, watcherInfo);
+            console.log(`FILE_WATCHER: Successfully started watching with ID: ${watcherId}`);
+            console.log(`FILE_WATCHER: Total active watchers: ${ManageWatcher.activeWatchers.size}`);
+            return watcherId;
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error starting file watcher:`, error);
+            vscode.window.showErrorMessage(`Error starting file watcher: ${error instanceof Error ? error.message : String(error)}`);
+            return '';
+        }
+    }
+    /**
+     * Stop watching a specific file
+     */
+    static stopWatching(watcherId) {
+        try {
+            const watcherInfo = ManageWatcher.activeWatchers.get(watcherId);
+            if (!watcherInfo) {
+                console.log(`FILE_WATCHER: Watcher not found with ID: ${watcherId}`);
+                return false;
+            }
+            // Clear and dispose debounce manager if it exists
+            if (watcherInfo.debounceManager) {
+                manageDebounceTime_1.ManageDebounceTime.dispose(watcherInfo.debounceManager);
+                console.log(`FILE_WATCHER: Disposed debounce manager for: ${watcherInfo.filePath}`);
+            }
+            // Close the watcher
+            watcherInfo.watcher.close();
+            // Remove from active watchers
+            ManageWatcher.activeWatchers.delete(watcherId);
+            console.log(`FILE_WATCHER: Stopped watching file: ${watcherInfo.filePath}`);
+            console.log(`FILE_WATCHER: Remaining active watchers: ${ManageWatcher.activeWatchers.size}`);
+            return true;
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error stopping watcher:`, error);
+            return false;
+        }
+    } /**
+     * Stop all active watchers
+     */
+    static stopAllWatchers() {
+        try {
+            console.log(`FILE_WATCHER: Stopping all ${ManageWatcher.activeWatchers.size} active watchers`);
+            for (const [watcherId, watcherInfo] of ManageWatcher.activeWatchers) {
+                try {
+                    // Clear and dispose debounce manager if it exists
+                    if (watcherInfo.debounceManager) {
+                        manageDebounceTime_1.ManageDebounceTime.dispose(watcherInfo.debounceManager);
+                        console.log(`FILE_WATCHER: Disposed debounce manager for: ${watcherInfo.filePath}`);
+                    }
+                    watcherInfo.watcher.close();
+                    console.log(`FILE_WATCHER: Closed watcher for: ${watcherInfo.filePath}`);
+                }
+                catch (error) {
+                    console.error(`FILE_WATCHER: Error closing watcher ${watcherId}:`, error);
+                }
+            }
+            ManageWatcher.activeWatchers.clear();
+            console.log(`FILE_WATCHER: All watchers stopped`);
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error stopping all watchers:`, error);
+        }
+    }
+    /**
+     * Get information about active watchers
+     */
+    static getActiveWatchersInfo() {
+        const info = [];
+        for (const [watcherId, watcherInfo] of ManageWatcher.activeWatchers) {
+            info.push({
+                id: watcherId,
+                filePath: watcherInfo.filePath,
+                analysisDir: watcherInfo.analysisDir,
+                analysisType: watcherInfo.analysisType
+            });
+        }
+        return info;
+    }
+    /**
+     * Re-execute analysis when file changes are detected
+     */
+    static async reExecuteAnalysis(sessionId, context) {
+        try {
+            const sessionManager = analysisSessionManager_1.AnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            console.log(`FILE_WATCHER: Re-executing analysis for: ${session.filePath}`);
+            console.log(`FILE_WATCHER: Analysis type: ${session.analysisType}`);
+            if (session.analysisType === 'DOMVisualization') {
+                // Re-execute DOM analysis with session
+                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getVisualizationDOM(session.filePath, context, sessionId);
+                if (analysisResult.success && analysisResult.data && analysisResult.indexHtml) {
+                    console.log(`FILE_WATCHER: DOM analysis completed successfully`);
+                    await ManageWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after DOM analysis`);
+                }
+                else {
+                    console.error(`FILE_WATCHER: DOM analysis failed:`, analysisResult.error);
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'DOM analysis failed');
+                    vscode.window.showErrorMessage(`DOM visualization update failed: ${analysisResult.error}`);
+                }
+            }
+            else if (session.analysisType === 'FileXRAnalysis') {
+                // Re-execute XR analysis with session
+                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileXR(session.filePath, context, sessionId);
+                if (analysisResult.success && analysisResult.data) {
+                    console.log(`FILE_WATCHER: XR analysis completed successfully`);
+                    await ManageWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS**
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after XR analysis`);
+                }
+                else {
+                    console.error(`FILE_WATCHER: XR analysis failed:`, analysisResult.error);
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'XR analysis failed');
+                    vscode.window.showErrorMessage(`XR visualization update failed: ${analysisResult.error}`);
+                }
+            }
+            else {
+                // LivePanel logic with session
+                const analysisResult = await getNecessaryFiles_1.GetNecessaryFiles.getAnalysisFileLivePanel(session.filePath, context, undefined, // theme
+                sessionId);
+                if (analysisResult.success && analysisResult.data) {
+                    console.log(`FILE_WATCHER: LivePanel analysis completed successfully`);
+                    await ManageWatcher.updateAnalysisFiles(analysisResult, session.outputPath, session.filePath, session.analysisType);
+                    // Send SSE update to all clients listening for this file
+                    try {
+                        console.log(`FILE_WATCHER: Sending SSE update notification for file: ${session.filePath}`);
+                        // Use the original SSEManager that matches the server
+                        SSEManager_1.sseManager.sendUpdate(session.filePath);
+                        console.log(`FILE_WATCHER: SSE update notification sent successfully`);
+                    }
+                    catch (sseError) {
+                        console.warn(`FILE_WATCHER: Failed to send SSE update (non-critical):`, sseError);
+                    }
+                    // **MARK SESSION AS COMPLETED AFTER SUCCESSFUL ANALYSIS AND SSE NOTIFICATION**
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    console.log(`FILE_WATCHER: Session ${sessionId} marked as COMPLETED after LivePanel analysis and SSE notification`);
+                    // Show success message
+                    vscode.window.showInformationMessage(`Analysis updated for: ${path.basename(session.filePath)}`);
+                }
+                else {
+                    console.error(`FILE_WATCHER: LivePanel analysis failed:`, analysisResult.error);
+                    const registry = analysisSessionRegistry_1.AnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'failed', undefined, analysisResult.error || 'LivePanel analysis failed');
+                    vscode.window.showErrorMessage(`Analysis update failed: ${analysisResult.error}`);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error in reExecuteAnalysis:`, error);
+            throw error;
+        }
+    }
+    /**
+     * Update analysis files and send SSE notification
+     */
+    static async updateAnalysisFiles(analysisResult, analysisDir, filePath, analysisType) {
+        const indexHtmlPath = path.join(analysisDir, 'index.html');
+        const jsPath = path.join(analysisDir, 'main.js');
+        const dataJsonPath = path.join(analysisDir, 'data.json');
+        try {
+            // Update files with new analysis results
+            if (analysisResult.indexHtml) {
+                await fs.promises.writeFile(indexHtmlPath, analysisResult.indexHtml, 'utf-8');
+            }
+            if (analysisResult.jsContent) {
+                await fs.promises.writeFile(jsPath, analysisResult.jsContent, 'utf-8');
+            }
+            await fs.promises.writeFile(dataJsonPath, JSON.stringify(analysisResult.data, null, 2), 'utf-8');
+            console.log(`FILE_WATCHER: Updated ${analysisType} files in: ${analysisDir}`);
+            // Send SSE update based on analysis type
+            try {
+                console.log(`FILE_WATCHER: Sending SSE update for ${analysisType}: ${filePath}`);
+                if (analysisType === 'DOMVisualization') {
+                    SSEManager_1.sseManager.sendCustomMessage(filePath, {
+                        type: 'htmlUpdated',
+                        htmlContent: analysisResult.data?.htmlContent || '',
+                        action: 'reload-html',
+                        message: 'HTML DOM content has been updated'
+                    });
+                }
+                else if (analysisType === 'FileXRAnalysis') {
+                    SSEManager_1.sseManager.sendEventMessage(filePath, 'dataRefresh', 'refreshed');
+                }
+                console.log(`FILE_WATCHER: SSE ${analysisType} update sent successfully`);
+            }
+            catch (sseError) {
+                console.warn(`FILE_WATCHER: Failed to send SSE ${analysisType} update (non-critical):`, sseError);
+            }
+            // Show success message with appropriate emoji
+            const emoji = analysisType === 'DOMVisualization' ? '🌐' : '🥽';
+            vscode.window.showInformationMessage(`${emoji} ${analysisType} updated for: ${path.basename(filePath)}`);
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error updating ${analysisType} files:`, error);
+            throw error;
+        }
+    }
+    /**
+     * Extract JSON data from Python output
+     */
+    static extractJsonFromOutput(output) {
+        try {
+            // Look for JSON data in the output
+            // This might need to be adjusted based on how Python outputs the data
+            const lines = output.split('\n');
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+                    try {
+                        return JSON.parse(trimmedLine);
+                    }
+                    catch (parseError) {
+                        // Continue looking for valid JSON
+                        continue;
+                    }
+                }
+            }
+            // If no single-line JSON found, try to find multi-line JSON
+            const fullOutput = output.trim();
+            if (fullOutput.startsWith('{') && fullOutput.endsWith('}')) {
+                return JSON.parse(fullOutput);
+            }
+            return null;
+        }
+        catch (error) {
+            console.error(`FILE_WATCHER: Error extracting JSON from output:`, error);
+            return null;
+        }
+    }
+    /**
+     * Helper method to collect watchable files in a directory
+     */
+    static collectWatchableFiles(directoryPath, watchedFiles) {
+        try {
+            const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(directoryPath, entry.name);
+                if (entry.isDirectory()) {
+                    // Recursively collect files from subdirectories
+                    ManageWatcher.collectWatchableFiles(fullPath, watchedFiles);
+                }
+                else if (entry.isFile() && ManageWatcher.isWatchableFile(fullPath)) {
+                    watchedFiles.add(fullPath);
+                }
+            }
+        }
+        catch (error) {
+            console.warn(`MANAGE_WATCHER: Error collecting files from ${directoryPath}:`, error);
+        }
+    }
+    /**
+     * Check if a file is watchable (supported file types)
+     * Uses the centralized SUPPORTED_LANGUAGES configuration
+     */
+    static isWatchableFile(filePath) {
+        const ext = path.extname(filePath).toLowerCase();
+        // Check against all supported language extensions
+        for (const langConfig of Object.values(supportedLanguages_1.SUPPORTED_LANGUAGES)) {
+            if (langConfig.extensions.includes(ext)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Set directory session to analyzing state
+     */
+    static async setDirectoryAnalyzing(sessionId) {
+        try {
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            const registry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+            // Update session status
+            registry.updateSessionStatus(sessionId, 'analyzing');
+            console.log(`MANAGE_WATCHER: Directory session ${sessionId} set to ANALYZING state`);
+        }
+        catch (error) {
+            console.error(`MANAGE_WATCHER: Error setting directory session to analyzing:`, error);
+        }
+    }
+    /**
+     * Set directory session to failed state
+     */
+    static setDirectoryFailed(sessionId, error) {
+        try {
+            const registry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+            registry.updateSessionStatus(sessionId, 'failed', undefined, error);
+            console.log(`MANAGE_WATCHER: Directory session ${sessionId} set to FAILED state: ${error}`);
+        }
+        catch (err) {
+            console.error(`MANAGE_WATCHER: Error setting directory session to failed:`, err);
+        }
+    }
+    /**
+     * Re-execute directory analysis with intelligent file change detection
+     */
+    static async reExecuteDirectoryAnalysis(sessionId, context) {
+        try {
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Directory session ${sessionId} not found`);
+            }
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Re-executing directory analysis for: ${session.filePath}`);
+            // Step 1: Check which files have changed using SHA256
+            const changeReport = await checkFilesChanged_1.CheckFilesChanged.checkChangedFiles(session);
+            let changeResults = changeReport.changedFiles;
+            if (changeResults.length === 0) {
+                console.log(`FILES_CHANGED: No file changes detected, skipping re-analysis`);
+                const registry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+                registry.updateSessionStatus(sessionId, 'completed');
+                return;
+            }
+            console.log(`FILES_CHANGED: Found ${changeResults.length} changed files for re-analysis`);
+            // Step 1.5: Filter changed files to only include files that are actually in the current analysis
+            // For non-deep analysis, this means only first-level files
+            console.log(`FILES_CHANGED: Session configuration - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+            if (!session.isDeep) {
+                const originalChangeCount = changeResults.length;
+                console.log(`FILES_CHANGED: Applying non-deep filter to ${originalChangeCount} files:`);
+                changeResults.forEach(changedFile => {
+                    console.log(`FILES_CHANGED: Checking file: ${changedFile.relativePath}`);
+                });
+                changeResults = changeResults.filter(changedFile => {
+                    const pathParts = changedFile.relativePath.split(path.sep);
+                    const isFirstLevel = pathParts.length === 1;
+                    console.log(`FILES_CHANGED: File: ${changedFile.relativePath}, pathParts: [${pathParts.join(', ')}], isFirstLevel: ${isFirstLevel}`);
+                    if (!isFirstLevel) {
+                        console.log(`FILES_CHANGED: ❌ Skipping subdirectory file for non-deep analysis: ${changedFile.relativePath}`);
+                    }
+                    else {
+                        console.log(`FILES_CHANGED: ✅ Keeping first-level file: ${changedFile.relativePath}`);
+                    }
+                    return isFirstLevel;
+                });
+                console.log(`FILES_CHANGED: Filtered changed files from ${originalChangeCount} to ${changeResults.length} (non-deep analysis)`);
+                if (changeResults.length === 0) {
+                    console.log(`FILES_CHANGED: No relevant file changes for non-deep analysis, skipping re-analysis`);
+                    const registry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+                    registry.updateSessionStatus(sessionId, 'completed');
+                    return;
+                }
+            }
+            console.log(`FILES_CHANGED: Final count of files to re-analyze: ${changeResults.length}`);
+            // Step 2: Separate deleted files from files that need re-analysis
+            const deletedFiles = changeResults.filter(cf => cf.changeType === 'deleted');
+            const filesToAnalyze = changeResults.filter(cf => cf.changeType !== 'deleted');
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Files to analyze: ${filesToAnalyze.length}`);
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Files to delete: ${deletedFiles.length}`);
+            // Step 3: Re-analyze only files that exist (not deleted)
+            const newAnalysisResults = new Map();
+            const failedAnalyses = [];
+            for (const changedFile of filesToAnalyze) {
+                try {
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Re-analyzing ${changedFile.changeType} file: ${changedFile.relativePath}`);
+                    const fullFilePath = path.join(session.filePath, changedFile.relativePath);
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Full path: ${fullFilePath}`);
+                    // Use resume analysis for LivePanel (just file summary data)
+                    // and regular analysis for XR
+                    let analysisResult;
+                    if (session.isXR) {
+                        // XR Analysis - use regular analysis for full data
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using FileXRAnalysis for XR mode`);
+                        analysisResult = await pythonExecutor_1.PythonExecutor.executeAnalysis('FileXRAnalysis', fullFilePath, context);
+                    }
+                    else {
+                        // LivePanel Analysis - use resume analysis for file summary only
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using file resume analysis for LivePanel mode`);
+                        analysisResult = await pythonExecutor_1.PythonExecutor.executeFileResumeAnalysis(fullFilePath, context);
+                        // For resume analysis, we need to add the relativePath
+                        if (analysisResult.success && analysisResult.data) {
+                            analysisResult.data.relativePath = changedFile.relativePath;
+                        }
+                    }
+                    if (analysisResult.success && analysisResult.data) {
+                        newAnalysisResults.set(changedFile.relativePath, analysisResult.data);
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Successfully re-analyzed: ${changedFile.relativePath}`);
+                    }
+                    else {
+                        console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Failed to re-analyze: ${changedFile.relativePath}`, analysisResult.error);
+                        failedAnalyses.push(changedFile.relativePath);
+                    }
+                }
+                catch (error) {
+                    console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error re-analyzing ${changedFile.relativePath}:`, error);
+                    failedAnalyses.push(changedFile.relativePath);
+                }
+            }
+            // Check if we have any successful analysis OR deleted files to process
+            const hasAnalysisWork = newAnalysisResults.size > 0 || deletedFiles.length > 0;
+            if (!hasAnalysisWork) {
+                const errorMessage = `No files were successfully re-analyzed and no deleted files to process. Failed analyses: ${failedAnalyses.join(', ')}`;
+                console.error(`WATCHER_DIRECTORY_LIVE_PANEL: ${errorMessage}`);
+                throw new Error(errorMessage);
+            }
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Analysis summary - Re-analyzed: ${newAnalysisResults.size} files, Deleted: ${deletedFiles.length} files, Failed: ${failedAnalyses.length}`);
+            // Step 4: Replace results in existing JSON (includes both analyzed and deleted files)
+            const analysisJsonPath = path.join(session.outputPath, 'data.json');
+            const replaceResult = await replaceInJson_1.ReplaceInJson.replaceFileAnalysisInJson(analysisJsonPath, changeResults, newAnalysisResults);
+            if (replaceResult.success) {
+                console.log(`REPLACE_JSON_D_LIVE_PANEL: Successfully updated analysis for ${replaceResult.updatedFiles.length} files`);
+                // Step 5: Update session with new hashes and file list
+                await ManageWatcher.updateSessionHashes(sessionId, changeResults);
+                await ManageWatcher.updateSessionFileList(sessionId, changeResults);
+                // Mark session as completed
+                const registry = directoryAnalysisSessionRegistry_1.DirectoryAnalysisSessionRegistry.getInstance();
+                registry.updateSessionStatus(sessionId, 'completed');
+                // Send SSE notification
+                SSEManager_1.sseManager.sendUpdate(session.filePath);
+                vscode.window.showInformationMessage(`📊 Directory analysis updated: ${replaceResult.updatedFiles.length} files`);
+            }
+            else {
+                throw new Error(`Failed to update analysis JSON: ${replaceResult.errors.join(', ')}`);
+            }
+        }
+        catch (error) {
+            console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error in reExecuteDirectoryAnalysis:`, error);
+            ManageWatcher.setDirectoryFailed(sessionId, error instanceof Error ? error.message : String(error));
+            throw error;
+        }
+    }
+    /**
+     * Update session with new file hashes after successful analysis
+     */
+    static async updateSessionHashes(sessionId, changeResults) {
+        try {
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            // Ensure metadata exists
+            if (!session.metadata) {
+                session.metadata = {
+                    directorySize: 0,
+                    lastModified: new Date()
+                };
+            }
+            // Ensure fileHashes map exists
+            if (!session.metadata.fileHashes) {
+                session.metadata.fileHashes = new Map();
+            }
+            const fileHashes = session.metadata.fileHashes;
+            // Update hashes for changed files
+            for (const changedFile of changeResults) {
+                if (changedFile.changeType === 'deleted') {
+                    // Remove hash for deleted files
+                    if (fileHashes.has(changedFile.relativePath)) {
+                        fileHashes.delete(changedFile.relativePath);
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Removed hash for deleted file: ${changedFile.relativePath}`);
+                    }
+                }
+                else if (changedFile.newHash) {
+                    // Update hash for modified/added files
+                    fileHashes.set(changedFile.relativePath, changedFile.newHash);
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Updated hash for ${changedFile.changeType} file ${changedFile.relativePath}: ${changedFile.newHash.substring(0, 16)}...`);
+                }
+            }
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Updated ${changeResults.length} file hashes in session ${sessionId}`);
+        }
+        catch (error) {
+            console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error updating session hashes:`, error);
+        }
+    }
+    /**
+     * Update session file list for new and deleted files
+     */
+    static async updateSessionFileList(sessionId, changeResults) {
+        try {
+            const sessionManager = directoryAnalysisSessionManager_1.DirectoryAnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            // Update file list for new and deleted files
+            for (const changedFile of changeResults) {
+                if (changedFile.changeType === 'added') {
+                    // Add new file to session file list
+                    session.filesList.set(changedFile.relativePath, changedFile.filePath);
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Added new file to session: ${changedFile.relativePath}`);
+                }
+                else if (changedFile.changeType === 'deleted') {
+                    // Remove deleted file from session file list
+                    if (session.filesList.has(changedFile.relativePath)) {
+                        session.filesList.delete(changedFile.relativePath);
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Removed deleted file from session: ${changedFile.relativePath}`);
+                    }
+                }
+            }
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Updated session file list. Total files: ${session.filesList.size}`);
+        }
+        catch (error) {
+            console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error updating session file list:`, error);
+        }
+    }
+}
+exports.ManageWatcher = ManageWatcher;
+
+
+/***/ }),
+/* 193 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Check Files Changed Utility
+ * Efficiently checks which files have changed by comparing SHA256 hashes
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CheckFilesChanged = void 0;
+const fs = __importStar(__webpack_require__(6));
+const path = __importStar(__webpack_require__(5));
+const sha256Generator_1 = __webpack_require__(93);
+const supportedLanguages_1 = __webpack_require__(79);
+class CheckFilesChanged {
+    /**
+     * Check which files have changed since last analysis by comparing SHA256 hashes
+     * @param session Directory analysis session containing file list and hashes
+     * @returns Report with files that have changed, unchanged, and errors
+     */
+    static async checkChangedFiles(session) {
+        console.log(`FILES_CHANGED: Starting hash comparison for session ${session.id}`);
+        console.log(`FILES_CHANGED: Directory: ${session.filePath}`);
+        console.log(`FILES_CHANGED: Total files to check: ${session.filesList.size}`);
+        const changedFiles = [];
+        const unchangedFiles = [];
+        const errorFiles = [];
+        let processedCount = 0;
+        // Step 1: Check existing files for changes or deletions
+        for (const [relativePath, absolutePath] of session.filesList.entries()) {
+            processedCount++;
+            try {
+                console.log(`FILES_CHANGED: [${processedCount}/${session.filesList.size}] Checking: ${relativePath}`);
+                // Check if file still exists
+                if (!fs.existsSync(absolutePath)) {
+                    console.log(`FILES_CHANGED: File DELETED: ${relativePath}`);
+                    const result = {
+                        filePath: absolutePath,
+                        relativePath: relativePath,
+                        hasChanged: true,
+                        changeType: 'deleted',
+                        error: 'File no longer exists'
+                    };
+                    changedFiles.push(result); // Put deleted files in changed files, not errors
+                    continue;
+                }
+                // Calculate current hash
+                const newHash = await sha256Generator_1.SHA256Generator.generateFileHash(absolutePath);
+                // Get stored hash from session
+                // Note: We need to extract the hash from the session's hash256 field
+                // For now, we'll calculate old hash from stored session data
+                // In the future, we should store individual file hashes in the session
+                const oldHash = await CheckFilesChanged.extractFileHashFromSession(session, relativePath);
+                const hasChanged = oldHash !== newHash;
+                const result = {
+                    filePath: absolutePath,
+                    relativePath: relativePath,
+                    hasChanged: hasChanged,
+                    changeType: hasChanged ? 'modified' : 'modified', // Will be determined later
+                    oldHash: oldHash,
+                    newHash: newHash
+                };
+                if (hasChanged) {
+                    console.log(`FILES_CHANGED: MODIFIED - ${relativePath}`);
+                    console.log(`FILES_CHANGED:   Old hash: ${oldHash}`);
+                    console.log(`FILES_CHANGED:   New hash: ${newHash}`);
+                    result.changeType = 'modified';
+                    changedFiles.push(result);
+                }
+                else {
+                    console.log(`FILES_CHANGED: unchanged - ${relativePath}`);
+                    result.changeType = 'modified'; // Doesn't matter since unchanged
+                    unchangedFiles.push(result);
+                }
+            }
+            catch (error) {
+                console.error(`FILES_CHANGED: Error processing ${relativePath}:`, error);
+                const result = {
+                    filePath: absolutePath,
+                    relativePath: relativePath,
+                    hasChanged: false,
+                    changeType: 'modified', // Error case, doesn't matter
+                    error: error instanceof Error ? error.message : String(error)
+                };
+                errorFiles.push(result);
+            }
+        }
+        // Step 2: Check for new files in the directory
+        const newFiles = await CheckFilesChanged.detectNewFiles(session);
+        if (newFiles.length > 0) {
+            console.log(`FILES_CHANGED: Found ${newFiles.length} new files`);
+            changedFiles.push(...newFiles);
+        }
+        const report = {
+            changedFiles,
+            unchangedFiles,
+            errorFiles,
+            totalFiles: session.filesList.size,
+            changedCount: changedFiles.length
+        };
+        console.log(`FILES_CHANGED: Completed hash comparison for session ${session.id}`);
+        console.log(`FILES_CHANGED: Results: ${changedFiles.length} changed, ${unchangedFiles.length} unchanged, ${errorFiles.length} errors`);
+        return report;
+    }
+    /**
+     * Extract individual file hash from session data
+     */
+    static async extractFileHashFromSession(session, relativePath) {
+        try {
+            // Check if we have stored individual file hashes in metadata
+            if (session.metadata && session.metadata.fileHashes) {
+                const fileHashes = session.metadata.fileHashes;
+                const storedHash = fileHashes.get(relativePath);
+                if (storedHash) {
+                    console.log(`FILES_CHANGED: Found stored hash for ${relativePath}: ${storedHash.substring(0, 16)}...`);
+                    return storedHash;
+                }
+            }
+            // If no stored hash found, log warning and return empty (will trigger re-analysis)
+            console.log(`FILES_CHANGED: No stored hash found for ${relativePath}, will be considered as changed`);
+            return ''; // Empty hash will always be different from current hash
+        }
+        catch (error) {
+            console.error(`FILES_CHANGED: Error extracting hash for ${relativePath}:`, error);
+            return ''; // Return empty hash to trigger re-analysis
+        }
+    }
+    /**
+     * Update session with new file hashes
+     * This should be called after successful analysis to store new hashes
+     */
+    static updateSessionWithNewHashes(session, changeReport) {
+        try {
+            console.log(`CHECK_FILES_CHANGED: Updating session ${session.id} with new file hashes`);
+            // Initialize metadata if not exists
+            if (!session.metadata) {
+                session.metadata = {
+                    directorySize: 0,
+                    lastModified: new Date()
+                };
+            }
+            // Initialize fileHashes in metadata
+            let fileHashes = new Map();
+            if (session.metadata.fileHashes) {
+                fileHashes = session.metadata.fileHashes;
+            }
+            // Update hashes for changed files
+            for (const changedFile of changeReport.changedFiles) {
+                if (changedFile.newHash) {
+                    fileHashes.set(changedFile.relativePath, changedFile.newHash);
+                }
+            }
+            // Store back in metadata
+            session.metadata.fileHashes = fileHashes;
+            console.log(`CHECK_FILES_CHANGED: Updated ${changeReport.changedFiles.length} file hashes in session`);
+        }
+        catch (error) {
+            console.error(`CHECK_FILES_CHANGED: Error updating session with new hashes:`, error);
+        }
+    }
+    /**
+     * Detect new files in the directory that are not in the session's file list
+     */
+    static async detectNewFiles(session) {
+        const newFiles = [];
+        try {
+            const supportedExtensions = (0, supportedLanguages_1.getAllSupportedExtensions)();
+            console.log(`FILES_CHANGED: Scanning directory for new files: ${session.filePath}`);
+            // Recursively scan the directory for supported files
+            const allCurrentFiles = await this.scanDirectoryForSupportedFiles(session.filePath, supportedExtensions);
+            // Check which files are new (not in session.filesList)
+            for (const currentFile of allCurrentFiles) {
+                const relativePath = path.relative(session.filePath, currentFile);
+                // Check if this file is already tracked in the session
+                if (!session.filesList.has(relativePath)) {
+                    console.log(`FILES_CHANGED: NEW file detected: ${relativePath}`);
+                    // Calculate hash for the new file
+                    const newHash = await sha256Generator_1.SHA256Generator.generateFileHash(currentFile);
+                    const result = {
+                        filePath: currentFile,
+                        relativePath: relativePath,
+                        hasChanged: true,
+                        changeType: 'added',
+                        newHash: newHash
+                    };
+                    newFiles.push(result);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`FILES_CHANGED: Error detecting new files:`, error);
+        }
+        return newFiles;
+    }
+    /**
+     * Recursively scan directory for files with supported extensions
+     */
+    static async scanDirectoryForSupportedFiles(dirPath, supportedExtensions) {
+        const files = [];
+        try {
+            const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dirPath, entry.name);
+                if (entry.isDirectory()) {
+                    // Skip node_modules, .git, and other common directories
+                    if (!['node_modules', '.git', '.vscode', 'dist', 'build'].includes(entry.name)) {
+                        const subFiles = await this.scanDirectoryForSupportedFiles(fullPath, supportedExtensions);
+                        files.push(...subFiles);
+                    }
+                }
+                else if (entry.isFile()) {
+                    const ext = path.extname(entry.name).toLowerCase();
+                    if (supportedExtensions.includes(ext)) {
+                        files.push(fullPath);
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error(`FILES_CHANGED: Error scanning directory ${dirPath}:`, error);
+        }
+        return files;
+    }
+}
+exports.CheckFilesChanged = CheckFilesChanged;
+
+
+/***/ }),
+/* 194 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+/**
+ * Replace In JSON Utility
+ * Efficiently replaces specific file analysis results in existing directory analysis JSON
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ReplaceInJson = void 0;
+const fs = __importStar(__webpack_require__(6));
+class ReplaceInJson {
+    /**
+     * Replace analysis results for specific files in the directory analysis JSON
+     * IMPORTANT: For incremental updates (re-analysis):
+     * - totalFiles = total files in directory (all files in JSON)
+     * - totalFilesAnalyzed = files that were RE-ANALYZED in this session (changedFiles.length)
+     * - totalFilesNotAnalyzed = totalFiles - totalFilesAnalyzed (files not touched in this session)
+     *
+     * @param analysisJsonPath Path to the directory analysis JSON file
+     * @param changedFiles List of files that were re-analyzed
+     * @param newAnalysisResults New analysis results for the changed files (resume format)
+     * @returns Result of the replacement operation
+     */
+    static async replaceFileAnalysisInJson(analysisJsonPath, changedFiles, newAnalysisResults) {
+        console.log(`REPLACE_JSON_D_LIVE_PANEL: ===== STARTING JSON REPLACEMENT =====`);
+        console.log(`REPLACE_JSON_D_LIVE_PANEL: Analysis JSON path: ${analysisJsonPath}`);
+        console.log(`REPLACE_JSON_D_LIVE_PANEL: Files to update: ${changedFiles.length}`);
+        // Log each file that will be updated
+        changedFiles.forEach((cf, index) => {
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: [${index + 1}/${changedFiles.length}] Will update: ${cf.relativePath}`);
+        });
+        const result = {
+            success: false,
+            updatedFiles: [],
+            errors: [],
+            summaryUpdated: false
+        };
+        try {
+            // Read existing JSON
+            if (!fs.existsSync(analysisJsonPath)) {
+                throw new Error(`Analysis JSON file not found: ${analysisJsonPath}`);
+            }
+            const jsonContent = fs.readFileSync(analysisJsonPath, 'utf-8');
+            const analysisData = JSON.parse(jsonContent);
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: Loaded existing analysis data`);
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: Existing files array length: ${analysisData.files ? analysisData.files.length : 0}`);
+            // Ensure files array exists
+            if (!analysisData.files || !Array.isArray(analysisData.files)) {
+                analysisData.files = [];
+            }
+            // Process each changed file
+            for (const changedFile of changedFiles) {
+                console.log(`REPLACE_JSON_D_LIVE_PANEL: Processing ${changedFile.changeType} for: ${changedFile.relativePath}`);
+                if (changedFile.changeType === 'deleted') {
+                    // Handle file deletion - remove from JSON
+                    let found = false;
+                    for (let i = analysisData.files.length - 1; i >= 0; i--) {
+                        const existingFile = analysisData.files[i];
+                        const existingRelativePath = existingFile.relativePath || existingFile.fileName;
+                        if (existingRelativePath === changedFile.relativePath) {
+                            console.log(`REPLACE_JSON_D_LIVE_PANEL: REMOVING deleted file entry at index ${i}: ${existingFile.fileName}`);
+                            analysisData.files.splice(i, 1);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        result.updatedFiles.push(changedFile.relativePath);
+                        console.log(`REPLACE_JSON_D_LIVE_PANEL: Successfully removed deleted file: ${changedFile.relativePath}`);
+                    }
+                    else {
+                        console.warn(`REPLACE_JSON_D_LIVE_PANEL: Deleted file not found in JSON: ${changedFile.relativePath}`);
+                    }
+                    continue;
+                }
+                if (changedFile.changeType === 'added') {
+                    // Handle new file - need to analyze it first
+                    const newAnalysis = newAnalysisResults.get(changedFile.relativePath);
+                    if (!newAnalysis) {
+                        console.warn(`REPLACE_JSON_D_LIVE_PANEL: No analysis data for new file: ${changedFile.relativePath}`);
+                        result.errors.push(`No analysis data for new file: ${changedFile.relativePath}`);
+                        continue;
+                    }
+                    console.log(`REPLACE_JSON_D_LIVE_PANEL: ADDING new file entry: ${newAnalysis.fileName}`);
+                    console.log(`REPLACE_JSON_D_LIVE_PANEL: New file data:`, {
+                        fileName: newAnalysis.fileName,
+                        totalLines: newAnalysis.totalLines,
+                        functionCount: newAnalysis.functionCount,
+                        cyclomaticComplexityNumber: newAnalysis.cyclomaticComplexityNumber
+                    });
+                    // Add new file entry
+                    const newFileEntry = {
+                        ...newAnalysis,
+                        relativePath: changedFile.relativePath
+                    };
+                    analysisData.files.push(newFileEntry);
+                    result.updatedFiles.push(changedFile.relativePath);
+                    continue;
+                }
+                if (changedFile.changeType === 'modified') {
+                    // Handle modified file - replace existing entry
+                    const newAnalysis = newAnalysisResults.get(changedFile.relativePath);
+                    if (!newAnalysis) {
+                        console.warn(`REPLACE_JSON_D_LIVE_PANEL: No new analysis found for: ${changedFile.relativePath}`);
+                        result.errors.push(`No new analysis data for: ${changedFile.relativePath}`);
+                        continue;
+                    }
+                    console.log(`REPLACE_JSON_D_LIVE_PANEL: Processing MODIFICATION for: ${changedFile.relativePath}`);
+                    console.log(`REPLACE_JSON_D_LIVE_PANEL: New analysis data:`, {
+                        fileName: newAnalysis.fileName,
+                        totalLines: newAnalysis.totalLines,
+                        functionCount: newAnalysis.functionCount,
+                        cyclomaticComplexityNumber: newAnalysis.cyclomaticComplexityNumber
+                    });
+                    try {
+                        // Find and replace the existing file entry
+                        let foundAndReplaced = false;
+                        for (let i = 0; i < analysisData.files.length; i++) {
+                            const existingFile = analysisData.files[i];
+                            // Match by relativePath or fileName
+                            const existingRelativePath = existingFile.relativePath || existingFile.fileName;
+                            if (existingRelativePath === changedFile.relativePath ||
+                                existingFile.fileName === newAnalysis.fileName) {
+                                console.log(`REPLACE_JSON_D_LIVE_PANEL: Found existing file entry at index ${i}: ${existingFile.fileName}`);
+                                console.log(`REPLACE_JSON_D_LIVE_PANEL: OLD data:`, {
+                                    totalLines: existingFile.totalLines,
+                                    functionCount: existingFile.functionCount,
+                                    cyclomaticComplexityNumber: existingFile.cyclomaticComplexityNumber
+                                });
+                                // Replace the entire file entry with new data
+                                analysisData.files[i] = {
+                                    ...newAnalysis,
+                                    // Ensure relativePath is correct
+                                    relativePath: changedFile.relativePath
+                                };
+                                console.log(`REPLACE_JSON_D_LIVE_PANEL: REPLACED file entry at index ${i} with NEW data:`, {
+                                    totalLines: analysisData.files[i].totalLines,
+                                    functionCount: analysisData.files[i].functionCount,
+                                    cyclomaticComplexityNumber: analysisData.files[i].cyclomaticComplexityNumber
+                                });
+                                foundAndReplaced = true;
+                                break;
+                            }
+                        }
+                        if (!foundAndReplaced) {
+                            // File not found, add as new entry (should not happen for 'modified', but just in case)
+                            const newFileEntry = {
+                                ...newAnalysis,
+                                relativePath: changedFile.relativePath
+                            };
+                            analysisData.files.push(newFileEntry);
+                            console.log(`REPLACE_JSON_D_LIVE_PANEL: Added NEW file entry for modified file: ${newAnalysis.fileName}`);
+                        }
+                        result.updatedFiles.push(changedFile.relativePath);
+                    }
+                    catch (error) {
+                        console.error(`REPLACE_JSON_D_LIVE_PANEL: Error processing modified file ${changedFile.relativePath}:`, error);
+                        result.errors.push(`Error processing modified file ${changedFile.relativePath}: ${error}`);
+                    }
+                }
+            }
+            // Update total counts in summary when there are changes (including deletions)
+            if (result.updatedFiles.length > 0) {
+                console.log(`REPLACE_JSON_D_LIVE_PANEL: Files updated successfully, recalculating summary`);
+                // Recalculate totals from all files
+                let totalLines = 0;
+                let totalComments = 0;
+                let totalBlankLines = 0;
+                let totalFunctions = 0;
+                let totalClasses = 0;
+                let totalComplexity = 0;
+                const languageCounts = {};
+                const complexities = [];
+                analysisData.files.forEach((file) => {
+                    totalLines += file.totalLines || 0;
+                    totalComments += file.commentLines || 0;
+                    totalBlankLines += file.blankLines || 0;
+                    totalFunctions += file.functionCount || 0;
+                    totalClasses += file.classCount || 0;
+                    totalComplexity += file.cyclomaticComplexityNumber || 0;
+                    // Collect complexities for average calculation
+                    if (file.cyclomaticComplexityNumber && file.cyclomaticComplexityNumber > 0) {
+                        complexities.push(file.cyclomaticComplexityNumber);
+                    }
+                    // Count languages
+                    if (file.language) {
+                        languageCounts[file.language] = (languageCounts[file.language] || 0) + 1;
+                    }
+                });
+                // Calculate average complexity
+                const averageComplexity = complexities.length > 0
+                    ? complexities.reduce((a, b) => a + b, 0) / complexities.length
+                    : 0;
+                // Update both top-level and summary object
+                analysisData.totalLines = totalLines;
+                analysisData.totalFunctions = totalFunctions;
+                analysisData.totalCyclomaticComplexity = totalComplexity;
+                analysisData.totalFiles = analysisData.files.length;
+                // Ensure summary object exists and update it
+                if (!analysisData.summary) {
+                    analysisData.summary = {};
+                }
+                // For incremental updates (re-analysis), we need to distinguish between:
+                // - Total files in directory (always equals files.length after update)
+                // - Files that were re-analyzed in this session (result.updatedFiles.length)
+                // - Files not re-analyzed = total - re-analyzed
+                const totalFilesInDirectory = analysisData.files.length;
+                const filesReAnalyzedThisSession = result.updatedFiles.length;
+                const filesNotReAnalyzed = totalFilesInDirectory - filesReAnalyzedThisSession;
+                analysisData.summary.totalFiles = totalFilesInDirectory;
+                analysisData.summary.totalFilesAnalyzed = filesReAnalyzedThisSession; // Only files re-analyzed in this session
+                analysisData.summary.totalFilesNotAnalyzed = filesNotReAnalyzed; // Files that weren't touched in this session
+                analysisData.summary.totalLines = totalLines;
+                analysisData.summary.totalComments = totalComments;
+                analysisData.summary.totalBlankLines = totalBlankLines;
+                analysisData.summary.totalFunctions = totalFunctions;
+                analysisData.summary.totalClasses = totalClasses;
+                analysisData.summary.averageComplexity = averageComplexity;
+                analysisData.summary.analyzedAt = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+                analysisData.summary.languages = languageCounts;
+                console.log(`REPLACE_JSON_D_LIVE_PANEL: Updated summary (INCREMENTAL):`, {
+                    totalFiles: analysisData.summary.totalFiles,
+                    totalFilesAnalyzed: analysisData.summary.totalFilesAnalyzed, // Files re-analyzed in this session
+                    totalFilesNotAnalyzed: analysisData.summary.totalFilesNotAnalyzed, // Files not touched in this session
+                    totalLines: analysisData.summary.totalLines,
+                    totalComments: analysisData.summary.totalComments,
+                    totalBlankLines: analysisData.summary.totalBlankLines,
+                    totalFunctions: analysisData.summary.totalFunctions,
+                    totalClasses: analysisData.summary.totalClasses,
+                    averageComplexity: analysisData.summary.averageComplexity,
+                    languages: analysisData.summary.languages
+                });
+                result.summaryUpdated = true;
+            }
+            // Write updated JSON back to file
+            const updatedJsonContent = JSON.stringify(analysisData, null, 2);
+            fs.writeFileSync(analysisJsonPath, updatedJsonContent, 'utf-8');
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: ===== JSON REPLACEMENT COMPLETED =====`);
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: Successfully updated analysis JSON`);
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: Updated files count: ${result.updatedFiles.length}`);
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: Errors count: ${result.errors.length}`);
+            console.log(`REPLACE_JSON_D_LIVE_PANEL: Summary updated: ${result.summaryUpdated}`);
+            // Log each updated file
+            result.updatedFiles.forEach((filePath, index) => {
+                console.log(`REPLACE_JSON_D_LIVE_PANEL: [${index + 1}] Updated: ${filePath}`);
+            });
+            // Log any errors
+            result.errors.forEach((error, index) => {
+                console.log(`REPLACE_JSON_D_LIVE_PANEL: [ERROR ${index + 1}] ${error}`);
+            });
+            result.success = result.updatedFiles.length > 0 || result.summaryUpdated;
+        }
+        catch (error) {
+            console.error(`REPLACE_JSON_D_LIVE_PANEL: CRITICAL ERROR - Failed to replace analysis in JSON:`, error);
+            result.errors.push(`Failed to replace analysis: ${error}`);
+        }
+        return result;
+    }
+}
+exports.ReplaceInJson = ReplaceInJson;
 
 
 /***/ })

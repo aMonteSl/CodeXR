@@ -21,6 +21,43 @@ let charts = {};
 // Debug mode - set to false for production
 const DEBUG_MODE = false;
 
+// Theme management
+function getStoredTheme() {
+  try {
+    return localStorage.getItem('directoryAnalysisTheme') || 'light';
+  } catch (error) {
+    console.warn('Failed to get stored theme:', error);
+    return 'light';
+  }
+}
+
+function setStoredTheme(theme) {
+  try {
+    localStorage.setItem('directoryAnalysisTheme', theme);
+  } catch (error) {
+    console.warn('Failed to store theme:', error);
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+    themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`);
+  }
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(newTheme);
+  setStoredTheme(newTheme);
+}
+
+// Make toggleTheme available globally for template compatibility
+window.toggleTheme = toggleTheme;
+
 function debugLog(...args) {
   if (DEBUG_MODE) {
     console.log(...args);
@@ -334,7 +371,7 @@ function updateSummary() {
 function findMaxComplexity() {
   let maxAvgComplexity = 0;
   fileData.forEach(file => {
-    const avgComplexity = file.meanComplexity || 0;
+    const avgComplexity = file.cyclomaticComplexityNumber || 0;
     if (avgComplexity > maxAvgComplexity) {
       maxAvgComplexity = avgComplexity;
     }
@@ -520,7 +557,7 @@ function updateComplexityOverview() {
     const complexityBuckets = { low: 0, medium: 0, high: 0, critical: 0 };
     
     fileData.forEach(file => {
-      const avgComplexity = file.meanComplexity || 0;
+      const avgComplexity = file.cyclomaticComplexityNumber || 0;
       const classification = getFileComplexityClassification(avgComplexity);
       
       switch (classification.category) {
@@ -610,7 +647,7 @@ function updateComplexityOverview() {
 // Update top complex files
 function updateTopComplexFiles() {
   const sortedFiles = [...fileData]
-    .filter(file => file.meanComplexity > 0)
+    .filter(file => file.cyclomaticComplexityNumber > 0)
     .sort((a, b) => (b.meanComplexity || 0) - (a.meanComplexity || 0))
     .slice(0, 10);
 
@@ -618,7 +655,7 @@ function updateTopComplexFiles() {
   const isDeepMode = window.analysisMode === 'deep';
   
   container.innerHTML = sortedFiles.map(file => {
-    const complexity = file.meanComplexity || 0;
+    const complexity = file.cyclomaticComplexityNumber || 0;
     const classification = getFileComplexityClassification(complexity);
     
     // Show relative path for deep mode, just filename for shallow mode
@@ -645,7 +682,7 @@ function updateFileTable() {
   const isDeepMode = window.analysisMode === 'deep';
   
   tbody.innerHTML = fileData.map(file => {
-    const avgComplexity = file.meanComplexity || 0;
+    const avgComplexity = file.cyclomaticComplexityNumber || 0;
     const classification = getFileComplexityClassification(avgComplexity);
     const fileSizeKB = file.fileSizeBytes ? (file.fileSizeBytes / 1024).toFixed(1) + ' KB' : '0 KB';
     
@@ -802,9 +839,9 @@ function updateComplexityDistribution() {
       veryComplex: 0 // Critical: CCN > 20
     };
 
-    // Classify each file based on its average CCN (meanComplexity)
+    // Classify each file based on its average CCN (cyclomaticComplexityNumber)
     fileData.forEach(file => {
-      const avgComplexity = file.meanComplexity || 0;
+      const avgComplexity = file.cyclomaticComplexityNumber || 0;
       const classification = getFileComplexityClassification(avgComplexity);
       
       switch (classification.category) {
@@ -982,21 +1019,28 @@ window.addEventListener('message', event => {
 document.addEventListener('DOMContentLoaded', function() {
   console.log('🔄 DOMContentLoaded event fired');
   
-  // Check if we have analysis data available immediately
+  // Initialize theme
+  const storedTheme = getStoredTheme();
+  applyTheme(storedTheme);
+  
+  // Set up theme toggle
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+  
+  // Listen for the analysisDataLoaded event from the template
+  window.addEventListener('analysisDataLoaded', function(event) {
+    console.log('✅ Received analysisDataLoaded event, initializing...');
+    loadAnalysisData(event.detail);
+  });
+  
+  // Check if we have analysis data available immediately (fallback)
   if (window.analysisData) {
-    console.log('✅ Found window.analysisData, initializing...');
+    console.log('✅ Found window.analysisData immediately, initializing...');
     loadAnalysisData(window.analysisData);
   } else {
-    console.warn('❌ No window.analysisData found in DOMContentLoaded');
-    // Try a delayed check in case the script tag hasn't executed yet
-    setTimeout(function() {
-      if (window.analysisData) {
-        console.log('✅ Found window.analysisData after delay, initializing...');
-        loadAnalysisData(window.analysisData);
-      } else {
-        console.error('❌ Still no window.analysisData after delay');
-      }
-    }, 100);
+    console.log('⏳ Waiting for analysisDataLoaded event...');
   }
   
   // ✅ NEW: Initialize Server-Sent Events for live updates

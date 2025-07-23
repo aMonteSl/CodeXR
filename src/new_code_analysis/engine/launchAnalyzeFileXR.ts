@@ -8,7 +8,7 @@ import { getLanguageForFile } from '../../utils/languageMetadata';
 import { SUPPORTED_LANGUAGES } from '../../utils/supportedLanguages';
 import { GetNecessaryFiles } from './utils/getNecessaryFiles';
 import { SaveFiles, FilesToSave } from './utils/saveFiles';
-import { FileWatcher } from './utils/fileWatcher';
+import { ManageWatcher } from './utils/manageWatcher';
 import { LaunchServer } from './utils/launchServer';
 import { AnalysisSessionManager } from './registry/analysisSessionManager';
 import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
@@ -164,7 +164,7 @@ export class LaunchAnalyzeFileXR {
                     console.log(`ANALYZE_FILE_XR_ENGINE: XR Index.html path: ${saveResult.indexHtmlPath}`);
 
                     // Start file watcher for live updates with session
-                    const watcherId = await FileWatcher.startWatching(
+                    const watcherId = await ManageWatcher.startWatching(
                         session.id,
                         context
                     );

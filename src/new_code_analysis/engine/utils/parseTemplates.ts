@@ -91,6 +91,90 @@ export class ParseTemplates {
     }
 
     /**
+     * Parse LivePanel Directory template for Directory Live Panel analysis
+     */
+    static async parseLivePanelDirectoryTemplate(
+        context: vscode.ExtensionContext,
+        analysisData: any,
+        theme?: string
+    ): Promise<ParsedTemplateFiles> {
+        try {
+            console.log(`PARSE_TEMPLATES: Starting LivePanel Directory template parsing`);
+
+            // Define template paths
+            const templateDir = path.join(context.extensionPath, 'templates', 'analysis_livePanel', 'directory');
+            const htmlPath = path.join(templateDir, 'directoryAnalysis.html');
+            const cssPath = path.join(templateDir, 'directoryAnalysisstyle.css');
+            const jsPath = path.join(templateDir, 'directoryAnalysismain.js');
+
+            // Check if template files exist
+            if (!fs.existsSync(htmlPath)) {
+                throw new Error(`HTML template not found at: ${htmlPath}`);
+            }
+            if (!fs.existsSync(cssPath)) {
+                throw new Error(`CSS template not found at: ${cssPath}`);
+            }
+            if (!fs.existsSync(jsPath)) {
+                throw new Error(`JS template not found at: ${jsPath}`);
+            }
+
+            // Read template files
+            console.log(`PARSE_TEMPLATES: Reading directory template files from: ${templateDir}`);
+            const htmlTemplate = fs.readFileSync(htmlPath, 'utf-8');
+            const cssTemplate = fs.readFileSync(cssPath, 'utf-8');
+            const jsTemplate = fs.readFileSync(jsPath, 'utf-8');
+
+            // Generate nonce for security and process HTML directly
+            const nonce = generateNonce();
+            const themeClass = theme === 'Light' ? 'light-theme' : 'dark-theme';
+            const themeValue = theme === 'Light' ? 'light' : 'dark';
+            
+            // Extract directory info from analysis data
+            const directoryPath = analysisData?.directoryPath || analysisData?.summary?.directoryPath || 'Unknown Directory';
+            const directoryName = analysisData?.directoryName || path.basename(directoryPath);
+            const totalFiles = analysisData?.summary?.totalFiles || 0;
+            const totalFilesAnalyzed = analysisData?.summary?.totalFilesAnalyzed || 0;
+            const timestamp = analysisData?.timestamp || new Date().toISOString();
+            
+            // Inject theme initialization script
+            const themeScript = `<script nonce="${nonce}">window.initialTheme = '${themeValue}';</script>`;
+            
+            const parsedHtml = htmlTemplate
+                .replace(/\$\{nonce\}/g, nonce)
+                .replace(/\$\{webview\.cspSource\}/g, "'self'")
+                .replace(/\$\{styleUri\}/g, './style.css')
+                .replace(/\$\{scriptUri\}/g, './main.js')
+                .replace(/\$\{theme\}/g, themeClass)
+                .replace(/\$\{directoryPath\}/g, directoryPath)
+                .replace(/\$\{totalFiles\}/g, totalFiles.toString())
+                .replace(/\$\{totalFilesAnalyzed\}/g, totalFilesAnalyzed.toString())
+                .replace(/\$\{timestamp\}/g, timestamp)
+                .replace(/<\/head>/, `${themeScript}\n</head>`);
+
+            console.log(`PARSE_TEMPLATES: Directory template parsing completed successfully`);
+            console.log(`PARSE_TEMPLATES: - Directory: ${directoryName} (${directoryPath})`);
+            console.log(`PARSE_TEMPLATES: - Files: ${totalFilesAnalyzed}/${totalFiles} analyzed`);
+            
+            return {
+                indexHtml: parsedHtml,
+                cssContent: cssTemplate,
+                jsContent: jsTemplate,
+                success: true
+            };
+
+        } catch (error) {
+            console.log(`PARSE_TEMPLATES: Error parsing LivePanel Directory template:`, error);
+            return {
+                indexHtml: '',
+                cssContent: '',
+                jsContent: '',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+
+    /**
      * Parse DOM Visualization template for HTML DOM analysis
      */
     static async parseDOMVisualizationTemplate(

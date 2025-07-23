@@ -5,7 +5,7 @@
 
 import * as vscode from 'vscode';
 import { AnalysisSessionRegistry } from '../engine/registry/analysisSessionRegistry';
-import { FileWatcher } from '../engine/utils/fileWatcher';
+import { ManageWatcher } from '../engine/utils/manageWatcher';
 import { getActiveServerRegistry } from '../../active_servers/registry/activeServerRegistry';
 import { ServerControl } from '../../active_servers/runtime/serverControl';
 import * as fs from 'fs';
@@ -124,22 +124,24 @@ export class ServerWatcherIntegration {
             console.log(`SERVER_WATCHER_INTEGRATION: Stopping file watcher for session ${sessionId}, file: ${filePath}`);
             
             // Get all active watchers and find the one for this session
-            const watchersInfo = FileWatcher.getActiveWatchersInfo();
+            const watchersInfo = ManageWatcher.getActiveWatchersInfo();
             
-            // Find watcher by file path
-            const watcherInfo = watchersInfo.find((w: any) => w.filePath === filePath);
-            
-            if (watcherInfo) {
-                const stopped = FileWatcher.stopWatching(watcherInfo.id);
+            // Find and stop watcher for this file
+            for (const watcherInfo of watchersInfo) {
+                if (watcherInfo.filePath === filePath) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Stopping watcher ${watcherInfo.id} for ${filePath}`);
+                    const stopped = ManageWatcher.stopWatching(watcherInfo.id);
                 
-                if (stopped) {
-                    console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped file watcher ${watcherInfo.id}`);
-                } else {
-                    console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop file watcher ${watcherInfo.id}`);
+                    if (stopped) {
+                        console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped file watcher ${watcherInfo.id}`);
+                    } else {
+                        console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop file watcher ${watcherInfo.id}`);
+                    }
+                    break; // Found and processed, exit loop
                 }
-            } else {
-                console.log(`SERVER_WATCHER_INTEGRATION: No file watcher found for file: ${filePath}`);
             }
+            
+            console.log(`SERVER_WATCHER_INTEGRATION: File watcher cleanup completed for: ${filePath}`);
             
         } catch (error) {
             console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher:`, error);

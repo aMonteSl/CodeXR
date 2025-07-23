@@ -17,10 +17,13 @@ export class FilesByLanguageSubsectionProvider {
     private lastScanTime: number = 0;
     private readonly CACHE_DURATION = 30000; // 30 seconds cache
     private storage: AnalysisConfigurationStorage;
+    private fileWatcher: vscode.FileSystemWatcher | null = null;
+    private refreshCallback: (() => void) | null = null;
     
     constructor(private context: vscode.ExtensionContext) {
         console.log('NEW_CODE_ANALYSIS: Initializing Files by Language subsection provider');
         this.storage = AnalysisConfigurationStorage.getInstance(context);
+        this.setupFileWatcher();
     }
 
     /**
@@ -232,5 +235,84 @@ export class FilesByLanguageSubsectionProvider {
         }
         
         return [];
+    }
+
+    /**
+     * Set refresh callback for real-time updates
+     */
+    setRefreshCallback(callback: () => void): void {
+        this.refreshCallback = callback;
+    }
+
+    /**
+     * Setup file watcher for real-time updates
+     */
+    private setupFileWatcher(): void {
+        try {
+            console.log('NEW_CODE_ANALYSIS: Setting up file watcher for Files by Language');
+            
+            // Create file watcher for all files in workspace
+            this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
+            
+            // Handle file creation
+            this.fileWatcher.onDidCreate((uri) => {
+                console.log('NEW_CODE_ANALYSIS: File created:', uri.fsPath);
+                this.handleFileChange();
+            });
+            
+            // Handle file deletion
+            this.fileWatcher.onDidDelete((uri) => {
+                console.log('NEW_CODE_ANALYSIS: File deleted:', uri.fsPath);
+                this.handleFileChange();
+            });
+            
+            // Handle file renaming/moving (this triggers delete + create)
+            // No need for onDidChange as we only care about structure changes
+            
+            // Add to context subscriptions for cleanup
+            this.context.subscriptions.push(this.fileWatcher);
+            
+            console.log('NEW_CODE_ANALYSIS: File watcher setup completed');
+            
+        } catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error setting up file watcher:', error);
+        }
+    }
+
+    /**
+     * Handle file system changes
+     */
+    private handleFileChange(): void {
+        try {
+            console.log('NEW_CODE_ANALYSIS: Handling file system change for Files by Language');
+            
+            // Invalidate cache immediately
+            this.cachedSummary = null;
+            this.lastScanTime = 0;
+            
+            // Trigger refresh if callback is available
+            if (this.refreshCallback) {
+                console.log('NEW_CODE_ANALYSIS: Triggering Files by Language refresh');
+                this.refreshCallback();
+            }
+            
+        } catch (error) {
+            console.error('NEW_CODE_ANALYSIS: Error handling file change:', error);
+        }
+    }
+
+    /**
+     * Dispose of resources
+     */
+    dispose(): void {
+        console.log('NEW_CODE_ANALYSIS: Disposing Files by Language subsection provider');
+        
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+            this.fileWatcher = null;
+        }
+        
+        this.refreshCallback = null;
+        this.cachedSummary = null;
     }
 }

@@ -43,6 +43,12 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         this.projectByLanguageSubsection = new ProjectByLanguageSubsectionProvider(context);
         this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context);
 
+        // Setup real-time refresh callback for Files by Language
+        this.filesByLanguageSubsection.setRefreshCallback(() => {
+            console.log('NEW_CODE_ANALYSIS: Files by Language triggered refresh');
+            this.refresh();
+        });
+
         // Set up listener for analysis session changes to auto-refresh UI
         const sessionRegistry = AnalysisSessionRegistry.getInstance();
         sessionRegistry.onSessionChanged((session) => {
@@ -153,5 +159,19 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
      */
     async onItemSelected(item: NewCodeAnalysisTreeItem): Promise<void> {
         await NewCodeAnalysisInteractionHandler.handleItemClick(item);
+    }
+
+    /**
+     * Dispose of resources
+     */
+    dispose(): void {
+        console.log('NEW_CODE_ANALYSIS: Disposing New Code Analysis section provider');
+        
+        // Dispose of subsections
+        if (this.filesByLanguageSubsection) {
+            this.filesByLanguageSubsection.dispose();
+        }
+        
+        // Note: Other subsections can also implement dispose if needed
     }
 }

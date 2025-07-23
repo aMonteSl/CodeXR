@@ -4,7 +4,6 @@ import { ServersSectionProvider } from './servers';
 import { ActiveServersSectionProvider } from './active_servers';
 import { BabiaExamplesSectionProvider } from './babia_examples';
 import { VisualizeDataSectionProvider } from './visualize_data';
-import { CodeAnalysisSectionProvider } from './code_analysis';
 import { NewCodeAnalysisSectionProvider } from '../new_code_analysis/views/NewCodeAnalysisSectionProvider';
 import { VisualizationSettingsSectionProvider } from './visualization_settings';
 
@@ -39,7 +38,6 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
             new ActiveServersSectionProvider(this.context),
             new BabiaExamplesSectionProvider(this.context),
             new VisualizeDataSectionProvider(this.context),
-            new CodeAnalysisSectionProvider(this.context),
             new NewCodeAnalysisSectionProvider(this.context),
             new VisualizationSettingsSectionProvider(this.context)
         ];
@@ -290,22 +288,6 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                 );
                 return visualizeItem;
                 
-            case 'codeAnalysis':
-                // Import and create CodeAnalysisModularTreeItem
-                const { CodeAnalysisModularTreeItem } = require('./code_analysis/items/codeAnalysisItems');
-                const codeAnalysisItem = new CodeAnalysisModularTreeItem(
-                    typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown',
-                    element.collapsibleState || vscode.TreeItemCollapsibleState.None,
-                    (element as any).codeAnalysisItemType || 'error',
-                    element.command,
-                    element.iconPath,
-                    element.tooltip,
-                    element.description,
-                    element.contextValue,
-                    (element as any).originalCodeAnalysisItem
-                );
-                return codeAnalysisItem;
-                
             case 'newCodeAnalysis':
                 // Import and create NewCodeAnalysisTreeItem
                 const { NewCodeAnalysisTreeItem } = require('../new_code_analysis/views/items/newCodeAnalysisItems');
@@ -394,5 +376,22 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
         } else {
             console.log(`MODULAR_TREE: No context menu handler for section: ${sectionName}`);
         }
+    }
+
+    /**
+     * Dispose of resources
+     */
+    dispose(): void {
+        console.log('MODULAR_TREE: Disposing modular tree data provider');
+        
+        // Dispose of all section providers
+        for (const [sectionName, provider] of this.sectionProviders) {
+            if ((provider as any).dispose) {
+                console.log(`MODULAR_TREE: Disposing section provider: ${sectionName}`);
+                (provider as any).dispose();
+            }
+        }
+        
+        this.sectionProviders.clear();
     }
 }
