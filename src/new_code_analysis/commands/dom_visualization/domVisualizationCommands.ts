@@ -4,7 +4,8 @@
  */
 
 import * as vscode from 'vscode';
-import { LaunchVisualizeDOMPanel } from '../../engine';
+import { AnalysisOrchestrator } from '../../new_engine/analysisOrchestrator';
+import { LauncherVisualizeDOM } from '../../new_engine/launchers/launcherVisualizeDOM';
 import { CommandRegistration } from '../subsections/analysis_settings/analysis_file_mode';
 import { getFileSystemPathFromEditorOrInput } from '../../../utils/uriPathConverter';
 
@@ -38,11 +39,11 @@ export class DOMVisualizationCommands {
     }
 
     /**
-     * Handle DOM visualization command for HTML files
+     * Handle DOM visualization command for HTML files - NEW ENGINE
      */
     async visualizeDOM(filePath?: any): Promise<void> {
         try {
-            console.log('DOM_VISUALIZATION_COMMANDS: DOM visualization requested');
+            console.log('DOM_VISUALIZATION_COMMANDS: DOM visualization requested (NEW ENGINE)');
             console.log('DOM_VISUALIZATION_COMMANDS: Input type:', typeof filePath, 'Input value:', filePath);
             
             // Convert input to file system path using utility
@@ -55,21 +56,27 @@ export class DOMVisualizationCommands {
 
             console.log(`DOM_VISUALIZATION_COMMANDS: File system path: ${fsPath}`);
 
-            // Validate file is HTML
-            if (!LaunchVisualizeDOMPanel.canVisualizeFile(fsPath)) {
+            // Validate file is HTML using the new launcher
+            if (!LauncherVisualizeDOM.canVisualizeFile(fsPath)) {
                 vscode.window.showWarningMessage(
                     `File "${fsPath}" is not a supported HTML file for DOM visualization`
                 );
                 return;
             }
 
-            console.log(`DOM_VISUALIZATION_COMMANDS: Starting DOM visualization for: ${fsPath}`);
+            console.log(`DOM_VISUALIZATION_COMMANDS: Starting VisualizeDOM analysis using NEW ENGINE for: ${fsPath}`);
 
-            // Launch DOM visualization
-            await LaunchVisualizeDOMPanel.visualizeDOM(fsPath, this.context);
+            // Use the new engine to orchestrate VisualizeDOM analysis
+            await AnalysisOrchestrator.orchestrateAnalysis(
+                fsPath,
+                'VisualizeDOM',
+                'file',
+                this.context,
+                false // isDeep = false for file analysis
+            );
 
         } catch (error) {
-            console.error('DOM_VISUALIZATION_COMMANDS: Error visualizing DOM:', error);
+            console.error('DOM_VISUALIZATION_COMMANDS: Error visualizing DOM (NEW ENGINE):', error);
             vscode.window.showErrorMessage(
                 `Failed to visualize DOM: ${error instanceof Error ? error.message : String(error)}`
             );

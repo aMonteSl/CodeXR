@@ -282,7 +282,8 @@ export class ParseTemplates {
                 xrData.title || `XR Analysis - ${xrData.fileName}`,
                 dataSource,
                 context,
-                tempOutputPath
+                tempOutputPath,
+                xrData.analysisData // Pass analysis data for type detection
             );
 
             if (!result.success) {

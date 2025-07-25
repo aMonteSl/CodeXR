@@ -9,6 +9,7 @@ import {
     AnalysisConfiguration,
     AnalysisConfigurationFile,
     AnalysisFileMode,
+    AnalysisDirectoryMode,
     ViewTheme,
     AutoAnalysisDelayConfig,
     ChartType,
@@ -151,6 +152,27 @@ export class AnalysisConfigurationStorage {
         };
         await this.saveConfiguration(updatedConfig);
         console.log(`NEW_CODE_ANALYSIS: Analysis file mode changed to: ${mode}`);
+    }
+
+    /**
+     * Get analysis directory mode setting
+     */
+    public async getAnalysisDirectoryMode(): Promise<AnalysisDirectoryMode> {
+        const config = await this.loadConfiguration();
+        return config.analysisDirectoryMode;
+    }
+
+    /**
+     * Set analysis directory mode setting
+     */
+    public async setAnalysisDirectoryMode(mode: AnalysisDirectoryMode): Promise<void> {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            analysisDirectoryMode: mode
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Analysis directory mode changed to: ${mode}`);
     }
 
     /**
@@ -316,5 +338,43 @@ export class AnalysisConfigurationStorage {
     public async setFilesByLanguageSorting(sortingConfig: import('./models/analysisConfiguration').FilesByLanguageSortingConfig): Promise<void> {
         await this.updateConfiguration({ filesByLanguageSorting: sortingConfig });
         console.log('NEW_CODE_ANALYSIS: Files by Language sorting configuration updated:', sortingConfig);
+    }
+
+    // ============================================================================
+    // Directory Chart Type Methods
+    // ============================================================================
+
+    /**
+     * Get chart type for directory analysis
+     */
+    public async getDirectoryChartType(): Promise<import('./models/analysisConfiguration').ChartType> {
+        const config = await this.loadConfiguration();
+        return config.chartTypeDirectory;
+    }
+
+    /**
+     * Set chart type for directory analysis
+     */
+    public async setDirectoryChartType(chartType: import('./models/analysisConfiguration').ChartType): Promise<void> {
+        await this.updateConfiguration({ chartTypeDirectory: chartType });
+    }
+
+    // ============================================================================
+    // Directory Dimension Mapping Methods
+    // ============================================================================
+
+    /**
+     * Get dimension mapping for directory analysis
+     */
+    public async getDimensionMappingDirectory(): Promise<import('./models/analysisConfiguration').DimensionMapping> {
+        const config = await this.loadConfiguration();
+        return config.dimensionMappingDirectory;
+    }
+
+    /**
+     * Set dimension mapping for directory analysis
+     */
+    public async setDimensionMappingDirectory(mapping: import('./models/analysisConfiguration').DimensionMapping): Promise<void> {
+        await this.updateConfiguration({ dimensionMappingDirectory: mapping });
     }
 }

@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LaunchAnalyzeDirectoryLivePanel } from '../../engine';
+import { AnalysisOrchestrator } from '../../new_engine/analysisOrchestrator';
 
 export class DirectoryAnalysisLivePanelCommands {
 
@@ -86,9 +86,15 @@ export class DirectoryAnalysisLivePanelCommands {
                 }
             }
 
-            // Execute LivePanel directory analysis
-            console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Starting LivePanel analysis for directory: ${directoryPath}`);
-            await LaunchAnalyzeDirectoryLivePanel.analyzeDirectory(directoryPath, this.context);
+            // Execute LivePanel directory analysis using NEW ENGINE
+            console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Starting NEW ENGINE LivePanel analysis for directory: ${directoryPath}`);
+            await AnalysisOrchestrator.orchestrateAnalysis(
+                directoryPath,
+                'LivePanel',
+                'directory',
+                this.context,
+                false // isDeep = false for normal directory analysis
+            );
 
         } catch (error) {
             console.error('DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel analyze directory command:', error);
@@ -141,9 +147,15 @@ export class DirectoryAnalysisLivePanelCommands {
                 }
             }
 
-            // TODO: Next step deep analyze of directories...
-            console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Deep analysis requested for directory: ${directoryPath}`);
-            await LaunchAnalyzeDirectoryLivePanel.analyzeDirectoryDeep(directoryPath, this.context);
+            // Execute LivePanel Deep directory analysis using NEW ENGINE
+            console.log(`DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Deep analysis requested for directory using NEW ENGINE: ${directoryPath}`);
+            await AnalysisOrchestrator.orchestrateAnalysis(
+                directoryPath,
+                'LivePanel',
+                'directory',
+                this.context,
+                true // isDeep = true for deep directory analysis
+            );
 
         } catch (error) {
             console.error('DIRECTORY_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel Deep analyze directory command:', error);

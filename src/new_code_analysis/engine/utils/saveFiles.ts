@@ -235,4 +235,87 @@ export class SaveFiles {
             throw error;
         }
     }
+
+    /**
+     * Save data.json with override - deletes existing file before writing new one
+     * This ensures the SSE system detects the file change properly
+     */
+    static async saveDataJsonWithOverride(
+        sessionId: string,
+        dataJson: any,
+        context: vscode.ExtensionContext
+    ): Promise<{ success: boolean; dataJsonPath?: string; error?: string }> {
+        try {
+            console.log(`SAVE_FILES: Starting saveDataJsonWithOverride for session: ${sessionId}`);
+
+            // Find session and get data.json path
+            let sessionInfo: { outputPath: string; id: string } | null = null;
+            
+            // Try file analysis registry first
+            const sessionManager = AnalysisSessionManager.getInstance();
+            const fileSession = sessionManager.getSession(sessionId);
+            
+            if (fileSession) {
+                sessionInfo = {
+                    outputPath: fileSession.outputPath,
+                    id: fileSession.id
+                };
+                console.log(`SAVE_FILES: Using file session data`);
+            } else {
+                // Try directory analysis registry
+                const directorySessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+                const directorySession = directorySessionRegistry.getSession(sessionId);
+                
+                if (directorySession) {
+                    sessionInfo = {
+                        outputPath: directorySession.outputPath,
+                        id: directorySession.id
+                    };
+                    console.log(`SAVE_FILES: Using directory session data`);
+                }
+            }
+            
+            if (!sessionInfo) {
+                throw new Error(`Session ${sessionId} not found in either file or directory registries`);
+            }
+            
+            const dataJsonPath = path.join(sessionInfo.outputPath, 'data.json');
+            console.log(`SAVE_FILES: Target data.json path: ${dataJsonPath}`);
+            
+            // Step 1: Delete existing file if it exists (critical for SSE detection)
+            if (fs.existsSync(dataJsonPath)) {
+                console.log(`SAVE_FILES: Deleting existing data.json to force SSE reload...`);
+                fs.unlinkSync(dataJsonPath);
+                console.log(`SAVE_FILES: ✅ Existing data.json deleted successfully`);
+                
+                // Small delay to ensure file system registers the deletion
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            // Step 2: Write new data.json file
+            console.log(`SAVE_FILES: Writing new data.json with updated data...`);
+            await fs.promises.writeFile(dataJsonPath, JSON.stringify(dataJson, null, 2), 'utf-8');
+            console.log(`SAVE_FILES: ✅ New data.json written successfully`);
+            
+            // Verify file was written
+            if (fs.existsSync(dataJsonPath)) {
+                const stats = fs.statSync(dataJsonPath);
+                console.log(`SAVE_FILES: ✅ File verification passed - Size: ${stats.size} bytes, Modified: ${stats.mtime}`);
+            } else {
+                throw new Error('File verification failed - data.json was not created');
+            }
+
+            return {
+                success: true,
+                dataJsonPath: dataJsonPath
+            };
+
+        } catch (error) {
+            console.error(`SAVE_FILES: Error in saveDataJsonWithOverride:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            };
+        }
+    }
 }

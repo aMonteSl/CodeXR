@@ -7,16 +7,16 @@
   <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <title>Directory Analysis</title>
 </head>
-<body>
+<body class="${theme}">
   <div id="app">
     <div class="header">
       <div class="header-content">
         <div class="header-main">
           <h1>Directory Analysis</h1>
-          <p class="subtitle">Classic analysis of directory: <span id="directory-path">${directoryPath}</span></p>
+          <p class="subtitle">Classic analysis of directory: <span id="directory-path">Loading...</span></p>
           <div class="analysis-info">
-            <span>Analyzed <span id="file-count">${totalFilesAnalyzed}</span> files out of <span id="total-file-count">${totalFiles}</span></span>
-            <span><span id="analysis-timestamp">${timestamp}</span></span>
+            <span>Analyzed <span id="file-count">0</span> files out of <span id="total-file-count">0</span></span>
+            <span><span id="analysis-timestamp">Loading...</span></span>
           </div>
         </div>
         <div class="header-controls">
@@ -179,6 +179,10 @@
   </div>
 
   <script nonce="${nonce}">
+    // Inject theme from server
+    window.initialTheme = '${theme}';
+    console.log('DIRECTORY_ANALYSIS_TEMPLATE: Injected theme:', window.initialTheme);
+    
     // Check if we're in VS Code webview or browser
     // Avoid redeclaring vsCodeApi if it already exists
     if (typeof vsCodeApi === 'undefined') {

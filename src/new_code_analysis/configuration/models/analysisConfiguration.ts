@@ -4,6 +4,7 @@
  */
 
 export type AnalysisFileMode = 'XR' | 'LivePanel';
+export type AnalysisDirectoryMode = 'XR' | 'XRDeep' | 'LivePanel' | 'LivePanelDeep';
 export type ViewTheme = 'Dark' | 'Light';
 export type AutoAnalysisDelay = 'RealTime' | '1s' | '3s' | '5s' | '10s' | 'Custom';
 export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats';
@@ -56,6 +57,11 @@ export interface AnalysisConfiguration {
     analysisFileMode: AnalysisFileMode;
     
     /**
+     * Analysis directory mode setting
+     */
+    analysisDirectoryMode: AnalysisDirectoryMode;
+    
+    /**
      * View theme setting for analysis visualization
      */
     viewTheme: ViewTheme;
@@ -71,9 +77,19 @@ export interface AnalysisConfiguration {
     chartTypeFile: ChartType;
     
     /**
+     * Chart type for directory analysis visualization
+     */
+    chartTypeDirectory: ChartType;
+    
+    /**
      * Dimension mapping for file analysis
      */
     dimensionMappingFile: DimensionMapping;
+    
+    /**
+     * Dimension mapping for directory analysis
+     */
+    dimensionMappingDirectory: DimensionMapping;
     
     /**
      * Files by Language sorting configuration
@@ -97,13 +113,16 @@ export interface AnalysisConfiguration {
  */
 export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
     analysisFileMode: 'XR', // Default to XR as requested
+    analysisDirectoryMode: 'XR', // Default to XR as requested
     viewTheme: 'Dark', // Default to Dark theme
     autoAnalysisDelay: {
         type: 'RealTime', // Default to Real Time (0s)
         customMs: undefined
     },
     chartTypeFile: 'bars', // Default chart type (bars is the most common)
+    chartTypeDirectory: 'bars', // Default chart type for directories
     dimensionMappingFile: {}, // Default empty dimension mapping
+    dimensionMappingDirectory: {}, // Default empty dimension mapping for directories
     filesByLanguageSorting: {
         languageGroupSortBy: 'alphabetical',
         languageGroupSortDirection: 'ascending',

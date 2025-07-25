@@ -9,7 +9,7 @@ import { generateNonce } from '../../../utils/nonceGenerator';
 import { SHA256Generator } from '../../../utils/sha256Generator';
 
 export type AnalysisStatus = 'creating' | 'analyzing' | 'completed' | 'failed' | 'closing';
-export type AnalysisType = 'LivePanel' | 'DOMVisualization' | 'FileXRAnalysis';
+export type AnalysisType = 'LivePanel' | 'DOMVisualization' | 'FileXRAnalysis' | 'DirectoryLivePanel';
 
 export interface AnalysisSession {
     id: string;                    // Generated nonce
@@ -338,12 +338,21 @@ export class AnalysisSessionRegistry {
             failed: sessions.filter(s => s.status === 'failed').length,
             byType: {
                 'LivePanel': sessions.filter(s => s.analysisType === 'LivePanel').length,
+                'DirectoryLivePanel': sessions.filter(s => s.analysisType === 'DirectoryLivePanel').length,
                 'DOMVisualization': sessions.filter(s => s.analysisType === 'DOMVisualization').length,
                 'FileXRAnalysis': sessions.filter(s => s.analysisType === 'FileXRAnalysis').length
             } as Record<AnalysisType, number>
         };
 
         return stats;
+    }
+
+    /**
+     * Manually fire session changed event (for UI refresh)
+     */
+    public fireSessionChanged(session: AnalysisSession): void {
+        console.log(`ANALYSIS_REGISTRY: 🔥 Manually firing session changed event for: ${session.id}`);
+        this._onSessionChanged.fire(session);
     }
 
     /**

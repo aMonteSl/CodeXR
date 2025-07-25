@@ -21,6 +21,8 @@ import { CheckFilesChanged, FileChangeResult } from './checkFilesChanged';
 import { ReplaceInJson, ReplaceResult } from './replaceInJson';
 import { SaveFile } from './saveFile';
 import { SHA256Generator } from '../../../utils/sha256Generator';
+import { FileHashService } from '../services/fileHashService';
+import { DirectoryValidator } from './directoryValidator';
 
 interface WatcherInfo {
     watcher: fs.FSWatcher;
@@ -95,7 +97,7 @@ export class ManageWatcher {
 
             // Get initial list of files to watch
             const watchedFiles = new Set<string>();
-            ManageWatcher.collectWatchableFiles(session.filePath, watchedFiles);
+            ManageWatcher.collectWatchableFiles(session.filePath, watchedFiles, session.filePath);
 
             console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Found ${watchedFiles.size} files to watch in directory`);
 
@@ -105,6 +107,12 @@ export class ManageWatcher {
                     const fullPath = path.join(session.filePath, filename);
                     
                     console.log(`WATCHER_DIRECTORY_LIVE_PANEL: File system event detected - Type: ${eventType}, File: ${filename}`);
+                    
+                    // CRITICAL: Check if file is in excluded directory FIRST
+                    if (DirectoryValidator.shouldExcludePath(path.relative(session.filePath, fullPath))) {
+                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: CHECKING HASH FROM file ${path.basename(fullPath)}: EXCLUDED DIRECTORY - SKIPPING`);
+                        return;
+                    }
                     
                     // Only process supported file types
                     if (!ManageWatcher.isWatchableFile(fullPath)) {
@@ -625,16 +633,25 @@ export class ManageWatcher {
     /**
      * Helper method to collect watchable files in a directory
      */
-    private static collectWatchableFiles(directoryPath: string, watchedFiles: Set<string>): void {
+    private static collectWatchableFiles(directoryPath: string, watchedFiles: Set<string>, rootPath?: string): void {
         try {
+            const root = rootPath || directoryPath;
+            
             const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
             
             for (const entry of entries) {
                 const fullPath = path.join(directoryPath, entry.name);
+                const relativePath = path.relative(root, fullPath);
+                
+                // Check if this path should be excluded
+                if (DirectoryValidator.shouldExcludePath(relativePath)) {
+                    console.log(`COLLECT_WATCHABLE_FILES: CHECKING HASH FROM file ${entry.name}: EXCLUDED DIRECTORY - SKIPPING`);
+                    continue;
+                }
                 
                 if (entry.isDirectory()) {
-                    // Recursively collect files from subdirectories
-                    ManageWatcher.collectWatchableFiles(fullPath, watchedFiles);
+                    // Recursively collect files from subdirectories (only if not excluded)
+                    ManageWatcher.collectWatchableFiles(fullPath, watchedFiles, root);
                 } else if (entry.isFile() && ManageWatcher.isWatchableFile(fullPath)) {
                     watchedFiles.add(fullPath);
                 }
@@ -642,6 +659,14 @@ export class ManageWatcher {
         } catch (error) {
             console.warn(`MANAGE_WATCHER: Error collecting files from ${directoryPath}:`, error);
         }
+    }
+
+    /**
+     * Helper method to log hash-related operations for debugging
+     */
+    private static logHashOperation(operation: string, fileName: string, details?: string): void {
+        const baseFileName = path.basename(fileName);
+        console.log(`FILE_HASH_SERVICE: ${operation} ${baseFileName}${details ? ` - ${details}` : ''}`);
     }
 
     /**
@@ -720,6 +745,28 @@ export class ManageWatcher {
 
             console.log(`FILES_CHANGED: Found ${changeResults.length} changed files for re-analysis`);
 
+            // Step 1.25: CRITICAL - Filter out files in excluded directories BEFORE any analysis
+            const originalCount = changeResults.length;
+            
+            changeResults = changeResults.filter(changedFile => {
+                const relativePath = path.relative(session.filePath, changedFile.filePath);
+                const shouldExclude = DirectoryValidator.shouldExcludePath(relativePath);
+                if (shouldExclude) {
+                    console.log(`FILES_CHANGED: CHECKING HASH FROM file ${path.basename(changedFile.filePath)}: EXCLUDED DIRECTORY - SKIPPING RE-ANALYSIS`);
+                    return false;
+                }
+                return true;
+            });
+            
+            console.log(`FILES_CHANGED: Filtered excluded directories from ${originalCount} to ${changeResults.length} files`);
+
+            if (changeResults.length === 0) {
+                console.log(`FILES_CHANGED: All changed files were in excluded directories, skipping re-analysis`);
+                const registry = DirectoryAnalysisSessionRegistry.getInstance();
+                registry.updateSessionStatus(sessionId, 'completed');
+                return;
+            }
+
             // Step 1.5: Filter changed files to only include files that are actually in the current analysis
             // For non-deep analysis, this means only first-level files
             console.log(`FILES_CHANGED: Session configuration - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
@@ -776,29 +823,19 @@ export class ManageWatcher {
                     const fullFilePath = path.join(session.filePath, changedFile.relativePath);
                     console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Full path: ${fullFilePath}`);
                     
-                    // Use resume analysis for LivePanel (just file summary data)
-                    // and regular analysis for XR
-                    let analysisResult;
-                    if (session.isXR) {
-                        // XR Analysis - use regular analysis for full data
-                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using FileXRAnalysis for XR mode`);
-                        analysisResult = await PythonExecutor.executeAnalysis(
-                            'FileXRAnalysis' as AnalysisType,
-                            fullFilePath,
-                            context
-                        );
-                    } else {
-                        // LivePanel Analysis - use resume analysis for file summary only
-                        console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using file resume analysis for LivePanel mode`);
-                        analysisResult = await PythonExecutor.executeFileResumeAnalysis(
-                            fullFilePath,
-                            context
-                        );
-                        
-                        // For resume analysis, we need to add the relativePath
-                        if (analysisResult.success && analysisResult.data) {
-                            analysisResult.data.relativePath = changedFile.relativePath;
-                        }
+                    // Use common file re-analysis for both LivePanel and XR
+                    // Both need the same file summary format for directory updates
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using common FileReanalysis for ${session.isXR ? 'XR' : 'LivePanel'} mode`);
+                    
+                    const analysisResult = await PythonExecutor.executeAnalysis(
+                        'FileReanalysis' as AnalysisType,
+                        fullFilePath,
+                        context
+                    );
+                    
+                    // For all types, we need to add the relativePath for proper identification
+                    if (analysisResult.success && analysisResult.data) {
+                        analysisResult.data.relativePath = changedFile.relativePath;
                     }
 
                     if (analysisResult.success && analysisResult.data) {
@@ -828,10 +865,15 @@ export class ManageWatcher {
             // Step 4: Replace results in existing JSON (includes both analyzed and deleted files)
             const analysisJsonPath = path.join(session.outputPath, 'data.json');
             
+            // Both LivePanel and XR now use the same file summary format and replacement logic
+            console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Using common JSON replacement for ${session.isXR ? 'XR' : 'LivePanel'} session`);
+            
             const replaceResult = await ReplaceInJson.replaceFileAnalysisInJson(
                 analysisJsonPath,
                 changeResults,
-                newAnalysisResults
+                newAnalysisResults,
+                sessionId,
+                context
             );
 
             if (replaceResult.success) {
@@ -845,8 +887,14 @@ export class ManageWatcher {
                 const registry = DirectoryAnalysisSessionRegistry.getInstance();
                 registry.updateSessionStatus(sessionId, 'completed');
                 
-                // Send SSE notification
-                sseManager.sendUpdate(session.filePath);
+                // Send SSE notification - use specific event for XR like file analysis does
+                if (session.isXR) {
+                    console.log(`WATCHER_DIRECTORY_XR: Sending dataRefresh event for XR session: ${session.filePath}`);
+                    sseManager.sendEventMessage(session.filePath, 'dataRefresh', 'refreshed');
+                } else {
+                    console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Sending generic update for LivePanel session: ${session.filePath}`);
+                    sseManager.sendUpdate(session.filePath);
+                }
                 
                 vscode.window.showInformationMessage(`📊 Directory analysis updated: ${replaceResult.updatedFiles.length} files`);
             } else {
@@ -938,6 +986,54 @@ export class ManageWatcher {
             console.log(`WATCHER_DIRECTORY_LIVE_PANEL: Updated session file list. Total files: ${session.filesList.size}`);
         } catch (error) {
             console.error(`WATCHER_DIRECTORY_LIVE_PANEL: Error updating session file list:`, error);
+        }
+    }
+
+    /**
+     * Integrated hash-based file change detection for directory watchers
+     */
+    private static async detectChangedFilesWithHash(
+        sessionId: string,
+        triggeredFilePath: string
+    ): Promise<string[]> {
+        try {
+            const sessionManager = DirectoryAnalysisSessionManager.getInstance();
+            const session = sessionManager.getSession(sessionId);
+            
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+
+            const hashService = FileHashService.getInstance();
+            
+            // Get all files that should be analyzed
+            const filesToCheck = Array.from(session.filesList.values()).filter(filePath => {
+                const relativePath = path.relative(session.filePath, filePath);
+                // Double-check that we don't include excluded files
+                if (DirectoryValidator.shouldExcludePath(relativePath)) {
+                    ManageWatcher.logHashOperation("CHECKING HASH FROM file", filePath, "EXCLUDED DIRECTORY - WE DONT ANALYZE");
+                    return false;
+                }
+                return true;
+            });
+
+            console.log(`HASH_CHANGE_DETECTION: Checking ${filesToCheck.length} files for changes (triggered by: ${path.basename(triggeredFilePath)})`);
+            
+            // Use the hash service to detect changed files
+            const changedFiles = await hashService.getChangedFiles(filesToCheck);
+            
+            console.log(`HASH_CHANGE_DETECTION: Found ${changedFiles.length} changed files`);
+            
+            // Log each changed file
+            for (const changedFile of changedFiles) {
+                ManageWatcher.logHashOperation("CHECKING HASH COMPARING hash", changedFile, "FILE HAS CHANGED - WILL RE-ANALYZE");
+            }
+            
+            return changedFiles;
+            
+        } catch (error) {
+            console.error(`HASH_CHANGE_DETECTION: Error detecting changed files:`, error);
+            return [triggeredFilePath]; // Fallback to just the triggered file
         }
     }
 }

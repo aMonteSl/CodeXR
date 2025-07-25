@@ -27,15 +27,8 @@ export class DimensionMappingFileSetting {
         const label = `Dimension Mapping (File)`;
         const description = chartType ? `Dimensions for ${chartType} chart` : 'Select chart type first';
         
-        // Dynamic icon color based on analysis mode
-        let iconColor = 'charts.foreground';
-        if (currentMode === 'XR') {
-            iconColor = 'charts.purple'; // Purple for XR mode
-        } else if (currentMode === 'LivePanel') {
-            iconColor = 'charts.green'; // Green for LivePanel mode
-        }
-        
-        const iconPath = new vscode.ThemeIcon('symbol-misc', new vscode.ThemeColor(iconColor));
+        // Always use purple color for chart-related icons as requested
+        const iconPath = new vscode.ThemeIcon('symbol-misc', new vscode.ThemeColor('charts.purple'));
         
         return new NewCodeAnalysisTreeItem(
             label,
@@ -116,6 +109,12 @@ export class DimensionMappingFileSetting {
         
         console.log(`DIMENSION_MAPPING_FILE: Creating dimension item for "${dimension.name}" - ${dimension.label}, mapped to: ${mappedValue}`);
         
+        // Use warning icon if dimension is required but not mapped
+        let iconPath = await this.getDimensionIcon(dimension);
+        if (mappedValue === 'Not configured' && dimension.required) {
+            iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'));
+        }
+        
         return new NewCodeAnalysisTreeItem(
             label,
             vscode.TreeItemCollapsibleState.None,
@@ -125,7 +124,7 @@ export class DimensionMappingFileSetting {
                 title: 'Select Dimension Mapping',
                 arguments: [dimension]
             },
-            await this.getDimensionIcon(dimension),
+            iconPath,
             description,
             'Click to configure dimension mapping',
             `dimension-${dimension.name}`
@@ -174,7 +173,7 @@ export class DimensionMappingFileSetting {
         }
         
         // Dimension is mapped without conflicts
-        return new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+        return new vscode.ThemeIcon('symbol-field', new vscode.ThemeColor('charts.purple'));
     }
 
     /**
@@ -252,5 +251,12 @@ export class DimensionMappingFileSetting {
     async getDimensionMapping(dimensionName: string): Promise<string | undefined> {
         const currentMappings = await this.storage.getDimensionMappingFile();
         return currentMappings[dimensionName];
+    }
+
+    /**
+     * Get current dimension mappings for external use
+     */
+    async getCurrentMappings(): Promise<Record<string, string>> {
+        return await this.storage.getDimensionMappingFile();
     }
 }

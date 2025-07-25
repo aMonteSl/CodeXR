@@ -21,7 +21,8 @@ export class CreateStructure {
         visualizationSettings: VisualizationSettings,
         analysisType: 'xr' | 'dom' | 'none' = 'none',
         context: vscode.ExtensionContext,
-        chartType?: string
+        chartType?: string,
+        isDirectoryAnalysis?: boolean
     ): { success: boolean; placeholders?: Map<string, string>; error?: string } {
         
         console.log(`CREATE_STRUCTURE: Creating structural placeholders for analysis type: ${analysisType}, chart type: ${chartType}`);
@@ -53,7 +54,7 @@ export class CreateStructure {
             placeholders.set('SCRIPT_URI', './main.js');
 
             // Tree builder - only for boats chart in XR analysis
-            const treeBuilder = this.getTreeBuilder(analysisType, chartType);
+            const treeBuilder = this.getTreeBuilder(analysisType, chartType, isDirectoryAnalysis);
             placeholders.set('TREE_BUILDER', treeBuilder);
 
             // Icon path (optional)
@@ -124,13 +125,18 @@ export class CreateStructure {
     /**
      * Get tree builder entity for boats chart in XR analysis
      */
-    private static getTreeBuilder(analysisType: 'xr' | 'dom' | 'none', chartType?: string): string {
-        console.log(`CREATE_STRUCTURE: Getting tree builder for analysis type: ${analysisType}, chart type: ${chartType}`);
+    private static getTreeBuilder(analysisType: 'xr' | 'dom' | 'none', chartType?: string, isDirectoryAnalysis?: boolean): string {
+        console.log(`CREATE_STRUCTURE: Getting tree builder for analysis type: ${analysisType}, chart type: ${chartType}, directory analysis: ${isDirectoryAnalysis}`);
 
         // Tree builder is only needed for boats chart in XR analysis
         if (analysisType === 'xr' && chartType === 'boats') {
-            console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart`);
-            return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';
+            if (isDirectoryAnalysis) {
+                console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (directory analysis)`);
+                return '<a-entity id="tree" babia-treebuilder="field: fileName; split_by: /; from: data"></a-entity>';
+            } else {
+                console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (file analysis)`);
+                return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';
+            }
         }
 
         console.log(`CREATE_STRUCTURE: No tree builder needed for this configuration`);

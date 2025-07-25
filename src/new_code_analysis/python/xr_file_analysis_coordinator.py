@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 XR File Analysis Coordinator
@@ -57,6 +59,10 @@ def analyze_file_for_xr(file_path):
         # Convert to XR format
         xr_functions = []
         
+        # Get file information for context
+        file_name = os.path.basename(file_path)
+        relative_path = file_path  # Will be updated by the caller if needed
+        
         for func in lizard_data.get('functions', []):
             xr_function = {
                 "functionName": func.get('name', 'unknown'),
@@ -66,7 +72,10 @@ def analyze_file_for_xr(file_path):
                 "complexity": func.get('complexity', 1), # Fixed: use correct field name
                 "parameters": func.get('parameters', 0), # Fixed: use correct field name
                 "maxNestingDepth": func.get('maxNestingDepth', 0), # Fixed: use correct field name
-                "cyclomaticDensity": func.get('cyclomaticDensity', 1.0)  # Use the already calculated value from lizard
+                "cyclomaticDensity": func.get('cyclomaticDensity', 1.0),  # Use the already calculated value from lizard
+                # Add file context for identification
+                "filePath": file_path,
+                "fileName": file_name
             }
             xr_functions.append(xr_function)
         
@@ -131,7 +140,10 @@ def generate_fallback_xr_data(file_path):
         "complexity": 1,
         "parameters": 0,
         "maxNestingDepth": 0,
-        "cyclomaticDensity": round(1.0 / total_lines, 3) if total_lines > 0 else 0.0
+        "cyclomaticDensity": round(1.0 / total_lines, 3) if total_lines > 0 else 0.0,
+        # Add file context for identification
+        "filePath": file_path,
+        "fileName": file_name
     }
     
     print(json.dumps({"debug": f"XR_ANALYSIS: Generated fallback data for {file_name}"}), file=sys.stderr)

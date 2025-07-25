@@ -6,6 +6,7 @@ import { registerVisualizeDataCommands } from './visualize_data/visualizeDataCom
 import { registerNewCodeAnalysisCommands } from './new_code_analysis/newCodeAnalysisCommands';
 import { registerPythonEnvCommands } from './python_env/pythonEnvCommands';
 import { registerVisualizationSettingsCommands } from './visualization_settings/visualizationSettingsCommands';
+import { registerLearnMoreCommands } from './learn_more/learnMoreCommands';
 import { registerGeneralCommands } from './common/generalCommands';
 import { BabiaExamplesTreeDataProvider } from '../babia_examples/views/babiaExamplesTreeView';
 import { DebugThemeProblem } from '../new_code_analysis/configuration/debugThemeProblem';
@@ -64,6 +65,9 @@ export function registerAllCommands(
     
     // Register visualization settings commands
     registerVisualizationSettingsCommands(context);
+    
+    // Register learn more commands
+    registerLearnMoreCommands(context);
     
     // Register debug commands for theme configuration problem
     const debugCommands = DebugThemeProblem.registerDebugCommands(context);

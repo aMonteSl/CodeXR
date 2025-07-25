@@ -1,0 +1,275 @@
+/**
+ * Unified Session Registry - SIMPLIFICADO
+ * Solo lo esencial para crear y manejar sesiones
+ */
+
+import * as vscode from 'vscode';
+import * as path from 'path';
+import { generateNonce } from '../../../utils/nonceGenerator';
+import { 
+    UnifiedAnalysisSession, 
+    AnalysisMode, 
+    TargetType, 
+    AnalysisStatus,
+    SessionCreationParams
+} from './analysisSession';
+import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
+import { SaveFiles } from '../utils/saveFiles';
+
+export class UnifiedSessionRegistry {
+    private static instance: UnifiedSessionRegistry;
+    private sessions: Map<string, UnifiedAnalysisSession> = new Map();
+    private _onSessionChanged = new vscode.EventEmitter<UnifiedAnalysisSession>();
+    public readonly onSessionChanged = this._onSessionChanged.event;
+    private fileRequirementProcessor: FileRequirementProcessor;
+    private saveFiles: SaveFiles;
+
+    private constructor() {
+        console.log('UNIFIED_REGISTRY: Initializing Unified Session Registry');
+        this.fileRequirementProcessor = new FileRequirementProcessor();
+        this.saveFiles = new SaveFiles();
+    }
+
+    static getInstance(): UnifiedSessionRegistry {
+        if (!UnifiedSessionRegistry.instance) {
+            UnifiedSessionRegistry.instance = new UnifiedSessionRegistry();
+        }
+        return UnifiedSessionRegistry.instance;
+    }
+
+    /**
+     * Create a new unified analysis session - SIMPLIFICADO
+     */
+    async createSession(params: SessionCreationParams): Promise<UnifiedAnalysisSession> {
+        try {
+            const id = generateNonce();
+            const targetName = path.basename(params.targetPath);
+            
+            // Generate output directory
+            const storageUri = params.context.storageUri;
+            if (!storageUri) {
+                throw new Error('Workspace storage URI is not available');
+            }
+            
+            const outputDirectory = `${path.parse(targetName).name}_${params.analysisMode}_${params.targetType}_${id}`;
+            const outputPath = path.join(storageUri.fsPath, 'analysis', outputDirectory);
+
+            const session: UnifiedAnalysisSession = {
+                id,
+                targetPath: params.targetPath,
+                targetType: params.targetType,
+                targetName,
+                analysisMode: params.analysisMode,
+                isDeep: params.isDeep || false,
+                status: 'creating',
+                startTime: new Date(),
+                hash256: '', // Simplificado - no calculamos hash
+                outputDirectory,
+                outputPath,
+                requiredFiles: new Map<string, string>(),
+                templatePaths: new Map<string, string>(),
+                metadata: {} // Simplificado - sin metadata compleja
+            };
+
+            this.sessions.set(id, session);
+            this._onSessionChanged.fire(session);
+            
+            console.log(`UNIFIED_REGISTRY: Created session ${id} for ${targetName}`);
+            
+            // Process template files and save them
+            await this.processAndSaveTemplateFiles(session, params.context);
+            
+            return session;
+
+        } catch (error) {
+            console.error('UNIFIED_REGISTRY: Error creating session:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Process template files - NUEVO FLUJO
+     */
+    private async processTemplateFiles(session: UnifiedAnalysisSession): Promise<void> {
+        try {
+            console.log(`UNIFIED_REGISTRY: Processing template files for session ${session.id}...`);
+            
+            // Call FileRequirementProcessor to start the chain
+            const processedFiles = await this.fileRequirementProcessor.processRequirements(session);
+            console.log(`UNIFIED_REGISTRY: Got ${processedFiles.loadedFiles.size} processed template files`);
+            
+            // Store loaded files content in session
+            for (const [fileName, content] of processedFiles.loadedFiles) {
+                session.requiredFiles.set(fileName, content);
+                console.log(`UNIFIED_REGISTRY: � Loaded ${fileName} (${content.length} chars)`);
+            }
+            
+            console.log(`UNIFIED_REGISTRY: ✅ Template files loaded for session ${session.id}`);
+            
+        } catch (error) {
+            console.error(`UNIFIED_REGISTRY: Error processing template files:`, error);
+        }
+    }
+
+    /**
+     * Update session status - COMPATIBLE
+     */
+    updateSessionStatus(sessionId: string, status: AnalysisStatus, progress?: number, error?: string): boolean {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return false;
+        }
+
+        session.status = status;
+        if (progress !== undefined) {
+            session.progress = progress;
+        }
+        if (error) {
+            session.error = error;
+        }
+        if (status === 'monitoring' || status === 'error' || status === 'closed') {
+            session.endTime = new Date();
+        }
+
+        this._onSessionChanged.fire(session);
+        return true;
+    }
+
+    /**
+     * Add required file to session
+     */
+    addRequiredFile(sessionId: string, fileName: string, content: string): boolean {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return false;
+        }
+
+        session.requiredFiles.set(fileName, content);
+        this._onSessionChanged.fire(session);
+        return true;
+    }
+
+    /**
+     * Get session by ID
+     */
+    getSession(sessionId: string): UnifiedAnalysisSession | undefined {
+        return this.sessions.get(sessionId);
+    }
+
+    /**
+     * Get all sessions
+     */
+    getAllSessions(): UnifiedAnalysisSession[] {
+        return Array.from(this.sessions.values());
+    }
+
+    /**
+     * Get active sessions - SIMPLE
+     */
+    getActiveSessions(): UnifiedAnalysisSession[] {
+        return this.getAllSessions().filter(s => 
+            s.status === 'creating' || s.status === 'analyzing' || s.status === 'monitoring'
+        );
+    }
+
+    /**
+     * Set session monitoring - SIMPLE
+     */
+    setSessionMonitoring(sessionId: string, port?: number): boolean {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return false;
+        }
+
+        session.status = 'monitoring';
+        session.endTime = new Date();
+        if (port) {
+            session.port = port;
+        }
+
+        this._onSessionChanged.fire(session);
+        return true;
+    }
+
+    /**
+     * Get sessions by target path - SIMPLE
+     */
+    getSessionsByTargetPath(targetPath: string): UnifiedAnalysisSession[] {
+        return this.getAllSessions().filter(s => s.targetPath === targetPath);
+    }
+
+    /**
+     * Get sessions by analysis mode - SIMPLE
+     */
+    getSessionsByAnalysisMode(analysisMode: AnalysisMode): UnifiedAnalysisSession[] {
+        return this.getAllSessions().filter(s => s.analysisMode === analysisMode);
+    }
+
+    /**
+     * Get sessions by target type - SIMPLE
+     */
+    getSessionsByTargetType(targetType: TargetType): UnifiedAnalysisSession[] {
+        return this.getAllSessions().filter(s => s.targetType === targetType);
+    }
+
+    /**
+     * Clean up old sessions - COMPATIBLE
+     */
+    cleanupOldSessions(maxAge?: number): number {
+        const now = Date.now();
+        const ageLimit = maxAge || 3600000; // Default 1 hour
+        let cleaned = 0;
+        
+        for (const [id, session] of this.sessions) {
+            if (session.status === 'closed' && session.endTime) {
+                const age = now - session.endTime.getTime();
+                if (age > ageLimit) {
+                    this.sessions.delete(id);
+                    cleaned++;
+                }
+            }
+        }
+        
+        return cleaned;
+    }
+
+    /**
+     * Get statistics - SIMPLE
+     */
+    getStatistics() {
+        const sessions = this.getAllSessions();
+        return {
+            total: sessions.length,
+            active: this.getActiveSessions().length,
+            monitoring: sessions.filter(s => s.status === 'monitoring').length,
+            error: sessions.filter(s => s.status === 'error').length,
+            closed: sessions.filter(s => s.status === 'closed').length
+        };
+    }
+
+    /**
+     * Close session
+     */
+    closeSession(sessionId: string): boolean {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return false;
+        }
+
+        session.status = 'closed';
+        session.endTime = new Date();
+        this._onSessionChanged.fire(session);
+        
+        // Remove after delay
+        setTimeout(() => this.sessions.delete(sessionId), 2000);
+        return true;
+    }
+
+    /**
+     * Dispose of registry
+     */
+    dispose(): void {
+        this._onSessionChanged.dispose();
+        this.sessions.clear();
+    }
+}

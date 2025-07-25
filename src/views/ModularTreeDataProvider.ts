@@ -6,6 +6,7 @@ import { BabiaExamplesSectionProvider } from './babia_examples';
 import { VisualizeDataSectionProvider } from './visualize_data';
 import { NewCodeAnalysisSectionProvider } from '../new_code_analysis/views/NewCodeAnalysisSectionProvider';
 import { VisualizationSettingsSectionProvider } from './visualization_settings';
+import { LearnMoreSectionProvider } from './learn_more';
 
 /**
  * Main modular tree data provider that orchestrates all section providers
@@ -39,7 +40,8 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
             new BabiaExamplesSectionProvider(this.context),
             new VisualizeDataSectionProvider(this.context),
             new NewCodeAnalysisSectionProvider(this.context),
-            new VisualizationSettingsSectionProvider(this.context)
+            new VisualizationSettingsSectionProvider(this.context),
+            new LearnMoreSectionProvider(this.context)
         ];
 
         // Register providers and listen to their changes
@@ -160,7 +162,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                     typeof child.label === 'string' ? child.label : child.label?.label || 'Unknown',
                     child.collapsibleState || vscode.TreeItemCollapsibleState.None,
                     sectionName,
-                    child.serverItemType || child.activeServerItemType || child.babiaItemType || child.visualizeDataItemType || child.codeAnalysisItemType || child.newCodeAnalysisItemType || child.visualizationSettingsItemType || child.type || 'item',
+                    child.serverItemType || child.activeServerItemType || child.babiaItemType || child.visualizeDataItemType || child.codeAnalysisItemType || child.newCodeAnalysisItemType || child.visualizationSettingsItemType || child.learnMoreItemType || child.type || 'item',
                     child.command,
                     child.iconPath,
                     child.tooltip,
@@ -195,6 +197,10 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                 if (child.visualizationSettingsItemType) {
                     (modularItem as any).visualizationSettingsItemType = child.visualizationSettingsItemType;
                     (modularItem as any).originalSettingsItem = child.originalSettingsItem;
+                }
+                if (child.learnMoreItemType) {
+                    (modularItem as any).learnMoreItemType = child.learnMoreItemType;
+                    (modularItem as any).originalLearnMoreItem = child.originalLearnMoreItem;
                 }
                 
                 return modularItem;
@@ -318,6 +324,21 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                     (element as any).originalSettingsItem
                 );
                 return settingsItem;
+                
+            case 'learnMore':
+                // Import and create LearnMoreModularTreeItem
+                const { LearnMoreModularTreeItem } = require('./learn_more/items/learnMoreItems');
+                const learnMoreItem = new LearnMoreModularTreeItem(
+                    typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown',
+                    element.collapsibleState || vscode.TreeItemCollapsibleState.None,
+                    (element as any).learnMoreItemType || 'action',
+                    element.command,
+                    element.iconPath,
+                    element.tooltip,
+                    element.description,
+                    element.contextValue
+                );
+                return learnMoreItem;
                 
             default:
                 // Return the element as-is for other sections

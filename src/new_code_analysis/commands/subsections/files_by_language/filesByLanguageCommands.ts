@@ -6,9 +6,9 @@
 import * as vscode from 'vscode';
 import { CommandRegistration } from '../analysis_settings/analysis_file_mode';
 import { AnalysisConfigurationStorage } from '../../../configuration/analysisConfigurationStorage';
-import { LaunchAnalyzeFileXR } from '../../../engine/launchAnalyzeFileXR';
-import { LaunchAnalyzeFileLivePanel } from '../../../engine/launchAnalyzeFileLivePanel';
+import { LaunchAnalyzeFileXR } from '../../../engine/launchAnalyzeFileXR'; // Only for XR analysis
 import { LaunchVisualizeDOMPanel } from '../../../engine/launchVisualizeDOMPanel';
+import { AnalysisOrchestrator } from '../../../new_engine/analysisOrchestrator';
 
 export class FilesByLanguageCommands {
     
@@ -85,13 +85,25 @@ export class FilesByLanguageCommands {
                 console.log('FILES_BY_LANGUAGE: Running DOM Visualization for HTML file');
                 await LaunchVisualizeDOMPanel.visualizeDOM(absolutePath, context);
             } else {
-                // For other files, use the configured analysis mode
+                // For other files, use the configured analysis mode with NEW ENGINE
                 if (analysisMode === 'XR') {
-                    console.log('FILES_BY_LANGUAGE: Running XR Analysis');
-                    await LaunchAnalyzeFileXR.analyzeFileXR(absolutePath, context);
+                    console.log('FILES_BY_LANGUAGE: Running XR Analysis using NEW ENGINE');
+                    await AnalysisOrchestrator.orchestrateAnalysis(
+                        absolutePath,
+                        'XR',
+                        'file',
+                        context,
+                        false
+                    );
                 } else if (analysisMode === 'LivePanel') {
-                    console.log('FILES_BY_LANGUAGE: Running LivePanel Analysis');
-                    await LaunchAnalyzeFileLivePanel.analyzeFile(absolutePath, context);
+                    console.log('FILES_BY_LANGUAGE: Running LivePanel Analysis using NEW ENGINE');
+                    await AnalysisOrchestrator.orchestrateAnalysis(
+                        absolutePath,
+                        'LivePanel',
+                        'file',
+                        context,
+                        false
+                    );
                 } else {
                     vscode.window.showWarningMessage(`Unknown analysis mode: ${analysisMode}`);
                 }

@@ -46,6 +46,7 @@ export function registerNewCodeAnalysisCommands(
         let failureCount = 0;
 
         commandRegistrations.forEach(registration => {
+            console.log(`COMMAND_REGISTRATION: Attempting to register: ${registration.commandId}`);
             if (safeRegisterCommand(registration)) {
                 successCount++;
             } else {

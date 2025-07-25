@@ -17,11 +17,16 @@ import { CleanAnalysisCommands } from './clean_analysis';
 import { DOMVisualizationCommands } from './dom_visualization';
 import { CommandRegistration } from './subsections/analysis_settings/analysis_file_mode';
 import { AnalysisFileSetting } from '../views/subsections/analysis_settings/analysis_file_mode/analysisFileMode';
+import { AnalysisDirectorySetting } from '../views/subsections/analysis_settings/analysis_directory_mode/analysisDirectoryMode';
 import { ViewThemeSetting } from '../views/subsections/analysis_settings/view_theme/viewTheme';
 import { AutoAnalysisDelaySetting } from '../views/subsections/analysis_settings/auto_analysis_delay/autoAnalysisDelay';
 import { ChartTypeFileSetting } from '../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
+import { ChartTypeDirectorySetting } from '../views/subsections/analysis_settings/chart_type_directory/chartTypeDirectory';
 import { DimensionMappingFileSetting } from '../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
+import { DimensionMappingDirectorySetting } from '../views/subsections/analysis_settings/dimension_mapping_directory/dimensionMappingDirectory';
 import { FilesByLanguageSortingSetting } from '../views/subsections/analysis_settings/files_by_language_sorting';
+import { ProfileConfigurationSetting } from '../views/subsections/analysis_settings/profile_configuration';
+import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
 
 /**
  * Main command coordinator for New Code Analysis
@@ -47,11 +52,18 @@ export class NewCodeAnalysisCommands {
 
         // Create setting instances
         const tempAnalysisFileSetting = new AnalysisFileSetting(context);
+        const tempAnalysisDirectorySetting = new AnalysisDirectorySetting(context);
         const tempViewThemeSetting = new ViewThemeSetting(context);
         const tempAutoAnalysisDelaySetting = new AutoAnalysisDelaySetting(context);
         const tempChartTypeFileSetting = new ChartTypeFileSetting(context);
+        const tempChartTypeDirectorySetting = new ChartTypeDirectorySetting(context);
         const tempDimensionMappingFileSetting = new DimensionMappingFileSetting(context);
+        const tempDimensionMappingDirectorySetting = new DimensionMappingDirectorySetting(context);
         const tempFilesByLanguageSortingSetting = new FilesByLanguageSortingSetting(context);
+        
+        // Create profile configuration setting with storage
+        const storage = AnalysisConfigurationStorage.getInstance(context);
+        const tempProfileConfigurationSetting = new ProfileConfigurationSetting(context, storage);
 
         const allCommandRegistrations: CommandRegistration[] = [];
 
@@ -59,11 +71,15 @@ export class NewCodeAnalysisCommands {
         const analysisSettingsCommands = AnalysisSettingsCommands.getCommandRegistrations(
             context, 
             tempAnalysisFileSetting,
+            tempAnalysisDirectorySetting,
             tempViewThemeSetting,
             tempAutoAnalysisDelaySetting,
             tempChartTypeFileSetting,
+            tempChartTypeDirectorySetting,
             tempDimensionMappingFileSetting,
+            tempDimensionMappingDirectorySetting,
             tempFilesByLanguageSortingSetting,
+            tempProfileConfigurationSetting,
             defaultRefreshCallback
         );
         allCommandRegistrations.push(...analysisSettingsCommands);
@@ -126,6 +142,14 @@ export class NewCodeAnalysisCommands {
         CleanAnalysisCommands.executeStartupCleanup(context);
 
         console.log(`NEW_CODE_ANALYSIS: Collected total of ${allCommandRegistrations.length} command registrations + file analysis commands`);
+        
+        // Log specific commands for debugging
+        const dimensionMappingDirectoryCommands = allCommandRegistrations.filter(cmd => 
+            cmd.commandId.includes('DimensionMappingDirectory')
+        );
+        console.log(`NEW_CODE_ANALYSIS: Found ${dimensionMappingDirectoryCommands.length} dimension mapping directory commands:`, 
+            dimensionMappingDirectoryCommands.map(cmd => cmd.commandId));
+        
         return allCommandRegistrations;
     }
 

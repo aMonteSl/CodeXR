@@ -124,13 +124,22 @@ export class SSEManager {
      */
     sendCustomMessage(fileUri: string, message: object): void {
         console.log(`[SSE_MANAGER] Sending custom message for: ${fileUri}`);
+        console.log(`[SSE_MANAGER] Message type: ${(message as any).type || 'unknown'}`);
         
         const customMessage = JSON.stringify({
             ...message,
             timestamp: new Date().toISOString()
         });
 
+        console.log(`[SSE_MANAGER] Full message content: ${customMessage}`);
+        console.log(`[SSE_MANAGER] Message size: ${customMessage.length} characters`);
+        
+        // Check if we have clients for this fileUri
+        const clientCount = this.clientRegistry.getClients(fileUri).length;
+        console.log(`[SSE_MANAGER] Number of clients for ${fileUri}: ${clientCount}`);
+        
         this.clientRegistry.sendToClients(fileUri, customMessage);
+        console.log(`[SSE_MANAGER] Message sent to ${clientCount} clients of: ${fileUri}`);
     }
 
     /**

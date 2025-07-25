@@ -209,6 +209,11 @@
     </div>
   </div>
   
+  <script nonce="${nonce}">
+    // Inject theme from server
+    window.initialTheme = '${theme}';
+    console.log('FILE_ANALYSIS_TEMPLATE: Injected theme:', window.initialTheme);
+  </script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>

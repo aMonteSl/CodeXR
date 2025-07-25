@@ -140,8 +140,12 @@ export class ActiveAnalysisModelMapper {
             baseIcon = 'vr';
             baseColor = 'charts.purple';
         } else if (analysisType === 'LivePanel') {
-            // Live Panel uses file-code icon in green
+            // File Live Panel uses file-code icon in green
             baseIcon = 'file-code';
+            baseColor = 'charts.green';
+        } else if (analysisType === 'DirectoryLivePanel') {
+            // Directory Live Panel uses folder icon in green
+            baseIcon = 'folder';
             baseColor = 'charts.green';
         } else if (analysisType === 'DOMVisualization') {
             // DOM Visualization uses code-oss icon in orange

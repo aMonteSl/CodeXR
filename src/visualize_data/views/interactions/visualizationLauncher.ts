@@ -432,7 +432,8 @@ export class VisualizationLauncher {
                 userVisualizationName,
                 './data.json',
                 this.context,
-                indexHtmlPath
+                indexHtmlPath,
+                undefined // No analysis data available in data visualization context
             );
 
             if (!result.success) {

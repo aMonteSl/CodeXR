@@ -43,17 +43,10 @@ export class ChartTypeFileSetting {
         const chartName = chartMetadata ? chartMetadata.name : currentChartType;
         
         const label = `Chart Type (File): ${chartName}`;
-        const description = `${chartName} for ${currentMode} mode`;
+        const description = `${chartName} for XR mode`;
         
-        // Dynamic icon color based on analysis mode
-        let iconColor = 'charts.foreground';
-        if (currentMode === 'XR') {
-            iconColor = 'charts.purple'; // Purple for XR mode
-        } else if (currentMode === 'LivePanel') {
-            iconColor = 'charts.green'; // Green for LivePanel mode
-        }
-        
-        const iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor(iconColor));
+        // Always use purple color for chart type icons as requested
+        const iconPath = new vscode.ThemeIcon('graph', new vscode.ThemeColor('charts.purple'));
         
         return new NewCodeAnalysisTreeItem(
             label,
@@ -165,20 +158,14 @@ export class ChartTypeFileSetting {
         const currentMappings = await this.storage.getDimensionMappingFile();
         console.log(`[DIMENSION_CLEANER] Current mappings before chart change:`, currentMappings);
         
-        // Clean dimension mappings for the new chart type
-        const cleanedMappings = DimensionMappingCleaner.cleanDimensionMappingsForNewChart(
-            currentMappings,
-            chartType
-        );
-        
         // Save the new chart type
         const validChartType = chartType as ChartType;
         await this.storage.setChartTypeFile(validChartType);
         console.log(`CHART_TYPE_FILE: Chart type saved successfully: ${chartType}`);
         
-        // Save the cleaned dimension mappings
-        await this.storage.setDimensionMappingFile(cleanedMappings);
-        console.log(`[DIMENSION_CLEANER] Cleaned dimension mappings saved:`, cleanedMappings);
+        // Clear all dimension mappings when chart type changes
+        await this.storage.setDimensionMappingFile({});
+        console.log(`CHART_TYPE_FILE: Dimension mappings cleared for new chart type: ${chartType}`);
     }
 
     /**

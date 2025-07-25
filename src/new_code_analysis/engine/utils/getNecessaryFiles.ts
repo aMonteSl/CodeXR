@@ -361,7 +361,8 @@ export class GetNecessaryFiles {
         rootDirectoryPath: string,
         context: vscode.ExtensionContext,
         sessionId: string,
-        theme?: string
+        theme?: string,
+        progressCallback?: (current: number, total: number, percentage: number, message: string) => void
     ): Promise<AnalysisResult> {
         try {
             console.log(`GET_NECESSARY_FILES: Starting Directory analysis for: ${rootDirectoryPath}`);
@@ -380,11 +381,11 @@ export class GetNecessaryFiles {
             if (session.isXR) {
                 // XR Analysis
                 console.log('GET_NECESSARY_FILES: ===== DISPATCHING TO XR ANALYSIS =====');
-                return await this.getForDirectoryXR(rootDirectoryPath, context, sessionId, theme);
+                return await this.getForDirectoryXR(rootDirectoryPath, context, sessionId, theme, progressCallback);
             } else {
                 // LivePanel Analysis
                 console.log('GET_NECESSARY_FILES: ===== DISPATCHING TO LIVEPANEL ANALYSIS =====');
-                return await this.getForDirectoryLivePanel(rootDirectoryPath, context, sessionId, theme);
+                return await this.getForDirectoryLivePanel(rootDirectoryPath, context, sessionId, theme, progressCallback);
             }
 
         } catch (error) {
@@ -405,7 +406,8 @@ export class GetNecessaryFiles {
         rootDirectoryPath: string,
         context: vscode.ExtensionContext,
         sessionId: string,
-        theme?: string
+        theme?: string,
+        progressCallback?: (current: number, total: number, percentage: number, message: string) => void
     ): Promise<AnalysisResult> {
         try {
             console.log('GET_NECESSARY_FILES: ===== STARTING LIVEPANEL DIRECTORY ANALYSIS =====');
@@ -434,16 +436,34 @@ export class GetNecessaryFiles {
                 }
             }
 
-            // Execute Python analysis using PythonExecutor
+            // Execute Python analysis using the filtered file list from session
             // Choose the appropriate analysis type based on whether it's deep or not
             const analysisType = session?.isDeep ? 'DirectoryLivePanelDeep' : 'DirectoryLivePanel';
             console.log(`GET_NECESSARY_FILES: Using analysis type: ${analysisType}`);
+            console.log(`GET_NECESSARY_FILES: Using filtered file list with ${session?.filesList.size || 0} files`);
             
-            const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysis(
-                analysisType as AnalysisType,
-                rootDirectoryPath,
-                context
-            );
+            let pythonResult: PythonExecutionResult;
+            
+            if (session && session.filesList.size > 0) {
+                // Use filtered file list for better performance and consistency
+                pythonResult = await PythonExecutor.executeAnalysisWithFileList(
+                    analysisType as AnalysisType,
+                    rootDirectoryPath,
+                    session.filesList,
+                    context,
+                    progressCallback,
+                    sessionId
+                );
+            } else {
+                // Fallback to regular analysis if no session or no files
+                pythonResult = await PythonExecutor.executeAnalysis(
+                    analysisType as AnalysisType,
+                    rootDirectoryPath,
+                    context,
+                    progressCallback,
+                    sessionId
+                );
+            }
 
             if (pythonResult.success && pythonResult.data) {
                 console.log(`GET_NECESSARY_FILES: Directory LivePanel analysis completed successfully`);
@@ -512,21 +532,148 @@ export class GetNecessaryFiles {
     }
 
     /**
-     * Get necessary files for Directory XR analysis (TODO: implement)
+     * Get necessary files for Directory XR analysis
      */
     private static async getForDirectoryXR(
         rootDirectoryPath: string,
         context: vscode.ExtensionContext,
         sessionId: string,
-        theme?: string
+        theme?: string,
+        progressCallback?: (current: number, total: number, percentage: number, message: string) => void
     ): Promise<AnalysisResult> {
-        // TODO: Implement XR directory analysis
-        console.log('GET_NECESSARY_FILES: XR directory analysis not yet implemented');
-        return {
-            success: false,
-            error: 'XR directory analysis not yet implemented',
-            filePath: rootDirectoryPath,
-            analysisType: 'DirectoryLivePanel' // Temporal, cambiar cuando se implemente XR
-        };
+        try {
+            console.log('GET_NECESSARY_FILES: ===== STARTING XR DIRECTORY ANALYSIS =====');
+            console.log(`GET_NECESSARY_FILES: Directory: ${rootDirectoryPath}`);
+            console.log(`GET_NECESSARY_FILES: Session ID: ${sessionId}`);
+
+            const directorySessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+            
+            // Get session details for logging
+            const session = directorySessionRegistry.getSession(sessionId);
+            if (!session) {
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            
+            const isDeep = session.isDeep || false;
+            console.log(`GET_NECESSARY_FILES: XR Mode: true, Deep Analysis: ${isDeep}`);
+
+            if (session) {
+                console.log(`GET_NECESSARY_FILES: Session config - isXR: ${session.isXR}, isDeep: ${session.isDeep}`);
+                console.log(`GET_NECESSARY_FILES: Files in session: ${session.filesList.size}`);
+                
+                // Log first few files for debugging
+                let fileCount = 0;
+                for (const [relativePath, absolutePath] of session.filesList) {
+                    if (fileCount < 5) {
+                        console.log(`GET_NECESSARY_FILES: File ${fileCount + 1}: ${relativePath} -> ${absolutePath}`);
+                        fileCount++;
+                    } else if (fileCount === 5) {
+                        console.log(`GET_NECESSARY_FILES: ... and ${session.filesList.size - 5} more files`);
+                        break;
+                    }
+                }
+            }
+
+            // Execute Python XR directory analysis using the appropriate analysis type
+            console.log(`GET_NECESSARY_FILES: Using XR directory analysis coordinator with filtered file list`);
+            
+            // Use DirectoryXRDeep for deep analysis, DirectoryXR for regular analysis
+            const analysisType = isDeep ? 'DirectoryXRDeep' : 'DirectoryXR';
+            console.log(`GET_NECESSARY_FILES: Python analysis type: ${analysisType}`);
+            console.log(`GET_NECESSARY_FILES: Filtered files count: ${session.filesList.size}`);
+            
+            const pythonResult: PythonExecutionResult = await PythonExecutor.executeAnalysisWithFileList(
+                analysisType as AnalysisType,
+                rootDirectoryPath,
+                session.filesList,
+                context,
+                progressCallback,
+                sessionId
+            );
+
+            if (pythonResult.success && pythonResult.data) {
+                console.log(`GET_NECESSARY_FILES: Directory XR analysis completed successfully`);
+                console.log(`GET_NECESSARY_FILES: ===== XR ANALYSIS DATA (FILES ARRAY) =====`);
+                console.log(`GET_NECESSARY_FILES: XR Files Array:`, JSON.stringify(pythonResult.data, null, 2));
+                console.log(`GET_NECESSARY_FILES: =====================================`);
+
+                // Parse XR visualization template for directory analysis
+                console.log(`GET_NECESSARY_FILES: Starting XR visualization template parsing for directory...`);
+                
+                // Define hardcoded chart template for boats visualization
+                const chartTemplate = 'boats';
+                const directoryXRMappings = {
+                    'area': 'functionCount',
+                    'height': 'totalLines', 
+                    'color': 'cyclomaticComplexityNumber'
+                };
+                
+                console.log(`GET_NECESSARY_FILES: Using chart template: ${chartTemplate}`);
+                console.log(`GET_NECESSARY_FILES: Using XR mappings:`, directoryXRMappings);
+                
+                const templateResult: ParsedTemplateFiles = await ParseTemplates.parseXRVisualizationTemplate(
+                    context,
+                    {
+                        analysisData: pythonResult.data, // Files array
+                        fileName: require('path').basename(rootDirectoryPath),
+                        filePath: rootDirectoryPath,
+                        title: `XR Directory Analysis - ${require('path').basename(rootDirectoryPath)}`,
+                        chartId: chartTemplate,
+                        dimensionMapping: directoryXRMappings
+                    }
+                );
+
+                if (templateResult.success) {
+                    console.log(`GET_NECESSARY_FILES: XR visualization template files received successfully`);
+                    console.log(`GET_NECESSARY_FILES: - HTML file: ${templateResult.indexHtml.length} characters`);
+                    console.log(`GET_NECESSARY_FILES: - JS file: ${templateResult.jsContent.length} characters`);
+
+                    // Add template files to session registry
+                    directorySessionRegistry.addRequiredFile(sessionId, 'index.html', templateResult.indexHtml);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'main.js', templateResult.jsContent);
+                    
+                    // Add analysis data as JSON to session
+                    const dataJson = JSON.stringify(pythonResult.data, null, 2);
+                    directorySessionRegistry.addRequiredFile(sessionId, 'data.json', dataJson);
+
+                    console.log(`GET_NECESSARY_FILES: XR directory template processing completed successfully`);
+                    console.log(`GET_NECESSARY_FILES: Total files analyzed: ${Array.isArray(pythonResult.data) ? pythonResult.data.length : 0}`);
+
+                    return {
+                        success: true,
+                        data: pythonResult.data, // Files array
+                        indexHtml: templateResult.indexHtml,
+                        jsContent: templateResult.jsContent,
+                        filePath: rootDirectoryPath,
+                        analysisType: 'DirectoryXR'
+                    };
+                } else {
+                    console.error(`GET_NECESSARY_FILES: XR template parsing failed:`, templateResult.error);
+                    return {
+                        success: false,
+                        error: `XR template parsing failed: ${templateResult.error}`,
+                        filePath: rootDirectoryPath,
+                        analysisType: 'DirectoryXR'
+                    };
+                }
+            } else {
+                console.error(`GET_NECESSARY_FILES: Directory XR analysis failed:`, pythonResult.error);
+                return {
+                    success: false,
+                    error: pythonResult.error || 'Unknown error during XR directory analysis',
+                    filePath: rootDirectoryPath,
+                    analysisType: 'DirectoryXR'
+                };
+            }
+
+        } catch (error) {
+            console.error(`GET_NECESSARY_FILES: Error in getForDirectoryXR:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filePath: rootDirectoryPath,
+                analysisType: 'DirectoryXR'
+            };
+        }
     }
 }

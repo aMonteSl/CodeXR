@@ -27,8 +27,8 @@ export class AnalysisFileSetting {
         const currentMode = await this.storage.getAnalysisFileMode();
         
         const modeText = currentMode === 'XR' 
-            ? 'Analysis with Immersive VR/AR'
-            : 'Analysis with Standard Experience';
+            ? 'Analysis File with Immersive VR/AR'
+            : 'Analysis File with Standard Experience';
         const iconPath = currentMode === 'LivePanel' 
             ? new vscode.ThemeIcon('file-code', new vscode.ThemeColor('charts.green'))
             : new vscode.ThemeIcon('vr', new vscode.ThemeColor('charts.purple'));

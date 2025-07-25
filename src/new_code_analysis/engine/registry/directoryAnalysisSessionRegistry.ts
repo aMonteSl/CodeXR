@@ -8,6 +8,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { generateNonce } from '../../../utils/nonceGenerator';
 import { SHA256Generator } from '../../../utils/sha256Generator';
+import { DirectoryValidator } from '../utils/directoryValidator';
+import { getAllSupportedExtensions } from '../../../utils/supportedLanguages';
 
 export type DirectoryAnalysisStatus = 'creating' | 'analyzing' | 'completed' | 'failed' | 'closing';
 export type DirectoryAnalysisType = 'D_LivePanel' | 'D_DeepLivePanel' | 'D_XR' | 'D_XRDeep';
@@ -205,14 +207,21 @@ export class DirectoryAnalysisSessionRegistry {
             
             for (const entry of entries) {
                 const fullPath = path.join(currentPath, entry.name);
+                const relativePath = path.relative(basePath, fullPath);
                 
                 if (entry.isFile() && this.isAnalyzableFile(entry.name)) {
-                    // Create relative path from base directory
-                    const relativePath = path.relative(basePath, fullPath);
-                    filesList.set(relativePath, fullPath);
-                } else if (entry.isDirectory() && !this.shouldSkipDirectory(entry.name)) {
-                    // Recursively scan subdirectories
-                    await this.scanDirectoryRecursive(fullPath, basePath, filesList);
+                    // Check if this file path should be excluded
+                    if (!DirectoryValidator.shouldExcludePath(relativePath)) {
+                        filesList.set(relativePath, fullPath);
+                    }
+                } else if (entry.isDirectory()) {
+                    // Check if we should scan this directory
+                    if (DirectoryValidator.shouldScanPath(relativePath, basePath)) {
+                        // Recursively scan subdirectories
+                        await this.scanDirectoryRecursive(fullPath, basePath, filesList);
+                    } else {
+                        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Skipping excluded directory during scan: ${relativePath}`);
+                    }
                 }
             }
         } catch (error) {
@@ -233,16 +242,21 @@ export class DirectoryAnalysisSessionRegistry {
             
             for (const entry of entries) {
                 const fullPath = path.join(currentPath, entry.name);
+                const relativePath = path.relative(basePath, fullPath);
                 
-                if (entry.isDirectory() && !this.shouldSkipDirectory(entry.name)) {
-                    // Add this subdirectory to the list
-                    const relativePath = path.relative(basePath, fullPath);
-                    if (relativePath !== '') { // Don't include the base directory itself
-                        subDirectoriesList.set(relativePath, fullPath);
+                if (entry.isDirectory()) {
+                    // Check if we should include this directory
+                    if (DirectoryValidator.shouldScanPath(relativePath, basePath)) {
+                        // Add this subdirectory to the list (if not the base directory itself)
+                        if (relativePath !== '') {
+                            subDirectoriesList.set(relativePath, fullPath);
+                        }
+                        
+                        // Recursively scan subdirectories
+                        await this.scanSubDirectoriesRecursive(fullPath, basePath, subDirectoriesList);
+                    } else {
+                        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Skipping excluded directory during subdirectory scan: ${relativePath}`);
                     }
-                    
-                    // Recursively scan subdirectories
-                    await this.scanSubDirectoriesRecursive(fullPath, basePath, subDirectoriesList);
                 }
             }
         } catch (error) {
@@ -251,31 +265,17 @@ export class DirectoryAnalysisSessionRegistry {
     }
 
     /**
-     * Check if file is analyzable based on extension
+     * Check if file is analyzable based on extension using supportedLanguages utility
      */
     private isAnalyzableFile(fileName: string): boolean {
-        const analyzableExtensions = [
-            '.py', '.js', '.ts', '.java', '.cpp', '.c', '.h', '.cs', '.rb', '.php',
-            '.go', '.rs', '.kt', '.swift', '.scala', '.clj', '.hs', '.ml', '.f90',
-            '.pas', '.pl', '.r', '.m', '.dart', '.lua', '.sh', '.ps1', '.vue', 
-            '.jsx', '.tsx', '.html', '.htm', '.css', '.scss', '.less'
-        ];
-        
         const ext = path.extname(fileName).toLowerCase();
-        return analyzableExtensions.includes(ext);
-    }
-
-    /**
-     * Check if directory should be skipped
-     */
-    private shouldSkipDirectory(dirName: string): boolean {
-        const skipDirs = [
-            'node_modules', '.git', '.vscode', '__pycache__', '.pytest_cache',
-            'venv', 'env', '.env', 'dist', 'build', '.next', '.nuxt',
-            'coverage', '.coverage', 'tmp', 'temp', '.tmp'
-        ];
+        const supportedExtensions = getAllSupportedExtensions();
         
-        return skipDirs.includes(dirName) || dirName.startsWith('.');
+        // Add CSS and SCSS extensions which are analyzable for web projects
+        const webExtensions = ['.css', '.scss', '.less', '.sass'];
+        const allAnalyzableExtensions = [...supportedExtensions, ...webExtensions];
+        
+        return allAnalyzableExtensions.includes(ext);
     }
 
     /**
@@ -508,10 +508,14 @@ export class DirectoryAnalysisSessionRegistry {
                     const fullPath = path.join(directoryPath, entry.name);
                     
                     // Check if file is analyzable
-                    if (this.isAnalyzableFile(fullPath)) {
+                    if (this.isAnalyzableFile(entry.name)) {
                         const relativePath = path.relative(directoryPath, fullPath);
-                        filesList.set(relativePath, fullPath);
-                        console.log(`DIRECTORY_ANALYSIS_REGISTRY: Added first-level file: ${relativePath}`);
+                        
+                        // Check if this file should be excluded (though at first level this is less likely)
+                        if (!DirectoryValidator.shouldExcludePath(relativePath)) {
+                            filesList.set(relativePath, fullPath);
+                            console.log(`DIRECTORY_ANALYSIS_REGISTRY: Added first-level file: ${relativePath}`);
+                        }
                     }
                 }
                 // Skip subdirectories for non-deep analysis

@@ -13,13 +13,16 @@ import { ManageWatcher } from './utils/manageWatcher';
 import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
 import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
 import { AnalysisType } from './registry/analysisSessionRegistry';
+import { DirectoryAnalysisProgressService } from './services';
+import { ActiveAnalysisRegistry } from './services/activeAnalysisRegistry';
+import path from 'path';
 
 export class LaunchAnalyzeDirectoryLivePanel {
     
     /**
-     * Analyze directory using LivePanel
+     * Launch directory LivePanel analysis
      */
-    static async analyzeDirectory(directoryPath: string, context: vscode.ExtensionContext): Promise<void> {
+    public async launch(directoryPath: string, context: vscode.ExtensionContext, isDeep: boolean = false): Promise<void> {
         try {
             console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting directory analysis for:', directoryPath);
             
@@ -77,8 +80,16 @@ export class LaunchAnalyzeDirectoryLivePanel {
             }
             console.log('==========================================');
             
+            // Register in Active Analyses UI
+            const activeRegistry = ActiveAnalysisRegistry.getInstance();
+            const activeSessionId = await activeRegistry.registerDirectoryLivePanelAnalysis(directoryPath, context);
+            console.log(`DIR_LIVEPANEL_DEBUG: ✅ Registered in Active Analyses with ID: ${activeSessionId}`);
+            console.log(`DIR_LIVEPANEL_DEBUG: 🔄 Initial registration completed, status should be 'creating'`);
+            
             // Update session status to analyzing
             sessionManager.updateSessionStatus(session.id, 'analyzing');
+            console.log(`DIR_LIVEPANEL_DEBUG: 🔄 Updating status to 'analyzing' for session: ${activeSessionId}`);
+            activeRegistry.updateAnalysisStatus(activeSessionId, 'analyzing');
             
             // Log session configuration before starting analysis
             console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ====== SESSION CONFIGURATION ======');
@@ -90,18 +101,36 @@ export class LaunchAnalyzeDirectoryLivePanel {
             console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Files Count: ${session.filesList.size}`);
             console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ===================================');
             
+            // Initialize progress service for unified progress tracking
+            const progressService = DirectoryAnalysisProgressService.getInstance();
+            const totalFiles = session.filesList.size;
+            
+            // Start unified progress tracking (this will show the progress bar)
+            if (totalFiles > 0) {
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting unified progress tracking for ${totalFiles} files`);
+                progressService.startProgress(
+                    session.id, 
+                    'Directory LivePanel', 
+                    totalFiles,
+                    `Analyzing Directory: ${path.basename(directoryPath)}`
+                ).catch(error => {
+                    console.error(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Error starting unified progress:`, error);
+                });
+            }
+            
             // Get current theme configuration
             const configStorage = AnalysisConfigurationStorage.getInstance(context);
             const currentTheme = await configStorage.getViewTheme();
             console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Using theme: ${currentTheme}`);
             
-            // Execute directory analysis using getNecessaryFiles
+            // Execute directory analysis using getNecessaryFiles (unified progress service handles all progress tracking)
             console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting Python directory analysis...');
             const analysisResult = await GetNecessaryFiles.getAnalysisDirectoryLivePanel(
                 directoryPath,
                 context,
                 session.id,
                 currentTheme
+                // No progressCallback - unified service handles progress
             );
             
             if (analysisResult.success) {
@@ -167,9 +196,19 @@ export class LaunchAnalyzeDirectoryLivePanel {
                         console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server ID: ${serverLaunchResult.serverId}`);
                         console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: SSE Channel: ${serverLaunchResult.sseChannel}`);
                         
-                        // Show enhanced success message with server information
+                        // Update Active Analyses with server information
+                        console.log(`DIR_LIVEPANEL_DEBUG: 🌐 Updating server info - port: ${serverLaunchResult.port}, url: ${serverLaunchResult.serverUrl}`);
+                        activeRegistry.updateAnalysisServer(
+                            activeSessionId, 
+                            serverLaunchResult.port, 
+                            serverLaunchResult.serverUrl
+                        );
+                        console.log(`DIR_LIVEPANEL_DEBUG: ✅ Updating status to 'completed' for session: ${activeSessionId}`);
+                        activeRegistry.updateAnalysisStatus(activeSessionId, 'completed');
+                        
+                        // Show unified success message with VR icon (like XR)
                         vscode.window.showInformationMessage(
-                            `Directory analysis completed for "${session.nameDir}"! Server: ${serverLaunchResult.serverUrl} | Live updates enabled`,
+                            `🥽 Directory LivePanel analysis completed for "${session.nameDir}"! Server running on port ${serverLaunchResult.port}`,
                             'Open in Browser',
                             'View Servers'
                         ).then(action => {
@@ -182,6 +221,10 @@ export class LaunchAnalyzeDirectoryLivePanel {
 
                     } else {
                         console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server launch failed: ${serverLaunchResult.error}`);
+                        
+                        // Update Active Analyses with failed status
+                        console.log(`DIR_LIVEPANEL_DEBUG: ❌ Server launch failed, updating status to 'failed' for session: ${activeSessionId}`);
+                        activeRegistry.failAnalysis(activeSessionId, serverLaunchResult.error || 'Server launch failed');
                         
                         // Still show success for analysis, but note server issue
                         vscode.window.showWarningMessage(
@@ -304,6 +347,23 @@ export class LaunchAnalyzeDirectoryLivePanel {
             console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Files Count: ${session.filesList.size}`);
             console.log('LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: ===================================');
             
+            // Initialize progress service for unified progress tracking
+            const progressService = DirectoryAnalysisProgressService.getInstance();
+            const totalFiles = session.filesList.size;
+            
+            // Start unified progress tracking (this will show the progress bar)
+            if (totalFiles > 0) {
+                console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Starting unified progress tracking for ${totalFiles} files (DEEP)`);
+                progressService.startProgress(
+                    session.id, 
+                    'Directory LivePanel Deep', 
+                    totalFiles,
+                    `Analyzing Directory (Deep): ${path.basename(directoryPath)}`
+                ).catch(error => {
+                    console.error(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Error starting unified progress (DEEP):`, error);
+                });
+            }
+            
             // Get current theme configuration
             const configStorage = AnalysisConfigurationStorage.getInstance(context);
             const currentTheme = await configStorage.getViewTheme();
@@ -361,9 +421,9 @@ export class LaunchAnalyzeDirectoryLivePanel {
                         console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: Server ID: ${serverLaunchResult.serverId}`);
                         console.log(`LAUNCH_ANALYZE_DIRECTORY_LIVEPANEL: SSE Channel: ${serverLaunchResult.sseChannel}`);
                         
-                        // Show enhanced success message with server information
+                        // Show unified success message with VR icon (like XR) 
                         vscode.window.showInformationMessage(
-                            `Deep directory analysis completed for "${session.nameDir}"! Server: ${serverLaunchResult.serverUrl} | Live updates enabled`,
+                            `🥽 Directory LivePanel Deep analysis completed for "${session.nameDir}"! Server running on port ${serverLaunchResult.port}`,
                             'Open in Browser',
                             'View Servers'
                         ).then(action => {
@@ -426,5 +486,11 @@ export class LaunchAnalyzeDirectoryLivePanel {
             vscode.window.showErrorMessage(`Failed to analyze directory (deep): ${error}`);
             throw error;
         }
+    }
+
+    // Compatibility method for older code
+    static async analyzeDirectory(directoryPath: string, context: vscode.ExtensionContext): Promise<void> {
+        const instance = new LaunchAnalyzeDirectoryLivePanel();
+        await instance.launch(directoryPath, context, false);
     }
 }

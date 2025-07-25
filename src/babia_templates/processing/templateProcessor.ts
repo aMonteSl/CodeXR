@@ -23,7 +23,8 @@ export class TemplateProcessor {
         title: string,
         dataSource: string,
         context: vscode.ExtensionContext,
-        outputPath: string
+        outputPath: string,
+        analysisData?: any[] // Add optional analysis data to detect type
     ): Promise<{ success: boolean; error?: string }> {
         try {
             console.log('TEMPLATE_PROCESSOR: Starting modular XR visualization generation');
@@ -35,6 +36,10 @@ export class TemplateProcessor {
             // Get visualization settings
             const visualizationSettings = await this.getVisualizationSettings();
             console.log('TEMPLATE_PROCESSOR: Using visualization settings:', visualizationSettings);
+
+            // Detect if this is directory analysis by checking the data structure
+            const isDirectoryAnalysis = this.detectDirectoryAnalysis(analysisData);
+            console.log('TEMPLATE_PROCESSOR: Detected directory analysis:', isDirectoryAnalysis);
 
             // Create chart entity using CreateChart module
             const chartResult = CreateChart.createChartEntity(
@@ -58,7 +63,8 @@ export class TemplateProcessor {
                 visualizationSettings,
                 'xr', // Analysis type for XR visualization
                 context,
-                chartId // Pass chart type for tree builder decision
+                chartId, // Pass chart type for tree builder decision
+                isDirectoryAnalysis // Pass directory analysis flag
             );
 
             if (!structureResult.success) {
@@ -160,7 +166,9 @@ export class TemplateProcessor {
         title: string,
         dataSource: string,
         analysisType: 'xr' | 'dom' | 'none',
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        chartType?: string,
+        isDirectoryAnalysis?: boolean
     ) {
         const visualizationSettings = await this.getVisualizationSettings();
         return CreateStructure.createStructuralPlaceholders(
@@ -168,7 +176,37 @@ export class TemplateProcessor {
             dataSource,
             visualizationSettings,
             analysisType,
-            context
+            context,
+            chartType,
+            isDirectoryAnalysis
         );
+    }
+
+    /**
+     * Detect if this is a directory analysis by examining the data structure
+     * Directory analysis has 'fileName' field, file analysis has 'functionName' field
+     */
+    private static detectDirectoryAnalysis(analysisData?: any[]): boolean {
+        if (!analysisData || !Array.isArray(analysisData) || analysisData.length === 0) {
+            return false;
+        }
+
+        // Check the first item in the data to determine the type
+        const firstItem = analysisData[0];
+        if (firstItem && typeof firstItem === 'object') {
+            // Directory analysis has 'fileName' field, file analysis has 'functionName' field
+            const hasFileName = 'fileName' in firstItem;
+            const hasFunctionName = 'functionName' in firstItem;
+            
+            console.log('TEMPLATE_PROCESSOR: Data structure detection:', {
+                hasFileName,
+                hasFunctionName,
+                keys: Object.keys(firstItem)
+            });
+            
+            return hasFileName && !hasFunctionName;
+        }
+
+        return false;
     }
 }

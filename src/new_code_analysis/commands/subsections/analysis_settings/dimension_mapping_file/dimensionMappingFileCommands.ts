@@ -65,14 +65,12 @@ export class DimensionMappingFileCommands {
                 detail: this.getFieldTypeDescription(field, dimension)
             }));
 
-            // Add "Clear mapping" option if it's not required
-            if (!dimension.required) {
-                quickPickItems.unshift({
-                    label: '$(clear-all) Clear mapping',
-                    description: 'Remove the mapping for this dimension',
-                    detail: 'This optional dimension will not be mapped to any data field'
-                });
-            }
+            // Add "Clear mapping" option
+            quickPickItems.unshift({
+                label: '$(clear-all) Clear mapping',
+                description: 'Remove the mapping for this dimension',
+                detail: dimension.required ? 'Note: This is a required dimension' : 'This optional dimension will not be mapped to any data field'
+            });
 
             // Show validation info in the placeholder
             const typeInfo = dimension.dataType === 'numeric' ? 'numeric fields only' : 'any field type';
@@ -97,6 +95,28 @@ export class DimensionMappingFileCommands {
                 vscode.window.showInformationMessage(`Cleared mapping for ${dimension.label}`);
             } else {
                 console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Mapping dimension "${dimension.name}" to field "${selection.label}"`);
+                
+                // Check for conflicts with other dimensions before setting
+                const currentMappings = await this.dimensionMappingSetting.getCurrentMappings();
+                const conflictDimension = Object.keys(currentMappings).find(
+                    key => key !== dimension.name && currentMappings[key] === selection.label
+                );
+
+                if (conflictDimension) {
+                    const shouldProceed = await vscode.window.showWarningMessage(
+                        `The field "${selection.label}" is already mapped to another dimension. Do you want to proceed? This will clear the previous mapping.`,
+                        'Proceed', 'Cancel'
+                    );
+
+                    if (shouldProceed !== 'Proceed') {
+                        console.log('DIMENSION_MAPPING_FILE_COMMANDS: Mapping cancelled due to conflict');
+                        return;
+                    }
+
+                    // Clear the conflicting mapping
+                    await this.dimensionMappingSetting.clearDimensionMapping(conflictDimension);
+                    console.log(`DIMENSION_MAPPING_FILE_COMMANDS: Cleared conflicting mapping for dimension "${conflictDimension}"`);
+                }
                 
                 // Set the mapping using persistent storage
                 await this.dimensionMappingSetting.setDimensionMapping(dimension.name, selection.label);

@@ -16,6 +16,7 @@ export * from './active_servers';
 export * from './babia_examples';
 export * from './visualize_data';
 export * from './visualization_settings';
+export * from './learn_more';
 
 // New code analysis views (experimental)
 export * from '../new_code_analysis/views';

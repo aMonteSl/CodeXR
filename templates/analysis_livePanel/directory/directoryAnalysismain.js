@@ -119,6 +119,10 @@ function loadAnalysisData(data) {
   }
   
   try {
+    console.log('🔄 Updating header information...');
+    updateHeaderInfo();
+    debugLog('Header info updated');
+    
     console.log('🔄 Updating summary...');
     updateSummary();
     debugLog('Summary updated');
@@ -176,12 +180,17 @@ function initializeSSE() {
     };
     
     eventSource.onmessage = function(event) {
+      console.log('DIRECTORY_ANALYSIS: Raw SSE message received:', event);
+      console.log('DIRECTORY_ANALYSIS: Event data type:', typeof event.data);
+      console.log('DIRECTORY_ANALYSIS: Event data content:', event.data);
+      
       try {
         const data = JSON.parse(event.data);
-        console.log('DIRECTORY_ANALYSIS: SSE message received:', data);
+        console.log('DIRECTORY_ANALYSIS: Parsed SSE data:', data);
         handleSSEMessage(data);
       } catch (error) {
         console.error('DIRECTORY_ANALYSIS: Error parsing SSE message:', error);
+        console.error('DIRECTORY_ANALYSIS: Unparseable data:', event.data);
       }
     };
     
@@ -205,24 +214,34 @@ function initializeSSE() {
  * Handle incoming SSE messages
  */
 function handleSSEMessage(data) {
-  switch (data.type) {
+  console.log('DIRECTORY_ANALYSIS: Handling SSE message, data.type:', data.type);
+  console.log('DIRECTORY_ANALYSIS: Full data object:', data);
+  
+  // Check if we have nested data (EnhancedSSEManager format)
+  const messageType = data.type || (data.data && data.data.type);
+  console.log('DIRECTORY_ANALYSIS: Determined message type:', messageType);
+  
+  switch (messageType) {
     case 'connected':
-      console.log('DIRECTORY_ANALYSIS: SSE connected for file:', data.fileUri);
+      console.log('DIRECTORY_ANALYSIS: SSE connected for file:', data.fileUri || data.data?.fileUri);
       showSSEStatus('connected');
       break;
       
     case 'analysis-updated':
-      console.log('DIRECTORY_ANALYSIS: Analysis updated for file:', data.fileUri);
+      console.log('DIRECTORY_ANALYSIS: Analysis updated for file:', data.fileUri || data.data?.fileUri);
+      console.log('DIRECTORY_ANALYSIS: Triggering data reload...');
       showUpdateNotification();
       reloadAnalysisData();
       break;
       
     case 'heartbeat':
+      console.log('DIRECTORY_ANALYSIS: Heartbeat received');
       // Keep-alive message, no action needed
       break;
       
     default:
-      console.log('DIRECTORY_ANALYSIS: Unknown SSE message type:', data.type);
+      console.log('DIRECTORY_ANALYSIS: Unknown SSE message type:', messageType);
+      console.log('DIRECTORY_ANALYSIS: Full data:', data);
   }
 }
 
@@ -368,6 +387,40 @@ if (!document.getElementById('sse-animations')) {
     }
   `;
   document.head.appendChild(style);
+}
+
+// Update header information (directory path, file counts, timestamp)
+function updateHeaderInfo() {
+  if (!analysisData) {
+    return;
+  }
+  
+  // Update directory path
+  const directoryPath = analysisData.directoryPath || 'Unknown';
+  const directoryPathEl = document.getElementById('directory-path');
+  if (directoryPathEl) {
+    directoryPathEl.textContent = directoryPath;
+  }
+  
+  // Update file counts in header
+  const summary = analysisData.summary || {};
+  const fileCountEl = document.getElementById('file-count');
+  const totalFileCountEl = document.getElementById('total-file-count');
+  
+  if (fileCountEl) {
+    fileCountEl.textContent = summary.totalFilesAnalyzed || 0;
+  }
+  
+  if (totalFileCountEl) {
+    totalFileCountEl.textContent = summary.totalFiles || 0;
+  }
+  
+  // Update timestamp
+  const timestamp = analysisData.timestamp || 'Unknown';
+  const timestampEl = document.getElementById('analysis-timestamp');
+  if (timestampEl) {
+    timestampEl.textContent = timestamp;
+  }
 }
 
 // Update summary metrics

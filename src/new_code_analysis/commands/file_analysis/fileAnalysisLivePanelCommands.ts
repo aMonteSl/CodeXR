@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LaunchAnalyzeFileLivePanel } from '../../engine';
+import { AnalysisOrchestrator } from '../../new_engine/analysisOrchestrator';
 
 export class FileAnalysisLivePanelCommands {
 
@@ -28,7 +28,7 @@ export class FileAnalysisLivePanelCommands {
     }
 
     /**
-     * Analyze file in LivePanel mode command handler
+     * Analyze file in LivePanel mode command handler - NEW ENGINE
      */
     private async analyzeFileLivePanel(uri?: vscode.Uri): Promise<void> {
         try {
@@ -49,16 +49,15 @@ export class FileAnalysisLivePanelCommands {
                 console.log(`FILE_ANALYSIS_LIVEPANEL_COMMANDS: LivePanel analysis requested from command palette for: ${filePath}`);
             }
 
-            // Check if file can be analyzed
-            if (!LaunchAnalyzeFileLivePanel.canAnalyzeFile(filePath)) {
-                vscode.window.showWarningMessage(
-                    `CodeXR: File "${filePath}" is not a supported programming language for LivePanel analysis`
-                );
-                return;
-            }
-
-            // Execute LivePanel analysis
-            await LaunchAnalyzeFileLivePanel.analyzeFile(filePath, this.context);
+            // Execute LivePanel analysis using NEW ENGINE - validation handled by orchestrator
+            console.log('FILE_ANALYSIS_LIVEPANEL_COMMANDS: Using NEW Unified Engine for analysis');
+            await AnalysisOrchestrator.orchestrateAnalysis(
+                filePath,
+                'LivePanel',
+                'file',
+                this.context,
+                false // isDeep = false for file analysis
+            );
 
         } catch (error) {
             console.error('FILE_ANALYSIS_LIVEPANEL_COMMANDS: Error in LivePanel analyze file command:', error);

@@ -10,6 +10,7 @@ import { GetNecessaryFiles, SaveFiles, FilesToSave, ManageWatcher, LaunchServer 
 import { AnalysisConfigurationStorage } from '../configuration/analysisConfigurationStorage';
 import { AnalysisSessionManager } from './registry/analysisSessionManager';
 import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
+import { ActiveAnalysisRegistry } from './services/activeAnalysisRegistry';
 
 export class LaunchAnalyzeFileLivePanel {
 
@@ -43,6 +44,12 @@ export class LaunchAnalyzeFileLivePanel {
             const sessionManager = AnalysisSessionManager.getInstance();
             const session = await sessionManager.startAnalysis(filePath, 'LivePanel', context);
             console.log(`NEW_CODE_ANALYSIS_ENGINE: Created session ${session.id} for LivePanel analysis`);
+
+            // Register in Active Analyses UI
+            const activeRegistry = ActiveAnalysisRegistry.getInstance();
+            const activeSessionId = await activeRegistry.registerFileLivePanelAnalysis(filePath, context);
+            console.log(`FILE_LIVEPANEL_DEBUG: ✅ Registered in Active Analyses with ID: ${activeSessionId}`);
+            console.log(`FILE_LIVEPANEL_DEBUG: 🔄 Initial registration completed, status should be 'creating'`);
             
             // Get current theme configuration
             const configStorage = AnalysisConfigurationStorage.getInstance(context);
@@ -57,6 +64,10 @@ export class LaunchAnalyzeFileLivePanel {
 
             // Get analysis data using the new system with session
             const analysisResult = await GetNecessaryFiles.getAnalysisFileLivePanel(filePath, context, currentTheme, session.id);
+
+            // Update status to analyzing
+            console.log(`FILE_LIVEPANEL_DEBUG: 🔄 Updating status to 'analyzing' for session: ${activeSessionId}`);
+            activeRegistry.updateAnalysisStatus(activeSessionId, 'analyzing');
 
             if (analysisResult.success && analysisResult.data) {
                 console.log(`NEW_CODE_ANALYSIS_ENGINE: Analysis completed successfully!`);
@@ -118,6 +129,16 @@ export class LaunchAnalyzeFileLivePanel {
                         console.log(`NEW_CODE_ANALYSIS_ENGINE: Server ID: ${serverLaunchResult.serverId}`);
                         console.log(`NEW_CODE_ANALYSIS_ENGINE: SSE Channel: ${serverLaunchResult.sseChannel}`);
                         
+                        // Update Active Analyses with server information
+                        console.log(`FILE_LIVEPANEL_DEBUG: 🌐 Updating server info - port: ${serverLaunchResult.port}, url: ${serverLaunchResult.serverUrl}`);
+                        activeRegistry.updateAnalysisServer(
+                            activeSessionId, 
+                            serverLaunchResult.port, 
+                            serverLaunchResult.serverUrl
+                        );
+                        console.log(`FILE_LIVEPANEL_DEBUG: ✅ Updating status to 'completed' for session: ${activeSessionId}`);
+                        activeRegistry.updateAnalysisStatus(activeSessionId, 'completed');
+                        
                         // Show enhanced success message with server information
                         vscode.window.showInformationMessage(
                             `CodeXR: Live Panel launched! Analysis: ${saveResult.nonce} | Server: ${serverLaunchResult.serverUrl} | Live updates enabled`,
@@ -132,6 +153,9 @@ export class LaunchAnalyzeFileLivePanel {
                         });
                     } else {
                         console.log(`NEW_CODE_ANALYSIS_ENGINE: Server launch failed: ${serverLaunchResult.error}`);
+                        
+                        // Update Active Analyses with failed status
+                        activeRegistry.failAnalysis(activeSessionId, serverLaunchResult.error || 'Server launch failed');
                         
                         // Still show success for analysis, but note server issue
                         vscode.window.showWarningMessage(

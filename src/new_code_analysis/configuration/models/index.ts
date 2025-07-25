@@ -5,6 +5,7 @@
 
 export {
     AnalysisFileMode,
+    AnalysisDirectoryMode,
     ViewTheme,
     AutoAnalysisDelay,
     AutoAnalysisDelayConfig,

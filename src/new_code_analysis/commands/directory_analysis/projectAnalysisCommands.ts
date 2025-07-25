@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LaunchAnalyzeDirectoryLivePanel } from '../../engine';
+import { AnalysisOrchestrator } from '../../new_engine/analysisOrchestrator';
 
 export class ProjectAnalysisCommands {
 
@@ -86,8 +86,14 @@ export class ProjectAnalysisCommands {
                 progress.report({ message: "Starting project analysis..." });
                 
                 try {
-                    // Use the existing directory analysis logic
-                    await LaunchAnalyzeDirectoryLivePanel.analyzeDirectory(projectPath, this.context);
+                    // Use the NEW ENGINE for directory analysis
+                    await AnalysisOrchestrator.orchestrateAnalysis(
+                        projectPath,
+                        'LivePanel',
+                        'directory',
+                        this.context,
+                        false // isDeep = false for normal project analysis
+                    );
                     
                     vscode.window.showInformationMessage(
                         `Project analysis completed successfully! ✅`,
@@ -160,19 +166,7 @@ export class ProjectAnalysisCommands {
                 console.log(`PROJECT_ANALYSIS_COMMANDS: User selected workspace folder for DEEP analysis: ${projectPath}`);
             }
             
-            // Show warning about deep analysis
-            const continueDeep = await vscode.window.showWarningMessage(
-                'Deep analysis will scan ALL subdirectories recursively. This may take longer for large projects. Continue?',
-                'Continue',
-                'Cancel'
-            );
-            
-            if (continueDeep !== 'Continue') {
-                console.log('PROJECT_ANALYSIS_COMMANDS: User cancelled deep analysis warning');
-                return;
-            }
-            
-            // Show progress notification
+            // Show progress notification (removed deep analysis warning as requested)
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: "Analyzing Project (Deep)",
@@ -181,8 +175,14 @@ export class ProjectAnalysisCommands {
                 progress.report({ message: "Starting deep project analysis (all subdirectories)..." });
                 
                 try {
-                    // Use the existing directory deep analysis logic
-                    await LaunchAnalyzeDirectoryLivePanel.analyzeDirectoryDeep(projectPath, this.context);
+                    // Use the NEW ENGINE for deep directory analysis
+                    await AnalysisOrchestrator.orchestrateAnalysis(
+                        projectPath,
+                        'LivePanel',
+                        'directory',
+                        this.context,
+                        true // isDeep = true for deep project analysis
+                    );
                     
                     vscode.window.showInformationMessage(
                         `Deep project analysis completed successfully! 🎯`,

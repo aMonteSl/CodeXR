@@ -10,7 +10,8 @@ export {
     NewCodeAnalysisItemFactory,
     NewCodeAnalysisInteractionHandler 
 } from './views';
-export { LaunchAnalyzeFileLivePanel } from './engine';
+// TODO: Update to use new engine exports
+// export { LaunchAnalyzeFileLivePanel } from './engine';
 
 // Initialize services
 export { ServerWatcherIntegration } from './services/serverWatcherIntegration';

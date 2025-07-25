@@ -182,6 +182,16 @@
         "icon": "$(folder-library)"
       },
       {
+        "command": "newCodeAnalysis.analyzeDirectoryXR",
+        "title": "CodeXR: Analyze Directory (XR)",
+        "icon": "$(device-desktop)"
+      },
+      {
+        "command": "newCodeAnalysis.analyzeDirectoryXRDeep",
+        "title": "CodeXR: Analyze Directory (XR Deep)",
+        "icon": "$(layers-dot)"
+      },
+      {
         "command": "newCodeAnalysis.analyzeProject",
         "title": "CodeXR: Analyze Project (LivePanel)",
         "icon": "$(project)"
@@ -190,6 +200,16 @@
         "command": "newCodeAnalysis.analyzeProjectDeep",
         "title": "CodeXR: Analyze Project (LivePanel Deep)",
         "icon": "$(layers)"
+      },
+      {
+        "command": "newCodeAnalysis.analyzeProjectXR",
+        "title": "CodeXR: Analyze Project (XR)",
+        "icon": "$(device-desktop)"
+      },
+      {
+        "command": "newCodeAnalysis.analyzeProjectXRDeep",
+        "title": "CodeXR: Analyze Project (XR Deep)",
+        "icon": "$(layers-dot)"
       },
       {
         "command": "newCodeAnalysis.visualizeDOM",
@@ -271,12 +291,30 @@
           "group": "codexr@4"
         },
         {
-          "command": "newCodeAnalysis.analyzeProject",
+          "command": "newCodeAnalysis.analyzeDirectoryXR",
+          "when": "explorerResourceIsFolder",
           "group": "codexr@5"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectDeep",
+          "command": "newCodeAnalysis.analyzeDirectoryXRDeep",
+          "when": "explorerResourceIsFolder",
           "group": "codexr@6"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProject",
+          "group": "codexr@7"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectDeep",
+          "group": "codexr@8"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectXR",
+          "group": "codexr@9"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectXRDeep",
+          "group": "codexr@10"
         },
         {
           "command": "newCodeAnalysis.visualizeDOM",
@@ -302,6 +340,14 @@
         {
           "command": "newCodeAnalysis.analyzeProjectDeep",
           "group": "codexr@4"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectXR",
+          "group": "codexr@5"
+        },
+        {
+          "command": "newCodeAnalysis.analyzeProjectXRDeep",
+          "group": "codexr@6"
         },
         {
           "command": "newCodeAnalysis.visualizeDOM",

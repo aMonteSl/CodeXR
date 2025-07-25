@@ -11,7 +11,7 @@ import {
     AnalysisSettingsSubsectionProvider,
     ActiveAnalysesSubsectionProvider,
     ProjectByLanguageSubsectionProvider,
-    FilesByLanguageSubsectionProvider
+    // FilesByLanguageSubsectionProvider // TEMPORARILY DISABLED
 } from './subsections';
 import { AnalysisSessionRegistry } from '../engine/registry/analysisSessionRegistry';
 
@@ -32,7 +32,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
     private activeAnalysesSubsection: ActiveAnalysesSubsectionProvider;
     private analysisSettingsSubsection: AnalysisSettingsSubsectionProvider;
     private projectByLanguageSubsection: ProjectByLanguageSubsectionProvider;
-    private filesByLanguageSubsection: FilesByLanguageSubsectionProvider;
+    // private filesByLanguageSubsection: FilesByLanguageSubsectionProvider; // TEMPORARILY DISABLED
 
     constructor(private context: vscode.ExtensionContext) {
         console.log('NEW_CODE_ANALYSIS: Initializing New Code Analysis section provider');
@@ -41,13 +41,13 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         this.activeAnalysesSubsection = new ActiveAnalysesSubsectionProvider(context);
         this.analysisSettingsSubsection = new AnalysisSettingsSubsectionProvider(context);
         this.projectByLanguageSubsection = new ProjectByLanguageSubsectionProvider(context);
-        this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context);
+        // this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context); // TEMPORARILY DISABLED
 
         // Setup real-time refresh callback for Files by Language
-        this.filesByLanguageSubsection.setRefreshCallback(() => {
-            console.log('NEW_CODE_ANALYSIS: Files by Language triggered refresh');
-            this.refresh();
-        });
+        // this.filesByLanguageSubsection.setRefreshCallback(() => { // TEMPORARILY DISABLED
+        //     console.log('NEW_CODE_ANALYSIS: Files by Language triggered refresh');
+        //     this.refresh();
+        // });
 
         // Set up listener for analysis session changes to auto-refresh UI
         const sessionRegistry = AnalysisSessionRegistry.getInstance();
@@ -73,14 +73,14 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
      */
     getSectionItem(): NewCodeAnalysisTreeItem {
         return new NewCodeAnalysisTreeItem(
-            'NEW CODE ANALYSIS',
+            'NEW ANALYSIS',
             vscode.TreeItemCollapsibleState.Expanded,
             'section',
-            undefined,
-            new vscode.ThemeIcon('search-view-icon'),
-            'New experimental code analysis tools',
-            undefined,
-            'newCodeAnalysisSection'
+            undefined, // command
+            new vscode.ThemeIcon('beaker'),
+            'New Analysis Tools and Settings',
+            undefined, // description
+            'newCodeAnalysis.section.main'
         );
     }
 
@@ -95,7 +95,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         this.activeAnalysesSubsection.refresh();
         this.analysisSettingsSubsection.refresh();
         this.projectByLanguageSubsection.refresh();
-        this.filesByLanguageSubsection.refresh();
+        // this.filesByLanguageSubsection.refresh(); // TEMPORARILY DISABLED
 
         // Fire the tree data change event
         console.log('NEW_CODE_ANALYSIS: About to fire _onDidChangeTreeData');
@@ -118,7 +118,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
                 this.activeAnalysesSubsection.getSubsectionItem(),
                 this.analysisSettingsSubsection.getSubsectionItem(),
                 this.projectByLanguageSubsection.getSubsectionItem(),
-                this.filesByLanguageSubsection.getSubsectionItem()
+                // this.filesByLanguageSubsection.getSubsectionItem() // Temporarily disabled
             ]);
             return subsections;
         }
@@ -131,24 +131,35 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
                 return this.analysisSettingsSubsection.getChildren();
             case 'projectByLanguageSubsection':
                 return this.projectByLanguageSubsection.getChildren();
-            case 'filesByLanguageSubsection':
-                return this.filesByLanguageSubsection.getChildren();
+            // case 'filesByLanguageSubsection':
+            //     return this.filesByLanguageSubsection.getChildren();
             
             // Handle nested settings like dimension mapping
             case 'dimensionMappingFileSetting':
                 return this.analysisSettingsSubsection.getSettingChildren(element);
             
+            case 'dimensionMappingDirectorySetting':
+                return this.analysisSettingsSubsection.getSettingChildren(element);
+            
             case 'filesByLanguageSortingSetting':
                 return this.analysisSettingsSubsection.getSettingChildren(element);
             
+            case 'profileConfigurationSetting':
+                return this.analysisSettingsSubsection.getSettingChildren(element);
+            
             // Handle Files by Language nested children
-            case 'unsupportedFilesGroup':
-                return this.filesByLanguageSubsection.getNestedChildren(element);
+            // case 'unsupportedFilesGroup':
+            //     return this.filesByLanguageSubsection.getNestedChildren(element);
                 
             default:
                 // Check if it's a language group
                 if (element.contextValue?.startsWith('languageGroup_')) {
-                    return this.filesByLanguageSubsection.getNestedChildren(element);
+                    // return this.filesByLanguageSubsection.getNestedChildren(element); // Temporarily disabled
+                    return Promise.resolve([]);
+                }
+                // Check if it's a project directory
+                if (element.contextValue?.startsWith('projectDirectory_')) {
+                    return this.projectByLanguageSubsection.getNestedChildren(element);
                 }
                 return Promise.resolve([]);
         }
@@ -168,9 +179,9 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         console.log('NEW_CODE_ANALYSIS: Disposing New Code Analysis section provider');
         
         // Dispose of subsections
-        if (this.filesByLanguageSubsection) {
-            this.filesByLanguageSubsection.dispose();
-        }
+        // if (this.filesByLanguageSubsection) {
+        //     this.filesByLanguageSubsection.dispose();
+        // }
         
         // Note: Other subsections can also implement dispose if needed
     }

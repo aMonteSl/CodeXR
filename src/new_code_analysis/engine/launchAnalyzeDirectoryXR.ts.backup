@@ -1,0 +1,224 @@
+/**
+ * Launch Analyze Directory XR
+ * Handles the launching and coordination of XR directory analysis
+ */
+
+import * as vscode from 'vscode';
+import { DirectoryAnalysisSessionManager } from './registry/directoryAnalysisSessionManager';
+import { DirectoryAnalysisSessionRegistry, DirectoryAnalysisType } from './registry/directoryAnalysisSessionRegistry';
+import { CheckIfAnalysisAlreadyRunning } from './utils/checkIfAnalysisAlreadyRunning';
+import { AnalysisType } from './registry/analysisSessionRegistry';
+import { GetNecessaryFiles } from './utils/getNecessaryFiles';
+import { ManageWatcher } from './utils/manageWatcher';
+import { SaveFiles, FilesToSave } from './utils/saveFiles';
+import { MultiServerLauncher } from '../../servers/runtime/multiServerLauncher';
+import { fileToServerMap } from '../../utils/fileToServerMap';
+
+export class LaunchAnalyzeDirectoryXR {
+
+    /**
+     * Execute XR directory analysis
+     * @param directoryPath Path to directory to analyze
+     * @param context VS Code extension context
+     */
+    static async analyzeDirectory(directoryPath: string, context: vscode.ExtensionContext): Promise<void> {
+        console.log(`LAUNCH_ANALYZE_DIRECTORY_XR: Starting XR analysis for directory: ${directoryPath}`);
+        
+        try {
+            console.log('XR_DIRECTORY_ANALYSIS: Starting XR directory analysis...');
+            console.log(`XR_DIRECTORY_ANALYSIS: Target directory: ${directoryPath}`);
+            console.log(`XR_DIRECTORY_ANALYSIS: Analysis parameters: isXR=true, isDeep=false`);
+
+            // Check for conflicting directory analyses (using existing DirectoryLivePanel type)
+            const conflictResult = await CheckIfAnalysisAlreadyRunning.checkAndWarnAboutConflicts(
+                directoryPath, 
+                'DirectoryLivePanel' as AnalysisType
+            );
+
+            if (!conflictResult) {
+                console.log('XR_DIRECTORY_ANALYSIS: Analysis cancelled due to user choice or conflicts');
+                return;
+            }
+
+            // Initialize session manager and create new session
+            const sessionManager = DirectoryAnalysisSessionManager.getInstance();
+            console.log('XR_DIRECTORY_ANALYSIS: Session manager initialized');
+
+            // Create XR directory analysis session
+            const session = await sessionManager.startDirectoryAnalysis(
+                directoryPath,
+                'D_XR' as DirectoryAnalysisType,
+                context
+            );
+
+            console.log(`XR_DIRECTORY_ANALYSIS: Created session ${session.id} for XR directory analysis`);
+            console.log(`XR_DIRECTORY_ANALYSIS: Session details:`, {
+                sessionId: session.id,
+                nameDir: session.nameDir,
+                filePath: session.filePath,
+                outputDirectory: session.outputDirectory,
+                outputPath: session.outputPath,
+                analysisType: session.analysisType,
+                isXR: session.isXR,
+                isDeep: session.isDeep,
+                status: session.status,
+                filesCount: session.filesList.size,
+                hash256: session.hash256.substring(0, 16) + '...'
+            });
+
+            // Update session status to analyzing
+            sessionManager.updateSessionStatus(session.id, 'analyzing', 0);
+            console.log(`XR_DIRECTORY_ANALYSIS: Updated session ${session.id} status to 'analyzing'`);
+
+            // Execute XR directory analysis with progress tracking
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Analyzing directory (XR): ${session.nameDir}`,
+                cancellable: false
+            }, async (progress) => {
+                try {
+                    progress.report({ increment: 10, message: "Initializing XR analysis..." });
+
+                    // Execute XR directory analysis using getNecessaryFiles
+                    console.log('XR_DIRECTORY_ANALYSIS: Calling getNecessaryFiles for XR directory analysis...');
+                    
+                    progress.report({ increment: 30, message: "Executing Python analysis..." });
+                    
+                    const analysisResult = await GetNecessaryFiles.getAnalysisDirectoryLivePanel(
+                        directoryPath,
+                        context,
+                        session.id
+                    );
+                    
+                    if (analysisResult.success) {
+                        console.log('XR_DIRECTORY_ANALYSIS: ===== ANALYSIS COMPLETED SUCCESSFULLY =====');
+                        console.log('XR_DIRECTORY_ANALYSIS: Analysis result:', analysisResult);
+                        console.log('XR_DIRECTORY_ANALYSIS: Data.json preview:', JSON.stringify(analysisResult.data, null, 2));
+                        
+                        // TODO: Verify session files received correctly
+                        console.log('XR_DIRECTORY_ANALYSIS: ===== SESSION FILES VERIFICATION =====');
+                        const sessionRegistry = DirectoryAnalysisSessionRegistry.getInstance();
+                        const sessionFiles = sessionRegistry.getAllRequiredFiles(session.id);
+                        
+                        if (sessionFiles && sessionFiles.size > 0) {
+                            console.log('XR_DIRECTORY_ANALYSIS: ✅ TODO - Session files received correctly:');
+                            for (const [fileName, content] of sessionFiles) {
+                                console.log(`XR_DIRECTORY_ANALYSIS: - ${fileName}: ${content.length} characters`);
+                            }
+                            console.log('XR_DIRECTORY_ANALYSIS: All XR template files and data.json are properly stored in session');
+                        } else {
+                            console.log('XR_DIRECTORY_ANALYSIS: ❌ No session files found');
+                        }
+                        console.log('XR_DIRECTORY_ANALYSIS: ================================================');
+                        
+                        progress.report({ increment: 30, message: "Saving analysis files..." });
+                        
+                        // Save files to disk before starting watcher
+                        console.log('XR_DIRECTORY_ANALYSIS: Saving template files and data to disk...');
+                        
+                        const filesToSave: FilesToSave = {
+                            indexHtml: analysisResult.indexHtml || '',
+                            cssContent: analysisResult.cssContent || '',
+                            jsContent: analysisResult.jsContent || '',
+                            dataJson: analysisResult.data
+                        };
+                        
+                        const saveResult = await SaveFiles.saveAnalysisFiles(
+                            filesToSave,
+                            session.id,
+                            context
+                        );
+                        
+                        if (!saveResult.success) {
+                            throw new Error(`Failed to save analysis files: ${saveResult.error}`);
+                        }
+                        
+                        console.log(`XR_DIRECTORY_ANALYSIS: Successfully saved analysis files!`);
+                        console.log(`XR_DIRECTORY_ANALYSIS: Analysis nonce: ${saveResult.nonce}`);
+                        console.log(`XR_DIRECTORY_ANALYSIS: Analysis directory: ${saveResult.analysisDirectoryPath}`);
+                        console.log(`XR_DIRECTORY_ANALYSIS: Index.html path: ${saveResult.indexHtmlPath}`);
+                        
+                        progress.report({ increment: 20, message: "Setting up live monitoring..." });
+                        
+                        // Start watcher for live updates after files are saved
+                        console.log('XR_DIRECTORY_ANALYSIS: Starting directory watcher for live updates...');
+                        const watcherId = await ManageWatcher.startDirectoryWatching(session.id, context);
+                        
+                        if (watcherId) {
+                            console.log(`XR_DIRECTORY_ANALYSIS: Successfully started watcher with ID: ${watcherId}`);
+                            
+                            // Auto-launch server for XR visualization
+                            console.log('XR_DIRECTORY_ANALYSIS: Auto-launching server for XR visualization...');
+                            
+                            try {
+                                const serverLauncher = new MultiServerLauncher(context);
+                                const serverInfo = await serverLauncher.launchServer(saveResult.indexHtmlPath);
+                                
+                                console.log('XR_DIRECTORY_ANALYSIS: Server launched successfully for XR visualization');
+                                
+                                // Register file-to-server mapping for SSE updates
+                                if (serverInfo && serverInfo.port) {
+                                    fileToServerMap.registerMapping(directoryPath, {
+                                        port: serverInfo.port,
+                                        tempDir: saveResult.analysisDirectoryPath,
+                                        fileUri: directoryPath,
+                                        serverRef: null as any // We don't have direct access to server reference in MultiServerLauncher
+                                    });
+                                    console.log(`XR_DIRECTORY_ANALYSIS: Registered file-to-server mapping for SSE updates - Port: ${serverInfo.port}, Directory: ${directoryPath}`);
+                                }
+                                
+                                // Show success message with server info
+                                vscode.window.showInformationMessage(
+                                    `🚀 XR Directory Analysis completed and server launched!\n\nDirectory: ${session.nameDir}\nFiles analyzed: ${Array.isArray(analysisResult.data) ? analysisResult.data.length : 0}\n\nXR visualization is now available in your browser with live monitoring.`,
+                                    'Open Browser', 'OK'
+                                ).then(selection => {
+                                    if (selection === 'Open Browser') {
+                                        // Server launcher automatically opens browser, so we don't need to do anything else
+                                        console.log('XR_DIRECTORY_ANALYSIS: User requested to open browser (server already handles this)');
+                                    }
+                                });
+                            } catch (serverError) {
+                                console.error('XR_DIRECTORY_ANALYSIS: Failed to launch server:', serverError);
+                                
+                                // Show fallback message
+                                vscode.window.showInformationMessage(
+                                    `XR Directory Analysis completed and live monitoring started!\n\nDirectory: ${session.nameDir}\nFiles analyzed: ${Array.isArray(analysisResult.data) ? analysisResult.data.length : 0}\n\nThe analysis will update automatically when files change.\n\nNote: Auto-server launch failed, but you can manually launch the server from the tree view.`,
+                                    'OK'
+                                );
+                            }
+                        } else {
+                            console.warn('XR_DIRECTORY_ANALYSIS: Failed to start watcher, completing session normally');
+                            
+                            // Fallback: Complete the session without watcher
+                            sessionManager.completeSession(session.id);
+                            
+                            vscode.window.showInformationMessage(
+                                `XR Directory Analysis completed successfully!\n\nDirectory: ${session.nameDir}\nFiles analyzed: ${Array.isArray(analysisResult.data) ? analysisResult.data.length : 0}\n\nNote: Live monitoring could not be started.`,
+                                'OK'
+                            );
+                        }
+                        
+                    } else {
+                        console.error('XR_DIRECTORY_ANALYSIS: Analysis failed:', analysisResult.error);
+                        sessionManager.updateSessionStatus(session.id, 'failed', undefined, analysisResult.error);
+                        
+                        vscode.window.showErrorMessage(
+                            `XR Directory Analysis failed: ${analysisResult.error}`
+                        );
+                    }
+                    
+                } catch (error) {
+                    console.error(`XR_DIRECTORY_ANALYSIS: Error during analysis:`, error);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    sessionManager.updateSessionStatus(session.id, 'failed', undefined, errorMessage);
+                    throw error;
+                }
+            });
+
+        } catch (error) {
+            console.error('XR_DIRECTORY_ANALYSIS: Failed to start XR directory analysis:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to analyze directory (XR): ${errorMessage}`);
+        }
+    }
+}

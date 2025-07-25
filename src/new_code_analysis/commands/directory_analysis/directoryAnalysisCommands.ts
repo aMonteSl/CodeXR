@@ -7,6 +7,7 @@
 import * as vscode from 'vscode';
 import { CommandRegistration } from '../subsections/analysis_settings/analysis_file_mode';
 import { DirectoryAnalysisLivePanelCommands } from './directoryAnalysisLivePanelCommands';
+import { DirectoryAnalysisXRCommands } from './directoryAnalysisXRCommands';
 
 export class DirectoryAnalysisCommands {
     
@@ -21,6 +22,10 @@ export class DirectoryAnalysisCommands {
         // Register LivePanel directory analysis commands
         const livePanelDisposables = DirectoryAnalysisLivePanelCommands.registerCommands(context);
         disposables.push(...livePanelDisposables);
+        
+        // Register XR directory analysis commands
+        const xrDisposables = DirectoryAnalysisXRCommands.registerCommands(context);
+        disposables.push(...xrDisposables);
         
         context.subscriptions.push(...disposables);
 

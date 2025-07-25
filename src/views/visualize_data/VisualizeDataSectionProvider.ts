@@ -46,7 +46,7 @@ export class VisualizeDataSectionProvider implements SectionProvider<VisualizeDa
             vscode.TreeItemCollapsibleState.Collapsed,
             'error', // Using this as section header type
             undefined,
-            new vscode.ThemeIcon('chart-scatter'),
+            new vscode.ThemeIcon('open-preview', new vscode.ThemeColor('charts.foreground')),
             'Data visualization configuration and launch',
             undefined,
             'visualizeDataSection'
