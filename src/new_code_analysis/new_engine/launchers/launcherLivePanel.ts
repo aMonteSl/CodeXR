@@ -20,19 +20,19 @@ export class LauncherLivePanel {
      * Launch Live Panel analysis for a file using session - NEW CLEAR ARCHITECTURE
      */
     static async launchFileLivePanelAnalysis(session: UnifiedAnalysisSession, context: vscode.ExtensionContext): Promise<void> {
-        console.log(`🚀 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Starting Live Panel FILE analysis with session ${session.id}`);
+        console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Starting Live Panel FILE analysis with session ${session.id}`);
         
         const registry = UnifiedSessionRegistry.getInstance(context);
         
         try {
-            // Verify that file hash was calculated during session creation
+            // Verify session has required file hash for Live Panel analysis
             if (!session.hash256) {
-                console.error(`❌ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File hash not found in session ${session.id}`);
-                registry.updateSessionStatus(session.id, 'error', undefined, 'File hash missing from session');
+                console.error(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File hash not found in session ${session.id}`);
+                registry.updateSessionStatus(session.id, 'error', 100);
                 return;
             }
             
-            console.log(`📊 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File hash from session: ${session.hash256.substring(0, 12)}...`);
+            console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File hash from session: ${session.hash256.substring(0, 12)}...`);
 
             // Get current theme configuration
             const configStorage = AnalysisConfigurationStorage.getInstance(context);
@@ -111,7 +111,13 @@ export class LauncherLivePanel {
                 console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Server started successfully on port ${serverStatus.port}`);
                 console.log(`🌐 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Server URL: ${serverStatus.serverUrl}`);
                 
-                // Update session with server information
+                // Update session with server information using centralized function
+                if (serverStatus.port) {
+                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Registering port ${serverStatus.port} for session ${session.id}`);
+                    const portRegistered = registry.registerSessionPort(session.id, serverStatus.port);
+                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Port registration result: ${portRegistered}`);
+                }
+                
                 session.assignedPort = serverStatus.port;
                 session.serverUrl = serverStatus.serverUrl;
                 
@@ -246,7 +252,13 @@ export class LauncherLivePanel {
                 console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory server started successfully on port ${serverStatus.port}`);
                 console.log(`🌐 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory server URL: ${serverStatus.serverUrl}`);
                 
-                // Update session with server information
+                // Update session with server information using centralized function
+                if (serverStatus.port) {
+                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Registering port ${serverStatus.port} for directory session ${session.id}`);
+                    const portRegistered = registry.registerSessionPort(session.id, serverStatus.port);
+                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Directory port registration result: ${portRegistered}`);
+                }
+                
                 session.assignedPort = serverStatus.port;
                 session.serverUrl = serverStatus.serverUrl;
                 

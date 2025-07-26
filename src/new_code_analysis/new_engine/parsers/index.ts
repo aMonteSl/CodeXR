@@ -5,3 +5,5 @@
  */
 
 export { FileLivePanelParser } from './fileLivePanelParser';
+export { VisualizeDOMParser } from './visualizeDOMParser';
+export { FileXRParser } from './fileXRParser';

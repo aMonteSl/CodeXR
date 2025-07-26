@@ -1,503 +1,383 @@
 /**
  * Active Analyses Commands
- * Commands for managing active analysis sessions from the UI
+ * Handles command registration and execution for active analysis operations
  */
 
 import * as vscode from 'vscode';
-import { ActiveAnalysesDataService } from '../services/activeAnalysesDataService';
+import { UnifiedSessionRegistry } from '../../../../../new_code_analysis/new_engine/core/sessionRegistry';
+import { ServerWatcherIntegration } from '../../../../../new_code_analysis/services/serverWatcherIntegration';
+import { ActiveAnalysisTreeItem } from '../items/activeAnalysisItems';
 import { ActiveAnalysisData } from '../model/activeAnalysisModel';
-import { getActiveServerRegistry } from '../../../../../active_servers/registry/activeServerRegistry';
-import { ServerControl } from '../../../../../active_servers/runtime/serverControl';
-import { ServerWatcherIntegration } from '../../../../services/serverWatcherIntegration';
-import { ManageWatcher } from '../../../../engine/utils/manageWatcher';
-import { AnalysisSessionRegistry } from '../../../../engine/registry/analysisSessionRegistry';
-import * as fs from 'fs';
-import * as path from 'path';
+import { ActiveAnalysisItem } from '../services/activeAnalysesDataService';
 
+/**
+ * Command registration configuration for active analyses
+ */
 export interface ActiveAnalysisCommandRegistration {
     commandId: string;
-    callback: (...args: any[]) => any;
-    description: string;
+    title: string;
+    handler: (arg?: ActiveAnalysisTreeItem | ActiveAnalysisItem | string) => void | Promise<void>;
 }
 
+/**
+ * Active Analyses Commands implementation
+ */
 export class ActiveAnalysesCommands {
-    private dataService: ActiveAnalysesDataService;
-    
-    constructor() {
-        this.dataService = ActiveAnalysesDataService.getInstance();
-        console.log('ACTIVE_ANALYSES_COMMANDS: Initialized Active Analyses Commands');
-    }
-    
-    /**
-     * Get all command registrations for active analyses
-     */
-    getCommandRegistrations(refreshCallback: () => void): ActiveAnalysisCommandRegistration[] {
-        return [
+    private static instance: ActiveAnalysesCommands;
+    private commands: ActiveAnalysisCommandRegistration[];
+    private registeredCommands: Set<string> = new Set();
+
+    private constructor(
+        private sessionRegistry: UnifiedSessionRegistry,
+        private serverWatcher: ServerWatcherIntegration
+    ) {
+        this.commands = [
             {
-                commandId: 'newCodeAnalysis.activeAnalyses.closeAnalysis',
-                callback: (arg: any) => this.closeAnalysis(arg, refreshCallback),
-                description: 'Close analysis session and cleanup all resources'
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
+                title: 'Show Analysis Details',
+                handler: this.showDetails.bind(this)
             },
             {
-                commandId: 'newCodeAnalysis.activeAnalyses.openInBrowser',
-                callback: (arg: any) => this.openAnalysisInBrowser(arg),
-                description: 'Open analysis in browser'
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.close',
+                title: 'Close Analysis',
+                handler: this.closeAnalysis.bind(this)
             },
             {
-                commandId: 'newCodeAnalysis.activeAnalyses.stopAnalysis',
-                callback: (arg: any) => this.stopAnalysis(arg, refreshCallback),
-                description: 'Stop analysis session'
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.refresh',
+                title: 'Refresh Active Analyses',
+                handler: this.refreshActiveAnalyses.bind(this)
             },
             {
-                commandId: 'newCodeAnalysis.activeAnalyses.viewDetails',
-                callback: (arg: any) => this.viewAnalysisDetails(arg),
-                description: 'View analysis details'
-            },
-            {
-                commandId: 'newCodeAnalysis.activeAnalyses.openOutputFolder',
-                callback: (arg: any) => this.openOutputFolder(arg),
-                description: 'Open analysis output folder'
-            },
-            {
-                commandId: 'newCodeAnalysis.activeAnalyses.refreshAll',
-                callback: () => this.refreshAllAnalyses(refreshCallback),
-                description: 'Refresh all active analyses'
-            },
-            {
-                commandId: 'newCodeAnalysis.activeAnalyses.stopAll',
-                callback: () => this.stopAllAnalyses(refreshCallback),
-                description: 'Stop all active analyses'
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.closeAll',
+                title: 'Close All Analyses',
+                handler: this.closeAllAnalyses.bind(this)
             }
         ];
     }
-    
+
     /**
-     * Extract sessionId from command argument (handles both string and TreeItem)
+     * Get or create the singleton instance
      */
-    private extractSessionId(arg: any): string | null {
-        // If it's already a string, return it
-        if (typeof arg === 'string') {
-            return arg;
+    static getInstance(
+        sessionRegistry: UnifiedSessionRegistry,
+        serverWatcher: ServerWatcherIntegration
+    ): ActiveAnalysesCommands {
+        if (!ActiveAnalysesCommands.instance) {
+            ActiveAnalysesCommands.instance = new ActiveAnalysesCommands(sessionRegistry, serverWatcher);
         }
-        
-        // If it's a TreeItem with sessionData, extract sessionId
-        if (arg && arg.sessionData && arg.sessionData.sessionId) {
-            return arg.sessionData.sessionId;
-        }
-        
-        // Log the received argument for debugging
-        console.log('ACTIVE_ANALYSES_COMMANDS: Received argument:', arg);
-        
-        // Try to extract from different possible structures
-        if (arg && arg.sessionId) {
-            return arg.sessionId;
-        }
-        
-        // If it has a command with arguments, try to get sessionId from there
-        if (arg && arg.command && arg.command.arguments && arg.command.arguments.length > 0) {
-            return arg.command.arguments[0];
-        }
-        
-        return null;
+        return ActiveAnalysesCommands.instance;
     }
 
     /**
-     * Close analysis session and cleanup all resources
+     * Register all active analyses commands
      */
-    private async closeAnalysis(arg: any, refreshCallback: () => void): Promise<void> {
-        try {
-            const sessionId = this.extractSessionId(arg);
-            if (!sessionId) {
-                vscode.window.showErrorMessage('Invalid session ID for close analysis operation');
-                return;
-            }
-            
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Closing analysis session ${sessionId}`);
-            
-            const analysisData = this.dataService.getAnalysisData(sessionId);
-            if (!analysisData) {
-                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
-                return;
-            }
-            
-            // Confirm with user
-            const action = await vscode.window.showWarningMessage(
-                `Close analysis for "${analysisData.fileName} - ${analysisData.analysisType}"?\n\nThis will:\n• Stop the analysis server\n• Remove file watcher\n• Delete analysis files`,
-                { modal: true },
-                'Close Analysis',
-                'Cancel'
-            );
-            
-            if (action !== 'Close Analysis') {
-                return;
-            }
-            
-            // Use the integration service for comprehensive cleanup
-            const integrationService = ServerWatcherIntegration.getInstance();
-            const success = await integrationService.triggerManualCleanup(sessionId);
-            
-            if (success) {
-                vscode.window.showInformationMessage(
-                    `✅ Closed analysis: ${analysisData.fileName} - ${analysisData.analysisType}`
-                );
-                refreshCallback();
-            } else {
-                vscode.window.showErrorMessage(
-                    `Failed to close session: ${analysisData.fileName} - ${analysisData.analysisType}`
-                );
-            }
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error closing analysis:`, error);
-            vscode.window.showErrorMessage(`Failed to close analysis: ${error}`);
-        }
-    }
-    
-    /**
-     * Close analysis server by port
-     */
-    private async closeAnalysisServer(port: number, filePath: string): Promise<void> {
-        try {
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Closing server on port ${port} for file: ${filePath}`);
-            
-            const serverRegistry = getActiveServerRegistry();
-            const servers = serverRegistry.getAllServers();
-            
-            // Find server by port
-            const targetServer = servers.find(server => server.port === port);
-            
-            if (targetServer) {
-                console.log(`ACTIVE_ANALYSES_COMMANDS: Found server ${targetServer.id} on port ${port}`);
-                
-                // Stop the server using ServerControl
-                const stopped = await ServerControl.stopServer(targetServer.id);
-                
-                if (stopped) {
-                    console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully stopped server ${targetServer.id}`);
-                } else {
-                    console.warn(`ACTIVE_ANALYSES_COMMANDS: Failed to stop server ${targetServer.id}`);
-                }
-            } else {
-                console.log(`ACTIVE_ANALYSES_COMMANDS: No server found on port ${port}`);
-            }
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error closing server:`, error);
-        }
-    }
-    
-    /**
-     * Stop file watcher for the session
-     */
-    private async stopFileWatcher(sessionId: string): Promise<void> {
-        try {
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Stopping file watcher for session ${sessionId}`);
-            
-            // Get all active watchers and find the one for this session
-            const watchersInfo = ManageWatcher.getActiveWatchersInfo();
-            
-            // Find watcher by checking if the sessionId is in the watcher ID or by matching file path
-            const registry = AnalysisSessionRegistry.getInstance();
-            const session = registry.getSession(sessionId);
-            
-            if (session) {
-                // Try to find watcher by file path
-                const watcherInfo = watchersInfo.find((w: any) => w.filePath === session.filePath);
-                
-                if (watcherInfo) {
-                    const stopped = ManageWatcher.stopWatching(watcherInfo.id);
-                    
-                    if (stopped) {
-                        console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully stopped file watcher ${watcherInfo.id}`);
+    registerCommands(context: vscode.ExtensionContext): void {
+        this.commands.forEach(command => {
+            if (!this.registeredCommands.has(command.commandId)) {
+                // Double check that VS Code doesn't already have this command registered
+                try {
+                    const disposable = vscode.commands.registerCommand(command.commandId, command.handler);
+                    context.subscriptions.push(disposable);
+                    this.registeredCommands.add(command.commandId);
+                    console.log(`[ACTIVE_ANALYSES_COMMANDS] Registered command: ${command.commandId}`);
+                } catch (error) {
+                    if (error instanceof Error && error.message.includes('already exists')) {
+                        console.warn(`[ACTIVE_ANALYSES_COMMANDS] Command ${command.commandId} already exists, skipping registration`);
+                        this.registeredCommands.add(command.commandId); // Mark as registered to avoid retries
                     } else {
-                        console.warn(`ACTIVE_ANALYSES_COMMANDS: Failed to stop file watcher ${watcherInfo.id}`);
+                        console.error(`[ACTIVE_ANALYSES_COMMANDS] Error registering command ${command.commandId}:`, error);
                     }
-                } else {
-                    console.log(`ACTIVE_ANALYSES_COMMANDS: No file watcher found for session ${sessionId}`);
-                }
-            }
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error stopping file watcher:`, error);
-        }
-    }
-    
-    /**
-     * Cleanup analysis files and directory
-     */
-    private async cleanupAnalysisFiles(sessionId: string): Promise<void> {
-        try {
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Cleaning up analysis files for session ${sessionId}`);
-            
-            const registry = AnalysisSessionRegistry.getInstance();
-            const session = registry.getSession(sessionId);
-            
-            if (session && session.outputPath) {
-                // Check if directory exists
-                if (fs.existsSync(session.outputPath)) {
-                    console.log(`ACTIVE_ANALYSES_COMMANDS: Removing analysis directory: ${session.outputPath}`);
-                    
-                    // Remove the directory and all its contents
-                    await fs.promises.rm(session.outputPath, { recursive: true, force: true });
-                    
-                    console.log(`ACTIVE_ANALYSES_COMMANDS: Successfully removed analysis directory`);
-                } else {
-                    console.log(`ACTIVE_ANALYSES_COMMANDS: Analysis directory does not exist: ${session.outputPath}`);
                 }
             } else {
-                console.log(`ACTIVE_ANALYSES_COMMANDS: No output path found for session ${sessionId}`);
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] Command ${command.commandId} already registered, skipping`);
+            }
+        });
+    }
+
+    /**
+     * Show details for a specific analysis
+     */
+    private async showDetails(item?: ActiveAnalysisTreeItem | ActiveAnalysisItem | string): Promise<void> {
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] showDetails called with:`, typeof item, item);
+        
+        try {
+            let sessionId: string;
+            let sessionData: ActiveAnalysisData | undefined;
+            
+            // Handle different types of items
+            if (typeof item === 'string') {
+                sessionId = item;
+                // Find the session by ID
+                const session = this.sessionRegistry.getSession(sessionId);
+                if (session) {
+                    sessionData = {
+                        sessionId: session.id,
+                        fileName: session.targetName || 'Unknown',
+                        filePath: session.targetPath || '',
+                        analysisType: session.analysisMode || 'Unknown',
+                        status: session.status as any || 'creating',
+                        lastAnalysisTime: session.startTime,
+                        startTime: session.startTime,
+                        serverPort: session.assignedPort,
+                        serverUrl: session.serverUrl
+                    };
+                }
+            } else if (item && typeof item === 'object') {
+                // Check for ActiveAnalysisItem (from data service)
+                if ('sessionId' in item && item.sessionId) {
+                    sessionId = item.sessionId;
+                    const session = this.sessionRegistry.getSession(sessionId);
+                    if (session) {
+                        sessionData = {
+                            sessionId: session.id,
+                            fileName: session.targetName || 'Unknown',
+                            filePath: session.targetPath || '',
+                            analysisType: session.analysisMode || 'Unknown',
+                            status: session.status as any || 'creating',
+                            lastAnalysisTime: session.startTime,
+                            startTime: session.startTime,
+                            serverPort: session.assignedPort,
+                            serverUrl: session.serverUrl
+                        };
+                    }
+                } else if ('id' in item && item.id) {
+                    // Fallback to id property
+                    sessionId = item.id;
+                    const session = this.sessionRegistry.getSession(sessionId);
+                    if (session) {
+                        sessionData = {
+                            sessionId: session.id,
+                            fileName: session.targetName || 'Unknown',
+                            filePath: session.targetPath || '',
+                            analysisType: session.analysisMode || 'Unknown',
+                            status: session.status as any || 'creating',
+                            lastAnalysisTime: session.startTime,
+                            startTime: session.startTime,
+                            serverPort: session.assignedPort,
+                            serverUrl: session.serverUrl
+                        };
+                    }
+                } else if (item instanceof ActiveAnalysisTreeItem) {
+                    // ActiveAnalysisTreeItem
+                    sessionId = item.sessionData.sessionId;
+                    sessionData = item.sessionData;
+                } else {
+                    console.log(`[ACTIVE_ANALYSES_COMMANDS] Unexpected item structure for showDetails:`, item);
+                    vscode.window.showWarningMessage('Could not identify analysis from selection');
+                    return;
+                }
+            } else {
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] No valid item provided:`, item);
+                vscode.window.showWarningMessage('No analysis selected');
+                return;
             }
             
+            if (!sessionData) {
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] No session data found for:`, sessionId);
+                vscode.window.showWarningMessage('Analysis not found or no longer active');
+                return;
+            }
+            
+            // Create details message
+            const details = [
+                `**Analysis Details**`,
+                ``,
+                `**ID:** ${sessionData.sessionId}`,
+                `**Type:** ${sessionData.analysisType}`,
+                `**File:** ${sessionData.fileName}`,
+                `**Path:** ${sessionData.filePath}`,
+                `**Started:** ${sessionData.startTime.toLocaleString()}`,
+                `**Status:** ${sessionData.status}`,
+                ``
+            ];
+
+            if (sessionData.serverPort) {
+                details.push(`**Port:** ${sessionData.serverPort}`);
+            }
+
+            if (sessionData.serverUrl) {
+                details.push(`**URL:** ${sessionData.serverUrl}`);
+            }
+
+            if (sessionData.progress !== undefined) {
+                details.push(`**Progress:** ${sessionData.progress}%`);
+            }
+
+            const detailsText = details.join('\n');
+            
+            // Show details in a new document
+            const doc = await vscode.workspace.openTextDocument({
+                content: detailsText,
+                language: 'markdown'
+            });
+            
+            await vscode.window.showTextDocument(doc, { preview: true });
+            
         } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error cleaning up analysis files:`, error);
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error showing details:', error);
+            vscode.window.showErrorMessage(`Error showing analysis details: ${error}`);
         }
     }
 
     /**
-     * Open analysis in browser
+     * Close a specific analysis
      */
-    private async openAnalysisInBrowser(arg: any): Promise<void> {
+    private async closeAnalysis(item?: ActiveAnalysisTreeItem | ActiveAnalysisItem | string): Promise<void> {
+        console.log(`[ACTIVE_ANALYSES_COMMANDS] closeAnalysis called with:`, typeof item, item);
+        
         try {
-            const sessionId = this.extractSessionId(arg);
-            if (!sessionId) {
-                vscode.window.showErrorMessage('Invalid session ID for open in browser operation');
-                return;
-            }
+            let sessionId: string;
+            let sessionName: string;
             
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Opening analysis ${sessionId} in browser`);
-            
-            const analysisData = this.dataService.getAnalysisData(sessionId);
-            if (!analysisData) {
-                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
-                return;
-            }
-            
-            if (!analysisData.serverUrl) {
-                vscode.window.showWarningMessage(
-                    `No server URL available for analysis: ${analysisData.fileName} - ${analysisData.analysisType}`
-                );
-                return;
-            }
-            
-            // Open in external browser
-            await vscode.env.openExternal(vscode.Uri.parse(analysisData.serverUrl));
-            
-            vscode.window.showInformationMessage(
-                `Opened ${analysisData.fileName} analysis in browser`
-            );
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error opening analysis in browser:`, error);
-            vscode.window.showErrorMessage(`Failed to open analysis in browser: ${error}`);
-        }
-    }
-    
-    /**
-     * Stop analysis session
-     */
-    private async stopAnalysis(arg: any, refreshCallback: () => void): Promise<void> {
-        try {
-            const sessionId = this.extractSessionId(arg);
-            if (!sessionId) {
-                vscode.window.showErrorMessage('Invalid session ID for stop analysis operation');
-                return;
-            }
-            
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Stopping analysis ${sessionId}`);
-            
-            const analysisData = this.dataService.getAnalysisData(sessionId);
-            if (!analysisData) {
-                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
-                return;
-            }
-            
-            // Confirm with user
-            const action = await vscode.window.showWarningMessage(
-                `Stop analysis for "${analysisData.fileName} - ${analysisData.analysisType}"?`,
-                { modal: true },
-                'Stop Analysis',
-                'Cancel'
-            );
-            
-            if (action !== 'Stop Analysis') {
-                return;
-            }
-            
-            // Stop the analysis
-            const success = this.dataService.stopAnalysis(sessionId);
-            
-            if (success) {
-                vscode.window.showInformationMessage(
-                    `Stopped analysis: ${analysisData.fileName} - ${analysisData.analysisType}`
-                );
-                refreshCallback();
-            } else {
-                vscode.window.showErrorMessage(
-                    `Failed to stop analysis: ${analysisData.fileName} - ${analysisData.analysisType}`
-                );
-            }
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error stopping analysis:`, error);
-            vscode.window.showErrorMessage(`Failed to stop analysis: ${error}`);
-        }
-    }
-    
-    /**
-     * View detailed information about analysis
-     */
-    private async viewAnalysisDetails(arg: any): Promise<void> {
-        try {
-            const sessionId = this.extractSessionId(arg);
-            if (!sessionId) {
-                vscode.window.showErrorMessage('Invalid session ID for view details operation');
-                return;
-            }
-            
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Viewing details for analysis ${sessionId}`);
-            
-            const analysisData = this.dataService.getAnalysisData(sessionId);
-            if (!analysisData) {
-                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
-                return;
-            }
-            
-            // Create detailed information message
-            let details = `Analysis Details\n\n`;
-            details += `File: ${analysisData.fileName}\n`;
-            details += `Type: ${analysisData.analysisType}\n`;
-            details += `Status: ${analysisData.status}\n`;
-            details += `Session ID: ${analysisData.sessionId}\n\n`;
-            
-            details += `Started: ${analysisData.startTime.toLocaleString()}\n`;
-            details += `Last Analysis: ${analysisData.lastAnalysisTime.toLocaleString()}\n`;
-            
-            if (analysisData.durationSeconds !== undefined) {
-                details += `Duration: ${analysisData.durationSeconds} seconds\n`;
-            }
-            
-            if (analysisData.progress !== undefined) {
-                details += `Progress: ${analysisData.progress}%\n`;
-            }
-            
-            if (analysisData.serverUrl) {
-                details += `\nServer: ${analysisData.serverUrl}\n`;
-                details += `Port: ${analysisData.serverPort}\n`;
-            }
-            
-            details += `\nFile Path: ${analysisData.filePath}`;
-            
-            // Show details in information dialog
-            await vscode.window.showInformationMessage(details, { modal: true });
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error viewing analysis details:`, error);
-            vscode.window.showErrorMessage(`Failed to view analysis details: ${error}`);
-        }
-    }
-    
-    /**
-     * Open analysis output folder
-     */
-    private async openOutputFolder(arg: any): Promise<void> {
-        try {
-            const sessionId = this.extractSessionId(arg);
-            if (!sessionId) {
-                vscode.window.showErrorMessage('Invalid session ID for open output folder operation');
-                return;
-            }
-            
-            console.log(`ACTIVE_ANALYSES_COMMANDS: Opening output folder for analysis ${sessionId}`);
-            
-            const analysisData = this.dataService.getAnalysisData(sessionId);
-            if (!analysisData) {
-                vscode.window.showErrorMessage(`Analysis session ${sessionId} not found`);
-                return;
-            }
-            
-            // TODO: Get the actual output folder path from the session
-            // For now, show a message that this feature is coming
-            vscode.window.showInformationMessage(
-                `Opening output folder for: ${analysisData.fileName} - ${analysisData.analysisType}\n` +
-                `Session: ${sessionId}\n\n` +
-                `Note: This feature will open the analysis results directory in the file explorer.`,
-                'OK'
-            );
-            
-        } catch (error) {
-            console.error(`ACTIVE_ANALYSES_COMMANDS: Error opening output folder:`, error);
-            vscode.window.showErrorMessage(`Failed to open output folder: ${error}`);
-        }
-    }
-    
-    /**
-     * Refresh all analyses
-     */
-    private refreshAllAnalyses(refreshCallback: () => void): void {
-        try {
-            console.log('ACTIVE_ANALYSES_COMMANDS: Refreshing all analyses');
-            
-            this.dataService.refresh();
-            refreshCallback();
-            
-            vscode.window.showInformationMessage('Active analyses refreshed');
-            
-        } catch (error) {
-            console.error('ACTIVE_ANALYSES_COMMANDS: Error refreshing all analyses:', error);
-            vscode.window.showErrorMessage(`Failed to refresh analyses: ${error}`);
-        }
-    }
-    
-    /**
-     * Stop all active analyses
-     */
-    private async stopAllAnalyses(refreshCallback: () => void): Promise<void> {
-        try {
-            console.log('ACTIVE_ANALYSES_COMMANDS: Stopping all analyses');
-            
-            const activeAnalyses = this.dataService.getActiveAnalyses();
-            const runningAnalyses = activeAnalyses.filter(a => 
-                a.status === 'creating' || a.status === 'analyzing'
-            );
-            
-            if (runningAnalyses.length === 0) {
-                vscode.window.showInformationMessage('No active analyses to stop');
-                return;
-            }
-            
-            // Confirm with user
-            const action = await vscode.window.showWarningMessage(
-                `Stop all ${runningAnalyses.length} active analysis${runningAnalyses.length === 1 ? '' : 'es'}?`,
-                { modal: true },
-                'Stop All',
-                'Cancel'
-            );
-            
-            if (action !== 'Stop All') {
-                return;
-            }
-            
-            // Stop all running analyses
-            let stoppedCount = 0;
-            for (const analysis of runningAnalyses) {
-                const success = this.dataService.stopAnalysis(analysis.sessionId);
-                if (success) {
-                    stoppedCount++;
+            // Handle different types of items
+            if (typeof item === 'string') {
+                sessionId = item;
+                const session = this.sessionRegistry.getSession(sessionId);
+                sessionName = session?.targetName || sessionId;
+            } else if (item && typeof item === 'object') {
+                // Check for ActiveAnalysisItem (from data service)
+                if ('sessionId' in item && item.sessionId) {
+                    sessionId = item.sessionId;
+                    sessionName = item.label || sessionId;
+                } else if ('id' in item && item.id) {
+                    // Fallback to id property
+                    sessionId = item.id;
+                    sessionName = item.label || sessionId;
+                } else if (item instanceof ActiveAnalysisTreeItem) {
+                    // ActiveAnalysisTreeItem
+                    sessionId = item.sessionData.sessionId;
+                    sessionName = item.sessionData.fileName;
+                } else {
+                    // Try to extract sessionId from command arguments if it's a TreeItem
+                    console.log(`[ACTIVE_ANALYSES_COMMANDS] Unexpected item structure:`, item);
+                    vscode.window.showWarningMessage('Could not identify analysis from selection');
+                    return;
                 }
-            }
-            
-            if (stoppedCount > 0) {
-                vscode.window.showInformationMessage(
-                    `Stopped ${stoppedCount} of ${runningAnalyses.length} active analyses`
-                );
-                refreshCallback();
             } else {
-                vscode.window.showErrorMessage('Failed to stop any analyses');
+                console.log(`[ACTIVE_ANALYSES_COMMANDS] Invalid item for closeAnalysis:`, item);
+                vscode.window.showWarningMessage('Invalid analysis selection');
+                return;
+            }
+
+            const session = this.sessionRegistry.getSession(sessionId);
+            if (!session) {
+                vscode.window.showWarningMessage('Analysis not found or already closed');
+                return;
+            }
+
+            // Confirm closure
+            const choice = await vscode.window.showWarningMessage(
+                `Close analysis "${sessionName}"?`,
+                { modal: true },
+                'Close'
+            );
+
+            if (choice === 'Close') {
+                // Close the session
+                await this.sessionRegistry.closeSession(sessionId);
+                
+                // Stop associated server if exists (remove server integration for now)
+                // if (session.serverId) {
+                //     await this.serverWatcher.stopServer(session.serverId);
+                // }
+
+                vscode.window.showInformationMessage(`Analysis "${sessionName}" closed successfully`);
+                
+                // Refresh the tree view
+                vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
             }
             
         } catch (error) {
-            console.error('ACTIVE_ANALYSES_COMMANDS: Error stopping all analyses:', error);
-            vscode.window.showErrorMessage(`Failed to stop all analyses: ${error}`);
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error closing analysis:', error);
+            vscode.window.showErrorMessage(`Error closing analysis: ${error}`);
         }
+    }
+
+    /**
+     * Refresh the active analyses tree view
+     */
+    private refreshActiveAnalyses(): void {
+        console.log('[ACTIVE_ANALYSES_COMMANDS] Refreshing active analyses');
+        // This will be handled by the tree data provider's refresh mechanism
+        vscode.commands.executeCommand('codeXR.views.refresh');
+    }
+
+    /**
+     * Close all active analyses
+     */
+    private async closeAllAnalyses(): Promise<void> {
+        console.log('[ACTIVE_ANALYSES_COMMANDS] closeAllAnalyses called');
+        
+        try {
+            const sessions = this.sessionRegistry.getActiveSessions();
+            
+            if (sessions.length === 0) {
+                vscode.window.showInformationMessage('No active analyses to close');
+                return;
+            }
+
+            // Confirm closure
+            const choice = await vscode.window.showWarningMessage(
+                `Close all ${sessions.length} active analyses?`,
+                { modal: true },
+                'Close All'
+            );
+
+            if (choice === 'Close All') {
+                let closedCount = 0;
+                let errorCount = 0;
+
+                for (const session of sessions) {
+                    try {
+                        await this.sessionRegistry.closeSession(session.id);
+                        
+                        // Stop associated server if exists (remove server integration for now)
+                        // if (session.serverId) {
+                        //     await this.serverWatcher.stopServer(session.serverId);
+                        // }
+                        
+                        closedCount++;
+                    } catch (error) {
+                        console.error('[ACTIVE_ANALYSES_COMMANDS] Error closing session:', session.id, error);
+                        errorCount++;
+                    }
+                }
+
+                if (errorCount === 0) {
+                    vscode.window.showInformationMessage(`Successfully closed all ${closedCount} analyses`);
+                } else {
+                    vscode.window.showWarningMessage(`Closed ${closedCount} analyses, ${errorCount} failed`);
+                }
+                
+                // Refresh the tree view
+                vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
+            }
+            
+        } catch (error) {
+            console.error('[ACTIVE_ANALYSES_COMMANDS] Error closing all analyses:', error);
+            vscode.window.showErrorMessage(`Error closing analyses: ${error}`);
+        }
+    }
+
+    /**
+     * Get all registered command configurations
+     */
+    getCommands(): ActiveAnalysisCommandRegistration[] {
+        return [...this.commands];
+    }
+
+    /**
+     * Check if a command is registered
+     */
+    isCommandRegistered(commandId: string): boolean {
+        return this.registeredCommands.has(commandId);
+    }
+
+    /**
+     * Dispose of all registered commands
+     */
+    dispose(): void {
+        this.registeredCommands.clear();
+        console.log('[ACTIVE_ANALYSES_COMMANDS] Disposed all commands');
     }
 }

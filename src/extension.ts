@@ -4,10 +4,12 @@ import { ModularTreeDataProvider } from './views';
 import { CommonCommands } from './utils/commonCommands';
 import { ServerSettingsManager } from './servers/storage/serverSettingsManager';
 import { getActiveServerRegistry } from './active_servers/registry/activeServerRegistry';
+import { ServerControl } from './active_servers/runtime/serverControl';
 import { VisualizeDataModel } from './visualize_data/model/visualizeDataModel';
 import { sseManager } from './servers/runtime/sse/SSEManager';
 import { fileToServerMap } from './utils/fileToServerMap';
 import { ServerWatcherIntegration } from './new_code_analysis/services/serverWatcherIntegration';
+import { CleanAnalysisCommands } from './new_code_analysis/commands/clean_analysis/cleanAnalysisCommands';
 
 // Global context reference for cleanup
 let extensionContext: vscode.ExtensionContext;
@@ -34,12 +36,18 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Step 2: Initialize active servers registry
 		console.log('ACTIVE_SERVERS: Initializing active servers registry');
 		const activeServerRegistry = getActiveServerRegistry();
+		ServerControl.initialize(context);
 		console.log('ACTIVE_SERVERS: Registry initialized');
 
 		// Step 2.5: Initialize server-watcher integration service
 		console.log('SERVER_WATCHER_INTEGRATION: Initializing integration service');
-		ServerWatcherIntegration.initialize();
+		ServerWatcherIntegration.initialize(context);
 		console.log('SERVER_WATCHER_INTEGRATION: Service initialized');
+
+		// Step 2.7: Execute automatic workspace cleanup on plugin startup
+		console.log('WORKSPACE_CLEANUP: Executing automatic workspace cleanup on plugin restart');
+		await CleanAnalysisCommands.executeStartupCleanup(context);
+		console.log('WORKSPACE_CLEANUP: Automatic cleanup completed');
 
 		// Step 3: Register the modular tree view AFTER settings are restored
 		console.log('MODULAR_TREE: Registering modular tree view with all sections');

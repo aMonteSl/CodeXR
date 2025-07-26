@@ -31,8 +31,8 @@ def analyze_directory_comprehensive(directory_path, filtered_files=None):
     if filtered_files:
         print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Using filtered file list with {len(filtered_files)} files"}), file=sys.stderr)
     
-    # Get the directory containing this script
-    script_dir = Path(__file__).parent
+    # Get the tools directory for analyzers
+    script_dir = Path(__file__).parent.parent / "tools"
     
     # Initialize result structure based on template requirements
     result = {
@@ -86,7 +86,7 @@ def analyze_directory_comprehensive(directory_path, filtered_files=None):
         total_functions_for_avg = 0
         total_files = len(files_to_analyze)
         
-        print(json.dumps({"progress": {"current": 0, "total": total_files, "message": "Starting file analysis..."}}), file=sys.stderr)
+        print(json.dumps({"progress": {"current": 0, "total": total_files, "percentage": 0, "fileName": "Starting analysis...", "message": "Starting file analysis..."}}), file=sys.stderr)
         
         for file_path in files_to_analyze:
             try:
@@ -95,7 +95,7 @@ def analyze_directory_comprehensive(directory_path, filtered_files=None):
                 percentage = int((current_file / total_files) * 100) if total_files > 0 else 0
                 file_name = os.path.basename(file_path)
                 
-                print(json.dumps({"progress": {"current": current_file, "total": total_files, "percentage": percentage, "message": f"Analyzing {file_name}... ({current_file}/{total_files})"}}), file=sys.stderr)
+                print(json.dumps({"progress": {"current": current_file, "total": total_files, "percentage": percentage, "fileName": file_name, "message": f"Analyzing {file_name}... ({current_file}/{total_files})"}}), file=sys.stderr)
                 print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Analyzing file {file_path}"}), file=sys.stderr)
                 
                 file_analysis = analyze_single_file(file_path, script_dir)
@@ -141,7 +141,7 @@ def analyze_directory_comprehensive(directory_path, filtered_files=None):
             result["summary"]["averageComplexity"] = 0.0
         
         # Final progress update
-        print(json.dumps({"progress": {"current": total_files, "total": total_files, "percentage": 100, "message": f"Analysis completed! {analyzed_files} files analyzed successfully."}}), file=sys.stderr)
+        print(json.dumps({"progress": {"current": total_files, "total": total_files, "percentage": 100, "fileName": "Completed!", "message": f"Analysis completed! {analyzed_files} files analyzed successfully."}}), file=sys.stderr)
         print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Completed analysis. Files: {analyzed_files} analyzed, {not_analyzed_files} failed"}), file=sys.stderr)
         
         return result
@@ -217,7 +217,7 @@ def analyze_single_file(file_path, script_dir):
     """
     try:
         # Use the existing livePanel_file_analysis_coordinator.py to analyze the file
-        coordinator_path = script_dir / "livePanel_file_analysis_coordinator.py"
+        coordinator_path = script_dir.parent / "livePanels" / "livePanel_file_analysis_coordinator.py"
         
         if not coordinator_path.exists():
             print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: File coordinator not found: {coordinator_path}"}), file=sys.stderr)

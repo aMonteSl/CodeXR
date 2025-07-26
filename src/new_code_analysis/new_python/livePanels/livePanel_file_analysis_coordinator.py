@@ -28,8 +28,8 @@ def analyze_file_comprehensive(file_path, resume_only=False):
     """
     print(json.dumps({"debug": f"ANALYSIS_FILE_STATS: Starting comprehensive analysis for {file_path} (resume_only: {resume_only})"}), file=sys.stderr)
     
-    # Get the directory containing this script
-    script_dir = Path(__file__).parent
+    # Get the tools directory for analyzers
+    script_dir = Path(__file__).parent.parent / "tools"
     
     # Initialize result structure
     result = {

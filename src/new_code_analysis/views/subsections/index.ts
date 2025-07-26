@@ -6,5 +6,4 @@
 export { AnalysisSettingsSubsectionProvider, AnalysisFileSetting, AnalysisFileMode } from './analysis_settings';
 export { ActiveAnalysesSubsectionProvider } from './active_analyses';
 export { ProjectByLanguageSubsectionProvider } from './project_by_language';
-// TODO: Re-enable when FilesByLanguageSubsectionProvider is uncommented
-// export { FilesByLanguageSubsectionProvider } from './files_by_language';
+export { FilesByLanguageSubsectionProvider } from './files_by_language';

@@ -7,13 +7,13 @@ import * as vscode from 'vscode';
 import { SectionProvider } from '../../views/common/baseInterfaces';
 import { NewCodeAnalysisTreeItem, NewCodeAnalysisItemFactory } from './items/newCodeAnalysisItems';
 import { NewCodeAnalysisInteractionHandler } from './interactions/handleNewCodeAnalysisClicks';
+import { UnifiedSessionRegistry } from '../new_engine/core/sessionRegistry';
 import { 
-    AnalysisSettingsSubsectionProvider,
     ActiveAnalysesSubsectionProvider,
+    AnalysisSettingsSubsectionProvider,
     ProjectByLanguageSubsectionProvider,
-    // FilesByLanguageSubsectionProvider // TEMPORARILY DISABLED
+    FilesByLanguageSubsectionProvider
 } from './subsections';
-import { AnalysisSessionRegistry } from '../engine/registry/analysisSessionRegistry';
 
 /**
  * TODO: Implement tree data provider for new code analysis
@@ -32,7 +32,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
     private activeAnalysesSubsection: ActiveAnalysesSubsectionProvider;
     private analysisSettingsSubsection: AnalysisSettingsSubsectionProvider;
     private projectByLanguageSubsection: ProjectByLanguageSubsectionProvider;
-    // private filesByLanguageSubsection: FilesByLanguageSubsectionProvider; // TEMPORARILY DISABLED
+    private filesByLanguageSubsection: FilesByLanguageSubsectionProvider;
 
     constructor(private context: vscode.ExtensionContext) {
         console.log('NEW_CODE_ANALYSIS: Initializing New Code Analysis section provider');
@@ -41,16 +41,16 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         this.activeAnalysesSubsection = new ActiveAnalysesSubsectionProvider(context);
         this.analysisSettingsSubsection = new AnalysisSettingsSubsectionProvider(context);
         this.projectByLanguageSubsection = new ProjectByLanguageSubsectionProvider(context);
-        // this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context); // TEMPORARILY DISABLED
+        this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context);
 
         // Setup real-time refresh callback for Files by Language
-        // this.filesByLanguageSubsection.setRefreshCallback(() => { // TEMPORARILY DISABLED
-        //     console.log('NEW_CODE_ANALYSIS: Files by Language triggered refresh');
-        //     this.refresh();
-        // });
+        this.filesByLanguageSubsection.setRefreshCallback(() => {
+            console.log('NEW_CODE_ANALYSIS: Files by Language triggered refresh');
+            this.refresh();
+        });
 
         // Set up listener for analysis session changes to auto-refresh UI
-        const sessionRegistry = AnalysisSessionRegistry.getInstance();
+        const sessionRegistry = UnifiedSessionRegistry.getInstance(context);
         sessionRegistry.onSessionChanged((session) => {
             console.log(`NEW_CODE_ANALYSIS: Session ${session.id} changed to ${session.status} - auto-refreshing UI`);
             this.refresh();
@@ -95,7 +95,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         this.activeAnalysesSubsection.refresh();
         this.analysisSettingsSubsection.refresh();
         this.projectByLanguageSubsection.refresh();
-        // this.filesByLanguageSubsection.refresh(); // TEMPORARILY DISABLED
+        this.filesByLanguageSubsection.refresh();
 
         // Fire the tree data change event
         console.log('NEW_CODE_ANALYSIS: About to fire _onDidChangeTreeData');
@@ -118,7 +118,7 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
                 this.activeAnalysesSubsection.getSubsectionItem(),
                 this.analysisSettingsSubsection.getSubsectionItem(),
                 this.projectByLanguageSubsection.getSubsectionItem(),
-                // this.filesByLanguageSubsection.getSubsectionItem() // Temporarily disabled
+                this.filesByLanguageSubsection.getSubsectionItem()
             ]);
             return subsections;
         }
@@ -131,8 +131,8 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
                 return this.analysisSettingsSubsection.getChildren();
             case 'projectByLanguageSubsection':
                 return this.projectByLanguageSubsection.getChildren();
-            // case 'filesByLanguageSubsection':
-            //     return this.filesByLanguageSubsection.getChildren();
+            case 'filesByLanguageSubsection':
+                return this.filesByLanguageSubsection.getChildren();
             
             // Handle nested settings like dimension mapping
             case 'dimensionMappingFileSetting':
@@ -148,14 +148,13 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
                 return this.analysisSettingsSubsection.getSettingChildren(element);
             
             // Handle Files by Language nested children
-            // case 'unsupportedFilesGroup':
-            //     return this.filesByLanguageSubsection.getNestedChildren(element);
+            case 'unsupportedFilesGroup':
+                return this.filesByLanguageSubsection.getNestedChildren(element);
                 
             default:
                 // Check if it's a language group
                 if (element.contextValue?.startsWith('languageGroup_')) {
-                    // return this.filesByLanguageSubsection.getNestedChildren(element); // Temporarily disabled
-                    return Promise.resolve([]);
+                    return this.filesByLanguageSubsection.getNestedChildren(element);
                 }
                 // Check if it's a project directory
                 if (element.contextValue?.startsWith('projectDirectory_')) {
@@ -179,9 +178,9 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         console.log('NEW_CODE_ANALYSIS: Disposing New Code Analysis section provider');
         
         // Dispose of subsections
-        // if (this.filesByLanguageSubsection) {
-        //     this.filesByLanguageSubsection.dispose();
-        // }
+        if (this.filesByLanguageSubsection) {
+            this.filesByLanguageSubsection.dispose();
+        }
         
         // Note: Other subsections can also implement dispose if needed
     }

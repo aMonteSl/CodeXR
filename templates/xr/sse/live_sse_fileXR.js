@@ -27,11 +27,11 @@
       }, 3000);
     };
 
-    
-    // Handle analysisUpdated events
-    eventSource.addEventListener('analysisUpdated', function(event) {
-      console.log('🔄 Received analysisUpdated event:', event);
-      
+
+    // Handle analysis-updated events
+    eventSource.addEventListener('analysis-updated', function(event) {
+      console.log('🔄 Received analysis-updated event:', event);
+
       // Find data entities using all provided selectors
       let dataEntities = [];
       

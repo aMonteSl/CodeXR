@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
 import { LivePanelFileRequirements } from './requirementRules/LivePanelFileRequirements';
 import { LivePanelDirectoryRequirements } from './requirementRules/LivePanelDirectoryRequirements';
+import { VisualizeDOMRequirements } from './requirementRules/VisualizeDOMRequirements';
+import { XRFileRequirements } from './requirementRules/XRFileRequirements';
+import { XRDirectoryRequirements } from './requirementRules/XRDirectoryRequirements';
 import { ThemeUtils } from '../utils/themeUtils';
 
 /**
@@ -36,6 +39,9 @@ export interface ProcessedRequirements {
 export class FileRequirementProcessor {
     private livePanelFileRequirements: LivePanelFileRequirements;
     private livePanelDirectoryRequirements: LivePanelDirectoryRequirements;
+    private visualizeDOMRequirements: VisualizeDOMRequirements;
+    private xrFileRequirements: XRFileRequirements;
+    private xrDirectoryRequirements: XRDirectoryRequirements;
     private context: vscode.ExtensionContext;
 
     constructor(context: vscode.ExtensionContext) {
@@ -43,10 +49,15 @@ export class FileRequirementProcessor {
         this.context = context;
         this.livePanelFileRequirements = new LivePanelFileRequirements(context);
         this.livePanelDirectoryRequirements = new LivePanelDirectoryRequirements(context);
+        this.visualizeDOMRequirements = new VisualizeDOMRequirements(context);
+        this.xrFileRequirements = new XRFileRequirements(context);
+        this.xrDirectoryRequirements = new XRDirectoryRequirements(context);
+        this.xrFileRequirements = new XRFileRequirements(context);
         
         // Initialize ThemeUtils with extension context
         ThemeUtils.initialize(context);
         console.log('FILE_REQUIREMENT_PROCESSOR: ThemeUtils initialized');
+        console.log('FILE_REQUIREMENT_PROCESSOR: VisualizeDOMRequirements initialized');
     }
 
     /**
@@ -79,9 +90,36 @@ export class FileRequirementProcessor {
                     }
                     break;
                 
+                case 'VisualizeDOM':
+                    console.log(`FILE_REQUIREMENT_PROCESSOR: Delegating to VisualizeDOMRequirements...`);
+                    requirements = await this.visualizeDOMRequirements.getRequiredFiles(session, theme);
+                    break;
+                
                 case 'XR':
-                    console.log(`FILE_REQUIREMENT_PROCESSOR: XR analysis not implemented yet`);
-                    throw new Error('XR analysis file requirements not implemented yet');
+                    if (session.targetType === 'file') {
+                        console.log(`FILE_REQUIREMENT_PROCESSOR: Delegating to XRFileRequirements...`);
+                        requirements = await this.xrFileRequirements.getRequiredFiles(session, theme);
+                    } else if (session.targetType === 'directory') {
+                        console.log(`FILE_REQUIREMENT_PROCESSOR: Delegating to XRDirectoryRequirements...`);
+                        const xrResult = await this.xrDirectoryRequirements.processDirectoryXRRequirements(session);
+                        
+                        if (!xrResult.success) {
+                            throw new Error(`XR directory processing failed: ${xrResult.error}`);
+                        }
+                        
+                        // Convert XR result to ProcessedRequirements format
+                        requirements = {
+                            sessionId: session.id,
+                            analysisMode: session.analysisMode,
+                            targetPath: session.targetPath,
+                            loadedFiles: xrResult.loadedFiles,
+                            estimatedComplexity: 'low' as const,
+                            processingTime: new Date()
+                        };
+                    } else {
+                        throw new Error(`Unknown target type for XR: ${session.targetType}`);
+                    }
+                    break;
                 
                 default:
                     throw new Error(`Unknown analysis mode: ${session.analysisMode}`);

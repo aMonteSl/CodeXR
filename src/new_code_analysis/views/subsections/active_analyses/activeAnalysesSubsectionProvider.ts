@@ -6,9 +6,10 @@
 import * as vscode from 'vscode';
 import { NewCodeAnalysisTreeItem } from '../../items/newCodeAnalysisItems';
 import { ActiveAnalysesDataService } from './services/activeAnalysesDataService';
-import { ActiveAnalysisModelMapper } from './model/activeAnalysisModel';
 import { ActiveAnalysisItemFactory } from './items/activeAnalysisItems';
 import { ActiveAnalysesCommands } from './commands/activeAnalysesCommands';
+import { UnifiedSessionRegistry } from '../../../new_engine/core/sessionRegistry';
+import { ServerWatcherIntegration } from '../../../services/serverWatcherIntegration';
 
 export class ActiveAnalysesSubsectionProvider {
     private dataService: ActiveAnalysesDataService;
@@ -18,10 +19,16 @@ export class ActiveAnalysesSubsectionProvider {
         console.log('NEW_CODE_ANALYSIS: Initializing Active Analyses subsection provider');
         
         this.dataService = ActiveAnalysesDataService.getInstance();
-        this.commands = new ActiveAnalysesCommands();
+        this.dataService.initialize(this.context);
         
-        // Register commands
-        this.registerCommands();
+        // Get the session registry and server watcher for commands
+        const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+        const serverWatcher = ServerWatcherIntegration.getInstance(this.context);
+        this.commands = ActiveAnalysesCommands.getInstance(sessionRegistry, serverWatcher);
+        
+        // Note: Commands are registered elsewhere in the nested dolls pattern
+        // to avoid duplicate registration. See activeAnalysesCommands.ts
+        console.log('ACTIVE_ANALYSES_PROVIDER: Commands will be registered by the main command system');
     }
 
     /**
@@ -29,7 +36,7 @@ export class ActiveAnalysesSubsectionProvider {
      */
     getSubsectionItem(): NewCodeAnalysisTreeItem {
         const statusCounts = this.dataService.getAnalysisCountByStatus();
-        const activeCount = statusCounts.creating + statusCounts.analyzing;
+        const activeCount = statusCounts.creating + statusCounts.analyzing + statusCounts.monitoring;
         
         let label = 'Active Analyses';
         let description = '';
@@ -69,53 +76,48 @@ export class ActiveAnalysesSubsectionProvider {
     }
 
     /**
-     * Get children for this subsection
+     * Get children items for this subsection
      */
     async getChildren(): Promise<NewCodeAnalysisTreeItem[]> {
         try {
             console.log('ACTIVE_ANALYSES_PROVIDER: Getting children for Active Analyses');
             
-            // Get all active analyses
+            const items: NewCodeAnalysisTreeItem[] = [];
+            
+            // Get active analyses directly from data service
             const activeAnalyses = this.dataService.getActiveAnalyses();
             console.log(`ACTIVE_ANALYSES_PROVIDER: Found ${activeAnalyses.length} active analyses`);
-            
-            const items: NewCodeAnalysisTreeItem[] = [];
             
             if (activeAnalyses.length === 0) {
                 // Show empty state
                 const emptyItem = ActiveAnalysisItemFactory.createEmptyStateItem();
                 items.push(emptyItem);
             } else {
-                // Convert analyses to UI models and sort them
-                const uiItems = activeAnalyses.map(analysis => 
-                    ActiveAnalysisModelMapper.toUIItem(analysis)
-                );
-                const sortedUIItems = ActiveAnalysisModelMapper.sortAnalysisItems(uiItems);
-                
-                // Create tree items
-                const analysisItems = ActiveAnalysisItemFactory.createTreeItems(sortedUIItems);
-                items.push(...analysisItems);
+                // Create simple tree items directly from the analyses
+                for (const analysis of activeAnalyses) {
+                    const item = new NewCodeAnalysisTreeItem(
+                        analysis.label,
+                        vscode.TreeItemCollapsibleState.None,
+                        'analysis-result',
+                        {
+                            command: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
+                            title: 'View Analysis Details',
+                            arguments: [analysis.id]
+                        },
+                        analysis.iconPath,
+                        analysis.description,
+                        analysis.description,
+                        analysis.contextValue
+                    );
+                    items.push(item);
+                }
             }
             
-            console.log(`ACTIVE_ANALYSES_PROVIDER: Returning ${items.length} items`);
             return items;
             
         } catch (error) {
             console.error('ACTIVE_ANALYSES_PROVIDER: Error getting children:', error);
-            
-            // Return error item
-            return [
-                new NewCodeAnalysisTreeItem(
-                    'Error loading analyses',
-                    vscode.TreeItemCollapsibleState.None,
-                    'error',
-                    undefined,
-                    new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red')),
-                    `Failed to load active analyses: ${error}`,
-                    'Error occurred',
-                    'activeAnalysesError'
-                )
-            ];
+            return [ActiveAnalysisItemFactory.createEmptyStateItem()];
         }
     }
 
@@ -129,30 +131,20 @@ export class ActiveAnalysesSubsectionProvider {
     
     /**
      * Register all commands for active analyses
+     * NOTE: This method is commented out to avoid duplicate registration.
+     * Commands are registered in the nested dolls pattern from activeAnalysesCommands.ts
      */
     private registerCommands(): void {
-        try {
-            console.log('ACTIVE_ANALYSES_PROVIDER: Registering commands');
-            
-            const refreshCallback = () => {
-                // Refresh this subsection specifically
-                this.refresh();
-                // Also refresh the entire tree (this will be called by the main provider)
-                vscode.commands.executeCommand('codexr.tree.refresh');
-            };
-            
-            const commandRegistrations = this.commands.getCommandRegistrations(refreshCallback);
-            
-            for (const reg of commandRegistrations) {
-                const disposable = vscode.commands.registerCommand(reg.commandId, reg.callback);
-                this.context.subscriptions.push(disposable);
-                console.log(`ACTIVE_ANALYSES_PROVIDER: Registered command: ${reg.commandId}`);
-            }
-            
-            console.log(`ACTIVE_ANALYSES_PROVIDER: Registered ${commandRegistrations.length} commands`);
-            
-        } catch (error) {
-            console.error('ACTIVE_ANALYSES_PROVIDER: Error registering commands:', error);
-        }
+        // Commands are registered elsewhere to avoid duplication
+        console.log('ACTIVE_ANALYSES_PROVIDER: Command registration skipped (handled by main command system)');
+        
+        // Original code commented out:
+        // try {
+        //     console.log('ACTIVE_ANALYSES_PROVIDER: Registering commands');
+        //     this.commands.registerCommands(this.context);
+        //     console.log(`ACTIVE_ANALYSES_PROVIDER: Commands registered successfully`);
+        // } catch (error) {
+        //     console.error('ACTIVE_ANALYSES_PROVIDER: Error registering commands:', error);
+        // }
     }
 }

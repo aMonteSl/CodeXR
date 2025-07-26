@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
+import { NetworkUtils } from '../utils/networkUtils';
 
 /**
  * HTTP Server Configuration
@@ -28,12 +29,18 @@ export class HttpServer {
     private isRunning: boolean = false;
 
     constructor(config: HttpServerConfig) {
+        // Ensure port is a number and create clean config
+        const cleanConfig: HttpServerConfig = {
+            ...config,
+            port: Number(config.port)
+        };
+        
         this.config = {
-            host: 'localhost',
+            host: '0.0.0.0',  // ✅ Listen on all network interfaces for VR/mobile access
             staticRoot: path.join(__dirname, '../../../templates'),
             enableCors: true,
             allowedOrigins: ['*'],
-            ...config
+            ...cleanConfig
         };
         
         console.log('SERVER: HTTP server initialized with config:', this.config);
@@ -65,13 +72,19 @@ export class HttpServer {
 
                 this.server.on('listening', () => {
                     const address = this.server?.address();
-                    const serverUrl = `http://${this.config.host}:${this.config.port}`;
+                    const portNumber = Number(this.config.port);
                     
-                    console.log(`SERVER: HTTP server listening on ${serverUrl}`);
+                    console.log(`SERVER: HTTP server listening on http://${this.config.host}:${this.config.port}`);
                     console.log('SERVER: Server address info:', address);
                     
+                    // Display network information for external access
+                    NetworkUtils.displayNetworkInfo(portNumber, 'http');
+                    
                     this.isRunning = true;
-                    resolve(serverUrl);
+                    
+                    // Return the localhost URL for browser/panel access
+                    const localhostUrl = NetworkUtils.getLocalhostUrl(portNumber, 'http');
+                    resolve(localhostUrl);
                 });
 
                 // Add graceful shutdown handling

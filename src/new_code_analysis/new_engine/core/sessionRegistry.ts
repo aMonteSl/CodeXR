@@ -17,7 +17,7 @@ import {
 import { filterDirectoriesForAnalysis } from '../utils/directoryFilter';
 import { SUPPORTED_LANGUAGES } from '../../../utils/supportedLanguages';
 import { SHA256Generator } from '../../../utils/sha256Generator';
-import { ActiveAnalysisRegistry } from '../../engine/services/activeAnalysisRegistry';
+
 
 export class UnifiedSessionRegistry {
     private static instance: UnifiedSessionRegistry;
@@ -53,7 +53,11 @@ export class UnifiedSessionRegistry {
             }
             
             const outputDirectory = `${path.parse(targetName).name}_${params.analysisMode}_${params.targetType}_${id}`;
-            const outputPath = path.join(storageUri.fsPath, 'analysis', outputDirectory);
+            
+            // Use appropriate base directory based on target type
+            const baseDirectory = params.targetType === 'file' ? 'fileAnalysis' : 'directoryAnalysis';
+            
+            const outputPath = path.join(storageUri.fsPath, baseDirectory, outputDirectory);
 
             // Calculate hash based on target type
             let calculatedHash = '';
@@ -109,50 +113,6 @@ export class UnifiedSessionRegistry {
             this.sessions.set(id, session);
             this._onSessionChanged.fire(session);
             
-            // Register with Active Analyses UI
-            console.log(`UNIFIED_REGISTRY_DEBUG: 🔄 Registering session ${id} with Active Analyses UI...`);
-            try {
-                const activeAnalysisRegistry = ActiveAnalysisRegistry.getInstance();
-                
-                if (params.targetType === 'file') {
-                    let activeAnalysisId: string;
-                    
-                    if (params.analysisMode === 'LivePanel') {
-                        activeAnalysisId = await activeAnalysisRegistry.registerFileLivePanelAnalysis(
-                            params.targetPath,
-                            params.context
-                        );
-                        console.log(`UNIFIED_REGISTRY_DEBUG: ✅ File LivePanel analysis registered with Active Analyses ID: ${activeAnalysisId}`);
-                    } else if (params.analysisMode === 'VisualizeDOM') {
-                        activeAnalysisId = await activeAnalysisRegistry.registerVisualizeDOMAnalysis(
-                            params.targetPath,
-                            params.context
-                        );
-                        console.log(`UNIFIED_REGISTRY_DEBUG: ✅ File VisualizeDOM analysis registered with Active Analyses ID: ${activeAnalysisId}`);
-                    } else {
-                        // For XR and other modes, use file LivePanel registration for now
-                        activeAnalysisId = await activeAnalysisRegistry.registerFileLivePanelAnalysis(
-                            params.targetPath,
-                            params.context
-                        );
-                        console.log(`UNIFIED_REGISTRY_DEBUG: ✅ File ${params.analysisMode} analysis registered as LivePanel with Active Analyses ID: ${activeAnalysisId}`);
-                    }
-                    
-                    session.activeAnalysisId = activeAnalysisId;
-                    
-                } else if (params.targetType === 'directory') {
-                    const activeAnalysisId = await activeAnalysisRegistry.registerDirectoryLivePanelAnalysis(
-                        params.targetPath,
-                        params.context
-                    );
-                    session.activeAnalysisId = activeAnalysisId;
-                    console.log(`UNIFIED_REGISTRY_DEBUG: ✅ Directory analysis registered with Active Analyses ID: ${activeAnalysisId}`);
-                }
-            } catch (activeAnalysisError) {
-                console.error(`UNIFIED_REGISTRY_DEBUG: ❌ Error registering with Active Analyses:`, activeAnalysisError);
-                // Don't throw error, continue with session creation
-            }
-            
             console.log(`UNIFIED_REGISTRY: Created basic session ${id} for ${targetName} (ready for launcher processing)`);
             
             return session;
@@ -181,43 +141,6 @@ export class UnifiedSessionRegistry {
         }
         if (status === 'monitoring' || status === 'error' || status === 'closed') {
             session.endTime = new Date();
-        }
-
-        // Update ActiveAnalysisRegistry status if session has an active analysis ID
-        if (session.activeAnalysisId) {
-            try {
-                console.log(`UNIFIED_REGISTRY_DEBUG: 🔄 Updating Active Analyses status for ${session.activeAnalysisId}: ${status}`);
-                const activeAnalysisRegistry = ActiveAnalysisRegistry.getInstance();
-                
-                // Map unified status to Active Analysis status
-                let activeStatus: 'creating' | 'analyzing' | 'completed' | 'failed' | 'closing';
-                switch (status) {
-                    case 'creating':
-                        activeStatus = 'creating';
-                        break;
-                    case 'analyzing':
-                        activeStatus = 'analyzing';
-                        break;
-                    case 'monitoring':
-                        activeStatus = 'completed';
-                        break;
-                    case 'error':
-                        activeStatus = 'failed';
-                        break;
-                    case 'closed':
-                        activeStatus = 'closing';
-                        break;
-                    default:
-                        activeStatus = 'analyzing';
-                }
-                
-                activeAnalysisRegistry.updateAnalysisStatus(session.activeAnalysisId, activeStatus, progress, error);
-                console.log(`UNIFIED_REGISTRY_DEBUG: ✅ Active Analyses status updated to: ${activeStatus}`);
-                
-            } catch (activeAnalysisError) {
-                console.error(`UNIFIED_REGISTRY_DEBUG: ❌ Error updating Active Analyses status:`, activeAnalysisError);
-                // Don't fail the session update for this
-            }
         }
 
         this._onSessionChanged.fire(session);
@@ -276,6 +199,48 @@ export class UnifiedSessionRegistry {
             session.port = port;
         }
 
+        this._onSessionChanged.fire(session);
+        return true;
+    }
+
+    /**
+     * Register server port for session - Centralized function for port assignment
+     */
+    registerSessionPort(sessionId: string, port: number): boolean {
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Registering port ${port} for session ${sessionId}`);
+        
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            console.warn(`UNIFIED_REGISTRY: ❌ Session ${sessionId} not found for port registration`);
+            return false;
+        }
+
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Session before port assignment:`, {
+            id: session.id,
+            targetPath: session.targetPath,
+            targetName: session.targetName,
+            analysisMode: session.analysisMode,
+            currentPort: session.port,
+            currentAssignedPort: session.assignedPort,
+            status: session.status
+        });
+
+        // Assign the port to both fields for compatibility
+        session.port = port;
+        session.assignedPort = port;
+
+        console.log(`UNIFIED_REGISTRY: ✅ Successfully registered port ${port} for session ${sessionId}`);
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Session after port assignment:`, {
+            id: session.id,
+            targetPath: session.targetPath,
+            targetName: session.targetName,
+            analysisMode: session.analysisMode,
+            assignedPort: session.assignedPort,
+            port: session.port,
+            status: session.status
+        });
+
+        // Fire change event
         this._onSessionChanged.fire(session);
         return true;
     }

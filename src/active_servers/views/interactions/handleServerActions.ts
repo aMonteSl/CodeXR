@@ -3,6 +3,7 @@ import { ActiveServer } from '../../model/activeServerModel';
 import { getActiveServerRegistry } from '../../registry/activeServerRegistry';
 import { ServerControl } from '../../runtime/serverControl';
 import { PreviewRenderer } from '../../../servers/runtime/previewRenderer';
+import { NetworkUtils } from '../../../servers/utils/networkUtils';
 
 /**
  * Server Action Handlers
@@ -127,9 +128,46 @@ export class ServerActionHandlers {
         }
 
         try {
-            await vscode.env.clipboard.writeText(server.url);
-            console.log(`ACTIVE_SERVER: Copied ${server.url} to clipboard`);
-            vscode.window.showInformationMessage(`Copied ${server.url} to clipboard`);
+            // Extract port and protocol from server URL
+            const portMatch = server.url.match(/:(\d+)/);
+            const port = portMatch ? parseInt(portMatch[1]) : null;
+            const protocol = server.url.startsWith('https') ? 'https' : 'http';
+            
+            const localIP = NetworkUtils.getLocalIPAddress();
+            const hasNetworkAccess = localIP !== 'localhost' && port;
+            
+            if (hasNetworkAccess) {
+                // Show options for localhost vs network URL
+                const networkUrl = `${protocol}://${localIP}:${port}`;
+                const choice = await vscode.window.showQuickPick([
+                    {
+                        label: 'Local URL',
+                        description: server.url,
+                        detail: 'For use on this computer only'
+                    },
+                    {
+                        label: 'Network URL', 
+                        description: networkUrl,
+                        detail: 'For access from other devices on the network'
+                    }
+                ], {
+                    placeHolder: 'Choose URL type to copy'
+                });
+                
+                if (!choice) {
+                    return; // User cancelled
+                }
+                
+                const urlToCopy = choice.label.includes('Network') ? networkUrl : server.url;
+                await vscode.env.clipboard.writeText(urlToCopy);
+                console.log(`ACTIVE_SERVER: Copied ${urlToCopy} to clipboard`);
+                vscode.window.showInformationMessage(`Copied ${choice.label.includes('Network') ? 'Network' : 'Local'} URL to clipboard`);
+            } else {
+                // Fallback to original behavior if no network access available
+                await vscode.env.clipboard.writeText(server.url);
+                console.log(`ACTIVE_SERVER: Copied ${server.url} to clipboard`);
+                vscode.window.showInformationMessage(`Copied ${server.url} to clipboard`);
+            }
         } catch (error) {
             console.error(`ACTIVE_SERVER: Error copying URL to clipboard:`, error);
             vscode.window.showErrorMessage('Failed to copy URL to clipboard');
@@ -274,7 +312,7 @@ export class ServerActionHandlers {
         
         const actions = [
             {
-                label: '🌐 Open in Browser',
+                label: 'Open in Browser',
                 description: 'Open server in external browser',
                 action: 'openInBrowser'
             }
@@ -283,7 +321,7 @@ export class ServerActionHandlers {
         // Add lateral panel option only for HTTP servers
         if (isHttp) {
             actions.push({
-                label: '📱 Open in Panel',
+                label: 'Open in Panel',
                 description: 'Open server in VS Code lateral panel',
                 action: 'openInPanel'
             });
@@ -291,17 +329,17 @@ export class ServerActionHandlers {
 
         actions.push(
             {
-                label: '📋 Copy URL',
+                label: 'Copy URL',
                 description: 'Copy server URL to clipboard',
                 action: 'copyUrl'
             },
             {
-                label: 'ℹ️ Server Info',
+                label: 'Server Info',
                 description: 'Show detailed server information',
                 action: 'showDetails'
             },
             {
-                label: '⏹️ Stop Server',
+                label: 'Stop Server',
                 description: 'Stop this server',
                 action: 'stopServer'
             }

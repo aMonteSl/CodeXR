@@ -4,70 +4,101 @@ import { getActiveServerRegistry } from '../registry/activeServerRegistry';
 import { getPanelManager } from '../services/panelManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { sseManager } from '../../servers/runtime/sse/SSEManager';
+import { UnifiedSessionRegistry } from '../../new_code_analysis/new_engine/core/sessionRegistry';
 
 /**
  * Server Control
  * Runtime operations for managing active servers
  */
 export class ServerControl {
+    private static extensionContext: vscode.ExtensionContext;
+    
+    /**
+     * Initialize with extension context
+     */
+    public static initialize(context: vscode.ExtensionContext): void {
+        ServerControl.extensionContext = context;
+    }
     
     /**
      * Stop an active server
      */
     public static async stopServer(serverId: string): Promise<boolean> {
-        console.log(`ACTIVE_SERVERS: Attempting to stop server ${serverId}`);
+        console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Attempting to stop server ${serverId}`);
         
         const registry = getActiveServerRegistry();
         const server = registry.getServer(serverId);
         
         if (!server) {
-            console.error(`ACTIVE_SERVERS: Server ${serverId} not found in registry`);
+            console.error(`ACTIVE_SERVERS: ❌ Server ${serverId} not found in registry`);
             vscode.window.showErrorMessage(`Server not found: ${serverId}`);
             return false;
         }
+
+        console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Server found:`, {
+            id: server.id,
+            port: server.port,
+            url: server.url,
+            status: server.status,
+            launchMode: server.launchMode,
+            customName: server.customName,
+            htmlFile: server.htmlFile,
+            metadata: server.metadata
+        });
 
         try {
             // Close associated lateral panel if it exists
             const panelManager = getPanelManager();
             if (server.launchMode === 'lateralPanel' && panelManager.hasPanel(serverId)) {
-                console.log(`ACTIVE_SERVER_PANEL: Closing lateral panel for server ${serverId}`);
+                console.log(`ACTIVE_SERVER_PANEL: 🔍 DEBUG - Closing lateral panel for server ${serverId}`);
                 panelManager.removePanel(serverId);
             }
 
             // Check if this server is associated with an analysis file and clean up
-            console.log(`ACTIVE_SERVERS: Checking for file-to-server mapping for server on port ${server.port}`);
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Checking for file-to-server mapping for server on port ${server.port}`);
             const fileUri = fileToServerMap.findFileByPort(server.port);
             if (fileUri) {
-                console.log(`ACTIVE_SERVERS: Found associated analysis file: ${fileUri}`);
+                console.log(`ACTIVE_SERVERS: ✅ Found associated analysis file: ${fileUri}`);
                 
                 // Clean up SSE clients for this file
-                console.log(`ACTIVE_SERVERS: Cleaning up SSE clients for ${fileUri}`);
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Cleaning up SSE clients for ${fileUri}`);
                 sseManager.removeAllClients(fileUri);
                 
                 // Remove the file-to-server mapping
-                console.log(`ACTIVE_SERVERS: Removing file-to-server mapping for ${fileUri}`);
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Removing file-to-server mapping for ${fileUri}`);
                 fileToServerMap.unregisterMapping(fileUri);
+            } else {
+                console.log(`ACTIVE_SERVERS: ⚠️ No associated analysis file found for server on port ${server.port}`);
             }
 
+            // Close associated analysis session if it exists
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Attempting to close associated analysis session`);
+            await this.closeAssociatedAnalysisSession(serverId, server);
+
             // Update status to indicate stopping
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Updating server status to 'stopped'`);
             registry.updateServerStatus(serverId, 'stopped');
 
             // Stop the actual server instance if available
             if (server.serverInstance && typeof server.serverInstance.stop === 'function') {
-                console.log(`ACTIVE_SERVERS: Stopping server instance for ${serverId}`);
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Stopping server instance for ${serverId}`);
                 await server.serverInstance.stop();
+                console.log(`ACTIVE_SERVERS: ✅ Server instance stopped for ${serverId}`);
+            } else {
+                console.log(`ACTIVE_SERVERS: ⚠️ No server instance or stop method for ${serverId}`);
             }
 
             // Remove from registry
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Removing server from registry`);
             registry.unregisterServer(serverId);
 
-            console.log(`ACTIVE_SERVERS: Successfully stopped server ${serverId} (${server.url})`);
+            console.log(`ACTIVE_SERVERS: ✅ Successfully stopped server ${serverId} (${server.url})`);
             vscode.window.showInformationMessage(`Server stopped: ${server.url}`);
             
             return true;
 
         } catch (error) {
-            console.error(`ACTIVE_SERVERS: Error stopping server ${serverId}:`, error);
+            console.error(`ACTIVE_SERVERS: ❌ Error stopping server ${serverId}:`, error);
             
             // Update status to error
             registry.updateServerStatus(serverId, 'error');
@@ -296,6 +327,91 @@ export class ServerControl {
             return `${minutes}m ${seconds % 60}s`;
         } else {
             return `${seconds}s`;
+        }
+    }
+
+    /**
+     * Close analysis session associated with a server
+     */
+    private static async closeAssociatedAnalysisSession(serverId: string, server: ActiveServer): Promise<void> {
+        try {
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Looking for analysis session associated with server ${serverId}`);
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Server details:`, {
+                id: serverId,
+                port: server.port,
+                htmlFile: server.htmlFile,
+                metadata: server.metadata
+            });
+            
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(ServerControl.extensionContext);
+            const allSessions = sessionRegistry.getAllSessions();
+            
+            console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Found ${allSessions.length} active analysis sessions`);
+            allSessions.forEach((session: any, index: number) => {
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Session ${index + 1}:`, {
+                    id: session.id,
+                    targetPath: session.targetPath,
+                    outputPath: session.outputPath,
+                    status: session.status
+                });
+            });
+            
+            // Find session that matches this server
+            let associatedSession = null;
+            
+            // Try to find by sessionId in server metadata (when implemented)
+            if (server.metadata && (server.metadata as any).sessionId) {
+                const sessionId = (server.metadata as any).sessionId;
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Trying to find session by metadata sessionId: ${sessionId}`);
+                associatedSession = sessionRegistry.getSession(sessionId);
+                if (associatedSession) {
+                    console.log(`ACTIVE_SERVERS: ✅ Found session by metadata sessionId: ${sessionId}`);
+                } else {
+                    console.log(`ACTIVE_SERVERS: ❌ No session found with sessionId: ${sessionId}`);
+                }
+            }
+            
+            // If not found, try to find by matching output directory or static root
+            if (!associatedSession) {
+                const serverRoot = server.metadata?.staticRoot || server.htmlFile;
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Trying to find session by server root: ${serverRoot}`);
+                
+                for (const session of allSessions) {
+                    console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Checking session ${session.id} with outputPath: ${session.outputPath}`);
+                    
+                    if (session.outputPath && serverRoot && (
+                        session.outputPath === serverRoot ||
+                        serverRoot.includes(session.outputPath) ||
+                        session.outputPath.includes(serverRoot)
+                    )) {
+                        associatedSession = session;
+                        console.log(`ACTIVE_SERVERS: ✅ Found session by output directory match: ${session.id}`);
+                        break;
+                    }
+                }
+                
+                if (!associatedSession) {
+                    console.log(`ACTIVE_SERVERS: ❌ No session found by directory matching`);
+                }
+            }
+            
+            // If found, close the session
+            if (associatedSession) {
+                console.log(`ACTIVE_SERVERS: 🔍 DEBUG - Closing associated analysis session ${associatedSession.id}`);
+                
+                const success = sessionRegistry.closeSession(associatedSession.id);
+                
+                if (success) {
+                    console.log(`ACTIVE_SERVERS: ✅ Successfully closed associated analysis session ${associatedSession.id}`);
+                } else {
+                    console.warn(`ACTIVE_SERVERS: ⚠️ Failed to close associated analysis session ${associatedSession.id}`);
+                }
+            } else {
+                console.log(`ACTIVE_SERVERS: ❌ No associated analysis session found for server ${serverId}`);
+            }
+            
+        } catch (error) {
+            console.error(`ACTIVE_SERVERS: ❌ Error closing associated analysis session for server ${serverId}:`, error);
         }
     }
 }

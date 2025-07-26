@@ -57,8 +57,8 @@ def analyze_file_summary(file_path: str, relative_path: Optional[str] = None) ->
     if relative_path is None:
         relative_path = file_name
     
-    # Get the directory containing this script
-    script_dir = Path(__file__).parent
+    # Get the tools directory for analyzers
+    script_dir = Path(__file__).parent.parent / "tools"
     
     try:
         # Use the existing livePanel_file_analysis_coordinator for comprehensive analysis

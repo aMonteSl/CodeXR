@@ -9,6 +9,7 @@ import { getActiveServerRegistry } from '../../active_servers/registry/activeSer
 import { LaunchMode, CertMode } from '../../active_servers/model/activeServerModel';
 import { ServerActionHandlers } from '../../active_servers/views/interactions/handleServerActions';
 import { getServerRegistrar } from '../../active_servers/services/serverRegistrar';
+import { NetworkUtils } from '../utils/networkUtils';
 
 /**
  * Server types supported by the launcher
@@ -78,7 +79,7 @@ export class MultiServerLauncher {
      * @param customName Optional custom display name for the server
      * @returns Promise<MultiServerLaunchResult>
      */
-    public async launchServer(htmlFile?: string, customName?: string): Promise<MultiServerLaunchResult> {
+    public async launchServer(htmlFile?: string, customName?: string, additionalMetadata?: Record<string, any>): Promise<MultiServerLaunchResult> {
         try {
             console.log('SERVER: Starting multi-server launch process...');
             console.log('SERVER: launchServer called with parameters:', { htmlFile, customName });
@@ -118,8 +119,9 @@ export class MultiServerLauncher {
                 console.log(`SERVER: Using requested port ${finalPort}`);
             }
 
-            // Launch the server
-            const host = 'localhost';
+            // Launch the server - Use 0.0.0.0 to listen on all network interfaces for external access
+            const host = '0.0.0.0';
+            console.log(`SERVER: DEBUG - Configuring server to listen on ${host}:${finalPort} for network access`);
             const result = await this.launchServerByType(serverType, settings, finalPort, host, htmlFile);
             
             if (result.success && result.serverUrl) {
@@ -143,7 +145,10 @@ export class MultiServerLauncher {
                     const launchMode: LaunchMode = this.determineLaunchMode(settings);
                     const certMode: CertMode = this.determineCertMode(serverType, result.httpsOverridden);
                     
-                    console.log('SERVER: About to register server with customName:', customName);
+                    console.log('SERVER: 🔍 DEBUG - About to register server with the following details:');
+                    console.log('SERVER: 🔍 DEBUG - customName:', customName);
+                    console.log('SERVER: 🔍 DEBUG - port:', finalPort);
+                    console.log('SERVER: 🔍 DEBUG - url:', result.serverUrl);
                     
                     const registrar = getServerRegistrar();
                     const activeServer = registrar.registerServer({
@@ -161,9 +166,14 @@ export class MultiServerLauncher {
                             portChanged: portChanged,
                             httpsOverridden: isHttpsOverridden,
                             launcherId: 'multi-server',
-                            serverInstanceId: serverId
+                            serverInstanceId: serverId,
+                            ...additionalMetadata // Add any additional metadata passed in
                         }
                     });
+                    
+                    console.log('SERVER: ✅ Successfully registered server with registry:');
+                    console.log('SERVER: ✅ Registered server ID:', activeServer.id);
+                    console.log('SERVER: ✅ Registered server customName:', activeServer.customName);
                     
                     serverInfo.activeServerId = activeServer.id;
                     this.servers.set(serverId, serverInfo);
@@ -544,9 +554,27 @@ export class MultiServerLauncher {
         
         if (!isAutoOpenEnabled) {
             console.log('SERVER: Auto-open is disabled, showing success notification only');
+            
+            // Extract port from serverUrl to generate network URLs
+            const portMatch = serverUrl.match(/:(\d+)/);
+            const port = portMatch ? parseInt(portMatch[1]) : null;
+            const protocol = serverUrl.startsWith('https') ? 'https' : 'http';
+            
+            let notificationMessage = `Server launched successfully on ${serverUrl}`;
+            
+            // Add network access information if port is available
+            if (port) {
+                const localIP = NetworkUtils.getLocalIPAddress();
+                if (localIP !== 'localhost') {
+                    const networkUrl = `${protocol}://${localIP}:${port}`;
+                    notificationMessage = `Server launched successfully! Network: ${networkUrl} Local: ${serverUrl}`;
+                    console.log(`SERVER: Network access URL: ${networkUrl}`);
+                }
+            }
+            
             vscode.window.showInformationMessage(
-                `Server launched successfully on ${serverUrl}`,
-                'Open Now'
+                notificationMessage,
+                'Open Now', 'Copy Network URL'
             ).then(action => {
                 if (action === 'Open Now') {
                     // Use the active server action handler to respect the configured mode
@@ -554,6 +582,13 @@ export class MultiServerLauncher {
                         this.openServerInBrowser(activeServerId);
                     } else {
                         this.openServerInPanel(activeServerId);
+                    }
+                } else if (action === 'Copy Network URL' && port) {
+                    const localIP = NetworkUtils.getLocalIPAddress();
+                    if (localIP !== 'localhost') {
+                        const networkUrl = `${protocol}://${localIP}:${port}`;
+                        vscode.env.clipboard.writeText(networkUrl);
+                        vscode.window.showInformationMessage('Network URL copied to clipboard');
                     }
                 }
             });

@@ -33,9 +33,6 @@ export interface UnifiedAnalysisSession {
     serverId?: string;             // ID del servidor en el registro activo
     watcherId?: string;            // ID del watcher activo para esta sesión
     
-    // Active Analyses UI integration
-    activeAnalysisId?: string;     // ID in the Active Analyses registry
-    
     // Session state
     status: AnalysisStatus;        // Current status
     progress?: number;             // Progress percentage (0-100)

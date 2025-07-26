@@ -12,22 +12,23 @@ export class PortManager {
     /**
      * Check if a specific port is available
      * @param port - The port number to check
+     * @param host - The host to bind to (default: '0.0.0.0')
      * @returns Promise<boolean> - True if port is available, false otherwise
      */
-    public static async isPortAvailable(port: number): Promise<boolean> {
+    public static async isPortAvailable(port: number, host: string = '0.0.0.0'): Promise<boolean> {
         return new Promise((resolve) => {
             const server = net.createServer();
             
-            server.listen(port, () => {
+            server.listen(port, host, () => {
                 server.close(() => {
-                    console.log(`SERVER: Port ${port} is available`);
+                    console.log(`SERVER: Port ${port} is available on ${host}`);
                     resolve(true);
                 });
             });
             
             server.on('error', (err: NodeJS.ErrnoException) => {
                 if (err.code === 'EADDRINUSE') {
-                    console.log(`SERVER: Port ${port} is already in use`);
+                    console.log(`SERVER: Port ${port} is already in use on ${host}`);
                     resolve(false);
                 } else {
                     console.error(`SERVER: Error checking port ${port}:`, err);
@@ -38,17 +39,19 @@ export class PortManager {
     }
 
     /**
-     * Find the next available port starting from the specified port using get-port library
-     * @param startPort - The port to start searching from
-     * @param endPort - The maximum port to check (optional, defaults to 8080)
+     * Find the first available port starting from a given port number
+     * @param startPort - The starting port number (default: 3000)
+     * @param endPort - The ending port number (default: 8080)
+     * @param host - The host to bind to (default: '0.0.0.0')
      * @returns Promise<number> - The first available port found
      * @throws Error if no available port is found within the range
      */
     public static async findAvailablePort(
         startPort: number = PortManager.DEFAULT_START_PORT,
-        endPort: number = PortManager.DEFAULT_END_PORT
+        endPort: number = PortManager.DEFAULT_END_PORT,
+        host: string = '0.0.0.0'
     ): Promise<number> {
-        console.log(`SERVER: Searching for available port starting from ${startPort}`);
+        console.log(`SERVER: Searching for available port starting from ${startPort} on host ${host}`);
         
         // Validate inputs
         if (startPort < 1 || startPort > 65535) {
@@ -60,11 +63,11 @@ export class PortManager {
         }
 
         try {
-            // Use get-port for more reliable port detection
+            // Use get-port for more reliable port detection with sequential checking
             const getPort = (await import('get-port')).default;
             
-            // Create a range array for get-port - limit to reasonable range for performance
-            const maxRange = Math.min(endPort - startPort + 1, 50); // Limit to 50 ports max
+            // Create a sequential range array for get-port
+            const maxRange = Math.min(endPort - startPort + 1, 100); // Check up to 100 ports sequentially
             const ports: number[] = [];
             for (let i = 0; i < maxRange; i++) {
                 const port = startPort + i;
@@ -73,20 +76,20 @@ export class PortManager {
                 }
             }
             
-            console.log(`SERVER: Searching through ${ports.length} ports starting from ${startPort}`);
+            console.log(`SERVER: Checking ${ports.length} ports sequentially from ${startPort} to ${startPort + maxRange - 1}`);
             
             const availablePort = await getPort({
                 port: ports,
-                host: 'localhost'
+                host: '0.0.0.0'  // Use 0.0.0.0 to check availability on all interfaces
             });
 
-            console.log(`SERVER: get-port found available port: ${availablePort}`);
+            console.log(`SERVER: Found available port: ${availablePort} (sequential search successful)`);
             return availablePort;
         } catch (error) {
-            console.error(`SERVER: get-port failed, falling back to manual detection:`, error);
+            console.error(`SERVER: get-port failed, using manual sequential detection:`, error);
             
-            // Fallback to the original manual implementation
-            console.log(`SERVER: Using fallback manual port detection from ${startPort} to ${endPort}`);
+            // Fallback to manual sequential implementation  
+            console.log(`SERVER: Manual port scanning from ${startPort} to ${endPort}`);
             let currentPort = startPort;
             let attempts = 0;
             const maxAttempts = Math.min(endPort - startPort + 1, PortManager.MAX_RETRIES);
@@ -96,10 +99,12 @@ export class PortManager {
                     break;
                 }
 
-                console.log(`SERVER: Checking port ${currentPort}...`);
-                if (await PortManager.isPortAvailable(currentPort)) {
-                    console.log(`SERVER: Found available port (fallback): ${currentPort}`);
+                console.log(`SERVER: Testing port ${currentPort} availability on ${host}`);
+                if (await PortManager.isPortAvailable(currentPort, host)) {
+                    console.log(`SERVER: Port ${currentPort} is available and ready for use`);
                     return currentPort;
+                } else {
+                    console.log(`SERVER: Port ${currentPort} is occupied, trying next port ${currentPort + 1}`);
                 }
 
                 currentPort++;
@@ -107,7 +112,7 @@ export class PortManager {
             }
 
             throw new Error(
-                `SERVER: No available port found in range ${startPort}-${endPort} after ${attempts} attempts`
+                `SERVER: No available port found in range ${startPort}-${endPort} after checking ${attempts} ports sequentially`
             );
         }
     }
@@ -128,7 +133,7 @@ export class PortManager {
             throw new Error('SERVER: Port count must be greater than 0');
         }
 
-        console.log(`SERVER: Searching for ${count} available ports starting from ${startPort}`);
+        console.log(`SERVER: Searching for ${count} available ports starting sequentially from ${startPort}`);
         
         const availablePorts: number[] = [];
         let currentPort = startPort;
@@ -136,17 +141,20 @@ export class PortManager {
         while (availablePorts.length < count && currentPort <= endPort) {
             if (await PortManager.isPortAvailable(currentPort)) {
                 availablePorts.push(currentPort);
-                console.log(`SERVER: Found port ${currentPort} (${availablePorts.length}/${count})`);
+                console.log(`SERVER: Found available port ${currentPort} (${availablePorts.length}/${count})`);
+            } else {
+                console.log(`SERVER: Port ${currentPort} is occupied, checking next port ${currentPort + 1}`);
             }
             currentPort++;
         }
 
         if (availablePorts.length < count) {
             throw new Error(
-                `SERVER: Only found ${availablePorts.length} available ports, needed ${count}`
+                `SERVER: Only found ${availablePorts.length} available ports out of ${count} needed in range ${startPort}-${endPort}`
             );
         }
 
+        console.log(`SERVER: Successfully found ${count} available ports: [${availablePorts.join(', ')}]`);
         return availablePorts;
     }
 

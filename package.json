@@ -217,22 +217,22 @@
         "icon": "$(browser)"
       },
       {
-        "command": "newCodeAnalysis.activeAnalyses.closeAnalysis",
+        "command": "codeXR.new_code_analysis.activeAnalyses.close",
         "title": "Close Analysis",
         "icon": "$(close)"
       },
       {
-        "command": "newCodeAnalysis.activeAnalyses.openInBrowser",
+        "command": "codeXR.new_code_analysis.activeAnalyses.viewInBrowser",
         "title": "Open in Browser",
         "icon": "$(link-external)"
       },
       {
-        "command": "newCodeAnalysis.activeAnalyses.viewDetails",
+        "command": "codeXR.new_code_analysis.activeAnalyses.showDetails",
         "title": "View Details",
         "icon": "$(info)"
       },
       {
-        "command": "newCodeAnalysis.activeAnalyses.refreshAll",
+        "command": "codeXR.new_code_analysis.activeAnalyses.refresh",
         "title": "Refresh Active Analyses",
         "icon": "$(refresh)"
       }
@@ -357,19 +357,14 @@
       ],
       "view/item/context": [
         {
-          "command": "newCodeAnalysis.activeAnalyses.closeAnalysis",
-          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|completed|failed)$/",
+          "command": "codeXR.new_code_analysis.activeAnalyses.showDetails",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
           "group": "activeAnalyses@1"
         },
         {
-          "command": "newCodeAnalysis.activeAnalyses.openInBrowser",
-          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(completed)$/",
+          "command": "codeXR.new_code_analysis.activeAnalyses.close",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
           "group": "activeAnalyses@2"
-        },
-        {
-          "command": "newCodeAnalysis.activeAnalyses.viewDetails",
-          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|completed|failed)$/",
-          "group": "activeAnalyses@3"
         }
       ]
     }

@@ -4,6 +4,7 @@
  */
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { MultiServerLauncher } from '../../../servers/runtime/multiServerLauncher';
 import { ServerSettingsManager } from '../../../servers/storage/serverSettingsManager';
 import { fileToServerMap } from '../../../utils/fileToServerMap';
@@ -57,10 +58,15 @@ export class ServerLaunchOrchestrator {
             const htmlFilePath = this.findMainHtmlFile(tempDir);
             console.log(`SERVER_LAUNCH_ORCHESTRATOR: HTML file path: ${htmlFilePath}`);
 
+            // Generate descriptive custom name for the server based on analysis type and target
+            const customName = this.generateDescriptiveServerName(request, session);
+            console.log(`SERVER_LAUNCH_ORCHESTRATOR: Generated descriptive name: "${customName}"`);
+
             // Lanzar servidor usando MultiServerLauncher
             const launchResult = await this.multiServerLauncher!.launchServer(
                 htmlFilePath, // Pasar la ruta completa del HTML
-                `Analysis_${request.sessionId}` // customName
+                customName, // Use descriptive name instead of generic Analysis_{sessionId}
+                { sessionId: request.sessionId } // Pass sessionId in metadata for server-session linking
             );
             
             console.log(`SERVER_LAUNCH_ORCHESTRATOR: Launch result:`, {
@@ -231,6 +237,39 @@ export class ServerLaunchOrchestrator {
     private getServerRefById(serverId: string): any {
         // TODO: Implementar cuando tengamos acceso a las referencias del servidor
         return null;
+    }
+
+    /**
+     * Generate descriptive custom name for the server based on analysis type and target
+     */
+    private generateDescriptiveServerName(request: ServerLaunchRequest, session?: UnifiedAnalysisSession): string {
+        const baseName = path.basename(request.targetPath);
+        const analysisMode = session?.analysisMode || 'unknown';
+        const targetType = session?.targetType || 'unknown';
+        
+        console.log(`SERVER_LAUNCH_ORCHESTRATOR: 🔍 DEBUG - Generating name for:`, {
+            baseName,
+            analysisMode,
+            targetType,
+            targetPath: request.targetPath
+        });
+        
+        // Create descriptive names based on analysis mode and target type
+        if (analysisMode.toLowerCase().includes('xr')) {
+            if (targetType === 'directory') {
+                const dirName = path.basename(path.dirname(request.targetPath));
+                return `XR Directory: ${dirName}`;
+            } else {
+                return `XR File: ${baseName}`;
+            }
+        } else if (analysisMode.toLowerCase().includes('dom')) {
+            return `DOM Visualization: ${baseName}`;
+        } else if (targetType === 'directory') {
+            const dirName = path.basename(path.dirname(request.targetPath));
+            return `LivePanel Directory: ${dirName}`;
+        } else {
+            return `LivePanel File: ${baseName}`;
+        }
     }
 }
 

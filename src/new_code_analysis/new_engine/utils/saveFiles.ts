@@ -61,6 +61,10 @@ export class SaveFiles {
                 console.log(`SAVE_FILES: ✅ Saved ${fileName} (${content.length} chars)`);
             }
             
+            // Always copy favicon.ico from resources directory
+            await this.copyFavicon(storagePath, context);
+            savedFiles.push('favicon.ico');
+            
             console.log(`SAVE_FILES: 🎉 Successfully saved ${savedFiles.length} files to: ${storagePath}`);
             console.log(`SAVE_FILES: 📋 Files saved: ${savedFiles.join(', ')}`);
             
@@ -123,6 +127,37 @@ export class SaveFiles {
         } catch (error) {
             console.error(`SAVE_FILES: ❌ Error verifying files:`, error);
             return false;
+        }
+    }
+
+    /**
+     * Copia el favicon.ico desde resources al directorio de destino
+     */
+    private async copyFavicon(storagePath: string, context: vscode.ExtensionContext): Promise<void> {
+        try {
+            // Usar el extensionPath para acceder a los recursos de la extensión
+            const extensionPath = context.extensionPath;
+            
+            // Construir ruta al favicon en el directorio de la extensión
+            const faviconSourcePath = path.join(extensionPath, 'resources', 'favicon.ico');
+            const faviconDestPath = path.join(storagePath, 'favicon.ico');
+            
+            console.log(`SAVE_FILES: 🖼️ Copying favicon from extension resources: ${faviconSourcePath}`);
+            console.log(`SAVE_FILES: 🖼️ Copying favicon to: ${faviconDestPath}`);
+            
+            // Verificar que el archivo fuente existe
+            if (!fs.existsSync(faviconSourcePath)) {
+                console.warn(`SAVE_FILES: ⚠️ Favicon not found at: ${faviconSourcePath}`);
+                return;
+            }
+            
+            // Copiar el archivo
+            await fs.promises.copyFile(faviconSourcePath, faviconDestPath);
+            console.log(`SAVE_FILES: ✅ Favicon copied successfully`);
+            
+        } catch (error) {
+            console.error(`SAVE_FILES: ❌ Error copying favicon:`, error);
+            // No lanzamos error para que no interrumpa el guardado de otros archivos
         }
     }
 }

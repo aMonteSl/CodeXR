@@ -33,8 +33,8 @@ def analyze_directory_deep_comprehensive(directory_path, filtered_files=None):
     if filtered_files:
         print(json.dumps({"debug": f"DIRECTORY_DEEP_ANALYSIS: Using filtered file list with {len(filtered_files)} files"}), file=sys.stderr)
     
-    # Get the directory containing this script
-    script_dir = Path(__file__).parent
+    # Get the tools directory for analyzers
+    script_dir = Path(__file__).parent.parent / "tools"
     
     # Initialize result structure based on template requirements (same as regular but with deep data)
     result = {
@@ -214,7 +214,7 @@ def analyze_single_file(file_path, script_dir):
     """
     try:
         # Use the existing livePanel_file_analysis_coordinator.py to analyze the file
-        coordinator_path = script_dir / "livePanel_file_analysis_coordinator.py"
+        coordinator_path = script_dir.parent / "livePanels" / "livePanel_file_analysis_coordinator.py"
         
         if not coordinator_path.exists():
             print(json.dumps({"debug": f"DIRECTORY_DEEP_ANALYSIS: File coordinator not found: {coordinator_path}"}), file=sys.stderr)

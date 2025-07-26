@@ -1,10 +1,11 @@
 /**
  * Directory Analysis XR Commands
  * Commands for analyzing directories in XR mode
+ * NOW REDIRECTED TO NEW ENGINE
  */
 
 import * as vscode from 'vscode';
-import { LaunchAnalyzeDirectoryXR } from '../../engine';
+import { AnalysisOrchestrator } from '../../new_engine/analysisOrchestrator';
 
 export class DirectoryAnalysisXRCommands {
 
@@ -85,8 +86,7 @@ export class DirectoryAnalysisXRCommands {
 
             // Use the XR directory analysis engine (unified progress tracking handles the progress bar)
             try {
-                const launcher = LaunchAnalyzeDirectoryXR.getInstance();
-                await launcher.launch(directoryPath, this.context, false);
+                await AnalysisOrchestrator.orchestrateAnalysis(directoryPath, 'XR', 'directory', this.context, false);
                 
             } catch (error) {
                 console.error('DIRECTORY_ANALYSIS_XR_COMMANDS: Directory XR analysis failed:', error);
@@ -150,8 +150,7 @@ export class DirectoryAnalysisXRCommands {
 
             // Use the XR Deep directory analysis engine (unified progress tracking handles the progress bar)
             try {
-                const launcher = LaunchAnalyzeDirectoryXR.getInstance();
-                await launcher.launchDeep(directoryPath, this.context);
+                await AnalysisOrchestrator.orchestrateAnalysis(directoryPath, 'XR', 'directory', this.context, true);
                 
             } catch (error) {
                 console.error('DIRECTORY_ANALYSIS_XR_COMMANDS: Directory XR Deep analysis failed:', error);
@@ -209,8 +208,7 @@ export class DirectoryAnalysisXRCommands {
 
             // Use directory XR launcher for project analysis (unified progress tracking handles the progress bar)
             try {
-                const launcher = LaunchAnalyzeDirectoryXR.getInstance();
-                await launcher.launch(projectPath, this.context, false);
+                await AnalysisOrchestrator.orchestrateAnalysis(projectPath, 'XR', 'directory', this.context, false);
                 
             } catch (error) {
                 console.error('DIRECTORY_ANALYSIS_XR_COMMANDS: Project XR analysis failed:', error);
@@ -269,8 +267,7 @@ export class DirectoryAnalysisXRCommands {
             // Show progress notification
             // Use directory XR Deep launcher for project analysis (unified progress tracking handles the progress bar)
             try {
-                const launcher = LaunchAnalyzeDirectoryXR.getInstance();
-                await launcher.launchDeep(projectPath, this.context);
+                await AnalysisOrchestrator.orchestrateAnalysis(projectPath, 'XR', 'directory', this.context, true);
                 
             } catch (error) {
                 console.error('DIRECTORY_ANALYSIS_XR_COMMANDS: Project XR Deep analysis failed:', error);

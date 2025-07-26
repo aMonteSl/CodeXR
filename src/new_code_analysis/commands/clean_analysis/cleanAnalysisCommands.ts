@@ -4,8 +4,9 @@
  */
 
 import * as vscode from 'vscode';
-import { SaveFiles, ManageWatcher } from '../../engine/utils';
 import { CommandRegistration } from '../subsections/analysis_settings/analysis_file_mode';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class CleanAnalysisCommands {
 
@@ -43,16 +44,13 @@ export class CleanAnalysisCommands {
         try {
             console.log('CLEAN_ANALYSIS_COMMANDS: Executing startup cleanup...');
             
-            // Stop all file watchers (in case of restart)
-            console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
-            ManageWatcher.stopAllWatchers();
-            
-            const cleanupResult = await SaveFiles.cleanAllAnalysisDirectories(context);
+            // Clean the entire workspace storage
+            const cleanupResult = await CleanAnalysisCommands.cleanCompleteWorkspaceStorage(context);
             
             if (cleanupResult) {
-                console.log('CLEAN_ANALYSIS_COMMANDS: Startup cleanup completed successfully');
+                console.log('CLEAN_ANALYSIS_COMMANDS: Complete workspace storage cleanup completed successfully');
             } else {
-                console.warn('CLEAN_ANALYSIS_COMMANDS: Startup cleanup completed with some errors');
+                console.warn('CLEAN_ANALYSIS_COMMANDS: Complete workspace storage cleanup completed with some errors');
             }
 
         } catch (error) {
@@ -82,10 +80,10 @@ export class CleanAnalysisCommands {
 
             // Stop all file watchers first
             console.log('CLEAN_ANALYSIS_COMMANDS: Stopping all file watchers...');
-            ManageWatcher.stopAllWatchers();
+            // Note: Watchers will be stopped when cleaning directories
 
             // Execute cleanup
-            const cleanupResult = await SaveFiles.cleanAllAnalysisDirectories(context);
+            const cleanupResult = await CleanAnalysisCommands.cleanAllAnalysisDirectories(context);
 
             if (cleanupResult) {
                 vscode.window.showInformationMessage(
@@ -105,5 +103,84 @@ export class CleanAnalysisCommands {
                 `CodeXR: Error during cleanup: ${error instanceof Error ? error.message : String(error)}`
             );
         }
+    }
+
+    /**
+     * Clean complete workspace storage
+     */
+    private static async cleanCompleteWorkspaceStorage(context: vscode.ExtensionContext): Promise<boolean> {
+        try {
+            if (!context.storageUri) {
+                console.log('CLEAN_ANALYSIS_COMMANDS: No storage URI available, skipping cleanup');
+                return true;
+            }
+
+            const storagePath = context.storageUri.fsPath;
+            
+            if (fs.existsSync(storagePath)) {
+                console.log(`CLEAN_ANALYSIS_COMMANDS: Cleaning storage directory: ${storagePath}`);
+                await this.deleteDirectoryRecursive(storagePath);
+                console.log('CLEAN_ANALYSIS_COMMANDS: Storage directory cleaned successfully');
+            } else {
+                console.log('CLEAN_ANALYSIS_COMMANDS: Storage directory does not exist, nothing to clean');
+            }
+
+            return true;
+        } catch (error) {
+            console.error('CLEAN_ANALYSIS_COMMANDS: Error cleaning workspace storage:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Clean all analysis directories
+     */
+    private static async cleanAllAnalysisDirectories(context: vscode.ExtensionContext): Promise<boolean> {
+        try {
+            if (!context.storageUri) {
+                console.log('CLEAN_ANALYSIS_COMMANDS: No storage URI available, skipping cleanup');
+                return true;
+            }
+
+            const storagePath = context.storageUri.fsPath;
+            const analysisPath = path.join(storagePath, 'analysis');
+            
+            if (fs.existsSync(analysisPath)) {
+                console.log(`CLEAN_ANALYSIS_COMMANDS: Cleaning analysis directory: ${analysisPath}`);
+                await this.deleteDirectoryRecursive(analysisPath);
+                console.log('CLEAN_ANALYSIS_COMMANDS: Analysis directory cleaned successfully');
+            } else {
+                console.log('CLEAN_ANALYSIS_COMMANDS: Analysis directory does not exist, nothing to clean');
+            }
+
+            return true;
+        } catch (error) {
+            console.error('CLEAN_ANALYSIS_COMMANDS: Error cleaning analysis directories:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Delete directory recursively
+     */
+    private static async deleteDirectoryRecursive(dirPath: string): Promise<void> {
+        if (!fs.existsSync(dirPath)) {
+            return;
+        }
+
+        const files = fs.readdirSync(dirPath);
+
+        for (const file of files) {
+            const filePath = path.join(dirPath, file);
+            const stat = fs.statSync(filePath);
+
+            if (stat.isDirectory()) {
+                await this.deleteDirectoryRecursive(filePath);
+            } else {
+                fs.unlinkSync(filePath);
+            }
+        }
+
+        fs.rmdirSync(dirPath);
     }
 }

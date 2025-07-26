@@ -4,7 +4,6 @@
  */
 
 import * as path from 'path';
-import { AnalysisType } from '../../../../engine/registry/analysisSessionRegistry';
 
 export interface ActiveAnalysisData {
     /** Session ID */
@@ -17,7 +16,7 @@ export interface ActiveAnalysisData {
     filePath: string;
     
     /** Type of analysis */
-    analysisType: AnalysisType;
+    analysisType: string;
     
     /** Current analysis status */
     status: 'creating' | 'analyzing' | 'completed' | 'failed' | 'closing';
@@ -126,7 +125,7 @@ export class ActiveAnalysisModelMapper {
     /**
      * Get visual representation for analysis status and type
      */
-    private static getStatusVisuals(status: string, analysisType?: AnalysisType): {
+    private static getStatusVisuals(status: string, analysisType?: string): {
         iconName: string;
         iconColor?: string;
         contextValue: string;
@@ -139,7 +138,7 @@ export class ActiveAnalysisModelMapper {
             // XR Analysis uses VR icon in purple
             baseIcon = 'vr';
             baseColor = 'charts.purple';
-        } else if (analysisType === 'LivePanel') {
+        } else if (analysisType === 'FileLivePanel') {
             // File Live Panel uses file-code icon in green
             baseIcon = 'file-code';
             baseColor = 'charts.green';
@@ -147,6 +146,18 @@ export class ActiveAnalysisModelMapper {
             // Directory Live Panel uses folder icon in green
             baseIcon = 'folder';
             baseColor = 'charts.green';
+        } else if (analysisType === 'DeepDirectoryLivePanel') {
+            // Deep Directory Live Panel uses folder-library icon in green
+            baseIcon = 'folder-library';
+            baseColor = 'charts.green';
+        } else if (analysisType === 'DirectoryXRAnalysis') {
+            // Directory XR Analysis uses folder with VR icon in purple
+            baseIcon = 'folder';
+            baseColor = 'charts.purple';
+        } else if (analysisType === 'DeepDirectoryXRAnalysis') {
+            // Deep Directory XR Analysis uses folder-library with VR icon in purple
+            baseIcon = 'folder-library';
+            baseColor = 'charts.purple';
         } else if (analysisType === 'DOMVisualization') {
             // DOM Visualization uses code-oss icon in orange
             baseIcon = 'code-oss';

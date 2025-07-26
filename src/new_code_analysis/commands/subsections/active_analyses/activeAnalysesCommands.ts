@@ -5,6 +5,9 @@
 
 import * as vscode from 'vscode';
 import { CommandRegistration } from '../analysis_settings/analysis_file_mode';
+import { UnifiedSessionRegistry } from '../../../new_engine/core/sessionRegistry';
+import { ServerWatcherIntegration } from '../../../services/serverWatcherIntegration';
+import { ActiveAnalysesCommands as ActiveAnalysesViewCommands } from '../../../views/subsections/active_analyses/commands/activeAnalysesCommands';
 
 export class ActiveAnalysesCommands {
     
@@ -19,17 +22,19 @@ export class ActiveAnalysesCommands {
     ): CommandRegistration[] {
         console.log('NEW_CODE_ANALYSIS: Collecting Active Analyses command registrations');
         
-        // TODO: Add actual active analyses commands
-        const commandRegistrations: CommandRegistration[] = [
-            // Example commands:
-            // {
-            //     commandId: 'newCodeAnalysis.showActiveAnalyses',
-            //     callback: () => { /* implementation */ },
-            //     description: 'Show Active Analyses view'
-            // }
-        ];
+        // Get the session registry and server watcher
+        const sessionRegistry = UnifiedSessionRegistry.getInstance(context);
+        const serverWatcher = ServerWatcherIntegration.getInstance(context);
+        const viewCommands = ActiveAnalysesViewCommands.getInstance(sessionRegistry, serverWatcher);
+        
+        // Register commands with the view commands handler (this does the actual registration)
+        viewCommands.registerCommands(context);
+        
+        // Return empty array since commands are already registered above
+        // This avoids duplicate registration in the nested dolls pattern
+        const commandRegistrations: CommandRegistration[] = [];
 
-        console.log(`NEW_CODE_ANALYSIS: Collected ${commandRegistrations.length} Active Analyses command registrations`);
+        console.log(`NEW_CODE_ANALYSIS: Active Analyses commands registered directly, returning ${commandRegistrations.length} command registrations for nested pattern`);
         return commandRegistrations;
     }
 }

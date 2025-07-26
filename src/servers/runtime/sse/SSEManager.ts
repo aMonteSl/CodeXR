@@ -117,6 +117,30 @@ export class SSEManager {
     }
 
     /**
+     * Send a dataRefresh event specifically for XR visualizations
+     * This triggers the dataRefresh event listener in live_sse_fileXR.js
+     * 
+     * @param fileUri - URI of the analyzed file that was updated
+     */
+    sendDataRefresh(fileUri: string): void {
+        console.log(`[SSE_MANAGER] Sending dataRefresh event for XR visualization: ${fileUri}`);
+        
+        // Create the dataRefresh event data
+        const refreshData = JSON.stringify({
+            type: 'dataRefresh',
+            fileUri: fileUri,
+            timestamp: new Date().toISOString(),
+            message: 'XR data has been refreshed, updating visualization',
+            action: 'xr-data-refresh'
+        });
+
+        // Send as a specific SSE event
+        this.clientRegistry.sendEventToClients(fileUri, 'dataRefresh', refreshData);
+        
+        console.log(`[SSE_MANAGER] dataRefresh event sent for XR visualization: ${fileUri}`);
+    }
+
+    /**
      * Send a custom message to all clients of a specific analysis file
      * 
      * @param fileUri - URI of the analyzed file

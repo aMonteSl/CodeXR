@@ -6,8 +6,6 @@
 import * as vscode from 'vscode';
 import { CommandRegistration } from '../analysis_settings/analysis_file_mode';
 import { AnalysisConfigurationStorage } from '../../../configuration/analysisConfigurationStorage';
-import { LaunchAnalyzeFileXR } from '../../../engine/launchAnalyzeFileXR'; // Only for XR analysis
-import { LaunchVisualizeDOMPanel } from '../../../engine/launchVisualizeDOMPanel';
 import { AnalysisOrchestrator } from '../../../new_engine/analysisOrchestrator';
 
 export class FilesByLanguageCommands {
@@ -81,9 +79,15 @@ export class FilesByLanguageCommands {
 
             // Determine which analysis to run based on file type and configuration
             if (languageName === 'HTML') {
-                // HTML files always use DOM Visualization
-                console.log('FILES_BY_LANGUAGE: Running DOM Visualization for HTML file');
-                await LaunchVisualizeDOMPanel.visualizeDOM(absolutePath, context);
+                // HTML files always use DOM Visualization using NEW ENGINE
+                console.log('FILES_BY_LANGUAGE: Running DOM Visualization for HTML file using NEW ENGINE');
+                await AnalysisOrchestrator.orchestrateAnalysis(
+                    absolutePath,
+                    'VisualizeDOM',
+                    'file',
+                    context,
+                    false
+                );
             } else {
                 // For other files, use the configured analysis mode with NEW ENGINE
                 if (analysisMode === 'XR') {

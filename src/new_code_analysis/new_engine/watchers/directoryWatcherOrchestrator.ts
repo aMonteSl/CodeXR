@@ -24,6 +24,9 @@ export class DirectoryWatcherOrchestrator {
     private executePython: ExecutePython;
     private sessionServerManager: SessionServerManager;
     private changedFiles: Set<string> = new Set();
+    private directoryWatcher: fs.FSWatcher | null = null;
+    private addedFiles: Set<string> = new Set();
+    private deletedFiles: Set<string> = new Set();
 
     constructor(
         private session: UnifiedAnalysisSession,
@@ -111,6 +114,18 @@ export class DirectoryWatcherOrchestrator {
                 }
             }
 
+            // Crear watcher para el directorio completo para detectar archivos añadidos/eliminados
+            try {
+                this.directoryWatcher = fs.watch(this.session.targetPath, { recursive: this.session.isDeep }, (eventType, filename) => {
+                    if (filename) {
+                        this.handleDirectoryChange(eventType, filename);
+                    }
+                });
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Watching directory: ${this.session.targetPath} (recursive: ${this.session.isDeep})`);
+            } catch (watchError) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to watch directory ${this.session.targetPath}:`, watchError);
+            }
+
             this.isWatching = true;
             
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Directory watcher started successfully with ID: ${this.watcherId}`);
@@ -141,37 +156,144 @@ export class DirectoryWatcherOrchestrator {
     }
 
     /**
+     * Maneja cambios en el directorio (archivos añadidos/eliminados)
+     */
+    private handleDirectoryChange(eventType: string, filename: string): void {
+        const fullPath = path.join(this.session.targetPath, filename);
+        
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Directory change: ${filename} (${eventType})`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Full path: ${fullPath}`);
+        
+        // Verificar si es un archivo que debemos analizar (por extensión)
+        if (!this.shouldAnalyzeFile(fullPath)) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏭️ Skipping file with unsupported extension: ${filename}`);
+            return;
+        }
+
+        // Verificar el estado actual del archivo
+        const fileExists = fs.existsSync(fullPath);
+        const wasWatched = this.watchers.has(fullPath);
+        
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 File state - exists: ${fileExists}, was watched: ${wasWatched}`);
+
+        if (eventType === 'rename') {
+            // 'rename' puede ser tanto adición como eliminación
+            if (fileExists) {
+                // Archivo añadido
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ File added: ${filename}`);
+                this.addedFiles.add(fullPath);
+                
+                // Remover de deletedFiles si estaba ahí (caso de rename)
+                this.deletedFiles.delete(fullPath);
+            } else {
+                // Archivo eliminado
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ File deleted: ${filename}`);
+                this.deletedFiles.add(fullPath);
+                
+                // Remover de addedFiles y changedFiles si estaban ahí
+                this.addedFiles.delete(fullPath);
+                this.changedFiles.delete(fullPath);
+            }
+        } else if (eventType === 'change') {
+            // Verificar si es realmente un cambio o una adición tardía
+            if (fileExists) {
+                if (!wasWatched) {
+                    // Es un archivo nuevo que no teníamos en el watcher
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ New file detected via change event: ${filename}`);
+                    this.addedFiles.add(fullPath);
+                } else {
+                    // Es un cambio en un archivo existente - déjalo que lo maneje el file watcher individual
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 File change delegated to individual watcher: ${filename}`);
+                }
+            } else {
+                // Archivo eliminado detectado via change
+                if (wasWatched) {
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ File deletion detected via change event: ${filename}`);
+                    this.deletedFiles.add(fullPath);
+                    this.addedFiles.delete(fullPath);
+                    this.changedFiles.delete(fullPath);
+                }
+            }
+        }
+
+        // Activar debounce
+        const totalChanges = this.changedFiles.size + this.addedFiles.size + this.deletedFiles.size;
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏰ Directory changes summary: ${this.changedFiles.size} changed, ${this.addedFiles.size} added, ${this.deletedFiles.size} deleted (total: ${totalChanges})`);
+        
+        if (totalChanges > 0 && this.debounceManager) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚀 Starting debounce for directory changes...`);
+            this.debounceManager.start();
+        }
+    }
+
+    /**
+     * Verifica si un archivo debe ser analizado según su extensión
+     */
+    private shouldAnalyzeFile(filePath: string): boolean {
+        const supportedExtensions = [
+            '.py', '.pyw', '.pyi', '.rb', '.rbw', '.java', '.c', '.h', '.cpp', '.cxx', '.cc', '.hpp', '.hxx',
+            '.cs', '.erl', '.hrl', '.f90', '.f95', '.f03', '.f08', '.f', '.gd', '.go', '.js', '.mjs', '.cjs',
+            '.kt', '.kts', '.lua', '.m', '.mm', '.php', '.phtml', '.php3', '.php4', '.php5', '.pl', '.pm',
+            '.scala', '.sc', '.sol', '.swift', '.ts', '.tsx', '.ttcn', '.ttcn3', '.vue', '.zig', '.rs',
+            '.dart', '.r', '.sh', '.bash', '.ps1', '.jsx', '.css', '.scss', '.less', '.clj', '.cljs',
+            '.hs', '.ml', '.mli', '.pas'
+        ];
+
+        const ext = path.extname(filePath).toLowerCase();
+        return supportedExtensions.includes(ext);
+    }
+
+    /**
      * Callback ejecutado cuando termina el debounce
      */
     private async handleDebounceCallback(): Promise<void> {
         try {
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏰ Debounce completed, processing ${this.changedFiles.size} changed files`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏰ Debounce completed`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Processing changes: ${this.changedFiles.size} modified, ${this.addedFiles.size} added, ${this.deletedFiles.size} deleted`);
 
-            if (this.changedFiles.size === 0) {
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 No files to process`);
-                return;
+            let hasChanges = false;
+
+            // 1. PROCESAR ARCHIVOS MODIFICADOS
+            if (this.changedFiles.size > 0) {
+                // Detectar qué archivos realmente cambiaron su hash
+                const actuallyChangedFiles = await this.detectHashChanges();
+
+                if (actuallyChangedFiles.length > 0) {
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: � ${actuallyChangedFiles.length} files actually changed hash, starting re-analysis`);
+                    await this.reAnalyzeChangedFiles(actuallyChangedFiles);
+                    hasChanges = true;
+                }
             }
 
-            // Detectar qué archivos realmente cambiaron su hash
-            const actuallyChangedFiles = await this.detectHashChanges();
-
-            if (actuallyChangedFiles.length === 0) {
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 No files actually changed hash, skipping re-analysis`);
-                this.changedFiles.clear();
-                return;
+            // 2. PROCESAR ARCHIVOS AÑADIDOS
+            if (this.addedFiles.size > 0) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ Processing ${this.addedFiles.size} added files`);
+                await this.processAddedFiles(Array.from(this.addedFiles));
+                hasChanges = true;
             }
 
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 ${actuallyChangedFiles.length} files actually changed hash, starting re-analysis`);
+            // 3. PROCESAR ARCHIVOS ELIMINADOS
+            if (this.deletedFiles.size > 0) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ Processing ${this.deletedFiles.size} deleted files`);
+                await this.processDeletedFiles(Array.from(this.deletedFiles));
+                hasChanges = true;
+            }
 
-            // Re-analizar archivos cambiados
-            await this.reAnalyzeChangedFiles(actuallyChangedFiles);
-
-            // Limpiar lista de cambios
+            // Limpiar todas las listas de cambios
             this.changedFiles.clear();
+            this.addedFiles.clear();
+            this.deletedFiles.clear();
+
+            if (!hasChanges) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 No actual changes detected, skipping update`);
+            }
 
         } catch (error) {
             console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error during debounce callback:`, error);
+            // Limpiar listas en caso de error
             this.changedFiles.clear();
+            this.addedFiles.clear();
+            this.deletedFiles.clear();
         }
     }
 
@@ -268,6 +390,7 @@ export class DirectoryWatcherOrchestrator {
     private async updateDataJsonWithChanges(reAnalysisResults: any[]): Promise<void> {
         try {
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Updating data.json with ${reAnalysisResults.length} changed files`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Analysis mode: ${this.session.analysisMode}`);
 
             if (!this.session.savedFilesPath) {
                 console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ No saved files path in session`);
@@ -283,84 +406,176 @@ export class DirectoryWatcherOrchestrator {
             }
 
             const currentData = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📖 Current data.json has ${currentData.files?.length || 0} files`);
 
-            // Crear mapa de archivos actuales por filePath para búsqueda rápida
-            const currentFilesMap = new Map();
-            if (currentData.files) {
-                currentData.files.forEach((file: any, index: number) => {
-                    currentFilesMap.set(file.filePath, { file, index });
-                });
-            }
-
-            // Actualizar archivos que cambiaron
-            let updatedCount = 0;
-            for (const reAnalyzedFile of reAnalysisResults) {
-                const currentFileData = currentFilesMap.get(reAnalyzedFile.filePath);
-                
-                if (currentFileData) {
-                    // Reemplazar datos del archivo
-                    currentData.files[currentFileData.index] = reAnalyzedFile;
-                    updatedCount++;
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Updated ${reAnalyzedFile.fileName}`);
-                } else {
-                    console.warn(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ File not found in current data: ${reAnalyzedFile.filePath}`);
-                    // Agregar nuevo archivo
-                    currentData.files.push(reAnalyzedFile);
-                    updatedCount++;
-                }
-            }
-
-            // Recalcular summary
-            this.recalculateSummary(currentData);
-
-            // Actualizar timestamp
-            currentData.summary.analyzedAt = new Date().toISOString();
-
-            // Guardar data.json actualizado
-            fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
-
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Successfully updated data.json with ${updatedCount} files`);
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 New summary:`, {
-                totalFiles: currentData.summary?.totalFiles || 0,
-                totalFilesAnalyzed: currentData.summary?.totalFilesAnalyzed || 0,
-                totalLines: currentData.summary?.totalLines || 0
-            });
-
-            // 🔔 ENVIAR NOTIFICACIÓN SSE para actualizar el cliente (mismo patrón que File Analysis)
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔔 Sending SSE notification for data.json update...`);
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Session details:`, {
-                sessionId: this.session.id,
-                targetPath: this.session.targetPath,
-                assignedPort: this.session.assignedPort,
-                serverUrl: this.session.serverUrl
-            });
-            
-            try {
-                // 🎯 SOLUCIÓN: Usar el mismo patrón que FileWatcherOrchestrator con ReAnalysisManager
-                // Importar SSEManager directamente para consistencia con File Analysis
-                const { SSEManager } = require('../../../servers/runtime/sse/SSEManager');
-                const sseManager = SSEManager.getInstance();
-                
-                // Usar targetPath directamente como en File Analysis
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📡 Sending update for targetPath: ${this.session.targetPath}`);
-                sseManager.sendUpdate(this.session.targetPath);
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ SSE notification sent successfully using direct SSEManager`);
-            } catch (sseError) {
-                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to send SSE notification via direct SSEManager:`, sseError);
-                
-                // Fallback: usar el método original
-                try {
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔄 Attempting fallback via SessionServerManager...`);
-                    await this.sessionServerManager.notifyAnalysisUpdated(this.session.id);
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ SSE notification sent via fallback method`);
-                } catch (fallbackError) {
-                    console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Fallback SSE notification also failed:`, fallbackError);
-                }
+            // DETECTAR FORMATO: XR vs LivePanel
+            if (this.session.analysisMode === 'XR') {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🥽 Using XR format (direct array)`);
+                await this.updateXRDataJson(currentData, reAnalysisResults, dataJsonPath);
+            } else {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: � Using LivePanel format (with summary wrapper)`);
+                await this.updateLivePanelDataJson(currentData, reAnalysisResults, dataJsonPath);
             }
 
         } catch (error) {
             console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error updating data.json:`, error);
+        }
+    }
+
+    /**
+     * Actualiza data.json en formato XR (array directo de archivos)
+     */
+    private async updateXRDataJson(currentData: any[], reAnalysisResults: any[], dataJsonPath: string): Promise<void> {
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🥽 Updating XR data.json with ${reAnalysisResults.length} files`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📖 Current XR data has ${currentData.length} files`);
+
+        // Para XR: currentData es directamente un array de archivos
+        const currentFilesMap = new Map();
+        currentData.forEach((file: any, index: number) => {
+            currentFilesMap.set(file.filePath, { file, index });
+        });
+
+        // Actualizar archivos que cambiaron
+        let updatedCount = 0;
+        for (const reAnalyzedFile of reAnalysisResults) {
+            const currentFileData = currentFilesMap.get(reAnalyzedFile.filePath);
+            
+            if (currentFileData) {
+                // Reemplazar datos del archivo en el array
+                currentData[currentFileData.index] = reAnalyzedFile;
+                updatedCount++;
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Updated XR file ${reAnalyzedFile.fileName}`);
+            } else {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ Adding new XR file: ${reAnalyzedFile.fileName}`);
+                // Agregar nuevo archivo al array
+                currentData.push(reAnalyzedFile);
+                updatedCount++;
+            }
+        }
+
+        // Guardar data.json actualizado (formato XR: array directo)
+        fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
+
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Successfully updated XR data.json with ${updatedCount} files`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 New XR array has ${currentData.length} files`);
+
+        // Enviar notificación SSE
+        await this.sendSSENotification();
+    }
+
+    /**
+     * Actualiza data.json en formato LivePanel (con wrapper de summary)
+     */
+    private async updateLivePanelDataJson(currentData: any, reAnalysisResults: any[], dataJsonPath: string): Promise<void> {
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📺 Updating LivePanel data.json with ${reAnalysisResults.length} files`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📖 Current LivePanel data has ${currentData.files?.length || 0} files`);
+
+        // Para LivePanel: currentData tiene estructura {summary: {...}, files: [...]}
+        if (!currentData.files) {
+            currentData.files = [];
+        }
+
+        // Crear mapa de archivos actuales por filePath para búsqueda rápida
+        const currentFilesMap = new Map();
+        currentData.files.forEach((file: any, index: number) => {
+            currentFilesMap.set(file.filePath, { file, index });
+        });
+
+        // Actualizar archivos que cambiaron
+        let updatedCount = 0;
+        for (const reAnalyzedFile of reAnalysisResults) {
+            const currentFileData = currentFilesMap.get(reAnalyzedFile.filePath);
+            
+            if (currentFileData) {
+                // Reemplazar datos del archivo
+                currentData.files[currentFileData.index] = reAnalyzedFile;
+                updatedCount++;
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Updated LivePanel file ${reAnalyzedFile.fileName}`);
+            } else {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ Adding new LivePanel file: ${reAnalyzedFile.fileName}`);
+                // Agregar nuevo archivo
+                currentData.files.push(reAnalyzedFile);
+                updatedCount++;
+            }
+        }
+
+        // Recalcular summary para LivePanel
+        this.recalculateSummary(currentData);
+
+        // Actualizar timestamp
+        if (!currentData.summary) {
+            currentData.summary = {};
+        }
+        currentData.summary.analyzedAt = new Date().toISOString();
+
+        // Guardar data.json actualizado (formato LivePanel: con wrapper)
+        fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
+
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Successfully updated LivePanel data.json with ${updatedCount} files`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 New LivePanel summary:`, {
+            totalFiles: currentData.summary?.totalFiles || 0,
+            totalFilesAnalyzed: currentData.summary?.totalFilesAnalyzed || 0,
+            totalLines: currentData.summary?.totalLines || 0
+        });
+
+        // Enviar notificación SSE
+        await this.sendSSENotification();
+    }
+
+    /**
+     * Envía notificación SSE para actualizar el cliente
+     */
+    private async sendSSENotification(): Promise<void> {
+        // 🔔 ENVIAR NOTIFICACIÓN SSE para actualizar el cliente (mismo patrón que File Analysis)
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔔 Sending SSE notification for data.json update...`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Session details:`, {
+            sessionId: this.session.id,
+            targetPath: this.session.targetPath,
+            assignedPort: this.session.assignedPort,
+            serverUrl: this.session.serverUrl
+        });
+        
+        try {
+            // 🎯 SOLUCIÓN: Agregar debugging para entender el problema de registro SSE
+            const { SSEManager } = require('../../../servers/runtime/sse/SSEManager');
+            const sseManager = SSEManager.getInstance();
+            
+            // Obtener información detallada del registry
+            const { fileToServerMap } = require('../../../utils/fileToServerMap');
+            
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 DEBUG - fileToServerMap status:`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📋 All file URIs: ${fileToServerMap.getAllFileUris().join(', ')}`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔎 Looking for port: ${this.session.assignedPort}`);
+            
+            if (this.session.assignedPort) {
+                const foundFileUri = fileToServerMap.findFileByPort(this.session.assignedPort);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🎯 Found file URI for port ${this.session.assignedPort}: ${foundFileUri}`);
+            }
+            
+            // Enviar usando el método correcto según el tipo de análisis
+            if (this.session.analysisMode === 'XR') {
+                // Para análisis XR, usar sendDataRefresh como en fileXR
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🥽 Sending dataRefresh event for XR directory analysis`);
+                sseManager.sendDataRefresh(this.session.targetPath);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ dataRefresh event sent for XR directory analysis`);
+            } else {
+                // Para LivePanel u otros análisis, usar sendUpdate estándar
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🖥️ Sending standard update for LivePanel directory analysis`);
+                sseManager.sendUpdate(this.session.targetPath);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Standard SSE notification sent for LivePanel directory analysis`);
+            }
+            
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ SSE notification sent successfully using direct SSEManager`);
+        } catch (sseError) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to send SSE notification via direct SSEManager:`, sseError);
+            
+            // Fallback: usar el método original
+            try {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔄 Attempting fallback via SessionServerManager...`);
+                await this.sessionServerManager.notifyAnalysisUpdated(this.session.id);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ SSE notification sent via fallback method`);
+            } catch (fallbackError) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Fallback SSE notification also failed:`, fallbackError);
+            }
         }
     }
 
@@ -436,6 +651,210 @@ export class DirectoryWatcherOrchestrator {
     }
 
     /**
+     * Procesa archivos añadidos al directorio
+     */
+    private async processAddedFiles(addedFiles: string[]): Promise<void> {
+        try {
+            const dataJsonPath = path.join(this.session.savedFilesPath!, 'data.json');
+            
+            if (!fs.existsSync(dataJsonPath)) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ data.json not found at ${dataJsonPath}`);
+                return;
+            }
+
+            // Leer el data.json actual
+            const dataJsonContent = fs.readFileSync(dataJsonPath, 'utf8');
+            const data = JSON.parse(dataJsonContent);
+
+            let hasChanges = false;
+
+            for (const filePath of addedFiles) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ Processing added file: ${filePath}`);
+                
+                // Verificar si el archivo ya existe en el data.json
+                const existingFile = data.files.find((file: any) => 
+                    file.file_path === filePath || file.filePath === filePath
+                );
+                
+                if (existingFile) {
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ File already exists in data.json: ${filePath}`);
+                    continue;
+                }
+
+                try {
+                    // Analizar el archivo nuevo usando análisis de archivo individual
+                    // Crear una sesión temporal para el archivo nuevo
+                    const tempSession = {
+                        ...this.session,
+                        analysisMode: 'LivePanel' as const,
+                        targetType: 'file' as const,
+                        targetPath: filePath
+                    };
+
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Analyzing new file: ${filePath}`);
+                    const fileAnalysisResult = await this.executePython.executeAnalysis(tempSession);
+                    
+                    if (fileAnalysisResult && fileAnalysisResult.success !== false) {
+                        // Añadir el archivo analizado al array de files
+                        data.files.push(fileAnalysisResult);
+                        hasChanges = true;
+                        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Added new file to data.json: ${filePath}`);
+                        
+                        // Agregar el archivo al watcher individual para futuros cambios
+                        this.addFileWatcher(filePath);
+                        
+                        // Actualizar hash en la sesión para el nuevo archivo
+                        if (this.session.filesToHash) {
+                            const fileHash = await SHA256Generator.generateFileHash(filePath);
+                            this.session.filesToHash.push({
+                                filePath: filePath,
+                                hash: fileHash
+                            });
+                        }
+                    } else {
+                        console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to analyze new file: ${filePath}`, fileAnalysisResult);
+                    }
+                } catch (analysisError) {
+                    console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error analyzing new file ${filePath}:`, analysisError);
+                }
+            }
+
+            // Guardar cambios si hubo adiciones
+            if (hasChanges) {
+                fs.writeFileSync(dataJsonPath, JSON.stringify(data, null, 2), 'utf8');
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 💾 Updated data.json after adding ${addedFiles.length} files`);
+
+                // Recalcular el resumen después de añadir archivos
+                await this.recalculateSummaryFromDataJson();
+            }
+
+        } catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error processing added files:`, error);
+        }
+    }
+
+    /**
+     * Agrega un watcher para un archivo específico
+     */
+    private addFileWatcher(filePath: string): void {
+        try {
+            if (this.watchers.has(filePath)) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ Watcher already exists for: ${filePath}`);
+                return;
+            }
+
+            const watcher = fs.watch(filePath, (eventType) => {
+                this.handleFileChange(filePath, eventType);
+            });
+
+            this.watchers.set(filePath, watcher);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 👀 Added watcher for: ${path.basename(filePath)}`);
+
+        } catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to add watcher for ${filePath}:`, error);
+        }
+    }
+
+    /**
+     * Procesa archivos eliminados del directorio
+     */
+    private async processDeletedFiles(deletedFiles: string[]): Promise<void> {
+        try {
+            const dataJsonPath = path.join(this.session.savedFilesPath!, 'data.json');
+            
+            if (!fs.existsSync(dataJsonPath)) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ data.json not found at ${dataJsonPath}`);
+                return;
+            }
+
+            // Leer el data.json actual
+            const dataJsonContent = fs.readFileSync(dataJsonPath, 'utf8');
+            const data = JSON.parse(dataJsonContent);
+
+            let hasChanges = false;
+
+            for (const deletedPath of deletedFiles) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ Processing deleted file: ${deletedPath}`);
+                
+                // Encontrar y eliminar el archivo del array files
+                const fileIndex = data.files.findIndex((file: any) => file.file_path === deletedPath || file.filePath === deletedPath);
+                
+                if (fileIndex !== -1) {
+                    data.files.splice(fileIndex, 1);
+                    hasChanges = true;
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗑️ Removed from data.json: ${deletedPath}`);
+                } else {
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ File not found in data.json: ${deletedPath}`);
+                }
+                
+                // Eliminar watcher individual del archivo eliminado
+                if (this.watchers.has(deletedPath)) {
+                    try {
+                        this.watchers.get(deletedPath)?.close();
+                        this.watchers.delete(deletedPath);
+                        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗂️ Removed watcher for deleted file: ${deletedPath}`);
+                    } catch (error) {
+                        console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error removing watcher for ${deletedPath}:`, error);
+                    }
+                }
+            }
+
+            // Guardar cambios si hubo eliminaciones
+            if (hasChanges) {
+                fs.writeFileSync(dataJsonPath, JSON.stringify(data, null, 2), 'utf8');
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 💾 Updated data.json after deleting ${deletedFiles.length} files`);
+
+                // Recalcular el resumen después de eliminar archivos
+                await this.recalculateSummaryFromDataJson();
+            }
+
+        } catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error processing deleted files:`, error);
+        }
+    }
+
+    /**
+     * Recalcula el resumen del data.json basado en los archivos actuales
+     */
+    private async recalculateSummaryFromDataJson(): Promise<void> {
+        try {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔄 Recalculating summary from data.json...`);
+            
+            const dataJsonPath = path.join(this.session.savedFilesPath!, 'data.json');
+            
+            if (!fs.existsSync(dataJsonPath)) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ data.json not found at ${dataJsonPath}`);
+                return;
+            }
+            
+            // Leer data.json actual y recalcular summary
+            const dataJsonContent = fs.readFileSync(dataJsonPath, 'utf8');
+            const data = JSON.parse(dataJsonContent);
+            
+            // Usar el método existente para recalcular
+            this.recalculateSummary(data);
+            
+            // Guardar data.json con el nuevo summary
+            fs.writeFileSync(dataJsonPath, JSON.stringify(data, null, 2), 'utf8');
+            
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Summary recalculated successfully`);
+
+            // Enviar notificación SSE
+            try {
+                const { SSEManager } = require('../../../servers/runtime/sse/SSEManager');
+                const sseManager = SSEManager.getInstance();
+                sseManager.sendUpdate(this.session.targetPath);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔔 SSE notification sent for summary update`);
+            } catch (sseError) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to send SSE notification:`, sseError);
+            }
+
+        } catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error recalculating summary:`, error);
+        }
+    }
+
+    /**
      * Para el watching y limpia recursos
      */
     public async stopWatching(): Promise<void> {
@@ -451,6 +870,17 @@ export class DirectoryWatcherOrchestrator {
      */
     private cleanup(): void {
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🧹 Cleaning up directory watcher resources`);
+
+        // Cerrar directoryWatcher si existe
+        if (this.directoryWatcher) {
+            try {
+                this.directoryWatcher.close();
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗂️ Closed directory watcher`);
+            } catch (error) {
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error closing directory watcher:`, error);
+            }
+            this.directoryWatcher = null;
+        }
 
         // Cerrar todos los watchers
         for (const [filePath, watcher] of this.watchers) {
@@ -471,6 +901,8 @@ export class DirectoryWatcherOrchestrator {
 
         // Limpiar estado
         this.changedFiles.clear();
+        this.addedFiles.clear();
+        this.deletedFiles.clear();
         this.isWatching = false;
         this.watcherId = null;
 

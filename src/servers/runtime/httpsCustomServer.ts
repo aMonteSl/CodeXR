@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { HttpServer, HttpServerConfig } from './httpServer';
+import { NetworkUtils } from '../utils/networkUtils';
+import { PortManager } from './portManager';
 
 /**
  * HTTPS Server Configuration with custom certificates
@@ -97,7 +99,7 @@ export class HttpsCustomServer {
         this.usingFallbackCerts = certInfo.usingFallback;
 
         this.config = {
-            host: 'localhost',
+            host: '0.0.0.0',  // ✅ Listen on all network interfaces for VR/mobile access
             staticRoot: path.join(__dirname, '../../../templates'),
             enableCors: true,
             allowedOrigins: ['*'],
@@ -136,6 +138,17 @@ export class HttpsCustomServer {
         // Validate certificate files
         await this.validateCertificates();
 
+        // Find an available port starting from the configured port
+        console.log(`SERVER: 🔍 Looking for available port starting from ${this.config.port} on host ${this.config.host}...`);
+        const availablePort = await PortManager.findAvailablePort(this.config.port, this.config.port + 100, this.config.host);
+        
+        if (availablePort !== this.config.port) {
+            console.log(`SERVER: ⚠️  Port ${this.config.port} was busy, using ${availablePort} instead on host ${this.config.host}`);
+            this.config.port = availablePort;
+        } else {
+            console.log(`SERVER: ✅ Port ${this.config.port} is available on host ${this.config.host}`);
+        }
+
         return new Promise((resolve, reject) => {
             try {
                 // Load SSL certificates
@@ -164,9 +177,13 @@ export class HttpsCustomServer {
 
                 this.server.on('listening', () => {
                     const address = this.server?.address();
-                    const serverUrl = `https://${this.config.host}:${this.config.port}`;
+                    const port = this.config.port;
                     
-                    console.log(`SERVER: HTTPS server listening on ${serverUrl}`);
+                    // Generate proper URLs for external access
+                    const urls = NetworkUtils.generateServerUrls(port, 'https');
+                    const primaryExternalUrl = NetworkUtils.getPrimaryExternalUrl(port, 'https');
+                    
+                    console.log(`SERVER: HTTPS server listening on port ${port}`);
                     if (this.usingFallbackCerts) {
                         console.warn('SERVER: WARNING - Using default certificates instead of custom certificates');
                         // Show user warning
@@ -181,10 +198,17 @@ export class HttpsCustomServer {
                     } else {
                         console.log('SERVER: Using custom certificates');
                     }
+                    
+                    // Display comprehensive network information
+                    NetworkUtils.displayNetworkInfo(port, 'https');
+                    
                     console.log('SERVER: Server address info:', address);
                     
                     this.isRunning = true;
-                    resolve(serverUrl);
+                    
+                    // Return the localhost URL for browser/panel access  
+                    const localhostUrl = NetworkUtils.getLocalhostUrl(port, 'https');
+                    resolve(localhostUrl);
                 });
 
                 this.server.on('close', () => {
@@ -192,12 +216,23 @@ export class HttpsCustomServer {
                     this.isRunning = false;
                 });
 
-                // Handle TLS errors with more specific error messages
+                // Handle TLS errors gracefully (common with custom certificates)
                 this.server.on('tlsClientError', (err, tlsSocket) => {
-                    console.error('SERVER: TLS client error:', err.message);
-                    if (err.message.includes('certificate')) {
-                        console.error('SERVER: This may indicate an issue with the custom certificates');
+                    // Only log specific errors to avoid spam, and provide helpful guidance
+                    if (err.message.includes('SSLV3_ALERT_CERTIFICATE_UNKNOWN') || 
+                        err.message.includes('certificate unknown') ||
+                        err.message.includes('SSL alert number 46')) {
+                        console.warn('SERVER: ⚠️  Client rejected custom certificate - this may be expected');
+                        console.warn('SERVER: 🥽 VR Solution: Access the server URL in browser first and accept certificate');
+                        console.warn(`SERVER: 🌐 Navigate to: https://${this.config.host}:${this.config.port} and click "Advanced" -> "Proceed"`);
+                    } else if (err.message.includes('certificate')) {
+                        console.warn('SERVER: ⚠️  Certificate-related TLS error:', err.message);
+                        console.warn('SERVER: 🔧 This may indicate an issue with the custom certificates');
+                    } else {
+                        console.warn('SERVER: TLS client error (non-critical):', err.message);
                     }
+                    
+                    // Don't terminate the connection, just log the warning
                 });
 
                 this.server.listen(this.config.port, this.config.host);
@@ -373,22 +408,39 @@ export class HttpsCustomServer {
             const key = fs.readFileSync(this.config.keyPath, 'utf8');
 
             console.log('SERVER: Custom SSL certificates loaded successfully');
+            console.log('SERVER: 🔐 Configuring SSL options for custom certificate VR compatibility');
             
             return {
                 cert: cert,
                 key: key,
-                // Additional security options
-                secureProtocol: 'TLSv1_2_method',
-                honorCipherOrder: true,
+                // Custom certificate friendly options for VR
+                rejectUnauthorized: false,  // Allow custom certificates
+                requestCert: false,         // Don't require client certificates
+                
+                // Security protocols - more permissive for VR compatibility
+                secureProtocol: 'TLS_method',  // Allow wider range of TLS versions
+                
+                // Cipher suites compatible with VR browsers - let client choose
+                honorCipherOrder: false,  // Let client choose preferred cipher
                 ciphers: [
                     'ECDHE-RSA-AES128-GCM-SHA256',
                     'ECDHE-RSA-AES256-GCM-SHA384',
                     'ECDHE-RSA-AES128-SHA256',
-                    'ECDHE-RSA-AES256-SHA384'
+                    'ECDHE-RSA-AES256-SHA384',
+                    'DHE-RSA-AES128-GCM-SHA256',  // Added for wider compatibility
+                    'DHE-RSA-AES256-GCM-SHA384',
+                    'AES128-GCM-SHA256',          // Fallback for older clients
+                    'AES256-GCM-SHA384'
                 ].join(':'),
-                // Reject unauthorized connections for custom certificates
-                requestCert: false,
-                rejectUnauthorized: false
+                
+                // Additional options for VR headset compatibility
+                secureOptions: 0,         // Allow all SSL/TLS versions
+                
+                // SNI (Server Name Indication) callback for flexibility
+                SNICallback: (servername: string, callback: (err: Error | null, ctx?: any) => void) => {
+                    console.log(`SERVER: 🥽 SNI request for custom cert: ${servername}`);
+                    callback(null); // Accept any servername
+                }
             };
         } catch (error) {
             throw new Error(`SERVER: Failed to load custom SSL certificates: ${error}`);

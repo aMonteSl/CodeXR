@@ -30,9 +30,9 @@ export class ActiveAnalysisTreeItem extends NewCodeAnalysisTreeItem {
         
         // Set up the command to view details when clicked
         this.command = {
-            command: 'newCodeAnalysis.activeAnalyses.viewDetails',
+            command: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
             title: 'View Analysis Details',
-            arguments: [this.sessionData.sessionId]
+            arguments: [uiItem.sessionData.sessionId || this.id]
         };
     }
     
@@ -46,7 +46,7 @@ export class ActiveAnalysisTreeItem extends NewCodeAnalysisTreeItem {
     }> {
         const commands = [
             {
-                commandId: 'newCodeAnalysis.activeAnalyses.viewDetails',
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
                 label: 'View Details',
                 icon: 'info'
             }
@@ -55,7 +55,7 @@ export class ActiveAnalysisTreeItem extends NewCodeAnalysisTreeItem {
         // Add server-related commands if server is available
         if (this.sessionData.serverUrl) {
             commands.push({
-                commandId: 'newCodeAnalysis.activeAnalyses.openInBrowser',
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.viewInBrowser',
                 label: 'Open in Browser',
                 icon: 'globe'
             });
@@ -64,23 +64,41 @@ export class ActiveAnalysisTreeItem extends NewCodeAnalysisTreeItem {
         // Add stop command for active analyses
         if (['creating', 'analyzing'].includes(this.sessionData.status)) {
             commands.push({
-                commandId: 'newCodeAnalysis.activeAnalyses.stopAnalysis',
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.close',
                 label: 'Stop Analysis',
                 icon: 'stop-circle'
             });
         }
-        
+
         commands.push({
-            commandId: 'newCodeAnalysis.activeAnalyses.openOutputFolder',
+            commandId: 'codeXR.new_code_analysis.activeAnalyses.open',
             label: 'Open Output Folder',
             icon: 'folder-opened'
-        });
-        
-        return commands;
+        });        return commands;
     }
 }
 
 export class ActiveAnalysisItemFactory {
+    
+    /**
+     * Create header item for Active Analyses section
+     */
+    static createHeaderItem(): NewCodeAnalysisTreeItem {
+        const headerItem = new NewCodeAnalysisTreeItem(
+            'Active Analyses',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'subsection',
+            {
+                command: 'codeXR.new_code_analysis.activeAnalyses.refresh',
+                title: 'Refresh Active Analyses'
+            },
+            new vscode.ThemeIcon('pulse'),
+            'All running analysis sessions',
+            undefined,
+            'activeAnalysesHeader'
+        );
+        return headerItem;
+    }
     
     /**
      * Create tree item from UI model
@@ -178,7 +196,7 @@ export class ActiveAnalysisItemFactory {
             vscode.TreeItemCollapsibleState.None,
             'analysis-result',
             {
-                command: 'newCodeAnalysis.activeAnalyses.refreshAll',
+                command: 'codeXR.new_code_analysis.activeAnalyses.refresh',
                 title: 'Refresh Active Analyses'
             },
             new vscode.ThemeIcon(icon, new vscode.ThemeColor(iconColor)),

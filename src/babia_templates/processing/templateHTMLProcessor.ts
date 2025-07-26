@@ -81,11 +81,27 @@ export class TemplateHTMLProcessor {
             console.log('TEMPLATE_HTML_PROCESSOR: Generated HTML length:', processedHtml.length);
             console.log('TEMPLATE_HTML_PROCESSOR: Generated JS length:', processedJs.length);
 
-            return {
+            // 🔍 DEBUG: Verify what we're about to return
+            const returnResult = {
                 success: true,
                 indexHtml: processedHtml,
                 jsContent: processedJs
             };
+
+            console.log('TEMPLATE_HTML_PROCESSOR: 🔍 DEBUG - About to return result:', {
+                success: returnResult.success,
+                hasIndexHtml: !!returnResult.indexHtml,
+                hasJsContent: !!returnResult.jsContent,
+                indexHtmlLength: returnResult.indexHtml?.length || 0,
+                jsContentLength: returnResult.jsContent?.length || 0,
+                indexHtmlType: typeof returnResult.indexHtml,
+                jsContentType: typeof returnResult.jsContent
+            });
+
+            console.log('TEMPLATE_HTML_PROCESSOR: 🔍 DEBUG - indexHtml preview:', returnResult.indexHtml?.substring(0, 100) + '...');
+            console.log('TEMPLATE_HTML_PROCESSOR: 🔍 DEBUG - jsContent preview:', returnResult.jsContent?.substring(0, 100) + '...');
+
+            return returnResult;
 
         } catch (error) {
             console.error('TEMPLATE_HTML_PROCESSOR: Error processing HTML template:', error);

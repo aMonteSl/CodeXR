@@ -14,14 +14,29 @@ import { DimensionMappingValidator } from '../dimension_mapping_file/dimensionMa
  * Available data fields for directory analysis
  */
 export const DIRECTORY_DATA_FIELDS = [
+    // File identification fields
     { id: 'fileName', label: 'File Name', description: 'Name of the file' },
+    { id: 'filePath', label: 'File Path', description: 'Full path to the file' },
+    { id: 'relativePath', label: 'Relative Path', description: 'Relative path from analysis root' },
     { id: 'language', label: 'Language', description: 'Programming language of the file' },
+    
+    // File size and basic metrics
     { id: 'fileSizeBytes', label: 'File Size (Bytes)', description: 'Size of the file in bytes' },
     { id: 'totalLines', label: 'Total Lines', description: 'Total number of lines in the file' },
+    { id: 'codeLines', label: 'Code Lines', description: 'Number of lines containing code' },
+    { id: 'commentLines', label: 'Comment Lines', description: 'Number of lines containing comments' },
+    { id: 'blankLines', label: 'Blank Lines', description: 'Number of blank lines in the file' },
+    
+    // Code structure metrics
     { id: 'functionCount', label: 'Function Count', description: 'Number of functions in the file' },
     { id: 'classCount', label: 'Class Count', description: 'Number of classes in the file' },
-    { id: 'cyclomaticComplexityNumber', label: 'Cyclomatic Complexity', description: 'Average cyclomatic complexity of the file' },
+    
+    // Complexity metrics - EXACT names from data.json
+    { id: 'cyclomaticComplexityNumber', label: 'Mean Complexity', description: 'Average cyclomatic complexity of the file' },
+    { id: 'maxComplexity', label: 'Max Complexity', description: 'Maximum cyclomatic complexity in the file' },
     { id: 'cyclomaticComplexityDensity', label: 'Complexity Density', description: 'Cyclomatic complexity density of the file' },
+    
+    // Function parameter metrics
     { id: 'maxFunctionParameters', label: 'Max Function Parameters', description: 'Maximum number of parameters in any function' },
     { id: 'averageFunctionParameters', label: 'Average Function Parameters', description: 'Average number of parameters across functions' }
 ];

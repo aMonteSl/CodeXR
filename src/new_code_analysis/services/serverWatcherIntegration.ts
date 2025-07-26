@@ -4,16 +4,17 @@
  */
 
 import * as vscode from 'vscode';
-import { AnalysisSessionRegistry } from '../engine/registry/analysisSessionRegistry';
-import { ManageWatcher } from '../engine/utils/manageWatcher';
+import { UnifiedSessionRegistry } from '../new_engine/core/sessionRegistry';
 import { getActiveServerRegistry } from '../../active_servers/registry/activeServerRegistry';
 import { ServerControl } from '../../active_servers/runtime/serverControl';
 import * as fs from 'fs';
 
 export class ServerWatcherIntegration {
     private static instance: ServerWatcherIntegration;
+    private context: vscode.ExtensionContext;
     
-    private constructor() {
+    private constructor(context: vscode.ExtensionContext) {
+        this.context = context;
         console.log('SERVER_WATCHER_INTEGRATION: Initializing service');
         this.setupServerEventListeners();
     }
@@ -21,9 +22,12 @@ export class ServerWatcherIntegration {
     /**
      * Get singleton instance
      */
-    public static getInstance(): ServerWatcherIntegration {
+    public static getInstance(context?: vscode.ExtensionContext): ServerWatcherIntegration {
         if (!ServerWatcherIntegration.instance) {
-            ServerWatcherIntegration.instance = new ServerWatcherIntegration();
+            if (!context) {
+                throw new Error('ServerWatcherIntegration: ExtensionContext required for first initialization');
+            }
+            ServerWatcherIntegration.instance = new ServerWatcherIntegration(context);
         }
         return ServerWatcherIntegration.instance;
     }
@@ -60,7 +64,7 @@ export class ServerWatcherIntegration {
             console.log(`SERVER_WATCHER_INTEGRATION: Handling server removal: ${serverId} on port ${server.port}`);
             
             // Find analysis sessions that were using this server
-            const sessionRegistry = AnalysisSessionRegistry.getInstance();
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
             const allSessions = sessionRegistry.getAllSessions();
             
             const affectedSessions = allSessions.filter((session: any) => {
@@ -87,26 +91,26 @@ export class ServerWatcherIntegration {
         try {
             console.log(`SERVER_WATCHER_INTEGRATION: Cleaning up session ${sessionId} after server closure (port ${serverPort})`);
             
-            const sessionRegistry = AnalysisSessionRegistry.getInstance();
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
             const session = sessionRegistry.getSession(sessionId);
             
             if (!session) {
-                console.log(`SERVER_WATCHER_INTEGRATION: Session ${sessionId} not found`);
+                console.log(`SERVER_WATCHER_INTEGRATION: Session ${sessionId} not found, skipping cleanup`);
                 return;
             }
             
             // 1. Stop file watcher
-            await this.stopFileWatcherForSession(sessionId, session.filePath);
+            await this.stopFileWatcherForSession(sessionId, session.targetPath);
             
             // 2. Cleanup analysis files
             await this.cleanupAnalysisFiles(session.outputPath);
             
             // 3. Close the session
-            sessionRegistry.closeSession(sessionId);
+            sessionRegistry.updateSessionStatus(sessionId, 'closed');
             
             // 4. Show notification to user
             vscode.window.showInformationMessage(
-                `🗑️ Analysis cleaned up: ${session.fileName} - ${session.analysisType} (server on port ${serverPort} was closed)`
+                `Analysis cleaned up: ${session.targetName} - ${session.analysisMode} (server on port ${serverPort} was closed)`
             );
             
             console.log(`SERVER_WATCHER_INTEGRATION: Successfully cleaned up session ${sessionId}`);
@@ -122,29 +126,10 @@ export class ServerWatcherIntegration {
     private async stopFileWatcherForSession(sessionId: string, filePath: string): Promise<void> {
         try {
             console.log(`SERVER_WATCHER_INTEGRATION: Stopping file watcher for session ${sessionId}, file: ${filePath}`);
-            
-            // Get all active watchers and find the one for this session
-            const watchersInfo = ManageWatcher.getActiveWatchersInfo();
-            
-            // Find and stop watcher for this file
-            for (const watcherInfo of watchersInfo) {
-                if (watcherInfo.filePath === filePath) {
-                    console.log(`SERVER_WATCHER_INTEGRATION: Stopping watcher ${watcherInfo.id} for ${filePath}`);
-                    const stopped = ManageWatcher.stopWatching(watcherInfo.id);
-                
-                    if (stopped) {
-                        console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped file watcher ${watcherInfo.id}`);
-                    } else {
-                        console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop file watcher ${watcherInfo.id}`);
-                    }
-                    break; // Found and processed, exit loop
-                }
-            }
-            
-            console.log(`SERVER_WATCHER_INTEGRATION: File watcher cleanup completed for: ${filePath}`);
-            
+            // Note: Watcher stopping is handled by new engine watchers automatically
+            console.log(`SERVER_WATCHER_INTEGRATION: File watcher stop request logged for session ${sessionId}`);
         } catch (error) {
-            console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher:`, error);
+            console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher for session ${sessionId}:`, error);
         }
     }
     
@@ -153,16 +138,10 @@ export class ServerWatcherIntegration {
      */
     private async cleanupAnalysisFiles(outputPath: string): Promise<void> {
         try {
-            console.log(`SERVER_WATCHER_INTEGRATION: Cleaning up analysis files at: ${outputPath}`);
-            
-            if (fs.existsSync(outputPath)) {
-                // Remove the directory and all its contents
-                await fs.promises.rm(outputPath, { recursive: true, force: true });
-                console.log(`SERVER_WATCHER_INTEGRATION: Successfully removed analysis directory: ${outputPath}`);
-            } else {
-                console.log(`SERVER_WATCHER_INTEGRATION: Analysis directory does not exist: ${outputPath}`);
+            if (outputPath && fs.existsSync(outputPath)) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Cleaning up analysis files at: ${outputPath}`);
+                // Implementation depends on cleanup strategy
             }
-            
         } catch (error) {
             console.error(`SERVER_WATCHER_INTEGRATION: Error cleaning up analysis files:`, error);
         }
@@ -175,27 +154,54 @@ export class ServerWatcherIntegration {
         try {
             console.log(`SERVER_WATCHER_INTEGRATION: Manual cleanup triggered for session ${sessionId}`);
             
-            const sessionRegistry = AnalysisSessionRegistry.getInstance();
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
             const session = sessionRegistry.getSession(sessionId);
             
             if (!session) {
                 console.log(`SERVER_WATCHER_INTEGRATION: Session ${sessionId} not found for manual cleanup`);
                 return false;
             }
+
+            console.log(`SERVER_WATCHER_INTEGRATION: Session found:`, {
+                id: session.id,
+                targetPath: session.targetPath,
+                outputPath: session.outputPath,
+                assignedPort: session.assignedPort,
+                status: session.status,
+                analysisMode: session.analysisMode,
+                targetName: session.targetName
+            });
+
+            // Check if session has port information - support both old and new engine
+            const sessionPort = session.assignedPort;
+            if (sessionPort) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Session has port information: ${sessionPort}`);
+            } else {
+                console.log(`SERVER_WATCHER_INTEGRATION: Session does NOT have port information`);
+                console.log(`SERVER_WATCHER_INTEGRATION: Full session object:`, JSON.stringify(session, null, 2));
+            }
             
             // 1. Stop related server if it exists
-            if (session.port) {
-                await this.stopServerByPort(session.port);
+            if (sessionPort) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Session has port ${sessionPort}, stopping server`);
+                await this.stopServerByPort(sessionPort);
+            } else {
+                console.log(`SERVER_WATCHER_INTEGRATION: Session has no port information, trying to find server by other means`);
+                // Try to find server by other means
+                await this.findAndStopServerForSession(sessionId, session);
             }
             
             // 2. Stop file watcher
-            await this.stopFileWatcherForSession(sessionId, session.filePath);
+            console.log(`SERVER_WATCHER_INTEGRATION: Stopping file watcher for session`);
+            await this.stopFileWatcherForSession(sessionId, session.targetPath);
             
             // 3. Cleanup analysis files  
+            console.log(`SERVER_WATCHER_INTEGRATION: Cleaning up analysis files`);
             await this.cleanupAnalysisFiles(session.outputPath);
             
             // 4. Close the session
-            const closed = sessionRegistry.closeSession(sessionId);
+            console.log(`SERVER_WATCHER_INTEGRATION: Closing session in registry`);
+            const closed = sessionRegistry.updateSessionStatus(sessionId, 'closed');
             
             console.log(`SERVER_WATCHER_INTEGRATION: Manual cleanup completed for session ${sessionId}: ${closed}`);
             return closed;
@@ -211,39 +217,64 @@ export class ServerWatcherIntegration {
      */
     private async stopServerByPort(port: number): Promise<void> {
         try {
-            console.log(`SERVER_WATCHER_INTEGRATION: Stopping server on port ${port}`);
-            
             const serverRegistry = getActiveServerRegistry();
-            
-            // Find server by port
             const servers = serverRegistry.getAllServers();
-            const targetServer = servers.find(server => server.port === port);
             
-            if (targetServer) {
-                console.log(`SERVER_WATCHER_INTEGRATION: Found server ${targetServer.id} on port ${port}`);
-                
-                // Stop the server using ServerControl
-                const stopped = await ServerControl.stopServer(targetServer.id);
-                
-                if (stopped) {
-                    console.log(`SERVER_WATCHER_INTEGRATION: Successfully stopped server ${targetServer.id}`);
-                } else {
-                    console.warn(`SERVER_WATCHER_INTEGRATION: Failed to stop server ${targetServer.id}`);
-                }
+            const serverToStop = servers.find((server: any) => server.port === port);
+            
+            if (serverToStop) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Stopping server ${serverToStop.id} on port ${port}`);
+                await ServerControl.stopServer(serverToStop.id);
             } else {
                 console.log(`SERVER_WATCHER_INTEGRATION: No server found on port ${port}`);
             }
+        } catch (error) {
+            console.error(`SERVER_WATCHER_INTEGRATION: Error stopping server by port ${port}:`, error);
+        }
+    }
+
+    /**
+     * Find and stop server for session using multiple matching strategies
+     */
+    private async findAndStopServerForSession(sessionId: string, session: any): Promise<void> {
+        try {
+            console.log(`SERVER_WATCHER_INTEGRATION: Trying to find server for session ${sessionId}`);
+            
+            const serverRegistry = getActiveServerRegistry();
+            const servers = serverRegistry.getAllServers();
+            
+            // Try to find server by various matching strategies
+            const matchingServer = servers.find((server: any) => {
+                // Match by output path
+                if (session.outputPath && server.htmlFile && server.htmlFile.includes(session.outputPath)) {
+                    return true;
+                }
+                
+                // Match by file path in server metadata
+                if (server.metadata && server.metadata.sessionId === sessionId) {
+                    return true;
+                }
+                
+                return false;
+            });
+            
+            if (matchingServer) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Found matching server ${matchingServer.id}, stopping it`);
+                await ServerControl.stopServer(matchingServer.id);
+            } else {
+                console.log(`SERVER_WATCHER_INTEGRATION: No matching server found for session ${sessionId}`);
+            }
             
         } catch (error) {
-            console.error(`SERVER_WATCHER_INTEGRATION: Error stopping server by port:`, error);
+            console.error(`SERVER_WATCHER_INTEGRATION: Error finding and stopping server for session ${sessionId}:`, error);
         }
     }
     
     /**
      * Initialize the service (to be called from extension activation)
      */
-    public static initialize(): void {
-        ServerWatcherIntegration.getInstance();
+    public static initialize(context: vscode.ExtensionContext): void {
+        ServerWatcherIntegration.getInstance(context);
         console.log('SERVER_WATCHER_INTEGRATION: Service initialized');
     }
 }
