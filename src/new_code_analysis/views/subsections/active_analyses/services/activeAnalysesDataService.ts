@@ -8,21 +8,22 @@ import * as path from 'path';
 import { UnifiedSessionRegistry } from '../../../../new_engine/core/sessionRegistry';
 
 export interface ActiveAnalysisItem {
+    // Core session properties - SIMPLIFIED
     id: string;
+    sessionId: string;
     label: string;
     description?: string;
     analysisType: string;
     status: string;
     filePath?: string;
+    targetPath?: string;
     resourceUri?: vscode.Uri;
     contextValue: string;
     iconPath?: vscode.ThemeIcon;
-    children?: ActiveAnalysisItem[];
-    // Additional properties for command compatibility
-    sessionId?: string;
     serverUrl?: string;
-    targetPath?: string;
     assignedPort?: number;
+    // Direct session reference for commands - NO MORE COMPLEX TRANSFORMATIONS
+    session: any;
 }
 
 export class ActiveAnalysesDataService {
@@ -70,8 +71,8 @@ export class ActiveAnalysesDataService {
             // Root level - return all active analyses
             return Promise.resolve(this.getAllActiveAnalyses());
         } else {
-            // Return children if any
-            return Promise.resolve(element.children || []);
+            // No children for analysis items - flat list
+            return Promise.resolve([]);
         }
     }
 
@@ -79,26 +80,60 @@ export class ActiveAnalysesDataService {
      * Get tree item
      */
     public getTreeItem(element: ActiveAnalysisItem): vscode.TreeItem {
-        const item = new vscode.TreeItem(element.label);
-        item.description = element.description;
-        item.contextValue = element.contextValue;
-        item.resourceUri = element.resourceUri;
-        item.iconPath = element.iconPath;
-        
-        // Add command to show details when clicked
-        item.command = {
-            command: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
-            title: 'Show Details',
-            arguments: [element] // Pass the full element as argument
-        };
-        
-        if (element.children && element.children.length > 0) {
-            item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-        } else {
+        try {
+            if (!element) {
+                console.error('ACTIVE_ANALYSES_DATA_SERVICE: getTreeItem called with null/undefined element');
+                return new vscode.TreeItem('Error: Invalid item');
+            }
+
+            const item = new vscode.TreeItem(element.label || 'Unknown Analysis');
+            item.description = element.description;
+            item.contextValue = element.contextValue;
+            
+            // Safely set resourceUri
+            if (element.resourceUri) {
+                try {
+                    item.resourceUri = element.resourceUri;
+                } catch (uriError) {
+                    console.warn('ACTIVE_ANALYSES_DATA_SERVICE: Error setting resourceUri:', uriError);
+                    item.resourceUri = undefined;
+                }
+            }
+            
+            item.iconPath = element.iconPath;
+            
+            // CRITICAL: Add sessionId to the TreeItem so commands can locate the session
+            // VS Code passes the TreeItem object to context menu commands, not the original element
+            (item as any).sessionId = element.sessionId;
+            (item as any).id = element.id;
+            (item as any).analysisType = element.analysisType;
+            (item as any).status = element.status;
+            (item as any).targetPath = element.targetPath;
+            (item as any).serverUrl = element.serverUrl;
+            (item as any).assignedPort = element.assignedPort;
+            
+            console.log('ACTIVE_ANALYSES_DATA_SERVICE: Created TreeItem with session info:', {
+                sessionId: element.sessionId,
+                id: element.id,
+                label: element.label,
+                targetPath: element.targetPath
+            });
+            
+            // Add command to show details when clicked - with safe argument handling
+            item.command = {
+                command: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
+                title: 'Show Details',
+                arguments: element ? [element] : [] // Ensure arguments array is never undefined
+            };
+            
+            // Analysis items are always leaf nodes (no children)
             item.collapsibleState = vscode.TreeItemCollapsibleState.None;
+            
+            return item;
+        } catch (error) {
+            console.error('ACTIVE_ANALYSES_DATA_SERVICE: Error in getTreeItem:', error);
+            return new vscode.TreeItem('Error: Failed to create tree item');
         }
-        
-        return item;
     }
 
     /**
@@ -113,15 +148,39 @@ export class ActiveAnalysesDataService {
                 return analyses;
             }
 
-            // Get all sessions
-            const allSessions = this.sessionRegistry.getAllSessions();
+            // Get all sessions with safety check
+            let allSessions;
+            try {
+                allSessions = this.sessionRegistry.getAllSessions();
+            } catch (error) {
+                console.error('ACTIVE_ANALYSES_DATA_SERVICE: Error getting sessions from registry:', error);
+                return analyses;
+            }
+
+            if (!Array.isArray(allSessions)) {
+                console.warn('ACTIVE_ANALYSES_DATA_SERVICE: getAllSessions() returned non-array:', typeof allSessions);
+                return analyses;
+            }
+
             console.log(`ACTIVE_ANALYSES_DATA_SERVICE: Found ${allSessions.length} sessions`);
             
             for (const session of allSessions) {
+                if (!session) {
+                    console.warn('ACTIVE_ANALYSES_DATA_SERVICE: Found null/undefined session in registry');
+                    continue;
+                }
+                
                 if (session.status !== 'closed') {
-                    // Determine type based on session properties
-                    const type = session.targetType === 'directory' ? 'directory' : 'file';
-                    analyses.push(this.createAnalysisItem(session, type));
+                    try {
+                        // Determine type based on session properties
+                        const type = session.targetType === 'directory' ? 'directory' : 'file';
+                        const analysisItem = this.createAnalysisItem(session, type);
+                        if (analysisItem) {
+                            analyses.push(analysisItem);
+                        }
+                    } catch (error) {
+                        console.error('ACTIVE_ANALYSES_DATA_SERVICE: Error creating analysis item for session:', session.id, error);
+                    }
                 }
             }
 
@@ -136,27 +195,69 @@ export class ActiveAnalysesDataService {
     /**
      * Create analysis item for tree view
      */
-    private createAnalysisItem(session: any, type: 'file' | 'directory'): ActiveAnalysisItem {
-        // Use analysis type icon instead of status icon for better visual differentiation
-        const analysisIcon = this.getAnalysisTypeIcon(session.analysisMode, type);
-        const analysisTypeLabel = this.getAnalysisTypeLabel(session.analysisMode);
-        
-        return {
-            id: session.id,
-            sessionId: session.id, // For command compatibility
-            label: `${session.targetName || path.basename(session.targetPath || '')}`,
-            description: `${analysisTypeLabel} - ${this.getStatusLabel(session.status)}`,
-            analysisType: session.analysisMode,
-            status: session.status,
-            filePath: session.targetPath,
-            targetPath: session.targetPath,
-            serverUrl: session.serverUrl,
-            assignedPort: session.assignedPort,
-            resourceUri: session.targetPath ? vscode.Uri.file(session.targetPath) : undefined,
-            // Fix contextValue to match package.json patterns - remove type from the middle
-            contextValue: `activeAnalysis.${session.status}`,
-            iconPath: analysisIcon
-        };
+    private createAnalysisItem(session: any, type: 'file' | 'directory'): ActiveAnalysisItem | null {
+        try {
+            if (!session) {
+                console.warn('ACTIVE_ANALYSES_DATA_SERVICE: Cannot create analysis item - session is null/undefined');
+                return null;
+            }
+
+            if (!session.id) {
+                console.warn('ACTIVE_ANALYSES_DATA_SERVICE: Cannot create analysis item - session has no ID');
+                return null;
+            }
+
+            // Use analysis type icon instead of status icon for better visual differentiation
+            const analysisIcon = this.getAnalysisTypeIcon(session.analysisMode, type);
+            const analysisTypeLabel = this.getAnalysisTypeLabel(session.analysisMode);
+            
+            // Safe property access with fallbacks
+            const targetName = session.targetName || (session.targetPath ? path.basename(session.targetPath) : 'Unknown');
+            const status = session.status || 'unknown';
+            const analysisMode = session.analysisMode || 'unknown';
+            const targetPath = session.targetPath;
+            
+            // Create resourceUri safely with validation
+            let resourceUri: vscode.Uri | undefined = undefined;
+            if (targetPath && typeof targetPath === 'string' && targetPath.trim().length > 0) {
+                try {
+                    // Validate the path doesn't contain illegal URI characters
+                    const normalizedPath = path.normalize(targetPath.trim());
+                    resourceUri = vscode.Uri.file(normalizedPath);
+                } catch (uriError) {
+                    console.warn('ACTIVE_ANALYSES_DATA_SERVICE: Invalid path for URI creation:', targetPath, uriError);
+                    resourceUri = undefined;
+                }
+            }
+            
+            console.log('ACTIVE_ANALYSES_DATA_SERVICE: Creating analysis item for session:', {
+                sessionId: session.id,
+                targetName: targetName,
+                targetPath: targetPath
+            });
+            
+            return {
+                id: session.id,
+                sessionId: session.id, // For command compatibility
+                label: targetName,
+                description: `${analysisTypeLabel} - ${this.getStatusLabel(status)}`,
+                analysisType: analysisMode,
+                status: status,
+                filePath: targetPath || undefined,
+                targetPath: targetPath || undefined,
+                serverUrl: session.serverUrl || undefined,
+                assignedPort: session.assignedPort || undefined,
+                resourceUri: resourceUri,
+                // Fix contextValue to match package.json patterns - remove type from the middle
+                contextValue: `activeAnalysis.${status}`,
+                iconPath: analysisIcon,
+                // SIMPLIFIED: Direct session reference for commands
+                session: session
+            };
+        } catch (error) {
+            console.error('ACTIVE_ANALYSES_DATA_SERVICE: Error creating analysis item:', error);
+            return null;
+        }
     }
 
     /**
@@ -354,5 +455,37 @@ export class ActiveAnalysesDataService {
      */
     public getActiveAnalyses(): ActiveAnalysisItem[] {
         return this.getAllActiveAnalyses();
+    }
+
+    /**
+     * Get subsection item for the tree (SIMPLIFIED integration)
+     */
+    public getSubsectionItem(): any {
+        try {
+            const activeCount = this.getAllActiveAnalyses().length;
+            return {
+                label: `Active Analyses (${activeCount})`,
+                collapsibleState: 1, // Expanded
+                contextValue: 'activeAnalysesSubsection',
+                newCodeAnalysisItemType: 'subsection',
+                iconPath: new vscode.ThemeIcon(
+                    'play-circle',
+                    activeCount > 0 ? new vscode.ThemeColor('charts.green') : new vscode.ThemeColor('charts.gray')
+                ),
+                tooltip: `${activeCount} active analysis sessions`,
+                description: activeCount > 0 ? `${activeCount} running` : 'No active sessions'
+            };
+        } catch (error) {
+            console.error('ACTIVE_ANALYSES_DATA_SERVICE: Error creating subsection item:', error);
+            return {
+                label: 'Active Analyses (Error)',
+                collapsibleState: 1,
+                contextValue: 'activeAnalysesSubsection',
+                newCodeAnalysisItemType: 'subsection',
+                iconPath: new vscode.ThemeIcon('error'),
+                tooltip: 'Error loading active analyses',
+                description: 'Error'
+            };
+        }
     }
 }

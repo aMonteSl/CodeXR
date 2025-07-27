@@ -209,7 +209,7 @@ export class UnifiedSessionManager {
             )
             .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
         
-        return sessions[0];
+        return sessions.length > 0 ? sessions[0] : undefined;
     }
 
     /**

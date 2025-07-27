@@ -5,6 +5,8 @@
 
 import * as vscode from 'vscode';
 import { UnifiedSessionRegistry } from '../new_engine/core/sessionRegistry';
+import { SessionWatcherManager } from '../new_engine/watchers/sessionWatcherManager';
+import { VisualizeDOMWatcher } from '../new_engine/watchers/visualizeDOMWatcher';
 import { getActiveServerRegistry } from '../../active_servers/registry/activeServerRegistry';
 import { ServerControl } from '../../active_servers/runtime/serverControl';
 import * as fs from 'fs';
@@ -12,9 +14,11 @@ import * as fs from 'fs';
 export class ServerWatcherIntegration {
     private static instance: ServerWatcherIntegration;
     private context: vscode.ExtensionContext;
+    private sessionWatcherManager: SessionWatcherManager;
     
     private constructor(context: vscode.ExtensionContext) {
         this.context = context;
+        this.sessionWatcherManager = new SessionWatcherManager(context);
         console.log('SERVER_WATCHER_INTEGRATION: Initializing service');
         this.setupServerEventListeners();
     }
@@ -125,9 +129,39 @@ export class ServerWatcherIntegration {
      */
     private async stopFileWatcherForSession(sessionId: string, filePath: string): Promise<void> {
         try {
-            console.log(`SERVER_WATCHER_INTEGRATION: Stopping file watcher for session ${sessionId}, file: ${filePath}`);
-            // Note: Watcher stopping is handled by new engine watchers automatically
-            console.log(`SERVER_WATCHER_INTEGRATION: File watcher stop request logged for session ${sessionId}`);
+            console.log(`SERVER_WATCHER_INTEGRATION: Stopping all watchers for session ${sessionId}, file: ${filePath}`);
+            
+            // 1. Use SessionWatcherManager to stop the specific session watcher (file/directory watchers)
+            const sessionWatcherStopped = await this.sessionWatcherManager.stopWatchingSession(sessionId);
+            
+            if (sessionWatcherStopped) {
+                console.log(`SERVER_WATCHER_INTEGRATION: ✅ Successfully stopped session file watcher for session ${sessionId}`);
+            } else {
+                console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ No active session watcher found for session ${sessionId}`);
+            }
+            
+            // 2. Stop any VisualizeDOM watchers that might be active for this session
+            let domWatchersStopped = 0;
+            const activeWatchers = VisualizeDOMWatcher.getActiveWatchers();
+            
+            for (const [watcherId, watcherInfo] of activeWatchers) {
+                if (watcherInfo.sessionId === sessionId) {
+                    const stopped = VisualizeDOMWatcher.stopWatching(watcherId);
+                    if (stopped) {
+                        domWatchersStopped++;
+                        console.log(`SERVER_WATCHER_INTEGRATION: ✅ Stopped VisualizeDOM watcher ${watcherId} for session ${sessionId}`);
+                    }
+                }
+            }
+            
+            if (domWatchersStopped > 0) {
+                console.log(`SERVER_WATCHER_INTEGRATION: ✅ Stopped ${domWatchersStopped} VisualizeDOM watcher(s) for session ${sessionId}`);
+            } else {
+                console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ No VisualizeDOM watchers found for session ${sessionId}`);
+            }
+            
+            console.log(`SERVER_WATCHER_INTEGRATION: ✅ All watchers stopped for session ${sessionId}`);
+            
         } catch (error) {
             console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher for session ${sessionId}:`, error);
         }

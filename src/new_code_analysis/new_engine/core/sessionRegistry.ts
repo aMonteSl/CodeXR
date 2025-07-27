@@ -176,6 +176,30 @@ export class UnifiedSessionRegistry {
     }
 
     /**
+     * Remove session by ID
+     */
+    removeSession(sessionId: string): boolean {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return false;
+        }
+
+        // Mark as closed before removal
+        session.status = 'closed';
+        session.endTime = new Date();
+        
+        // Remove from registry
+        const removed = this.sessions.delete(sessionId);
+        
+        if (removed) {
+            console.log(`UNIFIED_REGISTRY: Removed session ${sessionId} (${session.targetName})`);
+            this._onSessionChanged.fire(session);
+        }
+        
+        return removed;
+    }
+
+    /**
      * Get active sessions - SIMPLE
      */
     getActiveSessions(): UnifiedAnalysisSession[] {

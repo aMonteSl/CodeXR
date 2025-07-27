@@ -110,8 +110,9 @@ export class FileDisplayUtils {
             // Get relative path from workspace root
             let relativePath = filePath;
             
-            if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-                const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                const workspaceRoot = workspaceFolders[0].uri.fsPath;
                 if (filePath.startsWith(workspaceRoot)) {
                     relativePath = path.relative(workspaceRoot, filePath);
                 }

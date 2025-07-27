@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
+import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { DebounceManager } from './debounceManager';
 import { AnalysisConfigurationStorage } from '../../configuration/analysisConfigurationStorage';
 import { ConfigurationConverter } from './configurationConverter';
@@ -250,6 +251,18 @@ export class DirectoryWatcherOrchestrator {
         try {
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏰ Debounce completed`);
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Processing changes: ${this.changedFiles.size} modified, ${this.addedFiles.size} added, ${this.deletedFiles.size} deleted`);
+
+            // CRITICAL: Check if session still exists before processing any changes
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+            const currentSession = sessionRegistry.getSession(this.session.id);
+            
+            if (!currentSession) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ Session ${this.session.id} no longer exists, stopping all watchers`);
+                this.stopWatching();
+                return;
+            }
+            
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Session ${this.session.id} still exists, proceeding with directory change processing`);
 
             let hasChanges = false;
 

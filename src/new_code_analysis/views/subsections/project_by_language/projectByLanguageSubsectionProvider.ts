@@ -155,7 +155,7 @@ export class ProjectByLanguageSubsectionProvider {
             vscode.TreeItemCollapsibleState.Collapsed,
             'subsection',
             {
-                command: 'newCodeAnalysis.analyzeDirectory',
+                command: 'newCodeAnalysis.projectStructure.analyzeDirectory',
                 title: 'Analyze Directory',
                 arguments: [fullPath]
             },
@@ -186,7 +186,7 @@ export class ProjectByLanguageSubsectionProvider {
                 vscode.TreeItemCollapsibleState.None,
                 'subsection',
                 {
-                    command: 'newCodeAnalysis.analyzeFile',
+                    command: 'newCodeAnalysis.projectStructure.analyzeFile',
                     title: 'Analyze File',
                     arguments: [fullPath]
                 },

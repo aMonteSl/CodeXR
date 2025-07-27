@@ -9,11 +9,13 @@ import { NewCodeAnalysisTreeItem, NewCodeAnalysisItemFactory } from './items/new
 import { NewCodeAnalysisInteractionHandler } from './interactions/handleNewCodeAnalysisClicks';
 import { UnifiedSessionRegistry } from '../new_engine/core/sessionRegistry';
 import { 
-    ActiveAnalysesSubsectionProvider,
     AnalysisSettingsSubsectionProvider,
     ProjectByLanguageSubsectionProvider,
     FilesByLanguageSubsectionProvider
 } from './subsections';
+// SIMPLIFIED: Direct data service instead of subsection provider
+import { ActiveAnalysesDataService } from './subsections/active_analyses/services/activeAnalysesDataService';
+import { ActiveAnalysesCommands } from './subsections/active_analyses/commands/activeAnalysesCommands';
 
 /**
  * TODO: Implement tree data provider for new code analysis
@@ -28,8 +30,8 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
     private _onDidChangeTreeData: vscode.EventEmitter<NewCodeAnalysisTreeItem | undefined | null | void> = new vscode.EventEmitter<NewCodeAnalysisTreeItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<NewCodeAnalysisTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-    // Subsection providers
-    private activeAnalysesSubsection: ActiveAnalysesSubsectionProvider;
+    // SIMPLIFIED: Direct services instead of subsection providers
+    private activeAnalysesDataService: ActiveAnalysesDataService;
     private analysisSettingsSubsection: AnalysisSettingsSubsectionProvider;
     private projectByLanguageSubsection: ProjectByLanguageSubsectionProvider;
     private filesByLanguageSubsection: FilesByLanguageSubsectionProvider;
@@ -37,8 +39,13 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
     constructor(private context: vscode.ExtensionContext) {
         console.log('NEW_CODE_ANALYSIS: Initializing New Code Analysis section provider');
         
+        // SIMPLIFIED: Initialize direct services
+        this.activeAnalysesDataService = ActiveAnalysesDataService.getInstance();
+        this.activeAnalysesDataService.initialize(context);
+        // Note: ActiveAnalysesCommands will be initialized by the activeAnalysesDataService
+        // No need to initialize it here as it's handled by the data service internally
+        
         // Initialize subsections
-        this.activeAnalysesSubsection = new ActiveAnalysesSubsectionProvider(context);
         this.analysisSettingsSubsection = new AnalysisSettingsSubsectionProvider(context);
         this.projectByLanguageSubsection = new ProjectByLanguageSubsectionProvider(context);
         this.filesByLanguageSubsection = new FilesByLanguageSubsectionProvider(context);
@@ -91,8 +98,8 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         console.log('NEW_CODE_ANALYSIS: ========== REFRESH CALLED ==========');
         console.log('NEW_CODE_ANALYSIS: Refreshing all subsections');
 
-        // Refresh all subsections
-        this.activeAnalysesSubsection.refresh();
+        // SIMPLIFIED: Refresh direct data service instead of subsection
+        this.activeAnalysesDataService.refresh();
         this.analysisSettingsSubsection.refresh();
         this.projectByLanguageSubsection.refresh();
         this.filesByLanguageSubsection.refresh();
@@ -113,9 +120,9 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
      */
     async getChildren(element?: NewCodeAnalysisTreeItem): Promise<NewCodeAnalysisTreeItem[]> {
         if (!element) {
-            // Return root subsections
+            // Return root subsections - SIMPLIFIED: Direct data service call
             const subsections = await Promise.all([
-                this.activeAnalysesSubsection.getSubsectionItem(),
+                Promise.resolve(this.activeAnalysesDataService.getSubsectionItem()),
                 this.analysisSettingsSubsection.getSubsectionItem(),
                 this.projectByLanguageSubsection.getSubsectionItem(),
                 this.filesByLanguageSubsection.getSubsectionItem()
@@ -126,7 +133,53 @@ export class NewCodeAnalysisSectionProvider implements SectionProvider<NewCodeAn
         // Handle children for specific subsections
         switch (element.contextValue) {
             case 'activeAnalysesSubsection':
-                return this.activeAnalysesSubsection.getChildren();
+                // SIMPLIFIED: Direct data service call with safe mapping
+                try {
+                    console.log('NEW_CODE_ANALYSIS: Getting active analyses children...');
+                    const items = await this.activeAnalysesDataService.getChildren();
+                    console.log('NEW_CODE_ANALYSIS: Received items:', items?.length || 0);
+                    
+                    if (!items || !Array.isArray(items)) {
+                        console.warn('NEW_CODE_ANALYSIS: activeAnalysesDataService.getChildren() returned invalid data:', typeof items);
+                        return [];
+                    }
+                    
+                    const treeItems = [];
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (!item) {
+                            console.warn(`NEW_CODE_ANALYSIS: Found null/undefined item at index ${i}`);
+                            continue;
+                        }
+                        
+                        try {
+                            const treeItem = new NewCodeAnalysisTreeItem(
+                                item.label || 'Unknown Analysis',
+                                vscode.TreeItemCollapsibleState.None,
+                                'analysis-result' as const,
+                                undefined, // command
+                                item.iconPath,
+                                item.description || '',
+                                item.description || '',
+                                item.contextValue || 'activeAnalysis'
+                            );
+                            
+                            // Store the original item for command access
+                            (treeItem as any).originalNewCodeAnalysisItem = item;
+                            treeItems.push(treeItem);
+                            
+                        } catch (itemError) {
+                            console.error(`NEW_CODE_ANALYSIS: Error creating tree item at index ${i}:`, itemError);
+                        }
+                    }
+                    
+                    console.log('NEW_CODE_ANALYSIS: Created', treeItems.length, 'tree items');
+                    return treeItems;
+                    
+                } catch (error) {
+                    console.error('NEW_CODE_ANALYSIS: Error getting active analyses children:', error);
+                    return [];
+                }
             case 'analysisSettingsSubsection':
                 return this.analysisSettingsSubsection.getChildren();
             case 'projectByLanguageSubsection':

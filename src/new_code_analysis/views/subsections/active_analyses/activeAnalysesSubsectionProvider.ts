@@ -102,13 +102,18 @@ export class ActiveAnalysesSubsectionProvider {
                         {
                             command: 'codeXR.new_code_analysis.activeAnalyses.showDetails',
                             title: 'View Analysis Details',
-                            arguments: [analysis.id]
+                            arguments: [analysis] // Pass the full analysis object, not just the ID
                         },
                         analysis.iconPath,
                         analysis.description,
                         analysis.description,
                         analysis.contextValue
                     );
+                    
+                    // CRITICAL: Add the original analysis item for command compatibility
+                    // This will be accessible as 'originalNewCodeAnalysisItem' in ModularTreeItem
+                    (item as any).originalNewCodeAnalysisItem = analysis;
+                    
                     items.push(item);
                 }
             }

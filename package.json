@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -14,6 +14,11 @@
     "vscode": "^1.98.0"
   },
   "categories": [
+    "Visualization",
+    "Data Science",
+    "Debuggers",
+    "Linters",
+    "Testing",
     "Other"
   ],
   "activationEvents": [],
@@ -241,7 +246,7 @@
       "activitybar": [
         {
           "id": "codexr",
-          "title": "CODEXR",
+          "title": "Code-XR",
           "icon": "resources/icon.svg"
         }
       ]
@@ -250,7 +255,7 @@
       "codexr": [
         {
           "id": "codexrTree",
-          "name": "CODEXR",
+          "name": "Code-XR",
           "when": "true",
           "icon": "$(server-environment)"
         }
@@ -362,9 +367,14 @@
           "group": "activeAnalyses@1"
         },
         {
-          "command": "codeXR.new_code_analysis.activeAnalyses.close",
+          "command": "codeXR.new_code_analysis.activeAnalyses.viewInBrowser",
           "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
           "group": "activeAnalyses@2"
+        },
+        {
+          "command": "codeXR.new_code_analysis.activeAnalyses.close",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
+          "group": "activeAnalyses@3"
         }
       ]
     }

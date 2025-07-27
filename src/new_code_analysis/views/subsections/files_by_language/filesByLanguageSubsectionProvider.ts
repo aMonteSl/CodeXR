@@ -165,15 +165,38 @@ export class FilesByLanguageSubsectionProvider {
             const fileName = require('path').basename(filePath);
             const fileExtension = require('path').extname(filePath);
             
+            // Safely get workspace root path
+            let fullFilePath: vscode.Uri | undefined = undefined;
+            try {
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+                    const resolvedPath = require('path').resolve(workspaceRoot, filePath);
+                    fullFilePath = vscode.Uri.file(resolvedPath);
+                } else {
+                    // If no workspace folder, treat filePath as absolute
+                    fullFilePath = vscode.Uri.file(filePath);
+                }
+            } catch (error) {
+                console.error('FILES_BY_LANGUAGE: Error creating file URI for:', filePath, error);
+                // Fallback to basic file URI
+                try {
+                    fullFilePath = vscode.Uri.file(filePath);
+                } catch (fallbackError) {
+                    console.error('FILES_BY_LANGUAGE: Failed to create fallback URI for:', filePath, fallbackError);
+                    fullFilePath = undefined;
+                }
+            }
+            
             const fileItem = new NewCodeAnalysisTreeItem(
                 fileName,
                 vscode.TreeItemCollapsibleState.None,
                 'file-item',
-                {
+                fullFilePath ? {
                     command: 'vscode.open',
                     title: 'Open File',
-                    arguments: [vscode.Uri.file(require('path').resolve(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', filePath))]
-                },
+                    arguments: [fullFilePath]
+                } : undefined, // Don't add command if URI creation failed
                 new vscode.ThemeIcon('file-text'),
                 filePath,
                 `${fileExtension} file - Click to open`,

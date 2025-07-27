@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
+import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { ReAnalysisManager } from './reAnalysisManager';
 import { DebounceManager } from './debounceManager';
 import { AnalysisConfigurationStorage } from '../../configuration/analysisConfigurationStorage';
@@ -96,6 +97,18 @@ export class FileWatcherOrchestrator {
         try {
             console.log(`FILE_WATCHER_ORCHESTRATOR: 🔄 Processing file change for ${this.session.targetPath}`);
 
+            // CRITICAL: Check if session still exists before processing
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+            const currentSession = sessionRegistry.getSession(this.session.id);
+            
+            if (!currentSession) {
+                console.log(`FILE_WATCHER_ORCHESTRATOR: ⚠️ Session ${this.session.id} no longer exists, stopping watcher`);
+                this.stopWatching();
+                return;
+            }
+            
+            console.log(`FILE_WATCHER_ORCHESTRATOR: ✅ Session ${this.session.id} still exists, proceeding with file change processing`);
+
             // Cargar configuración de debounce del usuario
             const delayMs = await this.loadDebounceConfiguration();
             const fileName = path.basename(this.session.targetPath);
@@ -127,6 +140,18 @@ export class FileWatcherOrchestrator {
         try {
             console.log(`FILE_WATCHER_ORCHESTRATOR: 🔬 Executing re-analysis for session ${this.session.id}`);
             console.log(`FILE_WATCHER_ORCHESTRATOR: Target: ${this.session.targetPath}`);
+
+            // CRITICAL: Double-check that session still exists before executing re-analysis
+            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+            const currentSession = sessionRegistry.getSession(this.session.id);
+            
+            if (!currentSession) {
+                console.log(`FILE_WATCHER_ORCHESTRATOR: ⚠️ Session ${this.session.id} no longer exists, aborting re-analysis`);
+                this.stopWatching();
+                return;
+            }
+            
+            console.log(`FILE_WATCHER_ORCHESTRATOR: ✅ Session ${this.session.id} still exists, proceeding with re-analysis`);
 
             // Usar ReAnalysisManager para regenerar solo el data.json
             const success = await this.reAnalysisManager.executeDataJsonRegeneration(this.session);

@@ -28,10 +28,9 @@ export class ActiveAnalysesCommands {
         const viewCommands = ActiveAnalysesViewCommands.getInstance(sessionRegistry, serverWatcher);
         
         // Register commands with the view commands handler (this does the actual registration)
-        viewCommands.registerCommands(context);
+        const disposables = viewCommands.registerCommands();
         
-        // Return empty array since commands are already registered above
-        // This avoids duplicate registration in the nested dolls pattern
+        // Convert disposables to command registrations for the nested pattern
         const commandRegistrations: CommandRegistration[] = [];
 
         console.log(`NEW_CODE_ANALYSIS: Active Analyses commands registered directly, returning ${commandRegistrations.length} command registrations for nested pattern`);

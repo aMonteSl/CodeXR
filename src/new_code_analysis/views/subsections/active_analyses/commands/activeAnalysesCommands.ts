@@ -1,13 +1,13 @@
 /**
  * Active Analyses Commands
  * Handles command registration and execution for active analysis operations
+ * SIMPLIFIED: Direct session access without complex model interfaces
  */
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { UnifiedSessionRegistry } from '../../../../../new_code_analysis/new_engine/core/sessionRegistry';
 import { ServerWatcherIntegration } from '../../../../../new_code_analysis/services/serverWatcherIntegration';
-import { ActiveAnalysisTreeItem } from '../items/activeAnalysisItems';
-import { ActiveAnalysisData } from '../model/activeAnalysisModel';
 import { ActiveAnalysisItem } from '../services/activeAnalysesDataService';
 
 /**
@@ -16,7 +16,7 @@ import { ActiveAnalysisItem } from '../services/activeAnalysesDataService';
 export interface ActiveAnalysisCommandRegistration {
     commandId: string;
     title: string;
-    handler: (arg?: ActiveAnalysisTreeItem | ActiveAnalysisItem | string) => void | Promise<void>;
+    handler: (arg?: ActiveAnalysisItem | string | any) => void | Promise<void>;
 }
 
 /**
@@ -43,341 +43,347 @@ export class ActiveAnalysesCommands {
                 handler: this.closeAnalysis.bind(this)
             },
             {
-                commandId: 'codeXR.new_code_analysis.activeAnalyses.refresh',
-                title: 'Refresh Active Analyses',
-                handler: this.refreshActiveAnalyses.bind(this)
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.viewInBrowser',
+                title: 'View in Browser',
+                handler: this.viewInBrowser.bind(this)
             },
             {
-                commandId: 'codeXR.new_code_analysis.activeAnalyses.closeAll',
-                title: 'Close All Analyses',
-                handler: this.closeAllAnalyses.bind(this)
+                commandId: 'codeXR.new_code_analysis.activeAnalyses.refresh',
+                title: 'Refresh Active Analyses',
+                handler: this.refreshAnalyses.bind(this)
             }
         ];
     }
 
     /**
-     * Get or create the singleton instance
+     * Get or create singleton instance
      */
-    static getInstance(
-        sessionRegistry: UnifiedSessionRegistry,
-        serverWatcher: ServerWatcherIntegration
+    public static getInstance(
+        sessionRegistry?: UnifiedSessionRegistry,
+        serverWatcher?: ServerWatcherIntegration
     ): ActiveAnalysesCommands {
         if (!ActiveAnalysesCommands.instance) {
+            if (!sessionRegistry || !serverWatcher) {
+                throw new Error('SessionRegistry and ServerWatcher are required for first initialization');
+            }
             ActiveAnalysesCommands.instance = new ActiveAnalysesCommands(sessionRegistry, serverWatcher);
         }
         return ActiveAnalysesCommands.instance;
     }
 
     /**
-     * Register all active analyses commands
+     * Register all active analysis commands
      */
-    registerCommands(context: vscode.ExtensionContext): void {
-        this.commands.forEach(command => {
+    public registerCommands(): vscode.Disposable[] {
+        const disposables: vscode.Disposable[] = [];
+
+        for (const command of this.commands) {
             if (!this.registeredCommands.has(command.commandId)) {
-                // Double check that VS Code doesn't already have this command registered
-                try {
-                    const disposable = vscode.commands.registerCommand(command.commandId, command.handler);
-                    context.subscriptions.push(disposable);
-                    this.registeredCommands.add(command.commandId);
-                    console.log(`[ACTIVE_ANALYSES_COMMANDS] Registered command: ${command.commandId}`);
-                } catch (error) {
-                    if (error instanceof Error && error.message.includes('already exists')) {
-                        console.warn(`[ACTIVE_ANALYSES_COMMANDS] Command ${command.commandId} already exists, skipping registration`);
-                        this.registeredCommands.add(command.commandId); // Mark as registered to avoid retries
-                    } else {
-                        console.error(`[ACTIVE_ANALYSES_COMMANDS] Error registering command ${command.commandId}:`, error);
-                    }
-                }
-            } else {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] Command ${command.commandId} already registered, skipping`);
+                const disposable = vscode.commands.registerCommand(command.commandId, command.handler);
+                disposables.push(disposable);
+                this.registeredCommands.add(command.commandId);
             }
-        });
-    }
-
-    /**
-     * Show details for a specific analysis
-     */
-    private async showDetails(item?: ActiveAnalysisTreeItem | ActiveAnalysisItem | string): Promise<void> {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] showDetails called with:`, typeof item, item);
-        
-        try {
-            let sessionId: string;
-            let sessionData: ActiveAnalysisData | undefined;
-            
-            // Handle different types of items
-            if (typeof item === 'string') {
-                sessionId = item;
-                // Find the session by ID
-                const session = this.sessionRegistry.getSession(sessionId);
-                if (session) {
-                    sessionData = {
-                        sessionId: session.id,
-                        fileName: session.targetName || 'Unknown',
-                        filePath: session.targetPath || '',
-                        analysisType: session.analysisMode || 'Unknown',
-                        status: session.status as any || 'creating',
-                        lastAnalysisTime: session.startTime,
-                        startTime: session.startTime,
-                        serverPort: session.assignedPort,
-                        serverUrl: session.serverUrl
-                    };
-                }
-            } else if (item && typeof item === 'object') {
-                // Check for ActiveAnalysisItem (from data service)
-                if ('sessionId' in item && item.sessionId) {
-                    sessionId = item.sessionId;
-                    const session = this.sessionRegistry.getSession(sessionId);
-                    if (session) {
-                        sessionData = {
-                            sessionId: session.id,
-                            fileName: session.targetName || 'Unknown',
-                            filePath: session.targetPath || '',
-                            analysisType: session.analysisMode || 'Unknown',
-                            status: session.status as any || 'creating',
-                            lastAnalysisTime: session.startTime,
-                            startTime: session.startTime,
-                            serverPort: session.assignedPort,
-                            serverUrl: session.serverUrl
-                        };
-                    }
-                } else if ('id' in item && item.id) {
-                    // Fallback to id property
-                    sessionId = item.id;
-                    const session = this.sessionRegistry.getSession(sessionId);
-                    if (session) {
-                        sessionData = {
-                            sessionId: session.id,
-                            fileName: session.targetName || 'Unknown',
-                            filePath: session.targetPath || '',
-                            analysisType: session.analysisMode || 'Unknown',
-                            status: session.status as any || 'creating',
-                            lastAnalysisTime: session.startTime,
-                            startTime: session.startTime,
-                            serverPort: session.assignedPort,
-                            serverUrl: session.serverUrl
-                        };
-                    }
-                } else if (item instanceof ActiveAnalysisTreeItem) {
-                    // ActiveAnalysisTreeItem
-                    sessionId = item.sessionData.sessionId;
-                    sessionData = item.sessionData;
-                } else {
-                    console.log(`[ACTIVE_ANALYSES_COMMANDS] Unexpected item structure for showDetails:`, item);
-                    vscode.window.showWarningMessage('Could not identify analysis from selection');
-                    return;
-                }
-            } else {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] No valid item provided:`, item);
-                vscode.window.showWarningMessage('No analysis selected');
-                return;
-            }
-            
-            if (!sessionData) {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] No session data found for:`, sessionId);
-                vscode.window.showWarningMessage('Analysis not found or no longer active');
-                return;
-            }
-            
-            // Create details message
-            const details = [
-                `**Analysis Details**`,
-                ``,
-                `**ID:** ${sessionData.sessionId}`,
-                `**Type:** ${sessionData.analysisType}`,
-                `**File:** ${sessionData.fileName}`,
-                `**Path:** ${sessionData.filePath}`,
-                `**Started:** ${sessionData.startTime.toLocaleString()}`,
-                `**Status:** ${sessionData.status}`,
-                ``
-            ];
-
-            if (sessionData.serverPort) {
-                details.push(`**Port:** ${sessionData.serverPort}`);
-            }
-
-            if (sessionData.serverUrl) {
-                details.push(`**URL:** ${sessionData.serverUrl}`);
-            }
-
-            if (sessionData.progress !== undefined) {
-                details.push(`**Progress:** ${sessionData.progress}%`);
-            }
-
-            const detailsText = details.join('\n');
-            
-            // Show details in a new document
-            const doc = await vscode.workspace.openTextDocument({
-                content: detailsText,
-                language: 'markdown'
-            });
-            
-            await vscode.window.showTextDocument(doc, { preview: true });
-            
-        } catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error showing details:', error);
-            vscode.window.showErrorMessage(`Error showing analysis details: ${error}`);
         }
+
+        return disposables;
     }
 
     /**
-     * Close a specific analysis
+     * Show analysis details command handler
+     * SIMPLIFIED: Direct session access
+     * FIXED: Handle TreeItem objects passed by VS Code context menus
      */
-    private async closeAnalysis(item?: ActiveAnalysisTreeItem | ActiveAnalysisItem | string): Promise<void> {
-        console.log(`[ACTIVE_ANALYSES_COMMANDS] closeAnalysis called with:`, typeof item, item);
-        
+    private async showDetails(arg?: ActiveAnalysisItem | string | any): Promise<void> {
+        console.log('ACTIVE_ANALYSES_COMMANDS: showDetails called with arg:', typeof arg, arg);
         try {
             let sessionId: string;
-            let sessionName: string;
             
-            // Handle different types of items
-            if (typeof item === 'string') {
-                sessionId = item;
-                const session = this.sessionRegistry.getSession(sessionId);
-                sessionName = session?.targetName || sessionId;
-            } else if (item && typeof item === 'object') {
-                // Check for ActiveAnalysisItem (from data service)
-                if ('sessionId' in item && item.sessionId) {
-                    sessionId = item.sessionId;
-                    sessionName = item.label || sessionId;
-                } else if ('id' in item && item.id) {
-                    // Fallback to id property
-                    sessionId = item.id;
-                    sessionName = item.label || sessionId;
-                } else if (item instanceof ActiveAnalysisTreeItem) {
-                    // ActiveAnalysisTreeItem
-                    sessionId = item.sessionData.sessionId;
-                    sessionName = item.sessionData.fileName;
+            if (typeof arg === 'string') {
+                sessionId = arg;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using string arg as sessionId:', sessionId);
+            } else if (arg && arg.session && arg.session.id) {
+                sessionId = arg.session.id;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.session.id as sessionId:', sessionId);
+            } else if (arg && arg.sessionId) {
+                // Handle sessionId property (added in getTreeItem)
+                sessionId = arg.sessionId;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.sessionId as sessionId:', sessionId);
+            } else if (arg && arg.id) {
+                // Handle id property (added in getTreeItem)
+                sessionId = arg.id;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.id as sessionId:', sessionId);
+            } else if (arg && arg.originalNewCodeAnalysisItem) {
+                // Handle wrapped objects from modular tree
+                const originalItem = arg.originalNewCodeAnalysisItem;
+                if (originalItem.sessionId) {
+                    sessionId = originalItem.sessionId;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.sessionId:', sessionId);
+                } else if (originalItem.id) {
+                    sessionId = originalItem.id;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.id:', sessionId);
+                } else if (originalItem.session && originalItem.session.id) {
+                    sessionId = originalItem.session.id;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.session.id:', sessionId);
                 } else {
-                    // Try to extract sessionId from command arguments if it's a TreeItem
-                    console.log(`[ACTIVE_ANALYSES_COMMANDS] Unexpected item structure:`, item);
-                    vscode.window.showWarningMessage('Could not identify analysis from selection');
+                    console.log('ACTIVE_ANALYSES_COMMANDS: No valid session ID in originalNewCodeAnalysisItem:', originalItem);
+                    vscode.window.showErrorMessage('No analysis selected');
                     return;
                 }
             } else {
-                console.log(`[ACTIVE_ANALYSES_COMMANDS] Invalid item for closeAnalysis:`, item);
-                vscode.window.showWarningMessage('Invalid analysis selection');
+                console.log('ACTIVE_ANALYSES_COMMANDS: No valid session ID found in arg');
+                console.log('ACTIVE_ANALYSES_COMMANDS: Arg keys:', arg ? Object.keys(arg) : 'arg is null/undefined');
+                vscode.window.showErrorMessage('No analysis selected');
                 return;
             }
 
+            console.log('ACTIVE_ANALYSES_COMMANDS: Looking for session with ID:', sessionId);
             const session = this.sessionRegistry.getSession(sessionId);
             if (!session) {
-                vscode.window.showWarningMessage('Analysis not found or already closed');
+                console.log('ACTIVE_ANALYSES_COMMANDS: Session not found for ID:', sessionId);
+                vscode.window.showErrorMessage('Analysis session not found');
                 return;
             }
 
-            // Confirm closure
-            const choice = await vscode.window.showWarningMessage(
-                `Close analysis "${sessionName}"?`,
-                { modal: true },
-                'Close'
-            );
+            console.log('ACTIVE_ANALYSES_COMMANDS: Session found, generating details content');
+            // Show details in a new document
+            const detailsContent = this.generateDetailsContent(session);
+            const doc = await vscode.workspace.openTextDocument({
+                content: detailsContent,
+                language: 'markdown'
+            });
+            await vscode.window.showTextDocument(doc);
 
-            if (choice === 'Close') {
-                // Close the session
-                await this.sessionRegistry.closeSession(sessionId);
-                
-                // Stop associated server if exists (remove server integration for now)
-                // if (session.serverId) {
-                //     await this.serverWatcher.stopServer(session.serverId);
-                // }
-
-                vscode.window.showInformationMessage(`Analysis "${sessionName}" closed successfully`);
-                
-                // Refresh the tree view
-                vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
-            }
-            
         } catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error closing analysis:', error);
-            vscode.window.showErrorMessage(`Error closing analysis: ${error}`);
+            console.error('ACTIVE_ANALYSES_COMMANDS: Error showing analysis details:', error);
+            vscode.window.showErrorMessage('Failed to show analysis details');
         }
     }
 
     /**
-     * Refresh the active analyses tree view
+     * Close analysis command handler
+     * FIXED: Now properly stops servers using ServerWatcherIntegration
+     * FIXED: Handle TreeItem objects passed by VS Code context menus
      */
-    private refreshActiveAnalyses(): void {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Refreshing active analyses');
-        // This will be handled by the tree data provider's refresh mechanism
-        vscode.commands.executeCommand('codeXR.views.refresh');
-    }
-
-    /**
-     * Close all active analyses
-     */
-    private async closeAllAnalyses(): Promise<void> {
-        console.log('[ACTIVE_ANALYSES_COMMANDS] closeAllAnalyses called');
-        
+    private async closeAnalysis(arg?: ActiveAnalysisItem | string | any): Promise<void> {
+        console.log('ACTIVE_ANALYSES_COMMANDS: closeAnalysis called with arg:', typeof arg, arg);
         try {
-            const sessions = this.sessionRegistry.getActiveSessions();
+            let sessionId: string;
             
-            if (sessions.length === 0) {
-                vscode.window.showInformationMessage('No active analyses to close');
+            if (typeof arg === 'string') {
+                sessionId = arg;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using string arg as sessionId:', sessionId);
+            } else if (arg && arg.session && arg.session.id) {
+                sessionId = arg.session.id;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.session.id as sessionId:', sessionId);
+            } else if (arg && arg.sessionId) {
+                // Handle sessionId property (added in getTreeItem)
+                sessionId = arg.sessionId;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.sessionId as sessionId:', sessionId);
+            } else if (arg && arg.id) {
+                // Handle id property (added in getTreeItem)
+                sessionId = arg.id;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.id as sessionId:', sessionId);
+            } else if (arg && arg.originalNewCodeAnalysisItem) {
+                // Handle wrapped objects from modular tree
+                const originalItem = arg.originalNewCodeAnalysisItem;
+                if (originalItem.sessionId) {
+                    sessionId = originalItem.sessionId;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.sessionId:', sessionId);
+                } else if (originalItem.id) {
+                    sessionId = originalItem.id;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.id:', sessionId);
+                } else if (originalItem.session && originalItem.session.id) {
+                    sessionId = originalItem.session.id;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.session.id:', sessionId);
+                } else {
+                    console.log('ACTIVE_ANALYSES_COMMANDS: No valid session ID in originalNewCodeAnalysisItem:', originalItem);
+                    vscode.window.showErrorMessage('No analysis selected');
+                    return;
+                }
+            } else {
+                console.log('ACTIVE_ANALYSES_COMMANDS: No valid session ID found in arg');
+                console.log('ACTIVE_ANALYSES_COMMANDS: Arg keys:', arg ? Object.keys(arg) : 'arg is null/undefined');
+                vscode.window.showErrorMessage('No analysis selected');
                 return;
             }
 
-            // Confirm closure
+            console.log('ACTIVE_ANALYSES_COMMANDS: Looking for session with ID:', sessionId);
+            const session = this.sessionRegistry.getSession(sessionId);
+            if (!session) {
+                console.log('ACTIVE_ANALYSES_COMMANDS: Session not found for ID:', sessionId);
+                vscode.window.showErrorMessage('Analysis session not found');
+                return;
+            }
+
+            // Show warning dialog for confirmation
             const choice = await vscode.window.showWarningMessage(
-                `Close all ${sessions.length} active analyses?`,
-                { modal: true },
-                'Close All'
+                `Are you sure you want to close the analysis for "${path.basename(session.targetPath || session.targetName || 'Unknown')}"?`,
+                {
+                    modal: true,
+                    detail: `This will stop the analysis server and remove all associated watchers. The analysis results will be lost.\n\nTarget: ${session.targetPath || session.targetName || 'Unknown'}\nType: ${session.targetType || 'Unknown'}\nMode: ${session.analysisMode || 'Unknown'}`
+                },
+                'Yes, Close Analysis',
+                'Cancel'
             );
 
-            if (choice === 'Close All') {
-                let closedCount = 0;
-                let errorCount = 0;
-
-                for (const session of sessions) {
-                    try {
-                        await this.sessionRegistry.closeSession(session.id);
-                        
-                        // Stop associated server if exists (remove server integration for now)
-                        // if (session.serverId) {
-                        //     await this.serverWatcher.stopServer(session.serverId);
-                        // }
-                        
-                        closedCount++;
-                    } catch (error) {
-                        console.error('[ACTIVE_ANALYSES_COMMANDS] Error closing session:', session.id, error);
-                        errorCount++;
-                    }
-                }
-
-                if (errorCount === 0) {
-                    vscode.window.showInformationMessage(`Successfully closed all ${closedCount} analyses`);
-                } else {
-                    vscode.window.showWarningMessage(`Closed ${closedCount} analyses, ${errorCount} failed`);
-                }
+            if (choice === 'Yes, Close Analysis') {
+                console.log('ACTIVE_ANALYSES_COMMANDS: User confirmed closure, triggering cleanup');
                 
-                // Refresh the tree view
+                // STEP 1: First, remove the session from registry so watchers stop processing
+                console.log('ACTIVE_ANALYSES_COMMANDS: Removing session from registry first');
+                this.sessionRegistry.removeSession(sessionId);
+                
+                // STEP 2: Then trigger cleanup of servers and watchers
+                console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup');
+                await this.serverWatcher.triggerManualCleanup(sessionId);
+                
+                // STEP 3: Refresh the tree view
                 vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
+                
+                vscode.window.showInformationMessage('Analysis closed successfully');
             }
-            
+
         } catch (error) {
-            console.error('[ACTIVE_ANALYSES_COMMANDS] Error closing all analyses:', error);
-            vscode.window.showErrorMessage(`Error closing analyses: ${error}`);
+            console.error('ACTIVE_ANALYSES_COMMANDS: Error closing analysis:', error);
+            vscode.window.showErrorMessage('Failed to close analysis');
         }
     }
 
     /**
-     * Get all registered command configurations
+     * View in browser command handler
+     * Opens the analysis result in browser if server URL is available
+     * FIXED: Handle TreeItem objects passed by VS Code context menus
      */
-    getCommands(): ActiveAnalysisCommandRegistration[] {
-        return [...this.commands];
+    private async viewInBrowser(arg?: ActiveAnalysisItem | string | any): Promise<void> {
+        console.log('ACTIVE_ANALYSES_COMMANDS: viewInBrowser called with arg:', typeof arg, arg);
+        try {
+            let sessionId: string;
+            
+            if (typeof arg === 'string') {
+                sessionId = arg;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using string arg as sessionId:', sessionId);
+            } else if (arg && arg.session && arg.session.id) {
+                sessionId = arg.session.id;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.session.id as sessionId:', sessionId);
+            } else if (arg && arg.sessionId) {
+                // Handle sessionId property (added in getTreeItem)
+                sessionId = arg.sessionId;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.sessionId as sessionId:', sessionId);
+            } else if (arg && arg.id) {
+                // Handle id property (added in getTreeItem)
+                sessionId = arg.id;
+                console.log('ACTIVE_ANALYSES_COMMANDS: Using arg.id as sessionId:', sessionId);
+            } else if (arg && arg.originalNewCodeAnalysisItem) {
+                // Handle wrapped objects from modular tree
+                const originalItem = arg.originalNewCodeAnalysisItem;
+                if (originalItem.sessionId) {
+                    sessionId = originalItem.sessionId;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.sessionId:', sessionId);
+                } else if (originalItem.id) {
+                    sessionId = originalItem.id;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.id:', sessionId);
+                } else if (originalItem.session && originalItem.session.id) {
+                    sessionId = originalItem.session.id;
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Using originalNewCodeAnalysisItem.session.id:', sessionId);
+                } else {
+                    console.log('ACTIVE_ANALYSES_COMMANDS: No valid session ID in originalNewCodeAnalysisItem:', originalItem);
+                    vscode.window.showErrorMessage('No analysis selected');
+                    return;
+                }
+            } else {
+                console.log('ACTIVE_ANALYSES_COMMANDS: No valid session ID found in arg');
+                console.log('ACTIVE_ANALYSES_COMMANDS: Arg keys:', arg ? Object.keys(arg) : 'arg is null/undefined');
+                vscode.window.showErrorMessage('No analysis selected');
+                return;
+            }
+
+            console.log('ACTIVE_ANALYSES_COMMANDS: Looking for session with ID:', sessionId);
+            const session = this.sessionRegistry.getSession(sessionId);
+            if (!session) {
+                console.log('ACTIVE_ANALYSES_COMMANDS: Session not found for ID:', sessionId);
+                vscode.window.showErrorMessage('Analysis session not found');
+                return;
+            }
+
+            // Check if session has a server URL
+            if (!session.serverUrl && !session.assignedPort) {
+                vscode.window.showErrorMessage('No server URL available for this analysis');
+                return;
+            }
+
+            // Construct URL
+            let url = session.serverUrl;
+            if (!url && session.assignedPort) {
+                url = `http://localhost:${session.assignedPort}`;
+            }
+
+            if (url) {
+                try {
+                    console.log('ACTIVE_ANALYSES_COMMANDS: Opening URL in browser:', url);
+                    // Validate URL before parsing
+                    const parsedUri = vscode.Uri.parse(url);
+                    vscode.env.openExternal(parsedUri);
+                } catch (uriError) {
+                    console.error('ACTIVE_ANALYSES_COMMANDS: Invalid URL format:', url, uriError);
+                    vscode.window.showErrorMessage(`Invalid URL format: ${url}`);
+                }
+            } else {
+                vscode.window.showErrorMessage('Could not determine server URL for this analysis');
+            }
+
+        } catch (error) {
+            console.error('ACTIVE_ANALYSES_COMMANDS: Error opening in browser:', error);
+            vscode.window.showErrorMessage('Failed to open analysis in browser');
+        }
     }
 
     /**
-     * Check if a command is registered
+     * Refresh analyses command handler
      */
-    isCommandRegistered(commandId: string): boolean {
-        return this.registeredCommands.has(commandId);
+    private async refreshAnalyses(): Promise<void> {
+        try {
+            // Trigger tree view refresh
+            vscode.commands.executeCommand('codeXR.new_code_analysis.refreshTreeView');
+            
+        } catch (error) {
+            console.error('Error refreshing analyses:', error);
+            vscode.window.showErrorMessage('Failed to refresh analyses');
+        }
+    }
+
+    /**
+     * Generate details content for an analysis session
+     */
+    private generateDetailsContent(session: any): string {
+        return `# Analysis Details
+
+## Session Information
+- **Session ID**: ${session.id}
+- **Target Path**: ${session.targetPath}
+- **Target Type**: ${session.targetType}
+- **Analysis Mode**: ${session.analysisMode}
+- **Start Time**: ${session.startTime || 'Unknown'}
+- **Status**: ${session.status || 'Active'}
+
+## Server Information
+${session.assignedPort ? `- **Port**: ${session.assignedPort}` : ''}
+${session.serverUrl ? `- **Server URL**: ${session.serverUrl}` : ''}
+${session.serverId ? `- **Server ID**: ${session.serverId}` : ''}
+
+## Configuration
+- **Is Deep Analysis**: ${session.isDeep || false}
+- **Output Directory**: ${session.outputDirectory || 'Not set'}
+
+## Progress
+${session.progress ? `- **Progress**: ${session.progress}%` : '- **Progress**: Not available'}
+${session.error ? `- **Error**: ${session.error}` : ''}
+`;
     }
 
     /**
      * Dispose of all registered commands
      */
-    dispose(): void {
+    public dispose(): void {
         this.registeredCommands.clear();
-        console.log('[ACTIVE_ANALYSES_COMMANDS] Disposed all commands');
     }
 }

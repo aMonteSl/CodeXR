@@ -4,6 +4,6 @@
  */
 
 export { AnalysisSettingsSubsectionProvider, AnalysisFileSetting, AnalysisFileMode } from './analysis_settings';
-export { ActiveAnalysesSubsectionProvider } from './active_analyses';
+// SIMPLIFIED: Removed ActiveAnalysesSubsectionProvider (replaced by direct service usage)
 export { ProjectByLanguageSubsectionProvider } from './project_by_language';
 export { FilesByLanguageSubsectionProvider } from './files_by_language';

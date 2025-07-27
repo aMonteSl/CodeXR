@@ -10,7 +10,7 @@ import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { VisualizeDOMRequirements } from '../processors/requirementRules/VisualizeDOMRequirements';
 import { SaveFiles } from '../utils/saveFiles';
 import { sseManager } from '../../../servers/runtime/sse/SSEManager';
-import { ManageDebounceTime, DebounceManager } from '../../../new_code_analysis/legacy_engine/utils/manageDebounceTime';
+import { ManageDebounceTime, DebounceManager } from '../utils/debounceManager';
 
 interface VisualizeDOMWatcherInfo {
     watcher: fs.FSWatcher;
@@ -67,6 +67,18 @@ export class VisualizeDOMWatcher {
                     console.log(`🔍 VISUALIZE_DOM_WATCHER: HTML file change detected: ${htmlFilePath}`);
                     console.log(`🔍 VISUALIZE_DOM_WATCHER: Event type: ${eventType}, filename: ${filename}`);
 
+                    // CRITICAL: Check if session still exists before processing change
+                    const registry = UnifiedSessionRegistry.getInstance(context);
+                    const currentSession = registry.getSession(sessionId);
+                    
+                    if (!currentSession) {
+                        console.log(`🔍 VISUALIZE_DOM_WATCHER: ⚠️ Session ${sessionId} no longer exists, stopping watcher ${watcherId}`);
+                        VisualizeDOMWatcher.stopWatching(watcherId);
+                        return;
+                    }
+                    
+                    console.log(`🔍 VISUALIZE_DOM_WATCHER: ✅ Session ${sessionId} still exists, proceeding with change processing`);
+
                     // Get current watcher info for debouncing
                     const currentWatcherInfo = VisualizeDOMWatcher.activeWatchers.get(watcherId);
                     if (!currentWatcherInfo) {
@@ -103,10 +115,21 @@ export class VisualizeDOMWatcher {
                         async () => {
                             try {
                                 console.log(`🔍 VISUALIZE_DOM_WATCHER: Executing debounced re-analysis for: ${htmlFilePath}`);
+                                
+                                // CRITICAL: Check if session still exists before processing
+                                const registry = UnifiedSessionRegistry.getInstance(context);
+                                const currentSession = registry.getSession(sessionId);
+                                
+                                if (!currentSession) {
+                                    console.log(`🔍 VISUALIZE_DOM_WATCHER: ⚠️ Session ${sessionId} no longer exists, stopping watcher ${watcherId}`);
+                                    VisualizeDOMWatcher.stopWatching(watcherId);
+                                    return;
+                                }
+                                
+                                console.log(`🔍 VISUALIZE_DOM_WATCHER: ✅ Session ${sessionId} still exists, proceeding with re-analysis`);
                                 currentWatcherInfo.lastProcessedTime = Date.now();
                                 
                                 // Update session status to analyzing
-                                const registry = UnifiedSessionRegistry.getInstance(context);
                                 registry.updateSessionStatus(sessionId, 'analyzing', 50);
                                 
                                 // Re-execute VisualizeDOM analysis

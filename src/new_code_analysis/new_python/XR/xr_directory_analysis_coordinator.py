@@ -2,7 +2,9 @@
 """
 XR Directory Analysis Coordinator (New Engine Version)
 
-This script coordinates directory-level analysis to generate file data for XR visualization.
+This script coordinates directory-level analysis to generate file data for XR visu    try:
+        # Use the livePanel file analysis coordinator with resume_only=True to get file metrics
+        coordinator_path = script_dir.parent / "livePanels" / "livePanel_file_analysis_coordinator.py"zation.
 It generates a simplified data.json structure containing only file metrics for each file
 in the directory, designed specifically for XR environments.
 
@@ -163,17 +165,16 @@ def analyze_single_file_xr(file_path, script_dir, base_directory_path):
         dict: XR file data structure with metrics
     """
     try:
-        # Use the existing file analysis coordinator to get detailed metrics
-        # Updated path to point to the legacy python coordinator
-        coordinator_path = script_dir.parent.parent / "python" / "livePanel_file_analysis_coordinator.py"
+        # Use the livePanel file analysis coordinator with resume_only=True to get file metrics
+        coordinator_path = script_dir.parent / "livePanels" / "livePanel_file_analysis_coordinator.py"
         
         if not coordinator_path.exists():
             print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: File coordinator not found: {coordinator_path}"}), file=sys.stderr)
             return None
         
-        # Execute the file analysis coordinator
+        # Execute the file analysis coordinator with resume mode for file metrics
         result = subprocess.run(
-            [sys.executable, str(coordinator_path), file_path],
+            [sys.executable, str(coordinator_path), file_path, "--resume"],
             capture_output=True,
             text=True,
             timeout=30  # 30 second timeout per file
@@ -184,6 +185,7 @@ def analyze_single_file_xr(file_path, script_dir, base_directory_path):
                 # Parse the JSON output from the file coordinator
                 file_analysis = json.loads(result.stdout.strip())
                 
+                # The livePanel coordinator with --resume returns file metrics directly
                 # Generate XR file data structure
                 xr_file_data = create_xr_file_data(file_analysis, file_path, base_directory_path)
                 return xr_file_data
@@ -203,6 +205,76 @@ def analyze_single_file_xr(file_path, script_dir, base_directory_path):
     except Exception as e:
         print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Exception analyzing {file_path}: {str(e)}"}), file=sys.stderr)
         return None
+
+def convert_xr_list_to_file_analysis(xr_function_list, file_path):
+    """
+    Convert XR file coordinator list output to expected dict format
+    
+    Args:
+        xr_function_list (list): List of function data from XR coordinator
+        file_path (str): Path to the file being analyzed
+        
+    Returns:
+        dict: File analysis in expected format
+    """
+    # Calculate basic file statistics
+    total_lines = 0
+    code_lines = 0
+    comment_lines = 0
+    blank_lines = 0
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            total_lines = len(lines)
+            
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    blank_lines += 1
+                elif stripped.startswith('#') or stripped.startswith('//') or stripped.startswith('/*'):
+                    comment_lines += 1
+                else:
+                    code_lines += 1
+    except Exception:
+        # If we can't read the file, use basic stats
+        total_lines = len(xr_function_list) * 10  # Rough estimate
+        code_lines = total_lines
+    
+    # Calculate function metrics from the XR list
+    function_count = len(xr_function_list)
+    max_complexity = 0
+    total_complexity = 0
+    total_parameters = 0
+    max_parameters = 0
+    
+    for func_data in xr_function_list:
+        if isinstance(func_data, dict):
+            complexity = func_data.get('cyclomaticComplexity', 0)
+            parameters = func_data.get('parameterCount', 0)
+            
+            max_complexity = max(max_complexity, complexity)
+            total_complexity += complexity
+            total_parameters += parameters
+            max_parameters = max(max_parameters, parameters)
+    
+    # Create the expected format
+    file_analysis = {
+        "language": get_language_from_extension(file_path),
+        "totalLines": total_lines,
+        "codeLines": code_lines,
+        "commentLines": comment_lines,
+        "blankLines": blank_lines,
+        "classCount": 0,  # XR coordinator doesn't track classes separately
+        "functionCount": function_count,
+        "functions": xr_function_list,
+        "complexity": {
+            "maxComplexity": max_complexity,
+            "averageComplexity": total_complexity / function_count if function_count > 0 else 0.0
+        }
+    }
+    
+    return file_analysis
 
 def create_xr_file_data(file_analysis, file_path, base_directory_path):
     """
@@ -256,34 +328,13 @@ def create_xr_file_data(file_analysis, file_path, base_directory_path):
     except:
         xr_data["fileSizeBytes"] = 0
     
-    # Extract complexity metrics from complexity sub-object
-    complexity_data = file_analysis.get("complexity", {})
-    if complexity_data:
-        xr_data["maxComplexity"] = complexity_data.get("maxComplexity", 0)
-        xr_data["cyclomaticComplexityNumber"] = complexity_data.get("averageComplexity", 0.0)
-    
-    # Calculate function parameter metrics from functions array
-    functions = file_analysis.get("functions", [])
-    if functions:
-        parameter_counts = []
-        total_density = 0.0
-        
-        for func in functions:
-            # Extract parameter count
-            param_count = func.get("parameters", 0)
-            parameter_counts.append(param_count)
-            
-            # Extract cyclomatic density for overall average
-            density = func.get("cyclomaticDensity", 0.0)
-            total_density += density
-        
-        if parameter_counts:
-            xr_data["averageFunctionParameters"] = round(sum(parameter_counts) / len(parameter_counts), 1)
-            xr_data["maxFunctionParameters"] = max(parameter_counts)
-        
-        # Calculate average cyclomatic density across all functions
-        if len(functions) > 0:
-            xr_data["cyclomaticComplexityDensity"] = round(total_density / len(functions), 3)
+    # Extract complexity metrics from the file analysis data
+    # (livePanel coordinator in resume mode returns these directly)
+    xr_data["maxComplexity"] = file_analysis.get("maxComplexity", 0)
+    xr_data["cyclomaticComplexityNumber"] = file_analysis.get("cyclomaticComplexityNumber", 0.0)
+    xr_data["cyclomaticComplexityDensity"] = file_analysis.get("cyclomaticComplexityDensity", 0.0)
+    xr_data["averageFunctionParameters"] = file_analysis.get("averageFunctionParameters", 0.0)
+    xr_data["maxFunctionParameters"] = file_analysis.get("maxFunctionParameters", 0)
     
     return xr_data
 
