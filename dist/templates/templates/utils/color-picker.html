@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Picker - ${FIELD_NAME}</title>
+    <style>
+        :root {
+            --vscode-foreground: var(--vscode-editor-foreground);
+            --vscode-background: var(--vscode-editor-background);
+            --vscode-button-background: var(--vscode-button-background);
+            --vscode-button-foreground: var(--vscode-button-foreground);
+            --vscode-button-hoverBackground: var(--vscode-button-hoverBackground);
+            --vscode-input-background: var(--vscode-input-background);
+            --vscode-input-border: var(--vscode-input-border);
+        }
+        
+        body {
+            font-family: var(--vscode-font-family);
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-background);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        .color-picker-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            margin: 0;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .current-color-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .current-color-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            border: 2px solid var(--vscode-input-border);
+            margin: 0 auto 15px auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .current-color-text {
+            font-size: 18px;
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+        }
+        
+        .preset-colors-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--vscode-foreground);
+        }
+        
+        .preset-colors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-color {
+            width: 80px;
+            height: 60px;
+            border-radius: 6px;
+            border: 2px solid var(--vscode-input-border);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .preset-color:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-color: var(--vscode-button-background);
+        }
+        
+        .preset-color.selected {
+            border-color: var(--vscode-button-background);
+            border-width: 3px;
+            transform: scale(1.05);
+        }
+        
+        .preset-color-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            opacity: 0.8;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .custom-color-section {
+            margin-bottom: 30px;
+        }
+        
+        .color-input-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .native-color-input {
+            width: 80px;
+            height: 50px;
+            border: 2px solid var(--vscode-input-border);
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            outline: none;
+        }
+        
+        .native-color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border-radius: 4px;
+        }
+        
+        .native-color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 4px;
+        }
+        
+        .hex-input {
+            flex: 1;
+            padding: 12px 15px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            background-color: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            color: var(--vscode-foreground);
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        
+        .hex-input:focus {
+            border-color: var(--vscode-button-background);
+        }
+        
+        .hex-input.error {
+            border-color: #f44336;
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+        
+        .error-message {
+            color: #f44336;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .preview-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .live-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 12px;
+            border: 3px solid var(--vscode-input-border);
+            margin: 0 auto 15px auto;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .preview-text {
+            font-size: 14px;
+            opacity: 0.8;
+            margin: 0;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 100px;
+        }
+        
+        .btn-primary {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--vscode-foreground);
+            border: 1px solid var(--vscode-input-border);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--vscode-input-background);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Color animation for smooth transitions */
+        .color-transition {
+            transition: background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="color-picker-container fade-in">
+        <div class="header">
+            <h1>Select ${FIELD_NAME}</h1>
+            <p>Choose from presets or create a custom color</p>
+        </div>
+        
+        <div class="current-color-section">
+            <div class="current-color-preview color-transition" id="currentColorPreview"></div>
+            <p class="current-color-text" id="currentColorText">${CURRENT_COLOR}</p>
+        </div>
+        
+        <div class="preset-colors-section">
+            <h3 class="section-title">Preset Colors</h3>
+            <div class="preset-colors-grid" id="presetColorsGrid">
+                <!-- Preset colors will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <div class="custom-color-section">
+            <h3 class="section-title">Custom Color</h3>
+            <div class="color-input-container">
+                <input type="color" id="nativeColorInput" class="native-color-input" title="Color picker">
+                <input type="text" id="hexInput" class="hex-input" placeholder="#FFFFFF" maxlength="7">
+            </div>
+            <div class="error-message" id="errorMessage">Please enter a valid hex color (e.g., #FFFFFF)</div>
+        </div>
+        
+        <div class="preview-section">
+            <div class="live-preview color-transition" id="livePreview"></div>
+            <p class="preview-text">Live Preview</p>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="confirmBtn">Apply Color</button>
+        </div>
+    </div>
+
+    <script>
+        // VS Code API
+        const vscode = acquireVsCodeApi();
+        
+        // Preset colors with names
+        const PRESET_COLORS = [
+            { color: '#FFFFFF', name: 'White' },
+            { color: '#000000', name: 'Black' },
+            { color: '#B10DC9', name: 'Purple' },
+            { color: '#FF4081', name: 'Pink' },
+            { color: '#F44336', name: 'Red' },
+            { color: '#FF9800', name: 'Orange' },
+            { color: '#FFEB3B', name: 'Yellow' },
+            { color: '#4CAF50', name: 'Green' },
+            { color: '#2196F3', name: 'Blue' },
+            { color: '#9C27B0', name: 'Violet' },
+            { color: '#607D8B', name: 'Blue Grey' },
+            { color: '#795548', name: 'Brown' },
+            { color: '#E91E63', name: 'Deep Pink' },
+            { color: '#3F51B5', name: 'Indigo' },
+            { color: '#00BCD4', name: 'Cyan' },
+            { color: '#8BC34A', name: 'Light Green' },
+            { color: '#CDDC39', name: 'Lime' },
+            { color: '#FFC107', name: 'Amber' },
+            { color: '#FF5722', name: 'Deep Orange' },
+            { color: '#9E9E9E', name: 'Grey' }
+        ];
+        
+        // Current state
+        let currentColor = '${CURRENT_COLOR}';
+        let selectedColor = currentColor;
+        
+        // DOM elements
+        const currentColorPreview = document.getElementById('currentColorPreview');
+        const currentColorText = document.getElementById('currentColorText');
+        const presetColorsGrid = document.getElementById('presetColorsGrid');
+        const nativeColorInput = document.getElementById('nativeColorInput');
+        const hexInput = document.getElementById('hexInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const livePreview = document.getElementById('livePreview');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const confirmBtn = document.getElementById('confirmBtn');
+        
+        // Initialize the color picker
+        function init() {
+            // Set current color
+            updateCurrentColorDisplay(currentColor);
+            updateLivePreview(currentColor);
+            
+            // Populate preset colors
+            populatePresetColors();
+            
+            // Set initial values
+            nativeColorInput.value = currentColor;
+            hexInput.value = currentColor;
+            
+            // Add event listeners
+            setupEventListeners();
+        }
+        
+        function populatePresetColors() {
+            presetColorsGrid.innerHTML = '';
+            
+            PRESET_COLORS.forEach(preset => {
+                const colorDiv = document.createElement('div');
+                colorDiv.className = 'preset-color';
+                colorDiv.style.backgroundColor = preset.color;
+                colorDiv.title = `${preset.name} (${preset.color})`;
+                
+                if (preset.color.toLowerCase() === currentColor.toLowerCase()) {
+                    colorDiv.classList.add('selected');
+                }
+                
+                const label = document.createElement('div');
+                label.className = 'preset-color-label';
+                label.textContent = preset.name;
+                
+                colorDiv.appendChild(label);
+                colorDiv.addEventListener('click', () => selectPresetColor(preset.color));
+                
+                presetColorsGrid.appendChild(colorDiv);
+            });
+        }
+        
+        function selectPresetColor(color) {
+            selectedColor = color.toUpperCase();
+            
+            // Update all inputs
+            nativeColorInput.value = selectedColor;
+            hexInput.value = selectedColor;
+            
+            // Update preview
+            updateLivePreview(selectedColor);
+            
+            // Update preset selection
+            updatePresetSelection(selectedColor);
+            
+            // Clear any errors
+            clearError();
+        }
+        
+        function updatePresetSelection(color) {
+            const presetColors = document.querySelectorAll('.preset-color');
+            presetColors.forEach(preset => {
+                preset.classList.remove('selected');
+                if (preset.style.backgroundColor === color.toLowerCase() || 
+                    rgbToHex(preset.style.backgroundColor) === color.toUpperCase()) {
+                    preset.classList.add('selected');
+                }
+            });
+        }
+        
+        function updateCurrentColorDisplay(color) {
+            currentColorPreview.style.backgroundColor = color;
+            currentColorText.textContent = color;
+        }
+        
+        function updateLivePreview(color) {
+            livePreview.style.backgroundColor = color;
+        }
+        
+        function setupEventListeners() {
+            // Native color input
+            nativeColorInput.addEventListener('input', (e) => {
+                const color = e.target.value.toUpperCase();
+                selectedColor = color;
+                hexInput.value = color;
+                updateLivePreview(color);
+                updatePresetSelection(color);
+                clearError();
+            });
+            
+            // Hex input
+            hexInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                
+                if (validateHexColor(value)) {
+                    selectedColor = value.toUpperCase();
+                    nativeColorInput.value = selectedColor;
+                    updateLivePreview(selectedColor);
+                    updatePresetSelection(selectedColor);
+                    clearError();
+                } else if (value.length > 0) {
+                    showError();
+                } else {
+                    clearError();
+                }
+            });
+            
+            // Buttons
+            cancelBtn.addEventListener('click', () => {
+                vscode.postMessage({
+                    type: 'colorPicker.cancel'
+                });
+            });
+            
+            confirmBtn.addEventListener('click', () => {
+                if (validateHexColor(selectedColor)) {
+                    vscode.postMessage({
+                        type: 'colorPicker.confirm',
+                        color: selectedColor.toUpperCase()
+                    });
+                } else {
+                    showError();
+                }
+            });
+            
+            // Enter key to confirm
+            hexInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && validateHexColor(selectedColor)) {
+                    confirmBtn.click();
+                }
+            });
+        }
+        
+        function validateHexColor(color) {
+            return /^#[0-9a-fA-F]{6}$/.test(color);
+        }
+        
+        function showError() {
+            hexInput.classList.add('error');
+            errorMessage.classList.add('show');
+            confirmBtn.disabled = true;
+        }
+        
+        function clearError() {
+            hexInput.classList.remove('error');
+            errorMessage.classList.remove('show');
+            confirmBtn.disabled = false;
+        }
+        
+        function rgbToHex(rgb) {
+            if (rgb.startsWith('#')) return rgb.toUpperCase();
+            
+            const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (match) {
+                const [, r, g, b] = match;
+                return '#' + [r, g, b].map(x => {
+                    const hex = parseInt(x).toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('').toUpperCase();
+            }
+            return rgb;
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+[
+  { "product": "Laptops", "sales": 1350 },
+  { "product": "Phones", "sales": 980 },
+  { "product": "Tablets", "sales": 450 },
+  { "product": "Desktops", "sales": 820 },
+  { "product": "Accessories", "sales": 1200 }
+]

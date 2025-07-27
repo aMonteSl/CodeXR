@@ -1,0 +1,50 @@
+[
+  {
+    "functionName": "calculateMetrics",
+    "complexity": 8,
+    "linesCount": 45,
+    "parameters": 3,
+    "cyclomaticDensity": 0.178,
+    "complexityColor": "#f39c12"
+  },
+  {
+    "functionName": "processData",
+    "complexity": 12,
+    "linesCount": 78,
+    "parameters": 2,
+    "cyclomaticDensity": 0.154,
+    "complexityColor": "#e74c3c"
+  },
+  {
+    "functionName": "validateInput",
+    "complexity": 4,
+    "linesCount": 23,
+    "parameters": 1,
+    "cyclomaticDensity": 0.174,
+    "complexityColor": "#27ae60"
+  },
+  {
+    "functionName": "generateReport",
+    "complexity": 15,
+    "linesCount": 92,
+    "parameters": 4,
+    "cyclomaticDensity": 0.163,
+    "complexityColor": "#e74c3c"
+  },
+  {
+    "functionName": "initializeApp",
+    "complexity": 2,
+    "linesCount": 12,
+    "parameters": 0,
+    "cyclomaticDensity": 0.167,
+    "complexityColor": "#27ae60"
+  },
+  {
+    "functionName": "cleanupResources",
+    "complexity": 6,
+    "linesCount": 34,
+    "parameters": 1,
+    "cyclomaticDensity": 0.176,
+    "complexityColor": "#f39c12"
+  }
+]

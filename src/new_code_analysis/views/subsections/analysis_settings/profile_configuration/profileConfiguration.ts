@@ -128,7 +128,7 @@ export class ProfileConfigurationSetting {
             dimensionMappingDirectory: {
                 area: 'functionCount',
                 height: 'totalLines',
-                color: 'cyclomaticComplexityNumber'
+                color: 'meanComplexity'
             },
             autoAnalysisDelay: {
                 type: '3s',

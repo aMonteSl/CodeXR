@@ -3,6 +3,7 @@
 'use strict';
 
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
 
 /**@type {import('webpack').Configuration}*/
 const config = {
@@ -36,6 +37,28 @@ const config = {
       }
     ]
   },
+  plugins: [
+    new CopyPlugin({
+      patterns: [
+        {
+          from: 'src/new_code_analysis/new_python/**/*.py',
+          to: 'src/new_code_analysis/new_python/[name][ext]',
+        },
+        {
+          from: 'templates/**/*',
+          to: 'templates/[path][name][ext]',
+        },
+        {
+          from: 'certs/**/*',
+          to: 'certs/[path][name][ext]',
+        },
+        {
+          from: 'examples/**/*',
+          to: 'examples/[path][name][ext]',
+        }
+      ],
+    }),
+  ],
   devtool: 'nosources-source-map',
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers

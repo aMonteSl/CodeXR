@@ -119,10 +119,18 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
         type: 'RealTime', // Default to Real Time (0s)
         customMs: undefined
     },
-    chartTypeFile: 'bars', // Default chart type (bars is the most common)
-    chartTypeDirectory: 'bars', // Default chart type for directories
-    dimensionMappingFile: {}, // Default empty dimension mapping
-    dimensionMappingDirectory: {}, // Default empty dimension mapping for directories
+    chartTypeFile: 'boats', // Default chart type changed to boats
+    chartTypeDirectory: 'boats', // Default chart type for directories changed to boats
+    dimensionMappingFile: {
+        area: 'parameters',
+        height: 'lineCount',
+        color: 'complexity'
+    }, // Default dimension mapping for files
+    dimensionMappingDirectory: {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber'
+    }, // Default dimension mapping for directories
     filesByLanguageSorting: {
         languageGroupSortBy: 'alphabetical',
         languageGroupSortDirection: 'ascending',
