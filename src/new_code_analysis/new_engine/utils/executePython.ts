@@ -409,13 +409,48 @@ export class ExecutePython {
             
             console.log(`EXECUTE_PYTHON: ✅ Python executable verified to exist`);
 
-            // Get script path
+            // Get script path - check both dist and src directories for compatibility
             const extensionPath = this.context.extensionPath;
-            const scriptPath = path.join(extensionPath, 'src', 'new_code_analysis', 'new_python', scriptName);
+            
+            // Try dist directory first (production build)
+            let scriptPath = path.join(extensionPath, 'dist', 'new_code_analysis', 'new_python', scriptName);
+            
+            // If script doesn't exist in dist, try src directory (development)
+            if (!require('fs').existsSync(scriptPath)) {
+                scriptPath = path.join(extensionPath, 'src', 'new_code_analysis', 'new_python', scriptName);
+                console.log(`EXECUTE_PYTHON: Script not found in dist, trying src directory`);
+            }
+            
             console.log(`EXECUTE_PYTHON: Script path: ${scriptPath}`);
             
             // Verify the script exists
             if (!require('fs').existsSync(scriptPath)) {
+                // Additional diagnostic information
+                const distPath = path.join(extensionPath, 'dist', 'new_code_analysis', 'new_python', scriptName);
+                const srcPath = path.join(extensionPath, 'src', 'new_code_analysis', 'new_python', scriptName);
+                
+                console.error(`EXECUTE_PYTHON: ❌ Python script not found in either location:`);
+                console.error(`EXECUTE_PYTHON: 📁 Dist path: ${distPath} (exists: ${require('fs').existsSync(distPath)})`);
+                console.error(`EXECUTE_PYTHON: 📁 Src path: ${srcPath} (exists: ${require('fs').existsSync(srcPath)})`);
+                console.error(`EXECUTE_PYTHON: 📁 Extension path: ${extensionPath}`);
+                
+                // List contents of directories for debugging
+                try {
+                    const distNewCodeAnalysisPath = path.join(extensionPath, 'dist', 'new_code_analysis');
+                    if (require('fs').existsSync(distNewCodeAnalysisPath)) {
+                        const distContents = require('fs').readdirSync(distNewCodeAnalysisPath);
+                        console.error(`EXECUTE_PYTHON: 📂 dist/new_code_analysis contents: ${distContents.join(', ')}`);
+                    }
+                    
+                    const distNewPythonPath = path.join(extensionPath, 'dist', 'new_code_analysis', 'new_python');
+                    if (require('fs').existsSync(distNewPythonPath)) {
+                        const distPythonContents = require('fs').readdirSync(distNewPythonPath);
+                        console.error(`EXECUTE_PYTHON: 📂 dist/new_code_analysis/new_python contents: ${distPythonContents.join(', ')}`);
+                    }
+                } catch (listError) {
+                    console.error(`EXECUTE_PYTHON: Failed to list directory contents:`, listError);
+                }
+                
                 throw new Error(`Python script does not exist: ${scriptPath}`);
             }
             

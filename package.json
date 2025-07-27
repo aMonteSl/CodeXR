@@ -23,6 +23,13 @@
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
+  "files": [
+    "dist/**/*",
+    "resources/**/*",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "contributes": {
     "commands": [
       {

@@ -41,20 +41,27 @@ const config = {
     new CopyPlugin({
       patterns: [
         {
-          from: 'src/new_code_analysis/new_python/**/*.py',
-          to: 'src/new_code_analysis/new_python/[name][ext]',
+          from: 'src/new_code_analysis/new_python',
+          to: 'new_code_analysis/new_python',
+          globOptions: {
+            ignore: ['**/*.ts', '**/__pycache__/**'], // Exclude TypeScript files and Python cache
+          },
+          noErrorOnMissing: true
         },
         {
-          from: 'templates/**/*',
-          to: 'templates/[path][name][ext]',
+          from: 'templates',
+          to: 'templates',
+          noErrorOnMissing: true
         },
         {
-          from: 'certs/**/*',
-          to: 'certs/[path][name][ext]',
+          from: 'certs',
+          to: 'certs',
+          noErrorOnMissing: true
         },
         {
-          from: 'examples/**/*',
-          to: 'examples/[path][name][ext]',
+          from: 'examples',
+          to: 'examples',
+          noErrorOnMissing: true
         }
       ],
     }),
