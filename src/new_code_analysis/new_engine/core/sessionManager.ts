@@ -42,7 +42,7 @@ export class UnifiedSessionManager {
             isDeep?: boolean;
             debounceTime?: number;
         }
-    ): Promise<UnifiedAnalysisSession> {
+    ): Promise<UnifiedAnalysisSession | null> {
         try {
             const analysisTypeId = AnalysisSessionFactory.getAnalysisTypeId({
                 analysisMode,
@@ -60,8 +60,21 @@ export class UnifiedSessionManager {
                 context
             };
 
+            console.log(`UNIFIED_MANAGER: 🔍 DEBUG - Creating session with params:`, {
+                targetPath: params.targetPath,
+                analysisMode: params.analysisMode,
+                targetType: params.targetType,
+                isDeep: params.isDeep
+            });
+
             // Create session
             const session = await this.registry.createSession(params);
+            
+            // Check if session creation was skipped due to duplicate
+            if (!session) {
+                console.log(`UNIFIED_MANAGER: Session creation skipped (duplicate detected)`);
+                return null;
+            }
 
             // Set debounce time if provided
             if (options?.debounceTime) {
@@ -258,13 +271,19 @@ export class UnifiedSessionManager {
             isDeep?: boolean;
             debounceTime?: number;
         }
-    ): Promise<{ session: UnifiedAnalysisSession; result: T } | { session: UnifiedAnalysisSession; error: string }> {
+    ): Promise<{ session: UnifiedAnalysisSession; result: T } | { session: UnifiedAnalysisSession; error: string } | null> {
         
-        let session: UnifiedAnalysisSession;
+        let session: UnifiedAnalysisSession | null = null;
         
         try {
             // Start session
             session = await this.startAnalysis(targetPath, analysisMode, targetType, context, options);
+            
+            // Check if session creation was skipped due to duplicate
+            if (!session) {
+                console.log(`UNIFIED_MANAGER: Analysis execution skipped (duplicate detected)`);
+                return null;
+            }
             
             // Execute analysis
             const result = await executionFunction(session);
@@ -277,10 +296,14 @@ export class UnifiedSessionManager {
         } catch (error) {
             // Mark as failed
             const errorMessage = error instanceof Error ? error.message : String(error);
-            if (session!) {
+            console.error(`UNIFIED_MANAGER: Analysis execution failed:`, error);
+            
+            // If we have a session, mark it as failed and return error info
+            if (session) {
                 this.failAnalysis(session.id, errorMessage);
                 return { session, error: errorMessage };
             } else {
+                // If no session was created, just throw the error
                 throw error;
             }
         }

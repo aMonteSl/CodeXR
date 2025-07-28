@@ -48,6 +48,17 @@ export class DirectoryWatcherOrchestrator {
     private async loadDebounceConfiguration(): Promise<number> {
         try {
             const config = await this.configurationStorage.loadConfiguration();
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 DEBUG - Loading configuration for auto-analysis`);
+            
+            // Verificar si auto-analysis está habilitado
+            const autoAnalysisEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 DEBUG - Auto-Analysis Enabled: ${autoAnalysisEnabled}`);
+            
+            if (!autoAnalysisEnabled) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏸️ Auto-Analysis is DISABLED - Watchers will not be activated`);
+                return -1; // Return -1 to indicate disabled state
+            }
+            
             const delayMs = ConfigurationConverter.convertToMilliseconds(config.autoAnalysisDelay);
             
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Loaded debounce config - ${ConfigurationConverter.getDisplayName(config.autoAnalysisDelay)} (${delayMs}ms)`);
@@ -89,6 +100,12 @@ export class DirectoryWatcherOrchestrator {
 
             // Cargar configuración de debounce
             const debounceDelayMs = await this.loadDebounceConfiguration();
+            
+            // Verificar si auto-analysis está habilitado
+            if (debounceDelayMs === -1) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚫 Auto-Analysis is DISABLED - Skipping watcher setup`);
+                return null; // No crear watchers si está deshabilitado
+            }
 
             // Crear debounce manager
             this.debounceManager = new DebounceManager(

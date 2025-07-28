@@ -229,11 +229,14 @@ export class DimensionMappingDirectorySetting {
             // Filter available fields based on dimension data type
             let availableFields = DIRECTORY_DATA_FIELDS;
             if (dimension.dataType === 'numeric') {
-                // Only numeric fields (exclude fileName and language)
+                // Only numeric fields (exclude fileName, filePath, relativePath, and language - all string fields)
                 availableFields = DIRECTORY_DATA_FIELDS.filter(field => 
-                    field.id !== 'fileName' && field.id !== 'language'
+                    field.id !== 'fileName' && 
+                    field.id !== 'filePath' && 
+                    field.id !== 'relativePath' && 
+                    field.id !== 'language'
                 );
-                console.log(`DIMENSION_MAPPING_DIRECTORY: Filtered to ${availableFields.length} numeric fields for dimension ${dimensionName}`);
+                console.log(`DIMENSION_MAPPING_DIRECTORY: Filtered to ${availableFields.length} numeric fields for dimension ${dimensionName} (excluded string fields: fileName, filePath, relativePath, language)`);
             } else {
                 console.log(`DIMENSION_MAPPING_DIRECTORY: Using all ${availableFields.length} fields for dimension ${dimensionName} (accepts any data type)`);
             }

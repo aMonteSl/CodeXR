@@ -20,6 +20,7 @@ import { AnalysisFileSetting } from '../views/subsections/analysis_settings/anal
 import { AnalysisDirectorySetting } from '../views/subsections/analysis_settings/analysis_directory_mode/analysisDirectoryMode';
 import { ViewThemeSetting } from '../views/subsections/analysis_settings/view_theme/viewTheme';
 import { AutoAnalysisDelaySetting } from '../views/subsections/analysis_settings/auto_analysis_delay/autoAnalysisDelay';
+import { AutoAnalysisEnabledSetting } from '../views/subsections/analysis_settings/auto_analysis_enabled/autoAnalysisEnabled';
 import { ChartTypeFileSetting } from '../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
 import { ChartTypeDirectorySetting } from '../views/subsections/analysis_settings/chart_type_directory/chartTypeDirectory';
 import { DimensionMappingFileSetting } from '../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
@@ -55,6 +56,7 @@ export class NewCodeAnalysisCommands {
         const tempAnalysisDirectorySetting = new AnalysisDirectorySetting(context);
         const tempViewThemeSetting = new ViewThemeSetting(context);
         const tempAutoAnalysisDelaySetting = new AutoAnalysisDelaySetting(context);
+        const tempAutoAnalysisEnabledSetting = new AutoAnalysisEnabledSetting(context);
         const tempChartTypeFileSetting = new ChartTypeFileSetting(context);
         const tempChartTypeDirectorySetting = new ChartTypeDirectorySetting(context);
         const tempDimensionMappingFileSetting = new DimensionMappingFileSetting(context);
@@ -74,6 +76,7 @@ export class NewCodeAnalysisCommands {
             tempAnalysisDirectorySetting,
             tempViewThemeSetting,
             tempAutoAnalysisDelaySetting,
+            tempAutoAnalysisEnabledSetting,
             tempChartTypeFileSetting,
             tempChartTypeDirectorySetting,
             tempDimensionMappingFileSetting,

@@ -48,6 +48,7 @@ export interface DimensionMapping {
 export interface AutoAnalysisDelayConfig {
     type: AutoAnalysisDelay;
     customMs?: number; // Only used when type is 'Custom', max 20000ms
+    autoAnalysisEnabled: boolean; // Auto-analysis enabled/disabled state
 }
 
 export interface AnalysisConfiguration {
@@ -67,7 +68,7 @@ export interface AnalysisConfiguration {
     viewTheme: ViewTheme;
     
     /**
-     * Auto-analysis delay configuration
+     * Auto-analysis delay configuration (includes enabled/disabled state)
      */
     autoAnalysisDelay: AutoAnalysisDelayConfig;
     
@@ -117,7 +118,8 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
     viewTheme: 'Dark', // Default to Dark theme
     autoAnalysisDelay: {
         type: 'RealTime', // Default to Real Time (0s)
-        customMs: undefined
+        customMs: undefined,
+        autoAnalysisEnabled: true // Default to enabled
     },
     chartTypeFile: 'boats', // Default chart type changed to boats
     chartTypeDirectory: 'boats', // Default chart type for directories changed to boats

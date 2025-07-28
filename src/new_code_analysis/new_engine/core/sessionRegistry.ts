@@ -39,10 +39,97 @@ export class UnifiedSessionRegistry {
     }
 
     /**
+     * Check if a session with the same parameters already exists
+     * A session is considered duplicate if it has the same:
+     * - targetPath
+     * - analysisMode
+     * - targetType
+     * - isDeep
+     */
+    private hasDuplicateSession(params: SessionCreationParams): UnifiedAnalysisSession | null {
+        const existingSessions = this.getAllSessions();
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - hasDuplicateSession called - Checking ${existingSessions.length} existing sessions`);
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Looking for duplicates of:`, {
+            targetPath: params.targetPath,
+            analysisMode: params.analysisMode,
+            targetType: params.targetType,
+            isDeep: params.isDeep || false
+        });
+        
+        for (const session of existingSessions) {
+            console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Comparing with session ${session.id}:`, {
+                targetPath: session.targetPath,
+                analysisMode: session.analysisMode,
+                targetType: session.targetType,
+                isDeep: session.isDeep,
+                status: session.status
+            });
+            
+            const isDuplicate = 
+                session.targetPath === params.targetPath &&
+                session.analysisMode === params.analysisMode &&
+                session.targetType === params.targetType &&
+                session.isDeep === (params.isDeep || false) &&
+                session.status !== 'closed' && // Ignore closed sessions
+                session.status !== 'error';    // Ignore error sessions
+                
+            if (isDuplicate) {
+                console.log(`UNIFIED_REGISTRY: 🎯 DUPLICATE DETECTED - Found duplicate session ${session.id} for ${params.targetPath} (${params.analysisMode}, ${params.targetType}, deep: ${params.isDeep})`);
+                return session;
+            } else {
+                console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Session ${session.id} is NOT a duplicate`);
+            }
+        }
+        
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - No duplicate sessions found`);
+        return null;
+    }
+
+    /**
      * Create a new unified analysis session - SIMPLIFIED
      */
-    async createSession(params: SessionCreationParams): Promise<UnifiedAnalysisSession> {
+    async createSession(params: SessionCreationParams): Promise<UnifiedAnalysisSession | null> {
         try {
+            console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - createSession called with params:`, {
+                targetPath: params.targetPath,
+                analysisMode: params.analysisMode,
+                targetType: params.targetType,
+                isDeep: params.isDeep || false
+            });
+            
+            // Check for duplicate sessions first
+            const duplicateSession = this.hasDuplicateSession(params);
+            if (duplicateSession) {
+                console.log(`UNIFIED_REGISTRY: 🔄 DUPLICATE FOUND - Returning null instead of creating duplicate`);
+                console.log(`UNIFIED_REGISTRY: Existing session status: ${duplicateSession.status}, progress: ${duplicateSession.progress || 0}%`);
+                
+                // Show user-friendly message based on session status
+                if (duplicateSession.status === 'monitoring') {
+                    vscode.window.showWarningMessage(
+                        `Analysis already complete for "${duplicateSession.targetName}". Use Active Analyses panel to view results.`,
+                        'Open Active Analyses'
+                    ).then(choice => {
+                        if (choice === 'Open Active Analyses') {
+                            vscode.commands.executeCommand('workbench.view.extension.codeXRView');
+                        }
+                    });
+                } else if (duplicateSession.status === 'creating' || duplicateSession.status === 'analyzing') {
+                    vscode.window.showWarningMessage(
+                        `Analysis for "${duplicateSession.targetName}" is already in progress (${duplicateSession.status})...`
+                    );
+                } else {
+                    vscode.window.showWarningMessage(
+                        `Analysis session for "${duplicateSession.targetName}" already exists with status: ${duplicateSession.status}`
+                    );
+                }
+                
+                // Fire the change event to update UI
+                this._onSessionChanged.fire(duplicateSession);
+                
+                return null; // Return null to indicate duplicate
+            }
+
+            console.log(`UNIFIED_REGISTRY: ✅ No duplicate found - Creating new session`);
             const id = generateNonce();
             const targetName = path.basename(params.targetPath);
             
@@ -98,7 +185,7 @@ export class UnifiedSessionRegistry {
                 console.log(`UNIFIED_REGISTRY: Found ${session.directoriesToAnalyze?.length || 0} directories to analyze (without duplicates)`);
                 
                 // Discover files in those directories
-                session.filesToHash = await this.discoverFilesToAnalyze(session.directoriesToAnalyze || []);
+                session.filesToHash = await this.discoverFilesToAnalyze(session.directoriesToAnalyze || [], params.analysisMode);
                 console.log(`UNIFIED_REGISTRY: Discovered ${session.filesToHash?.length || 0} supported files`);
                 
                 if ((session.directoriesToAnalyze?.length || 0) === 0) {
@@ -400,11 +487,17 @@ export class UnifiedSessionRegistry {
 
     /**
      * Descubre archivos soportados en los directorios especificados
+     * Filtra archivos HTML para análisis XR según el modo especificado
      */
-    private async discoverFilesToAnalyze(directories: string[]): Promise<{ filePath: string; hash: string }[]> {
+    private async discoverFilesToAnalyze(directories: string[], analysisMode: AnalysisMode): Promise<{ filePath: string; hash: string }[]> {
         const filesToHash: { filePath: string; hash: string }[] = [];
         
-        console.log(`UNIFIED_REGISTRY: Discovering files in ${directories.length} directories`);
+        console.log(`UNIFIED_REGISTRY: Discovering files in ${directories.length} directories for ${analysisMode} analysis`);
+        
+        // Mostrar información sobre filtros aplicados
+        if (analysisMode === 'XR') {
+            console.log(`UNIFIED_REGISTRY: XR analysis mode - HTML files will be filtered out`);
+        }
         
         // Obtener todas las extensiones soportadas
         const supportedExtensions = this.getSupportedExtensions();
@@ -421,6 +514,13 @@ export class UnifiedSessionRegistry {
                         
                         // Verificar si la extensión es soportada
                         if (supportedExtensions.includes(extension)) {
+                            // Filtrar archivos HTML para análisis XR
+                            const isHtmlFile = ['.html', '.htm', '.xhtml'].includes(extension);
+                            if (analysisMode === 'XR' && isHtmlFile) {
+                                console.log(`UNIFIED_REGISTRY: Skipping HTML file in XR analysis: ${filePath} (${extension})`);
+                                continue; // Skip HTML files in XR analysis
+                            }
+                            
                             try {
                                 // Usar SHA256Generator para hash real del archivo
                                 const fileHash = await SHA256Generator.generateFileHash(filePath);

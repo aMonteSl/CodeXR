@@ -218,6 +218,30 @@ export class AnalysisConfigurationStorage {
     }
 
     /**
+     * Get auto-analysis enabled setting
+     */
+    public async getAutoAnalysisEnabled(): Promise<boolean> {
+        const config = await this.loadConfiguration();
+        return config.autoAnalysisDelay.autoAnalysisEnabled;
+    }
+
+    /**
+     * Set auto-analysis enabled setting
+     */
+    public async setAutoAnalysisEnabled(enabled: boolean): Promise<void> {
+        const config = await this.loadConfiguration();
+        const updatedConfig = {
+            ...config,
+            autoAnalysisDelay: {
+                ...config.autoAnalysisDelay,
+                autoAnalysisEnabled: enabled
+            }
+        };
+        await this.saveConfiguration(updatedConfig);
+        console.log(`NEW_CODE_ANALYSIS: Auto-analysis enabled changed to: ${enabled}`);
+    }
+
+    /**
      * Update multiple settings at once
      */
     public async updateConfiguration(updates: Partial<AnalysisConfiguration>): Promise<void> {

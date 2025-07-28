@@ -38,6 +38,17 @@ export class FileWatcherOrchestrator {
     private async loadDebounceConfiguration(): Promise<number> {
         try {
             const config = await this.configurationStorage.loadConfiguration();
+            console.log(`FILE_WATCHER_ORCHESTRATOR: 🔍 DEBUG - Loading configuration for auto-analysis`);
+            
+            // Verificar si auto-analysis está habilitado
+            const autoAnalysisEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
+            console.log(`FILE_WATCHER_ORCHESTRATOR: 🔍 DEBUG - Auto-Analysis Enabled: ${autoAnalysisEnabled}`);
+            
+            if (!autoAnalysisEnabled) {
+                console.log(`FILE_WATCHER_ORCHESTRATOR: ⏸️ Auto-Analysis is DISABLED - Watchers will not be activated`);
+                return -1; // Return -1 to indicate disabled state
+            }
+            
             const delayMs = ConfigurationConverter.convertToMilliseconds(config.autoAnalysisDelay);
             
             console.log(`FILE_WATCHER_ORCHESTRATOR: Loaded debounce config - ${ConfigurationConverter.getDisplayName(config.autoAnalysisDelay)} (${delayMs}ms)`);
@@ -111,6 +122,13 @@ export class FileWatcherOrchestrator {
 
             // Cargar configuración de debounce del usuario
             const delayMs = await this.loadDebounceConfiguration();
+            
+            // Verificar si auto-analysis está habilitado
+            if (delayMs === -1) {
+                console.log(`FILE_WATCHER_ORCHESTRATOR: 🚫 Auto-Analysis is DISABLED - Skipping re-analysis`);
+                return; // No procesar cambios si está deshabilitado
+            }
+            
             const fileName = path.basename(this.session.targetPath);
 
             // Cancelar debounce previo si existe

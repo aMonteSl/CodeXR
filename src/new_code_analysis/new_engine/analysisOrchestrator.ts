@@ -30,9 +30,16 @@ export class AnalysisOrchestrator {
         try {
             // Create unified session first - CENTRALIZED SESSION CREATION
             const registry = UnifiedSessionRegistry.getInstance(context);
-            let session: UnifiedAnalysisSession;
+            let session: UnifiedAnalysisSession | null;
             
             try {
+                console.log(`ANALYSIS_ORCHESTRATOR: 🔍 DEBUG - Creating session with parameters:`, {
+                    targetPath,
+                    targetType,
+                    analysisMode,
+                    isDeep
+                });
+                
                 session = await registry.createSession({
                     targetPath,
                     targetType,
@@ -40,6 +47,13 @@ export class AnalysisOrchestrator {
                     isDeep,
                     context
                 });
+                
+                // Check if session creation was skipped due to duplicate
+                if (!session) {
+                    console.log(`ANALYSIS_ORCHESTRATOR: Session creation skipped (duplicate detected) - stopping orchestration`);
+                    return; // Stop here if duplicate was detected
+                }
+                
             } catch (sessionError) {
                 // Handle session creation errors (e.g., unsupported file types)
                 console.error(`ANALYSIS_ORCHESTRATOR: Session creation failed:`, sessionError);

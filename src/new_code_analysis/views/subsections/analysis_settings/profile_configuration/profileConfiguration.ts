@@ -134,6 +134,7 @@ export class ProfileConfigurationSetting {
                 type: '3s',
                 customMs: undefined
             },
+            autoAnalysisEnabled: true, // Default to enabled
             filesByLanguageSorting: {
                 languageGroupSortBy: 'alphabetical',
                 languageGroupSortDirection: 'ascending',
@@ -177,6 +178,7 @@ export class ProfileConfigurationSetting {
             await this.storage.setDimensionMappingFile(defaults.dimensionMappingFile);
             await this.storage.setDimensionMappingDirectory(defaults.dimensionMappingDirectory);
             await this.storage.setAutoAnalysisDelay(defaults.autoAnalysisDelay);
+            await this.storage.setAutoAnalysisEnabled(defaults.autoAnalysisEnabled);
             await this.storage.setFilesByLanguageSorting(defaults.filesByLanguageSorting);
             
             console.log('PROFILE_CONFIGURATION: Successfully reset to defaults:', defaults);

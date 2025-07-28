@@ -8,7 +8,8 @@ import {
     AnalysisFileSetting,
     AnalysisDirectorySetting, 
     ViewThemeSetting, 
-    AutoAnalysisDelaySetting 
+    AutoAnalysisDelaySetting,
+    AutoAnalysisEnabledSetting
 } from '../../../views/subsections/analysis_settings';
 import { ChartTypeFileSetting } from '../../../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
 import { ChartTypeDirectorySetting } from '../../../views/subsections/analysis_settings/chart_type_directory/chartTypeDirectory';
@@ -20,6 +21,7 @@ import { AnalysisFileModeCommands, CommandRegistration } from './analysis_file_m
 import { AnalysisDirectoryModeCommands } from './analysis_directory_mode';
 import { ViewThemeCommands } from './view_theme';
 import { AutoAnalysisDelayCommands } from './auto_analysis_delay';
+import { AutoAnalysisEnabledCommands } from './auto_analysis_enabled';
 import { ChartTypeFileCommands } from './chart_type_file/chartTypeFileCommands';
 import { ChartTypeDirectoryCommands } from './chart_type_directory/chartTypeDirectoryCommands';
 import { DimensionMappingFileCommands } from './dimension_mapping_file/dimensionMappingFileCommands';
@@ -41,6 +43,7 @@ export class AnalysisSettingsCommands {
         analysisDirectorySetting: AnalysisDirectorySetting,
         viewThemeSetting: ViewThemeSetting,
         autoAnalysisDelaySetting: AutoAnalysisDelaySetting,
+        autoAnalysisEnabledSetting: AutoAnalysisEnabledSetting,
         chartTypeFileSetting: ChartTypeFileSetting,
         chartTypeDirectorySetting: ChartTypeDirectorySetting,
         dimensionMappingFileSetting: DimensionMappingFileSetting,
@@ -117,6 +120,14 @@ export class AnalysisSettingsCommands {
             refreshCallback
         );
         commandRegistrations.push(...autoAnalysisDelayCommands);
+
+        // Collect auto-analysis enabled command registrations
+        const autoAnalysisEnabledCommands = AutoAnalysisEnabledCommands.getCommandRegistrations(
+            context,
+            autoAnalysisEnabledSetting,
+            refreshCallback
+        );
+        commandRegistrations.push(...autoAnalysisEnabledCommands);
 
         // Collect files by language sorting command registrations
         const filesByLanguageSortingCommands = FilesByLanguageSortingCommands.getCommandRegistrations(
