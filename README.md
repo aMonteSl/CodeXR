@@ -1,4 +1,4 @@
-# Code-XR — Code Visualization in Extended Reality (v0.0.9)
+# Code-XR — Code Visualization in Extended Reality (v1.0.0)
 
 A revolutionary Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code panels and breathtaking XR/VR environments powered by BabiaXR and A-Frame. Dive deep into your codebase with comprehensive file analysis, directory scanning, and interactive DOM visualization.
 
@@ -15,6 +15,21 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 [![HTTPS](https://img.shields.io/badge/HTTPS-Supported-green)](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts)
 [![Node.js](https://img.shields.io/badge/Node.js-16%2B-green)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue)](https://www.python.org/)
+[![Documentation](https://img.shields.io/badge/Docs-Official%20Website-blue)](https://amontesl.github.io/code-xr-docs/)
+
+## Official Documentation
+
+**Visit our comprehensive documentation website: [https://amontesl.github.io/code-xr-docs/](https://amontesl.github.io/code-xr-docs/)**
+
+Our official documentation includes:
+- **Complete Installation Guide** - Step-by-step setup instructions
+- **Interactive Tutorials** - Hands-on learning experiences  
+- **API Reference** - Detailed technical documentation
+- **Video Guides** - Visual walkthroughs of key features
+- **Troubleshooting** - Solutions to common issues
+- **Advanced Configuration** - Customization options and settings
+
+*You can also access the documentation directly from VS Code through the CodeXR tree view → "Learn More" section.*
 
 ## Quick Start Guide
 
@@ -71,9 +86,19 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 - **Visual Hierarchy**: Clear parent-child relationships in tree structure
 - **Real-time Updates**: See DOM changes as you edit HTML files
 
-## What's New in v0.0.9 - Complete Plugin Re-work
+## What's New in v1.0.0 - Production Ready Release
 
-### Major Release Highlights
+### Major Release Highlights - Version 1.0.0
+- **Enhanced Dimension Filtering**: Improved chart dimension mapping to exclude string-based fields (filePath, relativePath) from numeric chart dimensions for cleaner visualizations
+- **Auto-Analysis Toggle**: Auto-Analysis enabled/disabled configuration with persistence and watcher control
+- **Advanced Session Management**: Duplicate session detection and prevention with user notifications and clean analysis flow
+- **Smart HTML File Filtering**: Enhanced XR directory analysis to filter HTML files while maintaining full HTML support in LivePanel mode
+- **Official Documentation Website**: Launch of comprehensive documentation at [https://amontesl.github.io/code-xr-docs/](https://amontesl.github.io/code-xr-docs/)
+- **Enhanced Learn More Section**: Direct access to documentation and tutorials from within VS Code
+- **Configuration Restructuring**: Improved settings organization with nested auto-analysis configuration
+- **Production Stability**: Comprehensive testing and optimization for production use
+
+### Previous Major Features (v0.0.9)
 - **Complete Architecture Overhaul**: Redesigned from the ground up for better performance and reliability
 - **LivePanel Analysis**: Renamed from "Static Analysis" for better clarity and enhanced functionality
 - **Enhanced Directory Analysis**: Complete implementation of directory analysis in all forms (LivePanel and XR)

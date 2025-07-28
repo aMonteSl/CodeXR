@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.0.0] - 2025-07-28
+
+### Major Release - Version 1.0.0 
+
+This milestone release marks the official 1.0.0 version of CodeXR with several improvements and bug fixes that enhance user experience and system reliability.
+
+#### New Features & Improvements
+- **Enhanced Dimension Filtering**: Improved chart dimension mapping to exclude string-based fields (filePath, relativePath) from numeric chart dimensions, ensuring cleaner data visualizations
+- **Auto-Analysis Toggle Setting**: Added Auto-Analysis enabled/disabled configuration with persistence across sessions and watcher control system
+- **Advanced Session Management**: Implemented duplicate session detection and prevention system with user notifications and clean analysis flow management
+- **Smart HTML File Filtering**: Enhanced XR directory analysis to automatically filter out HTML files while maintaining full HTML support in LivePanel mode for optimal analysis workflows
+- **Official Documentation Website**: Launch of the official CodeXR documentation website at https://amontesl.github.io/code-xr-docs/ with comprehensive guides, tutorials, and examples
+
+#### Technical Architecture
+- **Configuration Restructuring**: Moved auto-analysis settings to nested configuration structure for better organization and maintainability
+- **Session Registry Enhancements**: Improved duplicate detection with detailed logging and null-safe session handling
+- **Watcher System Optimization**: Enhanced file/directory watchers with intelligent debounce configuration and auto-analysis control
+- **JSON Persistence**: Robust configuration persistence system with profile support and error recovery
+
+#### User Experience
+- **Duplicate Prevention**: Users receive clear notifications when attempting to analyze already active sessions without interrupting workflow
+- **Intelligent Analysis Mode Selection**: Automatic routing of HTML files to appropriate analysis modes based on context
+- **Enhanced Configuration Management**: User-friendly settings management with real-time persistence and immediate effect application
+- **Comprehensive Documentation**: Complete learning resources now available through the integrated "Learn More" section
+
+#### Documentation & Resources
+- **Live Documentation Site**: Official website now active with detailed guides and tutorials
+- **Enhanced Learn More Section**: Updated with direct access to comprehensive documentation and examples
+- **Community Resources**: Full support documentation and troubleshooting guides now available online
+
+This release represents a stable, production-ready version of CodeXR with all major features fully implemented and thoroughly tested.
+
 ## [0.0.9] - 2025-07-27
 
 ### Major Release - Complete Plugin Re-work

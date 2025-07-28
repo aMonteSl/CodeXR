@@ -25,24 +25,24 @@ export class LearnMoreCommands {
     
     /**
      * Handle the main learn more action
-     * TODO: In the future, this will open the CodeXR documentation website
+     * Opens the CodeXR documentation website
      */
     private static handleLearnMore(): void {
-        console.log('LEARN_MORE: Learn more action triggered');
+        console.log('LEARN_MORE: Learn more action triggered - opening CodeXR documentation website');
         
-        // TODO: Replace with actual website URL when available
+        // Open the CodeXR documentation website
+        const websiteUrl = 'https://amontesl.github.io/code-xr-docs/';
+        
         vscode.window.showInformationMessage(
-            'In the future: Learn more about CodeXR with examples and videos!',
-            'Coming Soon'
+            'Opening CodeXR Documentation Website...',
+            'Open Website'
         ).then(selection => {
-            if (selection === 'Coming Soon') {
-                vscode.window.showInformationMessage(
-                    'Stay tuned! The CodeXR learning center with interactive tutorials and video guides is coming soon. 🚀'
-                );
+            if (selection === 'Open Website') {
+                vscode.env.openExternal(vscode.Uri.parse(websiteUrl));
             }
         });
         
-        // Future implementation:
-        // vscode.env.openExternal(vscode.Uri.parse('https://codexr-learning-center.com'));
+        // Also open directly for immediate access
+        vscode.env.openExternal(vscode.Uri.parse(websiteUrl));
     }
 }

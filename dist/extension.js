@@ -28390,18 +28390,19 @@ class LearnMoreCommands {
     }
     /**
      * Handle the main learn more action
-     * TODO: In the future, this will open the CodeXR documentation website
+     * Opens the CodeXR documentation website
      */
     static handleLearnMore() {
-        console.log('LEARN_MORE: Learn more action triggered');
-        // TODO: Replace with actual website URL when available
-        vscode.window.showInformationMessage('In the future: Learn more about CodeXR with examples and videos!', 'Coming Soon').then(selection => {
-            if (selection === 'Coming Soon') {
-                vscode.window.showInformationMessage('Stay tuned! The CodeXR learning center with interactive tutorials and video guides is coming soon. 🚀');
+        console.log('LEARN_MORE: Learn more action triggered - opening CodeXR documentation website');
+        // Open the CodeXR documentation website
+        const websiteUrl = 'https://amontesl.github.io/code-xr-docs/';
+        vscode.window.showInformationMessage('Opening CodeXR Documentation Website...', 'Open Website').then(selection => {
+            if (selection === 'Open Website') {
+                vscode.env.openExternal(vscode.Uri.parse(websiteUrl));
             }
         });
-        // Future implementation:
-        // vscode.env.openExternal(vscode.Uri.parse('https://codexr-learning-center.com'));
+        // Also open directly for immediate access
+        vscode.env.openExternal(vscode.Uri.parse(websiteUrl));
     }
 }
 exports.LearnMoreCommands = LearnMoreCommands;
@@ -34082,7 +34083,7 @@ class LearnMoreSectionProvider {
      */
     getSectionItem() {
         return new learnMoreItems_1.LearnMoreModularTreeItem('LEARN MORE', vscode.TreeItemCollapsibleState.Collapsed, 'section', // Section header type
-        undefined, new vscode.ThemeIcon('info', new vscode.ThemeColor('charts.foreground')), 'Discover CodeXR features with tutorials and examples', 'Tutorials, examples & videos', 'learnMoreSection');
+        undefined, new vscode.ThemeIcon('book', new vscode.ThemeColor('charts.foreground')), 'Access CodeXR documentation, tutorials, and examples', 'Official docs & tutorials', 'learnMoreSection');
     }
     /**
      * Get children items for the Learn More section
@@ -34206,11 +34207,11 @@ class LearnMoreModularItemFactory {
         console.log('LEARN_MORE: Creating learn more items');
         const items = [];
         // Main "Learn More" action item
-        const learnMoreItem = new LearnMoreModularTreeItem('Discover CodeXR Features', vscode.TreeItemCollapsibleState.None, 'action', {
+        const learnMoreItem = new LearnMoreModularTreeItem('Open Documentation Website', vscode.TreeItemCollapsibleState.None, 'action', {
             command: 'codeXR.learnMore',
             title: 'Learn More',
             arguments: []
-        }, new vscode.ThemeIcon('play-circle', new vscode.ThemeColor('charts.foreground')), 'Click to explore CodeXR tutorials and examples', 'Interactive guides & videos', 'learnMoreAction');
+        }, new vscode.ThemeIcon('globe', new vscode.ThemeColor('charts.foreground')), 'Visit the official CodeXR documentation website for tutorials, guides, and examples', 'Official docs & tutorials', 'learnMoreAction');
         items.push(learnMoreItem);
         return items;
     }

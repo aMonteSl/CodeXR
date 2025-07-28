@@ -43,7 +43,7 @@ export class LearnMoreModularItemFactory {
         
         // Main "Learn More" action item
         const learnMoreItem = new LearnMoreModularTreeItem(
-            'Discover CodeXR Features',
+            'Open Documentation Website',
             vscode.TreeItemCollapsibleState.None,
             'action',
             {
@@ -51,9 +51,9 @@ export class LearnMoreModularItemFactory {
                 title: 'Learn More',
                 arguments: []
             },
-            new vscode.ThemeIcon('play-circle', new vscode.ThemeColor('charts.foreground')),
-            'Click to explore CodeXR tutorials and examples',
-            'Interactive guides & videos',
+            new vscode.ThemeIcon('globe', new vscode.ThemeColor('charts.foreground')),
+            'Visit the official CodeXR documentation website for tutorials, guides, and examples',
+            'Official docs & tutorials',
             'learnMoreAction'
         );
         

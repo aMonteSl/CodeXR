@@ -41,9 +41,9 @@ export class LearnMoreSectionProvider implements SectionProvider<LearnMoreModula
             vscode.TreeItemCollapsibleState.Collapsed,
             'section', // Section header type
             undefined,
-            new vscode.ThemeIcon('info', new vscode.ThemeColor('charts.foreground')),
-            'Discover CodeXR features with tutorials and examples',
-            'Tutorials, examples & videos',
+            new vscode.ThemeIcon('book', new vscode.ThemeColor('charts.foreground')),
+            'Access CodeXR documentation, tutorials, and examples',
+            'Official docs & tutorials',
             'learnMoreSection'
         );
     }
