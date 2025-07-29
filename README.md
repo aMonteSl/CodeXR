@@ -31,6 +31,103 @@ Our official documentation includes:
 
 *You can also access the documentation directly from VS Code through the CodeXR tree view → "Learn More" section.*
 
+## Visual Demonstrations
+
+### 📸 Live Examples - See CodeXR in Action
+
+Experience CodeXR's powerful analysis capabilities through these real-world demonstrations:
+
+#### Project Analysis Examples
+<div align="center">
+
+| **BabiaXR Project Analysis** | **Express.js Project Analysis** |
+|:---:|:---:|
+| ![BabiaXR Analysis](resources/gifts/analysis_babiaXR.gif) | ![Express Analysis](resources/gifts/analysis_express.gif) |
+| *Directory analysis of BabiaXR project (77 files)* | *Directory analysis of Express.js project (142 files)* |
+
+| **JetUML Project Analysis** | **Single File Analysis** |
+|:---:|:---:|
+| ![JetUML Analysis](resources/gifts/analysis_jetuml.gif) | ![File Analysis](resources/gifts/analysis_file.gif) |
+| *Directory analysis of JetUML project (338 files)* | *Simple file analysis demonstration* |
+
+</div>
+
+### 🎥 Video Tutorials - Complete Learning Experience
+
+Comprehensive video guides to master every aspect of CodeXR. **Watch directly in the README:**
+
+#### Core Interface & Features
+<div align="center">
+
+**Complete UI Tutorial - Master the entire CodeXR interface and workflow**
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/KRgLdLZJXHA" title="Complete UI Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
+
+#### File Analysis Workflows
+<div align="center">
+
+**File Analysis - LivePanel Mode & XR Mode**
+
+<table>
+<tr>
+<td align="center" width="50%">
+<b>LivePanel Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/n5ZcjlR4pPc" title="File Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Analyze files using LivePanel (right-click & UI methods)</i>
+</td>
+<td align="center" width="50%">
+<b>XR Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/38jGwFGORvc" title="File Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Immersive 3D file analysis in extended reality</i>
+</td>
+</tr>
+</table>
+
+**DOM Visualization - Interactive HTML structure analysis**
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/110b-AergdU" title="DOM Visualization" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
+
+#### Directory & Project Analysis
+<div align="center">
+
+**Directory Analysis - LivePanel & XR Mode**
+
+<table>
+<tr>
+<td align="center" width="50%">
+<b>LivePanel Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/sPWjcgV-gZQ" title="Directory Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Comprehensive directory analysis with detailed metrics</i>
+</td>
+<td align="center" width="50%">
+<b>XR Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/TnfS2SevtWU" title="Directory Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>3D directory visualization in immersive environments</i>
+</td>
+</tr>
+</table>
+
+**Project Analysis - Both LivePanel and XR Modes**
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/NluAHe3BQu8" title="Project Analysis" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
+
+#### Advanced AR/VR Experiences
+<div align="center">
+
+**AR Programming Experience - Real-world augmented reality coding**
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/d7fojpP90Dk" title="AR Programming Experience" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
+
+*These embedded video tutorials provide hands-on demonstrations of every CodeXR feature, using AR experience.*
+
 ## Quick Start Guide
 
 ### Get Started in 30 Seconds
