@@ -180,13 +180,23 @@ export class UnifiedSessionRegistry {
             if (params.targetType === 'directory') {
                 console.log(`UNIFIED_REGISTRY: Discovering directories and files for analysis in: ${params.targetPath}`);
                 
+                // 🔍 DEBUG: Verificar si el directorio existe y es accesible
+                try {
+                    const stats = await fs.stat(params.targetPath);
+                    console.log(`UNIFIED_REGISTRY: Target path stats - isDirectory: ${stats.isDirectory()}, size: ${stats.size}`);
+                } catch (statError) {
+                    console.error(`UNIFIED_REGISTRY: Error accessing target path ${params.targetPath}:`, statError);
+                }
+                
                 // Discover directories
                 session.directoriesToAnalyze = await this.discoverDirectoriesToAnalyze(params.targetPath, params.isDeep || false);
                 console.log(`UNIFIED_REGISTRY: Found ${session.directoriesToAnalyze?.length || 0} directories to analyze (without duplicates)`);
+                console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - directoriesToAnalyze:`, session.directoriesToAnalyze?.slice(0, 5));
                 
                 // Discover files in those directories
                 session.filesToHash = await this.discoverFilesToAnalyze(session.directoriesToAnalyze || [], params.analysisMode);
                 console.log(`UNIFIED_REGISTRY: Discovered ${session.filesToHash?.length || 0} supported files`);
+                console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - filesToHash sample:`, session.filesToHash?.slice(0, 3));
                 
                 if ((session.directoriesToAnalyze?.length || 0) === 0) {
                     console.warn(`UNIFIED_REGISTRY: No directories found to analyze in: ${params.targetPath}`);
@@ -449,7 +459,7 @@ export class UnifiedSessionRegistry {
             console.log(`UNIFIED_REGISTRY: Found ${directoriesArray.length} directories before filtering`);
             
             // Filtrar directorios usando el directoryFilter
-            const filteredDirectories = filterDirectoriesForAnalysis(directoriesArray);
+            const filteredDirectories = filterDirectoriesForAnalysis(directoriesArray, basePath);
             
             console.log(`UNIFIED_REGISTRY: Filtered to ${filteredDirectories.length} directories for analysis`);
             return filteredDirectories;
@@ -493,6 +503,7 @@ export class UnifiedSessionRegistry {
         const filesToHash: { filePath: string; hash: string }[] = [];
         
         console.log(`UNIFIED_REGISTRY: Discovering files in ${directories.length} directories for ${analysisMode} analysis`);
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Directories to process:`, directories);
         
         // Mostrar información sobre filtros aplicados
         if (analysisMode === 'XR') {
@@ -504,13 +515,27 @@ export class UnifiedSessionRegistry {
         console.log(`UNIFIED_REGISTRY: Supported extensions: ${supportedExtensions.join(', ')}`);
         
         for (const directory of directories) {
+            console.log(`UNIFIED_REGISTRY: 📂 Processing directory: ${directory}`);
+            
             try {
-                const entries = await fs.readdir(directory, { withFileTypes: true });
+                // Verificar si el directorio existe
+                const dirStats = await fs.stat(directory);
+                if (!dirStats.isDirectory()) {
+                    console.warn(`UNIFIED_REGISTRY: ⚠️ Path is not a directory: ${directory}`);
+                    continue;
+                }
                 
+                const entries = await fs.readdir(directory, { withFileTypes: true });
+                console.log(`UNIFIED_REGISTRY: Found ${entries.length} entries in ${directory}`);
+                
+                let fileCount = 0;
                 for (const entry of entries) {
                     if (entry.isFile()) {
+                        fileCount++;
                         const filePath = path.join(directory, entry.name);
                         const extension = path.extname(entry.name).toLowerCase();
+                        
+                        console.log(`UNIFIED_REGISTRY: 📄 Checking file: ${entry.name} (${extension})`);
                         
                         // Verificar si la extensión es soportada
                         if (supportedExtensions.includes(extension)) {
@@ -530,14 +555,19 @@ export class UnifiedSessionRegistry {
                                     hash: fileHash
                                 });
                                 
-                                console.log(`UNIFIED_REGISTRY: Found supported file: ${filePath} (${extension})`);
+                                console.log(`UNIFIED_REGISTRY: ✅ Found supported file: ${filePath} (${extension})`);
                             } catch (hashError) {
                                 console.error(`UNIFIED_REGISTRY: Error generating hash for ${filePath}:`, hashError);
                                 // Continuar con el siguiente archivo si falla el hash
                             }
+                        } else {
+                            console.log(`UNIFIED_REGISTRY: ⏭️ Skipping unsupported file: ${entry.name} (${extension})`);
                         }
                     }
                 }
+                
+                console.log(`UNIFIED_REGISTRY: 📊 Directory ${directory} contained ${fileCount} files`);
+                
             } catch (error) {
                 console.error(`UNIFIED_REGISTRY: Error reading files in directory ${directory}:`, error);
             }

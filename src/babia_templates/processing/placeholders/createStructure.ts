@@ -132,7 +132,7 @@ export class CreateStructure {
         if (analysisType === 'xr' && chartType === 'boats') {
             if (isDirectoryAnalysis) {
                 console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (directory analysis)`);
-                return '<a-entity id="tree" babia-treebuilder="field: fileName; split_by: /; from: data"></a-entity>';
+                return '<a-entity id="tree" babia-treebuilder="field: filePath; split_by: /; from: data"></a-entity>';
             } else {
                 console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (file analysis)`);
                 return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';

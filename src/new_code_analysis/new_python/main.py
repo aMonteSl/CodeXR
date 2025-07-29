@@ -98,6 +98,7 @@ def execute_livepanel_directory_analysis(target_directory, files_to_analyze=None
         if files_to_analyze:
             set_total_files(len(files_to_analyze))
             log_info(f"Analyzing {len(files_to_analyze)} specific files")
+            log_debug(f"Sample filtered files: {[os.path.basename(f) for f in files_to_analyze[:5]]}")
         else:
             log_info("Scanning directory for supported files...")
             
@@ -106,10 +107,12 @@ def execute_livepanel_directory_analysis(target_directory, files_to_analyze=None
         
         if deep_scan:
             log_debug("Using deep directory analysis coordinator")
+            log_debug(f"🔧 MAIN.PY: Passing {len(files_to_analyze) if files_to_analyze else 0} filtered files to DEEP coordinator")
             from livePanel_directory_deep_analysis_coordinator import analyze_directory_deep_comprehensive
             result = analyze_directory_deep_comprehensive(target_directory, files_to_analyze)
         else:
             log_debug("Using standard directory analysis coordinator")
+            log_debug(f"🔧 MAIN.PY: Passing {len(files_to_analyze) if files_to_analyze else 0} filtered files to STANDARD coordinator")
             from livePanel_directory_analysis_coordinator import analyze_directory_comprehensive
             result = analyze_directory_comprehensive(target_directory, files_to_analyze)
         

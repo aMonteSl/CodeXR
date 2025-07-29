@@ -6051,12 +6051,22 @@ class UnifiedSessionRegistry {
             // If it's directory analysis, we need to discover and filter directories to analyze
             if (params.targetType === 'directory') {
                 console.log(`UNIFIED_REGISTRY: Discovering directories and files for analysis in: ${params.targetPath}`);
+                // 🔍 DEBUG: Verificar si el directorio existe y es accesible
+                try {
+                    const stats = await fs.stat(params.targetPath);
+                    console.log(`UNIFIED_REGISTRY: Target path stats - isDirectory: ${stats.isDirectory()}, size: ${stats.size}`);
+                }
+                catch (statError) {
+                    console.error(`UNIFIED_REGISTRY: Error accessing target path ${params.targetPath}:`, statError);
+                }
                 // Discover directories
                 session.directoriesToAnalyze = await this.discoverDirectoriesToAnalyze(params.targetPath, params.isDeep || false);
                 console.log(`UNIFIED_REGISTRY: Found ${session.directoriesToAnalyze?.length || 0} directories to analyze (without duplicates)`);
+                console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - directoriesToAnalyze:`, session.directoriesToAnalyze?.slice(0, 5));
                 // Discover files in those directories
                 session.filesToHash = await this.discoverFilesToAnalyze(session.directoriesToAnalyze || [], params.analysisMode);
                 console.log(`UNIFIED_REGISTRY: Discovered ${session.filesToHash?.length || 0} supported files`);
+                console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - filesToHash sample:`, session.filesToHash?.slice(0, 3));
                 if ((session.directoriesToAnalyze?.length || 0) === 0) {
                     console.warn(`UNIFIED_REGISTRY: No directories found to analyze in: ${params.targetPath}`);
                 }
@@ -6275,7 +6285,7 @@ class UnifiedSessionRegistry {
             const directoriesArray = Array.from(allDirectories);
             console.log(`UNIFIED_REGISTRY: Found ${directoriesArray.length} directories before filtering`);
             // Filtrar directorios usando el directoryFilter
-            const filteredDirectories = (0, directoryFilter_1.filterDirectoriesForAnalysis)(directoriesArray);
+            const filteredDirectories = (0, directoryFilter_1.filterDirectoriesForAnalysis)(directoriesArray, basePath);
             console.log(`UNIFIED_REGISTRY: Filtered to ${filteredDirectories.length} directories for analysis`);
             return filteredDirectories;
         }
@@ -6313,6 +6323,7 @@ class UnifiedSessionRegistry {
     async discoverFilesToAnalyze(directories, analysisMode) {
         const filesToHash = [];
         console.log(`UNIFIED_REGISTRY: Discovering files in ${directories.length} directories for ${analysisMode} analysis`);
+        console.log(`UNIFIED_REGISTRY: 🔍 DEBUG - Directories to process:`, directories);
         // Mostrar información sobre filtros aplicados
         if (analysisMode === 'XR') {
             console.log(`UNIFIED_REGISTRY: XR analysis mode - HTML files will be filtered out`);
@@ -6321,12 +6332,23 @@ class UnifiedSessionRegistry {
         const supportedExtensions = this.getSupportedExtensions();
         console.log(`UNIFIED_REGISTRY: Supported extensions: ${supportedExtensions.join(', ')}`);
         for (const directory of directories) {
+            console.log(`UNIFIED_REGISTRY: 📂 Processing directory: ${directory}`);
             try {
+                // Verificar si el directorio existe
+                const dirStats = await fs.stat(directory);
+                if (!dirStats.isDirectory()) {
+                    console.warn(`UNIFIED_REGISTRY: ⚠️ Path is not a directory: ${directory}`);
+                    continue;
+                }
                 const entries = await fs.readdir(directory, { withFileTypes: true });
+                console.log(`UNIFIED_REGISTRY: Found ${entries.length} entries in ${directory}`);
+                let fileCount = 0;
                 for (const entry of entries) {
                     if (entry.isFile()) {
+                        fileCount++;
                         const filePath = path.join(directory, entry.name);
                         const extension = path.extname(entry.name).toLowerCase();
+                        console.log(`UNIFIED_REGISTRY: 📄 Checking file: ${entry.name} (${extension})`);
                         // Verificar si la extensión es soportada
                         if (supportedExtensions.includes(extension)) {
                             // Filtrar archivos HTML para análisis XR
@@ -6342,15 +6364,19 @@ class UnifiedSessionRegistry {
                                     filePath,
                                     hash: fileHash
                                 });
-                                console.log(`UNIFIED_REGISTRY: Found supported file: ${filePath} (${extension})`);
+                                console.log(`UNIFIED_REGISTRY: ✅ Found supported file: ${filePath} (${extension})`);
                             }
                             catch (hashError) {
                                 console.error(`UNIFIED_REGISTRY: Error generating hash for ${filePath}:`, hashError);
                                 // Continuar con el siguiente archivo si falla el hash
                             }
                         }
+                        else {
+                            console.log(`UNIFIED_REGISTRY: ⏭️ Skipping unsupported file: ${entry.name} (${extension})`);
+                        }
                     }
                 }
+                console.log(`UNIFIED_REGISTRY: 📊 Directory ${directory} contained ${fileCount} files`);
             }
             catch (error) {
                 console.error(`UNIFIED_REGISTRY: Error reading files in directory ${directory}:`, error);
@@ -6443,11 +6469,17 @@ const path = __importStar(__webpack_require__(5));
  * - Temporary files
  * - System files
  * - Version control metadata
+ *
+ * IMPORTANT: This list should NOT include standard source code directories like:
+ * - src, source, lib, app (source code)
+ * - test, tests, spec (test code)
+ * - docs, doc (documentation source)
+ * - examples, samples (example code)
  */
 const EXCLUDED_DIRECTORIES = [
     // Node.js
     'node_modules',
-    // Build outputs
+    // Build outputs (but NOT source directories!)
     'dist',
     'build',
     'out',
@@ -6456,7 +6488,6 @@ const EXCLUDED_DIRECTORIES = [
     // Dependencies and package managers
     'bower_components',
     'jspm_packages',
-    'vendor',
     // Version control
     '.git',
     '.svn',
@@ -6477,16 +6508,15 @@ const EXCLUDED_DIRECTORIES = [
     'Thumbs.db',
     '__pycache__',
     '.pytest_cache',
-    // Python
+    // Python virtual environments
     'venv',
     'env',
     '.venv',
     '.env',
     'site-packages',
-    // Java
+    // Java build outputs (but NOT src!)
     'target',
-    'bin',
-    // C/C++
+    // C/C++ build outputs
     'obj',
     // Logs
     'logs',
@@ -6494,48 +6524,66 @@ const EXCLUDED_DIRECTORIES = [
     // Coverage
     'coverage',
     '.nyc_output',
-    // Documentation builds
+    // Documentation builds (but NOT docs source!)
     'docs/_build',
-    'site',
+    '_site',
 ];
 /**
  * Check if a directory should be excluded from analysis
- * Now checks the entire path hierarchy, not just the directory name
+ * Now checks the entire path hierarchy, but NEVER excludes the root directory chosen by user
  */
-function isDirectoryExcluded(dirPath) {
-    // Split the path into components
+function isDirectoryExcluded(dirPath, rootDirectory) {
+    // NEVER exclude the root directory that the user explicitly selected
+    if (rootDirectory && path.resolve(dirPath) === path.resolve(rootDirectory)) {
+        console.log(`DIRECTORY_FILTER: 🚫 NEVER excluding root directory: ${dirPath}`);
+        return false;
+    }
+    // 🔥 TEMPORARY FIX: Only exclude very specific problematic directories
+    // to diagnose the issue with directory filtering
     const pathComponents = dirPath.split(path.sep);
-    // Check each component in the path
     for (const component of pathComponents) {
         if (!component) {
             continue; // Skip empty components
         }
-        // Check against excluded directory names
-        if (EXCLUDED_DIRECTORIES.includes(component)) {
+        // Only exclude these CRITICAL directories that should never be analyzed
+        const criticalExclusions = [
+            'node_modules', // Dependencies
+            '.git', // Version control
+            'build', // Build output
+            'dist', // Build output
+            '__pycache__' // Python cache
+        ];
+        if (criticalExclusions.includes(component)) {
+            console.log(`DIRECTORY_FILTER: 🚫 Excluding critical directory: ${dirPath} (component: ${component})`);
             return true;
         }
-        // Check for hidden directories (starting with .)
-        if (component.startsWith('.') && component !== '.' && component !== '..') {
-            // Allow some specific hidden directories that might be useful
-            const allowedHiddenDirs = ['.github', '.vscode'];
-            if (!allowedHiddenDirs.includes(component)) {
-                return true;
-            }
+        // Allow hidden directories for now to debug
+        if (component.startsWith('.') && component !== '.' && component !== '..' && component !== '.git') {
+            // Allow all hidden directories temporarily except .git
+            console.log(`DIRECTORY_FILTER: ✅ TEMPORARILY allowing hidden directory: ${dirPath} (component: ${component})`);
         }
     }
+    console.log(`DIRECTORY_FILTER: ✅ ALLOWING directory: ${dirPath}`);
     return false;
 }
 /**
  * Filter a list of directories, removing those that should not be analyzed
  * @param directories List of directory paths to filter
+ * @param rootDirectory The root directory chosen by user (never excluded)
  * @returns Filtered list of directories that are safe to analyze
  */
-function filterDirectoriesForAnalysis(directories) {
+function filterDirectoriesForAnalysis(directories, rootDirectory) {
     console.log(`DIRECTORY_FILTER: Filtering ${directories.length} directories`);
+    if (rootDirectory) {
+        console.log(`DIRECTORY_FILTER: Root directory (never excluded): ${rootDirectory}`);
+    }
     const filtered = directories.filter(dir => {
-        const shouldExclude = isDirectoryExcluded(dir);
+        const shouldExclude = isDirectoryExcluded(dir, rootDirectory);
         if (shouldExclude) {
             console.log(`DIRECTORY_FILTER: Excluding directory (contains excluded component): ${dir}`);
+        }
+        else {
+            console.log(`DIRECTORY_FILTER: Including directory: ${dir}`);
         }
         return !shouldExclude;
     });
@@ -9188,17 +9236,19 @@ exports.chartTemplates = [
         ],
         htmlTemplate: `<!-- Boats Chart -->
                 <a-entity id="chart"
-                    babia-boats="from: data;
+                    babia-boats="from: tree;
                                  title: {{TITLE}};
                                  legend: true;
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
-                                 axis_name: true"
+                                 axis_name: true;
+                                 extra: 0.5;
+                                 zone_elevation: 0.1"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
+                    scale="0.5 0.5 0.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
     }
@@ -11807,7 +11857,7 @@ class CreateStructure {
         if (analysisType === 'xr' && chartType === 'boats') {
             if (isDirectoryAnalysis) {
                 console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (directory analysis)`);
-                return '<a-entity id="tree" babia-treebuilder="field: fileName; split_by: /; from: data"></a-entity>';
+                return '<a-entity id="tree" babia-treebuilder="field: filePath; split_by: /; from: data"></a-entity>';
             }
             else {
                 console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (file analysis)`);
@@ -16122,7 +16172,7 @@ class ExecutePython {
                                     // 🎯 UPDATE VS CODE UI PROGRESS
                                     if (progress && total > 0) {
                                         const increment = percentage > 0 ? 100 / total : 0;
-                                        // Mostrar solo el nombre del archivo sin la ruta completa para mejor UX
+                                        // Mostrar el nombre del archivo completo para más información al usuario
                                         const displayFileName = fileName.includes('/') ? fileName.split('/').pop() : fileName;
                                         progress.report({
                                             message: `${current}/${total} (${percentage}%) - ${displayFileName}`,
@@ -17300,6 +17350,12 @@ class DebounceManager {
         }
     }
     /**
+     * Obtiene el delay actual
+     */
+    getDelay() {
+        return this.delayMs;
+    }
+    /**
      * Limpia recursos al destruir el manager
      */
     dispose() {
@@ -17421,6 +17477,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DirectoryWatcherOrchestrator = void 0;
+const vscode = __importStar(__webpack_require__(1));
 const fs = __importStar(__webpack_require__(6));
 const path = __importStar(__webpack_require__(5));
 const sessionRegistry_1 = __webpack_require__(32);
@@ -17433,7 +17490,7 @@ const sessionServerManager_1 = __webpack_require__(102);
 class DirectoryWatcherOrchestrator {
     session;
     context;
-    watchers = new Map();
+    watchers = new Map(); // Changed to directory-based watchers
     debounceManager = null;
     watcherId = null;
     isWatching = false;
@@ -17441,18 +17498,67 @@ class DirectoryWatcherOrchestrator {
     executePython;
     sessionServerManager;
     changedFiles = new Set();
-    directoryWatcher = null;
     addedFiles = new Set();
     deletedFiles = new Set();
+    directoryFileHashes = new Map(); // directoryPath -> fileName -> hash
+    watchedDirectories = new Set(); // Track watched directories
     constructor(session, context) {
         this.session = session;
         this.context = context;
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Initializing orchestrator for session ${session.id}`);
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Target directory: ${session.targetPath}`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Target type: ${session.targetType}`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Analysis mode: ${session.analysisMode}`);
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Files to watch: ${session.filesToHash?.length || 0}`);
+        // 🔍 DEBUG: Analizar en detalle la estructura de la sesión
+        if (session.filesToHash) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📋 FilesToHash details:`, session.filesToHash.slice(0, 3));
+        }
+        else {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ session.filesToHash is null/undefined`);
+        }
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Full session object keys:`, Object.keys(session));
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Session saved files path:`, session.savedFilesPath);
         this.configurationStorage = analysisConfigurationStorage_1.AnalysisConfigurationStorage.getInstance(context);
         this.executePython = new executePython_1.ExecutePython(context);
         this.sessionServerManager = new sessionServerManager_1.SessionServerManager(context);
+        // Initialize directory-based file hash tracking
+        this.initializeDirectoryHashes();
+    }
+    /**
+     * Initialize hash tracking for all directories that contain files to watch
+     */
+    initializeDirectoryHashes() {
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗂️ Initializing directory-based hash tracking...`);
+        if (!this.session.filesToHash) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ No filesToHash found in session - cannot initialize directory watchers`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: � Session properties:`, {
+                id: this.session.id,
+                targetPath: this.session.targetPath,
+                targetType: this.session.targetType,
+                analysisMode: this.session.analysisMode,
+                savedFilesPath: this.session.savedFilesPath,
+                hasFilesToHash: !!this.session.filesToHash
+            });
+            return;
+        }
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📋 Processing ${this.session.filesToHash.length} files for directory tracking`);
+        for (const fileHash of this.session.filesToHash) {
+            const directoryPath = path.dirname(fileHash.filePath);
+            const fileName = path.basename(fileHash.filePath);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📁 Processing file: ${fileName} in ${directoryPath}`);
+            if (!this.directoryFileHashes.has(directoryPath)) {
+                this.directoryFileHashes.set(directoryPath, new Map());
+                this.watchedDirectories.add(directoryPath);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ Added new directory to watch: ${directoryPath}`);
+            }
+            this.directoryFileHashes.get(directoryPath).set(fileName, fileHash.hash);
+        }
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📁 Tracking ${this.watchedDirectories.size} directories with ${this.session.filesToHash.length} files`);
+        this.watchedDirectories.forEach(dir => {
+            const fileCount = this.directoryFileHashes.get(dir)?.size || 0;
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 ${dir} (${fileCount} files)`);
+        });
     }
     /**
      * Carga la configuración de debounce del usuario
@@ -17478,28 +17584,15 @@ class DirectoryWatcherOrchestrator {
         }
     }
     /**
-     * Inicia el watching de todos los archivos del directorio
+     * Inicia el watching basado en directorios (más eficiente para proyectos grandes)
      */
     async startWatching() {
         try {
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚀 Starting directory watching for session ${this.session.id}`);
-            if (!this.session.filesToHash || this.session.filesToHash.length === 0) {
-                console.warn(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ No files to watch in session ${this.session.id}`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚀 Starting directory-based watching for session ${this.session.id}`);
+            if (this.watchedDirectories.size === 0) {
+                console.warn(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ No directories to watch in session ${this.session.id}`);
                 return null;
             }
-            // Validar que todos los archivos existen
-            const existingFiles = this.session.filesToHash?.filter(fileHash => {
-                const exists = fs.existsSync(fileHash.filePath);
-                if (!exists) {
-                    console.warn(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ File does not exist: ${fileHash.filePath}`);
-                }
-                return exists;
-            }) || [];
-            if (existingFiles.length === 0) {
-                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ No valid files to watch`);
-                return null;
-            }
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📁 Watching ${existingFiles.length} files`);
             // Cargar configuración de debounce
             const debounceDelayMs = await this.loadDebounceConfiguration();
             // Verificar si auto-analysis está habilitado
@@ -17507,38 +17600,43 @@ class DirectoryWatcherOrchestrator {
                 console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚫 Auto-Analysis is DISABLED - Skipping watcher setup`);
                 return null; // No crear watchers si está deshabilitado
             }
-            // Crear debounce manager
-            this.debounceManager = new debounceManager_1.DebounceManager(debounceDelayMs, this.handleDebounceCallback.bind(this), `Directory (${existingFiles.length} files)`);
-            // Generar ID único para este watcher
-            this.watcherId = `directory_watcher_${this.session.id}_${Date.now()}`;
-            // Crear watchers para cada archivo
-            for (const fileHash of existingFiles) {
-                try {
-                    const watcher = fs.watch(fileHash.filePath, (eventType) => {
-                        this.handleFileChange(fileHash.filePath, eventType);
-                    });
-                    this.watchers.set(fileHash.filePath, watcher);
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 👀 Watching: ${path.basename(fileHash.filePath)}`);
-                }
-                catch (watchError) {
-                    console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to watch ${fileHash.filePath}:`, watchError);
-                }
-            }
-            // Crear watcher para el directorio completo para detectar archivos añadidos/eliminados
-            try {
-                this.directoryWatcher = fs.watch(this.session.targetPath, { recursive: this.session.isDeep }, (eventType, filename) => {
-                    if (filename) {
-                        this.handleDirectoryChange(eventType, filename);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📁 Watching ${this.watchedDirectories.size} directories with ${this.session.filesToHash?.length || 0} files`);
+            // Performance optimization for large projects - warn user
+            if (this.watchedDirectories.size > 100) {
+                console.warn(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ Large project detected (${this.watchedDirectories.size} directories). Auto-analysis may impact performance.`);
+                vscode.window.showWarningMessage(`CodeXR: Large project detected (${this.watchedDirectories.size} directories). For better performance, consider disabling auto-analysis in settings.`, 'Open Settings').then(selection => {
+                    if (selection === 'Open Settings') {
+                        vscode.commands.executeCommand('newCodeAnalysis.showAnalysisSettings');
                     }
                 });
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Watching directory: ${this.session.targetPath} (recursive: ${this.session.isDeep})`);
             }
-            catch (watchError) {
-                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to watch directory ${this.session.targetPath}:`, watchError);
+            // Crear debounce manager
+            this.debounceManager = new debounceManager_1.DebounceManager(debounceDelayMs, this.handleDebounceCallback.bind(this), `Project (${this.watchedDirectories.size} dirs)`);
+            // Generar ID único para este watcher
+            this.watcherId = `directory_watcher_${this.session.id}_${Date.now()}`;
+            // Crear watchers para cada directorio que contiene archivos a monitorear
+            for (const directoryPath of this.watchedDirectories) {
+                try {
+                    const fileCount = this.directoryFileHashes.get(directoryPath)?.size || 0;
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 👀 Setting up watcher for: ${directoryPath} (${fileCount} files)`);
+                    const watcher = fs.watch(directoryPath, (eventType, filename) => {
+                        if (filename) {
+                            // Llamada asíncrona sin await para no bloquear el callback
+                            this.handleDirectoryChange(directoryPath, eventType, filename).catch(error => {
+                                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: Error in handleDirectoryChange:`, error);
+                            });
+                        }
+                    });
+                    this.watchers.set(directoryPath, watcher);
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Watching directory: ${path.basename(directoryPath)}`);
+                }
+                catch (watchError) {
+                    console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to watch ${directoryPath}:`, watchError);
+                }
             }
             this.isWatching = true;
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Directory watcher started successfully with ID: ${this.watcherId}`);
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Watching ${this.watchers.size} files with ${debounceDelayMs}ms debounce`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Directory-based watcher started successfully with ID: ${this.watcherId}`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Watching ${this.watchers.size} directories with ${debounceDelayMs}ms debounce`);
             return this.watcherId;
         }
         catch (error) {
@@ -17548,80 +17646,116 @@ class DirectoryWatcherOrchestrator {
         }
     }
     /**
-     * Maneja el cambio de un archivo específico
+     * Maneja cambios en un directorio específico (nuevo enfoque basado en directorios)
      */
-    handleFileChange(filePath, eventType) {
-        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 File changed: ${path.basename(filePath)} (${eventType})`);
-        // Agregar archivo a la lista de cambios
-        this.changedFiles.add(filePath);
-        // Activar debounce
-        if (this.debounceManager) {
-            this.debounceManager.start();
+    async handleDirectoryChange(directoryPath, eventType, filename) {
+        const fullPath = path.join(directoryPath, filename);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Directory change in ${path.basename(directoryPath)}: ${filename} (${eventType})`);
+        // Performance optimization: Skip processing for temporary or non-essential files
+        if (this.shouldSkipDirectoryEvent(filename)) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏭️ Skipping non-essential file change: ${filename}`);
+            return;
         }
-    }
-    /**
-     * Maneja cambios en el directorio (archivos añadidos/eliminados)
-     */
-    handleDirectoryChange(eventType, filename) {
-        const fullPath = path.join(this.session.targetPath, filename);
-        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Directory change: ${filename} (${eventType})`);
-        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 Full path: ${fullPath}`);
+        // Verificar si auto-analysis está habilitado antes de procesar cambios
+        try {
+            const autoAnalysisEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
+            if (!autoAnalysisEnabled) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚫 Auto-Analysis is DISABLED - Skipping directory change processing`);
+                return;
+            }
+        }
+        catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: Error checking auto-analysis state:`, error);
+            return;
+        }
         // Verificar si es un archivo que debemos analizar (por extensión)
         if (!this.shouldAnalyzeFile(fullPath)) {
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏭️ Skipping file with unsupported extension: ${filename}`);
             return;
         }
-        // Verificar el estado actual del archivo
+        // Verificar si este archivo está en nuestra lista de archivos a monitorear
+        const directoryFiles = this.directoryFileHashes.get(directoryPath);
+        if (!directoryFiles) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏭️ Directory ${directoryPath} not in watch list`);
+            return;
+        }
+        const wasTracked = directoryFiles.has(filename);
         const fileExists = fs.existsSync(fullPath);
-        const wasWatched = this.watchers.has(fullPath);
-        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 File state - exists: ${fileExists}, was watched: ${wasWatched}`);
+        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📂 File state - exists: ${fileExists}, was tracked: ${wasTracked}`);
         if (eventType === 'rename') {
-            // 'rename' puede ser tanto adición como eliminación
-            if (fileExists) {
+            if (fileExists && !wasTracked) {
                 // Archivo añadido
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ File added: ${filename}`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ New file added: ${filename} in ${path.basename(directoryPath)}`);
                 this.addedFiles.add(fullPath);
-                // Remover de deletedFiles si estaba ahí (caso de rename)
-                this.deletedFiles.delete(fullPath);
             }
-            else {
+            else if (!fileExists && wasTracked) {
                 // Archivo eliminado
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ File deleted: ${filename}`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ File deleted: ${filename} from ${path.basename(directoryPath)}`);
                 this.deletedFiles.add(fullPath);
-                // Remover de addedFiles y changedFiles si estaban ahí
                 this.addedFiles.delete(fullPath);
                 this.changedFiles.delete(fullPath);
+                // Remover del tracking
+                directoryFiles.delete(filename);
             }
         }
-        else if (eventType === 'change') {
-            // Verificar si es realmente un cambio o una adición tardía
-            if (fileExists) {
-                if (!wasWatched) {
-                    // Es un archivo nuevo que no teníamos en el watcher
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➕ New file detected via change event: ${filename}`);
-                    this.addedFiles.add(fullPath);
-                }
-                else {
-                    // Es un cambio en un archivo existente - déjalo que lo maneje el file watcher individual
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 File change delegated to individual watcher: ${filename}`);
-                }
+        else if (eventType === 'change' && wasTracked && fileExists) {
+            // Archivo existente modificado - verificar hash
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 Potential file change: ${filename} in ${path.basename(directoryPath)}`);
+            await this.checkFileHashChange(directoryPath, filename, fullPath);
+        }
+        // Activar debounce si hay cambios
+        const totalChanges = this.changedFiles.size + this.addedFiles.size + this.deletedFiles.size;
+        if (totalChanges > 0) {
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚀 Changes detected (${totalChanges} files), loading fresh configuration...`);
+            // 🔄 DYNAMIC DEBOUNCE: Cargar configuración de debounce del usuario (igual que FileWatcherOrchestrator)
+            const delayMs = await this.loadDebounceConfiguration();
+            // Verificar si auto-analysis está habilitado
+            if (delayMs === -1) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: � Auto-Analysis is DISABLED - Skipping re-analysis`);
+                return; // No procesar cambios si está deshabilitado
+            }
+            // Cancelar debounce previo si existe y crear uno nuevo con la configuración actualizada
+            if (this.debounceManager) {
+                this.debounceManager.dispose();
+            }
+            // Crear nuevo debounce manager con configuración fresca
+            this.debounceManager = new debounceManager_1.DebounceManager(delayMs, this.handleDebounceCallback.bind(this), `Project (${this.watchedDirectories.size} dirs)`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚀 Starting debounce with dynamic config - ${configurationConverter_1.ConfigurationConverter.getDisplayName((await this.configurationStorage.loadConfiguration()).autoAnalysisDelay)} (${delayMs}ms)...`);
+            this.debounceManager.start();
+        }
+    }
+    /**
+     * Verifica si un archivo ha cambiado comparando su hash
+     */
+    async checkFileHashChange(directoryPath, filename, fullPath) {
+        try {
+            const directoryFiles = this.directoryFileHashes.get(directoryPath);
+            if (!directoryFiles) {
+                return;
+            }
+            const originalHash = directoryFiles.get(filename);
+            if (!originalHash) {
+                return;
+            }
+            // Calcular hash actual del archivo
+            const { SHA256Generator } = __webpack_require__(36);
+            const currentHash = await SHA256Generator.generateFileHash(fullPath);
+            // Comparar hashes
+            if (currentHash !== originalHash) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 Hash changed for ${filename} in ${path.basename(directoryPath)}`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Old: ${originalHash.substring(0, 12)}... -> New: ${currentHash.substring(0, 12)}...`);
+                // NO actualizar hash aquí - se actualizará después en detectHashChanges
+                // Marcar como cambiado
+                this.changedFiles.add(fullPath);
             }
             else {
-                // Archivo eliminado detectado via change
-                if (wasWatched) {
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ➖ File deletion detected via change event: ${filename}`);
-                    this.deletedFiles.add(fullPath);
-                    this.addedFiles.delete(fullPath);
-                    this.changedFiles.delete(fullPath);
-                }
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Hash unchanged for ${filename}`);
             }
         }
-        // Activar debounce
-        const totalChanges = this.changedFiles.size + this.addedFiles.size + this.deletedFiles.size;
-        console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏰ Directory changes summary: ${this.changedFiles.size} changed, ${this.addedFiles.size} added, ${this.deletedFiles.size} deleted (total: ${totalChanges})`);
-        if (totalChanges > 0 && this.debounceManager) {
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚀 Starting debounce for directory changes...`);
-            this.debounceManager.start();
+        catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error checking hash for ${fullPath}:`, error);
+            // En caso de error, asumir que cambió
+            this.changedFiles.add(fullPath);
         }
     }
     /**
@@ -17640,12 +17774,55 @@ class DirectoryWatcherOrchestrator {
         return supportedExtensions.includes(ext);
     }
     /**
+     * Verifica si un evento de directorio debe ser omitido para mejor rendimiento
+     */
+    shouldSkipDirectoryEvent(filename) {
+        // Skip temporary files, IDE files, and other non-essential files
+        const skipPatterns = [
+            /^\..*$/, // Hidden files
+            /.*~$/, // Backup files
+            /.*\.tmp$/, // Temporary files
+            /.*\.log$/, // Log files
+            /.*\.swp$/, // Vim swap files
+            /.*\.swo$/, // Vim swap files
+            /.*\.bak$/, // Backup files
+            /.*\.orig$/, // Original files
+            /^#.*#$/, // Emacs auto-save files
+            /.*\.lock$/, // Lock files
+            /.*\.pid$/, // Process ID files
+            /.*\.cache$/, // Cache files
+            /.*\.DS_Store$/, // macOS files
+            /^Thumbs\.db$/, // Windows files
+            /.*\.pyc$/, // Python bytecode
+            /.*\.pyo$/, // Python optimized bytecode
+            /.*\.class$/, // Java class files
+            /.*\.o$/, // Object files
+            /.*\.obj$/, // Object files
+            /.*\.exe$/, // Executable files (usually not source code)
+            /.*\.dll$/, // Dynamic libraries
+            /.*\.so$/, // Shared libraries
+            /.*\.a$/, // Static libraries
+            /.*\.lib$/, // Library files
+        ];
+        return skipPatterns.some(pattern => pattern.test(filename));
+    }
+    /**
      * Callback ejecutado cuando termina el debounce
      */
     async handleDebounceCallback() {
         try {
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⏰ Debounce completed`);
             console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📊 Processing changes: ${this.changedFiles.size} modified, ${this.addedFiles.size} added, ${this.deletedFiles.size} deleted`);
+            // Verificar si auto-analysis está habilitado antes de procesar cambios
+            const autoAnalysisEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
+            if (!autoAnalysisEnabled) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚫 Auto-Analysis is DISABLED - Skipping debounce callback processing`);
+                // Limpiar las listas de cambios ya que no las vamos a procesar
+                this.changedFiles.clear();
+                this.addedFiles.clear();
+                this.deletedFiles.clear();
+                return;
+            }
             // CRITICAL: Check if session still exists before processing any changes
             const sessionRegistry = sessionRegistry_1.UnifiedSessionRegistry.getInstance(this.context);
             const currentSession = sessionRegistry.getSession(this.session.id);
@@ -17695,26 +17872,21 @@ class DirectoryWatcherOrchestrator {
         }
     }
     /**
-     * Detecta qué archivos realmente cambiaron comparando hashes
+     * Detecta qué archivos realmente cambiaron comparando hashes (actualizado para el nuevo sistema)
      */
     async detectHashChanges() {
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Detecting hash changes for ${this.changedFiles.size} files`);
         const changedFiles = [];
         for (const filePath of this.changedFiles) {
             try {
+                const directoryPath = path.dirname(filePath);
+                const fileName = path.basename(filePath);
                 // Calcular hash actual del archivo
-                const currentHash = await sha256Generator_1.SHA256Generator.generateFileHash(filePath);
-                // Buscar el hash original en la sesión
-                let originalHash;
-                // Buscar en filesToHash array
-                if (this.session.filesToHash) {
-                    const fileHashEntry = this.session.filesToHash.find(fh => fh.filePath === filePath);
-                    originalHash = fileHashEntry?.hash;
-                }
-                else if (this.session.targetPath === filePath) {
-                    // Fallback: si es análisis de archivo único, usar el hash de la sesión
-                    originalHash = this.session.hash256;
-                }
+                const { SHA256Generator } = __webpack_require__(36);
+                const currentHash = await SHA256Generator.generateFileHash(filePath);
+                // Buscar el hash original en nuestro tracking por directorio
+                const directoryFiles = this.directoryFileHashes.get(directoryPath);
+                const originalHash = directoryFiles?.get(fileName);
                 if (!originalHash) {
                     console.warn(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ No original hash found for ${filePath}, assuming changed`);
                     changedFiles.push(filePath);
@@ -17722,22 +17894,16 @@ class DirectoryWatcherOrchestrator {
                 }
                 // Comparar hashes
                 if (currentHash !== originalHash) {
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 Hash changed for ${path.basename(filePath)}`);
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 📝 Hash changed for ${fileName}`);
                     console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔍 Old: ${originalHash.substring(0, 12)}... -> New: ${currentHash.substring(0, 12)}...`);
                     changedFiles.push(filePath);
-                    // Actualizar hash en la sesión
-                    if (this.session.filesToHash) {
-                        const fileHashEntry = this.session.filesToHash.find(fh => fh.filePath === filePath);
-                        if (fileHashEntry) {
-                            fileHashEntry.hash = currentHash;
-                        }
-                    }
-                    else if (this.session.targetPath === filePath) {
-                        this.session.hash256 = currentHash;
+                    // Actualizar hash en nuestro tracking
+                    if (directoryFiles) {
+                        directoryFiles.set(fileName, currentHash);
                     }
                 }
                 else {
-                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Hash unchanged for ${path.basename(filePath)}`);
+                    console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Hash unchanged for ${fileName}`);
                 }
             }
             catch (error) {
@@ -18039,11 +18205,16 @@ class DirectoryWatcherOrchestrator {
                         data.files.push(fileAnalysisResult);
                         hasChanges = true;
                         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Added new file to data.json: ${filePath}`);
-                        // Agregar el archivo al watcher individual para futuros cambios
-                        this.addFileWatcher(filePath);
+                        // Agregar el archivo al tracking de hashes por directorio
+                        const directoryPath = path.dirname(filePath);
+                        const fileName = path.basename(filePath);
+                        const fileHash = await sha256Generator_1.SHA256Generator.generateFileHash(filePath);
+                        if (!this.directoryFileHashes.has(directoryPath)) {
+                            this.directoryFileHashes.set(directoryPath, new Map());
+                        }
+                        this.directoryFileHashes.get(directoryPath).set(fileName, fileHash);
                         // Actualizar hash en la sesión para el nuevo archivo
                         if (this.session.filesToHash) {
-                            const fileHash = await sha256Generator_1.SHA256Generator.generateFileHash(filePath);
                             this.session.filesToHash.push({
                                 filePath: filePath,
                                 hash: fileHash
@@ -18068,25 +18239,6 @@ class DirectoryWatcherOrchestrator {
         }
         catch (error) {
             console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error processing added files:`, error);
-        }
-    }
-    /**
-     * Agrega un watcher para un archivo específico
-     */
-    addFileWatcher(filePath) {
-        try {
-            if (this.watchers.has(filePath)) {
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ Watcher already exists for: ${filePath}`);
-                return;
-            }
-            const watcher = fs.watch(filePath, (eventType) => {
-                this.handleFileChange(filePath, eventType);
-            });
-            this.watchers.set(filePath, watcher);
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 👀 Added watcher for: ${path.basename(filePath)}`);
-        }
-        catch (error) {
-            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Failed to add watcher for ${filePath}:`, error);
         }
     }
     /**
@@ -18182,29 +18334,44 @@ class DirectoryWatcherOrchestrator {
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Directory watcher stopped successfully`);
     }
     /**
+     * Actualiza la configuración de debounce del watcher sin reiniciarlo
+     */
+    async updateDebounceConfiguration() {
+        try {
+            const newDelayMs = await this.loadDebounceConfiguration();
+            if (newDelayMs === -1) {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🚫 Auto-Analysis is now DISABLED - stopping watchers`);
+                await this.stopWatching();
+                return;
+            }
+            if (this.debounceManager) {
+                const oldDelay = this.debounceManager.getDelay();
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🔄 Updating debounce delay from ${oldDelay}ms to ${newDelayMs}ms`);
+                // Actualizar el delay del debounce manager existente
+                this.debounceManager.updateDelay(newDelayMs);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ✅ Debounce configuration updated successfully`);
+            }
+            else {
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: ⚠️ No debounce manager to update`);
+            }
+        }
+        catch (error) {
+            console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error updating debounce configuration:`, error);
+        }
+    }
+    /**
      * Limpia todos los recursos
      */
     cleanup() {
         console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🧹 Cleaning up directory watcher resources`);
-        // Cerrar directoryWatcher si existe
-        if (this.directoryWatcher) {
-            try {
-                this.directoryWatcher.close();
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗂️ Closed directory watcher`);
-            }
-            catch (error) {
-                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error closing directory watcher:`, error);
-            }
-            this.directoryWatcher = null;
-        }
-        // Cerrar todos los watchers
-        for (const [filePath, watcher] of this.watchers) {
+        // Cerrar todos los watchers de directorio
+        for (const [directoryPath, watcher] of this.watchers) {
             try {
                 watcher.close();
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗂️ Closed watcher for ${path.basename(filePath)}`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: 🗂️ Closed watcher for ${path.basename(directoryPath)}`);
             }
             catch (error) {
-                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error closing watcher for ${filePath}:`, error);
+                console.error(`DIRECTORY_WATCHER_ORCHESTRATOR: ❌ Error closing watcher for ${directoryPath}:`, error);
             }
         }
         this.watchers.clear();
@@ -21961,6 +22128,37 @@ class LivePanelDirectoryRequirements {
                         analyzedFiles: analysisResult.summary?.totalFilesAnalyzed || 0,
                         notAnalyzedFiles: analysisResult.summary?.totalFilesNotAnalyzed || 0
                     });
+                    // 🔥 CRITICAL FIX: Update session.filesToHash with actually analyzed files
+                    // This is essential for the DirectoryWatcherOrchestrator to work properly
+                    const analyzedFiles = analysisResult.files || [];
+                    if (analyzedFiles.length > 0) {
+                        console.log(`🔧 LIVEPANEL_DIRECTORY_REQUIREMENTS: Updating session.filesToHash with ${analyzedFiles.length} analyzed files...`);
+                        const filesToHash = [];
+                        for (const fileData of analyzedFiles) {
+                            if (fileData.filePath) {
+                                try {
+                                    // Generate hash for the analyzed file
+                                    const { SHA256Generator } = __webpack_require__(36);
+                                    const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
+                                    filesToHash.push({
+                                        filePath: fileData.filePath,
+                                        hash: fileHash
+                                    });
+                                }
+                                catch (hashError) {
+                                    console.error(`LIVEPANEL_DIRECTORY_REQUIREMENTS: Error generating hash for ${fileData.filePath}:`, hashError);
+                                    // Add with empty hash as fallback
+                                    filesToHash.push({
+                                        filePath: fileData.filePath,
+                                        hash: ''
+                                    });
+                                }
+                            }
+                        }
+                        // Update the session with actually analyzed files
+                        session.filesToHash = filesToHash;
+                        console.log(`✅ LIVEPANEL_DIRECTORY_REQUIREMENTS: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
+                    }
                 }
                 else {
                     console.warn(`LIVEPANEL_DIRECTORY_REQUIREMENTS: ⚠️ Python analysis returned invalid data`);
@@ -22971,6 +23169,7 @@ const fs = __importStar(__webpack_require__(6));
 const analysisConfigurationStorage_1 = __webpack_require__(85);
 const templateProcessor_1 = __webpack_require__(52);
 const executePython_1 = __webpack_require__(94);
+const sha256Generator_1 = __webpack_require__(36);
 class DirectoryXRParser {
     /**
      * Parse directory for XR visualization
@@ -23055,6 +23254,33 @@ class DirectoryXRParser {
                         fileSizeBytes: analysisData[0].fileSizeBytes
                     });
                 }
+                // 🔥 CRITICAL FIX: Update session.filesToHash with actually analyzed files
+                // This is essential for the DirectoryWatcherOrchestrator to work properly
+                console.log(`🔧 DIRECTORY_XR_PARSER: Updating session.filesToHash with ${analysisData.length} analyzed files...`);
+                const filesToHash = [];
+                for (const fileData of analysisData) {
+                    if (fileData.filePath) {
+                        try {
+                            // Generate hash for the analyzed file
+                            const fileHash = await sha256Generator_1.SHA256Generator.generateFileHash(fileData.filePath);
+                            filesToHash.push({
+                                filePath: fileData.filePath,
+                                hash: fileHash
+                            });
+                        }
+                        catch (hashError) {
+                            console.error(`DIRECTORY_XR_PARSER: Error generating hash for ${fileData.filePath}:`, hashError);
+                            // Add with empty hash as fallback
+                            filesToHash.push({
+                                filePath: fileData.filePath,
+                                hash: ''
+                            });
+                        }
+                    }
+                }
+                // Update the original session with actually analyzed files
+                session.filesToHash = filesToHash;
+                console.log(`✅ DIRECTORY_XR_PARSER: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
             }
             // =======================================================
             // STEP 3: GENERATE HTML USING TEMPLATEPROCESSOR WITH ANALYSIS DATA
@@ -26165,7 +26391,7 @@ const newCodeAnalysisItems_1 = __webpack_require__(146);
 const configuration_1 = __webpack_require__(147);
 class AutoAnalysisDelaySetting {
     context;
-    currentDelayConfig = { type: 'RealTime' };
+    currentDelayConfig = { type: 'RealTime', autoAnalysisEnabled: true };
     storage;
     // Predefined delay options with their millisecond values
     PREDEFINED_DELAYS = {
@@ -26236,7 +26462,8 @@ class AutoAnalysisDelaySetting {
         }
         this.currentDelayConfig = {
             type: predefinedOptions[nextIndex],
-            customMs: undefined
+            customMs: undefined,
+            autoAnalysisEnabled: this.currentDelayConfig.autoAnalysisEnabled
         };
         console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay cycled to ${this.currentDelayConfig.type}`);
         await this.saveDelayToSettings();
@@ -26250,7 +26477,8 @@ class AutoAnalysisDelaySetting {
         const clampedMs = Math.max(0, Math.min(20000, milliseconds));
         this.currentDelayConfig = {
             type: 'Custom',
-            customMs: clampedMs
+            customMs: clampedMs,
+            autoAnalysisEnabled: this.currentDelayConfig.autoAnalysisEnabled
         };
         console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay set to custom ${clampedMs}ms`);
         await this.saveDelayToSettings();
@@ -26277,7 +26505,8 @@ class AutoAnalysisDelaySetting {
     async setDelay(delayType) {
         this.currentDelayConfig = {
             type: delayType,
-            customMs: delayType === 'Custom' ? this.currentDelayConfig.customMs : undefined
+            customMs: delayType === 'Custom' ? this.currentDelayConfig.customMs : undefined,
+            autoAnalysisEnabled: this.currentDelayConfig.autoAnalysisEnabled
         };
         await this.saveDelayToSettings();
     }
@@ -26292,7 +26521,7 @@ class AutoAnalysisDelaySetting {
         }
         catch (error) {
             console.error('NEW_CODE_ANALYSIS: Error loading saved delay, using default:', error);
-            this.currentDelayConfig = { type: 'RealTime' }; // Fallback to default
+            this.currentDelayConfig = { type: 'RealTime', autoAnalysisEnabled: true }; // Fallback to default
         }
     }
     /**
@@ -27740,7 +27969,7 @@ class ProfileConfigurationSetting {
             dimensionMappingDirectory: {
                 area: 'functionCount',
                 height: 'totalLines',
-                color: 'meanComplexity'
+                color: 'cyclomaticComplexityNumber'
             },
             autoAnalysisDelay: {
                 type: '3s',

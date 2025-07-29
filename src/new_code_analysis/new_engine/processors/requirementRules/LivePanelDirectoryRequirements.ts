@@ -64,6 +64,39 @@ export class LivePanelDirectoryRequirements {
                         analyzedFiles: analysisResult.summary?.totalFilesAnalyzed || 0,
                         notAnalyzedFiles: analysisResult.summary?.totalFilesNotAnalyzed || 0
                     });
+
+                    // 🔥 CRITICAL FIX: Update session.filesToHash with actually analyzed files
+                    // This is essential for the DirectoryWatcherOrchestrator to work properly
+                    const analyzedFiles = analysisResult.files || [];
+                    if (analyzedFiles.length > 0) {
+                        console.log(`🔧 LIVEPANEL_DIRECTORY_REQUIREMENTS: Updating session.filesToHash with ${analyzedFiles.length} analyzed files...`);
+                        const filesToHash: { filePath: string; hash: string }[] = [];
+                        
+                        for (const fileData of analyzedFiles) {
+                            if (fileData.filePath) {
+                                try {
+                                    // Generate hash for the analyzed file
+                                    const { SHA256Generator } = require('../../../../utils/sha256Generator');
+                                    const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
+                                    filesToHash.push({
+                                        filePath: fileData.filePath,
+                                        hash: fileHash
+                                    });
+                                } catch (hashError) {
+                                    console.error(`LIVEPANEL_DIRECTORY_REQUIREMENTS: Error generating hash for ${fileData.filePath}:`, hashError);
+                                    // Add with empty hash as fallback
+                                    filesToHash.push({
+                                        filePath: fileData.filePath,
+                                        hash: ''
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Update the session with actually analyzed files
+                        session.filesToHash = filesToHash;
+                        console.log(`✅ LIVEPANEL_DIRECTORY_REQUIREMENTS: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
+                    }
                 } else {
                     console.warn(`LIVEPANEL_DIRECTORY_REQUIREMENTS: ⚠️ Python analysis returned invalid data`);
                     // Add empty data.json as fallback

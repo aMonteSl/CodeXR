@@ -522,7 +522,7 @@ export class ExecutePython {
                                     // 🎯 UPDATE VS CODE UI PROGRESS
                                     if (progress && total > 0) {
                                         const increment = percentage > 0 ? 100 / total : 0;
-                                        // Mostrar solo el nombre del archivo sin la ruta completa para mejor UX
+                                        // Mostrar el nombre del archivo completo para más información al usuario
                                         const displayFileName = fileName.includes('/') ? fileName.split('/').pop() : fileName;
                                         progress.report({ 
                                             message: `${current}/${total} (${percentage}%) - ${displayFileName}`,

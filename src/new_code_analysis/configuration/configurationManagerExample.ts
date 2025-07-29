@@ -49,7 +49,8 @@ export function demonstrateConfigurationManager() {
     // Change auto-analysis delay to custom
     configManager.autoAnalysisDelay = {
         type: 'Custom',
-        customMs: 2500
+        customMs: 2500,
+        autoAnalysisEnabled: true
     };
     console.log(`After setting custom delay: ${configManager.autoAnalysisDelayType}`);
     console.log(`Custom delay value: ${configManager.customDelayMs}ms`);

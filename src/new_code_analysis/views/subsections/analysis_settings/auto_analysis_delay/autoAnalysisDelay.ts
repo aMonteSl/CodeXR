@@ -10,7 +10,7 @@ import { AnalysisConfigurationStorage, AutoAnalysisDelayConfig, AutoAnalysisDela
 export { AutoAnalysisDelayConfig, AutoAnalysisDelay } from '../../../../configuration';
 
 export class AutoAnalysisDelaySetting {
-    private currentDelayConfig: AutoAnalysisDelayConfig = { type: 'RealTime' };
+    private currentDelayConfig: AutoAnalysisDelayConfig = { type: 'RealTime', autoAnalysisEnabled: true };
     private storage: AnalysisConfigurationStorage;
 
     // Predefined delay options with their millisecond values
@@ -96,7 +96,8 @@ export class AutoAnalysisDelaySetting {
         
         this.currentDelayConfig = {
             type: predefinedOptions[nextIndex],
-            customMs: undefined
+            customMs: undefined,
+            autoAnalysisEnabled: this.currentDelayConfig.autoAnalysisEnabled
         };
         
         console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay cycled to ${this.currentDelayConfig.type}`);
@@ -115,7 +116,8 @@ export class AutoAnalysisDelaySetting {
         
         this.currentDelayConfig = {
             type: 'Custom',
-            customMs: clampedMs
+            customMs: clampedMs,
+            autoAnalysisEnabled: this.currentDelayConfig.autoAnalysisEnabled
         };
         
         console.log(`NEW_CODE_ANALYSIS: Auto-analysis delay set to custom ${clampedMs}ms`);
@@ -148,7 +150,8 @@ export class AutoAnalysisDelaySetting {
     async setDelay(delayType: AutoAnalysisDelay): Promise<void> {
         this.currentDelayConfig = {
             type: delayType,
-            customMs: delayType === 'Custom' ? this.currentDelayConfig.customMs : undefined
+            customMs: delayType === 'Custom' ? this.currentDelayConfig.customMs : undefined,
+            autoAnalysisEnabled: this.currentDelayConfig.autoAnalysisEnabled
         };
         await this.saveDelayToSettings();
     }
@@ -163,7 +166,7 @@ export class AutoAnalysisDelaySetting {
             console.log(`NEW_CODE_ANALYSIS: Loaded auto-analysis delay from storage:`, savedDelay);
         } catch (error) {
             console.error('NEW_CODE_ANALYSIS: Error loading saved delay, using default:', error);
-            this.currentDelayConfig = { type: 'RealTime' }; // Fallback to default
+            this.currentDelayConfig = { type: 'RealTime', autoAnalysisEnabled: true }; // Fallback to default
         }
     }
 

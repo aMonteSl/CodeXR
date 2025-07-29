@@ -357,17 +357,19 @@ export const chartTemplates: ChartMetadata[] = [
         ],
         htmlTemplate: `<!-- Boats Chart -->
                 <a-entity id="chart"
-                    babia-boats="from: data;
+                    babia-boats="from: tree;
                                  title: {{TITLE}};
                                  legend: true;
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
-                                 axis_name: true"
+                                 axis_name: true;
+                                 extra: 0.5;
+                                 zone_elevation: 0.1"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
+                    scale="0.5 0.5 0.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
     }

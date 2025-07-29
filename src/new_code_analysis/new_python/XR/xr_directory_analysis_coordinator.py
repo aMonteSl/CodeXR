@@ -58,7 +58,7 @@ def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
         not_analyzed_files = 0
         total_files = len(files_to_analyze)
         
-        print(json.dumps({"progress": {"current": 0, "total": total_files, "message": "Starting file analysis..."}}), file=sys.stderr)
+        print(json.dumps({"progress": {"current": 0, "total": total_files, "fileName": "Starting analysis...", "message": "Starting file analysis..."}}), file=sys.stderr)
         
         for file_path in files_to_analyze:
             try:
@@ -67,7 +67,7 @@ def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
                 percentage = int((current_file / total_files) * 100) if total_files > 0 else 0
                 file_name = os.path.basename(file_path)
                 
-                print(json.dumps({"progress": {"current": current_file, "total": total_files, "percentage": percentage, "message": f"Analyzing {file_name}... ({current_file}/{total_files})"}}), file=sys.stderr)
+                print(json.dumps({"progress": {"current": current_file, "total": total_files, "percentage": percentage, "fileName": file_name, "message": f"Analyzing {file_name}... ({current_file}/{total_files})"}}), file=sys.stderr)
                 print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Analyzing file {file_path}"}), file=sys.stderr)
                 
                 file_data = analyze_single_file_xr(file_path, script_dir, directory_path)
@@ -85,7 +85,7 @@ def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
                 print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Error analyzing {file_path}: {str(e)}"}), file=sys.stderr)
         
         # Final progress update
-        print(json.dumps({"progress": {"current": total_files, "total": total_files, "percentage": 100, "message": f"Analysis completed! {analyzed_files} files analyzed successfully."}}), file=sys.stderr)
+        print(json.dumps({"progress": {"current": total_files, "total": total_files, "percentage": 100, "fileName": "Completed!", "message": f"Analysis completed! {analyzed_files} files analyzed successfully."}}), file=sys.stderr)
         print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Completed. {analyzed_files} analyzed, {not_analyzed_files} failed"}), file=sys.stderr)
         
         return files_array
@@ -108,7 +108,18 @@ def scan_directory_files_xr(directory_path):
     analyzable_extensions = get_analyzable_extensions()
     
     try:
-        for entry in os.listdir(directory_path):
+        entries = os.listdir(directory_path)
+        
+        # Limit the number of files to process for performance
+        if len(entries) > 1000:
+            print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Large directory detected ({len(entries)} entries), limiting to first 1000 for performance"}), file=sys.stderr)
+            entries = entries[:1000]
+        
+        for entry in entries:
+            # Skip hidden files and directories
+            if entry.startswith('.'):
+                continue
+                
             full_path = os.path.join(directory_path, entry)
             
             # Only process files (not subdirectories for XR first-level analysis)
@@ -121,6 +132,7 @@ def scan_directory_files_xr(directory_path):
     except Exception as e:
         print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Error scanning directory: {str(e)}"}), file=sys.stderr)
     
+    print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Found {len(analyzable_files)} analyzable files in directory"}), file=sys.stderr)
     return sorted(analyzable_files)
 
 def scan_directory_files_xr_deep(directory_path):
@@ -136,20 +148,52 @@ def scan_directory_files_xr_deep(directory_path):
     analyzable_files = []
     analyzable_extensions = get_analyzable_extensions()
     
+    # Directories to skip for better performance on large projects
+    skip_dirs = {
+        'node_modules', '.git', '.svn', '.hg', '.bzr', 
+        'build', 'dist', 'out', 'target', 'bin', 'obj',
+        '.vscode', '.idea', '.eclipse', '.settings',
+        '__pycache__', '.pytest_cache', '.mypy_cache',
+        'coverage', '.coverage', '.nyc_output',
+        'temp', 'tmp', '.tmp', 'logs', 'log'
+    }
+    
     try:
         # Use os.walk for recursive directory traversal
         for root, dirs, files in os.walk(directory_path):
+            # Filter out directories we should skip in-place to avoid traversing them
+            dirs[:] = [d for d in dirs if d not in skip_dirs and not d.startswith('.')]
+            
+            # Limit the number of files per directory to prevent overwhelming performance
+            if len(files) > 1000:
+                print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Large directory detected ({len(files)} files) in {root}, limiting to first 1000 files"}), file=sys.stderr)
+                files = files[:1000]
+            
             for file in files:
+                # Skip hidden files
+                if file.startswith('.'):
+                    continue
+                    
                 full_path = os.path.join(root, file)
                 
                 # Check if file has analyzable extension
                 file_ext = os.path.splitext(file)[1].lower()
                 if file_ext in analyzable_extensions:
                     analyzable_files.append(full_path)
+                    
+                # Limit total files to prevent memory issues with extremely large projects
+                if len(analyzable_files) > 5000:
+                    print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Reached maximum file limit (5000) for performance, stopping scan"}), file=sys.stderr)
+                    break
+            
+            # Break outer loop if we hit the limit
+            if len(analyzable_files) > 5000:
+                break
     
     except Exception as e:
         print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Error scanning directory recursively: {str(e)}"}), file=sys.stderr)
     
+    print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Found {len(analyzable_files)} analyzable files in deep scan"}), file=sys.stderr)
     return sorted(analyzable_files)
 
 def analyze_single_file_xr(file_path, script_dir, base_directory_path):

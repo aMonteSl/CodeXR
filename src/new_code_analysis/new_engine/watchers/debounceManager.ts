@@ -152,6 +152,13 @@ export class DebounceManager {
     }
 
     /**
+     * Obtiene el delay actual
+     */
+    public getDelay(): number {
+        return this.delayMs;
+    }
+
+    /**
      * Limpia recursos al destruir el manager
      */
     public dispose(): void {

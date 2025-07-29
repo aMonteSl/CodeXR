@@ -4,10 +4,10 @@
  */
 
 import * as vscode from 'vscode';
-import { NewCodeAnalysisTreeItem } from '../../../items/newCodeAnalysisItems';
-import { AnalysisConfigurationStorage } from '../../../../configuration';
-import { chartTemplates } from '../../../../../babia_templates/charts/templateCharts';
-import { ChartDimension, ChartMetadata } from '../../../../../babia_templates/models/chartModels';
+import { NewCodeAnalysisTreeItem } from '../../../../src/new_code_analysis/views/items/newCodeAnalysisItems';
+import { AnalysisConfigurationStorage } from '../../../../src/new_code_analysis/configuration';
+import { chartTemplates } from '../../../../src/babia_templates/charts/templateCharts';
+import { ChartDimension, ChartMetadata } from '../../../../src/babia_templates/models/chartModels';
 import { DimensionMappingValidator } from '../dimension_mapping_file/dimensionMappingValidator';
 
 /**

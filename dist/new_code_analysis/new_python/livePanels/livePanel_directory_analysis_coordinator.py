@@ -189,7 +189,18 @@ def scan_directory_files(directory_path, filtered_files=None):
     analyzable_extensions = get_analyzable_extensions()
     
     try:
-        for entry in os.listdir(directory_path):
+        entries = os.listdir(directory_path)
+        
+        # Limit the number of files to process for performance on large directories
+        if len(entries) > 1000:
+            print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Large directory detected ({len(entries)} entries), limiting to first 1000 for performance"}), file=sys.stderr)
+            entries = entries[:1000]
+        
+        for entry in entries:
+            # Skip hidden files and directories
+            if entry.startswith('.'):
+                continue
+                
             full_path = os.path.join(directory_path, entry)
             
             # Only process files (not subdirectories for LivePanel)
@@ -202,6 +213,7 @@ def scan_directory_files(directory_path, filtered_files=None):
     except Exception as e:
         print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Error scanning directory: {str(e)}"}), file=sys.stderr)
     
+    print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Found {len(analyzable_files)} analyzable files in directory"}), file=sys.stderr)
     return sorted(analyzable_files)
 
 def analyze_single_file(file_path, script_dir):

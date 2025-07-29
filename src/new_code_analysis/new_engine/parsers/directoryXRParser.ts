@@ -12,6 +12,7 @@ import { AnalysisConfigurationStorage } from '../../configuration/analysisConfig
 import { TemplateProcessor } from '../../../babia_templates/processing/templateProcessor';
 import { ExecutePython } from '../utils/executePython';
 import { DimensionMapping } from '../../../babia_templates/models/chartModels';
+import { SHA256Generator } from '../../../utils/sha256Generator';
 
 export interface DirectoryXRParsingResult {
     success: boolean;
@@ -115,6 +116,35 @@ export class DirectoryXRParser {
                         fileSizeBytes: analysisData[0].fileSizeBytes
                     });
                 }
+
+                // 🔥 CRITICAL FIX: Update session.filesToHash with actually analyzed files
+                // This is essential for the DirectoryWatcherOrchestrator to work properly
+                console.log(`🔧 DIRECTORY_XR_PARSER: Updating session.filesToHash with ${analysisData.length} analyzed files...`);
+                const filesToHash: { filePath: string; hash: string }[] = [];
+                
+                for (const fileData of analysisData) {
+                    if (fileData.filePath) {
+                        try {
+                            // Generate hash for the analyzed file
+                            const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
+                            filesToHash.push({
+                                filePath: fileData.filePath,
+                                hash: fileHash
+                            });
+                        } catch (hashError) {
+                            console.error(`DIRECTORY_XR_PARSER: Error generating hash for ${fileData.filePath}:`, hashError);
+                            // Add with empty hash as fallback
+                            filesToHash.push({
+                                filePath: fileData.filePath,
+                                hash: ''
+                            });
+                        }
+                    }
+                }
+                
+                // Update the original session with actually analyzed files
+                session.filesToHash = filesToHash;
+                console.log(`✅ DIRECTORY_XR_PARSER: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
             }
             
             // =======================================================

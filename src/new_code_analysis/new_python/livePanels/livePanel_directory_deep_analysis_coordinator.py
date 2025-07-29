@@ -182,23 +182,51 @@ def scan_directory_files_deep(directory_path, filtered_files=None):
     analyzable_files = []
     analyzable_extensions = get_analyzable_extensions()
     
+    # Directories to skip for better performance on large projects
+    skip_dirs = {
+        'node_modules', '.git', '.svn', '.hg', '.bzr', 
+        'build', 'dist', 'out', 'target', 'bin', 'obj',
+        '.vscode', '.idea', '.eclipse', '.settings',
+        '__pycache__', '.pytest_cache', '.mypy_cache',
+        'coverage', '.coverage', '.nyc_output',
+        'temp', 'tmp', '.tmp', 'logs', 'log'
+    }
+    
     try:
         # Walk through all directories recursively
         for root, dirs, files in os.walk(directory_path):
-            # Skip certain directories we don't want to analyze
-            dirs[:] = [d for d in dirs if not d.startswith('.') and 
-                      d not in ['node_modules', '__pycache__', 'build', 'dist', 'target', 'bin', 'obj']]
+            # Filter out directories we should skip in-place to avoid traversing them
+            dirs[:] = [d for d in dirs if d not in skip_dirs and not d.startswith('.')]
+            
+            # Limit the number of files per directory to prevent overwhelming performance
+            if len(files) > 1000:
+                print(json.dumps({"debug": f"DIRECTORY_DEEP_ANALYSIS: Large directory detected ({len(files)} files) in {root}, limiting to first 1000 files"}), file=sys.stderr)
+                files = files[:1000]
             
             for file_name in files:
+                # Skip hidden files
+                if file_name.startswith('.'):
+                    continue
+                    
                 # Check if file has analyzable extension
                 file_ext = os.path.splitext(file_name)[1].lower()
                 if file_ext in analyzable_extensions:
                     full_path = os.path.join(root, file_name)
                     analyzable_files.append(full_path)
+                    
+                # Limit total files to prevent memory issues with extremely large projects
+                if len(analyzable_files) > 10000:
+                    print(json.dumps({"debug": f"DIRECTORY_DEEP_ANALYSIS: Reached maximum file limit (10000) for performance, stopping scan"}), file=sys.stderr)
+                    break
+            
+            # Break outer loop if we hit the limit
+            if len(analyzable_files) > 10000:
+                break
     
     except Exception as e:
         print(json.dumps({"debug": f"DIRECTORY_DEEP_ANALYSIS: Error scanning directory tree: {str(e)}"}), file=sys.stderr)
     
+    print(json.dumps({"debug": f"DIRECTORY_DEEP_ANALYSIS: Found {len(analyzable_files)} analyzable files in deep scan"}), file=sys.stderr)
     return sorted(analyzable_files)
 
 def analyze_single_file(file_path, script_dir):
