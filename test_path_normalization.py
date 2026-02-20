@@ -21,7 +21,8 @@ def run_tests():
     
     test_cases = [
         # (input, expected_output, description)
-        ("C:\\Users\\admin\\project\\file.py", "C:/Users/admin/project/file.py", "Windows absolute path"),
+        ("C:\\Users\\admin\\project\\file.py", "/Users/admin/project/file.py", "Windows absolute path with C: drive"),
+        ("D:\\data\\folder\\file.txt", "/data/folder/file.txt", "Windows absolute path with D: drive"),
         ("src\\module\\utils.ts", "src/module/utils.ts", "Windows relative path"),
         (".\\src\\components\\button.tsx", "./src/components/button.tsx", "Windows relative path with dot"),
         ("src/module/utils.ts", "src/module/utils.ts", "Unix path (no change needed)"),
@@ -31,6 +32,7 @@ def run_tests():
         ("", "", "Empty path"),
         (None, None, "None input"),
         ("src\\\\\\nested\\\\folder\\file.ts", "src/nested/folder/file.ts", "Multiple consecutive backslashes"),
+        ("E:\\project\\src\\main.py", "/project/src/main.py", "Windows path with E: drive"),
     ]
     
     print("=" * 80)

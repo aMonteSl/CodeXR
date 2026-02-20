@@ -20,21 +20,29 @@ from pathlib import Path
 
 def normalize_path_for_babia(path_str):
     """
-    Normalize file paths to use Unix-style forward slashes.
+    Normalize file paths to use Unix-style forward slashes and remove drive letters.
     This is required for BabiaXR neighborhoods organization which doesn't handle
-    Windows backslashes properly and for cross-platform compatibility.
+    Windows backslashes properly and expects paths without drive letters (C:, D:, etc).
+    
+    Converts: C:/Users/admin/file.py (Windows-style) -> /Users/admin/file.py
+    Converts: src/module/utils.ts -> src/module/utils.ts (no change)
     
     Args:
-        path_str (str): Path string potentially with backslashes (Windows)
+        path_str (str): Path string potentially with backslashes (Windows) and drive letters
         
     Returns:
-        str: Path with forward slashes (Unix-style)
+        str: Path with forward slashes (Unix-style) and no drive letter
     """
     if not path_str:
         return path_str
     
-    # Replace backslashes with forward slashes (Windows paths → Unix-style)
+    # Replace backslashes with forward slashes (Windows paths -> Unix-style)
     normalized = path_str.replace('\\', '/')
+    
+    # Remove drive letter prefix (C:, D:, etc.) if present
+    # Pattern: single letter followed by colon at the start
+    if len(normalized) >= 2 and normalized[1] == ':':
+        normalized = normalized[2:]
     
     # Handle double slashes that might occur during conversion
     while '//' in normalized:
