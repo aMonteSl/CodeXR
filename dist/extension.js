@@ -18341,10 +18341,18 @@ class DirectoryReAnalyzer {
             }
             const data = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
             let hasChanges = false;
+            // Detect format for handling both XR (array) and LivePanel (object with .files)
+            const isXRFormat = Array.isArray(data);
             for (const filePath of addedFiles) {
                 console.log(`DIRECTORY_REANALYZER: Processing added file: ${filePath}`);
-                // Check if already present
-                const existing = data.files?.find((f) => f.file_path === filePath || f.filePath === filePath);
+                // Check if already present (handle both formats)
+                let existing;
+                if (isXRFormat) {
+                    existing = data.find((f) => f.file_path === filePath || f.filePath === filePath);
+                }
+                else {
+                    existing = data.files?.find((f) => f.file_path === filePath || f.filePath === filePath);
+                }
                 if (existing) {
                     continue;
                 }
@@ -18355,25 +18363,53 @@ class DirectoryReAnalyzer {
                         targetType: 'file',
                         targetPath: filePath,
                     };
-                    const result = await this.executePython.executeAnalysis(tempSession);
-                    if (result && result.success !== false) {
+                    let result = await this.executePython.executeAnalysis(tempSession);
+                    // If result is null/undefined or analysis failed, create empty entry
+                    // This ensures new files appear in visualizations even if they're empty
+                    if (!result || result.success === false) {
+                        console.log(`DIRECTORY_REANALYZER: File analysis returned no data, creating empty entry: ${filePath}`);
+                        result = this.createEmptyFileEntry(filePath);
+                    }
+                    // Add to appropriate format
+                    if (isXRFormat) {
+                        data.push(result);
+                    }
+                    else {
                         if (!data.files) {
                             data.files = [];
                         }
                         data.files.push(result);
-                        hasChanges = true;
-                        // Track the new file's hash
-                        const hash = await sha256Generator_1.SHA256Generator.generateFileHash(filePath);
-                        hashTracker.trackNewFile(filePath, hash);
-                        // Update session's filesToHash
-                        if (session.filesToHash) {
-                            session.filesToHash.push({ filePath, hash });
-                        }
-                        console.log(`DIRECTORY_REANALYZER: Added new file to data.json: ${filePath}`);
                     }
+                    hasChanges = true;
+                    // Track the new file's hash
+                    const hash = await sha256Generator_1.SHA256Generator.generateFileHash(filePath);
+                    hashTracker.trackNewFile(filePath, hash);
+                    // Update session's filesToHash
+                    if (session.filesToHash) {
+                        session.filesToHash.push({ filePath, hash });
+                    }
+                    console.log(`DIRECTORY_REANALYZER: Added new file to data.json: ${filePath}`);
                 }
                 catch (err) {
                     console.error(`DIRECTORY_REANALYZER: Error analyzing new file ${filePath}:`, err);
+                    // Even if analysis fails, create empty entry so file appears in visualization
+                    try {
+                        const emptyEntry = this.createEmptyFileEntry(filePath);
+                        if (isXRFormat) {
+                            data.push(emptyEntry);
+                        }
+                        else {
+                            if (!data.files) {
+                                data.files = [];
+                            }
+                            data.files.push(emptyEntry);
+                        }
+                        hasChanges = true;
+                        console.log(`DIRECTORY_REANALYZER: Created empty entry for failed analysis: ${filePath}`);
+                    }
+                    catch (createErr) {
+                        console.error(`DIRECTORY_REANALYZER: Failed to create empty entry for ${filePath}:`, createErr);
+                    }
                 }
             }
             if (hasChanges) {
@@ -18547,6 +18583,73 @@ class DirectoryReAnalyzer {
         catch (error) {
             console.error(`DIRECTORY_REANALYZER: Error refreshing summary:`, error);
         }
+    }
+    /**
+     * Create an empty file entry with all metrics set to 0.
+     * Used when a file is created but empty, or when analysis fails.
+     * This ensures files appear in visualizations even without analysis data.
+     */
+    createEmptyFileEntry(filePath) {
+        const fileName = path.basename(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        return {
+            fileName,
+            filePath,
+            language: this.getLanguageFromExtension(ext),
+            timestamp: new Date().toISOString(),
+            status: 'empty',
+            // Basic metrics - all zeros
+            totalLines: 0,
+            codeLines: 0,
+            commentLines: 0,
+            blankLines: 0,
+            classCount: 0,
+            functionCount: 0,
+            // Complexity metrics - all zeros
+            complexity: {
+                averageComplexity: 0,
+                maxComplexity: 0,
+                functionCount: 0,
+                highComplexityFunctions: 0,
+                criticalComplexityFunctions: 0
+            },
+            // Functions and Classes - empty arrays
+            functions: [],
+            classes: [],
+            // Additional metrics
+            commentRatio: 0.0,
+            // For LivePanel format compatibility
+            file_path: filePath, // Alternative key for format compatibility
+        };
+    }
+    /**
+     * Detect language from file extension.
+     */
+    getLanguageFromExtension(ext) {
+        const languageMap = {
+            '.js': 'JavaScript',
+            '.ts': 'TypeScript',
+            '.tsx': 'TypeScript',
+            '.jsx': 'JavaScript',
+            '.py': 'Python',
+            '.java': 'Java',
+            '.cpp': 'C++',
+            '.c': 'C',
+            '.cs': 'C#',
+            '.go': 'Go',
+            '.rs': 'Rust',
+            '.rb': 'Ruby',
+            '.php': 'PHP',
+            '.swift': 'Swift',
+            '.kt': 'Kotlin',
+            '.scala': 'Scala',
+            '.vue': 'Vue',
+            '.html': 'HTML',
+            '.css': 'CSS',
+            '.scss': 'SCSS',
+            '.less': 'LESS',
+        };
+        return languageMap[ext] || 'Unknown';
     }
 }
 exports.DirectoryReAnalyzer = DirectoryReAnalyzer;

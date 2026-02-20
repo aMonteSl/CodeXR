@@ -118,10 +118,9 @@ def generate_fallback_xr_data(file_path):
         file_path (str): Path to the file
         
     Returns:
-        list: Fallback function data
+        list: Fallback function data (empty list for empty files)
     """
     file_name = os.path.basename(file_path)
-    base_name = os.path.splitext(file_name)[0]
     
     # Try to count lines for basic metrics
     try:
@@ -129,9 +128,16 @@ def generate_fallback_xr_data(file_path):
             lines = f.readlines()
             total_lines = len(lines)
     except:
-        total_lines = 10  # Default fallback
+        total_lines = 0  # Default fallback to 0 for error cases
     
-    # Generate a single fallback function entry
+    # For completely empty files, return empty array (no functions)
+    # This allows the empty file to appear in visualization with 0 lines
+    if total_lines == 0:
+        print(json.dumps({"debug": f"XR_ANALYSIS: File is empty, returning empty function list"}), file=sys.stderr)
+        return []
+    
+    # For files with content but analysis failed, generate a single fallback function entry
+    base_name = os.path.splitext(file_name)[0]
     fallback_function = {
         "functionName": base_name,
         "lineStart": 1,

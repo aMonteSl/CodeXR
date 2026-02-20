@@ -183,6 +183,24 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Visual Hierarchy**: Clear parent-child relationships in tree structure
 - **Real-time Updates**: See DOM changes as you edit HTML files
 
+## What's New in v1.0.1 - Enhanced File Tracking & Bug Fixes
+
+### Maintenance Release Highlights - Version 1.0.1
+- **Improved Empty File Handling**: New files created during directory analysis now appear immediately in visualizations with metrics initialized to 0, providing accurate file system representation
+- **Fixed Deleted File Tracking**: Resolved issue where deleted files remained in visualizations when re-analyzing directories in XR format. Now properly removes files from both XR (array) and LivePanel (object) data formats
+- **Enhanced Format Detection**: Intelligent detection of data format types (XR vs LivePanel) ensures consistent behavior across all analysis modes
+- **Graceful Error Handling**: Better error recovery when file analysis fails, allowing files to still appear in visualizations as placeholders
+- **Code Quality Improvements**: 10 comprehensive refactoring phases improving maintainability, type safety, and performance
+- **Production Ready**: 0 TypeScript errors, 0 ESLint warnings, optimized 1.43 MB bundle
+
+### Key Improvements in v1.0.1
+- **File Lifecycle Tracking**: Watch new files appear in real-time as you create them during directory analysis
+- **Format Compatibility**: Works seamlessly with both XR immersive visualizations and LivePanel detailed analytics
+- **Persistence**: All changes persist in data.json ensuring consistent visualization across sessions
+- **Language Support**: Auto-detects 16+ programming languages for proper syntax highlighting and analysis
+
+---
+
 ## What's New in v1.0.0 - Production Ready Release
 
 ### Major Release Highlights - Version 1.0.0
