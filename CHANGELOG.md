@@ -28,6 +28,12 @@ This maintenance release includes critical bug fixes and extensive code refactor
   - **Result**: Closing an analysis now reliably closes its associated server regardless of launch source (analysis flow, manual launch, or visualization)
   - Handles edge cases where server-session relationship may be incomplete or unclear
 
+- **Fixed Windows Virtual Environment Permission Error**: Resolved `[Errno 13] Permission denied` error occurring on Windows when `python -m venv` attempts to create or recreate the virtual environment while existing files (e.g., `Scripts\python.exe`) are locked by antivirus software or other processes. Implemented a robust 3-attempt retry strategy in `createVenvWithRetry()`:
+  1. **Attempt 1**: Uses `python -m venv --clear` to clear and recreate the venv in-place if the directory already exists
+  2. **Attempt 2**: If `--clear` fails with permission denied, manually deletes the venv directory with `fs.rmSync()`, waits 2 seconds on Windows for file handles to release, then creates a fresh venv
+  3. **Attempt 3 (graceful failure)**: Throws a detailed error message with Windows-specific remediation steps (close VS Code instances, check antivirus exclusions, manually delete the venv directory, or run VS Code as administrator)
+  - Enhanced `initializeEnvironment()` to detect Windows permission errors and display actionable UI messages with a "Show Details" button
+
 #### Code Refactoring & Quality Improvements
 
 Comprehensive refactoring of core analysis engine with 10 strategic phases:
@@ -59,8 +65,9 @@ Comprehensive refactoring of core analysis engine with 10 strategic phases:
 - **Integration Tests**: 17/17 tests passed for empty file handling feature (100% success rate)
 - **Path Normalization Tests**: 12/12 tests passed for Windows path compatibility including drive letter removal (100% success rate)
 - **Server-Analysis Closure**: Bidirectional closure now guaranteed with multi-strategy server lookup
+- **Windows Venv Resilience**: 3-attempt retry strategy handles permission denied errors during virtual environment creation
 - **Format Support**: Both XR (array) and LivePanel (object) data formats fully tested and validated
-- **Platform Compatibility**: Validated across Windows (path normalization with drive letter removal, server-analysis closure), macOS, and Linux
+- **Platform Compatibility**: Validated across Windows (path normalization with drive letter removal, server-analysis closure, venv permission handling), macOS, and Linux
 
 #### Technical Details
 - **Backwards Compatibility**: 100% backwards compatible with v1.0.0, no breaking changes

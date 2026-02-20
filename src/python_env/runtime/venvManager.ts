@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
 import { PythonEnvStorage, PythonEnvMetadata } from '../storage/pythonEnvStorage';
 import { PythonEnvUtils } from '../utils/pythonEnvUtils';
 
@@ -43,14 +45,37 @@ export class VenvManager {
             console.log('PYTHON_ENV: No valid environment found, creating new one...');
             await this.createEnvironment();
 
-        } catch (error) {
-            console.error('PYTHON_ENV: Failed to initialize environment:', error);
-            vscode.window.showErrorMessage(`Failed to initialize Python environment: ${error}`);
+        } catch (error: any) {
+            const errorMsg = error?.message || String(error);
+            const isPermissionError = errorMsg.includes('Permission denied') || 
+                                      errorMsg.includes('EACCES') || 
+                                      errorMsg.includes('Errno 13');
+            
+            if (isPermissionError && os.platform() === 'win32') {
+                console.error('PYTHON_ENV: Windows permission error during initialization:', error);
+                vscode.window.showErrorMessage(
+                    `Python environment initialization failed due to Windows file permissions. ` +
+                    `Try closing all VS Code windows, deleting the venv folder, and restarting. ` +
+                    `If an antivirus is active, add VS Code's globalStorage to exclusions.`,
+                    'Show Details'
+                ).then(choice => {
+                    if (choice === 'Show Details') {
+                        const venvPath = this.storage.getVenvPath();
+                        vscode.window.showInformationMessage(
+                            `Venv path: ${venvPath}\n\nDelete this folder manually, then restart VS Code.`
+                        );
+                    }
+                });
+            } else {
+                console.error('PYTHON_ENV: Failed to initialize environment:', error);
+                vscode.window.showErrorMessage(`Failed to initialize Python environment: ${error}`);
+            }
         }
     }
 
     /**
      * Create a new virtual environment
+     * Handles Windows permission issues with retry logic and --clear flag
      */
     public async createEnvironment(): Promise<void> {
         console.log('PYTHON_ENV: Creating new virtual environment...');
@@ -72,13 +97,13 @@ export class VenvManager {
                     throw new Error(`Python not found. Please install Python 3.7+ and ensure '${pythonCommand}' is in your PATH.`);
                 }
 
-                progress.report({ increment: 30, message: `Found Python ${pythonVersion}, creating environment...` });
+                progress.report({ increment: 20, message: `Found Python ${pythonVersion}, creating environment...` });
 
-                // Create virtual environment
+                // Create virtual environment with Windows-aware retry logic
                 const venvPath = this.storage.getVenvPath();
-                await this.executeCommand(`${pythonCommand} -m venv "${venvPath}"`);
+                await this.createVenvWithRetry(pythonCommand, venvPath, progress);
 
-                progress.report({ increment: 60, message: "Installing base packages..." });
+                progress.report({ increment: 80, message: "Installing base packages..." });
 
                 // Install basic packages
                 await this.installBasePackages();
@@ -99,6 +124,100 @@ export class VenvManager {
             console.error('PYTHON_ENV: Failed to create environment:', error);
             throw error;
         }
+    }
+
+    /**
+     * Create venv with retry logic for Windows permission issues.
+     * 
+     * On Windows, `python -m venv` can fail with EACCES/Permission denied when:
+     * - An existing venv has python.exe locked by antivirus or another process
+     * - Windows file locking prevents overwriting executables in Scripts/
+     * 
+     * Strategy:
+     * 1. If venv dir exists → try `python -m venv --clear` (clears and recreates in-place)
+     * 2. If --clear fails → manually delete the directory, wait for file locks to release, then create fresh
+     * 3. If fresh creation also fails → provide clear error message with remediation steps
+     */
+    private async createVenvWithRetry(
+        pythonCommand: string,
+        venvPath: string,
+        progress: vscode.Progress<{ increment?: number; message?: string }>
+    ): Promise<void> {
+        const venvExists = fs.existsSync(venvPath);
+
+        // Attempt 1: Standard creation (or --clear if venv already exists)
+        try {
+            if (venvExists) {
+                console.log('PYTHON_ENV: Existing venv found, using --clear flag to recreate');
+                progress.report({ message: "Clearing existing environment..." });
+                await this.executeCommand(`${pythonCommand} -m venv --clear "${venvPath}"`);
+            } else {
+                await this.executeCommand(`${pythonCommand} -m venv "${venvPath}"`);
+            }
+            console.log('PYTHON_ENV: Venv created successfully (attempt 1)');
+            return;
+        } catch (firstError: any) {
+            const errorMsg = firstError?.message || String(firstError);
+            const isPermissionError = errorMsg.includes('Permission denied') || 
+                                      errorMsg.includes('EACCES') || 
+                                      errorMsg.includes('Errno 13');
+            
+            if (!isPermissionError) {
+                // Not a permission error — don't retry, throw immediately
+                throw firstError;
+            }
+            
+            console.warn('PYTHON_ENV: Permission denied on venv creation (attempt 1), trying manual cleanup...');
+        }
+
+        // Attempt 2: Manual cleanup then fresh creation (Windows-specific)
+        try {
+            progress.report({ message: "Resolving permission issue, cleaning up..." });
+            console.log('PYTHON_ENV: Attempting manual directory removal before retry');
+
+            // Delete the existing venv directory
+            if (fs.existsSync(venvPath)) {
+                try {
+                    fs.rmSync(venvPath, { recursive: true, force: true });
+                    console.log('PYTHON_ENV: Existing venv directory removed successfully');
+                } catch (rmError: any) {
+                    console.warn('PYTHON_ENV: Could not remove venv directory:', rmError.message);
+                    // On Windows, if rmSync also fails, the files are truly locked
+                    // Fall through to attempt creation anyway — it might work on a partial cleanup
+                }
+            }
+
+            // Small delay to allow Windows file system to release locks
+            if (os.platform() === 'win32') {
+                console.log('PYTHON_ENV: Waiting for Windows file lock release...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            // Fresh creation
+            progress.report({ message: "Recreating environment..." });
+            await this.executeCommand(`${pythonCommand} -m venv "${venvPath}"`);
+            console.log('PYTHON_ENV: Venv created successfully (attempt 2 - after manual cleanup)');
+            return;
+        } catch (secondError: any) {
+            console.error('PYTHON_ENV: Venv creation failed after manual cleanup (attempt 2):', secondError.message);
+        }
+
+        // Both attempts failed — provide actionable error message
+        const isWindows = os.platform() === 'win32';
+        const remediation = isWindows
+            ? `\n\nTo fix this on Windows:\n` +
+              `1. Close all VS Code windows\n` +
+              `2. Check if antivirus is blocking: add VS Code's globalStorage to exclusions\n` +
+              `3. Manually delete the folder: ${venvPath}\n` +
+              `4. Restart VS Code and try again\n` +
+              `5. If the problem persists, try running VS Code as Administrator`
+            : `\n\nTry manually deleting: ${venvPath}\nThen restart VS Code.`;
+
+        throw new Error(
+            `Permission denied when creating Python virtual environment at "${venvPath}".` +
+            ` The venv directory may be locked by another process or antivirus software.` +
+            remediation
+        );
     }
 
     /**
