@@ -1,4 +1,4 @@
-# Code-XR — Code Visualization in Extended Reality (v1.0.0)
+# Code-XR — Code Visualization in Extended Reality (v1.0.1)
 
 A revolutionary Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code panels and breathtaking XR/VR environments powered by BabiaXR and A-Frame. Dive deep into your codebase with comprehensive file analysis, directory scanning, and interactive DOM visualization.
 
@@ -54,78 +54,79 @@ Experience CodeXR's powerful analysis capabilities through these real-world demo
 
 ### 🎥 Video Tutorials - Complete Learning Experience
 
-Comprehensive video guides to master every aspect of CodeXR. **Click on any video thumbnail to watch on YouTube:**
+Comprehensive video guides to master every aspect of CodeXR. **Watch directly in the README:**
 
 #### Core Interface & Features
 <div align="center">
 
 **Complete UI Tutorial - Master the entire CodeXR interface and workflow**
 
-[![Complete UI Tutorial](https://img.youtube.com/vi/KRgLdLZJXHA/maxresdefault.jpg)](https://www.youtube.com/watch?v=KRgLdLZJXHA "Complete UI Tutorial - Master the entire CodeXR interface and workflow")
-
-*Click to watch: Complete interface walkthrough and workflow demonstration*
+<iframe width="560" height="315" src="https://www.youtube.com/embed/KRgLdLZJXHA" title="Complete UI Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 </div>
 
 #### File Analysis Workflows
+<div align="center">
 
 **File Analysis - LivePanel Mode & XR Mode**
 
-<div align="center">
-
-| **LivePanel Mode** | **XR Mode** |
-|:---:|:---:|
-| [![File Analysis - LivePanel](https://img.youtube.com/vi/n5ZcjlR4pPc/mqdefault.jpg)](https://www.youtube.com/watch?v=n5ZcjlR4pPc "File Analysis - LivePanel Mode") | [![File Analysis - XR](https://img.youtube.com/vi/38jGwFGORvc/mqdefault.jpg)](https://www.youtube.com/watch?v=38jGwFGORvc "File Analysis - XR Mode") |
-| *Analyze files using LivePanel (right-click & UI methods)* | *Immersive 3D file analysis in extended reality* |
-
-</div>
+<table>
+<tr>
+<td align="center" width="50%">
+<b>LivePanel Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/n5ZcjlR4pPc" title="File Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Analyze files using LivePanel (right-click & UI methods)</i>
+</td>
+<td align="center" width="50%">
+<b>XR Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/38jGwFGORvc" title="File Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Immersive 3D file analysis in extended reality</i>
+</td>
+</tr>
+</table>
 
 **DOM Visualization - Interactive HTML structure analysis**
 
-<div align="center">
-
-[![DOM Visualization](https://img.youtube.com/vi/110b-AergdU/maxresdefault.jpg)](https://www.youtube.com/watch?v=110b-AergdU "DOM Visualization - Interactive HTML structure analysis")
-
-*Click to watch: Interactive DOM tree exploration and analysis*
+<iframe width="560" height="315" src="https://www.youtube.com/embed/110b-AergdU" title="DOM Visualization" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 </div>
 
 #### Directory & Project Analysis
+<div align="center">
 
 **Directory Analysis - LivePanel & XR Mode**
 
-<div align="center">
-
-| **LivePanel Mode** | **XR Mode** |
-|:---:|:---:|
-| [![Directory Analysis - LivePanel](https://img.youtube.com/vi/sPWjcgV-gZQ/mqdefault.jpg)](https://www.youtube.com/watch?v=sPWjcgV-gZQ "Directory Analysis - LivePanel Mode") | [![Directory Analysis - XR](https://img.youtube.com/vi/TnfS2SevtWU/mqdefault.jpg)](https://www.youtube.com/watch?v=TnfS2SevtWU "Directory Analysis - XR Mode") |
-| *Comprehensive directory analysis with detailed metrics* | *3D directory visualization in immersive environments* |
-
-</div>
+<table>
+<tr>
+<td align="center" width="50%">
+<b>LivePanel Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/sPWjcgV-gZQ" title="Directory Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Comprehensive directory analysis with detailed metrics</i>
+</td>
+<td align="center" width="50%">
+<b>XR Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/TnfS2SevtWU" title="Directory Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>3D directory visualization in immersive environments</i>
+</td>
+</tr>
+</table>
 
 **Project Analysis - Both LivePanel and XR Modes**
 
-<div align="center">
-
-[![Project Analysis](https://img.youtube.com/vi/NluAHe3BQu8/maxresdefault.jpg)](https://www.youtube.com/watch?v=NluAHe3BQu8 "Project Analysis - Both LivePanel and XR Modes")
-
-*Click to watch: Complete project analysis demonstration*
+<iframe width="560" height="315" src="https://www.youtube.com/embed/NluAHe3BQu8" title="Project Analysis" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 </div>
 
 #### Advanced AR/VR Experiences
-
 <div align="center">
 
 **AR Programming Experience - Real-world augmented reality coding**
 
-[![AR Programming Experience](https://img.youtube.com/vi/d7fojpP90Dk/maxresdefault.jpg)](https://www.youtube.com/watch?v=d7fojpP90Dk "AR Programming Experience - Real-world augmented reality coding")
-
-*Click to watch: Immersive AR programming experience demonstration*
+<iframe width="560" height="315" src="https://www.youtube.com/embed/d7fojpP90Dk" title="AR Programming Experience" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 </div>
 
-*These video tutorials provide hands-on demonstrations of every CodeXR feature. Click any thumbnail to watch the full tutorial on YouTube.*
+*These embedded video tutorials provide hands-on demonstrations of every CodeXR feature, using AR experience.*
 
 ## Quick Start Guide
 
@@ -181,6 +182,24 @@ Comprehensive video guides to master every aspect of CodeXR. **Click on any vide
 - **Element Details**: View attributes, content, and hierarchy information
 - **Visual Hierarchy**: Clear parent-child relationships in tree structure
 - **Real-time Updates**: See DOM changes as you edit HTML files
+
+## What's New in v1.0.1 - Enhanced File Tracking & Bug Fixes
+
+### Maintenance Release Highlights - Version 1.0.1
+- **Improved Empty File Handling**: New files created during directory analysis now appear immediately in visualizations with metrics initialized to 0, providing accurate file system representation
+- **Fixed Deleted File Tracking**: Resolved issue where deleted files remained in visualizations when re-analyzing directories in XR format. Now properly removes files from both XR (array) and LivePanel (object) data formats
+- **Enhanced Format Detection**: Intelligent detection of data format types (XR vs LivePanel) ensures consistent behavior across all analysis modes
+- **Graceful Error Handling**: Better error recovery when file analysis fails, allowing files to still appear in visualizations as placeholders
+- **Code Quality Improvements**: 10 comprehensive refactoring phases improving maintainability, type safety, and performance
+- **Production Ready**: 0 TypeScript errors, 0 ESLint warnings, optimized 1.43 MB bundle
+
+### Key Improvements in v1.0.1
+- **File Lifecycle Tracking**: Watch new files appear in real-time as you create them during directory analysis
+- **Format Compatibility**: Works seamlessly with both XR immersive visualizations and LivePanel detailed analytics
+- **Persistence**: All changes persist in data.json ensuring consistent visualization across sessions
+- **Language Support**: Auto-detects 16+ programming languages for proper syntax highlighting and analysis
+
+---
 
 ## What's New in v1.0.0 - Production Ready Release
 

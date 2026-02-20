@@ -78,6 +78,42 @@ export class ModularTreeItem extends vscode.TreeItem {
 export type TreeDataChangeEmitter<T> = vscode.EventEmitter<T | undefined | null | void>;
 
 /**
+ * Abstract base class for section providers.
+ * Eliminates the repeated emitter / refresh / getSectionName boilerplate
+ * that was duplicated across all 7 section providers.
+ *
+ * Subclasses only need to implement:
+ *   - getSectionName()
+ *   - getSectionItem()
+ *   - getChildren()
+ */
+export abstract class BaseSectionProvider<T extends vscode.TreeItem>
+    implements SectionProvider<T> {
+
+    protected _onDidChangeTreeData: TreeDataChangeEmitter<T> =
+        new vscode.EventEmitter<T | undefined | null | void>();
+
+    readonly onDidChangeTreeData: vscode.Event<T | undefined | null | void> =
+        this._onDidChangeTreeData.event;
+
+    constructor(protected context: vscode.ExtensionContext) {}
+
+    abstract getSectionName(): string;
+    abstract getSectionItem(): T;
+    abstract getChildren(element?: T): Promise<T[]>;
+
+    /** Refresh the section (fires tree data change event). */
+    refresh(): void {
+        this._onDidChangeTreeData.fire();
+    }
+
+    /** Convenience: get the tree item representation (identity). */
+    getTreeItem(element: T): vscode.TreeItem {
+        return element;
+    }
+}
+
+/**
  * Common tree view utilities
  */
 export class TreeViewUtils {

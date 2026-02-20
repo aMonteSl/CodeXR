@@ -5,6 +5,7 @@ import { getPanelManager } from '../services/panelManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { sseManager } from '../../servers/runtime/sse/SSEManager';
 import { UnifiedSessionRegistry } from '../../new_code_analysis/new_engine/core/sessionRegistry';
+import { handleError, formatErrorMessage, ErrorDomain, ErrorSeverity } from '../../utils/errorHandler';
 
 /**
  * Server Control
@@ -98,15 +99,9 @@ export class ServerControl {
             return true;
 
         } catch (error) {
-            console.error(`ACTIVE_SERVERS: ❌ Error stopping server ${serverId}:`, error);
-            
             // Update status to error
             registry.updateServerStatus(serverId, 'error');
-            
-            vscode.window.showErrorMessage(
-                `Failed to stop server ${server.url}: ${error instanceof Error ? error.message : String(error)}`
-            );
-            
+            handleError(ErrorDomain.ActiveServers, `Failed to stop server ${server.url}`, error, ErrorSeverity.User);
             return false;
         }
     }
@@ -239,7 +234,7 @@ export class ServerControl {
             return true;
 
         } catch (error) {
-            console.error(`ACTIVE_SERVERS: Error refreshing server ${serverId} status:`, error);
+            handleError(ErrorDomain.ActiveServers, `Refreshing server ${serverId} status`, error, ErrorSeverity.Warn);
             registry.updateServerStatus(serverId, 'error');
             return false;
         }
@@ -411,7 +406,7 @@ export class ServerControl {
             }
             
         } catch (error) {
-            console.error(`ACTIVE_SERVERS: ❌ Error closing associated analysis session for server ${serverId}:`, error);
+            handleError(ErrorDomain.ActiveServers, `Closing associated analysis session for server ${serverId}`, error, ErrorSeverity.Warn);
         }
     }
 }

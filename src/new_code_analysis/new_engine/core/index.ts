@@ -8,6 +8,3 @@ export * from './analysisSession';
 
 // Session registry
 export { UnifiedSessionRegistry } from './sessionRegistry';
-
-// Session manager
-export { UnifiedSessionManager } from './sessionManager';

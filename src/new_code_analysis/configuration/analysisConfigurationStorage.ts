@@ -32,10 +32,27 @@ export class AnalysisConfigurationStorage {
     }
 
     /**
-     * Get singleton instance
+     * Initialize the singleton with the extension context.
+     * Must be called once during extension activation before any getInstance() calls.
      */
-    public static getInstance(context: vscode.ExtensionContext): AnalysisConfigurationStorage {
+    public static initialize(context: vscode.ExtensionContext): AnalysisConfigurationStorage {
         if (!AnalysisConfigurationStorage.instance) {
+            AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
+        }
+        return AnalysisConfigurationStorage.instance;
+    }
+
+    /**
+     * Get singleton instance.
+     * @param context Optional — only needed if initialize() was not called yet (backward compatibility).
+     */
+    public static getInstance(context?: vscode.ExtensionContext): AnalysisConfigurationStorage {
+        if (!AnalysisConfigurationStorage.instance) {
+            if (!context) {
+                throw new Error(
+                    'AnalysisConfigurationStorage not initialized. Call initialize(context) during activation first.'
+                );
+            }
             AnalysisConfigurationStorage.instance = new AnalysisConfigurationStorage(context);
         }
         return AnalysisConfigurationStorage.instance;
@@ -307,7 +324,7 @@ export class AnalysisConfigurationStorage {
     /**
      * Get chart type for file analysis
      */
-    public async getChartTypeFile(): Promise<import('./models/analysisConfiguration').ChartType> {
+    public async getChartTypeFile(): Promise<ChartType> {
         const config = await this.loadConfiguration();
         return config.chartTypeFile;
     }
@@ -315,14 +332,14 @@ export class AnalysisConfigurationStorage {
     /**
      * Set chart type for file analysis
      */
-    public async setChartTypeFile(chartType: import('./models/analysisConfiguration').ChartType): Promise<void> {
+    public async setChartTypeFile(chartType: ChartType): Promise<void> {
         await this.updateConfiguration({ chartTypeFile: chartType });
     }
 
     /**
      * Get dimension mapping for file analysis
      */
-    public async getDimensionMappingFile(): Promise<import('./models/analysisConfiguration').DimensionMapping> {
+    public async getDimensionMappingFile(): Promise<DimensionMapping> {
         const config = await this.loadConfiguration();
         return config.dimensionMappingFile;
     }
@@ -330,28 +347,28 @@ export class AnalysisConfigurationStorage {
     /**
      * Set dimension mapping for file analysis
      */
-    public async setDimensionMappingFile(mapping: import('./models/analysisConfiguration').DimensionMapping): Promise<void> {
+    public async setDimensionMappingFile(mapping: DimensionMapping): Promise<void> {
         await this.updateConfiguration({ dimensionMappingFile: mapping });
     }
 
     /**
      * Get current analysis mode (alias for getAnalysisFileMode for compatibility)
      */
-    public async getAnalysisMode(): Promise<import('./models/analysisConfiguration').AnalysisFileMode> {
+    public async getAnalysisMode(): Promise<AnalysisFileMode> {
         return await this.getAnalysisFileMode();
     }
 
     /**
      * Set analysis mode (alias for setAnalysisFileMode for compatibility)
      */
-    public async setAnalysisMode(mode: import('./models/analysisConfiguration').AnalysisFileMode): Promise<void> {
+    public async setAnalysisMode(mode: AnalysisFileMode): Promise<void> {
         await this.setAnalysisFileMode(mode);
     }
 
     /**
      * Get Files by Language sorting configuration
      */
-    public async getFilesByLanguageSorting(): Promise<import('./models/analysisConfiguration').FilesByLanguageSortingConfig> {
+    public async getFilesByLanguageSorting(): Promise<FilesByLanguageSortingConfig> {
         const config = await this.loadConfiguration();
         return config.filesByLanguageSorting;
     }
@@ -359,7 +376,7 @@ export class AnalysisConfigurationStorage {
     /**
      * Set Files by Language sorting configuration
      */
-    public async setFilesByLanguageSorting(sortingConfig: import('./models/analysisConfiguration').FilesByLanguageSortingConfig): Promise<void> {
+    public async setFilesByLanguageSorting(sortingConfig: FilesByLanguageSortingConfig): Promise<void> {
         await this.updateConfiguration({ filesByLanguageSorting: sortingConfig });
         console.log('NEW_CODE_ANALYSIS: Files by Language sorting configuration updated:', sortingConfig);
     }
@@ -371,7 +388,7 @@ export class AnalysisConfigurationStorage {
     /**
      * Get chart type for directory analysis
      */
-    public async getDirectoryChartType(): Promise<import('./models/analysisConfiguration').ChartType> {
+    public async getDirectoryChartType(): Promise<ChartType> {
         const config = await this.loadConfiguration();
         return config.chartTypeDirectory;
     }
@@ -379,7 +396,7 @@ export class AnalysisConfigurationStorage {
     /**
      * Set chart type for directory analysis
      */
-    public async setDirectoryChartType(chartType: import('./models/analysisConfiguration').ChartType): Promise<void> {
+    public async setDirectoryChartType(chartType: ChartType): Promise<void> {
         await this.updateConfiguration({ chartTypeDirectory: chartType });
     }
 
@@ -390,7 +407,7 @@ export class AnalysisConfigurationStorage {
     /**
      * Get dimension mapping for directory analysis
      */
-    public async getDimensionMappingDirectory(): Promise<import('./models/analysisConfiguration').DimensionMapping> {
+    public async getDimensionMappingDirectory(): Promise<DimensionMapping> {
         const config = await this.loadConfiguration();
         return config.dimensionMappingDirectory;
     }
@@ -398,7 +415,7 @@ export class AnalysisConfigurationStorage {
     /**
      * Set dimension mapping for directory analysis
      */
-    public async setDimensionMappingDirectory(mapping: import('./models/analysisConfiguration').DimensionMapping): Promise<void> {
+    public async setDimensionMappingDirectory(mapping: DimensionMapping): Promise<void> {
         await this.updateConfiguration({ dimensionMappingDirectory: mapping });
     }
 }

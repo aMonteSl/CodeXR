@@ -229,13 +229,20 @@ export class ActiveAnalysesCommands {
             if (choice === 'Yes, Close Analysis') {
                 console.log('ACTIVE_ANALYSES_COMMANDS: User confirmed closure, triggering cleanup');
                 
-                // STEP 1: First, remove the session from registry so watchers stop processing
-                console.log('ACTIVE_ANALYSES_COMMANDS: Removing session from registry first');
-                this.sessionRegistry.removeSession(sessionId);
+                // STEP 1: First, trigger cleanup of servers and watchers WHILE session is still in registry
+                // This is critical: triggerManualCleanup() needs to look up the session by ID
+                // to find the port, target path and other info needed to stop the server.
+                // If we remove the session first, triggerManualCleanup() returns false immediately.
+                console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup first (session still in registry)');
+                const cleanupSuccess = await this.serverWatcher.triggerManualCleanup(sessionId);
                 
-                // STEP 2: Then trigger cleanup of servers and watchers
-                console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup');
-                await this.serverWatcher.triggerManualCleanup(sessionId);
+                if (!cleanupSuccess) {
+                    console.warn('ACTIVE_ANALYSES_COMMANDS: Server cleanup did not complete successfully, but analysis will still be removed');
+                }
+                
+                // STEP 2: Remove the session from registry after server cleanup
+                console.log('ACTIVE_ANALYSES_COMMANDS: Removing session from registry after server cleanup');
+                this.sessionRegistry.removeSession(sessionId);
                 
                 // STEP 3: Refresh the tree view
                 vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
@@ -342,9 +349,12 @@ export class ActiveAnalysesCommands {
      */
     private async refreshAnalyses(): Promise<void> {
         try {
-            // Trigger tree view refresh
-            vscode.commands.executeCommand('codeXR.new_code_analysis.refreshTreeView');
-            
+            // Trigger tree view refresh via the data service directly
+            // NOTE: 'codeXR.new_code_analysis.refreshTreeView' does not exist;
+            // use the ActiveAnalysesDataService singleton to fire the tree data change event.
+            const { ActiveAnalysesDataService } = await import('../services/activeAnalysesDataService');
+            ActiveAnalysesDataService.getInstance().refresh();
+            console.log('ACTIVE_ANALYSES_COMMANDS: Refresh triggered via data service');
         } catch (error) {
             console.error('Error refreshing analyses:', error);
             vscode.window.showErrorMessage('Failed to refresh analyses');

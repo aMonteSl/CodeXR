@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SectionProvider } from '../common/baseInterfaces';
+import { BaseSectionProvider } from '../common/baseInterfaces';
 import { ServerTreeItem, ServerItemFactory } from './items/serverItems';
 import { ServerClickHandler } from './interactions/handleServerClicks';
 import { ServerSettingsManager } from '../../servers/storage/serverSettingsManager';
@@ -7,20 +7,16 @@ import { ServerSettingsManager } from '../../servers/storage/serverSettingsManag
 /**
  * Servers section provider for the modular tree view architecture
  */
-export class ServersSectionProvider implements SectionProvider<ServerTreeItem> {
-    private _onDidChangeTreeData: vscode.EventEmitter<ServerTreeItem | undefined | null | void> = 
-        new vscode.EventEmitter<ServerTreeItem | undefined | null | void>();
-    
-    readonly onDidChangeTreeData: vscode.Event<ServerTreeItem | undefined | null | void> = 
-        this._onDidChangeTreeData.event;
-
-    constructor(private context: vscode.ExtensionContext) {
+export class ServersSectionProvider extends BaseSectionProvider<ServerTreeItem> {
+    constructor(context: vscode.ExtensionContext) {
+        super(context);
         console.log('SERVERS: Servers section provider initialized');
     }
 
-    /**
-     * Get the main section item
-     */
+    getSectionName(): string {
+        return 'SERVERS';
+    }
+
     getSectionItem(): ServerTreeItem {
         console.log('SERVERS: Creating main SERVERS section item');
         
@@ -96,21 +92,6 @@ export class ServersSectionProvider implements SectionProvider<ServerTreeItem> {
     private getHttpMode(): string {
         const config = ServerSettingsManager.getInstance().getLegacyConfig();
         return config.httpMode;
-    }
-
-    /**
-     * Refresh the section
-     */
-    refresh(): void {
-        console.log('SERVERS: Refreshing servers section');
-        this._onDidChangeTreeData.fire();
-    }
-
-    /**
-     * Get section name
-     */
-    getSectionName(): string {
-        return 'SERVERS';
     }
 
     /**

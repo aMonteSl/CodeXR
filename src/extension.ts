@@ -10,6 +10,9 @@ import { sseManager } from './servers/runtime/sse/SSEManager';
 import { fileToServerMap } from './utils/fileToServerMap';
 import { ServerWatcherIntegration } from './new_code_analysis/services/serverWatcherIntegration';
 import { CleanAnalysisCommands } from './new_code_analysis/commands/clean_analysis/cleanAnalysisCommands';
+import { AnalysisConfigurationStorage } from './new_code_analysis/configuration';
+import { handleError, ErrorDomain, ErrorSeverity } from './utils/errorHandler';
+import { initializeExtensionContext } from './core/extensionContext';
 
 // Global context reference for cleanup
 let extensionContext: vscode.ExtensionContext;
@@ -22,6 +25,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Store context globally for cleanup
 	extensionContext = context;
 
+	// Initialize the extension context holder (available to all modules)
+	initializeExtensionContext(context);
+
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "CodeXR" is now active!');
@@ -32,6 +38,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		const settingsManager = ServerSettingsManager.getInstance(context);
 		await settingsManager.restoreServerSettings();
 		console.log('SERVER: Settings restoration completed');
+
+		// Step 1.5: Initialize analysis configuration storage (singleton)
+		console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
+		AnalysisConfigurationStorage.initialize(context);
+		console.log('NEW_CODE_ANALYSIS: Configuration storage initialized');
 
 		// Step 2: Initialize active servers registry
 		console.log('ACTIVE_SERVERS: Initializing active servers registry');
@@ -100,7 +111,7 @@ export async function deactivate() {
 		const cleanedCount = registry.cleanupInactiveServers();
 		console.log(`ACTIVE_SERVERS: Registry cleanup completed - removed ${cleanedCount} inactive servers`);
 	} catch (error) {
-		console.error('ACTIVE_SERVERS: Error during registry cleanup:', error);
+		handleError(ErrorDomain.ActiveServers, 'Registry cleanup', error, ErrorSeverity.Warn);
 	}
 	
 	// Cleanup SSE manager and file-to-server mapping
@@ -112,7 +123,7 @@ export async function deactivate() {
 		
 		console.log('SSE: SSE and file mapping cleanup completed');
 	} catch (error) {
-		console.error('SSE: Error during SSE cleanup:', error);
+		handleError(ErrorDomain.SSE, 'SSE and file mapping cleanup', error, ErrorSeverity.Warn);
 	}
 
 	// Cleanup modular tree data provider and file watchers
@@ -126,6 +137,6 @@ export async function deactivate() {
 		
 		console.log('MODULAR_TREE: Modular tree cleanup completed');
 	} catch (error) {
-		console.error('MODULAR_TREE: Error during modular tree cleanup:', error);
+		handleError(ErrorDomain.UI, 'Modular tree cleanup', error, ErrorSeverity.Warn);
 	}
 }
