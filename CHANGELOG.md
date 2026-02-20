@@ -18,6 +18,16 @@ This maintenance release includes critical bug fixes and extensive code refactor
   - Applies normalization to all file paths before passing data to BabiaXR
   This ensures consistent neighborhood organization and file visualization across Windows, macOS, and Linux platforms. Unit tests (12/12 passing) validate path normalization for absolute paths with drive letters, relative paths, and all edge cases.
 
+- **Fixed Server-Analysis Closure Inconsistency**: Implemented bidirectional server-analysis closure to ensure consistency:
+  - **Problem**: Closing a server from Active Servers panel closed its linked analysis, but closing an analysis only sometimes closed its server
+  - **Solution**: Enhanced `serverWatcherIntegration.ts` with multi-strategy server lookup that:
+    1. First attempts to close server by port (if `session.assignedPort` exists)
+    2. Falls back to metadata sessionId matching if port lookup fails
+    3. Uses directory path matching as final fallback
+    4. Provides detailed logging to identify which lookup strategy succeeds
+  - **Result**: Closing an analysis now reliably closes its associated server regardless of launch source (analysis flow, manual launch, or visualization)
+  - Handles edge cases where server-session relationship may be incomplete or unclear
+
 #### Code Refactoring & Quality Improvements
 
 Comprehensive refactoring of core analysis engine with 10 strategic phases:
@@ -48,8 +58,9 @@ Comprehensive refactoring of core analysis engine with 10 strategic phases:
 - **Build Bundle**: 1.42 MB optimized bundle size
 - **Integration Tests**: 17/17 tests passed for empty file handling feature (100% success rate)
 - **Path Normalization Tests**: 12/12 tests passed for Windows path compatibility including drive letter removal (100% success rate)
+- **Server-Analysis Closure**: Bidirectional closure now guaranteed with multi-strategy server lookup
 - **Format Support**: Both XR (array) and LivePanel (object) data formats fully tested and validated
-- **Platform Compatibility**: Validated across Windows (path normalization with drive letter removal), macOS, and Linux
+- **Platform Compatibility**: Validated across Windows (path normalization with drive letter removal, server-analysis closure), macOS, and Linux
 
 #### Technical Details
 - **Backwards Compatibility**: 100% backwards compatible with v1.0.0, no breaking changes

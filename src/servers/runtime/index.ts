@@ -40,11 +40,13 @@ export function createServerLauncher(context: any): MultiServerLauncher {
  * @param context - VS Code extension context
  * @param htmlFilePath - Path to HTML file to serve
  * @param customName - Optional custom display name for the server
+ * @param sessionId - Optional analysis session ID to link server to analysis
  * @returns Promise<MultiServerLaunchResult>
  */
-export async function launchServerWithFile(context: any, htmlFilePath: string, customName?: string): Promise<MultiServerLaunchResult> {
+export async function launchServerWithFile(context: any, htmlFilePath: string, customName?: string, sessionId?: string): Promise<MultiServerLaunchResult> {
     const launcher = new MultiServerLauncher(context);
-    return launcher.launchServer(htmlFilePath, customName);
+    const additionalMetadata = sessionId ? { sessionId } : undefined;
+    return launcher.launchServer(htmlFilePath, customName, additionalMetadata);
 }
 
 /**

@@ -277,26 +277,76 @@ export class ServerWatcherIntegration {
             const serverRegistry = getActiveServerRegistry();
             const servers = serverRegistry.getAllServers();
             
-            // Try to find server by various matching strategies
-            const matchingServer = servers.find((server: any) => {
-                // Match by output path
-                if (session.outputPath && server.htmlFile && server.htmlFile.includes(session.outputPath)) {
-                    return true;
-                }
-                
-                // Match by file path in server metadata
+            console.log(`SERVER_WATCHER_INTEGRATION: Total servers in registry: ${servers.length}`);
+            
+            // Try to find server by various matching strategies in order of reliability
+            let matchingServer = null;
+            
+            // Strategy 1: Match by sessionId in server metadata (most reliable)
+            console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 - Looking for server with sessionId ${sessionId} in metadata`);
+            matchingServer = servers.find((server: any) => {
                 if (server.metadata && server.metadata.sessionId === sessionId) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: ✅ Found server ${server.id} with sessionId in metadata`);
                     return true;
                 }
-                
                 return false;
             });
             
             if (matchingServer) {
-                console.log(`SERVER_WATCHER_INTEGRATION: Found matching server ${matchingServer.id}, stopping it`);
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 SUCCESS: Found matching server ${matchingServer.id}`);
+            } else {
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 FAILED: No server found with sessionId in metadata`);
+            }
+            
+            // Strategy 2: Match by output path (fallback)
+            if (!matchingServer && session.outputPath) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 - Looking for server with htmlFile containing ${session.outputPath}`);
+                matchingServer = servers.find((server: any) => {
+                    if (server.htmlFile && server.htmlFile.includes(session.outputPath)) {
+                        console.log(`SERVER_WATCHER_INTEGRATION: ✅ Found server ${server.id} by output path match`);
+                        return true;
+                    }
+                    return false;
+                });
+                
+                if (matchingServer) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 SUCCESS: Found matching server ${matchingServer.id}`);
+                } else {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 FAILED: No server found with matching output path`);
+                }
+            }
+            
+            // Strategy 3: Match by custom name containing analysis identifier (last resort)
+            if (!matchingServer) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 - Looking for server with analysis-related name`);
+                matchingServer = servers.find((server: any) => {
+                    if (server.customName && server.customName.includes('Analysis')) {
+                        // Only match if this is the most recently created analysis server
+                        // to avoid closing unrelated analysis servers
+                        console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ Found potential analysis server ${server.id} by name pattern`);
+                        return true;
+                    }
+                    return false;
+                });
+                
+                if (matchingServer) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FOUND: ${matchingServer.id} (⚠️ using name pattern - may not be exact match)`);
+                } else {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FAILED: No analysis server found by name pattern`);
+                }
+            }
+            
+            if (matchingServer) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Stopping server ${matchingServer.id} using strategy`);
                 await ServerControl.stopServer(matchingServer.id);
             } else {
-                console.log(`SERVER_WATCHER_INTEGRATION: No matching server found for session ${sessionId}`);
+                console.log(`SERVER_WATCHER_INTEGRATION: ❌ No matching server found for session ${sessionId} using any strategy`);
+                console.log(`SERVER_WATCHER_INTEGRATION: Available servers for debugging:`, servers.map((s: any) => ({
+                    id: s.id,
+                    customName: s.customName,
+                    port: s.port,
+                    metadata: s.metadata
+                })));
             }
             
         } catch (error) {

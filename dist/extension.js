@@ -12119,11 +12119,13 @@ function createServerLauncher(context) {
  * @param context - VS Code extension context
  * @param htmlFilePath - Path to HTML file to serve
  * @param customName - Optional custom display name for the server
+ * @param sessionId - Optional analysis session ID to link server to analysis
  * @returns Promise<MultiServerLaunchResult>
  */
-async function launchServerWithFile(context, htmlFilePath, customName) {
+async function launchServerWithFile(context, htmlFilePath, customName, sessionId) {
     const launcher = new multiServerLauncher_2.MultiServerLauncher(context);
-    return launcher.launchServer(htmlFilePath, customName);
+    const additionalMetadata = sessionId ? { sessionId } : undefined;
+    return launcher.launchServer(htmlFilePath, customName, additionalMetadata);
 }
 /**
  * Utility function to check if a port is available
@@ -15171,24 +15173,72 @@ class ServerWatcherIntegration {
             console.log(`SERVER_WATCHER_INTEGRATION: Trying to find server for session ${sessionId}`);
             const serverRegistry = (0, activeServerRegistry_1.getActiveServerRegistry)();
             const servers = serverRegistry.getAllServers();
-            // Try to find server by various matching strategies
-            const matchingServer = servers.find((server) => {
-                // Match by output path
-                if (session.outputPath && server.htmlFile && server.htmlFile.includes(session.outputPath)) {
-                    return true;
-                }
-                // Match by file path in server metadata
+            console.log(`SERVER_WATCHER_INTEGRATION: Total servers in registry: ${servers.length}`);
+            // Try to find server by various matching strategies in order of reliability
+            let matchingServer = null;
+            // Strategy 1: Match by sessionId in server metadata (most reliable)
+            console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 - Looking for server with sessionId ${sessionId} in metadata`);
+            matchingServer = servers.find((server) => {
                 if (server.metadata && server.metadata.sessionId === sessionId) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: ✅ Found server ${server.id} with sessionId in metadata`);
                     return true;
                 }
                 return false;
             });
             if (matchingServer) {
-                console.log(`SERVER_WATCHER_INTEGRATION: Found matching server ${matchingServer.id}, stopping it`);
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 SUCCESS: Found matching server ${matchingServer.id}`);
+            }
+            else {
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 FAILED: No server found with sessionId in metadata`);
+            }
+            // Strategy 2: Match by output path (fallback)
+            if (!matchingServer && session.outputPath) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 - Looking for server with htmlFile containing ${session.outputPath}`);
+                matchingServer = servers.find((server) => {
+                    if (server.htmlFile && server.htmlFile.includes(session.outputPath)) {
+                        console.log(`SERVER_WATCHER_INTEGRATION: ✅ Found server ${server.id} by output path match`);
+                        return true;
+                    }
+                    return false;
+                });
+                if (matchingServer) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 SUCCESS: Found matching server ${matchingServer.id}`);
+                }
+                else {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 FAILED: No server found with matching output path`);
+                }
+            }
+            // Strategy 3: Match by custom name containing analysis identifier (last resort)
+            if (!matchingServer) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 - Looking for server with analysis-related name`);
+                matchingServer = servers.find((server) => {
+                    if (server.customName && server.customName.includes('Analysis')) {
+                        // Only match if this is the most recently created analysis server
+                        // to avoid closing unrelated analysis servers
+                        console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ Found potential analysis server ${server.id} by name pattern`);
+                        return true;
+                    }
+                    return false;
+                });
+                if (matchingServer) {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FOUND: ${matchingServer.id} (⚠️ using name pattern - may not be exact match)`);
+                }
+                else {
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FAILED: No analysis server found by name pattern`);
+                }
+            }
+            if (matchingServer) {
+                console.log(`SERVER_WATCHER_INTEGRATION: Stopping server ${matchingServer.id} using strategy`);
                 await serverControl_1.ServerControl.stopServer(matchingServer.id);
             }
             else {
-                console.log(`SERVER_WATCHER_INTEGRATION: No matching server found for session ${sessionId}`);
+                console.log(`SERVER_WATCHER_INTEGRATION: ❌ No matching server found for session ${sessionId} using any strategy`);
+                console.log(`SERVER_WATCHER_INTEGRATION: Available servers for debugging:`, servers.map((s) => ({
+                    id: s.id,
+                    customName: s.customName,
+                    port: s.port,
+                    metadata: s.metadata
+                })));
             }
         }
         catch (error) {
@@ -20625,7 +20675,10 @@ class ActiveAnalysesCommands {
                 this.sessionRegistry.removeSession(sessionId);
                 // STEP 2: Then trigger cleanup of servers and watchers
                 console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup');
-                await this.serverWatcher.triggerManualCleanup(sessionId);
+                const cleanupSuccess = await this.serverWatcher.triggerManualCleanup(sessionId);
+                if (!cleanupSuccess) {
+                    console.warn('ACTIVE_ANALYSES_COMMANDS: Server cleanup did not complete successfully, but analysis will still be removed');
+                }
                 // STEP 3: Refresh the tree view
                 vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
                 vscode.window.showInformationMessage('Analysis closed successfully');

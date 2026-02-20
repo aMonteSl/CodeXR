@@ -235,7 +235,11 @@ export class ActiveAnalysesCommands {
                 
                 // STEP 2: Then trigger cleanup of servers and watchers
                 console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup');
-                await this.serverWatcher.triggerManualCleanup(sessionId);
+                const cleanupSuccess = await this.serverWatcher.triggerManualCleanup(sessionId);
+                
+                if (!cleanupSuccess) {
+                    console.warn('ACTIVE_ANALYSES_COMMANDS: Server cleanup did not complete successfully, but analysis will still be removed');
+                }
                 
                 // STEP 3: Refresh the tree view
                 vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
