@@ -11,6 +11,8 @@ This maintenance release includes critical bug fixes and extensive code refactor
 
 - **Enhanced Empty File Handling in Directory Analysis**: New files created during directory analysis now appear in visualizations immediately, even if they are empty. Previously, empty files would not be added to the data structure, making it difficult to track newly created files. Now all new files are displayed with a complete data entry where all metrics are initialized to 0, reflecting the actual file system state accurately.
 
+- **Fixed Windows Path Compatibility with BabiaXR**: Resolved critical issue where Windows file paths (using backslashes) were not properly handled by BabiaXR neighborhoods organization. Added `normalize_path_for_babia()` normalization function that converts all file path separators to Unix-style forward slashes before passing data to BabiaXR. This ensures consistent neighborhood organization across Windows, macOS, and Linux platforms. Unit tests (10/10 passing) validate path normalization for both absolute and relative paths.
+
 #### Code Refactoring & Quality Improvements
 
 Comprehensive refactoring of core analysis engine with 10 strategic phases:
@@ -40,7 +42,9 @@ Comprehensive refactoring of core analysis engine with 10 strategic phases:
 - **ESLint**: 0 errors, 0 warnings
 - **Build Bundle**: 1.43 MB optimized bundle size
 - **Integration Tests**: 17/17 tests passed for empty file handling feature (100% success rate)
+- **Path Normalization Tests**: 10/10 tests passed for Windows path compatibility (100% success rate)
 - **Format Support**: Both XR (array) and LivePanel (object) data formats fully tested and validated
+- **Platform Compatibility**: Validated across Windows (path normalization), macOS, and Linux
 
 #### Technical Details
 - **Backwards Compatibility**: 100% backwards compatible with v1.0.0, no breaking changes

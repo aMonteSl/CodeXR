@@ -18,6 +18,30 @@ import subprocess
 import time
 from pathlib import Path
 
+def normalize_path_for_babia(path_str):
+    """
+    Normalize file paths to use Unix-style forward slashes.
+    This is required for BabiaXR neighborhoods organization which doesn't handle
+    Windows backslashes properly and for cross-platform compatibility.
+    
+    Args:
+        path_str (str): Path string potentially with backslashes (Windows)
+        
+    Returns:
+        str: Path with forward slashes (Unix-style)
+    """
+    if not path_str:
+        return path_str
+    
+    # Replace backslashes with forward slashes (Windows paths → Unix-style)
+    normalized = path_str.replace('\\', '/')
+    
+    # Handle double slashes that might occur during conversion
+    while '//' in normalized:
+        normalized = normalized.replace('//', '/')
+    
+    return normalized
+
 def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
     """
     Coordinate XR directory analysis to generate file-focused data structure
@@ -335,11 +359,16 @@ def create_xr_file_data(file_analysis, file_path, base_directory_path):
     # Calculate relative path
     relative_path = os.path.relpath(file_path, base_directory_path)
     
+    # Normalize paths for BabiaXR (convert Windows backslashes to forward slashes)
+    # This is critical for neighborhoods organization in BabiaXR
+    normalized_file_path = normalize_path_for_babia(file_path)
+    normalized_relative_path = normalize_path_for_babia(relative_path)
+    
     # Basic file information
     xr_data = {
         "fileName": os.path.basename(file_path),
-        "filePath": file_path,
-        "relativePath": relative_path,
+        "filePath": normalized_file_path,
+        "relativePath": normalized_relative_path,
         "language": file_analysis.get("language", get_language_from_extension(file_path)),
         "status": "success",
         
