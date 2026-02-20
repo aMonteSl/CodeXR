@@ -1,293 +1,103 @@
 /**
  * Live Panel Analysis Launcher
- * Handles the launch and orchestration of Live Panel analysis for both files and directories
+ * Handles the launch and orchestration of Live Panel analysis for both files and directories.
+ *
+ * Delegates the common 4-step pipeline to {@link executeLaunchPipeline},
+ * providing only LivePanel-specific configuration (theme, folder name, watcher type).
  */
 
 import * as vscode from 'vscode';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
 import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
-import { SaveFiles } from '../utils/saveFiles';
 import { SessionWatcherManager } from '../watchers/sessionWatcherManager';
-import { SessionServerManager } from '../servers/sessionServerManager';
-import { SHA256Generator } from '../../../utils/sha256Generator';
 import { AnalysisConfigurationStorage } from '../../configuration/analysisConfigurationStorage';
+import { executeLaunchPipeline } from './launchPipeline';
 
+const LOG_PREFIX = 'NEW_LAUNCHER_LIVEPANEL_ANALYSIS';
 
 export class LauncherLivePanel {
-    
+
     /**
-     * Launch Live Panel analysis for a file using session - NEW CLEAR ARCHITECTURE
+     * Launch Live Panel analysis for a file using session
      */
-    static async launchFileLivePanelAnalysis(session: UnifiedAnalysisSession, context: vscode.ExtensionContext): Promise<void> {
-        console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Starting Live Panel FILE analysis with session ${session.id}`);
-        
+    static async launchFileLivePanelAnalysis(
+        session: UnifiedAnalysisSession,
+        context: vscode.ExtensionContext,
+    ): Promise<void> {
         const registry = UnifiedSessionRegistry.getInstance(context);
-        
-        try {
-            // Verify session has required file hash for Live Panel analysis
-            if (!session.hash256) {
-                console.error(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File hash not found in session ${session.id}`);
-                registry.updateSessionStatus(session.id, 'error', 100);
-                return;
-            }
-            
-            console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File hash from session: ${session.hash256.substring(0, 12)}...`);
+        const configStorage = AnalysisConfigurationStorage.getInstance(context);
 
-            // Get current theme configuration
-            const configStorage = AnalysisConfigurationStorage.getInstance(context);
-            const currentTheme = await configStorage.getViewTheme();
-            console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Using theme: ${currentTheme}`);
+        await executeLaunchPipeline(session, context, {
+            logPrefix: LOG_PREFIX,
+            folderName: 'fileAnalysis',
+            progress: { process: 20, save: 40, watcherOrServer: 60, serverOrWatcher: 80, done: 100 },
 
-            // =====================================================
-            // STEP 1: GET TEMPLATES AND DATA.JSON WITH PROCESSOR
-            // =====================================================
-            console.log(`📥 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 1 - Getting template files and data.json...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 20);
-            
-            const fileRequirementProcessor = new FileRequirementProcessor(context);
-            const processedFiles = await fileRequirementProcessor.processRequirements(session, currentTheme);
-            
-            console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Received ${processedFiles.loadedFiles.size} processed template files`);
-            
-            // Detailed log of received files
-            console.log(`📋 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Files received from processor:`);
-            for (const [fileName, content] of processedFiles.loadedFiles) {
-                console.log(`📄 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: ${fileName} (${content.length} chars)`);
-            }
-
-            // ===================================
-            // STEP 2: SAVE FILES WITH SAVEFILES
-            // ===================================
-            console.log(`💾 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 2 - Saving processed files to storage...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 40);
-            
-            const saveFiles = new SaveFiles();
-            const folderName = 'fileAnalysis';
-            
-            const savedPath = await saveFiles.saveFilesToStorage(
-                processedFiles.loadedFiles,
-                folderName,
-                session.outputDirectory,
-                context
-            );
-            
-            console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Files successfully saved to: ${savedPath}`);
-            
-            // Update session with save information
-            session.savedFilesPath = savedPath;
-            
-            // Store files in session for compatibility
-            for (const [fileName, content] of processedFiles.loadedFiles) {
-                session.requiredFiles.set(fileName, content);
-            }
-
-            // =======================================================
-            // STEP 3: START WATCHER WITH DEBOUNCE AND RE-ANALYSIS
-            // =======================================================
-            console.log(`🔍 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 3 - Starting file watcher with debounce...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 60);
-            
-            const sessionWatcherManager = new SessionWatcherManager(context);
-            const watcherId = await sessionWatcherManager.startWatchingSession(session);
-            
-            if (watcherId) {
-                console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File watcher started successfully with ID: ${watcherId}`);
-                session.watcherId = watcherId;
-            } else {
-                console.log(`⚠️ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: File watcher could not be started`);
-            }
-
-            // ==================================
-            // STEP 4: START SERVER WITH SSE
-            // ==================================
-            console.log(`🚀 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 4 - Starting server with SSE...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 80);
-            
-            const sessionServerManager = new SessionServerManager(context);
-            const serverStatus = await sessionServerManager.startServerForSession(session);
-            
-            if (serverStatus.isServerActive) {
-                console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Server started successfully on port ${serverStatus.port}`);
-                console.log(`🌐 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Server URL: ${serverStatus.serverUrl}`);
-                
-                // Update session with server information using centralized function
-                if (serverStatus.port) {
-                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Registering port ${serverStatus.port} for session ${session.id}`);
-                    const portRegistered = registry.registerSessionPort(session.id, serverStatus.port);
-                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Port registration result: ${portRegistered}`);
+            preValidation: async () => {
+                if (!session.hash256) {
+                    console.error(`${LOG_PREFIX}: File hash not found in session ${session.id}`);
+                    registry.updateSessionStatus(session.id, 'error', 100);
+                    throw new Error('File hash not found');
                 }
-                
-                session.assignedPort = serverStatus.port;
-                session.serverUrl = serverStatus.serverUrl;
-                
-                // Emit session change event
-                registry.updateSessionStatus(session.id, 'monitoring', 100);
-                
-                console.log(`🎉 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Live Panel file analysis completed successfully!`);
-                console.log(`📊 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Final session status:`, {
-                    id: session.id,
-                    targetPath: session.targetPath,
-                    hash256: session.hash256?.substring(0, 12) + '...',
-                    savedFilesPath: session.savedFilesPath,
-                    watcherId: session.watcherId,
-                    serverUrl: session.serverUrl,
-                    assignedPort: session.assignedPort
-                });
-            } else {
-                console.log(`❌ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Server could not be started for session ${session.id}`);
-                registry.updateSessionStatus(session.id, 'error', undefined, 'Server could not be started');
-            }
-            
-        } catch (error) {
-            console.error('❌ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Error launching file Live Panel analysis:', error);
-            
-            // Update session with error
-            registry.updateSessionStatus(session.id, 'error', undefined, error instanceof Error ? error.message : String(error));
-            
-            vscode.window.showErrorMessage(`Failed to start Live Panel analysis: ${error}`);
-        }
+                console.log(`${LOG_PREFIX}: File hash from session: ${session.hash256.substring(0, 12)}...`);
+            },
+
+            processRequirements: async () => {
+                const currentTheme = await configStorage.getViewTheme();
+                console.log(`${LOG_PREFIX}: Using theme: ${currentTheme}`);
+                const processor = new FileRequirementProcessor(context);
+                return processor.processRequirements(session, currentTheme);
+            },
+
+            startWatcher: async () => {
+                const watcher = new SessionWatcherManager(context);
+                return watcher.startWatchingSession(session);
+            },
+        });
     }
-    
+
     /**
-     * Launch Live Panel analysis for a directory using session - NEW CLEAR ARCHITECTURE
+     * Launch Live Panel analysis for a directory using session
      */
-    static async launchDirectoryLivePanelAnalysis(session: UnifiedAnalysisSession, context: vscode.ExtensionContext): Promise<void> {
-        console.log(`🚀 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Starting Live Panel DIRECTORY analysis with session ${session.id}`);
-        
+    static async launchDirectoryLivePanelAnalysis(
+        session: UnifiedAnalysisSession,
+        context: vscode.ExtensionContext,
+    ): Promise<void> {
         const registry = UnifiedSessionRegistry.getInstance(context);
-        
-        try {
-            // Verify that directory discovery was completed during session creation
-            const directoriesToAnalyze = session.directoriesToAnalyze || [];
-            const filesToHash = session.filesToHash || [];
-            
-            console.log(`📁 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Session comes with ${directoriesToAnalyze.length} directories to analyze`);
-            console.log(`📄 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Session comes with ${filesToHash.length} files to hash`);
-            
-            if (directoriesToAnalyze.length === 0) {
-                console.warn(`⚠️ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: No directories to analyze for session ${session.id}`);
-                registry.updateSessionStatus(session.id, 'error', undefined, 'No directories to analyze');
-                return;
-            }
+        const configStorage = AnalysisConfigurationStorage.getInstance(context);
 
-            if (filesToHash.length === 0) {
-                console.warn(`⚠️ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: No files to hash for session ${session.id}`);
-            }
+        await executeLaunchPipeline(session, context, {
+            logPrefix: LOG_PREFIX,
+            folderName: 'directoryAnalysis',
+            progress: { process: 20, save: 40, watcherOrServer: 60, serverOrWatcher: 80, done: 100 },
 
-            // Get current theme configuration
-            const configStorage = AnalysisConfigurationStorage.getInstance(context);
-            const currentTheme = await configStorage.getViewTheme();
-            console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Using theme: ${currentTheme}`);
+            preValidation: async () => {
+                const dirs = session.directoriesToAnalyze || [];
+                const files = session.filesToHash || [];
+                console.log(`${LOG_PREFIX}: Session has ${dirs.length} directories, ${files.length} files to hash`);
 
-            // =====================================================
-            // STEP 1: GET TEMPLATES AND DATA.JSON WITH PROCESSOR
-            // =====================================================
-            console.log(`📥 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 1 - Getting template files and data.json...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 20);
-            
-            const fileRequirementProcessor = new FileRequirementProcessor(context);
-            const processedFiles = await fileRequirementProcessor.processRequirements(session, currentTheme);
-            
-            console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Received ${processedFiles.loadedFiles.size} processed template files`);
-            
-            // Detailed log of received files
-            console.log(`📋 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Files received from processor:`);
-            for (const [fileName, content] of processedFiles.loadedFiles) {
-                console.log(`📄 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: ${fileName} (${content.length} chars)`);
-            }
-
-            // ===================================
-            // STEP 2: SAVE FILES WITH SAVEFILES
-            // ===================================
-            console.log(`💾 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 2 - Saving processed files to storage...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 40);
-            
-            const saveFiles = new SaveFiles();
-            const folderName = 'directoryAnalysis';
-            
-            const savedPath = await saveFiles.saveFilesToStorage(
-                processedFiles.loadedFiles,
-                folderName,
-                session.outputDirectory,
-                context
-            );
-            
-            console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Files successfully saved to: ${savedPath}`);
-            
-            // Update session with save information
-            session.savedFilesPath = savedPath;
-            
-            // Store files in session for compatibility
-            for (const [fileName, content] of processedFiles.loadedFiles) {
-                session.requiredFiles.set(fileName, content);
-            }
-
-            // =======================================================
-            // STEP 3: START WATCHER WITH DEBOUNCE AND RE-ANALYSIS
-            // =======================================================
-            console.log(`🔍 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 3 - Starting directory watcher with debounce...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 60);
-            
-            const sessionWatcherManager = new SessionWatcherManager(context);
-            const watcherId = await sessionWatcherManager.startWatchingSession(session);
-            
-            if (watcherId) {
-                console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory watcher started successfully with ID: ${watcherId}`);
-                session.watcherId = watcherId;
-            } else {
-                console.log(`⚠️ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory watcher could not be started`);
-            }
-
-            // ==================================
-            // STEP 4: START SERVER WITH SSE
-            // ==================================
-            console.log(`🚀 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: STEP 4 - Starting server with SSE...`);
-            registry.updateSessionStatus(session.id, 'analyzing', 80);
-            
-            const sessionServerManager = new SessionServerManager(context);
-            const serverStatus = await sessionServerManager.startServerForSession(session);
-            
-            if (serverStatus.isServerActive) {
-                console.log(`✅ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory server started successfully on port ${serverStatus.port}`);
-                console.log(`🌐 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory server URL: ${serverStatus.serverUrl}`);
-                
-                // Update session with server information using centralized function
-                if (serverStatus.port) {
-                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Registering port ${serverStatus.port} for directory session ${session.id}`);
-                    const portRegistered = registry.registerSessionPort(session.id, serverStatus.port);
-                    console.log(`NEW_LAUNCHER_LIVEPANEL_ANALYSIS: 🔍 DEBUG - Directory port registration result: ${portRegistered}`);
+                if (dirs.length === 0) {
+                    console.warn(`${LOG_PREFIX}: No directories to analyze for session ${session.id}`);
+                    registry.updateSessionStatus(session.id, 'error', undefined, 'No directories to analyze');
+                    throw new Error('No directories to analyze');
                 }
-                
-                session.assignedPort = serverStatus.port;
-                session.serverUrl = serverStatus.serverUrl;
-                
-                // Emit session change event
-                registry.updateSessionStatus(session.id, 'monitoring', 100);
-                
-                console.log(`🎉 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Live Panel directory analysis completed successfully!`);
-                console.log(`📊 NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Final session status:`, {
-                    id: session.id,
-                    targetPath: session.targetPath,
-                    directoriesToAnalyze: directoriesToAnalyze.length,
-                    filesToHash: filesToHash.length,
-                    savedFilesPath: session.savedFilesPath,
-                    watcherId: session.watcherId,
-                    serverUrl: session.serverUrl,
-                    assignedPort: session.assignedPort
-                });
-            } else {
-                console.log(`❌ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Directory server could not be started for session ${session.id}`);
-                registry.updateSessionStatus(session.id, 'error', undefined, 'Directory server could not be started');
-            }
-            
-        } catch (error) {
-            console.error('❌ NEW_LAUNCHER_LIVEPANEL_ANALYSIS: Error launching directory Live Panel analysis:', error);
-            
-            // Update session with error
-            registry.updateSessionStatus(session.id, 'error', undefined, error instanceof Error ? error.message : String(error));
-            
-            vscode.window.showErrorMessage(`Failed to start Live Panel directory analysis: ${error}`);
-        }
+
+                if (files.length === 0) {
+                    console.warn(`${LOG_PREFIX}: No files to hash for session ${session.id}`);
+                }
+            },
+
+            processRequirements: async () => {
+                const currentTheme = await configStorage.getViewTheme();
+                console.log(`${LOG_PREFIX}: Using theme: ${currentTheme}`);
+                const processor = new FileRequirementProcessor(context);
+                return processor.processRequirements(session, currentTheme);
+            },
+
+            startWatcher: async () => {
+                const watcher = new SessionWatcherManager(context);
+                return watcher.startWatchingSession(session);
+            },
+        });
     }
 }

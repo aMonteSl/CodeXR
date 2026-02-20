@@ -10,7 +10,7 @@ import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { VisualizeDOMRequirements } from '../processors/requirementRules/VisualizeDOMRequirements';
 import { SaveFiles } from '../utils/saveFiles';
 import { sseManager } from '../../../servers/runtime/sse/SSEManager';
-import { ManageDebounceTime, DebounceManager } from '../utils/debounceManager';
+import { DebounceManager } from './debounceManager';
 
 interface VisualizeDOMWatcherInfo {
     watcher: fs.FSWatcher;
@@ -19,17 +19,18 @@ interface VisualizeDOMWatcherInfo {
     outputDirectory: string;
     context: vscode.ExtensionContext;
     lastProcessedTime?: number;
-    debounceManager?: DebounceManager;
+    debounceManager?: DebounceManager | null;
 }
 
 export class VisualizeDOMWatcher {
     private static activeWatchers: Map<string, VisualizeDOMWatcherInfo> = new Map();
 
     /**
-     * Get debounce delay from user configuration
+     * Get debounce delay from user configuration.
+     * Returns -1 when auto-analysis is disabled.
      */
     private static async getDebounceDelay(context: vscode.ExtensionContext): Promise<number> {
-        return await ManageDebounceTime.getDebounceDelay(context);
+        return DebounceManager.getDebounceDelay(context);
     }
 
     /**
@@ -86,15 +87,20 @@ export class VisualizeDOMWatcher {
                         return;
                     }
 
-                    // Clear existing debounce manager if it exists (this will dispose status bar)
+                    // Dispose previous debounce manager if it exists
                     if (currentWatcherInfo.debounceManager) {
-                        ManageDebounceTime.dispose(currentWatcherInfo.debounceManager);
-                        console.log(`🔍 VISUALIZE_DOM_WATCHER: Disposed previous debounce manager for: ${htmlFilePath}`);
-                        currentWatcherInfo.debounceManager = undefined;
+                        currentWatcherInfo.debounceManager.dispose();
+                        currentWatcherInfo.debounceManager = null;
                     }
 
                     // Get fresh debounce delay in case user changed it
                     const currentDebounceMs = await VisualizeDOMWatcher.getDebounceDelay(context);
+
+                    // Skip if auto-analysis is disabled
+                    if (currentDebounceMs === -1) {
+                        console.log(`🔍 VISUALIZE_DOM_WATCHER: Auto-analysis disabled, skipping`);
+                        return;
+                    }
 
                     // Check if we processed this change too recently (additional protection)
                     const now = Date.now();
@@ -104,14 +110,10 @@ export class VisualizeDOMWatcher {
                         return;
                     }
 
-                    // Create new debounce manager for this change
-                    const debounceManager = ManageDebounceTime.createDebounceManager(htmlFilePath, currentDebounceMs);
-                    currentWatcherInfo.debounceManager = debounceManager;
-
-                    // Set up debounced execution using ManageDebounceTime
-                    ManageDebounceTime.setupDebouncedExecution(
-                        debounceManager,
-                        context,
+                    // Create unified DebounceManager with the re-analysis callback
+                    const fileName = path.basename(htmlFilePath);
+                    const debounceManager = new DebounceManager(
+                        currentDebounceMs,
                         async () => {
                             try {
                                 console.log(`🔍 VISUALIZE_DOM_WATCHER: Executing debounced re-analysis for: ${htmlFilePath}`);
@@ -154,8 +156,13 @@ export class VisualizeDOMWatcher {
                                 
                                 vscode.window.showErrorMessage(`HTML visualization update failed: ${error instanceof Error ? error.message : String(error)}`);
                             }
-                        }
+                        },
+                        fileName,
                     );
+                    currentWatcherInfo.debounceManager = debounceManager;
+
+                    // Start the debounce countdown
+                    debounceManager.start();
 
                     console.log(`🔍 VISUALIZE_DOM_WATCHER: Debounce timer set for: ${htmlFilePath} (${currentDebounceMs}ms)`);
                 }
@@ -169,7 +176,7 @@ export class VisualizeDOMWatcher {
                 outputDirectory,
                 context,
                 lastProcessedTime: undefined,
-                debounceManager: undefined
+                debounceManager: null,
             };
 
             VisualizeDOMWatcher.activeWatchers.set(watcherId, watcherInfo);
@@ -313,10 +320,9 @@ export class VisualizeDOMWatcher {
                 return false;
             }
 
-            // Clear and dispose debounce manager if it exists
+            // Dispose debounce manager if it exists
             if (watcherInfo.debounceManager) {
-                ManageDebounceTime.dispose(watcherInfo.debounceManager);
-                console.log(`🔍 VISUALIZE_DOM_WATCHER: Disposed debounce manager for: ${watcherInfo.htmlFilePath}`);
+                watcherInfo.debounceManager.dispose();
             }
 
             // Close the watcher
@@ -344,10 +350,9 @@ export class VisualizeDOMWatcher {
             console.log(`🔍 VISUALIZE_DOM_WATCHER: Stopping all ${VisualizeDOMWatcher.activeWatchers.size} active VisualizeDOM watchers`);
 
             for (const [watcherId, watcherInfo] of VisualizeDOMWatcher.activeWatchers) {
-                // Clear and dispose debounce manager
+                // Dispose debounce manager
                 if (watcherInfo.debounceManager) {
-                    ManageDebounceTime.dispose(watcherInfo.debounceManager);
-                    console.log(`🔍 VISUALIZE_DOM_WATCHER: Disposed debounce manager for: ${watcherInfo.htmlFilePath}`);
+                    watcherInfo.debounceManager.dispose();
                 }
 
                 // Close watcher

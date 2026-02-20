@@ -9,7 +9,7 @@ import * as path from 'path';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
 import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { ReAnalysisManager } from './reAnalysisManager';
-import { DebounceManager } from './debounceManager';
+import { DebounceManager, DebounceStatus } from './debounceManager';
 import { AnalysisConfigurationStorage } from '../../configuration/analysisConfigurationStorage';
 import { ConfigurationConverter } from './configurationConverter';
 
@@ -252,7 +252,7 @@ export interface WatcherStatus {
     watcherId: string | null;
     targetPath: string;
     sessionId: string;
-    debounceStatus: any | null; // DebounceStatus from debounceManager
+    debounceStatus: DebounceStatus | null;
 }
 
 export default FileWatcherOrchestrator;

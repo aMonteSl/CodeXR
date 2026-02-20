@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { UnifiedAnalysisSession } from '../../core/analysisSession';
 import { ProcessedRequirements } from '../FileRequirementProcessor';
-import { DirectoryLivePanelParser } from '../../parsers/directoryLivePanelParser';
+import { LivePanelParser } from '../../parsers/livePanelParser';
 import { ExecutePython } from '../../utils/executePython';
 
 /**
@@ -10,18 +10,18 @@ import { ExecutePython } from '../../utils/executePython';
  * 
  * This class:
  * - Determines which templates are needed based on analysis type
- * - Calls DirectoryLivePanelParser to load actual files
+ * - Calls LivePanelParser to load actual files
  * - Returns loaded files, not just paths
  */
 export class LivePanelDirectoryRequirements {
-    private directoryLivePanelParser: DirectoryLivePanelParser;
+    private livePanelParser: LivePanelParser;
     private context: vscode.ExtensionContext;
     private executePython: ExecutePython;
 
     constructor(context: vscode.ExtensionContext) {
         console.log('LIVEPANEL_DIRECTORY_REQUIREMENTS: Initializing LivePanelDirectoryRequirements...');
         this.context = context;
-        this.directoryLivePanelParser = new DirectoryLivePanelParser();
+        this.livePanelParser = new LivePanelParser();
         this.executePython = new ExecutePython(context);
     }
 
@@ -44,7 +44,7 @@ export class LivePanelDirectoryRequirements {
         try {
             // STEP 1: Load template files
             console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS: 📁 Loading template files...`);
-            const loadedFiles = await this.directoryLivePanelParser.loadTemplateFiles(session.targetType, session.analysisMode, theme);
+            const loadedFiles = await this.livePanelParser.loadTemplateFiles(session.targetType, session.analysisMode, theme);
             
             // STEP 2: Execute Python analysis to get data.json
             console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS: � Executing Python directory analysis...`);

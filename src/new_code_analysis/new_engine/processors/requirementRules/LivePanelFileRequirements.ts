@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { UnifiedAnalysisSession } from '../../core/analysisSession';
 import { ProcessedRequirements } from '../FileRequirementProcessor';
-import { FileLivePanelParser } from '../../parsers/fileLivePanelParser';
+import { LivePanelParser } from '../../parsers/livePanelParser';
 import { ExecutePython } from '../../utils/executePython';
 
 /**
@@ -10,18 +10,18 @@ import { ExecutePython } from '../../utils/executePython';
  * 
  * This class:
  * - Determines which templates are needed based on analysis type
- * - Calls FileLivePanelParser to load actual files
+ * - Calls LivePanelParser to load actual files
  * - Returns loaded files, not just paths
  */
 export class LivePanelFileRequirements {
-    private fileLivePanelParser: FileLivePanelParser;
+    private livePanelParser: LivePanelParser;
     private executePython: ExecutePython;
     private context: vscode.ExtensionContext;
 
     constructor(context: vscode.ExtensionContext) {
         console.log('LIVEPANEL_FILE_REQUIREMENTS: Initializing LivePanelFileRequirements...');
         this.context = context;
-        this.fileLivePanelParser = new FileLivePanelParser();
+        this.livePanelParser = new LivePanelParser();
         this.executePython = new ExecutePython(context);
     }
 
@@ -40,7 +40,7 @@ export class LivePanelFileRequirements {
         try {
             // STEP 1: Load template files
             console.log(`LIVEPANEL_FILE_REQUIREMENTS: 📁 Step 1 - Loading template files...`);
-            const loadedFiles = await this.fileLivePanelParser.loadTemplateFiles(session.targetType, session.analysisMode, theme);
+            const loadedFiles = await this.livePanelParser.loadTemplateFiles(session.targetType, session.analysisMode, theme);
             
             // STEP 2: Execute Python analysis to get data.json
             console.log(`LIVEPANEL_FILE_REQUIREMENTS: 🐍 Step 2 - Executing Python analysis...`);

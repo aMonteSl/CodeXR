@@ -1,166 +1,99 @@
 import * as vscode from 'vscode';
 import { VisualizationLauncher } from '../views/interactions/visualizationLauncher';
 import { VisualizationRestorer, StoredVisualization } from '../runtime/visualizationRestorer';
+import { CommandBuilder } from '../../utils/commandBuilder';
+
+const MODULE = 'VISUALIZE_DATA';
+const BROWSE = 'BROWSE-VISUALIZATIONS';
 
 /**
  * Visualize Data Commands
- * VS Code command definitions for visualize data functionality
+ * Uses CommandBuilder for consistent error handling and logging.
  */
 export class VisualizeDataCommands {
-    /**
-     * Register all visualize data commands
-     */
     public static registerCommands(context: vscode.ExtensionContext): void {
-        console.log('VISUALIZE_DATA: Registering visualize data commands...');
+        console.log(`${MODULE}: Registering visualize data commands...`);
 
-        // Command: Chart Type selection
-        const chartTypeCmd = vscode.commands.registerCommand(
-            'codeXR.visualizeData.chartType',
-            async () => {
-                try {
-                    console.log('VISUALIZE_DATA: Chart Type command triggered');
-                    const launcher = new VisualizationLauncher(context);
-                    await launcher.handleChartType();
-                    launcher.cleanup();
-                } catch (error) {
-                    console.error('VISUALIZE_DATA: Error in chart type command:', error);
-                    vscode.window.showErrorMessage(`Failed to handle chart type: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
+        /** Helper: create a launcher, run the action, cleanup. */
+        const withLauncher = (action: (l: VisualizationLauncher) => Promise<void>) => async () => {
+            const launcher = new VisualizationLauncher(context);
+            await action(launcher);
+            launcher.cleanup();
+        };
 
-        // Command: Select JSON File
-        const selectJsonCmd = vscode.commands.registerCommand(
-            'codeXR.visualizeData.selectJson',
-            async () => {
-                try {
-                    console.log('VISUALIZE_DATA: Select JSON command triggered');
-                    const launcher = new VisualizationLauncher(context);
-                    await launcher.handleSelectJson();
-                    launcher.cleanup();
-                } catch (error) {
-                    console.error('VISUALIZE_DATA: Error in select JSON command:', error);
-                    vscode.window.showErrorMessage(`Failed to select JSON: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
-
-        // Command: Dimension Mapping
-        const dimensionMappingCmd = vscode.commands.registerCommand(
-            'codeXR.visualizeData.dimensionMapping',
-            async () => {
-                try {
-                    console.log('VISUALIZE_DATA: Dimension Mapping command triggered');
-                    const launcher = new VisualizationLauncher(context);
-                    await launcher.handleDimensionMapping();
-                    launcher.cleanup();
-                } catch (error) {
-                    console.error('VISUALIZE_DATA: Error in dimension mapping command:', error);
-                    vscode.window.showErrorMessage(`Failed to handle dimension mapping: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
-
-        // Command: Map Dimension Field
-        const mapDimensionFieldCmd = vscode.commands.registerCommand(
-            'codeXR.visualizeData.mapDimensionField',
-            async (dimensionName: string) => {
-                try {
-                    console.log(`VISUALIZE_DATA: Map Dimension Field command triggered for: ${dimensionName}`);
+        CommandBuilder.registerAll(context, [
+            {
+                id: 'codeXR.visualizeData.chartType',
+                module: MODULE,
+                description: 'Chart Type selection',
+                errorMessage: 'Failed to handle chart type',
+                handler: withLauncher(l => l.handleChartType()),
+            },
+            {
+                id: 'codeXR.visualizeData.selectJson',
+                module: MODULE,
+                description: 'Select JSON',
+                errorMessage: 'Failed to select JSON',
+                handler: withLauncher(l => l.handleSelectJson()),
+            },
+            {
+                id: 'codeXR.visualizeData.dimensionMapping',
+                module: MODULE,
+                description: 'Dimension Mapping',
+                errorMessage: 'Failed to handle dimension mapping',
+                handler: withLauncher(l => l.handleDimensionMapping()),
+            },
+            {
+                id: 'codeXR.visualizeData.mapDimensionField',
+                module: MODULE,
+                description: 'Map Dimension Field',
+                errorMessage: 'Failed to map dimension field',
+                handler: async (dimensionName: string) => {
+                    console.log(`${MODULE}: Mapping dimension field for: ${dimensionName}`);
                     const launcher = new VisualizationLauncher(context);
                     await launcher.handleDimensionFieldMapping(dimensionName);
                     launcher.cleanup();
-                } catch (error) {
-                    console.error('VISUALIZE_DATA: Error in map dimension field command:', error);
-                    vscode.window.showErrorMessage(`Failed to map dimension field: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
-
-        // Command: Launch Visualization
-        const launchVisualizationCmd = vscode.commands.registerCommand(
-            'codeXR.visualizeData.launchVisualization',
-            async () => {
-                try {
-                    console.log('VISUALIZE_DATA: Launch Visualization command triggered');
-                    const launcher = new VisualizationLauncher(context);
-                    await launcher.handleLaunchVisualization();
-                    launcher.cleanup();
-                } catch (error) {
-                    console.error('VISUALIZE_DATA: Error in launch visualization command:', error);
-                    vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
-
-        // Command: Diagnostic - Show current state (for debugging)
-        const debugStateCmd = vscode.commands.registerCommand(
-            'codeXR.visualizeData.debugState',
-            async () => {
-                try {
-                    console.log('VISUALIZE_DATA: Debug State command triggered');
-                    const launcher = new VisualizationLauncher(context);
-                    await launcher.handleDebugState();
-                    launcher.cleanup();
-                } catch (error) {
-                    console.error('VISUALIZE_DATA: Error in debug state command:', error);
-                    vscode.window.showErrorMessage(`Failed to show debug state: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
-
-        // Command: Launch stored visualization
-        const launchStoredVisualizationCmd = vscode.commands.registerCommand(
-            'codeXR.browseVisualizations.launch',
-            async (visualization: StoredVisualization) => {
-                try {
-                    console.log('BROWSE-VISUALIZATIONS: Launch command triggered for:', visualization.name);
+                },
+            },
+            {
+                id: 'codeXR.visualizeData.launchVisualization',
+                module: MODULE,
+                description: 'Launch Visualization',
+                errorMessage: 'Failed to launch visualization',
+                handler: withLauncher(l => l.handleLaunchVisualization()),
+            },
+            {
+                id: 'codeXR.visualizeData.debugState',
+                module: MODULE,
+                description: 'Debug State',
+                errorMessage: 'Failed to show debug state',
+                handler: withLauncher(l => l.handleDebugState()),
+            },
+            {
+                id: 'codeXR.browseVisualizations.launch',
+                module: BROWSE,
+                description: 'Launch stored visualization',
+                errorMessage: 'Failed to launch visualization',
+                handler: async (visualization: StoredVisualization) => {
+                    console.log(`${BROWSE}: Launching: ${visualization.name}`);
                     const restorer = new VisualizationRestorer(context);
                     await restorer.launchVisualization(visualization);
-                } catch (error) {
-                    console.error('BROWSE-VISUALIZATIONS: Error launching visualization:', error);
-                    vscode.window.showErrorMessage(`Failed to launch visualization: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
-
-        // Command: Reset all visualizations
-        const resetAllVisualizationsCmd = vscode.commands.registerCommand(
-            'codeXR.browseVisualizations.resetAll',
-            async () => {
-                try {
-                    console.log('BROWSE-VISUALIZATIONS: Reset all command triggered');
+                },
+            },
+            {
+                id: 'codeXR.browseVisualizations.resetAll',
+                module: BROWSE,
+                description: 'Reset all visualizations',
+                errorMessage: 'Failed to reset visualizations',
+                handler: async () => {
                     const restorer = new VisualizationRestorer(context);
                     await restorer.resetAllVisualizations();
-                } catch (error) {
-                    console.error('BROWSE-VISUALIZATIONS: Error resetting visualizations:', error);
-                    vscode.window.showErrorMessage(`Failed to reset visualizations: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        );
+                },
+            },
+        ]);
 
-        // Register commands with the extension context
-        const commandsToRegister = [
-            chartTypeCmd,
-            selectJsonCmd,
-            dimensionMappingCmd,
-            mapDimensionFieldCmd,
-            launchVisualizationCmd,
-            debugStateCmd,
-            launchStoredVisualizationCmd,
-            resetAllVisualizationsCmd
-        ];
-
-        context.subscriptions.push(...commandsToRegister);
-
-        // Store action handler for cleanup
         context.subscriptions.push({
-            dispose: () => {
-                // No longer needed since we create instances on demand
-                console.log('VISUALIZE_DATA: Commands cleanup complete');
-            }
+            dispose: () => console.log(`${MODULE}: Commands cleanup complete`),
         });
-
-        console.log(`VISUALIZE_DATA: Registered ${commandsToRegister.length} visualize data commands`);
     }
 }

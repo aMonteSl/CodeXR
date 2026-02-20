@@ -1,9 +1,9 @@
 /**
  * New Code Analysis Engine - Parsers Module
- * 
- * Este módulo contiene los parsers para procesar archivos antes de guardarlos en las sesiones.
+ *
+ * Exports all parsers used to process templates before saving to sessions.
  */
 
-export { FileLivePanelParser } from './fileLivePanelParser';
+export { LivePanelParser } from './livePanelParser';
 export { VisualizeDOMParser } from './visualizeDOMParser';
 export { FileXRParser } from './fileXRParser';
