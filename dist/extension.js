@@ -20670,15 +20670,18 @@ class ActiveAnalysesCommands {
             }, 'Yes, Close Analysis', 'Cancel');
             if (choice === 'Yes, Close Analysis') {
                 console.log('ACTIVE_ANALYSES_COMMANDS: User confirmed closure, triggering cleanup');
-                // STEP 1: First, remove the session from registry so watchers stop processing
-                console.log('ACTIVE_ANALYSES_COMMANDS: Removing session from registry first');
-                this.sessionRegistry.removeSession(sessionId);
-                // STEP 2: Then trigger cleanup of servers and watchers
-                console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup');
+                // STEP 1: First, trigger cleanup of servers and watchers WHILE session is still in registry
+                // This is critical: triggerManualCleanup() needs to look up the session by ID
+                // to find the port, target path and other info needed to stop the server.
+                // If we remove the session first, triggerManualCleanup() returns false immediately.
+                console.log('ACTIVE_ANALYSES_COMMANDS: Triggering server and watcher cleanup first (session still in registry)');
                 const cleanupSuccess = await this.serverWatcher.triggerManualCleanup(sessionId);
                 if (!cleanupSuccess) {
                     console.warn('ACTIVE_ANALYSES_COMMANDS: Server cleanup did not complete successfully, but analysis will still be removed');
                 }
+                // STEP 2: Remove the session from registry after server cleanup
+                console.log('ACTIVE_ANALYSES_COMMANDS: Removing session from registry after server cleanup');
+                this.sessionRegistry.removeSession(sessionId);
                 // STEP 3: Refresh the tree view
                 vscode.commands.executeCommand('codeXR.new_code_analysis.activeAnalyses.refresh');
                 vscode.window.showInformationMessage('Analysis closed successfully');
@@ -20786,8 +20789,12 @@ class ActiveAnalysesCommands {
      */
     async refreshAnalyses() {
         try {
-            // Trigger tree view refresh
-            vscode.commands.executeCommand('codeXR.new_code_analysis.refreshTreeView');
+            // Trigger tree view refresh via the data service directly
+            // NOTE: 'codeXR.new_code_analysis.refreshTreeView' does not exist;
+            // use the ActiveAnalysesDataService singleton to fire the tree data change event.
+            const { ActiveAnalysesDataService } = await Promise.resolve(/* import() */).then(__webpack_require__.t.bind(__webpack_require__, 213, 23));
+            ActiveAnalysesDataService.getInstance().refresh();
+            console.log('ACTIVE_ANALYSES_COMMANDS: Refresh triggered via data service');
         }
         catch (error) {
             console.error('Error refreshing analyses:', error);
@@ -34280,6 +34287,36 @@ module.exports = require("node:os");
 /******/ 	__webpack_require__.m = __webpack_modules__;
 /******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/create fake namespace object */
+/******/ 	(() => {
+/******/ 		var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
+/******/ 		var leafPrototypes;
+/******/ 		// create a fake namespace object
+/******/ 		// mode & 1: value is a module id, require it
+/******/ 		// mode & 2: merge all properties of value into the ns
+/******/ 		// mode & 4: return value when already ns object
+/******/ 		// mode & 16: return value when it's Promise-like
+/******/ 		// mode & 8|1: behave like require
+/******/ 		__webpack_require__.t = function(value, mode) {
+/******/ 			if(mode & 1) value = this(value);
+/******/ 			if(mode & 8) return value;
+/******/ 			if(typeof value === 'object' && value) {
+/******/ 				if((mode & 4) && value.__esModule) return value;
+/******/ 				if((mode & 16) && typeof value.then === 'function') return value;
+/******/ 			}
+/******/ 			var ns = Object.create(null);
+/******/ 			__webpack_require__.r(ns);
+/******/ 			var def = {};
+/******/ 			leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
+/******/ 			for(var current = mode & 2 && value; (typeof current == 'object' || typeof current == 'function') && !~leafPrototypes.indexOf(current); current = getProto(current)) {
+/******/ 				Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
+/******/ 			}
+/******/ 			def['default'] = () => (value);
+/******/ 			__webpack_require__.d(ns, def);
+/******/ 			return ns;
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/define property getters */
 /******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
