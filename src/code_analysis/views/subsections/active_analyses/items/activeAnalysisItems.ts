@@ -28,10 +28,10 @@ export class ActiveAnalysisTreeItem extends CodeAnalysisTreeItem {
         
         this.sessionData = uiItem.sessionData;
         
-        // Set up the command to view details when clicked
+        // Set up the command to show analysis actions when clicked
         this.command = {
-            command: 'codeXR.analysis.activeAnalyses.showDetails',
-            title: 'View Analysis Details',
+            command: 'codeXR.analysis.activeAnalyses.showActions',
+            title: 'Show Analysis Actions',
             arguments: [uiItem.sessionData.sessionId || this.id]
         };
     }
@@ -71,10 +71,12 @@ export class ActiveAnalysisTreeItem extends CodeAnalysisTreeItem {
         }
 
         commands.push({
-            commandId: 'codeXR.analysis.activeAnalyses.open',
-            label: 'Open Output Folder',
+            commandId: 'codeXR.analysis.activeAnalyses.exportFolder',
+            label: 'Export Analysis Folder',
             icon: 'folder-opened'
-        });        return commands;
+        });
+
+        return commands;
     }
 }
 

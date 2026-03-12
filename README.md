@@ -191,6 +191,7 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Typed BabiaXR Validation**: Chart mappings now validate numeric-only versus free-form BabiaXR dimensions before launch, reducing invalid visualization setups.
 - **Improved XR Boats Hierarchy for File Analysis**: File XR boats now use a synthetic `treePath` so neighborhoods render correctly while every building still represents one function.
 - **Shared Workspace Inventory in the Tree**: `Project Structure` and `Files by Language` now reuse a common workspace snapshot and watcher, reducing duplicated work while keeping both sections synchronized.
+- **Active Analyses Quick Actions**: Active analyses now open their main actions on left-click, and each session can export its generated folder for easier debugging and manual inspection.
 - **Cross-Platform Path and Python Environment Hardening**: Windows path normalization, Python environment recovery, and startup verification are more robust across Windows, Linux, and macOS.
 
 ### Key Improvements in v1.1.0
@@ -356,10 +357,11 @@ The **"Active Analyses"** section in the tree view provides comprehensive sessio
 
 - **View Status**: See which files, directories, or projects are currently being analyzed
 - **Prevent Duplicates**: Automatically prevents multiple analyses of the same target
-- **Quick Access**: Click to reopen existing visualizations
+- **Left-Click Action Menu**: Click any active analysis to open its action menu with details, browser access, export, and close options
 - **Easy Cleanup**: Close analyses you no longer need to free system resources
 - **Session Details**: View detailed information about each active analysis
 - **Browser Integration**: Open analyses directly in your browser
+- **Export for Debugging**: Copy the full generated analysis folder to any location for manual inspection or debugging
 
 ## Configuration and Customization
 
@@ -574,5 +576,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Experience your code like never before with Code-XR v1.1.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
-
 

@@ -119,10 +119,14 @@ export class ActiveAnalysesDataService {
                 targetPath: element.targetPath
             });
             
-            // Add command to show details when clicked - with safe argument handling
+            item.tooltip = element.description
+                ? `${element.description}\n\nLeft-click to show available actions.`
+                : 'Left-click to show available actions.';
+
+            // Add command to show available actions when clicked.
             item.command = {
-                command: 'codeXR.analysis.activeAnalyses.showDetails',
-                title: 'Show Details',
+                command: 'codeXR.analysis.activeAnalyses.showActions',
+                title: 'Show Analysis Actions',
                 arguments: element ? [element] : [] // Ensure arguments array is never undefined
             };
             

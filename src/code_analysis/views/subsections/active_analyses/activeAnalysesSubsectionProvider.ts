@@ -100,8 +100,8 @@ export class ActiveAnalysesSubsectionProvider {
                         vscode.TreeItemCollapsibleState.None,
                         'analysis-result',
                         {
-                            command: 'codeXR.analysis.activeAnalyses.showDetails',
-                            title: 'View Analysis Details',
+                            command: 'codeXR.analysis.activeAnalyses.showActions',
+                            title: 'Show Analysis Actions',
                             arguments: [analysis] // Pass the full analysis object, not just the ID
                         },
                         analysis.iconPath,
@@ -153,5 +153,4 @@ export class ActiveAnalysesSubsectionProvider {
         // }
     }
 }
-
 

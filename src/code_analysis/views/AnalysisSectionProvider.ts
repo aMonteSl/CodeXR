@@ -163,9 +163,15 @@ export class AnalysisSectionProvider implements SectionProvider<CodeAnalysisTree
                     item.label || 'Unknown Analysis',
                     vscode.TreeItemCollapsibleState.None,
                     'analysis-result',
-                    undefined,
+                    {
+                        command: 'codeXR.analysis.activeAnalyses.showActions',
+                        title: 'Show Analysis Actions',
+                        arguments: [item],
+                    },
                     item.iconPath,
-                    item.description || '',
+                    item.description
+                        ? `${item.description}\n\nLeft-click to show available actions.`
+                        : 'Left-click to show available actions.',
                     item.description || '',
                     item.contextValue || 'activeAnalysis',
                 );

@@ -277,6 +277,12 @@
         "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
+        "command": "codeXR.analysis.activeAnalyses.showActions",
+        "title": "Show Analysis Actions",
+        "icon": "$(menu)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
         "command": "codeXR.analysis.activeAnalyses.close",
         "title": "Close Analysis",
         "icon": "$(close)",
@@ -292,6 +298,12 @@
         "command": "codeXR.analysis.activeAnalyses.showDetails",
         "title": "View Details",
         "icon": "$(info)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.analysis.activeAnalyses.exportFolder",
+        "title": "Export Analysis Folder",
+        "icon": "$(export)",
         "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
@@ -449,9 +461,14 @@
           "group": "activeAnalyses@2"
         },
         {
-          "command": "codeXR.analysis.activeAnalyses.close",
+          "command": "codeXR.analysis.activeAnalyses.exportFolder",
           "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "activeAnalyses@3"
+        },
+        {
+          "command": "codeXR.analysis.activeAnalyses.close",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/ && !codeXR.pythonEnv.uiLocked",
+          "group": "activeAnalyses@4"
         }
       ]
     }
@@ -493,3 +510,4 @@
     "get-port": "^7.1.0"
   }
 }
+
