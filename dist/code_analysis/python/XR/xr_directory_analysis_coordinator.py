@@ -20,6 +20,7 @@ if str(UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(UTILS_DIR))
 
 from babia_path_utils import normalize_output_paths
+from directory_scan_utils import filter_explicit_files_for_analysis, scan_directory_files_for_analysis
 from xr_field_schema import safe_ratio, summarize_function_metrics
 
 def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
@@ -43,20 +44,21 @@ def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
     files_array = []
     
     try:
-        # Use filtered files if provided, otherwise scan directory for analyzable files
+        # Use explicit files if provided, otherwise let the shared scanner walk the directory.
         if filtered_files is not None:
-            print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Using filtered file list with {len(filtered_files)} files"}), file=sys.stderr)
-            files_to_analyze = filtered_files
+            files_to_analyze = filter_explicit_files_for_analysis(filtered_files, max_total_files=5000)
+            print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Using filtered file list with {len(files_to_analyze)} analyzable files"}), file=sys.stderr)
         else:
-            # Scan directory for analyzable files
             print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Scanning directory {directory_path}"}), file=sys.stderr)
-            if is_deep:
-                files_to_analyze = scan_directory_files_xr_deep(directory_path)
-                print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Deep scan found {len(files_to_analyze)} files to analyze"}), file=sys.stderr)
-            else:
-                files_to_analyze = scan_directory_files_xr(directory_path)
-                print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Regular scan found {len(files_to_analyze)} files to analyze"}), file=sys.stderr)
-        
+            files_to_analyze = scan_directory_files_for_analysis(
+                directory_path,
+                recursive=is_deep,
+                max_entries_per_directory=1000,
+                max_total_files=5000,
+            )
+            scan_type = 'deep' if is_deep else 'regular'
+            print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: {scan_type.capitalize()} scan found {len(files_to_analyze)} files to analyze"}), file=sys.stderr)
+
         # Analyze each file and generate XR file data
         analyzed_files = 0
         not_analyzed_files = 0
@@ -97,108 +99,6 @@ def analyze_directory_xr(directory_path, is_deep=False, filtered_files=None):
     except Exception as e:
         print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Critical error: {str(e)}"}), file=sys.stderr)
         return []
-
-def scan_directory_files_xr(directory_path):
-    """
-    Scan directory for analyzable files (first level only for XR)
-    
-    Args:
-        directory_path (str): Path to directory to scan
-        
-    Returns:
-        list: List of file paths to analyze
-    """
-    analyzable_files = []
-    analyzable_extensions = get_analyzable_extensions()
-    
-    try:
-        entries = os.listdir(directory_path)
-        
-        # Limit the number of files to process for performance
-        if len(entries) > 1000:
-            print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Large directory detected ({len(entries)} entries), limiting to first 1000 for performance"}), file=sys.stderr)
-            entries = entries[:1000]
-        
-        for entry in entries:
-            # Skip hidden files and directories
-            if entry.startswith('.'):
-                continue
-                
-            full_path = os.path.join(directory_path, entry)
-            
-            # Only process files (not subdirectories for XR first-level analysis)
-            if os.path.isfile(full_path):
-                # Check if file has analyzable extension
-                file_ext = os.path.splitext(entry)[1].lower()
-                if file_ext in analyzable_extensions:
-                    analyzable_files.append(full_path)
-    
-    except Exception as e:
-        print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Error scanning directory: {str(e)}"}), file=sys.stderr)
-    
-    print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Found {len(analyzable_files)} analyzable files in directory"}), file=sys.stderr)
-    return sorted(analyzable_files)
-
-def scan_directory_files_xr_deep(directory_path):
-    """
-    Recursively scan directory and all subdirectories for analyzable files (XR Deep)
-    
-    Args:
-        directory_path (str): Path to directory to scan
-        
-    Returns:
-        list: List of file paths to analyze from all subdirectories
-    """
-    analyzable_files = []
-    analyzable_extensions = get_analyzable_extensions()
-    
-    # Directories to skip for better performance on large projects
-    skip_dirs = {
-        'node_modules', '.git', '.svn', '.hg', '.bzr', 
-        'build', 'dist', 'out', 'target', 'bin', 'obj',
-        '.vscode', '.idea', '.eclipse', '.settings',
-        '__pycache__', '.pytest_cache', '.mypy_cache',
-        'coverage', '.coverage', '.nyc_output',
-        'temp', 'tmp', '.tmp', 'logs', 'log'
-    }
-    
-    try:
-        # Use os.walk for recursive directory traversal
-        for root, dirs, files in os.walk(directory_path):
-            # Filter out directories we should skip in-place to avoid traversing them
-            dirs[:] = [d for d in dirs if d not in skip_dirs and not d.startswith('.')]
-            
-            # Limit the number of files per directory to prevent overwhelming performance
-            if len(files) > 1000:
-                print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Large directory detected ({len(files)} files) in {root}, limiting to first 1000 files"}), file=sys.stderr)
-                files = files[:1000]
-            
-            for file in files:
-                # Skip hidden files
-                if file.startswith('.'):
-                    continue
-                    
-                full_path = os.path.join(root, file)
-                
-                # Check if file has analyzable extension
-                file_ext = os.path.splitext(file)[1].lower()
-                if file_ext in analyzable_extensions:
-                    analyzable_files.append(full_path)
-                    
-                # Limit total files to prevent memory issues with extremely large projects
-                if len(analyzable_files) > 5000:
-                    print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Reached maximum file limit (5000) for performance, stopping scan"}), file=sys.stderr)
-                    break
-            
-            # Break outer loop if we hit the limit
-            if len(analyzable_files) > 5000:
-                break
-    
-    except Exception as e:
-        print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Error scanning directory recursively: {str(e)}"}), file=sys.stderr)
-    
-    print(json.dumps({"debug": f"XR_DIRECTORY_ANALYSIS: Found {len(analyzable_files)} analyzable files in deep scan"}), file=sys.stderr)
-    return sorted(analyzable_files)
 
 def analyze_single_file_xr(file_path, script_dir, base_directory_path):
     """
@@ -374,55 +274,6 @@ def create_xr_file_data(file_analysis, file_path, base_directory_path):
         xr_data["fileSizeBytes"] = 0
 
     return normalize_output_paths(xr_data)
-
-def get_analyzable_extensions():
-    """
-    Get list of file extensions that can be analyzed by Lizard
-    (Excluding HTML as per recent requirements)
-    
-    Returns:
-        list: List of file extensions
-    """
-    return [
-        # Programming Languages - CodeXR Supported by Lizard
-        '.py', '.pyw', '.pyi',  # Python
-        '.rb', '.rbw',  # Ruby
-        '.java',  # Java
-        '.c', '.h',  # C
-        '.cpp', '.cxx', '.cc', '.hpp', '.hxx',  # C++
-        '.cs',  # C#
-        '.erl', '.hrl',  # Erlang
-        '.f90', '.f95', '.f03', '.f08', '.f',  # Fortran
-        '.gd',  # GDScript
-        '.go',  # Go
-        '.js', '.mjs', '.cjs',  # JavaScript
-        '.kt', '.kts',  # Kotlin
-        '.lua',  # Lua
-        '.m', '.mm',  # Objective-C
-        '.php', '.phtml', '.php3', '.php4', '.php5',  # PHP
-        '.pl', '.pm',  # Perl
-        '.scala', '.sc',  # Scala
-        '.sol',  # Solidity
-        '.swift',  # Swift
-        '.ts', '.tsx',  # TypeScript
-        '.ttcn', '.ttcn3',  # TTCN-3
-        '.vue',  # Vue
-        '.zig',  # Zig
-        # Additional commonly analyzed languages
-        '.rs',  # Rust
-        '.dart',  # Dart
-        '.r',  # R
-        '.sh', '.bash',  # Shell
-        '.ps1',  # PowerShell
-        '.jsx',  # JavaScript (JSX)
-        '.css', '.scss', '.less',  # CSS and preprocessors
-        '.clj', '.cljs',  # Clojure
-        '.hs',  # Haskell
-        '.ml', '.mli',  # OCaml
-        '.pas'  # Pascal
-        # NOTE: .html files are excluded from directory analysis (like LivePanel)
-        # HTML files should only be analyzed individually for DOM visualization
-    ]
 
 def get_language_from_extension(file_path):
     """

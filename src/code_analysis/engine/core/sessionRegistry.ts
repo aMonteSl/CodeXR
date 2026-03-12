@@ -14,8 +14,6 @@ import {
     AnalysisStatus,
     SessionCreationParams
 } from './analysisSession';
-import { filterDirectoriesForAnalysis } from '../utils/directoryFilter';
-import { SUPPORTED_LANGUAGES } from '../../../utils/supportedLanguages';
 import { SHA256Generator } from '../../../utils/sha256Generator';
 
 
@@ -27,7 +25,7 @@ export class UnifiedSessionRegistry {
     private context: vscode.ExtensionContext;
 
     private constructor(context: vscode.ExtensionContext) {
-        console.log('UNIFIED_REGISTRY: Initializing Simplified Session Registry');
+        console.log('UNIFIED_REGISTRY: Initializing session registry');
         this.context = context;
     }
 
@@ -48,40 +46,22 @@ export class UnifiedSessionRegistry {
      */
     private hasDuplicateSession(params: SessionCreationParams): UnifiedAnalysisSession | null {
         const existingSessions = this.getAllSessions();
-        console.log(`UNIFIED_REGISTRY:  DEBUG - hasDuplicateSession called - Checking ${existingSessions.length} existing sessions`);
-        console.log(`UNIFIED_REGISTRY:  DEBUG - Looking for duplicates of:`, {
-            targetPath: params.targetPath,
-            analysisMode: params.analysisMode,
-            targetType: params.targetType,
-            isDeep: params.isDeep || false
-        });
-        
+
         for (const session of existingSessions) {
-            console.log(`UNIFIED_REGISTRY:  DEBUG - Comparing with session ${session.id}:`, {
-                targetPath: session.targetPath,
-                analysisMode: session.analysisMode,
-                targetType: session.targetType,
-                isDeep: session.isDeep,
-                status: session.status
-            });
-            
-            const isDuplicate = 
+            const isDuplicate =
                 session.targetPath === params.targetPath &&
                 session.analysisMode === params.analysisMode &&
                 session.targetType === params.targetType &&
                 session.isDeep === (params.isDeep || false) &&
-                session.status !== 'closed' && // Ignore closed sessions
-                session.status !== 'error';    // Ignore error sessions
-                
+                session.status !== 'closed' &&
+                session.status !== 'error';
+
             if (isDuplicate) {
-                console.log(`UNIFIED_REGISTRY:  DUPLICATE DETECTED - Found duplicate session ${session.id} for ${params.targetPath} (${params.analysisMode}, ${params.targetType}, deep: ${params.isDeep})`);
+                console.log(`UNIFIED_REGISTRY: Duplicate session detected for ${params.targetPath}`);
                 return session;
-            } else {
-                console.log(`UNIFIED_REGISTRY:  DEBUG - Session ${session.id} is NOT a duplicate`);
             }
         }
-        
-        console.log(`UNIFIED_REGISTRY:  DEBUG - No duplicate sessions found`);
+
         return null;
     }
 
@@ -90,20 +70,15 @@ export class UnifiedSessionRegistry {
      */
     async createSession(params: SessionCreationParams): Promise<UnifiedAnalysisSession | null> {
         try {
-            console.log(`UNIFIED_REGISTRY:  DEBUG - createSession called with params:`, {
+            console.log(`UNIFIED_REGISTRY: Creating session`, {
                 targetPath: params.targetPath,
                 analysisMode: params.analysisMode,
                 targetType: params.targetType,
                 isDeep: params.isDeep || false
             });
-            
-            // Check for duplicate sessions first
+
             const duplicateSession = this.hasDuplicateSession(params);
             if (duplicateSession) {
-                console.log(`UNIFIED_REGISTRY:  DUPLICATE FOUND - Returning null instead of creating duplicate`);
-                console.log(`UNIFIED_REGISTRY: Existing session status: ${duplicateSession.status}, progress: ${duplicateSession.progress || 0}%`);
-                
-                // Show user-friendly message based on session status
                 if (duplicateSession.status === 'monitoring') {
                     vscode.window.showWarningMessage(
                         `Analysis already complete for "${duplicateSession.targetName}". Use Active Analyses panel to view results.`,
@@ -122,37 +97,26 @@ export class UnifiedSessionRegistry {
                         `Analysis session for "${duplicateSession.targetName}" already exists with status: ${duplicateSession.status}`
                     );
                 }
-                
-                // Fire the change event to update UI
+
                 this._onSessionChanged.fire(duplicateSession);
-                
-                return null; // Return null to indicate duplicate
+                return null;
             }
 
-            console.log(`UNIFIED_REGISTRY:  No duplicate found - Creating new session`);
             const id = generateNonce();
             const targetName = path.basename(params.targetPath);
-            
-            // Generate output directory
             const storageUri = params.context.storageUri;
             if (!storageUri) {
                 throw new Error('Workspace storage URI is not available');
             }
-            
+
             const outputDirectory = `${path.parse(targetName).name}_${params.analysisMode}_${params.targetType}_${id}`;
-            
-            // Use appropriate base directory based on target type
             const baseDirectory = params.targetType === 'file' ? 'fileAnalysis' : 'directoryAnalysis';
-            
             const outputPath = path.join(storageUri.fsPath, baseDirectory, outputDirectory);
 
-            // Calculate hash based on target type
             let calculatedHash = '';
             if (params.targetType === 'file') {
-                console.log(`UNIFIED_REGISTRY: Calculating SHA256 hash for file: ${params.targetPath}`);
                 try {
                     calculatedHash = await SHA256Generator.generateFileHash(params.targetPath);
-                    console.log(`UNIFIED_REGISTRY: File hash calculated: ${calculatedHash.substring(0, 12)}...`);
                 } catch (hashError) {
                     console.error(`UNIFIED_REGISTRY: Error calculating file hash:`, hashError);
                     throw new Error(`Failed to calculate file hash: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
@@ -168,7 +132,7 @@ export class UnifiedSessionRegistry {
                 isDeep: params.isDeep || false,
                 status: 'creating',
                 startTime: new Date(),
-                hash256: calculatedHash, // Now calculated during session creation for files
+                hash256: calculatedHash,
                 outputDirectory,
                 outputPath,
                 requiredFiles: new Map<string, string>(),
@@ -176,42 +140,28 @@ export class UnifiedSessionRegistry {
                 metadata: {}
             };
 
-            // If it's directory analysis, we need to discover and filter directories to analyze
             if (params.targetType === 'directory') {
-                console.log(`UNIFIED_REGISTRY: Discovering directories and files for analysis in: ${params.targetPath}`);
-                
-                // 🔍 DEBUG: Verificar si el directorio existe y es accesible
                 try {
                     const stats = await fs.stat(params.targetPath);
-                    console.log(`UNIFIED_REGISTRY: Target path stats - isDirectory: ${stats.isDirectory()}, size: ${stats.size}`);
+                    if (!stats.isDirectory()) {
+                        throw new Error(`Target path is not a directory: ${params.targetPath}`);
+                    }
                 } catch (statError) {
                     console.error(`UNIFIED_REGISTRY: Error accessing target path ${params.targetPath}:`, statError);
+                    throw statError;
                 }
-                
-                // Discover directories
-                session.directoriesToAnalyze = await this.discoverDirectoriesToAnalyze(params.targetPath, params.isDeep || false);
-                console.log(`UNIFIED_REGISTRY: Found ${session.directoriesToAnalyze?.length || 0} directories to analyze (without duplicates)`);
-                console.log(`UNIFIED_REGISTRY:  DEBUG - directoriesToAnalyze:`, session.directoriesToAnalyze?.slice(0, 5));
-                
-                // Discover files in those directories
-                session.filesToHash = await this.discoverFilesToAnalyze(session.directoriesToAnalyze || [], params.analysisMode);
-                console.log(`UNIFIED_REGISTRY: Discovered ${session.filesToHash?.length || 0} supported files`);
-                console.log(`UNIFIED_REGISTRY:  DEBUG - filesToHash sample:`, session.filesToHash?.slice(0, 3));
-                
-                if ((session.directoriesToAnalyze?.length || 0) === 0) {
-                    console.warn(`UNIFIED_REGISTRY: No directories found to analyze in: ${params.targetPath}`);
-                }
-                
-                if ((session.filesToHash?.length || 0) === 0) {
-                    console.warn(`UNIFIED_REGISTRY: No supported files found to analyze in directories`);
-                }
+
+                // Directory scanning and initial hashes are populated after Python
+                // completes the first analysis, keeping the startup path lightweight.
+                session.directoriesToAnalyze = [];
+                session.filesToHash = [];
+                console.log('UNIFIED_REGISTRY: Directory session will populate tracked files after initial analysis');
             }
 
             this.sessions.set(id, session);
             this._onSessionChanged.fire(session);
-            
-            console.log(`UNIFIED_REGISTRY: Created basic session ${id} for ${targetName} (ready for launcher processing)`);
-            
+
+            console.log(`UNIFIED_REGISTRY: Created session ${id} for ${targetName}`);
             return session;
 
         } catch (error) {
@@ -328,40 +278,17 @@ export class UnifiedSessionRegistry {
      * Register server port for session - Centralized function for port assignment
      */
     registerSessionPort(sessionId: string, port: number): boolean {
-        console.log(`UNIFIED_REGISTRY:  DEBUG - Registering port ${port} for session ${sessionId}`);
-        
         const session = this.sessions.get(sessionId);
         if (!session) {
-            console.warn(`UNIFIED_REGISTRY:  Session ${sessionId} not found for port registration`);
+            console.warn(`UNIFIED_REGISTRY: Session ${sessionId} not found for port registration`);
             return false;
         }
 
-        console.log(`UNIFIED_REGISTRY:  DEBUG - Session before port assignment:`, {
-            id: session.id,
-            targetPath: session.targetPath,
-            targetName: session.targetName,
-            analysisMode: session.analysisMode,
-            currentPort: session.port,
-            currentAssignedPort: session.assignedPort,
-            status: session.status
-        });
-
-        // Assign the port to both fields for compatibility
         session.port = port;
         session.assignedPort = port;
 
-        console.log(`UNIFIED_REGISTRY:  Successfully registered port ${port} for session ${sessionId}`);
-        console.log(`UNIFIED_REGISTRY:  DEBUG - Session after port assignment:`, {
-            id: session.id,
-            targetPath: session.targetPath,
-            targetName: session.targetName,
-            analysisMode: session.analysisMode,
-            assignedPort: session.assignedPort,
-            port: session.port,
-            status: session.status
-        });
+        console.log(`UNIFIED_REGISTRY: Registered port ${port} for session ${sessionId}`);
 
-        // Fire change event
         this._onSessionChanged.fire(session);
         return true;
     }
@@ -440,162 +367,12 @@ export class UnifiedSessionRegistry {
         return true;
     }
 
-    /**
-     * Descubre los directorios que deben ser analizados dentro de un directorio base
-     */
-    private async discoverDirectoriesToAnalyze(basePath: string, isDeep: boolean): Promise<string[]> {
-        try {
-            console.log(`UNIFIED_REGISTRY: Discovering directories in: ${basePath} (deep: ${isDeep})`);
-            
-            const allDirectories = new Set<string>();
-            allDirectories.add(basePath); // Incluir el directorio base
-            
-            if (isDeep) {
-                // Análisis profundo: busca recursivamente en subdirectorios
-                await this.traverseDirectoryRecursive(basePath, allDirectories);
-            }
-            
-            const directoriesArray = Array.from(allDirectories);
-            console.log(`UNIFIED_REGISTRY: Found ${directoriesArray.length} directories before filtering`);
-            
-            // Filtrar directorios usando el directoryFilter
-            const filteredDirectories = filterDirectoriesForAnalysis(directoriesArray, basePath);
-            
-            console.log(`UNIFIED_REGISTRY: Filtered to ${filteredDirectories.length} directories for analysis`);
-            return filteredDirectories;
-            
-        } catch (error) {
-            console.error(`UNIFIED_REGISTRY: Error discovering directories in ${basePath}:`, error);
-            return [];
-        }
-    }
-
-    /**
-     * Traversa directorios recursivamente agregando a un Set
-     */
-    private async traverseDirectoryRecursive(basePath: string, directories: Set<string>): Promise<void> {
-        try {
-            const entries = await fs.readdir(basePath, { withFileTypes: true });
-            
-            for (const entry of entries) {
-                if (entry.isDirectory()) {
-                    const fullPath = path.join(basePath, entry.name);
-                    
-                    // Solo agregar si no lo tenemos
-                    if (!directories.has(fullPath)) {
-                        directories.add(fullPath);
-                        
-                        // Recursivamente traversar subdirectorios
-                        await this.traverseDirectoryRecursive(fullPath, directories);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error(`UNIFIED_REGISTRY: Error reading directory ${basePath}:`, error);
-        }
-    }
-
-    /**
-     * Descubre archivos soportados en los directorios especificados
-     * Filtra archivos HTML para análisis XR según el modo especificado
-     */
-    private async discoverFilesToAnalyze(directories: string[], analysisMode: AnalysisMode): Promise<{ filePath: string; hash: string }[]> {
-        const filesToHash: { filePath: string; hash: string }[] = [];
-        
-        console.log(`UNIFIED_REGISTRY: Discovering files in ${directories.length} directories for ${analysisMode} analysis`);
-        console.log(`UNIFIED_REGISTRY:  DEBUG - Directories to process:`, directories);
-        
-        // Mostrar información sobre filtros aplicados
-        if (analysisMode === 'XR') {
-            console.log(`UNIFIED_REGISTRY: XR analysis mode - HTML files will be filtered out`);
-        }
-        
-        // Obtener todas las extensiones soportadas
-        const supportedExtensions = this.getSupportedExtensions();
-        console.log(`UNIFIED_REGISTRY: Supported extensions: ${supportedExtensions.join(', ')}`);
-        
-        for (const directory of directories) {
-            console.log(`UNIFIED_REGISTRY:  Processing directory: ${directory}`);
-            
-            try {
-                // Verificar si el directorio existe
-                const dirStats = await fs.stat(directory);
-                if (!dirStats.isDirectory()) {
-                    console.warn(`UNIFIED_REGISTRY:  Path is not a directory: ${directory}`);
-                    continue;
-                }
-                
-                const entries = await fs.readdir(directory, { withFileTypes: true });
-                console.log(`UNIFIED_REGISTRY: Found ${entries.length} entries in ${directory}`);
-                
-                let fileCount = 0;
-                for (const entry of entries) {
-                    if (entry.isFile()) {
-                        fileCount++;
-                        const filePath = path.join(directory, entry.name);
-                        const extension = path.extname(entry.name).toLowerCase();
-                        
-                        console.log(`UNIFIED_REGISTRY:  Checking file: ${entry.name} (${extension})`);
-                        
-                        // Verificar si la extensión es soportada
-                        if (supportedExtensions.includes(extension)) {
-                            // Filtrar archivos HTML para análisis XR
-                            const isHtmlFile = ['.html', '.htm', '.xhtml'].includes(extension);
-                            if (analysisMode === 'XR' && isHtmlFile) {
-                                console.log(`UNIFIED_REGISTRY: Skipping HTML file in XR analysis: ${filePath} (${extension})`);
-                                continue; // Skip HTML files in XR analysis
-                            }
-                            
-                            try {
-                                // Usar SHA256Generator para hash real del archivo
-                                const fileHash = await SHA256Generator.generateFileHash(filePath);
-                                
-                                filesToHash.push({
-                                    filePath,
-                                    hash: fileHash
-                                });
-                                
-                                console.log(`UNIFIED_REGISTRY:  Found supported file: ${filePath} (${extension})`);
-                            } catch (hashError) {
-                                console.error(`UNIFIED_REGISTRY: Error generating hash for ${filePath}:`, hashError);
-                                // Continuar con el siguiente archivo si falla el hash
-                            }
-                        } else {
-                            console.log(`UNIFIED_REGISTRY:  Skipping unsupported file: ${entry.name} (${extension})`);
-                        }
-                    }
-                }
-                
-                console.log(`UNIFIED_REGISTRY:  Directory ${directory} contained ${fileCount} files`);
-                
-            } catch (error) {
-                console.error(`UNIFIED_REGISTRY: Error reading files in directory ${directory}:`, error);
-            }
-        }
-        
-        console.log(`UNIFIED_REGISTRY: Discovered ${filesToHash.length} supported files`);
-        return filesToHash;
-    }
-
-    /**
-     * Obtiene todas las extensiones soportadas por el plugin
-     */
-    private getSupportedExtensions(): string[] {
-        const extensions: string[] = [];
-        
-        for (const languageConfig of Object.values(SUPPORTED_LANGUAGES)) {
-            extensions.push(...languageConfig.extensions);
-        }
-        
-        // Eliminar duplicados y retornar
-        return [...new Set(extensions)];
-    }
 
     /**
      * Dispose of registry - SIMPLIFIED
      */
     dispose(): void {
-        console.log('UNIFIED_REGISTRY:  Disposing Simplified Session Registry');
+        console.log('UNIFIED_REGISTRY: Disposing session registry');
         
         this._onSessionChanged.dispose();
         this.sessions.clear();

@@ -126,52 +126,36 @@ export class ExecutePython {
         console.log(`EXECUTE_PYTHON:  Executing directory analysis...`);
         console.log(`EXECUTE_PYTHON: Will analyze directory: ${session.targetPath}`);
         console.log(`EXECUTE_PYTHON: Analysis mode: ${session.analysisMode}`);
-        
+
         try {
-            // Determinar si es análisis profundo basado en modo
-            const isDeepAnalysis = session.analysisMode.includes('Deep');
-            
-            // Preparar argumentos para el script Python
-            let args = [
+            const isDeepAnalysis = session.isDeep;
+            const args = [
                 '--mode', 'livePanel',
-                '--type', 'directory'
+                '--type', 'directory',
+                '--target', session.targetPath
             ];
-            
-            // Usar archivos específicos si están disponibles
-            if (session.filesToHash && session.filesToHash.length > 0) {
-                console.log(`EXECUTE_PYTHON: Using specific file list (${session.filesToHash.length} files)`);
-                progress?.report({ message: `Preparing to analyze ${session.filesToHash.length} files...` });
-                args.push('--target', session.targetPath);
-                // Extraer las rutas de archivo de los FileHash
-                const filePaths = session.filesToHash.map(fh => fh.filePath);
-                args.push('--files', ...filePaths);
-            } else {
-                console.log(`EXECUTE_PYTHON: Using directory scanning mode`);
-                progress?.report({ message: `Scanning directory for files...` });
-                args.push('--target', session.targetPath);
-            }
-            
-            // Agregar flag de análisis profundo si es necesario
+
+            console.log('EXECUTE_PYTHON: Python coordinator will scan and filter directory contents internally');
+            progress?.report({ message: 'Preparing directory analysis...' });
+
             if (isDeepAnalysis) {
                 console.log(`EXECUTE_PYTHON: Deep analysis requested`);
                 args.push('--deep');
             }
-            
+
             console.log(`EXECUTE_PYTHON: Executing with args: ${args.join(' ')}`);
-            
-            // Ejecutar el script Python
+
             const result = await this.executePythonScript('main.py', args, progress);
-            
-            // Para análisis de directorios, el resultado también viene directamente sin wrapper
+
             if (result && (result.success !== false)) {
                 console.log(`EXECUTE_PYTHON:  Directory analysis completed successfully`);
-                progress?.report({ message: "Directory analysis completed!" });
+                progress?.report({ message: 'Directory analysis completed!' });
                 return result;
             } else {
                 console.error(`EXECUTE_PYTHON:  Directory analysis failed:`, result);
                 throw new Error(`Directory analysis failed: ${result?.error || 'Unknown error'}`);
             }
-            
+
         } catch (error) {
             console.error(`EXECUTE_PYTHON:  Error during directory analysis:`, error);
             throw error;
@@ -184,45 +168,31 @@ export class ExecutePython {
     private async executeXRAnalysis(session: UnifiedAnalysisSession, progress?: vscode.Progress<{message?: string; increment?: number}>): Promise<any> {
         console.log(`EXECUTE_PYTHON:  Executing XR analysis for: ${session.targetPath}`);
         console.log(`EXECUTE_PYTHON: Target type: ${session.targetType}`);
-        
+
         try {
-            // Preparar argumentos para el análisis XR usando main.py
             const args = [
                 '--mode', 'xr',
                 '--type', session.targetType,
                 '--target', session.targetPath
             ];
-            
-            // Para análisis de directorio, usar archivos filtrados si están disponibles
-            if (session.targetType === 'directory' && session.filesToHash && session.filesToHash.length > 0) {
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: Using filtered file list (${session.filesToHash.length} files)`);
-                progress?.report({ message: `Preparing to analyze ${session.filesToHash.length} filtered files...` });
-                
-                // Extraer las rutas de archivo de los FileHash (archivos ya filtrados)
-                const filePaths = session.filesToHash.map(fh => fh.filePath);
-                args.push('--files', ...filePaths);
-                
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Using ${filePaths.length} filtered files instead of scanning entire directory`);
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Sample files:`, filePaths.slice(0, 3).map(fp => path.basename(fp)));
-            } else if (session.targetType === 'directory') {
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  No filtered files available, will scan directory (less efficient)`);
-                progress?.report({ message: `Scanning directory for files...` });
+
+            if (session.targetType === 'directory') {
+                console.log('EXECUTE_PYTHON: XR_ANALYSIS: Python coordinator will scan and filter directory contents internally');
+                progress?.report({ message: session.isDeep ? 'Preparing deep XR analysis...' : 'Preparing XR directory analysis...' });
             }
-            
-            // Add --deep flag for deep directory analysis
+
             if (session.targetType === 'directory' && session.isDeep) {
                 console.log(`EXECUTE_PYTHON: XR_ANALYSIS: Adding --deep flag for deep directory analysis`);
                 args.push('--deep');
             }
-            
+
             console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Starting XR analysis with main.py`);
             console.log(`EXECUTE_PYTHON: XR_ANALYSIS: Args: ${args.join(' ')}`);
-            progress?.report({ message: "Starting XR analysis..." });
-            
-            // Ejecutar usando main.py (punto de entrada unificado)
+            progress?.report({ message: 'Starting XR analysis...' });
+
             console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Executing main.py with XR parameters`);
             const result = await this.executePythonScript('main.py', args, progress);
-            
+
             console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Raw Python result received:`, {
                 resultType: typeof result,
                 isArray: Array.isArray(result),
@@ -233,18 +203,17 @@ export class ExecutePython {
                 error: result?.error,
                 rawOutputLength: result?.rawOutput?.length || 0
             });
-            
-            // Verificar si es un error con rawOutput JSON válido (caso de marcadores faltantes)
+
             if (result?.success === false && result?.rawOutput && result?.error?.includes('JSON markers not found')) {
                 console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  JSON markers missing, attempting to parse rawOutput directly...`);
                 console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Raw output preview: ${result.rawOutput.substring(0, 200)}${result.rawOutput.length > 200 ? '...' : ''}`);
-                
+
                 try {
                     const parsedData = JSON.parse(result.rawOutput);
                     console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Successfully parsed rawOutput as direct JSON!`);
                     console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Parsed data type:`, typeof parsedData);
                     console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Is array:`, Array.isArray(parsedData));
-                    
+
                     if (Array.isArray(parsedData)) {
                         console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Generated ${parsedData.length} XR function records`);
                         if (parsedData.length > 0) {
@@ -258,8 +227,8 @@ export class ExecutePython {
                         }
                         console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Successfully completed analysis for ${session.targetPath}`);
                     }
-                    
-                    progress?.report({ message: "XR analysis completed!" });
+
+                    progress?.report({ message: 'XR analysis completed!' });
                     return parsedData;
                 } catch (parseError) {
                     console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  Failed to parse rawOutput as JSON:`, parseError);
@@ -267,8 +236,7 @@ export class ExecutePython {
                     throw new Error(`XR analysis failed: Unable to parse result - ${result.error}`);
                 }
             }
-            
-            // Verificar el resultado directo (sin error wrapper)
+
             if (result && result?.success !== false) {
                 console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Direct result received (no error wrapper)`);
                 console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Analysis result details:`, {
@@ -276,12 +244,11 @@ export class ExecutePython {
                     isArray: Array.isArray(result),
                     resultType: typeof result
                 });
-                
-                // Para XR file analysis, el resultado debería ser un array de funciones
+
                 if (Array.isArray(result)) {
                     console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Generated ${result.length} XR function records`);
                     console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Successfully completed analysis for ${session.targetPath}`);
-                    
+
                     if (result.length > 0) {
                         console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Sample function:`, {
                             functionName: result[0].functionName,
@@ -294,14 +261,14 @@ export class ExecutePython {
                 } else {
                     console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Result is not an array, type: ${typeof result}`);
                 }
-                
-                progress?.report({ message: "XR analysis completed!" });
+
+                progress?.report({ message: 'XR analysis completed!' });
                 return result;
             } else {
                 console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  XR analysis failed with error:`, result);
                 throw new Error(`XR analysis failed: ${result?.error || 'Unknown error'}`);
             }
-            
+
         } catch (error) {
             console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  Error during XR analysis:`, error);
             throw error;

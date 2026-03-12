@@ -20,6 +20,7 @@ if str(UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(UTILS_DIR))
 
 from babia_path_utils import normalize_output_paths
+from directory_scan_utils import filter_explicit_files_for_analysis, get_analyzable_extensions, scan_directory_files_for_analysis
 
 def analyze_directory_comprehensive(directory_path, filtered_files=None):
     """
@@ -161,66 +162,18 @@ def analyze_directory_comprehensive(directory_path, filtered_files=None):
 def scan_directory_files(directory_path, filtered_files=None):
     """
     Scan directory for analyzable files (single level for LivePanel)
-    
-    Args:
-        directory_path (str): Directory to scan
-        filtered_files (list): Optional list of pre-filtered file paths
-        
-    Returns:
-        list: List of file paths to analyze
     """
     if filtered_files:
-        # Use filtered files list instead of scanning directory
-        print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Using filtered file list with {len(filtered_files)} files"}), file=sys.stderr)
-        
-        # Validate that filtered files exist and are analyzable
-        analyzable_files = []
-        analyzable_extensions = get_analyzable_extensions()
-        
-        for file_path in filtered_files:
-            if os.path.isfile(file_path):
-                file_ext = os.path.splitext(file_path)[1].lower()
-                if file_ext in analyzable_extensions:
-                    analyzable_files.append(file_path)
-                    print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Including filtered file: {os.path.basename(file_path)}"}), file=sys.stderr)
-                else:
-                    print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Skipping non-analyzable filtered file: {os.path.basename(file_path)} (ext: {file_ext})"}), file=sys.stderr)
-            else:
-                print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Skipping non-existent filtered file: {file_path}"}), file=sys.stderr)
-        
-        return sorted(analyzable_files)
-    
-    # Fallback to original directory scanning behavior
-    analyzable_files = []
-    analyzable_extensions = get_analyzable_extensions()
-    
-    try:
-        entries = os.listdir(directory_path)
-        
-        # Limit the number of files to process for performance on large directories
-        if len(entries) > 1000:
-            print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Large directory detected ({len(entries)} entries), limiting to first 1000 for performance"}), file=sys.stderr)
-            entries = entries[:1000]
-        
-        for entry in entries:
-            # Skip hidden files and directories
-            if entry.startswith('.'):
-                continue
-                
-            full_path = os.path.join(directory_path, entry)
-            
-            # Only process files (not subdirectories for LivePanel)
-            if os.path.isfile(full_path):
-                # Check if file has analyzable extension
-                file_ext = os.path.splitext(entry)[1].lower()
-                if file_ext in analyzable_extensions:
-                    analyzable_files.append(full_path)
-    
-    except Exception as e:
-        print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Error scanning directory: {str(e)}"}), file=sys.stderr)
-    
-    print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Found {len(analyzable_files)} analyzable files in directory"}), file=sys.stderr)
-    return sorted(analyzable_files)
+        files = filter_explicit_files_for_analysis(filtered_files)
+        print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Using filtered file list with {len(files)} analyzable files"}), file=sys.stderr)
+        return files
+
+    files = scan_directory_files_for_analysis(
+        directory_path,
+        recursive=False,
+        max_entries_per_directory=1000,
+    )
+    return files
 
 def analyze_single_file(file_path, script_dir):
     """
@@ -380,52 +333,6 @@ def enhance_file_metrics(file_analysis, file_path):
         print(json.dumps({"debug": f"DIRECTORY_ANALYSIS: Error enhancing metrics for {file_path}: {str(e)}"}), file=sys.stderr)
         # Return original data if enhancement fails
         return file_analysis
-
-def get_analyzable_extensions():
-    """
-    Get list of file extensions that can be analyzed
-    
-    Returns:
-        list: List of file extensions (with dots)
-    """
-    return [
-        # Programming Languages - CodeXR Supported
-        '.py', '.pyw', '.pyi',  # Python
-        '.rb', '.rbw',  # Ruby
-        '.java',  # Java
-        '.c', '.h',  # C
-        '.cpp', '.cxx', '.cc', '.hpp', '.hxx',  # C++
-        '.cs',  # C#
-        '.erl', '.hrl',  # Erlang
-        '.f90', '.f95', '.f03', '.f08', '.f',  # Fortran
-        '.gd',  # GDScript
-        '.go',  # Go
-        '.js', '.mjs', '.cjs',  # JavaScript
-        '.kt', '.kts',  # Kotlin
-        '.lua',  # Lua
-        '.m', '.mm',  # Objective-C
-        '.php', '.phtml', '.php3', '.php4', '.php5',  # PHP
-        '.pl', '.pm',  # Perl
-        '.scala', '.sc',  # Scala
-        '.sol',  # Solidity
-        '.swift',  # Swift
-        '.ts', '.tsx',  # TypeScript
-        '.ttcn', '.ttcn3',  # TTCN-3
-        '.vue',  # Vue
-        '.zig',  # Zig
-        # Additional commonly analyzed languages
-        '.rs',  # Rust
-        '.dart',  # Dart
-        '.r',  # R
-        '.sh', '.bash',  # Shell
-        '.ps1',  # PowerShell
-        '.jsx',  # JavaScript (JSX)
-        '.css', '.scss', '.less',  # CSS and preprocessors
-        '.clj', '.cljs',  # Clojure
-        '.hs',  # Haskell
-        '.ml', '.mli',  # OCaml
-        '.pas'  # Pascal
-    ]
 
 def get_language_from_extension(file_path):
     """
