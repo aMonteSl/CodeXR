@@ -85,6 +85,7 @@ export class MultiServerLauncher {
             console.log('SERVER: launchServer called with parameters:', { htmlFile, customName });
 
             // Load current settings
+            await this.settingsManager.ensureInitialized();
             const settings = this.settingsManager.getServerSettings();
             console.log('SERVER: Loaded settings:', {
                 ...settings,
@@ -145,10 +146,10 @@ export class MultiServerLauncher {
                     const launchMode: LaunchMode = this.determineLaunchMode(settings);
                     const certMode: CertMode = this.determineCertMode(serverType, result.httpsOverridden);
                     
-                    console.log('SERVER: 🔍 DEBUG - About to register server with the following details:');
-                    console.log('SERVER: 🔍 DEBUG - customName:', customName);
-                    console.log('SERVER: 🔍 DEBUG - port:', finalPort);
-                    console.log('SERVER: 🔍 DEBUG - url:', result.serverUrl);
+                    console.log('SERVER:  DEBUG - About to register server with the following details:');
+                    console.log('SERVER:  DEBUG - customName:', customName);
+                    console.log('SERVER:  DEBUG - port:', finalPort);
+                    console.log('SERVER:  DEBUG - url:', result.serverUrl);
                     
                     const registrar = getServerRegistrar();
                     const activeServer = registrar.registerServer({
@@ -171,9 +172,9 @@ export class MultiServerLauncher {
                         }
                     });
                     
-                    console.log('SERVER: ✅ Successfully registered server with registry:');
-                    console.log('SERVER: ✅ Registered server ID:', activeServer.id);
-                    console.log('SERVER: ✅ Registered server customName:', activeServer.customName);
+                    console.log('SERVER:  Successfully registered server with registry:');
+                    console.log('SERVER:  Registered server ID:', activeServer.id);
+                    console.log('SERVER:  Registered server customName:', activeServer.customName);
                     
                     serverInfo.activeServerId = activeServer.id;
                     this.servers.set(serverId, serverInfo);

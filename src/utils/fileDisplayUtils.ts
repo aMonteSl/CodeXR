@@ -19,7 +19,7 @@ export class FileDisplayUtils {
     ): vscode.ThemeIcon | vscode.Uri {
         
         if (!context) {
-            console.log('FILE_RENDER: No context available — using default icon');
+            console.log('FILE_RENDER: No context available  using default icon');
             return vscode.ThemeIcon.File;
         }
 
@@ -35,7 +35,7 @@ export class FileDisplayUtils {
         }
 
         if (!languageInfo) {
-            console.log('FILE_RENDER: No language detected — using default icon');
+            console.log('FILE_RENDER: No language detected  using default icon');
             return vscode.ThemeIcon.File;
         }
 
@@ -83,7 +83,7 @@ export class FileDisplayUtils {
             return iconPath;
         }
 
-        console.log(`FILE_RENDER: No colored icon found for ${languageInfo.name} — using default icon`);
+        console.log(`FILE_RENDER: No colored icon found for ${languageInfo.name}  using default icon`);
         return vscode.ThemeIcon.File;
     }
 

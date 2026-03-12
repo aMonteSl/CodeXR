@@ -30,7 +30,7 @@ export class ExecutePython {
      * @returns Promise con los datos JSON del análisis
      */
     public async executeAnalysis(session: UnifiedAnalysisSession): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 🐍 Starting Python analysis execution...`);
+        console.log(`EXECUTE_PYTHON:  Starting Python analysis execution...`);
         console.log(`EXECUTE_PYTHON: Analysis mode: ${session.analysisMode}`);
         console.log(`EXECUTE_PYTHON: Target type: ${session.targetType}`);
         console.log(`EXECUTE_PYTHON: Target path: ${session.targetPath}`);
@@ -52,23 +52,23 @@ export class ExecutePython {
                 try {
                     // Determinar qué tipo de análisis ejecutar
                     if (session.analysisMode === 'LivePanel' && session.targetType === 'file') {
-                        console.log(`EXECUTE_PYTHON: 📄 File LivePanel analysis requested`);
+                        console.log(`EXECUTE_PYTHON:  File LivePanel analysis requested`);
                         return await this.executeFileAnalysis(session, progress);
                     } else if (session.analysisMode === 'LivePanel' && session.targetType === 'directory') {
-                        console.log(`EXECUTE_PYTHON: 📁 Directory LivePanel analysis requested`);
+                        console.log(`EXECUTE_PYTHON:  Directory LivePanel analysis requested`);
                         return await this.executeDirectoryAnalysis(session, progress);
                     } else if (session.analysisMode === 'VisualizeDOM' && session.targetType === 'file') {
-                        console.log(`EXECUTE_PYTHON: 🌐 HTML DOM analysis requested`);
+                        console.log(`EXECUTE_PYTHON:  HTML DOM analysis requested`);
                         return await this.executeHTMLDOMAnalysis(session, progress);
                     } else if (session.analysisMode === 'XR') {
-                        console.log(`EXECUTE_PYTHON: 🥽 XR analysis requested`);
+                        console.log(`EXECUTE_PYTHON:  XR analysis requested`);
                         return await this.executeXRAnalysis(session, progress);
                     } else {
                         throw new Error(`Unknown analysis combination: ${session.analysisMode} + ${session.targetType}`);
                     }
 
                 } catch (error) {
-                    console.error(`EXECUTE_PYTHON: ❌ Error during Python analysis:`, error);
+                    console.error(`EXECUTE_PYTHON:  Error during Python analysis:`, error);
                     progress.report({ message: "Analysis failed" });
                     throw error;
                 }
@@ -80,7 +80,7 @@ export class ExecutePython {
      * Ejecuta análisis de archivo
      */
     private async executeFileAnalysis(session: UnifiedAnalysisSession, progress?: vscode.Progress<{message?: string; increment?: number}>): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 📄 Executing file analysis for: ${session.targetPath}`);
+        console.log(`EXECUTE_PYTHON:  Executing file analysis for: ${session.targetPath}`);
         
         try {
             // Preparar argumentos para análisis de archivo
@@ -97,16 +97,16 @@ export class ExecutePython {
             
             // Para análisis de archivos, el resultado viene directamente sin wrapper
             if (result && (result.success !== false)) {
-                console.log(`EXECUTE_PYTHON: ✅ File analysis completed successfully`);
+                console.log(`EXECUTE_PYTHON:  File analysis completed successfully`);
                 progress?.report({ message: "File analysis completed!" });
                 return result;
             } else {
-                console.error(`EXECUTE_PYTHON: ❌ File analysis failed:`, result);
+                console.error(`EXECUTE_PYTHON:  File analysis failed:`, result);
                 throw new Error(`File analysis failed: ${result?.error || 'Unknown error'}`);
             }
             
         } catch (error) {
-            console.error(`EXECUTE_PYTHON: ❌ Error during file analysis:`, error);
+            console.error(`EXECUTE_PYTHON:  Error during file analysis:`, error);
             throw error;
         }
     }
@@ -115,7 +115,7 @@ export class ExecutePython {
      * Ejecuta análisis de directorio usando script Python unificado
      */
     private async executeDirectoryAnalysis(session: UnifiedAnalysisSession, progress?: vscode.Progress<{message?: string; increment?: number}>): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 📁 Executing directory analysis...`);
+        console.log(`EXECUTE_PYTHON:  Executing directory analysis...`);
         console.log(`EXECUTE_PYTHON: Will analyze directory: ${session.targetPath}`);
         console.log(`EXECUTE_PYTHON: Analysis mode: ${session.analysisMode}`);
         
@@ -156,16 +156,16 @@ export class ExecutePython {
             
             // Para análisis de directorios, el resultado también viene directamente sin wrapper
             if (result && (result.success !== false)) {
-                console.log(`EXECUTE_PYTHON: ✅ Directory analysis completed successfully`);
+                console.log(`EXECUTE_PYTHON:  Directory analysis completed successfully`);
                 progress?.report({ message: "Directory analysis completed!" });
                 return result;
             } else {
-                console.error(`EXECUTE_PYTHON: ❌ Directory analysis failed:`, result);
+                console.error(`EXECUTE_PYTHON:  Directory analysis failed:`, result);
                 throw new Error(`Directory analysis failed: ${result?.error || 'Unknown error'}`);
             }
             
         } catch (error) {
-            console.error(`EXECUTE_PYTHON: ❌ Error during directory analysis:`, error);
+            console.error(`EXECUTE_PYTHON:  Error during directory analysis:`, error);
             throw error;
         }
     }
@@ -174,7 +174,7 @@ export class ExecutePython {
      * Ejecuta análisis XR
      */
     private async executeXRAnalysis(session: UnifiedAnalysisSession, progress?: vscode.Progress<{message?: string; increment?: number}>): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 🥽 Executing XR analysis for: ${session.targetPath}`);
+        console.log(`EXECUTE_PYTHON:  Executing XR analysis for: ${session.targetPath}`);
         console.log(`EXECUTE_PYTHON: Target type: ${session.targetType}`);
         
         try {
@@ -194,10 +194,10 @@ export class ExecutePython {
                 const filePaths = session.filesToHash.map(fh => fh.filePath);
                 args.push('--files', ...filePaths);
                 
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 🎯 Using ${filePaths.length} filtered files instead of scanning entire directory`);
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📁 Sample files:`, filePaths.slice(0, 3).map(fp => path.basename(fp)));
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Using ${filePaths.length} filtered files instead of scanning entire directory`);
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Sample files:`, filePaths.slice(0, 3).map(fp => path.basename(fp)));
             } else if (session.targetType === 'directory') {
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: ⚠️ No filtered files available, will scan directory (less efficient)`);
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  No filtered files available, will scan directory (less efficient)`);
                 progress?.report({ message: `Scanning directory for files...` });
             }
             
@@ -207,15 +207,15 @@ export class ExecutePython {
                 args.push('--deep');
             }
             
-            console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 🚀 Starting XR analysis with main.py`);
+            console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Starting XR analysis with main.py`);
             console.log(`EXECUTE_PYTHON: XR_ANALYSIS: Args: ${args.join(' ')}`);
             progress?.report({ message: "Starting XR analysis..." });
             
             // Ejecutar usando main.py (punto de entrada unificado)
-            console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 🐍 Executing main.py with XR parameters`);
+            console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Executing main.py with XR parameters`);
             const result = await this.executePythonScript('main.py', args, progress);
             
-            console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📦 Raw Python result received:`, {
+            console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Raw Python result received:`, {
                 resultType: typeof result,
                 isArray: Array.isArray(result),
                 isObject: typeof result === 'object',
@@ -228,19 +228,19 @@ export class ExecutePython {
             
             // Verificar si es un error con rawOutput JSON válido (caso de marcadores faltantes)
             if (result?.success === false && result?.rawOutput && result?.error?.includes('JSON markers not found')) {
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 🔄 JSON markers missing, attempting to parse rawOutput directly...`);
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📄 Raw output preview: ${result.rawOutput.substring(0, 200)}${result.rawOutput.length > 200 ? '...' : ''}`);
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  JSON markers missing, attempting to parse rawOutput directly...`);
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Raw output preview: ${result.rawOutput.substring(0, 200)}${result.rawOutput.length > 200 ? '...' : ''}`);
                 
                 try {
                     const parsedData = JSON.parse(result.rawOutput);
-                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS: ✅ Successfully parsed rawOutput as direct JSON!`);
-                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📊 Parsed data type:`, typeof parsedData);
-                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📊 Is array:`, Array.isArray(parsedData));
+                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Successfully parsed rawOutput as direct JSON!`);
+                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Parsed data type:`, typeof parsedData);
+                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Is array:`, Array.isArray(parsedData));
                     
                     if (Array.isArray(parsedData)) {
-                        console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 🎯 Generated ${parsedData.length} XR function records`);
+                        console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Generated ${parsedData.length} XR function records`);
                         if (parsedData.length > 0) {
-                            console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📋 Sample function data:`, {
+                            console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Sample function data:`, {
                                 functionName: parsedData[0].functionName,
                                 complexity: parsedData[0].complexity,
                                 parameters: parsedData[0].parameters,
@@ -248,22 +248,22 @@ export class ExecutePython {
                                 fileName: parsedData[0].fileName
                             });
                         }
-                        console.log(`EXECUTE_PYTHON: XR_ANALYSIS: ✅ Successfully completed analysis for ${session.targetPath}`);
+                        console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Successfully completed analysis for ${session.targetPath}`);
                     }
                     
                     progress?.report({ message: "XR analysis completed!" });
                     return parsedData;
                 } catch (parseError) {
-                    console.error(`EXECUTE_PYTHON: XR_ANALYSIS: ❌ Failed to parse rawOutput as JSON:`, parseError);
-                    console.error(`EXECUTE_PYTHON: XR_ANALYSIS: 📄 Raw output content:`, result.rawOutput);
+                    console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  Failed to parse rawOutput as JSON:`, parseError);
+                    console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  Raw output content:`, result.rawOutput);
                     throw new Error(`XR analysis failed: Unable to parse result - ${result.error}`);
                 }
             }
             
             // Verificar el resultado directo (sin error wrapper)
             if (result && result?.success !== false) {
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: ✅ Direct result received (no error wrapper)`);
-                console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📊 Analysis result details:`, {
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Direct result received (no error wrapper)`);
+                console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Analysis result details:`, {
                     functionsCount: Array.isArray(result) ? result.length : 0,
                     isArray: Array.isArray(result),
                     resultType: typeof result
@@ -271,11 +271,11 @@ export class ExecutePython {
                 
                 // Para XR file analysis, el resultado debería ser un array de funciones
                 if (Array.isArray(result)) {
-                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 🎯 Generated ${result.length} XR function records`);
-                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS: ✅ Successfully completed analysis for ${session.targetPath}`);
+                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Generated ${result.length} XR function records`);
+                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Successfully completed analysis for ${session.targetPath}`);
                     
                     if (result.length > 0) {
-                        console.log(`EXECUTE_PYTHON: XR_ANALYSIS: 📋 Sample function:`, {
+                        console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Sample function:`, {
                             functionName: result[0].functionName,
                             complexity: result[0].complexity,
                             parameters: result[0].parameters,
@@ -284,18 +284,18 @@ export class ExecutePython {
                         });
                     }
                 } else {
-                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS: ⚠️ Result is not an array, type: ${typeof result}`);
+                    console.log(`EXECUTE_PYTHON: XR_ANALYSIS:  Result is not an array, type: ${typeof result}`);
                 }
                 
                 progress?.report({ message: "XR analysis completed!" });
                 return result;
             } else {
-                console.error(`EXECUTE_PYTHON: XR_ANALYSIS: ❌ XR analysis failed with error:`, result);
+                console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  XR analysis failed with error:`, result);
                 throw new Error(`XR analysis failed: ${result?.error || 'Unknown error'}`);
             }
             
         } catch (error) {
-            console.error(`EXECUTE_PYTHON: XR_ANALYSIS: ❌ Error during XR analysis:`, error);
+            console.error(`EXECUTE_PYTHON: XR_ANALYSIS:  Error during XR analysis:`, error);
             throw error;
         }
     }
@@ -304,7 +304,7 @@ export class ExecutePython {
      * Ejecuta análisis HTML DOM usando html_dom_parser.py
      */
     private async executeHTMLDOMAnalysis(session: UnifiedAnalysisSession, progress?: vscode.Progress<{message?: string; increment?: number}>): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 🌐 Executing HTML DOM analysis for: ${session.targetPath}`);
+        console.log(`EXECUTE_PYTHON:  Executing HTML DOM analysis for: ${session.targetPath}`);
         
         try {
             // Preparar argumentos para el análisis HTML DOM
@@ -318,9 +318,9 @@ export class ExecutePython {
             
             // Verificar el resultado
             if (result && !result.error) {
-                console.log(`EXECUTE_PYTHON: ✅ HTML DOM analysis completed successfully`);
-                console.log(`EXECUTE_PYTHON: 📄 Processed HTML content length: ${result.htmlContent?.length || 0} chars`);
-                console.log(`EXECUTE_PYTHON: 📋 Analysis result:`, {
+                console.log(`EXECUTE_PYTHON:  HTML DOM analysis completed successfully`);
+                console.log(`EXECUTE_PYTHON:  Processed HTML content length: ${result.htmlContent?.length || 0} chars`);
+                console.log(`EXECUTE_PYTHON:  Analysis result:`, {
                     originalFile: result.originalFile,
                     preparedForVisualization: result.preparedForVisualization,
                     htmlContentLength: result.htmlContent?.length || 0
@@ -328,12 +328,12 @@ export class ExecutePython {
                 progress?.report({ message: "HTML DOM analysis completed!" });
                 return result;
             } else {
-                console.error(`EXECUTE_PYTHON: ❌ HTML DOM analysis failed:`, result);
+                console.error(`EXECUTE_PYTHON:  HTML DOM analysis failed:`, result);
                 throw new Error(`HTML DOM analysis failed: ${result?.error || 'Unknown error'}`);
             }
             
         } catch (error) {
-            console.error(`EXECUTE_PYTHON: ❌ Error during HTML DOM analysis:`, error);
+            console.error(`EXECUTE_PYTHON:  Error during HTML DOM analysis:`, error);
             throw error;
         }
     }
@@ -342,7 +342,7 @@ export class ExecutePython {
      * Ejecuta re-análisis de archivos específicos usando file_reanalysis_coordinator.py
      */
     public async executeFileReanalysis(filePaths: string[]): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 🔄 Starting file re-analysis for ${filePaths.length} files`);
+        console.log(`EXECUTE_PYTHON:  Starting file re-analysis for ${filePaths.length} files`);
         
         try {
             // Preparar argumentos para el script de re-análisis
@@ -357,19 +357,19 @@ export class ExecutePython {
             
             // Para re-análisis, el resultado viene directamente como array
             if (result && Array.isArray(result)) {
-                console.log(`EXECUTE_PYTHON: ✅ File re-analysis completed successfully for ${result.length} files`);
+                console.log(`EXECUTE_PYTHON:  File re-analysis completed successfully for ${result.length} files`);
                 return result;
             } else if (result && (result.success !== false)) {
                 // Si viene un solo archivo, convertir a array
-                console.log(`EXECUTE_PYTHON: ✅ File re-analysis completed successfully for single file`);
+                console.log(`EXECUTE_PYTHON:  File re-analysis completed successfully for single file`);
                 return [result];
             } else {
-                console.error(`EXECUTE_PYTHON: ❌ File re-analysis failed:`, result);
+                console.error(`EXECUTE_PYTHON:  File re-analysis failed:`, result);
                 throw new Error(`File re-analysis failed: ${result?.error || 'Unknown error'}`);
             }
             
         } catch (error) {
-            console.error(`EXECUTE_PYTHON: ❌ Error during file re-analysis:`, error);
+            console.error(`EXECUTE_PYTHON:  Error during file re-analysis:`, error);
             throw error;
         }
     }
@@ -382,17 +382,17 @@ export class ExecutePython {
         args: string[], 
         progress?: vscode.Progress<{message?: string; increment?: number}>
     ): Promise<any> {
-        console.log(`EXECUTE_PYTHON: 🐍 Executing Python script: ${scriptName}`);
+        console.log(`EXECUTE_PYTHON:  Executing Python script: ${scriptName}`);
         console.log(`EXECUTE_PYTHON: Script arguments: ${args.join(' ')}`);
         
         // 📊 ENHANCED ANALYSIS START LOGGING
-        console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
-        console.log(`EXECUTE_PYTHON: 🚀 STARTING ANALYSIS`);
-        console.log(`EXECUTE_PYTHON: 📄 Script: ${scriptName}`);
-        console.log(`EXECUTE_PYTHON: 🎯 Target: ${args.includes('--target') ? args[args.indexOf('--target') + 1] : 'Multiple targets'}`);
-        console.log(`EXECUTE_PYTHON: 🔧 Mode: ${args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'Unknown'}`);
-        console.log(`EXECUTE_PYTHON: 📂 Type: ${args.includes('--type') ? args[args.indexOf('--type') + 1] : 'Unknown'}`);
-        console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
+        console.log(`EXECUTE_PYTHON: `);
+        console.log(`EXECUTE_PYTHON:  STARTING ANALYSIS`);
+        console.log(`EXECUTE_PYTHON:  Script: ${scriptName}`);
+        console.log(`EXECUTE_PYTHON:  Target: ${args.includes('--target') ? args[args.indexOf('--target') + 1] : 'Multiple targets'}`);
+        console.log(`EXECUTE_PYTHON:  Mode: ${args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'Unknown'}`);
+        console.log(`EXECUTE_PYTHON:  Type: ${args.includes('--type') ? args[args.indexOf('--type') + 1] : 'Unknown'}`);
+        console.log(`EXECUTE_PYTHON: `);
 
         try {
             // Get Python executable path from virtual environment
@@ -407,7 +407,7 @@ export class ExecutePython {
                 throw new Error(`Python executable does not exist: ${pythonExecutable}`);
             }
             
-            console.log(`EXECUTE_PYTHON: ✅ Python executable verified to exist`);
+            console.log(`EXECUTE_PYTHON:  Python executable verified to exist`);
 
             // Get script path - check both dist and src directories for compatibility
             const extensionPath = this.context.extensionPath;
@@ -429,23 +429,23 @@ export class ExecutePython {
                 const distPath = path.join(extensionPath, 'dist', 'new_code_analysis', 'new_python', scriptName);
                 const srcPath = path.join(extensionPath, 'src', 'new_code_analysis', 'new_python', scriptName);
                 
-                console.error(`EXECUTE_PYTHON: ❌ Python script not found in either location:`);
-                console.error(`EXECUTE_PYTHON: 📁 Dist path: ${distPath} (exists: ${require('fs').existsSync(distPath)})`);
-                console.error(`EXECUTE_PYTHON: 📁 Src path: ${srcPath} (exists: ${require('fs').existsSync(srcPath)})`);
-                console.error(`EXECUTE_PYTHON: 📁 Extension path: ${extensionPath}`);
+                console.error(`EXECUTE_PYTHON:  Python script not found in either location:`);
+                console.error(`EXECUTE_PYTHON:  Dist path: ${distPath} (exists: ${require('fs').existsSync(distPath)})`);
+                console.error(`EXECUTE_PYTHON:  Src path: ${srcPath} (exists: ${require('fs').existsSync(srcPath)})`);
+                console.error(`EXECUTE_PYTHON:  Extension path: ${extensionPath}`);
                 
                 // List contents of directories for debugging
                 try {
                     const distNewCodeAnalysisPath = path.join(extensionPath, 'dist', 'new_code_analysis');
                     if (require('fs').existsSync(distNewCodeAnalysisPath)) {
                         const distContents = require('fs').readdirSync(distNewCodeAnalysisPath);
-                        console.error(`EXECUTE_PYTHON: 📂 dist/new_code_analysis contents: ${distContents.join(', ')}`);
+                        console.error(`EXECUTE_PYTHON:  dist/new_code_analysis contents: ${distContents.join(', ')}`);
                     }
                     
                     const distNewPythonPath = path.join(extensionPath, 'dist', 'new_code_analysis', 'new_python');
                     if (require('fs').existsSync(distNewPythonPath)) {
                         const distPythonContents = require('fs').readdirSync(distNewPythonPath);
-                        console.error(`EXECUTE_PYTHON: 📂 dist/new_code_analysis/new_python contents: ${distPythonContents.join(', ')}`);
+                        console.error(`EXECUTE_PYTHON:  dist/new_code_analysis/new_python contents: ${distPythonContents.join(', ')}`);
                     }
                 } catch (listError) {
                     console.error(`EXECUTE_PYTHON: Failed to list directory contents:`, listError);
@@ -454,12 +454,12 @@ export class ExecutePython {
                 throw new Error(`Python script does not exist: ${scriptPath}`);
             }
             
-            console.log(`EXECUTE_PYTHON: ✅ Python script verified to exist`);
+            console.log(`EXECUTE_PYTHON:  Python script verified to exist`);
 
             // Build full command
             const fullArgs = [scriptPath, ...args];
             console.log(`EXECUTE_PYTHON: Full command: ${pythonExecutable} ${fullArgs.join(' ')}`);
-            console.log(`EXECUTE_PYTHON: 🚀 About to spawn Python process...`);
+            console.log(`EXECUTE_PYTHON:  About to spawn Python process...`);
 
             return new Promise((resolve, reject) => {
                 console.log(`EXECUTE_PYTHON: Creating child process with spawn...`);
@@ -472,11 +472,11 @@ export class ExecutePython {
                     stdio: ['pipe', 'pipe', 'pipe']
                 });
 
-                console.log(`EXECUTE_PYTHON: ✅ Process spawned with PID: ${process.pid}`);
+                console.log(`EXECUTE_PYTHON:  Process spawned with PID: ${process.pid}`);
 
                 // Handle process creation errors
                 process.on('error', (error) => {
-                    console.error(`EXECUTE_PYTHON: ❌ Failed to start Python process:`, error);
+                    console.error(`EXECUTE_PYTHON:  Failed to start Python process:`, error);
                     console.error(`EXECUTE_PYTHON: Error details:`, {
                         code: (error as any).code,
                         errno: (error as any).errno,
@@ -495,7 +495,7 @@ export class ExecutePython {
 
                 process.stdout.on('data', (data) => {
                     stdoutData += data.toString();
-                    console.log(`EXECUTE_PYTHON: 📤 stdout chunk received (${data.toString().length} chars)`);
+                    console.log(`EXECUTE_PYTHON:  stdout chunk received (${data.toString().length} chars)`);
                 });
 
                 process.stderr.on('data', (data) => {
@@ -516,8 +516,8 @@ export class ExecutePython {
                                     const fileName = parsed.progress.fileName || parsed.progress.file || parsed.progress.current_file || 'Processing file...';
                                     const message = parsed.progress.message || 'Processing';
                                     
-                                    console.log(`EXECUTE_PYTHON: 🔄 PROGRESS [${current}/${total}] (${percentage}%) - ${message}`);
-                                    console.log(`EXECUTE_PYTHON: 📄 Current file: ${fileName}`);
+                                    console.log(`EXECUTE_PYTHON:  PROGRESS [${current}/${total}] (${percentage}%) - ${message}`);
+                                    console.log(`EXECUTE_PYTHON:  Current file: ${fileName}`);
                                     
                                     // 🎯 UPDATE VS CODE UI PROGRESS
                                     if (progress && total > 0) {
@@ -532,23 +532,23 @@ export class ExecutePython {
                                     
                                     // Additional context if available
                                     if (parsed.progress.operation) {
-                                        console.log(`EXECUTE_PYTHON: ⚙️  Operation: ${parsed.progress.operation}`);
+                                        console.log(`EXECUTE_PYTHON:   Operation: ${parsed.progress.operation}`);
                                     }
                                     if (parsed.progress.estimatedTime) {
-                                        console.log(`EXECUTE_PYTHON: ⏱️  Estimated time remaining: ${parsed.progress.estimatedTime}`);
+                                        console.log(`EXECUTE_PYTHON:   Estimated time remaining: ${parsed.progress.estimatedTime}`);
                                     }
                                 } else if (parsed.debug) {
-                                    console.log(`EXECUTE_PYTHON: 🐛 DEBUG: ${parsed.debug}`);
+                                    console.log(`EXECUTE_PYTHON:  DEBUG: ${parsed.debug}`);
                                 } else if (parsed.info) {
-                                    console.log(`EXECUTE_PYTHON: ℹ️  INFO: ${parsed.info}`);
+                                    console.log(`EXECUTE_PYTHON:   INFO: ${parsed.info}`);
                                     // Update UI with info messages
                                     if (progress) {
                                         progress.report({ message: parsed.info });
                                     }
                                 } else if (parsed.warning) {
-                                    console.log(`EXECUTE_PYTHON: ⚠️  WARNING: ${parsed.warning}`);
+                                    console.log(`EXECUTE_PYTHON:   WARNING: ${parsed.warning}`);
                                 } else if (parsed.error) {
-                                    console.log(`EXECUTE_PYTHON: ❌ ERROR: ${parsed.error}`);
+                                    console.log(`EXECUTE_PYTHON:  ERROR: ${parsed.error}`);
                                 }
                             } catch {
                                 // Not JSON, check for common progress patterns
@@ -556,21 +556,21 @@ export class ExecutePython {
                                 if (cleanLine) {
                                     // Look for common progress patterns
                                     if (cleanLine.includes('Analyzing') || cleanLine.includes('Processing')) {
-                                        console.log(`EXECUTE_PYTHON: 🔍 ${cleanLine}`);
+                                        console.log(`EXECUTE_PYTHON:  ${cleanLine}`);
                                         if (progress) {
                                             progress.report({ message: cleanLine });
                                         }
                                     } else if (cleanLine.includes('Progress:') || cleanLine.includes('%')) {
-                                        console.log(`EXECUTE_PYTHON: 📊 ${cleanLine}`);
+                                        console.log(`EXECUTE_PYTHON:  ${cleanLine}`);
                                         if (progress) {
                                             progress.report({ message: cleanLine });
                                         }
                                     } else if (cleanLine.includes('ERROR') || cleanLine.includes('Error')) {
-                                        console.log(`EXECUTE_PYTHON: ❌ ${cleanLine}`);
+                                        console.log(`EXECUTE_PYTHON:  ${cleanLine}`);
                                     } else if (cleanLine.includes('WARNING') || cleanLine.includes('Warning')) {
-                                        console.log(`EXECUTE_PYTHON: ⚠️  ${cleanLine}`);
+                                        console.log(`EXECUTE_PYTHON:   ${cleanLine}`);
                                     } else {
-                                        console.log(`EXECUTE_PYTHON: 📝 ${cleanLine}`);
+                                        console.log(`EXECUTE_PYTHON:  ${cleanLine}`);
                                     }
                                 }
                             }
@@ -580,15 +580,15 @@ export class ExecutePython {
 
                 process.on('close', (code) => {
                     // 📊 ENHANCED ANALYSIS COMPLETION LOGGING
-                    console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
-                    console.log(`EXECUTE_PYTHON: 🏁 ANALYSIS COMPLETED`);
-                    console.log(`EXECUTE_PYTHON: 📄 Script: ${scriptName}`);
-                    console.log(`EXECUTE_PYTHON: 🔢 Exit code: ${code}`);
-                    console.log(`EXECUTE_PYTHON: 📤 Output size: ${stdoutData.length} chars`);
-                    console.log(`EXECUTE_PYTHON: 📥 Error output size: ${stderrData.length} chars`);
+                    console.log(`EXECUTE_PYTHON: `);
+                    console.log(`EXECUTE_PYTHON:  ANALYSIS COMPLETED`);
+                    console.log(`EXECUTE_PYTHON:  Script: ${scriptName}`);
+                    console.log(`EXECUTE_PYTHON:  Exit code: ${code}`);
+                    console.log(`EXECUTE_PYTHON:  Output size: ${stdoutData.length} chars`);
+                    console.log(`EXECUTE_PYTHON:  Error output size: ${stderrData.length} chars`);
                     
                     if (code === 0) {
-                        console.log(`EXECUTE_PYTHON: ✅ SUCCESS - Processing results...`);
+                        console.log(`EXECUTE_PYTHON:  SUCCESS - Processing results...`);
                         
                         try {
                             // Parse JSON between markers
@@ -603,24 +603,24 @@ export class ExecutePython {
                                 const result = JSON.parse(jsonContent);
                                 
                                 // 📊 ENHANCED SUCCESS LOGGING
-                                console.log(`EXECUTE_PYTHON: ✅ Successfully parsed Python result`);
+                                console.log(`EXECUTE_PYTHON:  Successfully parsed Python result`);
                                 if (Array.isArray(result)) {
-                                    console.log(`EXECUTE_PYTHON: 📊 Result type: Array with ${result.length} items`);
+                                    console.log(`EXECUTE_PYTHON:  Result type: Array with ${result.length} items`);
                                 } else if (typeof result === 'object' && result !== null) {
-                                    console.log(`EXECUTE_PYTHON: 📊 Result type: Object`);
+                                    console.log(`EXECUTE_PYTHON:  Result type: Object`);
                                     if (result.files && Array.isArray(result.files)) {
-                                        console.log(`EXECUTE_PYTHON: 📁 Files analyzed: ${result.files.length}`);
+                                        console.log(`EXECUTE_PYTHON:  Files analyzed: ${result.files.length}`);
                                     }
                                     if (result.summary) {
-                                        console.log(`EXECUTE_PYTHON: 📈 Summary available: Yes`);
+                                        console.log(`EXECUTE_PYTHON:  Summary available: Yes`);
                                     }
                                 }
-                                console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
+                                console.log(`EXECUTE_PYTHON: `);
                                 
                                 resolve(result);
                             } else {
-                                console.warn(`EXECUTE_PYTHON: ⚠️ JSON markers not found in output`);
-                                console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
+                                console.warn(`EXECUTE_PYTHON:  JSON markers not found in output`);
+                                console.log(`EXECUTE_PYTHON: `);
                                 resolve({
                                     success: false,
                                     error: 'JSON markers not found in Python output',
@@ -628,8 +628,8 @@ export class ExecutePython {
                                 });
                             }
                         } catch (parseError) {
-                            console.error(`EXECUTE_PYTHON: ❌ Failed to parse Python JSON output:`, parseError);
-                            console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
+                            console.error(`EXECUTE_PYTHON:  Failed to parse Python JSON output:`, parseError);
+                            console.log(`EXECUTE_PYTHON: `);
                             resolve({
                                 success: false,
                                 error: `Failed to parse Python output: ${parseError}`,
@@ -637,11 +637,11 @@ export class ExecutePython {
                             });
                         }
                     } else {
-                        console.error(`EXECUTE_PYTHON: ❌ FAILED - Python script failed with exit code ${code}`);
+                        console.error(`EXECUTE_PYTHON:  FAILED - Python script failed with exit code ${code}`);
                         if (stderrData.trim()) {
-                            console.error(`EXECUTE_PYTHON: 📥 Error output preview: ${stderrData.substring(0, 200)}${stderrData.length > 200 ? '...' : ''}`);
+                            console.error(`EXECUTE_PYTHON:  Error output preview: ${stderrData.substring(0, 200)}${stderrData.length > 200 ? '...' : ''}`);
                         }
-                        console.log(`EXECUTE_PYTHON: ═══════════════════════════════════════════════════════════`);
+                        console.log(`EXECUTE_PYTHON: `);
                         resolve({
                             success: false,
                             error: `Python script failed with exit code ${code}`,
@@ -652,13 +652,13 @@ export class ExecutePython {
                 });
 
                 process.on('error', (error) => {
-                    console.error(`EXECUTE_PYTHON: ❌ Failed to start Python process:`, error);
+                    console.error(`EXECUTE_PYTHON:  Failed to start Python process:`, error);
                     reject(new Error(`Failed to start Python process: ${error.message}`));
                 });
             });
 
         } catch (error) {
-            console.error(`EXECUTE_PYTHON: ❌ Error executing Python script:`, error);
+            console.error(`EXECUTE_PYTHON:  Error executing Python script:`, error);
             throw error;
         }
     }

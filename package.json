@@ -2,7 +2,7 @@
   "name": "code-xr",
   "displayName": "Code-XR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -28,7 +28,10 @@
     "resources/**/*",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "templates/**/*",
+    "certs/**/*",
+    "examples/**/*"
   ],
   "contributes": {
     "commands": [
@@ -38,125 +41,151 @@
       },
       {
         "command": "codexr.server.launch",
-        "title": "Start Local Server"
+        "title": "Start Local Server",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codexr.server.configure",
-        "title": "Server Configuration"
+        "title": "Server Configuration",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codexr.server.config.httpMode",
-        "title": "Configure HTTP Mode"
+        "title": "Configure HTTP Mode",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codexr.server.config.port",
-        "title": "Configure Default Port"
+        "title": "Configure Default Port",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codexr.server.config.autoOpen",
-        "title": "Toggle Auto-Open"
+        "title": "Toggle Auto-Open",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codexr.server.config.openMode",
-        "title": "Configure Open Mode"
+        "title": "Configure Open Mode",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.showActions",
         "title": "Show Server Actions",
-        "icon": "$(menu)"
+        "icon": "$(menu)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.openInBrowser",
         "title": "Open in Browser",
-        "icon": "$(browser)"
+        "icon": "$(browser)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.openInPanel",
         "title": "Open in Panel",
-        "icon": "$(layout-panel)"
+        "icon": "$(layout-panel)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.copyUrl",
         "title": "Copy URL",
-        "icon": "$(copy)"
+        "icon": "$(copy)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.stopServer",
         "title": "Stop Server",
-        "icon": "$(stop-circle)"
+        "icon": "$(stop-circle)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.showDetails",
         "title": "Show Details",
-        "icon": "$(info)"
+        "icon": "$(info)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.stopAllServers",
         "title": "Stop All Servers",
-        "icon": "$(stop)"
+        "icon": "$(stop)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.refreshServers",
         "title": "Refresh",
-        "icon": "$(refresh)"
+        "icon": "$(refresh)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.activeServers.openView",
-        "title": "Open Active Servers"
+        "title": "Open Active Servers",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.babiaExamples.launchExample",
         "title": "Launch Example",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.babiaExamples.refresh",
         "title": "Refresh Examples",
-        "icon": "$(refresh)"
+        "icon": "$(refresh)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.babiaExamples.openFolder",
         "title": "Open Examples Folder",
-        "icon": "$(folder-opened)"
+        "icon": "$(folder-opened)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.babiaExamples.showDetails",
         "title": "Show Example Details",
-        "icon": "$(info)"
+        "icon": "$(info)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.babiaExamples.openView",
-        "title": "Open Babia Examples"
+        "title": "Open Babia Examples",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.visualizeData.chartType",
         "title": "Select Chart Type",
-        "icon": "$(graph)"
+        "icon": "$(graph)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.visualizeData.selectJson",
         "title": "Select JSON File",
-        "icon": "$(file-code)"
+        "icon": "$(file-code)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.visualizeData.dimensionMapping",
         "title": "Configure Dimension Mapping",
-        "icon": "$(settings-gear)"
+        "icon": "$(settings-gear)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.visualizeData.launchVisualization",
         "title": "Launch Visualization",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.pythonEnv.create",
         "title": "Create Python Environment",
-        "icon": "$(add)"
+        "icon": "$(add)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.pythonEnv.delete",
         "title": "Delete Python Environment",
-        "icon": "$(trash)"
+        "icon": "$(trash)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
         "command": "codeXR.pythonEnv.status",
@@ -164,91 +193,124 @@
         "icon": "$(info)"
       },
       {
-        "command": "codeXR.pythonEnv.installPackage",
-        "title": "Install Python Package",
-        "icon": "$(cloud-download)"
-      },
-      {
         "command": "codeXR.pythonEnv.reinitialize",
         "title": "Reinitialize Python Environment",
-        "icon": "$(refresh)"
+        "icon": "$(refresh)",
+        "enablement": "!codeXR.pythonEnv.uiLocked || codeXR.pythonEnv.retryAvailable"
       },
       {
-        "command": "newCodeAnalysis.analyzeFile",
+        "command": "codeXR.pythonEnv.verifyInstallation",
+        "title": "Verify Python Environment Installation",
+        "icon": "$(check)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.pythonEnv.debugFailInstallation",
+        "title": "CodeXR: Debug Python Environment Failure",
+        "icon": "$(bug)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.analysis.analyzeFile",
         "title": "CodeXR: Analyze File (LivePanel)",
-        "icon": "$(file-code)"
+        "icon": "$(file-code)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeFileXR",
+        "command": "codeXR.analysis.analyzeFileXR",
         "title": "CodeXR: Analyze File (XR)",
-        "icon": "$(device-camera-video)"
+        "icon": "$(device-camera-video)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeDirectory",
+        "command": "codeXR.analysis.analyzeDirectory",
         "title": "CodeXR: Analyze Directory (LivePanel)",
-        "icon": "$(folder)"
+        "icon": "$(folder)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeDirectoryDeep",
+        "command": "codeXR.analysis.analyzeDirectoryDeep",
         "title": "CodeXR: Analyze Directory (LivePanel Deep)",
-        "icon": "$(folder-library)"
+        "icon": "$(folder-library)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeDirectoryXR",
+        "command": "codeXR.analysis.analyzeDirectoryXR",
         "title": "CodeXR: Analyze Directory (XR)",
-        "icon": "$(device-desktop)"
+        "icon": "$(device-desktop)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeDirectoryXRDeep",
+        "command": "codeXR.analysis.analyzeDirectoryXRDeep",
         "title": "CodeXR: Analyze Directory (XR Deep)",
-        "icon": "$(layers-dot)"
+        "icon": "$(layers-dot)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeProject",
+        "command": "codeXR.analysis.analyzeProject",
         "title": "CodeXR: Analyze Project (LivePanel)",
-        "icon": "$(project)"
+        "icon": "$(project)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeProjectDeep",
+        "command": "codeXR.analysis.analyzeProjectDeep",
         "title": "CodeXR: Analyze Project (LivePanel Deep)",
-        "icon": "$(layers)"
+        "icon": "$(layers)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeProjectXR",
+        "command": "codeXR.analysis.analyzeProjectXR",
         "title": "CodeXR: Analyze Project (XR)",
-        "icon": "$(device-desktop)"
+        "icon": "$(device-desktop)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.analyzeProjectXRDeep",
+        "command": "codeXR.analysis.analyzeProjectXRDeep",
         "title": "CodeXR: Analyze Project (XR Deep)",
-        "icon": "$(layers-dot)"
+        "icon": "$(layers-dot)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "newCodeAnalysis.visualizeDOM",
+        "command": "codeXR.analysis.visualizeDOM",
         "title": "CodeXR: Visualize DOM",
-        "icon": "$(browser)"
+        "icon": "$(browser)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "codeXR.new_code_analysis.activeAnalyses.close",
+        "command": "codeXR.analysis.activeAnalyses.close",
         "title": "Close Analysis",
-        "icon": "$(close)"
+        "icon": "$(close)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "codeXR.new_code_analysis.activeAnalyses.viewInBrowser",
+        "command": "codeXR.analysis.activeAnalyses.viewInBrowser",
         "title": "Open in Browser",
-        "icon": "$(link-external)"
+        "icon": "$(link-external)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "codeXR.new_code_analysis.activeAnalyses.showDetails",
+        "command": "codeXR.analysis.activeAnalyses.showDetails",
         "title": "View Details",
-        "icon": "$(info)"
+        "icon": "$(info)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
-        "command": "codeXR.new_code_analysis.activeAnalyses.refresh",
+        "command": "codeXR.analysis.activeAnalyses.refresh",
         "title": "Refresh Active Analyses",
-        "icon": "$(refresh)"
+        "icon": "$(refresh)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
       }
     ],
+    "configuration": {
+      "title": "CodeXR",
+      "properties": {
+        "codeXR.debug.verboseLogs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose CodeXR debug logging in the dedicated output channel."
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -272,115 +334,123 @@
       "view/title": [
         {
           "command": "codeXR.activeServers.refreshServers",
-          "when": "view == codexrTree",
+          "when": "view == codexrTree && !codeXR.pythonEnv.uiLocked",
           "group": "navigation@1"
         },
         {
           "command": "codeXR.activeServers.stopAllServers",
-          "when": "view == codexrTree",
+          "when": "view == codexrTree && !codeXR.pythonEnv.uiLocked",
           "group": "navigation@2"
         }
       ],
       "explorer/context": [
         {
-          "command": "newCodeAnalysis.analyzeFile",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
+          "command": "codeXR.analysis.analyzeFile",
+          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@1"
         },
         {
-          "command": "newCodeAnalysis.analyzeFileXR",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
+          "command": "codeXR.analysis.analyzeFileXR",
+          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@2"
         },
         {
-          "command": "newCodeAnalysis.analyzeDirectory",
-          "when": "explorerResourceIsFolder",
+          "command": "codeXR.analysis.analyzeDirectory",
+          "when": "explorerResourceIsFolder && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@3"
         },
         {
-          "command": "newCodeAnalysis.analyzeDirectoryDeep",
-          "when": "explorerResourceIsFolder",
+          "command": "codeXR.analysis.analyzeDirectoryDeep",
+          "when": "explorerResourceIsFolder && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@4"
         },
         {
-          "command": "newCodeAnalysis.analyzeDirectoryXR",
-          "when": "explorerResourceIsFolder",
+          "command": "codeXR.analysis.analyzeDirectoryXR",
+          "when": "explorerResourceIsFolder && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@5"
         },
         {
-          "command": "newCodeAnalysis.analyzeDirectoryXRDeep",
-          "when": "explorerResourceIsFolder",
+          "command": "codeXR.analysis.analyzeDirectoryXRDeep",
+          "when": "explorerResourceIsFolder && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@6"
         },
         {
-          "command": "newCodeAnalysis.analyzeProject",
-          "group": "codexr@7"
+          "command": "codeXR.analysis.analyzeProject",
+          "group": "codexr@7",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectDeep",
-          "group": "codexr@8"
+          "command": "codeXR.analysis.analyzeProjectDeep",
+          "group": "codexr@8",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectXR",
-          "group": "codexr@9"
+          "command": "codeXR.analysis.analyzeProjectXR",
+          "group": "codexr@9",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectXRDeep",
-          "group": "codexr@10"
+          "command": "codeXR.analysis.analyzeProjectXRDeep",
+          "group": "codexr@10",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.visualizeDOM",
-          "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
+          "command": "codeXR.analysis.visualizeDOM",
+          "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@1"
         }
       ],
       "editor/context": [
         {
-          "command": "newCodeAnalysis.analyzeFile",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
+          "command": "codeXR.analysis.analyzeFile",
+          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@1"
         },
         {
-          "command": "newCodeAnalysis.analyzeFileXR",
-          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/",
+          "command": "codeXR.analysis.analyzeFileXR",
+          "when": "resourceExtname =~ /\\.(py|pyw|pyi|rb|rbw|java|c|h|cpp|cxx|cc|hpp|hxx|cs|erl|hrl|f|f90|f95|f03|f08|gd|go|js|mjs|cjs|kt|kts|lua|m|mm|php|phtml|php3|php4|php5|pl|pm|scala|sc|sol|swift|ts|tsx|ttcn|ttcn3|vue|zig)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@2"
         },
         {
-          "command": "newCodeAnalysis.analyzeProject",
-          "group": "codexr@3"
+          "command": "codeXR.analysis.analyzeProject",
+          "group": "codexr@3",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectDeep",
-          "group": "codexr@4"
+          "command": "codeXR.analysis.analyzeProjectDeep",
+          "group": "codexr@4",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectXR",
-          "group": "codexr@5"
+          "command": "codeXR.analysis.analyzeProjectXR",
+          "group": "codexr@5",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.analyzeProjectXRDeep",
-          "group": "codexr@6"
+          "command": "codeXR.analysis.analyzeProjectXRDeep",
+          "group": "codexr@6",
+          "when": "!codeXR.pythonEnv.uiLocked"
         },
         {
-          "command": "newCodeAnalysis.visualizeDOM",
-          "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/",
+          "command": "codeXR.analysis.visualizeDOM",
+          "when": "resourceExtname =~ /\\.(html|htm|xhtml)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "codexr@1"
         }
       ],
       "view/item/context": [
         {
-          "command": "codeXR.new_code_analysis.activeAnalyses.showDetails",
-          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
+          "command": "codeXR.analysis.activeAnalyses.showDetails",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "activeAnalyses@1"
         },
         {
-          "command": "codeXR.new_code_analysis.activeAnalyses.viewInBrowser",
-          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
+          "command": "codeXR.analysis.activeAnalyses.viewInBrowser",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "activeAnalyses@2"
         },
         {
-          "command": "codeXR.new_code_analysis.activeAnalyses.close",
-          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/",
+          "command": "codeXR.analysis.activeAnalyses.close",
+          "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "activeAnalyses@3"
         }
       ]
@@ -388,14 +458,20 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "compile": "node ./node_modules/webpack/bin/webpack.js",
+    "watch": "node ./node_modules/webpack/bin/webpack.js --watch",
+    "package": "node ./node_modules/webpack/bin/webpack.js --mode production --devtool hidden-source-map",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit --incremental false -p .",
+    "compile-tests": "node ./node_modules/typescript/bin/tsc -p . --outDir out",
+    "watch-tests": "node ./node_modules/typescript/bin/tsc -p . -w --outDir out",
+    "lint": "node ./node_modules/eslint/bin/eslint.js src",
+    "test": "npm run test:basic",
+    "test:basic": "npm run typecheck && npm run lint && npm run compile-tests && npm run test:unit",
+    "test:unit": "node test/runners/run-node-tests.cjs",
+    "test:python": "node test/runners/run-python-tests.cjs",
+    "test:all": "npm run test:basic && npm run test:python",
+    "test:integration": "node ./node_modules/@vscode/test-cli/out/bin.mjs",
+    "package:vsix": "npm run package && node scripts/package-vsix.mjs"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -405,6 +481,7 @@
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.7.1",
     "copy-webpack-plugin": "^13.0.0",
     "eslint": "^9.25.1",
     "ts-loader": "^9.5.2",

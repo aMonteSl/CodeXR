@@ -60,7 +60,7 @@ export class DirectoryWatcherOrchestrator {
 
             const debounceDelayMs = await this.loadDebounceConfiguration();
             if (debounceDelayMs === -1) {
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Auto-Analysis DISABLED — skipping watcher setup`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Auto-Analysis DISABLED  skipping watcher setup`);
                 return null;
             }
 
@@ -122,14 +122,14 @@ export class DirectoryWatcherOrchestrator {
             const newDelayMs = await this.loadDebounceConfiguration();
 
             if (newDelayMs === -1) {
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Auto-Analysis now DISABLED — stopping`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Auto-Analysis now DISABLED  stopping`);
                 await this.stopWatching();
                 return;
             }
 
             if (this.debounceManager) {
                 const oldDelay = this.debounceManager.getDelay();
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Updating debounce ${oldDelay}ms → ${newDelayMs}ms`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Updating debounce ${oldDelay}ms  ${newDelayMs}ms`);
                 this.debounceManager.updateDelay(newDelayMs);
             }
         } catch (error) {
@@ -207,13 +207,13 @@ export class DirectoryWatcherOrchestrator {
             // Session still alive?
             const registry = UnifiedSessionRegistry.getInstance(this.context);
             if (!registry.getSession(this.session.id)) {
-                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Session ${this.session.id} gone — stopping`);
+                console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Session ${this.session.id} gone  stopping`);
                 this.stopWatching();
                 return;
             }
 
             const changes = this.accumulator.consumeAll();
-            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Debounce fired — ${changes.changed.length} modified, ${changes.added.length} added, ${changes.deleted.length} deleted`);
+            console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: Debounce fired  ${changes.changed.length} modified, ${changes.added.length} added, ${changes.deleted.length} deleted`);
 
             let hasChanges = false;
 

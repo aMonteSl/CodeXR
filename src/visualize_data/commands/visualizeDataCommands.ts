@@ -1,47 +1,53 @@
 import * as vscode from 'vscode';
 import { VisualizationLauncher } from '../views/interactions/visualizationLauncher';
+import { VisualizeDataModel } from '../model/visualizeDataModel';
 import { VisualizationRestorer, StoredVisualization } from '../runtime/visualizationRestorer';
-import { CommandBuilder } from '../../utils/commandBuilder';
+import { ExtensionCommandRegistration } from '../../commands/shared';
 
 const MODULE = 'VISUALIZE_DATA';
 const BROWSE = 'BROWSE-VISUALIZATIONS';
 
-/**
- * Visualize Data Commands
- * Uses CommandBuilder for consistent error handling and logging.
- */
 export class VisualizeDataCommands {
-    public static registerCommands(context: vscode.ExtensionContext): void {
-        console.log(`${MODULE}: Registering visualize data commands...`);
-
-        /** Helper: create a launcher, run the action, cleanup. */
-        const withLauncher = (action: (l: VisualizationLauncher) => Promise<void>) => async () => {
-            const launcher = new VisualizationLauncher(context);
-            await action(launcher);
-            launcher.cleanup();
+    public static getCommandRegistrations(
+        context: vscode.ExtensionContext,
+    ): ExtensionCommandRegistration[] {
+        const withLauncher = (action: (launcher: VisualizationLauncher) => Promise<void>) => {
+            return async () => {
+                VisualizeDataModel.validateAndCleanState(context);
+                const launcher = new VisualizationLauncher(context);
+                try {
+                    await action(launcher);
+                } finally {
+                    launcher.cleanup();
+                }
+            };
         };
 
-        CommandBuilder.registerAll(context, [
+        context.subscriptions.push({
+            dispose: () => console.log(`${MODULE}: Commands cleanup complete`),
+        });
+
+        return [
             {
                 id: 'codeXR.visualizeData.chartType',
                 module: MODULE,
                 description: 'Chart Type selection',
                 errorMessage: 'Failed to handle chart type',
-                handler: withLauncher(l => l.handleChartType()),
+                handler: withLauncher(launcher => launcher.handleChartType()),
             },
             {
                 id: 'codeXR.visualizeData.selectJson',
                 module: MODULE,
                 description: 'Select JSON',
                 errorMessage: 'Failed to select JSON',
-                handler: withLauncher(l => l.handleSelectJson()),
+                handler: withLauncher(launcher => launcher.handleSelectJson()),
             },
             {
                 id: 'codeXR.visualizeData.dimensionMapping',
                 module: MODULE,
                 description: 'Dimension Mapping',
                 errorMessage: 'Failed to handle dimension mapping',
-                handler: withLauncher(l => l.handleDimensionMapping()),
+                handler: withLauncher(launcher => launcher.handleDimensionMapping()),
             },
             {
                 id: 'codeXR.visualizeData.mapDimensionField',
@@ -49,10 +55,13 @@ export class VisualizeDataCommands {
                 description: 'Map Dimension Field',
                 errorMessage: 'Failed to map dimension field',
                 handler: async (dimensionName: string) => {
-                    console.log(`${MODULE}: Mapping dimension field for: ${dimensionName}`);
+                    VisualizeDataModel.validateAndCleanState(context);
                     const launcher = new VisualizationLauncher(context);
-                    await launcher.handleDimensionFieldMapping(dimensionName);
-                    launcher.cleanup();
+                    try {
+                        await launcher.handleDimensionFieldMapping(dimensionName);
+                    } finally {
+                        launcher.cleanup();
+                    }
                 },
             },
             {
@@ -60,14 +69,14 @@ export class VisualizeDataCommands {
                 module: MODULE,
                 description: 'Launch Visualization',
                 errorMessage: 'Failed to launch visualization',
-                handler: withLauncher(l => l.handleLaunchVisualization()),
+                handler: withLauncher(launcher => launcher.handleLaunchVisualization()),
             },
             {
                 id: 'codeXR.visualizeData.debugState',
                 module: MODULE,
                 description: 'Debug State',
                 errorMessage: 'Failed to show debug state',
-                handler: withLauncher(l => l.handleDebugState()),
+                handler: withLauncher(launcher => launcher.handleDebugState()),
             },
             {
                 id: 'codeXR.browseVisualizations.launch',
@@ -75,7 +84,6 @@ export class VisualizeDataCommands {
                 description: 'Launch stored visualization',
                 errorMessage: 'Failed to launch visualization',
                 handler: async (visualization: StoredVisualization) => {
-                    console.log(`${BROWSE}: Launching: ${visualization.name}`);
                     const restorer = new VisualizationRestorer(context);
                     await restorer.launchVisualization(visualization);
                 },
@@ -89,11 +97,7 @@ export class VisualizeDataCommands {
                     const restorer = new VisualizationRestorer(context);
                     await restorer.resetAllVisualizations();
                 },
-            },
-        ]);
-
-        context.subscriptions.push({
-            dispose: () => console.log(`${MODULE}: Commands cleanup complete`),
-        });
+            }
+        ];
     }
 }

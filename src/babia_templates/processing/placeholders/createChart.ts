@@ -111,9 +111,9 @@ export class CreateChart {
                 {
                     name: 'color',
                     label: 'Color (Complexity)',
-                    dataType: 'numeric',
+                    dataType: 'any',
                     required: true,
-                    description: 'Cyclomatic complexity'
+                    description: 'Categorical or numeric field used for boat color grouping'
                 }
             ],
             htmlTemplate: `<!-- XR Analysis Boats Chart -->
@@ -297,3 +297,4 @@ export class CreateChart {
         ];
     }
 }
+

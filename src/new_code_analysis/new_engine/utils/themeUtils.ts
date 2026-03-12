@@ -19,8 +19,8 @@ export class ThemeUtils {
      */
     public static initialize(context: vscode.ExtensionContext): void {
         this.context = context;
-        console.log('THEME_UTILS: ✅ Initialized with extension context');
-        console.log(`THEME_UTILS: 📂 GlobalStorage path: ${context.globalStorageUri.fsPath}`);
+        console.log('THEME_UTILS:  Initialized with extension context');
+        console.log(`THEME_UTILS:  GlobalStorage path: ${context.globalStorageUri.fsPath}`);
         
         // Test configuration loading immediately
         this.testConfigurationAccess();
@@ -32,9 +32,9 @@ export class ThemeUtils {
     private static async testConfigurationAccess(): Promise<void> {
         try {
             const theme = await this.getUserTheme();
-            console.log(`THEME_UTILS: 🧪 Initialization test - detected theme: ${theme}`);
+            console.log(`THEME_UTILS:  Initialization test - detected theme: ${theme}`);
         } catch (error) {
-            console.error('THEME_UTILS: ❌ Initialization test failed:', error);
+            console.error('THEME_UTILS:  Initialization test failed:', error);
         }
     }
 
@@ -63,29 +63,29 @@ export class ThemeUtils {
             
             // Check if file exists
             if (!fs.existsSync(configPath)) {
-                console.warn(`THEME_UTILS: ❌ Configuration file not found at ${configPath}`);
+                console.warn(`THEME_UTILS:  Configuration file not found at ${configPath}`);
                 return null;
             }
             
             // Check file stats
             const stats = fs.statSync(configPath);
-            console.log(`THEME_UTILS: 📊 File size: ${stats.size} bytes, modified: ${stats.mtime}`);
+            console.log(`THEME_UTILS:  File size: ${stats.size} bytes, modified: ${stats.mtime}`);
             
             const configContent = fs.readFileSync(configPath, 'utf8');
-            console.log(`THEME_UTILS: 📖 Raw content length: ${configContent.length} chars`);
+            console.log(`THEME_UTILS:  Raw content length: ${configContent.length} chars`);
             
             const config = JSON.parse(configContent);
             
-            console.log(`THEME_UTILS: ✅ Configuration loaded successfully`);
-            console.log(`THEME_UTILS: 🔍 ViewTheme value: ${config?.configuration?.viewTheme}`);
+            console.log(`THEME_UTILS:  Configuration loaded successfully`);
+            console.log(`THEME_UTILS:  ViewTheme value: ${config?.configuration?.viewTheme}`);
             
             return config;
             
         } catch (error) {
-            console.error(`THEME_UTILS: ❌ Error loading configuration:`, error);
+            console.error(`THEME_UTILS:  Error loading configuration:`, error);
             if (error instanceof Error) {
-                console.error(`THEME_UTILS: 🔍 Error type: ${error.constructor.name}`);
-                console.error(`THEME_UTILS: 📝 Error message: ${error.message}`);
+                console.error(`THEME_UTILS:  Error type: ${error.constructor.name}`);
+                console.error(`THEME_UTILS:  Error message: ${error.message}`);
             }
             return null;
         }
@@ -96,10 +96,10 @@ export class ThemeUtils {
      * @returns The theme name ('light' or 'dark')
      */
     public static async getUserTheme(): Promise<string> {
-        console.log(`THEME_UTILS: 🔍 getUserTheme called, context initialized: ${!!this.context}`);
+        console.log(`THEME_UTILS:  getUserTheme called, context initialized: ${!!this.context}`);
         
         if (!this.context) {
-            console.warn('THEME_UTILS: ⚠️ Extension context not initialized, trying fallback method');
+            console.warn('THEME_UTILS:  Extension context not initialized, trying fallback method');
             // Try fallback method without context
             return this.getUserThemeFallback();
         }
@@ -108,12 +108,12 @@ export class ThemeUtils {
             const config = await this.loadConfiguration();
             
             if (!config || !config.configuration || !config.configuration.viewTheme) {
-                console.warn('THEME_UTILS: ⚠️ No viewTheme found in configuration, trying fallback');
+                console.warn('THEME_UTILS:  No viewTheme found in configuration, trying fallback');
                 return this.getUserThemeFallback();
             }
             
             const viewTheme = config.configuration.viewTheme;
-            console.log(`THEME_UTILS: 📖 Retrieved viewTheme from config: ${viewTheme}`);
+            console.log(`THEME_UTILS:  Retrieved viewTheme from config: ${viewTheme}`);
             
             // Convert the viewTheme value to template theme class (simply "dark" or "light")
             let templateTheme: string;
@@ -122,16 +122,16 @@ export class ThemeUtils {
             } else if (viewTheme === 'Light' || viewTheme === 'light') {
                 templateTheme = 'light';
             } else {
-                console.warn(`THEME_UTILS: ⚠️ Unknown viewTheme '${viewTheme}', using default light theme`);
+                console.warn(`THEME_UTILS:  Unknown viewTheme '${viewTheme}', using default light theme`);
                 templateTheme = 'light';
             }
             
-            console.log(`THEME_UTILS: ✅ Converted to template theme: ${templateTheme}`);
+            console.log(`THEME_UTILS:  Converted to template theme: ${templateTheme}`);
             return templateTheme;
             
         } catch (error) {
-            console.error('THEME_UTILS: ❌ Error retrieving user theme:', error);
-            console.warn('THEME_UTILS: 🔄 Trying fallback method');
+            console.error('THEME_UTILS:  Error retrieving user theme:', error);
+            console.warn('THEME_UTILS:  Trying fallback method');
             return this.getUserThemeFallback();
         }
     }
@@ -143,7 +143,7 @@ export class ThemeUtils {
         try {
             // Try to read directly from the known path
             const fallbackPath = '/home/adrian/.config/Code/User/globalStorage/amontesl.code-xr/codexr_analysis/configuration_analysis.json';
-            console.log(`THEME_UTILS: 🔄 Trying fallback path: ${fallbackPath}`);
+            console.log(`THEME_UTILS:  Trying fallback path: ${fallbackPath}`);
             
             if (fs.existsSync(fallbackPath)) {
                 const configContent = fs.readFileSync(fallbackPath, 'utf8');
@@ -151,7 +151,7 @@ export class ThemeUtils {
                 
                 if (config?.configuration?.viewTheme) {
                     const viewTheme = config.configuration.viewTheme;
-                    console.log(`THEME_UTILS: 🎯 Fallback found viewTheme: ${viewTheme}`);
+                    console.log(`THEME_UTILS:  Fallback found viewTheme: ${viewTheme}`);
                     
                     if (viewTheme === 'Dark' || viewTheme === 'dark') {
                         return 'dark';
@@ -161,10 +161,10 @@ export class ThemeUtils {
                 }
             }
         } catch (error) {
-            console.error('THEME_UTILS: ❌ Fallback method failed:', error);
+            console.error('THEME_UTILS:  Fallback method failed:', error);
         }
         
-        console.log('THEME_UTILS: 🔄 All methods failed, using default light theme');
+        console.log('THEME_UTILS:  All methods failed, using default light theme');
         return 'light';
     }
 

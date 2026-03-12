@@ -78,7 +78,7 @@ export class LauncherXRAnalysis {
         console.log(`${LOG_PREFIX}: ${label} XR configuration validated successfully`);
         console.log(`Chart Type: ${chartType}`);
         for (const [dimension, dataField] of Object.entries(dimensionMappings)) {
-            console.log(`      ${dimension} → ${dataField}`);
+            console.log(`      ${dimension}  ${dataField}`);
         }
 
         return { isValid: true };

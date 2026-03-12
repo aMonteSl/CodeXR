@@ -139,14 +139,14 @@ export class HttpsCustomServer {
         await this.validateCertificates();
 
         // Find an available port starting from the configured port
-        console.log(`SERVER: 🔍 Looking for available port starting from ${this.config.port} on host ${this.config.host}...`);
+        console.log(`SERVER:  Looking for available port starting from ${this.config.port} on host ${this.config.host}...`);
         const availablePort = await PortManager.findAvailablePort(this.config.port, this.config.port + 100, this.config.host);
         
         if (availablePort !== this.config.port) {
-            console.log(`SERVER: ⚠️  Port ${this.config.port} was busy, using ${availablePort} instead on host ${this.config.host}`);
+            console.log(`SERVER:   Port ${this.config.port} was busy, using ${availablePort} instead on host ${this.config.host}`);
             this.config.port = availablePort;
         } else {
-            console.log(`SERVER: ✅ Port ${this.config.port} is available on host ${this.config.host}`);
+            console.log(`SERVER:  Port ${this.config.port} is available on host ${this.config.host}`);
         }
 
         return new Promise((resolve, reject) => {
@@ -222,12 +222,12 @@ export class HttpsCustomServer {
                     if (err.message.includes('SSLV3_ALERT_CERTIFICATE_UNKNOWN') || 
                         err.message.includes('certificate unknown') ||
                         err.message.includes('SSL alert number 46')) {
-                        console.warn('SERVER: ⚠️  Client rejected custom certificate - this may be expected');
-                        console.warn('SERVER: 🥽 VR Solution: Access the server URL in browser first and accept certificate');
-                        console.warn(`SERVER: 🌐 Navigate to: https://${this.config.host}:${this.config.port} and click "Advanced" -> "Proceed"`);
+                        console.warn('SERVER:   Client rejected custom certificate - this may be expected');
+                        console.warn('SERVER:  VR Solution: Access the server URL in browser first and accept certificate');
+                        console.warn(`SERVER:  Navigate to: https://${this.config.host}:${this.config.port} and click "Advanced" -> "Proceed"`);
                     } else if (err.message.includes('certificate')) {
-                        console.warn('SERVER: ⚠️  Certificate-related TLS error:', err.message);
-                        console.warn('SERVER: 🔧 This may indicate an issue with the custom certificates');
+                        console.warn('SERVER:   Certificate-related TLS error:', err.message);
+                        console.warn('SERVER:  This may indicate an issue with the custom certificates');
                     } else {
                         console.warn('SERVER: TLS client error (non-critical):', err.message);
                     }
@@ -408,7 +408,7 @@ export class HttpsCustomServer {
             const key = fs.readFileSync(this.config.keyPath, 'utf8');
 
             console.log('SERVER: Custom SSL certificates loaded successfully');
-            console.log('SERVER: 🔐 Configuring SSL options for custom certificate VR compatibility');
+            console.log('SERVER:  Configuring SSL options for custom certificate VR compatibility');
             
             return {
                 cert: cert,
@@ -438,7 +438,7 @@ export class HttpsCustomServer {
                 
                 // SNI (Server Name Indication) callback for flexibility
                 SNICallback: (servername: string, callback: (err: Error | null, ctx?: any) => void) => {
-                    console.log(`SERVER: 🥽 SNI request for custom cert: ${servername}`);
+                    console.log(`SERVER:  SNI request for custom cert: ${servername}`);
                     callback(null); // Accept any servername
                 }
             };

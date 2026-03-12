@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { updateServerConfig, getServerConfig } from '../items/configurationItems';
+import { ensureServerConfigReady, updateServerConfig, getServerConfig } from '../items/configurationItems';
 
 /**
  * Handle HTTP Mode configuration click
@@ -131,7 +131,8 @@ export async function handlePortClick(): Promise<void> {
  */
 export async function handleAutoOpenClick(): Promise<void> {
     console.log('SERVER: Auto-Open toggle clicked');
-    
+
+    await ensureServerConfigReady();
     const currentConfig = getServerConfig();
     const newValue = !currentConfig.autoOpen;
     
@@ -147,7 +148,8 @@ export async function handleAutoOpenClick(): Promise<void> {
  */
 export async function handleOpenModeClick(): Promise<void> {
     console.log('SERVER: Open Mode configuration clicked');
-    
+
+    await ensureServerConfigReady();
     const currentConfig = getServerConfig();
     const newMode = currentConfig.openMode === 'Browser' ? 'Lateral Panel' : 'Browser';
     

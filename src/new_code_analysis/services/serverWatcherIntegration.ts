@@ -135,9 +135,9 @@ export class ServerWatcherIntegration {
             const sessionWatcherStopped = await this.sessionWatcherManager.stopWatchingSession(sessionId);
             
             if (sessionWatcherStopped) {
-                console.log(`SERVER_WATCHER_INTEGRATION: ✅ Successfully stopped session file watcher for session ${sessionId}`);
+                console.log(`SERVER_WATCHER_INTEGRATION:  Successfully stopped session file watcher for session ${sessionId}`);
             } else {
-                console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ No active session watcher found for session ${sessionId}`);
+                console.log(`SERVER_WATCHER_INTEGRATION:  No active session watcher found for session ${sessionId}`);
             }
             
             // 2. Stop any VisualizeDOM watchers that might be active for this session
@@ -149,18 +149,18 @@ export class ServerWatcherIntegration {
                     const stopped = VisualizeDOMWatcher.stopWatching(watcherId);
                     if (stopped) {
                         domWatchersStopped++;
-                        console.log(`SERVER_WATCHER_INTEGRATION: ✅ Stopped VisualizeDOM watcher ${watcherId} for session ${sessionId}`);
+                        console.log(`SERVER_WATCHER_INTEGRATION:  Stopped VisualizeDOM watcher ${watcherId} for session ${sessionId}`);
                     }
                 }
             }
             
             if (domWatchersStopped > 0) {
-                console.log(`SERVER_WATCHER_INTEGRATION: ✅ Stopped ${domWatchersStopped} VisualizeDOM watcher(s) for session ${sessionId}`);
+                console.log(`SERVER_WATCHER_INTEGRATION:  Stopped ${domWatchersStopped} VisualizeDOM watcher(s) for session ${sessionId}`);
             } else {
-                console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ No VisualizeDOM watchers found for session ${sessionId}`);
+                console.log(`SERVER_WATCHER_INTEGRATION:  No VisualizeDOM watchers found for session ${sessionId}`);
             }
             
-            console.log(`SERVER_WATCHER_INTEGRATION: ✅ All watchers stopped for session ${sessionId}`);
+            console.log(`SERVER_WATCHER_INTEGRATION:  All watchers stopped for session ${sessionId}`);
             
         } catch (error) {
             console.error(`SERVER_WATCHER_INTEGRATION: Error stopping file watcher for session ${sessionId}:`, error);
@@ -286,7 +286,7 @@ export class ServerWatcherIntegration {
             console.log(`SERVER_WATCHER_INTEGRATION: Strategy 1 - Looking for server with sessionId ${sessionId} in metadata`);
             matchingServer = servers.find((server: any) => {
                 if (server.metadata && server.metadata.sessionId === sessionId) {
-                    console.log(`SERVER_WATCHER_INTEGRATION: ✅ Found server ${server.id} with sessionId in metadata`);
+                    console.log(`SERVER_WATCHER_INTEGRATION:  Found server ${server.id} with sessionId in metadata`);
                     return true;
                 }
                 return false;
@@ -303,7 +303,7 @@ export class ServerWatcherIntegration {
                 console.log(`SERVER_WATCHER_INTEGRATION: Strategy 2 - Looking for server with htmlFile containing ${session.outputPath}`);
                 matchingServer = servers.find((server: any) => {
                     if (server.htmlFile && server.htmlFile.includes(session.outputPath)) {
-                        console.log(`SERVER_WATCHER_INTEGRATION: ✅ Found server ${server.id} by output path match`);
+                        console.log(`SERVER_WATCHER_INTEGRATION:  Found server ${server.id} by output path match`);
                         return true;
                     }
                     return false;
@@ -323,14 +323,14 @@ export class ServerWatcherIntegration {
                     if (server.customName && server.customName.includes('Analysis')) {
                         // Only match if this is the most recently created analysis server
                         // to avoid closing unrelated analysis servers
-                        console.log(`SERVER_WATCHER_INTEGRATION: ⚠️ Found potential analysis server ${server.id} by name pattern`);
+                        console.log(`SERVER_WATCHER_INTEGRATION:  Found potential analysis server ${server.id} by name pattern`);
                         return true;
                     }
                     return false;
                 });
                 
                 if (matchingServer) {
-                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FOUND: ${matchingServer.id} (⚠️ using name pattern - may not be exact match)`);
+                    console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FOUND: ${matchingServer.id} ( using name pattern - may not be exact match)`);
                 } else {
                     console.log(`SERVER_WATCHER_INTEGRATION: Strategy 3 FAILED: No analysis server found by name pattern`);
                 }
@@ -340,7 +340,7 @@ export class ServerWatcherIntegration {
                 console.log(`SERVER_WATCHER_INTEGRATION: Stopping server ${matchingServer.id} using strategy`);
                 await ServerControl.stopServer(matchingServer.id);
             } else {
-                console.log(`SERVER_WATCHER_INTEGRATION: ❌ No matching server found for session ${sessionId} using any strategy`);
+                console.log(`SERVER_WATCHER_INTEGRATION:  No matching server found for session ${sessionId} using any strategy`);
                 console.log(`SERVER_WATCHER_INTEGRATION: Available servers for debugging:`, servers.map((s: any) => ({
                     id: s.id,
                     customName: s.customName,

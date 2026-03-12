@@ -1,29 +1,20 @@
 /**
  * Centralized Error Handler
- * 
+ *
  * Provides consistent error classification, formatting and reporting
- * across the entire extension. Replaces inconsistent patterns of
- * console.error / showErrorMessage / silent swallowing.
- * 
- * Usage:
- *   import { handleError, ErrorSeverity, ErrorDomain } from '../utils/errorHandler';
- *   
- *   try { ... } catch (error) {
- *       handleError(ErrorDomain.Server, 'Failed to start HTTPS server', error, ErrorSeverity.User);
- *   }
+ * across the entire extension.
  */
 
 import * as vscode from 'vscode';
+import { CodeXRLogger } from '../core/logging/logger';
+
+const logger = CodeXRLogger.getLogger('ERROR_HANDLER');
 
 /** Error severity determines how the error is surfaced */
 export enum ErrorSeverity {
-    /** Show to user via showErrorMessage — user can act on it */
     User = 'user',
-    /** Log via console.error — internal/recoverable issue */
     Log = 'log',
-    /** Log as warning — expected/non-critical failure */
     Warn = 'warn',
-    /** Silently ignore — intentional no-op on failure */
     Silent = 'silent',
 }
 
@@ -55,11 +46,6 @@ export function formatErrorMessage(error: unknown): string {
 
 /**
  * Centralized error handler with consistent formatting and severity routing.
- *
- * @param domain   The area of the extension where the error occurred
- * @param operation  A short description of what was being done
- * @param error    The caught error (any type)
- * @param severity How to surface the error (default: Log)
  */
 export function handleError(
     domain: ErrorDomain,
@@ -72,29 +58,22 @@ export function handleError(
 
     switch (severity) {
         case ErrorSeverity.User:
-            console.error(`${prefix}:`, error);
-            vscode.window.showErrorMessage(`${prefix}: ${message}`);
+            logger.error(prefix, error);
+            void vscode.window.showErrorMessage(`${prefix}: ${message}`);
             break;
         case ErrorSeverity.Log:
-            console.error(`${prefix}:`, error);
+            logger.error(prefix, error);
             break;
         case ErrorSeverity.Warn:
-            console.warn(`${prefix}:`, error);
+            logger.warn(prefix, error);
             break;
         case ErrorSeverity.Silent:
-            // Intentional no-op
             break;
     }
 }
 
 /**
  * Convenience wrapper for async operations with consistent error handling.
- * Returns the result or undefined on failure.
- *
- * @param domain    Error domain
- * @param operation Operation description
- * @param fn        Async function to execute
- * @param severity  Error severity (default: Log)
  */
 export async function withErrorHandler<T>(
     domain: ErrorDomain,

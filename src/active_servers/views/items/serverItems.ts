@@ -106,20 +106,20 @@ export class ServerItemFactory {
      * @private
      */
     private static getServerLabel(server: ActiveServer): string {
-        console.log(`SERVER_ITEMS: 🔍 DEBUG - Getting label for server ${server.id}`);
-        console.log(`SERVER_ITEMS: 🔍 DEBUG - Server customName: "${server.customName}"`);
-        console.log(`SERVER_ITEMS: 🔍 DEBUG - Server port: ${server.port}`);
+        console.log(`SERVER_ITEMS:  DEBUG - Getting label for server ${server.id}`);
+        console.log(`SERVER_ITEMS:  DEBUG - Server customName: "${server.customName}"`);
+        console.log(`SERVER_ITEMS:  DEBUG - Server port: ${server.port}`);
         
         // Check if customName is defined and not empty
         if (server.customName && server.customName.trim().length > 0) {
             const trimmedName = server.customName.trim();
-            console.log(`SERVER_ITEMS: ✅ Using custom name: "${trimmedName}"`);
+            console.log(`SERVER_ITEMS:  Using custom name: "${trimmedName}"`);
             return trimmedName;
         }
         
         // Fallback to localhost:<PORT> format when no custom name is provided
         const fallbackName = `localhost:${server.port}`;
-        console.log(`SERVER_ITEMS: ⚠️ No custom name, using fallback: "${fallbackName}"`);
+        console.log(`SERVER_ITEMS:  No custom name, using fallback: "${fallbackName}"`);
         return fallbackName;
     }
 

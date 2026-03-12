@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { generateNonce } from '../../utils/nonceGenerator';
+import { CodeXRLogger } from '../../core/logging/logger';
+
+const logger = CodeXRLogger.getLogger('SERVER_SETTINGS');
 
 /**
  * Structured server configuration interface
@@ -30,20 +33,20 @@ export const DEFAULT_SERVER_SETTINGS: ServerSettings = {
     https: {
         certSource: 'default',
         certPath: '',
-        keyPath: ''
+        keyPath: '',
     },
     defaultPort: 3000,
     launch: {
         autoOpen: true,
-        openMode: 'browser'
+        openMode: 'browser',
     },
     configNonce: generateNonce(),
-    version: '1.0.0'
+    version: '1.0.0',
 };
 
 /**
  * Server Settings Manager
- * Handles structured storage and retrieval of server configuration using file system
+ * Handles structured storage and retrieval of server configuration using file system.
  */
 export class ServerSettingsManager {
     private static instance: ServerSettingsManager;
@@ -51,27 +54,28 @@ export class ServerSettingsManager {
     private context: vscode.ExtensionContext;
     private readonly SETTINGS_FILENAME = 'server-settings.json';
     private settingsFilePath: string;
+    private initializationPromise: Promise<void> | null = null;
+    private initialized = false;
 
     private constructor(context: vscode.ExtensionContext) {
         this.context = context;
-        this.settings = { ...DEFAULT_SERVER_SETTINGS };
+        this.settings = { ...DEFAULT_SERVER_SETTINGS, configNonce: generateNonce() };
         this.settingsFilePath = path.join(context.globalStorageUri.fsPath, this.SETTINGS_FILENAME);
         this.ensureStorageDirectory();
     }
 
     /**
-     * Ensure the global storage directory exists
+     * Ensure the global storage directory exists.
      */
     private ensureStorageDirectory(): void {
         const storageDir = path.dirname(this.settingsFilePath);
         if (!fs.existsSync(storageDir)) {
             fs.mkdirSync(storageDir, { recursive: true });
-            console.log(`SERVER: Created storage directory: ${storageDir}`);
         }
     }
 
     /**
-     * Get singleton instance
+     * Get singleton instance.
      */
     public static getInstance(context?: vscode.ExtensionContext): ServerSettingsManager {
         if (!ServerSettingsManager.instance) {
@@ -84,120 +88,118 @@ export class ServerSettingsManager {
     }
 
     /**
-     * Get current server settings
+     * Ensure settings have been loaded from disk.
+     */
+    public async ensureInitialized(): Promise<void> {
+        if (this.initialized) {
+            return;
+        }
+
+        if (!this.initializationPromise) {
+            this.initializationPromise = this.restoreServerSettingsInternal();
+        }
+
+        await this.initializationPromise;
+    }
+
+    /**
+     * Backward-compatible restore entry point.
+     */
+    public async restoreServerSettings(): Promise<void> {
+        await this.ensureInitialized();
+    }
+
+    /**
+     * Get current server settings.
      */
     public getServerSettings(): ServerSettings {
         return { ...this.settings };
     }
 
     /**
-     * Get extension context
+     * Get extension context.
      */
     public getExtensionContext(): vscode.ExtensionContext {
         return this.context;
     }
 
     /**
-     * Update server settings
+     * Update server settings.
      */
     public async updateServerSettings(updates: Partial<ServerSettings>): Promise<void> {
-        console.log('SERVER: Updating server settings', updates);
-        
-        // Deep merge the updates
-        this.settings = this.deepMerge(this.settings, updates);
-        this.settings.configNonce = generateNonce();
-        
-        // Persist to file system asynchronously
+        await this.ensureInitialized();
+
+        this.settings = this.withRuntimeNonce(this.deepMerge(this.settings, updates));
         await this.persistSettings();
-        
-        // Refresh the tree view
-        vscode.commands.executeCommand('codexr.servers.refresh');
+        void vscode.commands.executeCommand('codexr.servers.refresh');
     }
 
     /**
-     * Restore server settings from file system
+     * Restore server settings from file system.
      */
-    public async restoreServerSettings(): Promise<void> {
-        console.log('SERVER: Restoring server settings from file system');
-        console.log('SERVER: Settings file path:', this.settingsFilePath);
-        
+    private async restoreServerSettingsInternal(): Promise<void> {
         try {
-            if (fs.existsSync(this.settingsFilePath)) {
-                console.log('SERVER: Settings file exists, reading content...');
-                const fileContent = await fs.promises.readFile(this.settingsFilePath, 'utf8');
-                const savedSettings = JSON.parse(fileContent) as ServerSettings;
-                
-                console.log('SERVER: Loaded settings from file:', savedSettings);
-                
-                // Validate and merge with defaults to ensure all required fields exist
-                this.settings = this.deepMerge(DEFAULT_SERVER_SETTINGS, savedSettings);
-                
-                // Regenerate nonce on restore for security
-                this.settings.configNonce = generateNonce();
-                
-                console.log('SERVER: Settings merged with defaults and nonce regenerated');
-                console.log('SERVER: Final restored settings:', this.settings);
-                
-                // Persist the updated settings with new nonce
+            if (!fs.existsSync(this.settingsFilePath)) {
+                this.settings = this.withRuntimeNonce({ ...DEFAULT_SERVER_SETTINGS });
                 await this.persistSettings();
-                
-                console.log('SERVER: Settings successfully restored from file system');
-            } else {
-                console.log('SERVER: No saved settings file found at:', this.settingsFilePath);
-                console.log('SERVER: Using default settings and creating initial file');
-                this.settings = { ...DEFAULT_SERVER_SETTINGS };
-                await this.persistSettings();
-                console.log('SERVER: Default settings applied and file created');
+                this.initialized = true;
+                return;
             }
+
+            const fileContent = await fs.promises.readFile(this.settingsFilePath, 'utf8');
+            const savedSettings = JSON.parse(fileContent) as Partial<ServerSettings>;
+            const normalizedPersistedSettings = this.normalizePersistedSettings(savedSettings);
+            const shouldPersist = this.shouldPersistNormalizedSettings(savedSettings, normalizedPersistedSettings);
+
+            this.settings = this.withRuntimeNonce(normalizedPersistedSettings);
+
+            if (shouldPersist) {
+                await this.persistSettings();
+            }
+
+            this.initialized = true;
         } catch (error) {
-            console.error('SERVER: Error restoring settings from file system:', error);
-            console.log('SERVER: Falling back to default settings');
-            this.settings = { ...DEFAULT_SERVER_SETTINGS };
+            logger.warn('Failed to restore server settings, falling back to defaults.', error);
+            this.settings = this.withRuntimeNonce({ ...DEFAULT_SERVER_SETTINGS });
             await this.persistSettings();
+            this.initialized = true;
         }
     }
 
     /**
-     * Persist settings to file system
+     * Persist settings to file system.
      */
     private async persistSettings(): Promise<void> {
-        try {
-            this.ensureStorageDirectory();
-            
-            const settingsJson = JSON.stringify(this.settings, null, 2);
-            await fs.promises.writeFile(this.settingsFilePath, settingsJson, 'utf8');
-            
-            console.log(`SERVER: Settings persisted to file system: ${this.settingsFilePath}`);
-        } catch (error) {
-            console.error('SERVER: Error persisting settings to file system', error);
-            throw error;
-        }
+        this.ensureStorageDirectory();
+
+        const persistedSettings = this.toPersistedSettings(this.settings);
+        const settingsJson = JSON.stringify(persistedSettings, null, 2);
+        await fs.promises.writeFile(this.settingsFilePath, settingsJson, 'utf8');
     }
 
     /**
-     * Reset settings to defaults
+     * Reset settings to defaults.
      */
     public async resetSettings(): Promise<void> {
-        console.log('SERVER: Resetting settings to defaults');
-        this.settings = { ...DEFAULT_SERVER_SETTINGS };
-        this.settings.configNonce = generateNonce();
+        await this.ensureInitialized();
+        this.settings = this.withRuntimeNonce({ ...DEFAULT_SERVER_SETTINGS });
         await this.persistSettings();
-        vscode.commands.executeCommand('codexr.servers.refresh');
+        void vscode.commands.executeCommand('codexr.servers.refresh');
     }
 
     /**
-     * Get the path to the settings file
+     * Get the path to the settings file.
      */
     public getSettingsFilePath(): string {
         return this.settingsFilePath;
     }
 
     /**
-     * Deep merge utility for partial updates
+     * Deep merge utility for partial updates.
      */
     private deepMerge(target: any, source: any): any {
         const result = { ...target };
-        
+
         for (const key in source) {
             if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
                 result[key] = this.deepMerge(target[key] || {}, source[key]);
@@ -205,12 +207,12 @@ export class ServerSettingsManager {
                 result[key] = source[key];
             }
         }
-        
+
         return result;
     }
 
     /**
-     * Get settings in legacy format for UI compatibility
+     * Get settings in legacy format for UI compatibility.
      */
     public getLegacyConfig(): {
         httpMode: string;
@@ -219,100 +221,113 @@ export class ServerSettingsManager {
         openMode: string;
     } {
         let httpModeDisplay: string;
-        
+
         if (this.settings.mode === 'HTTP') {
             httpModeDisplay = 'HTTP';
+        } else if (this.settings.https.certSource === 'default') {
+            httpModeDisplay = 'HTTPS (default certificates)';
         } else {
-            // HTTPS mode
-            if (this.settings.https.certSource === 'default') {
-                httpModeDisplay = 'HTTPS (default certificates)';
-            } else {
-                // Custom certificates - show paths if available for debugging
-                const certInfo = this.settings.https.certPath && this.settings.https.keyPath 
-                    ? ` [Cert: ${this.settings.https.certPath}, Key: ${this.settings.https.keyPath}]`
-                    : ' [Paths not configured]';
-                httpModeDisplay = `HTTPS (custom certificates)${certInfo}`;
-                
-                console.log('SERVER: Custom HTTPS certificate status:', {
-                    certPath: this.settings.https.certPath,
-                    keyPath: this.settings.https.keyPath,
-                    certSource: this.settings.https.certSource
-                });
-            }
+            const certInfo = this.settings.https.certPath && this.settings.https.keyPath
+                ? ` [Cert: ${this.settings.https.certPath}, Key: ${this.settings.https.keyPath}]`
+                : ' [Paths not configured]';
+            httpModeDisplay = `HTTPS (custom certificates)${certInfo}`;
         }
-        
-        const openModeDisplay = this.settings.launch.openMode === 'browser' ? 'Browser' : 'Lateral Panel';
-        
-        const config = {
+
+        return {
             httpMode: httpModeDisplay,
             port: this.settings.defaultPort,
             autoOpen: this.settings.launch.autoOpen,
-            openMode: openModeDisplay
+            openMode: this.settings.launch.openMode === 'browser' ? 'Browser' : 'Lateral Panel',
         };
-        
-        console.log('SERVER: Legacy config generated:', config);
-        return config;
     }
 
     /**
-     * Update settings from legacy format
+     * Update settings from legacy format.
      */
     public async updateFromLegacyConfig(updates: any): Promise<void> {
+        await this.ensureInitialized();
+
         const newUpdates: Partial<ServerSettings> = {};
-        
-        // Handle HTTP mode changes
+
         if (updates.httpMode) {
             if (updates.httpMode === 'HTTP') {
                 newUpdates.mode = 'HTTP';
             } else if (updates.httpMode === 'HTTPS (default certificates)') {
                 newUpdates.mode = 'HTTPS';
-                newUpdates.https = { 
+                newUpdates.https = {
                     ...this.settings.https,
-                    certSource: 'default'
+                    certSource: 'default',
                 };
             } else if (updates.httpMode === 'HTTPS (custom certificates)') {
                 newUpdates.mode = 'HTTPS';
-                newUpdates.https = { 
+                newUpdates.https = {
                     ...this.settings.https,
-                    certSource: 'custom'
+                    certSource: 'custom',
                 };
             }
         }
-        
-        // Handle certificate and key path updates
-        // Merge these into the existing https object to avoid overwriting
+
         if (updates.customCertPath !== undefined || updates.customKeyPath !== undefined) {
             const currentHttps = newUpdates.https || this.settings.https;
             newUpdates.https = {
                 ...currentHttps,
                 ...(updates.customCertPath !== undefined && { certPath: updates.customCertPath }),
-                ...(updates.customKeyPath !== undefined && { keyPath: updates.customKeyPath })
+                ...(updates.customKeyPath !== undefined && { keyPath: updates.customKeyPath }),
             };
-            
-            console.log('SERVER: Updating HTTPS certificate paths', {
-                certPath: newUpdates.https.certPath,
-                keyPath: newUpdates.https.keyPath,
-                certSource: newUpdates.https.certSource
-            });
         }
-        
-        // Handle port updates
+
         if (updates.port !== undefined) {
             newUpdates.defaultPort = updates.port;
         }
-        
-        // Handle launch configuration updates
+
         if (updates.autoOpen !== undefined || updates.openMode !== undefined) {
             newUpdates.launch = {
                 ...this.settings.launch,
                 ...(updates.autoOpen !== undefined && { autoOpen: updates.autoOpen }),
-                ...(updates.openMode !== undefined && { 
-                    openMode: updates.openMode === 'Browser' ? 'browser' : 'lateralPanel' 
-                })
+                ...(updates.openMode !== undefined && {
+                    openMode: updates.openMode === 'Browser' ? 'browser' : 'lateralPanel',
+                }),
             };
         }
-        
-        console.log('SERVER: Legacy config update merged:', newUpdates);
+
         await this.updateServerSettings(newUpdates);
+    }
+
+    private normalizePersistedSettings(savedSettings: Partial<ServerSettings>): ServerSettings {
+        const mergedSettings = this.deepMerge(DEFAULT_SERVER_SETTINGS, savedSettings);
+        return {
+            ...mergedSettings,
+            configNonce: mergedSettings.configNonce || DEFAULT_SERVER_SETTINGS.configNonce,
+        };
+    }
+
+    private shouldPersistNormalizedSettings(
+        savedSettings: Partial<ServerSettings>,
+        normalizedSettings: ServerSettings,
+    ): boolean {
+        const persistedSavedSettings = this.normalizeForComparison(savedSettings);
+        const persistedNormalizedSettings = this.normalizeForComparison(normalizedSettings);
+        return JSON.stringify(persistedSavedSettings) !== JSON.stringify(persistedNormalizedSettings);
+    }
+
+    private normalizeForComparison(settings: Partial<ServerSettings>): Partial<ServerSettings> {
+        const sanitizedSettings = { ...settings };
+        if (!sanitizedSettings.configNonce) {
+            delete sanitizedSettings.configNonce;
+        }
+        return sanitizedSettings;
+    }
+
+    private withRuntimeNonce(settings: ServerSettings): ServerSettings {
+        return {
+            ...settings,
+            configNonce: generateNonce(),
+        };
+    }
+
+    private toPersistedSettings(settings: ServerSettings): ServerSettings {
+        return {
+            ...settings,
+        };
     }
 }

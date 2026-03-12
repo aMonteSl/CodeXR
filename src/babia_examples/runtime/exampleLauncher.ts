@@ -33,27 +33,9 @@ export class ExampleLauncher {
             errors: []
         };
 
-        try {
-            // First, try to use the extension's own path to find CodeXR directory
-            let workspaceRoot: string;
-            
-            // Method 1: Use extension context to find CodeXR directory
-            const extensionPath = this.context.extensionPath;
-            console.log(`EXAMPLES: Extension path: ${extensionPath}`);
-            
-            if (extensionPath.includes('CodeXR')) {
-                // Extract CodeXR root from extension path
-                const codeXRPath = extensionPath.substring(0, extensionPath.lastIndexOf('CodeXR') + 6);
-                workspaceRoot = codeXRPath;
-                console.log(`EXAMPLES: Found CodeXR from extension path: ${workspaceRoot}`);
-            } else {
-                // Method 2: Force use the known CodeXR path
-                workspaceRoot = '/home/adrian/CodeXR';
-                console.log(`EXAMPLES: Using hardcoded CodeXR path: ${workspaceRoot}`);
-            }
-            
-            // Verify the path exists and has examples/charts
+        try {            let workspaceRoot = this.context.extensionPath;
             let chartsPath = path.join(workspaceRoot, 'examples', 'charts');
+            console.log(`EXAMPLES: Resolved extension root: ${workspaceRoot}`);
             if (!fs.existsSync(chartsPath)) {
                 // Method 3: Try to find from VS Code workspace folders as fallback
                 const workspaceRoots = vscode.workspace.workspaceFolders;
@@ -293,3 +275,5 @@ export class ExampleLauncher {
         this.lastScanTime = 0;
     }
 }
+
+

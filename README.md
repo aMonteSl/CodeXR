@@ -1,4 +1,4 @@
-# Code-XR — Code Visualization in Extended Reality (v1.0.1)
+# Code-XR — Code Visualization in Extended Reality (v1.1.0)
 
 A revolutionary Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code panels and breathtaking XR/VR environments powered by BabiaXR and A-Frame. Dive deep into your codebase with comprehensive file analysis, directory scanning, and interactive DOM visualization.
 
@@ -183,45 +183,24 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Visual Hierarchy**: Clear parent-child relationships in tree structure
 - **Real-time Updates**: See DOM changes as you edit HTML files
 
-## What's New in v1.0.1 - Enhanced File Tracking & Bug Fixes
+## What's New in v1.1.0 - XR Metrics, Smarter Mapping, and Reliability
 
-### Maintenance Release Highlights - Version 1.0.1
-- **Improved Empty File Handling**: New files created during directory analysis now appear immediately in visualizations with metrics initialized to 0, providing accurate file system representation
-- **Fixed Deleted File Tracking**: Resolved issue where deleted files remained in visualizations when re-analyzing directories in XR format. Now properly removes files from both XR (array) and LivePanel (object) data formats
-- **Enhanced Format Detection**: Intelligent detection of data format types (XR vs LivePanel) ensures consistent behavior across all analysis modes
-- **Graceful Error Handling**: Better error recovery when file analysis fails, allowing files to still appear in visualizations as placeholders
-- **Code Quality Improvements**: 10 comprehensive refactoring phases improving maintainability, type safety, and performance
-- **Production Ready**: 0 TypeScript errors, 0 ESLint warnings, optimized 1.43 MB bundle
+### Minor Release Highlights - Version 1.1.0
+- **Live XR Field Schema from Python**: Dimension Mapping now loads the available XR fields and their value types directly from the Python analyzer, so the UI stays aligned with the real analysis output.
+- **Richer XR Metrics**: File and directory XR analyses now expose additional metrics such as `spanLines`, `complexityBand`, line ratios, complexity buckets, and function-summary aggregates for more expressive charts.
+- **Typed BabiaXR Validation**: Chart mappings now validate numeric-only versus free-form BabiaXR dimensions before launch, reducing invalid visualization setups.
+- **Improved XR Boats Hierarchy for File Analysis**: File XR boats now use a synthetic `treePath` so neighborhoods render correctly while every building still represents one function.
+- **Shared Workspace Inventory in the Tree**: `Project Structure` and `Files by Language` now reuse a common workspace snapshot and watcher, reducing duplicated work while keeping both sections synchronized.
+- **Cross-Platform Path and Python Environment Hardening**: Windows path normalization, Python environment recovery, and startup verification are more robust across Windows, Linux, and macOS.
 
-### Key Improvements in v1.0.1
-- **File Lifecycle Tracking**: Watch new files appear in real-time as you create them during directory analysis
-- **Format Compatibility**: Works seamlessly with both XR immersive visualizations and LivePanel detailed analytics
-- **Persistence**: All changes persist in data.json ensuring consistent visualization across sessions
-- **Language Support**: Auto-detects 16+ programming languages for proper syntax highlighting and analysis
+### Key Improvements in v1.1.0
+- **More Expressive XR Data**: The generated `data.json` files now include more useful values for chart mapping and richer exploration in immersive views.
+- **UI/Backend Consistency**: The mapping UI no longer relies on stale hardcoded field lists; the Python analyzer is now the source of truth for XR mapping fields.
+- **Cleaner Directory Reanalysis**: Added and deleted files are reflected more accurately across XR and LivePanel during directory reanalysis.
+- **Safer Environment Recovery**: Existing valid virtual environments are verified and refreshed instead of being unnecessarily recreated.
+- **Validation Coverage**: The release is backed by TypeScript and ESLint validation, Node-based unit tests, and Python backend tests covering path normalization, XR schema behavior, and XR file fallback handling.
 
 ---
-
-## What's New in v1.0.0 - Production Ready Release
-
-### Major Release Highlights - Version 1.0.0
-- **Enhanced Dimension Filtering**: Improved chart dimension mapping to exclude string-based fields (filePath, relativePath) from numeric chart dimensions for cleaner visualizations
-- **Auto-Analysis Toggle**: Auto-Analysis enabled/disabled configuration with persistence and watcher control
-- **Advanced Session Management**: Duplicate session detection and prevention with user notifications and clean analysis flow
-- **Smart HTML File Filtering**: Enhanced XR directory analysis to filter HTML files while maintaining full HTML support in LivePanel mode
-- **Official Documentation Website**: Launch of comprehensive documentation at [https://amontesl.github.io/code-xr-docs/](https://amontesl.github.io/code-xr-docs/)
-- **Enhanced Learn More Section**: Direct access to documentation and tutorials from within VS Code
-- **Configuration Restructuring**: Improved settings organization with nested auto-analysis configuration
-- **Production Stability**: Comprehensive testing and optimization for production use
-
-### Previous Major Features (v0.0.9)
-- **Complete Architecture Overhaul**: Redesigned from the ground up for better performance and reliability
-- **LivePanel Analysis**: Renamed from "Static Analysis" for better clarity and enhanced functionality
-- **Enhanced Directory Analysis**: Complete implementation of directory analysis in all forms (LivePanel and XR)
-- **Deep Analysis Support**: Added deep analysis modes for comprehensive subdirectory traversal
-- **Project Structure Navigation**: Interactive project browser with click-to-analyze functionality
-- **Improved Metrics**: Fixed cyclomatic complexity calculations and added new visualization dimensions
-- **Unified Session Management**: Better tracking and management of active analysis sessions
-
 ## Analysis Modes Overview
 
 Code-XR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 25+ programming languages** with comprehensive file, directory, and project analysis capabilities.
@@ -406,7 +385,7 @@ Customize your immersive experience:
 
 ### Prerequisites
 - **VS Code**: Version 1.98.0 or higher
-- **Python**: Automatically configured (virtual environment created if needed)
+- **Python**: Automatically configured on Windows, Linux, and macOS (isolated virtual environment created if needed)
 - **WebXR Browser**: Chrome, Edge, or Firefox Reality for VR/AR features (optional)
 - **Modern Hardware**: Recommended for optimal XR experience
 
@@ -531,7 +510,7 @@ npm run compile
 npm run watch
 
 # Create VSIX package
-npm run package
+npm run package:vsix
 
 # Run tests
 npm run test
@@ -592,6 +571,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-**Experience your code like never before with Code-XR v0.0.9 - Where comprehensive code analysis meets extended reality!**
+**Experience your code like never before with Code-XR v1.1.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
+
+

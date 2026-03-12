@@ -1,224 +1,197 @@
 import * as vscode from 'vscode';
 import { VenvManager } from '../runtime/venvManager';
+import { ExtensionCommandRegistration } from '../../commands/shared';
+import { CodeXRLogger } from '../../core/logging/logger';
+
+const logger = CodeXRLogger.getLogger('PYTHON_ENV_COMMANDS');
 
 /**
- * Python environment command registration and handlers
+ * Python environment command registration and handlers.
  */
 export class PythonEnvCommands {
-    private venvManager: VenvManager;
+    private readonly venvManager: VenvManager;
 
     constructor(context: vscode.ExtensionContext) {
         this.venvManager = new VenvManager(context);
-        console.log('PYTHON_ENV: Commands module initialized');
+        logger.debug('Python environment commands initialized.');
     }
 
-    /**
-     * Register all Python environment commands
-     */
-    public register(context: vscode.ExtensionContext): void {
-        console.log('PYTHON_ENV: Registering commands...');
-
-        const commands = [
-            vscode.commands.registerCommand('codeXR.pythonEnv.create', () => this.createEnvironment()),
-            vscode.commands.registerCommand('codeXR.pythonEnv.delete', () => this.deleteEnvironment()),
-            vscode.commands.registerCommand('codeXR.pythonEnv.status', () => this.showStatus()),
-            vscode.commands.registerCommand('codeXR.pythonEnv.installPackage', () => this.installPackage()),
-            vscode.commands.registerCommand('codeXR.pythonEnv.reinitialize', () => this.reinitializeEnvironment()),
-            vscode.commands.registerCommand('codeXR.pythonEnv.verifyLizard', () => this.verifyLizard())
+    public getCommandRegistrations(): ExtensionCommandRegistration[] {
+        return [
+            {
+                id: 'codeXR.pythonEnv.create',
+                module: 'PYTHON_ENV',
+                description: 'Create Python environment',
+                handler: () => this.createEnvironment(),
+                errorMessage: 'Failed to create Python environment',
+            },
+            {
+                id: 'codeXR.pythonEnv.delete',
+                module: 'PYTHON_ENV',
+                description: 'Delete Python environment',
+                handler: () => this.deleteEnvironment(),
+                errorMessage: 'Failed to delete Python environment',
+            },
+            {
+                id: 'codeXR.pythonEnv.status',
+                module: 'PYTHON_ENV',
+                description: 'Show Python environment status',
+                handler: () => this.showStatus(),
+                errorMessage: 'Failed to get Python environment status',
+            },
+            {
+                id: 'codeXR.pythonEnv.reinitialize',
+                module: 'PYTHON_ENV',
+                description: 'Reinitialize Python environment',
+                handler: () => this.reinitializeEnvironment(),
+                errorMessage: 'Failed to reinitialize Python environment',
+            },
+            {
+                id: 'codeXR.pythonEnv.verifyInstallation',
+                module: 'PYTHON_ENV',
+                description: 'Verify Python environment installation',
+                handler: () => this.verifyInstallation(),
+                errorMessage: 'Failed to verify Python environment installation',
+            },
+            {
+                id: 'codeXR.pythonEnv.debugFailInstallation',
+                module: 'PYTHON_ENV',
+                description: 'Force a Python environment installation failure for debugging',
+                handler: () => this.debugFailInstallation(),
+                errorMessage: 'Failed to simulate Python environment installation failure',
+            },
         ];
-
-        commands.forEach(command => context.subscriptions.push(command));
-        
-        console.log(`PYTHON_ENV: Registered ${commands.length} commands`);
     }
 
-    /**
-     * Initialize the environment (called on extension startup)
-     */
     public async initializeOnStartup(): Promise<void> {
-        console.log('PYTHON_ENV: Initializing environment on startup...');
-        
+        logger.info('Initializing Python environment in deferred startup.');
+
         try {
             await this.venvManager.initializeEnvironment();
-            console.log('PYTHON_ENV: Startup initialization completed successfully');
+            logger.info('Python environment startup verification completed.');
         } catch (error) {
-            console.error('PYTHON_ENV: Startup initialization failed:', error);
-            // Don't show error to user on startup - just log it
+            logger.error('Python environment startup initialization failed.', error);
+            await this.showEnvironmentFailure(
+                'Python environment initialization failed',
+                error,
+                true,
+            );
         }
     }
 
-    /**
-     * Get the VenvManager instance for external use
-     */
     public getVenvManager(): VenvManager {
         return this.venvManager;
     }
 
-    /**
-     * Command handler: Create new environment
-     */
     private async createEnvironment(): Promise<void> {
-        console.log('PYTHON_ENV: Create environment command triggered');
+        logger.info('Create environment command triggered.');
 
         try {
             const status = this.venvManager.getEnvironmentStatus();
-            
+
             if (status.exists && status.isValid) {
                 const result = await vscode.window.showWarningMessage(
                     'A Python virtual environment already exists. Do you want to recreate it?',
                     'Recreate Environment',
-                    'Cancel'
+                    'Cancel',
                 );
 
                 if (result !== 'Recreate Environment') {
                     return;
                 }
 
-                // Delete existing environment first
                 await this.venvManager.deleteEnvironment();
             }
 
             await this.venvManager.createEnvironment();
-
         } catch (error) {
-            console.error('PYTHON_ENV: Create environment command failed:', error);
-            vscode.window.showErrorMessage(`Failed to create environment: ${error}`);
+            logger.error('Create environment command failed.', error);
+            await this.showEnvironmentFailure('Failed to create environment', error, true);
         }
     }
 
-    /**
-     * Command handler: Delete environment
-     */
     private async deleteEnvironment(): Promise<void> {
-        console.log('PYTHON_ENV: Delete environment command triggered');
+        logger.info('Delete environment command triggered.');
 
         try {
             const status = this.venvManager.getEnvironmentStatus();
-            
+
             if (!status.exists) {
                 vscode.window.showInformationMessage('No Python virtual environment exists to delete.');
                 return;
             }
 
             await this.venvManager.deleteEnvironment();
-
         } catch (error) {
-            console.error('PYTHON_ENV: Delete environment command failed:', error);
-            vscode.window.showErrorMessage(`Failed to delete environment: ${error}`);
+            logger.error('Delete environment command failed.', error);
+            await this.showEnvironmentFailure('Failed to delete environment', error, false);
         }
     }
 
-    /**
-     * Command handler: Show environment status
-     */
     private async showStatus(): Promise<void> {
-        console.log('PYTHON_ENV: Status command triggered');
+        logger.debug('Status command triggered.');
 
         try {
-            const status = this.venvManager.getEnvironmentStatus();
-            
+            let status = this.venvManager.getEnvironmentStatus();
+
+            if (status.exists && status.isValid) {
+                await this.venvManager.refreshEnvironmentMetadata();
+                status = this.venvManager.getEnvironmentStatus();
+            }
+
             let message = 'Python Virtual Environment Status:\n\n';
-            
+
             if (!status.exists) {
-                message += '❌ No environment exists\n';
-                message += 'Use "Create Python Environment" command to set up a new environment.';
+                message += 'No environment exists\n';
+                message += 'Use "Create Python Environment" to set up a new environment.';
             } else {
-                message += status.isValid ? '✅ Environment is valid and ready\n\n' : '❌ Environment exists but is invalid\n\n';
-                
+                message += status.isValid ? 'Environment is valid and ready\n\n' : 'Environment exists but is invalid\n\n';
+
                 if (status.metadata) {
-                    message += `📍 Location: ${status.metadata.venvPath}\n`;
-                    message += `🐍 Python Version: ${status.metadata.pythonVersion || 'Unknown'}\n`;
-                    message += `📅 Created: ${new Date(status.metadata.createdAt).toLocaleString()}\n`;
-                    message += `🔄 Last Validated: ${new Date(status.metadata.lastValidated).toLocaleString()}\n`;
-                    message += `📦 Installed Packages: ${status.metadata.dependencies.length}\n`;
+                    message += `Location: ${status.metadata.venvPath}\n`;
+                    message += `Python Version: ${status.metadata.pythonVersion || 'Unknown'}\n`;
+                    message += `Created: ${new Date(status.metadata.createdAt).toLocaleString()}\n`;
+                    message += `Last Validated: ${new Date(status.metadata.lastValidated).toLocaleString()}\n`;
+                    message += `Installed Packages: ${status.metadata.dependencies.length}\n`;
                 }
 
                 if (status.stats.venvSize !== undefined) {
-                    message += `💾 Environment Size: ~${status.stats.venvSize} MB\n`;
+                    message += `Environment Size: ~${status.stats.venvSize} MB\n`;
                 }
 
-                // Check lizard availability
-                const lizardCommand = this.venvManager.getLizardCommand();
-                if (lizardCommand) {
-                    message += `🦎 Lizard: Available\n`;
-                } else {
-                    message += `🦎 Lizard: Not available\n`;
-                }
+                const pythonPath = this.venvManager.getPythonExecutablePath();
+                message += pythonPath
+                    ? 'Python Executable: Available\n'
+                    : 'Python Executable: Not available\n';
 
                 if (!status.isValid) {
-                    message += '\n⚠️ Environment is invalid. Consider recreating it.';
+                    message += '\nEnvironment is invalid. Consider recreating it.';
                 }
             }
 
-            // Show in information message with option to open output channel for details
             const result = await vscode.window.showInformationMessage(
                 message,
                 { modal: true },
-                'Show Details'
+                'Show Details',
             );
 
             if (result === 'Show Details') {
                 this.showDetailedStatus(status);
             }
-
         } catch (error) {
-            console.error('PYTHON_ENV: Status command failed:', error);
-            vscode.window.showErrorMessage(`Failed to get environment status: ${error}`);
+            logger.error('Status command failed.', error);
+            await this.showEnvironmentFailure('Failed to get environment status', error, false);
         }
     }
 
-    /**
-     * Command handler: Install package
-     */
-    private async installPackage(): Promise<void> {
-        console.log('PYTHON_ENV: Install package command triggered');
-
-        try {
-            const status = this.venvManager.getEnvironmentStatus();
-            
-            if (!status.exists || !status.isValid) {
-                vscode.window.showErrorMessage('No valid Python environment exists. Create one first.');
-                return;
-            }
-
-            const packageName = await vscode.window.showInputBox({
-                prompt: 'Enter the name of the Python package to install',
-                placeHolder: 'e.g., numpy, pandas, matplotlib',
-                validateInput: (value) => {
-                    if (!value || value.trim().length === 0) {
-                        return 'Package name cannot be empty';
-                    }
-                    // Basic validation for package name
-                    if (!/^[a-zA-Z0-9\-_.]+$/.test(value.trim())) {
-                        return 'Invalid package name. Use letters, numbers, hyphens, underscores, and dots only.';
-                    }
-                    return null;
-                }
-            });
-
-            if (!packageName) {
-                return;
-            }
-
-            await this.venvManager.installPackage(packageName.trim());
-
-        } catch (error) {
-            console.error('PYTHON_ENV: Install package command failed:', error);
-            vscode.window.showErrorMessage(`Failed to install package: ${error}`);
-        }
-    }
-
-    /**
-     * Command handler: Reinitialize environment
-     */
     private async reinitializeEnvironment(): Promise<void> {
-        console.log('PYTHON_ENV: Reinitialize environment command triggered');
+        logger.info('Reinitialize environment command triggered.');
 
         try {
             const result = await vscode.window.showInformationMessage(
                 'This will validate and potentially recreate the Python environment. Continue?',
                 'Reinitialize',
-                'Cancel'
+                'Cancel',
             );
 
             if (result !== 'Reinitialize') {
@@ -227,70 +200,63 @@ export class PythonEnvCommands {
 
             await this.venvManager.initializeEnvironment();
             vscode.window.showInformationMessage('Python environment reinitialized successfully!');
-
         } catch (error) {
-            console.error('PYTHON_ENV: Reinitialize command failed:', error);
-            vscode.window.showErrorMessage(`Failed to reinitialize environment: ${error}`);
+            logger.error('Reinitialize command failed.', error);
+            await this.showEnvironmentFailure('Failed to reinitialize environment', error, true);
         }
     }
 
-    /**
-     * Command handler: Verify lizard installation
-     */
-    private async verifyLizard(): Promise<void> {
-        console.log('PYTHON_ENV: Verify lizard command triggered');
+    private async verifyInstallation(): Promise<void> {
+        logger.info('Verify installation command triggered.');
 
         try {
-            const status = this.venvManager.getEnvironmentStatus();
-            
-            if (!status.exists || !status.isValid) {
-                vscode.window.showErrorMessage('No valid Python environment exists. Create one first.');
+            const verification = await this.venvManager.verifyEnvironmentInstallation();
+            vscode.window.showInformationMessage(
+                `CodeXR verified the Python environment successfully. ${verification.packageCount} package(s) recorded.`,
+                { modal: false },
+            );
+        } catch (error) {
+            logger.error('Verify installation command failed.', error);
+            await this.showEnvironmentFailure('Failed to verify installation', error, true);
+        }
+    }
+
+    private async debugFailInstallation(): Promise<void> {
+        logger.warn('Debug fail installation command triggered.');
+
+        try {
+            const result = await vscode.window.showWarningMessage(
+                'This will delete the current CodeXR Python environment and intentionally force the next installation to fail. Continue?',
+                { modal: true },
+                'Force Failure',
+                'Cancel',
+            );
+
+            if (result !== 'Force Failure') {
                 return;
             }
 
-            const isLizardWorking = await this.venvManager.verifyLizardInstallation();
-            
-            if (isLizardWorking) {
-                const lizardCommand = this.venvManager.getLizardCommand();
-                vscode.window.showInformationMessage(
-                    `Lizard is installed and working correctly!\n\nCommand: ${lizardCommand}`
-                );
-            } else {
-                const result = await vscode.window.showWarningMessage(
-                    'Lizard is not working correctly. Would you like to reinstall it?',
-                    'Reinstall Lizard',
-                    'Cancel'
-                );
-
-                if (result === 'Reinstall Lizard') {
-                    await this.venvManager.installPackage('lizard');
-                }
-            }
-
+            await this.venvManager.debugForceInstallationFailure();
         } catch (error) {
-            console.error('PYTHON_ENV: Verify lizard command failed:', error);
-            vscode.window.showErrorMessage(`Failed to verify lizard: ${error}`);
+            logger.error('Debug fail installation command failed.', error);
+            await this.showEnvironmentFailure('Failed to simulate installation failure', error, false);
         }
     }
 
-    /**
-     * Show detailed status in output channel
-     */
-    private showDetailedStatus(status: any): void {
-        const outputChannel = vscode.window.createOutputChannel('Python Environment Details');
-        
+    private showDetailedStatus(status: ReturnType<VenvManager['getEnvironmentStatus']>): void {
+        const outputChannel = vscode.window.createOutputChannel('CodeXR Python Environment Details');
+
         outputChannel.clear();
         outputChannel.appendLine('=== Python Virtual Environment Details ===\n');
-        
         outputChannel.appendLine(`Environment Exists: ${status.exists}`);
         outputChannel.appendLine(`Environment Valid: ${status.isValid}`);
         outputChannel.appendLine(`State File Exists: ${status.stats.stateExists}`);
         outputChannel.appendLine(`Environment Directory Exists: ${status.stats.envExists}`);
-        
+
         if (status.stats.venvSize !== undefined) {
             outputChannel.appendLine(`Environment Size: ~${status.stats.venvSize} MB`);
         }
-        
+
         if (status.metadata) {
             outputChannel.appendLine('\n=== Environment Metadata ===');
             outputChannel.appendLine(`Path: ${status.metadata.venvPath}`);
@@ -298,23 +264,59 @@ export class PythonEnvCommands {
             outputChannel.appendLine(`Created At: ${status.metadata.createdAt}`);
             outputChannel.appendLine(`Last Validated: ${status.metadata.lastValidated}`);
             outputChannel.appendLine(`Is Active: ${status.metadata.isActive}`);
-            
             outputChannel.appendLine('\n=== Installed Packages ===');
+
             if (status.metadata.dependencies.length > 0) {
-                status.metadata.dependencies.forEach((dep: string) => {
-                    outputChannel.appendLine(`  ${dep}`);
+                status.metadata.dependencies.forEach((dependency: string) => {
+                    outputChannel.appendLine(`  ${dependency}`);
                 });
             } else {
-                outputChannel.appendLine('  No packages recorded');
+                outputChannel.appendLine('  No packages recorded. Run "Verify Installation" to refresh the package snapshot.');
             }
         }
-        
+
         const pythonPath = this.venvManager.getPythonExecutablePath();
         if (pythonPath) {
-            outputChannel.appendLine(`\n=== Python Executable ===`);
+            outputChannel.appendLine('\n=== Python Executable ===');
             outputChannel.appendLine(`Path: ${pythonPath}`);
         }
-        
+
         outputChannel.show();
+    }
+
+    private async showEnvironmentFailure(
+        title: string,
+        error: unknown,
+        allowRetry: boolean,
+    ): Promise<void> {
+        const details = this.getErrorDetails(error);
+        const summary = this.getErrorSummary(details);
+        const actions = allowRetry
+            ? ['Retry Installation', 'Show Details']
+            : ['Show Details'];
+
+        const choice = await vscode.window.showErrorMessage(`${title}: ${summary}`, ...actions);
+
+        if (choice === 'Retry Installation') {
+            await vscode.commands.executeCommand('codeXR.pythonEnv.reinitialize');
+            return;
+        }
+
+        if (choice === 'Show Details') {
+            await vscode.window.showInformationMessage(details, { modal: true });
+        }
+    }
+
+    private getErrorDetails(error: unknown): string {
+        if (error instanceof Error) {
+            return error.message;
+        }
+
+        return String(error);
+    }
+
+    private getErrorSummary(details: string): string {
+        const firstLine = details.split(/\r?\n/).find(line => line.trim().length > 0);
+        return firstLine ?? details;
     }
 }

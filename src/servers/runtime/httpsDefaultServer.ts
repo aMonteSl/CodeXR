@@ -98,14 +98,14 @@ export class HttpsDefaultServer {
         await this.validateCertificates();
 
         // Find an available port starting from the configured port
-        console.log(`SERVER: 🔍 Looking for available port starting from ${this.config.port} on host ${this.config.host}...`);
+        console.log(`SERVER:  Looking for available port starting from ${this.config.port} on host ${this.config.host}...`);
         const availablePort = await PortManager.findAvailablePort(this.config.port, this.config.port + 100, this.config.host);
         
         if (availablePort !== this.config.port) {
-            console.log(`SERVER: ⚠️  Port ${this.config.port} was busy, using ${availablePort} instead on host ${this.config.host}`);
+            console.log(`SERVER:   Port ${this.config.port} was busy, using ${availablePort} instead on host ${this.config.host}`);
             this.config.port = availablePort;
         } else {
-            console.log(`SERVER: ✅ Port ${this.config.port} is available on host ${this.config.host}`);
+            console.log(`SERVER:  Port ${this.config.port} is available on host ${this.config.host}`);
         }
 
         return new Promise((resolve, reject) => {
@@ -136,11 +136,11 @@ export class HttpsDefaultServer {
                     const address = this.server?.address();
                     const port = this.config.port;
                     
-                    console.log(`SERVER: ✅ HTTPS server successfully listening!`);
-                    console.log(`SERVER: 🔍 Address object:`, address);
-                    console.log(`SERVER: 🔍 Config host: "${this.config.host}"`);
-                    console.log(`SERVER: 🔍 Config port: ${this.config.port}`);
-                    console.log(`SERVER: 🔍 Actual binding: ${typeof address === 'object' && address ? `${address.family || 'unknown'} ${address.address || 'unknown'}:${address.port || 'unknown'}` : 'unknown'}`);
+                    console.log(`SERVER:  HTTPS server successfully listening!`);
+                    console.log(`SERVER:  Address object:`, address);
+                    console.log(`SERVER:  Config host: "${this.config.host}"`);
+                    console.log(`SERVER:  Config port: ${this.config.port}`);
+                    console.log(`SERVER:  Actual binding: ${typeof address === 'object' && address ? `${address.family || 'unknown'} ${address.address || 'unknown'}:${address.port || 'unknown'}` : 'unknown'}`);
                     
                     // Generate proper URLs for external access
                     const urls = NetworkUtils.generateServerUrls(port, 'https');
@@ -148,7 +148,7 @@ export class HttpsDefaultServer {
                     
                     console.log(`SERVER: HTTPS server listening on port ${port}`);
                     console.log('SERVER: Using default certificates from:', this.config.certPath);
-                    console.log('SERVER: ⚠️  NOTE: Using self-signed certificate - browsers may show security warnings');
+                    console.log('SERVER:   NOTE: Using self-signed certificate - browsers may show security warnings');
                     
                     // Display comprehensive network information
                     NetworkUtils.displayNetworkInfo(port, 'https');
@@ -176,9 +176,9 @@ export class HttpsDefaultServer {
                     if (err.message.includes('SSLV3_ALERT_CERTIFICATE_UNKNOWN') || 
                         err.message.includes('certificate unknown') ||
                         err.message.includes('SSL alert number 46')) {
-                        console.warn('SERVER: ⚠️  Client rejected self-signed certificate - this is expected behavior');
-                        console.warn('SERVER: 🥽 VR Solution: Access the server URL in browser first and accept certificate');
-                        console.warn(`SERVER: 🌐 Navigate to: https://${this.config.host}:${this.config.port} and click "Advanced" -> "Proceed to localhost"`);
+                        console.warn('SERVER:   Client rejected self-signed certificate - this is expected behavior');
+                        console.warn('SERVER:  VR Solution: Access the server URL in browser first and accept certificate');
+                        console.warn(`SERVER:  Navigate to: https://${this.config.host}:${this.config.port} and click "Advanced" -> "Proceed to localhost"`);
                     } else {
                         console.warn('SERVER: TLS client error (non-critical):', err.message);
                     }
@@ -187,13 +187,13 @@ export class HttpsDefaultServer {
                     // This allows the client to potentially retry or handle the error
                 });
 
-                console.log(`SERVER: 🔧 About to call server.listen with:`);
-                console.log(`SERVER: 🔧   port: ${this.config.port} (type: ${typeof this.config.port})`);
-                console.log(`SERVER: 🔧   host: "${this.config.host}" (type: ${typeof this.config.host})`);
+                console.log(`SERVER:  About to call server.listen with:`);
+                console.log(`SERVER:    port: ${this.config.port} (type: ${typeof this.config.port})`);
+                console.log(`SERVER:    host: "${this.config.host}" (type: ${typeof this.config.host})`);
                 
                 // Use callback version of listen for better error handling and debugging
                 this.server.listen(this.config.port, this.config.host, () => {
-                    console.log(`SERVER: 🔧 Listen callback executed successfully`);
+                    console.log(`SERVER:  Listen callback executed successfully`);
                 });
                 
             } catch (error) {
@@ -322,7 +322,7 @@ export class HttpsDefaultServer {
             const key = fs.readFileSync(this.config.keyPath!, 'utf8');
 
             console.log('SERVER: SSL certificates loaded successfully');
-            console.log('SERVER: 🔐 Configuring SSL options for self-signed certificate compatibility');
+            console.log('SERVER:  Configuring SSL options for self-signed certificate compatibility');
             
             return {
                 cert: cert,
@@ -352,7 +352,7 @@ export class HttpsDefaultServer {
                 
                 // SNI (Server Name Indication) callback for flexibility
                 SNICallback: (servername: string, callback: (err: Error | null, ctx?: any) => void) => {
-                    console.log(`SERVER: 🥽 SNI request for: ${servername}`);
+                    console.log(`SERVER:  SNI request for: ${servername}`);
                     callback(null); // Accept any servername
                 }
             };
@@ -464,10 +464,10 @@ export class HttpsDefaultServer {
                        `   • Now your VR headset can access securely!\n\n` +
                        `🔐 This accepts the self-signed certificate for your session.`;
 
-        console.log('SERVER: 🥽 VR Certificate Instructions:');
+        console.log('SERVER:  VR Certificate Instructions:');
         console.log('SERVER: =====================================');
-        console.log(`SERVER: 📱 VR/Mobile URL: ${primaryUrl}`);
-        console.log(`SERVER: 💻 Local URL: ${fallbackUrl}`);
+        console.log(`SERVER:  VR/Mobile URL: ${primaryUrl}`);
+        console.log(`SERVER:  Local URL: ${fallbackUrl}`);
         console.log('SERVER: 1. Navigate to the VR/Mobile URL from your device');
         console.log('SERVER: 2. Accept certificate warning in browser');
         console.log('SERVER: 3. Then use VR headset to access the same URL');

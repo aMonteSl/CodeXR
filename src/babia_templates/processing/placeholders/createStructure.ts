@@ -135,7 +135,7 @@ export class CreateStructure {
                 return '<a-entity id="tree" babia-treebuilder="field: filePath; split_by: /; from: data"></a-entity>';
             } else {
                 console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (file analysis)`);
-                return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';
+                return '<a-entity id="tree" babia-treebuilder="field: treePath; split_by: /; from: data"></a-entity>';
             }
         }
 
@@ -306,3 +306,5 @@ ${scriptContent}
         return ['xr', 'dom', 'none'].includes(type);
     }
 }
+
+

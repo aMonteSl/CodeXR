@@ -336,23 +336,23 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'area',
                 label: 'Area',
-                dataType: 'any',
+                dataType: 'numeric',
                 required: true,
-                description: 'Field containing any values for boat area size (e.g., parameters, function count)'
+                description: 'Numeric field used to size the boat area (e.g., parameters, function count)'
             },
             {
                 name: 'height',
                 label: 'Height',
-                dataType: 'any',
+                dataType: 'numeric',
                 required: true,
-                description: 'Field containing any values for boat height (e.g., lines count, complexity)'
+                description: 'Numeric field used to control boat height (e.g., lines count, complexity)'
             },
             {
                 name: 'color',
                 label: 'Color',
                 dataType: 'any',
                 required: true,
-                description: 'Field containing any values for color mapping (e.g., complexity, density)'
+                description: 'Field used for boat color grouping (supports numeric or text values)'
             }
         ],
         htmlTemplate: `<!-- Boats Chart -->
@@ -374,3 +374,5 @@ export const chartTemplates: ChartMetadata[] = [
                 </a-entity>`
     }
 ];
+
+

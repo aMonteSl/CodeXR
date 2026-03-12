@@ -1,158 +1,142 @@
 import * as vscode from 'vscode';
 import { ServerActionHandlers } from '../views/interactions/handleServerActions';
+import { ExtensionCommandRegistration } from '../../commands/shared';
 
 /**
  * Active Servers Commands
- * VS Code command definitions for active servers functionality
+ * Command declarations for active servers functionality.
  */
 export class ActiveServersCommands {
-    
-    // Store tree data provider reference for refresh operations
-    private static treeDataProvider: any;
+    private static treeDataProvider: { refresh(): void } | undefined;
 
-    /**
-     * Register all active servers commands
-     */
-    public static registerCommands(context: vscode.ExtensionContext, treeDataProvider?: any): void {
-        console.log('ACTIVE_SERVER: Registering active servers commands');
-        
-        // Store the tree data provider reference
+    public static getCommandRegistrations(treeDataProvider?: { refresh(): void }): ExtensionCommandRegistration[] {
         this.treeDataProvider = treeDataProvider;
 
-        // Command: Show server actions (from tree item click)
-        const showServerActionsCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.showActions',
-            async (serverId: string) => {
-                await ServerActionHandlers.showServerActions(serverId);
-            }
-        );
+        return [
+            {
+                id: 'codeXR.activeServers.showActions',
+                module: 'ACTIVE_SERVER',
+                description: 'Show server actions',
+                handler: async (serverId: string) => {
+                    await ServerActionHandlers.showServerActions(serverId);
+                },
+                errorMessage: 'Failed to show server actions'
+            },
+            {
+                id: 'codeXR.activeServers.openInBrowser',
+                module: 'ACTIVE_SERVER',
+                description: 'Open active server in browser',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.openInBrowser(serverId);
+                    }
+                },
+                errorMessage: 'Failed to open active server in browser'
+            },
+            {
+                id: 'codeXR.activeServers.openInPanel',
+                module: 'ACTIVE_SERVER',
+                description: 'Open active server in panel',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.openInPanel(serverId);
+                    }
+                },
+                errorMessage: 'Failed to open active server in panel'
+            },
+            {
+                id: 'codeXR.activeServers.copyUrl',
+                module: 'ACTIVE_SERVER',
+                description: 'Copy active server URL',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.copyUrl(serverId);
+                    }
+                },
+                errorMessage: 'Failed to copy active server URL'
+            },
+            {
+                id: 'codeXR.activeServers.stopServer',
+                module: 'ACTIVE_SERVER',
+                description: 'Stop active server',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.stopServer(serverId);
+                    }
+                },
+                errorMessage: 'Failed to stop active server'
+            },
+            {
+                id: 'codeXR.activeServers.showDetails',
+                module: 'ACTIVE_SERVER',
+                description: 'Show active server details',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.showServerDetails(serverId);
+                    }
+                },
+                errorMessage: 'Failed to show active server details'
+            },
+            {
+                id: 'codeXR.activeServers.stopAllServers',
+                module: 'ACTIVE_SERVER',
+                description: 'Stop all active servers',
+                handler: async () => {
+                    await ServerActionHandlers.stopAllServers();
+                },
+                errorMessage: 'Failed to stop all active servers'
+            },
+            {
+                id: 'codeXR.activeServers.refreshServers',
+                module: 'ACTIVE_SERVER',
+                description: 'Refresh active servers',
+                handler: async () => {
+                    if (this.treeDataProvider?.refresh) {
+                        console.log('ACTIVE_SERVER: Refreshing unified tree view');
+                        this.treeDataProvider.refresh();
+                        return;
+                    }
 
-        // Command: Open server in browser
-        const openInBrowserCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.openInBrowser',
-            async (treeItem: any) => {
-                const serverId = this.extractServerIdFromTreeItem(treeItem);
-                if (serverId) {
-                    await ServerActionHandlers.openInBrowser(serverId);
-                }
-            }
-        );
-
-        // Command: Open server in lateral panel
-        const openInPanelCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.openInPanel',
-            async (treeItem: any) => {
-                const serverId = this.extractServerIdFromTreeItem(treeItem);
-                if (serverId) {
-                    await ServerActionHandlers.openInPanel(serverId);
-                }
-            }
-        );
-
-        // Command: Copy server URL to clipboard
-        const copyUrlCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.copyUrl',
-            async (treeItem: any) => {
-                const serverId = this.extractServerIdFromTreeItem(treeItem);
-                if (serverId) {
-                    await ServerActionHandlers.copyUrl(serverId);
-                }
-            }
-        );
-
-        // Command: Stop specific server
-        const stopServerCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.stopServer',
-            async (treeItem: any) => {
-                const serverId = this.extractServerIdFromTreeItem(treeItem);
-                if (serverId) {
-                    await ServerActionHandlers.stopServer(serverId);
-                }
-            }
-        );
-
-        // Command: Show server details
-        const showDetailsCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.showDetails',
-            async (treeItem: any) => {
-                const serverId = this.extractServerIdFromTreeItem(treeItem);
-                if (serverId) {
-                    await ServerActionHandlers.showServerDetails(serverId);
-                }
-            }
-        );
-
-        // Command: Stop all servers
-        const stopAllServersCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.stopAllServers',
-            async () => {
-                await ServerActionHandlers.stopAllServers();
-            }
-        );
-
-        // Command: Refresh server statuses
-        const refreshServersCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.refreshServers',
-            async () => {
-                // Use the unified tree data provider if available
-                if (this.treeDataProvider && this.treeDataProvider.refresh) {
-                    console.log('ACTIVE_SERVER: Refreshing unified tree view');
-                    this.treeDataProvider.refresh();
-                } else {
                     console.log('ACTIVE_SERVER: Using fallback refresh handler');
-                    vscode.commands.executeCommand('codexr.tree.refresh');
-                }
+                    await vscode.commands.executeCommand('codexr.tree.refresh');
+                },
+                errorMessage: 'Failed to refresh active servers'
+            },
+            {
+                id: 'codeXR.activeServers.openView',
+                module: 'ACTIVE_SERVER',
+                description: 'Open active servers view',
+                handler: async () => {
+                    await vscode.commands.executeCommand('codexrTree.focus');
+                },
+                errorMessage: 'Failed to open active servers view'
             }
-        );
-
-        // Command: Open active servers view 
-        const openViewCmd = vscode.commands.registerCommand(
-            'codeXR.activeServers.openView',
-            async () => {
-                await vscode.commands.executeCommand('codexrTree.focus');
-            }
-        );
-
-        // Register all commands with the extension context
-        context.subscriptions.push(
-            showServerActionsCmd,
-            openInBrowserCmd,
-            openInPanelCmd,
-            copyUrlCmd,
-            stopServerCmd,
-            showDetailsCmd,
-            stopAllServersCmd,
-            refreshServersCmd,
-            openViewCmd
-        );
-
-        console.log('ACTIVE_SERVER: Registered 9 active servers commands');
+        ];
     }
 
-    /**
-     * Extract server ID from tree item context
-     * @private
-     */
-    private static extractServerIdFromTreeItem(treeItem: any): string | null {
-        // Handle different tree item formats
-        if (treeItem && treeItem.server && treeItem.server.id) {
-            console.log(`ACTIVE_SERVER: Extracted server ID from tree item: ${treeItem.server.id}`);
-            return treeItem.server.id;
+    private static extractServerIdFromTreeItem(treeItem: unknown): string | null {
+        if (typeof treeItem === 'object' && treeItem !== null && 'server' in treeItem) {
+            const server = (treeItem as { server?: { id?: string } }).server;
+            if (server?.id) {
+                console.log(`ACTIVE_SERVER: Extracted server ID from tree item: ${server.id}`);
+                return server.id;
+            }
         }
-        
-        // Fallback: if treeItem is a string, use it directly (for backward compatibility)
+
         if (typeof treeItem === 'string') {
             console.log(`ACTIVE_SERVER: Using direct server ID: ${treeItem}`);
             return treeItem;
         }
-        
+
         console.error('ACTIVE_SERVER: Could not extract server ID from tree item:', treeItem);
         return null;
     }
 
-    /**
-     * Get all command IDs for external reference
-     */
     public static getCommandIds(): Record<string, string> {
         return {
             showActions: 'codeXR.activeServers.showActions',

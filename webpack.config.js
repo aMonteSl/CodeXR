@@ -41,8 +41,8 @@ const config = {
     new CopyPlugin({
       patterns: [
         {
-          from: 'src/new_code_analysis/new_python',
-          to: 'new_code_analysis/new_python',
+          from: 'src/code_analysis/python',
+          to: 'code_analysis/python',
           globOptions: {
             ignore: ['**/*.ts', '**/__pycache__/**'], // Exclude TypeScript files and Python cache
           },
@@ -72,3 +72,4 @@ const config = {
   },
 };
 module.exports = config;
+

@@ -68,7 +68,7 @@ export class FileRequirementProcessor {
      * @returns Promise with required files (paths and metadata only)
      */
     public async processRequirements(session: UnifiedAnalysisSession, theme?: string): Promise<ProcessedRequirements> {
-        console.log(`FILE_REQUIREMENT_PROCESSOR: 🚀 Processing requirements for session ${session.id}`);
+        console.log(`FILE_REQUIREMENT_PROCESSOR:  Processing requirements for session ${session.id}`);
         console.log(`FILE_REQUIREMENT_PROCESSOR: Analysis mode: ${session.analysisMode}, Target type: ${session.targetType}`);
         console.log(`FILE_REQUIREMENT_PROCESSOR: Target path: ${session.targetPath}`);
         console.log(`FILE_REQUIREMENT_PROCESSOR: Theme: ${theme || 'default'}`);
@@ -125,14 +125,14 @@ export class FileRequirementProcessor {
                     throw new Error(`Unknown analysis mode: ${session.analysisMode}`);
             }
 
-            console.log(`FILE_REQUIREMENT_PROCESSOR: ✅ Requirements processed successfully for session ${session.id}`);
+            console.log(`FILE_REQUIREMENT_PROCESSOR:  Requirements processed successfully for session ${session.id}`);
             console.log(`FILE_REQUIREMENT_PROCESSOR: Total files loaded: ${requirements.loadedFiles.size}`);
             console.log(`FILE_REQUIREMENT_PROCESSOR: Estimated complexity: ${requirements.estimatedComplexity}`);
 
             return requirements;
 
         } catch (error) {
-            console.error(`FILE_REQUIREMENT_PROCESSOR: ❌ Error processing requirements for session ${session.id}:`, error);
+            console.error(`FILE_REQUIREMENT_PROCESSOR:  Error processing requirements for session ${session.id}:`, error);
             throw error;
         }
     }

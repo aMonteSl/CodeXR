@@ -98,7 +98,7 @@ export class DirectoryReAnalyzer {
         }
 
         fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
-        console.log(`DIRECTORY_REANALYZER: Updated XR data.json — ${updated} files, total ${currentData.length}`);
+        console.log(`DIRECTORY_REANALYZER: Updated XR data.json  ${updated} files, total ${currentData.length}`);
     }
 
     private updateLivePanelDataJson(currentData: any, results: any[], dataJsonPath: string): void {
@@ -125,7 +125,7 @@ export class DirectoryReAnalyzer {
         currentData.summary.analyzedAt = new Date().toISOString();
 
         fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
-        console.log(`DIRECTORY_REANALYZER: Updated LivePanel data.json — ${updated} files, total ${currentData.files.length}`);
+        console.log(`DIRECTORY_REANALYZER: Updated LivePanel data.json  ${updated} files, total ${currentData.files.length}`);
     }
 
     // ── Added / Deleted file processing ──────────────────────────
@@ -371,7 +371,7 @@ export class DirectoryReAnalyzer {
 
         data.summary = { ...data.summary, ...summary };
 
-        console.log(`DIRECTORY_REANALYZER: Summary recalculated — ${summary.totalFilesAnalyzed}/${summary.totalFiles} files analyzed`);
+        console.log(`DIRECTORY_REANALYZER: Summary recalculated  ${summary.totalFilesAnalyzed}/${summary.totalFiles} files analyzed`);
     }
 
     // ── SSE notifications ────────────────────────────────────────

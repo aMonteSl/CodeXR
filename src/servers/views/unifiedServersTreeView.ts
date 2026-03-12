@@ -18,7 +18,7 @@ export class ServerTreeItem extends vscode.TreeItem {
         public readonly iconPath?: vscode.ThemeIcon | vscode.Uri | { light: vscode.Uri; dark: vscode.Uri },
         public readonly tooltip?: string,
         public readonly description?: string,
-        public readonly contextValue?: string
+        public readonly contextValue?: string,
     ) {
         super(label, collapsibleState);
         this.tooltip = tooltip || this.label;
@@ -30,31 +30,22 @@ export class ServerTreeItem extends vscode.TreeItem {
 
 /**
  * Servers tree data provider that handles only the SERVERS section
- * 
+ *
  * Architecture Notes:
  * - This view is specific to server configuration and launch
  * - Follows the modular architecture pattern with items/ and interactions/ directories
  * - Delegates to appropriate handlers for user interactions
+ * - Refresh commands are registered centrally through src/commands/index.ts
  */
 export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTreeItem> {
-    private _onDidChangeTreeData: vscode.EventEmitter<ServerTreeItem | undefined | null | void> = 
+    private _onDidChangeTreeData: vscode.EventEmitter<ServerTreeItem | undefined | null | void> =
         new vscode.EventEmitter<ServerTreeItem | undefined | null | void>();
-    
-    readonly onDidChangeTreeData: vscode.Event<ServerTreeItem | undefined | null | void> = 
+
+    readonly onDidChangeTreeData: vscode.Event<ServerTreeItem | undefined | null | void> =
         this._onDidChangeTreeData.event;
 
     constructor(private context: vscode.ExtensionContext) {
         console.log('SERVERS_TREE: Servers tree data provider initialized');
-        
-        // Register refresh command (only if not already registered)
-        try {
-            vscode.commands.registerCommand('codexr.servers.refreshServers', () => {
-                this.refresh();
-            });
-        } catch (error) {
-            // Command might already be registered, ignore this error
-            console.log('SERVERS_TREE: Refresh servers command already registered');
-        }
     }
 
     /**
@@ -79,7 +70,7 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
         if (!element) {
             // Root level - return the SERVERS section
             console.log('SERVERS_TREE: Loading root SERVERS section');
-            
+
             return Promise.resolve([
                 new ServerTreeItem(
                     'SERVERS',
@@ -87,8 +78,8 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
                     'section',
                     undefined,
                     new vscode.ThemeIcon('server-environment'),
-                    'Server configuration and launch options'
-                )
+                    'Server configuration and launch options',
+                ),
             ]);
         }
 
@@ -118,7 +109,7 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
     private getServersChildren(): Thenable<ServerTreeItem[]> {
         console.log('SERVERS_TREE: Loading servers section children');
         const config = getServerConfig();
-        
+
         return Promise.resolve([
             new ServerTreeItem(
                 'Server Configuration',
@@ -126,7 +117,7 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
                 'config-group',
                 undefined,
                 ServerNodeIcons.configuration,
-                'Configure server settings'
+                'Configure server settings',
             ),
             new ServerTreeItem(
                 'Start Local Server',
@@ -134,11 +125,11 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
                 'launch-option',
                 {
                     command: 'codexr.server.launch',
-                    title: 'Start Local Server'
+                    title: 'Start Local Server',
                 },
                 ServerNodeIcons.startServer,
-                `Start server on port ${config.port} (${config.httpMode})`
-            )
+                `Start server on port ${config.port} (${config.httpMode})`,
+            ),
         ]);
     }
 
@@ -149,7 +140,7 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
         console.log('SERVERS_TREE: Loading server configuration children');
         const configItems = createConfigurationItems();
 
-        const children: ServerTreeItem[] = configItems.map(item => 
+        const children: ServerTreeItem[] = configItems.map(item =>
             new ServerTreeItem(
                 item.label,
                 vscode.TreeItemCollapsibleState.None,
@@ -157,8 +148,8 @@ export class ServersTreeDataProvider implements vscode.TreeDataProvider<ServerTr
                 item.command,
                 item.iconPath,
                 item.tooltip,
-                item.description
-            )
+                item.description,
+            ),
         );
 
         return Promise.resolve(children);

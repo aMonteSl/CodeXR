@@ -93,6 +93,7 @@ export async function startLocalServer(): Promise<void> {
         
         // Step 3: Get current server configuration
         const settingsManager = ServerSettingsManager.getInstance(extensionContext);
+        await settingsManager.ensureInitialized();
         const settings = settingsManager.getServerSettings();
         
         console.log('SERVER: Current configuration:', {
