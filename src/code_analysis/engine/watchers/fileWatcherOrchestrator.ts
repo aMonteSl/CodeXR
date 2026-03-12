@@ -1,6 +1,6 @@
 /**
  * File Watcher Orchestrator
- * Coordina el file watching, debounce y re-análisis para una sesión específica
+ * Handles file-based re-analysis for XR, LivePanel and VisualizeDOM sessions.
  */
 
 import * as vscode from 'vscode';
@@ -12,241 +12,198 @@ import { ReAnalysisManager } from './reAnalysisManager';
 import { DebounceManager, DebounceStatus } from './debounceManager';
 import { AnalysisConfigurationStorage } from '../../configuration/analysisConfigurationStorage';
 import { ConfigurationConverter } from './configurationConverter';
+import { getFileStatSnapshot } from './directorySnapshot';
+import { SHA256Generator } from '../../../utils/sha256Generator';
 
 export class FileWatcherOrchestrator {
     private watcher: fs.FSWatcher | null = null;
     private debounceManager: DebounceManager | null = null;
     private reAnalysisManager: ReAnalysisManager;
     private watcherId: string | null = null;
-    private isWatching: boolean = false;
+    private isWatching = false;
     private configurationStorage: AnalysisConfigurationStorage;
+    private lastKnownMtimeMs?: number;
+    private lastKnownSize?: number;
 
     constructor(
         private session: UnifiedAnalysisSession,
-        private context: vscode.ExtensionContext
+        private context: vscode.ExtensionContext,
     ) {
-        console.log(`FILE_WATCHER_ORCHESTRATOR: Initializing orchestrator for session ${session.id}`);
-        console.log(`FILE_WATCHER_ORCHESTRATOR: Target file: ${session.targetPath}`);
-        
         this.reAnalysisManager = new ReAnalysisManager(context);
         this.configurationStorage = AnalysisConfigurationStorage.getInstance(context);
     }
 
-    /**
-     * Carga la configuración de debounce del usuario
-     */
     private async loadDebounceConfiguration(): Promise<number> {
         try {
-            const config = await this.configurationStorage.loadConfiguration();
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  DEBUG - Loading configuration for auto-analysis`);
-            
-            // Verificar si auto-analysis está habilitado
             const autoAnalysisEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  DEBUG - Auto-Analysis Enabled: ${autoAnalysisEnabled}`);
-            
             if (!autoAnalysisEnabled) {
-                console.log(`FILE_WATCHER_ORCHESTRATOR:  Auto-Analysis is DISABLED - Watchers will not be activated`);
-                return -1; // Return -1 to indicate disabled state
+                return -1;
             }
-            
-            const delayMs = ConfigurationConverter.convertToMilliseconds(config.autoAnalysisDelay);
-            
-            console.log(`FILE_WATCHER_ORCHESTRATOR: Loaded debounce config - ${ConfigurationConverter.getDisplayName(config.autoAnalysisDelay)} (${delayMs}ms)`);
-            
-            return delayMs;
-        } catch (error) {
-            console.error(`FILE_WATCHER_ORCHESTRATOR: Error loading configuration, using default 3s:`, error);
-            return 3000; // Default fallback
+
+            const config = await this.configurationStorage.loadConfiguration();
+            return ConfigurationConverter.convertToMilliseconds(config.autoAnalysisDelay);
+        } catch {
+            return 3000;
         }
     }
 
-    /**
-     * Inicia el file watcher para la sesión
-     */
     async startWatching(): Promise<string | null> {
         if (this.isWatching) {
-            console.log(`FILE_WATCHER_ORCHESTRATOR: Already watching session ${this.session.id}`);
             return this.watcherId;
         }
 
+        const targetPath = this.session.targetPath;
+        if (!fs.existsSync(targetPath)) {
+            console.error(`FILE_WATCHER_ORCHESTRATOR: Target file does not exist: ${targetPath}`);
+            return null;
+        }
+
+        const initialSnapshot = await getFileStatSnapshot(targetPath);
+        if (initialSnapshot) {
+            this.lastKnownMtimeMs = initialSnapshot.mtimeMs;
+            this.lastKnownSize = initialSnapshot.size;
+        }
+
+        const parentDirectory = path.dirname(targetPath);
+        const targetName = path.basename(targetPath);
+
         try {
-            const targetPath = this.session.targetPath;
-            
-            // Verificar que el archivo existe
-            if (!fs.existsSync(targetPath)) {
-                console.error(`FILE_WATCHER_ORCHESTRATOR:  Target file does not exist: ${targetPath}`);
-                return null;
-            }
-
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Starting file watcher for: ${targetPath}`);
-
-            // Crear watcher usando fs.watch
-            this.watcher = fs.watch(targetPath, (eventType, filename) => {
-                console.log(`FILE_WATCHER_ORCHESTRATOR:  File change detected: ${eventType} for ${filename || targetPath}`);
-                this.onFileChanged();
+            this.watcher = fs.watch(parentDirectory, (eventType, filename) => {
+                if (!filename || filename === targetName) {
+                    void this.onFileChanged(eventType);
+                }
             });
 
             this.isWatching = true;
             this.watcherId = `watcher_${this.session.id}_${Date.now()}`;
-
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Successfully started watching ${targetPath}`);
-            console.log(`FILE_WATCHER_ORCHESTRATOR: Watcher ID: ${this.watcherId}`);
-
             return this.watcherId;
-
         } catch (error) {
-            console.error(`FILE_WATCHER_ORCHESTRATOR:  Error starting file watcher:`, error);
+            console.error('FILE_WATCHER_ORCHESTRATOR: Error starting file watcher:', error);
             this.isWatching = false;
             return null;
         }
     }
 
-    /**
-     * Maneja los cambios de archivo
-     */
-    private async onFileChanged(): Promise<void> {
-        try {
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Processing file change for ${this.session.targetPath}`);
-
-            // CRITICAL: Check if session still exists before processing
-            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
-            const currentSession = sessionRegistry.getSession(this.session.id);
-            
-            if (!currentSession) {
-                console.log(`FILE_WATCHER_ORCHESTRATOR:  Session ${this.session.id} no longer exists, stopping watcher`);
-                this.stopWatching();
-                return;
-            }
-            
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Session ${this.session.id} still exists, proceeding with file change processing`);
-
-            // Cargar configuración de debounce del usuario
-            const delayMs = await this.loadDebounceConfiguration();
-            
-            // Verificar si auto-analysis está habilitado
-            if (delayMs === -1) {
-                console.log(`FILE_WATCHER_ORCHESTRATOR:  Auto-Analysis is DISABLED - Skipping re-analysis`);
-                return; // No procesar cambios si está deshabilitado
-            }
-            
-            const fileName = path.basename(this.session.targetPath);
-
-            // Cancelar debounce previo si existe
-            if (this.debounceManager) {
-                this.debounceManager.dispose();
-            }
-
-            // Crear nuevo debounce manager
-            this.debounceManager = new DebounceManager(
-                delayMs,
-                () => this.executeReAnalysis(),
-                fileName
-            );
-
-            // Iniciar el debounce
-            this.debounceManager.start();
-
-        } catch (error) {
-            console.error(`FILE_WATCHER_ORCHESTRATOR:  Error processing file change:`, error);
+    private async onFileChanged(eventType: string): Promise<void> {
+        const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+        const currentSession = sessionRegistry.getSession(this.session.id);
+        if (!currentSession) {
+            this.stopWatching();
+            return;
         }
+
+        const delayMs = await this.loadDebounceConfiguration();
+        if (delayMs === -1) {
+            return;
+        }
+
+        if (this.debounceManager) {
+            this.debounceManager.dispose();
+        }
+
+        this.debounceManager = new DebounceManager(
+            delayMs,
+            () => this.executeReAnalysisIfNeeded(),
+            path.basename(this.session.targetPath),
+        );
+        this.debounceManager.start();
+        console.log(`FILE_WATCHER_ORCHESTRATOR: Debounce restarted after ${eventType} for ${this.session.targetPath}`);
     }
 
-    /**
-     * Ejecuta el re-análisis cuando el debounce se completa
-     */
-    private async executeReAnalysis(): Promise<void> {
-        try {
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Executing re-analysis for session ${this.session.id}`);
-            console.log(`FILE_WATCHER_ORCHESTRATOR: Target: ${this.session.targetPath}`);
-
-            // CRITICAL: Double-check that session still exists before executing re-analysis
-            const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
-            const currentSession = sessionRegistry.getSession(this.session.id);
-            
-            if (!currentSession) {
-                console.log(`FILE_WATCHER_ORCHESTRATOR:  Session ${this.session.id} no longer exists, aborting re-analysis`);
-                this.stopWatching();
-                return;
-            }
-            
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Session ${this.session.id} still exists, proceeding with re-analysis`);
-
-            // Usar ReAnalysisManager para regenerar solo el data.json
-            const success = await this.reAnalysisManager.executeDataJsonRegeneration(this.session);
-
-            if (success) {
-                console.log(`FILE_WATCHER_ORCHESTRATOR:  Re-analysis completed successfully`);
-                
-                // Mostrar notificación sutil
-                const fileName = path.basename(this.session.targetPath);
-                vscode.window.setStatusBarMessage(
-                    `$(check) Analysis updated for ${fileName}`, 
-                    2000 // 2 segundos
-                );
-            } else {
-                console.error(`FILE_WATCHER_ORCHESTRATOR:  Re-analysis failed`);
-                vscode.window.showErrorMessage(`Failed to update analysis for ${path.basename(this.session.targetPath)}`);
-            }
-        } catch (error) {
-            console.error(`FILE_WATCHER_ORCHESTRATOR:  Error during re-analysis:`, error);
-            vscode.window.showErrorMessage(`Error updating analysis: ${error instanceof Error ? error.message : String(error)}`);
+    private async executeReAnalysisIfNeeded(): Promise<void> {
+        const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+        const currentSession = sessionRegistry.getSession(this.session.id);
+        if (!currentSession) {
+            this.stopWatching();
+            return;
         }
+
+        const statSnapshot = await getFileStatSnapshot(this.session.targetPath);
+        if (!statSnapshot) {
+            console.warn(`FILE_WATCHER_ORCHESTRATOR: Target file is not accessible yet: ${this.session.targetPath}`);
+            return;
+        }
+
+        if (this.lastKnownMtimeMs === statSnapshot.mtimeMs && this.lastKnownSize === statSnapshot.size) {
+            console.log(`FILE_WATCHER_ORCHESTRATOR: Ignoring duplicate event for ${this.session.targetPath}`);
+            return;
+        }
+
+        let currentHash: string;
+        try {
+            currentHash = await SHA256Generator.generateFileHash(this.session.targetPath);
+        } catch (error) {
+            console.error('FILE_WATCHER_ORCHESTRATOR: Failed to calculate file hash:', error);
+            return;
+        }
+
+        if (currentHash === this.session.hash256) {
+            this.lastKnownMtimeMs = statSnapshot.mtimeMs;
+            this.lastKnownSize = statSnapshot.size;
+            this.session.metadata.lastModified = new Date(statSnapshot.mtimeMs);
+            this.session.metadata.targetSize = statSnapshot.size;
+            console.log(`FILE_WATCHER_ORCHESTRATOR: Skipping re-analysis because hash did not change for ${this.session.targetPath}`);
+            return;
+        }
+
+        sessionRegistry.updateSessionStatus(this.session.id, 'analyzing', 50);
+
+        let success = false;
+        if (this.session.analysisMode === 'VisualizeDOM') {
+            success = await this.reAnalysisManager.executeVisualizeDOMRegeneration(this.session);
+        } else {
+            success = await this.reAnalysisManager.executeDataJsonRegeneration(this.session);
+        }
+
+        if (!success) {
+            vscode.window.showErrorMessage(`Failed to update analysis for ${path.basename(this.session.targetPath)}`);
+            sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
+            return;
+        }
+
+        this.session.hash256 = currentHash;
+        this.lastKnownMtimeMs = statSnapshot.mtimeMs;
+        this.lastKnownSize = statSnapshot.size;
+        this.session.metadata.lastModified = new Date(statSnapshot.mtimeMs);
+        this.session.metadata.targetSize = statSnapshot.size;
+        sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
+
+        const targetName = path.basename(this.session.targetPath);
+        const noun = this.session.analysisMode === 'VisualizeDOM' ? 'HTML visualization' : 'analysis';
+        vscode.window.setStatusBarMessage(`$(check) Updated ${noun} for ${targetName}`, 2000);
+        console.log(`FILE_WATCHER_ORCHESTRATOR: Re-analysis completed for ${targetName}`);
     }
 
-    /**
-     * Para el file watcher
-     */
     stopWatching(): void {
-        try {
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Stopping file watcher for session ${this.session.id}`);
-
-            if (this.watcher) {
-                this.watcher.close();
-                this.watcher = null;
-                console.log(`FILE_WATCHER_ORCHESTRATOR: File watcher closed`);
-            }
-
-            if (this.debounceManager) {
-                this.debounceManager.dispose();
-                this.debounceManager = null;
-                console.log(`FILE_WATCHER_ORCHESTRATOR: Debounce manager disposed`);
-            }
-
-            this.isWatching = false;
-            this.watcherId = null;
-
-            console.log(`FILE_WATCHER_ORCHESTRATOR:  Successfully stopped watching`);
-
-        } catch (error) {
-            console.error(`FILE_WATCHER_ORCHESTRATOR:  Error stopping file watcher:`, error);
+        if (this.watcher) {
+            this.watcher.close();
+            this.watcher = null;
         }
+
+        if (this.debounceManager) {
+            this.debounceManager.dispose();
+            this.debounceManager = null;
+        }
+
+        this.isWatching = false;
+        this.watcherId = null;
     }
 
-    /**
-     * Obtiene el estado actual del watcher
-     */
     getStatus(): WatcherStatus {
         return {
             isWatching: this.isWatching,
             watcherId: this.watcherId,
             targetPath: this.session.targetPath,
             sessionId: this.session.id,
-            debounceStatus: this.debounceManager?.getStatus() || null
+            debounceStatus: this.debounceManager?.getStatus() || null,
         };
     }
 
-    /**
-     * Limpia recursos
-     */
     dispose(): void {
-        console.log(`FILE_WATCHER_ORCHESTRATOR:  Disposing orchestrator for session ${this.session.id}`);
         this.stopWatching();
     }
 }
 
-/**
- * Interfaz para el estado del watcher
- */
 export interface WatcherStatus {
     isWatching: boolean;
     watcherId: string | null;

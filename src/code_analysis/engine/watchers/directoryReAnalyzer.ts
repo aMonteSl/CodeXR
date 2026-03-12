@@ -1,7 +1,6 @@
 /**
  * Directory Re-Analyzer
- * Handles re-analysis of changed files, updating data.json (XR and LivePanel formats),
- * processing added/deleted files, recalculating summaries, and sending SSE notifications.
+ * Re-analyzes only the directory entries that actually changed and updates data.json in place.
  */
 
 import * as fs from 'fs';
@@ -29,15 +28,9 @@ export class DirectoryReAnalyzer {
         this.sessionServerManager = new SessionServerManager(context);
     }
 
-    // -- Re-analysis -------------------------------------------------
-
-    /**
-     * Re-analyze an array of changed files using the Python coordinator.
-     */
     async reAnalyzeFiles(changedFiles: string[]): Promise<any[] | null> {
         try {
             console.log(`DIRECTORY_REANALYZER: Re-analyzing ${changedFiles.length} changed files`);
-
             const result = await this.executePython.executeFileReanalysis(changedFiles);
 
             if (!result || !Array.isArray(result)) {
@@ -45,7 +38,6 @@ export class DirectoryReAnalyzer {
                 return null;
             }
 
-            console.log(`DIRECTORY_REANALYZER: Re-analysis completed, received ${result.length} file summaries`);
             return result;
         } catch (error) {
             console.error('DIRECTORY_REANALYZER: Error during re-analysis:', error);
@@ -53,12 +45,6 @@ export class DirectoryReAnalyzer {
         }
     }
 
-    // -- Data.json updates -------------------------------------------
-
-    /**
-     * Update the existing data.json with re-analysis results.
-     * Automatically detects XR vs LivePanel format from the persisted payload.
-     */
     async updateDataJson(session: UnifiedAnalysisSession, reAnalysisResults: any[]): Promise<void> {
         try {
             if (!session.savedFilesPath) {
@@ -98,7 +84,6 @@ export class DirectoryReAnalyzer {
             }
         });
 
-        let updated = 0;
         for (const file of results) {
             const filePath = file.filePath ?? file.file_path;
             const index = typeof filePath === 'string' ? fileMap.get(filePath) : undefined;
@@ -108,11 +93,9 @@ export class DirectoryReAnalyzer {
             } else {
                 currentData.push(file);
             }
-            updated++;
         }
 
         fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
-        console.log(`DIRECTORY_REANALYZER: Updated XR data.json - ${updated} files, total ${currentData.length}`);
     }
 
     private updateLivePanelDataJson(currentData: any, results: any[], dataJsonPath: string): void {
@@ -130,7 +113,6 @@ export class DirectoryReAnalyzer {
             }
         });
 
-        let updated = 0;
         for (const file of results) {
             const filePath = file.filePath ?? file.file_path;
             const index = typeof filePath === 'string' ? fileMap.get(filePath) : undefined;
@@ -140,7 +122,6 @@ export class DirectoryReAnalyzer {
             } else {
                 currentData.files.push(file);
             }
-            updated++;
         }
 
         recalculateLivePanelSummary(currentData);
@@ -150,14 +131,8 @@ export class DirectoryReAnalyzer {
         currentData.summary.analyzedAt = new Date().toISOString();
 
         fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
-        console.log(`DIRECTORY_REANALYZER: Updated LivePanel data.json - ${updated} files, total ${currentData.files.length}`);
     }
 
-    // -- Added / Deleted file processing -----------------------------
-
-    /**
-     * Analyze newly added files and append them to data.json.
-     */
     async handleAddedFiles(
         session: UnifiedAnalysisSession,
         addedFiles: string[],
@@ -174,8 +149,6 @@ export class DirectoryReAnalyzer {
             let hasChanges = false;
 
             for (const filePath of addedFiles) {
-                console.log(`DIRECTORY_REANALYZER: Processing added file: ${filePath}`);
-
                 const existing = xrFormat
                     ? data.find((file: any) => file.file_path === filePath || file.filePath === filePath)
                     : data.files?.find((file: any) => file.file_path === filePath || file.filePath === filePath);
@@ -189,7 +162,6 @@ export class DirectoryReAnalyzer {
                     let result = Array.isArray(reanalysisResults) ? reanalysisResults[0] : reanalysisResults;
 
                     if (!result || result.success === false) {
-                        console.log(`DIRECTORY_REANALYZER: File analysis returned no data, creating empty entry: ${filePath}`);
                         result = createEmptyFileEntry(filePath);
                     }
 
@@ -203,33 +175,20 @@ export class DirectoryReAnalyzer {
                     }
 
                     hasChanges = true;
-
                     const hash = await SHA256Generator.generateFileHash(filePath);
-                    hashTracker.trackNewFile(filePath, hash);
-
-                    if (session.filesToHash) {
-                        session.filesToHash.push({ filePath, hash });
-                    }
-
-                    console.log(`DIRECTORY_REANALYZER: Added new file to data.json: ${filePath}`);
+                    await hashTracker.trackNewFile(filePath, hash);
                 } catch (error) {
                     console.error(`DIRECTORY_REANALYZER: Error analyzing new file ${filePath}:`, error);
-
-                    try {
-                        const emptyEntry = createEmptyFileEntry(filePath);
-                        if (xrFormat) {
-                            data.push(emptyEntry);
-                        } else {
-                            if (!data.files) {
-                                data.files = [];
-                            }
-                            data.files.push(emptyEntry);
+                    const emptyEntry = createEmptyFileEntry(filePath);
+                    if (xrFormat) {
+                        data.push(emptyEntry);
+                    } else {
+                        if (!data.files) {
+                            data.files = [];
                         }
-                        hasChanges = true;
-                        console.log(`DIRECTORY_REANALYZER: Created empty entry for failed analysis: ${filePath}`);
-                    } catch (createError) {
-                        console.error(`DIRECTORY_REANALYZER: Failed to create empty entry for ${filePath}:`, createError);
+                        data.files.push(emptyEntry);
                     }
+                    hasChanges = true;
                 }
             }
 
@@ -252,14 +211,10 @@ export class DirectoryReAnalyzer {
         }
     }
 
-    /**
-     * Remove deleted files from data.json.
-     * Handles both XR format (plain array) and LivePanel format (object with .files property).
-     */
     async handleDeletedFiles(
         session: UnifiedAnalysisSession,
         deletedFiles: string[],
-        closeFsWatcher: (filePath: string) => void,
+        hashTracker: FileHashTracker,
     ): Promise<void> {
         try {
             const dataJsonPath = path.join(session.savedFilesPath!, 'data.json');
@@ -272,18 +227,15 @@ export class DirectoryReAnalyzer {
             let hasChanges = false;
 
             for (const deletedPath of deletedFiles) {
-                console.log(`DIRECTORY_REANALYZER: Processing deleted file: ${deletedPath}`);
-
                 const removed = xrFormat
                     ? removeDeletedFileFromXRFormat(data, deletedPath)
                     : removeDeletedFileFromLivePanelFormat(data, deletedPath);
 
                 if (removed) {
-                    console.log(`DIRECTORY_REANALYZER: Removed deleted file from data.json: ${deletedPath}`);
                     hasChanges = true;
                 }
 
-                closeFsWatcher(deletedPath);
+                hashTracker.untrackFile(deletedPath);
             }
 
             if (!hasChanges) {
@@ -305,11 +257,6 @@ export class DirectoryReAnalyzer {
         }
     }
 
-    // -- SSE notifications ------------------------------------------
-
-    /**
-     * Send SSE notification to update connected clients.
-     */
     async sendSSENotification(session: UnifiedAnalysisSession): Promise<void> {
         try {
             const { SSEManager } = require('../../../servers/runtime/sse/SSEManager');
@@ -320,18 +267,13 @@ export class DirectoryReAnalyzer {
             } else {
                 sseManager.sendUpdate(session.targetPath);
             }
-
-            console.log('DIRECTORY_REANALYZER: SSE notification sent');
         } catch (sseError) {
             console.error('DIRECTORY_REANALYZER: SSE direct failed, trying fallback...');
             try {
                 await this.sessionServerManager.notifyAnalysisUpdated(session.id);
-                console.log('DIRECTORY_REANALYZER: SSE fallback succeeded');
             } catch (fallbackError) {
                 console.error('DIRECTORY_REANALYZER: SSE fallback also failed:', fallbackError);
             }
         }
     }
 }
-
-

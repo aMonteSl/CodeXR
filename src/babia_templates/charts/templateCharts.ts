@@ -4,6 +4,11 @@ import { ChartMetadata } from '../models/chartModels';
  * BabiaXR Chart Templates
  * Defines all available chart types with their metadata and simplified HTML templates
  */
+export const DEFAULT_BOATS_LEGEND_TEXT = `{name}
+{fheight} (height): {height}
+{farea} (area): {area}
+{fcolor} (color): {color}`;
+
 export const chartTemplates: ChartMetadata[] = [
     // Bar Chart Template
     {
@@ -360,6 +365,7 @@ export const chartTemplates: ChartMetadata[] = [
                     babia-boats="from: tree;
                                  title: {{TITLE}};
                                  legend: true;
+                                 legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};

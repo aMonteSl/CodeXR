@@ -11,8 +11,7 @@ import * as vscode from 'vscode';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
 import { UnifiedSessionRegistry } from '../core/sessionRegistry';
 import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
-import { FileWatcherOrchestrator } from '../watchers/fileWatcherOrchestrator';
-import { DirectoryWatcherOrchestrator } from '../watchers/directoryWatcherOrchestrator';
+import { SessionWatcherManager } from '../watchers/sessionWatcherManager';
 import { AnalysisConfigurationStorage } from '../../configuration/analysisConfigurationStorage';
 import { DimensionValidator } from '../../../babia_templates/processing/dimensionValidator';
 import { BabiaChartRegistry } from '../../../babia_templates/registry/chartRegistry';
@@ -147,9 +146,8 @@ export class LauncherXRAnalysis {
             },
 
             startWatcher: async () => {
-                const watcher = new FileWatcherOrchestrator(session, context);
-                await watcher.startWatching();
-                return session.watcherId;
+                const watcher = new SessionWatcherManager(context);
+                return watcher.startWatchingSession(session);
             },
 
             onSuccess: (port) => {
@@ -182,8 +180,8 @@ export class LauncherXRAnalysis {
             },
 
             startWatcher: async () => {
-                const watcher = new DirectoryWatcherOrchestrator(session, context);
-                return watcher.startWatching();
+                const watcher = new SessionWatcherManager(context);
+                return watcher.startWatchingSession(session);
             },
 
             onSuccess: (port) => {
@@ -194,3 +192,4 @@ export class LauncherXRAnalysis {
         });
     }
 }
+

@@ -4,6 +4,8 @@ import { UnifiedAnalysisSession } from '../../core/analysisSession';
 import { ProcessedRequirements } from '../FileRequirementProcessor';
 import { LivePanelParser } from '../../parsers/livePanelParser';
 import { ExecutePython } from '../../utils/executePython';
+import { SHA256Generator } from '../../../../utils/sha256Generator';
+import { buildTrackedFileSnapshot } from '../../watchers/directorySnapshot';
 
 /**
  * Handles template files for LivePanel directory analysis
@@ -76,9 +78,9 @@ export class LivePanelDirectoryRequirements {
                             if (fileData.filePath) {
                                 try {
                                     // Generate hash for the analyzed file
-                                    const { SHA256Generator } = require('../../../../utils/sha256Generator');
                                     const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
-                                    filesToHash.push({
+                                    const trackedSnapshot = await buildTrackedFileSnapshot(fileData.filePath, fileHash);
+                                    filesToHash.push(trackedSnapshot ?? {
                                         filePath: fileData.filePath,
                                         hash: fileHash
                                     });
@@ -170,3 +172,4 @@ export class LivePanelDirectoryRequirements {
         }
     }
 }
+

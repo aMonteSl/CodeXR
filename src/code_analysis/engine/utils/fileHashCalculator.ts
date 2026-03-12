@@ -14,6 +14,8 @@ import { isSupportedExtension } from '../../../utils/supportedLanguages';
 export interface FileHash {
     filePath: string;
     hash: string;
+    size?: number;
+    mtimeMs?: number;
 }
 
 /**
@@ -160,3 +162,4 @@ export async function calculateFilesHashes(directories: string[]): Promise<FileH
         throw error;
     }
 }
+

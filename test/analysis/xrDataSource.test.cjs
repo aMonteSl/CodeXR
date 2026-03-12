@@ -35,6 +35,29 @@ test('XR boats tree builder uses treePath for file analysis and filePath for dir
     );
 });
 
+test('boats chart legend text keeps multiline content without width/depth and does not leak into donut', () => {
+    const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
+    const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
+
+    assert.match(
+        templateCharts,
+        /export const DEFAULT_BOATS_LEGEND_TEXT = `\{name\}\r?\n\{fheight\} \(height\): \{height\}\r?\n\{farea\} \(area\): \{area\}\r?\n\{fcolor\} \(color\): \{color\}`;/,
+    );
+    assert.equal(templateCharts.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
+
+    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?zone_elevation: 0\.1"/);
+    assert.ok(boatsBlock);
+    assert.match(boatsBlock[0], /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
+    assert.doesNotMatch(boatsBlock[0], /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
+
+    const donutBlock = templateCharts.match(/babia-doughnut="from: data;[\s\S]*?axis_name: true"/);
+    assert.ok(donutBlock);
+    assert.equal(donutBlock[0].includes('legend_text'), false);
+
+    assert.match(createChart, /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
+    assert.doesNotMatch(createChart, /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
+});
+
 test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeholder', () => {
     const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 

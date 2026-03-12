@@ -13,6 +13,7 @@ import { TemplateProcessor } from '../../../babia_templates/processing/templateP
 import { ExecutePython } from '../utils/executePython';
 import { DimensionMapping } from '../../../babia_templates/models/chartModels';
 import { SHA256Generator } from '../../../utils/sha256Generator';
+import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 
 export interface DirectoryXRParsingResult {
     success: boolean;
@@ -127,7 +128,8 @@ export class DirectoryXRParser {
                         try {
                             // Generate hash for the analyzed file
                             const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
-                            filesToHash.push({
+                            const trackedSnapshot = await buildTrackedFileSnapshot(fileData.filePath, fileHash);
+                            filesToHash.push(trackedSnapshot ?? {
                                 filePath: fileData.filePath,
                                 hash: fileHash
                             });
@@ -245,3 +247,5 @@ export class DirectoryXRParser {
 
 // Export singleton instance
 export const directoryXRParser = new DirectoryXRParser();
+
+

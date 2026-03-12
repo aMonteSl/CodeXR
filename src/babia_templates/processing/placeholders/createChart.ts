@@ -1,5 +1,5 @@
 import { ChartMetadata, DimensionMapping } from '../../models/chartModels';
-import { chartTemplates } from '../../charts/templateCharts';
+import { chartTemplates, DEFAULT_BOATS_LEGEND_TEXT } from '../../charts/templateCharts';
 
 /**
  * Chart Creator Module - Specialized for Chart Entity Creation
@@ -121,6 +121,7 @@ export class CreateChart {
                     babia-boats="from: data;
                                  title: {{TITLE}};
                                  legend: true;
+                                 legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
