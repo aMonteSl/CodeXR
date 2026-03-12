@@ -7,3 +7,6 @@ out/
 **/*.pyd
 *.tsbuildinfo
 memoriaTFG/
+certs/*.pem
+dist/certs/
+
