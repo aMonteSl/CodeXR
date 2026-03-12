@@ -9,7 +9,7 @@ export async function handleHttpModeClick(): Promise<void> {
     
     const options = [
         'HTTP',
-        'HTTPS (default certificates)',
+        'HTTPS (generated local certificates)',
         'HTTPS (custom certificates)'
     ];
     
@@ -89,7 +89,7 @@ export async function handleHttpModeClick(): Promise<void> {
             console.log(`SERVER: HTTP mode changed to ${selected} with custom certificates`);
             vscode.window.showInformationMessage(`SERVER: HTTPS mode updated with custom certificates`);
         } else {
-            // Handle HTTP and HTTPS with default certificates
+            // Handle HTTP and HTTPS with generated local certificates
             await updateServerConfig({ httpMode: selected });
             console.log(`SERVER: HTTP mode changed to ${selected}`);
             vscode.window.showInformationMessage(`SERVER: HTTP mode updated to ${selected}`);
@@ -157,3 +157,4 @@ export async function handleOpenModeClick(): Promise<void> {
     console.log(`SERVER: Open Mode changed to ${newMode}`);
     vscode.window.showInformationMessage(`SERVER: Open Mode set to ${newMode}`);
 }
+

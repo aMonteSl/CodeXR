@@ -6,10 +6,11 @@ import { LivePanelParser } from '../../parsers/livePanelParser';
 import { ExecutePython } from '../../utils/executePython';
 import { SHA256Generator } from '../../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../../watchers/directorySnapshot';
+import { resolveTrackedSystemPath } from '../../watchers/directoryReanalysisData';
 
 /**
  * Handles template files for LivePanel directory analysis
- * 
+ *
  * This class:
  * - Determines which templates are needed based on analysis type
  * - Calls LivePanelParser to load actual files
@@ -29,7 +30,7 @@ export class LivePanelDirectoryRequirements {
 
     /**
      * Gets loaded template files for LivePanel directory analysis
-     * 
+     *
      * @param session - Unified analysis session
      * @param theme - Current user theme (optional, defaults to 'vscode-light')
      * @returns Promise with loaded template files
@@ -44,22 +45,18 @@ export class LivePanelDirectoryRequirements {
         console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS: Files to hash: ${session.filesToHash?.length || 0}`);
 
         try {
-            // STEP 1: Load template files
             console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Loading template files...`);
             const loadedFiles = await this.livePanelParser.loadTemplateFiles(session.targetType, session.analysisMode, theme);
-            
-            // STEP 2: Execute Python analysis to get data.json
+
             console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Executing Python directory analysis...`);
-            
+
             try {
-                // Execute Python analysis using the unified analysis method
                 const analysisResult = await this.executePython.executeAnalysis(session);
-                
+
                 if (analysisResult && analysisResult.summary) {
-                    // Add the generated data.json to the loaded files
                     const dataJsonContent = JSON.stringify(analysisResult, null, 2);
                     loadedFiles.set('data.json', dataJsonContent);
-                    
+
                     console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Python analysis completed successfully`);
                     console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Analysis summary:`, {
                         totalFiles: analysisResult.summary?.totalFiles || 0,
@@ -67,41 +64,41 @@ export class LivePanelDirectoryRequirements {
                         notAnalyzedFiles: analysisResult.summary?.totalFilesNotAnalyzed || 0
                     });
 
-                    // 🔥 CRITICAL FIX: Update session.filesToHash with actually analyzed files
-                    // This is essential for the DirectoryWatcherOrchestrator to work properly
                     const analyzedFiles = analysisResult.files || [];
                     if (analyzedFiles.length > 0) {
                         console.log(` LIVEPANEL_DIRECTORY_REQUIREMENTS: Updating session.filesToHash with ${analyzedFiles.length} analyzed files...`);
                         const filesToHash: { filePath: string; hash: string }[] = [];
-                        
+
                         for (const fileData of analyzedFiles) {
-                            if (fileData.filePath) {
-                                try {
-                                    // Generate hash for the analyzed file
-                                    const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
-                                    const trackedSnapshot = await buildTrackedFileSnapshot(fileData.filePath, fileHash);
-                                    filesToHash.push(trackedSnapshot ?? {
-                                        filePath: fileData.filePath,
-                                        hash: fileHash
-                                    });
-                                } catch (hashError) {
-                                    console.error(`LIVEPANEL_DIRECTORY_REQUIREMENTS: Error generating hash for ${fileData.filePath}:`, hashError);
-                                    // Add with empty hash as fallback
-                                    filesToHash.push({
-                                        filePath: fileData.filePath,
-                                        hash: ''
-                                    });
-                                }
+                            const trackedPath = resolveTrackedSystemPath(session.targetPath, fileData);
+                            if (!trackedPath) {
+                                console.warn(
+                                    `LIVEPANEL_DIRECTORY_REQUIREMENTS: Could not resolve system path for tracked entry: ${fileData.fileName || fileData.relativePath || 'unknown'}`,
+                                );
+                                continue;
+                            }
+
+                            try {
+                                const fileHash = await SHA256Generator.generateFileHash(trackedPath);
+                                const trackedSnapshot = await buildTrackedFileSnapshot(trackedPath, fileHash);
+                                filesToHash.push(trackedSnapshot ?? {
+                                    filePath: trackedPath,
+                                    hash: fileHash
+                                });
+                            } catch (hashError) {
+                                console.error(`LIVEPANEL_DIRECTORY_REQUIREMENTS: Error generating hash for ${trackedPath}:`, hashError);
+                                filesToHash.push({
+                                    filePath: trackedPath,
+                                    hash: ''
+                                });
                             }
                         }
-                        
-                        // Update the session with actually analyzed files
+
                         session.filesToHash = filesToHash;
                         console.log(` LIVEPANEL_DIRECTORY_REQUIREMENTS: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
                     }
                 } else {
                     console.warn(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Python analysis returned invalid data`);
-                    // Add empty data.json as fallback
                     const fallbackData = {
                         summary: {
                             totalFiles: 0,
@@ -119,16 +116,14 @@ export class LivePanelDirectoryRequirements {
                         },
                         files: [],
                         metadata: {
-                            analysisType: "DirectoryLivePanel",
-                            error: "Analysis returned invalid data"
+                            analysisType: 'DirectoryLivePanel',
+                            error: 'Analysis returned invalid data'
                         }
                     };
                     loadedFiles.set('data.json', JSON.stringify(fallbackData, null, 2));
                 }
-                
             } catch (pythonError) {
                 console.error(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Error during Python analysis:`, pythonError);
-                // Add error data.json as fallback
                 const errorData = {
                     summary: {
                         totalFiles: 0,
@@ -146,30 +141,28 @@ export class LivePanelDirectoryRequirements {
                     },
                     files: [],
                     metadata: {
-                        analysisType: "DirectoryLivePanel",
+                        analysisType: 'DirectoryLivePanel',
                         error: `Python execution error: ${pythonError}`
                     }
                 };
                 loadedFiles.set('data.json', JSON.stringify(errorData, null, 2));
             }
-            
+
             console.log(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Successfully loaded ${loadedFiles.size} template files`);
-            
+
             const requirements: ProcessedRequirements = {
                 sessionId: session.id,
                 analysisMode: session.analysisMode,
                 targetPath: session.targetPath,
-                loadedFiles: loadedFiles,
+                loadedFiles,
                 estimatedComplexity: 'low',
                 processingTime: new Date()
             };
 
             return requirements;
-
         } catch (error) {
             console.error(`LIVEPANEL_DIRECTORY_REQUIREMENTS:  Error loading template files:`, error);
             throw error;
         }
     }
 }
-

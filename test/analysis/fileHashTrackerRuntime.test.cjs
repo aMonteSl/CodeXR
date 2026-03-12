@@ -62,3 +62,42 @@ test('FileHashTracker only reports candidates whose hash really changed', async 
 
     fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('FileHashTracker treats rename and file lifecycle changes as added and removed entries', async () => {
+    const root = createTempDir('codexr-rename-');
+    const originalPath = path.join(root, 'sample.ts');
+    const renamedPath = path.join(root, 'renamed.ts');
+    fs.writeFileSync(originalPath, 'export const value = 1;\n');
+
+    const initialStat = fs.statSync(originalPath);
+    const initialHash = await SHA256Generator.generateFileHash(originalPath);
+    const tracker = new FileHashTracker([
+        {
+            filePath: originalPath,
+            hash: initialHash,
+            size: initialStat.size,
+            mtimeMs: initialStat.mtimeMs,
+        },
+    ]);
+
+    fs.renameSync(originalPath, renamedPath);
+    const renamedStat = fs.statSync(renamedPath);
+
+    const renameDiff = tracker.diffAgainst([
+        { filePath: renamedPath, size: renamedStat.size, mtimeMs: renamedStat.mtimeMs },
+    ]);
+
+    assert.deepEqual(renameDiff.added, [renamedPath]);
+    assert.deepEqual(renameDiff.removed, [originalPath]);
+    assert.deepEqual(renameDiff.suspectedChanged, []);
+
+    tracker.untrackFile(originalPath);
+    await tracker.trackNewFile(renamedPath, await SHA256Generator.generateFileHash(renamedPath));
+
+    const deletionDiff = tracker.diffAgainst([]);
+    assert.deepEqual(deletionDiff.added, []);
+    assert.deepEqual(deletionDiff.removed, [renamedPath]);
+    assert.deepEqual(deletionDiff.suspectedChanged, []);
+
+    fs.rmSync(root, { recursive: true, force: true });
+});

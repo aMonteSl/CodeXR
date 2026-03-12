@@ -438,7 +438,7 @@ export class MultiServerLauncher {
                     break;
 
                 case 'https-default':
-                    console.log('SERVER: Creating HTTPS server with default certificates...');
+                    console.log('SERVER: Creating HTTPS server with generated local certificates...');
                     server = new HttpsDefaultServer({
                         port,
                         host,
@@ -650,3 +650,4 @@ export class MultiServerLauncher {
         }
     }
 }
+

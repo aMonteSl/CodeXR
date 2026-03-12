@@ -14,6 +14,7 @@ import { ExecutePython } from '../utils/executePython';
 import { DimensionMapping } from '../../../babia_templates/models/chartModels';
 import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
+import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 
 export interface DirectoryXRParsingResult {
     success: boolean;
@@ -22,7 +23,6 @@ export interface DirectoryXRParsingResult {
 }
 
 export class DirectoryXRParser {
-    
     /**
      * Parse directory for XR visualization
      * Generates the necessary files: HTML, JS, and data.json
@@ -31,29 +31,27 @@ export class DirectoryXRParser {
         console.log(` DIRECTORY_XR_PARSER: Starting XR parsing for directory: ${session.targetName}`);
         console.log(` DIRECTORY_XR_PARSER: Target path: ${session.targetPath}`);
         console.log(` DIRECTORY_XR_PARSER: Deep analysis: ${session.isDeep}`);
-        
+
         try {
             // =======================================================
             // STEP 1: GET CONFIGURATION (CHART TYPE & DIMENSIONS)
             // =======================================================
             console.log(` DIRECTORY_XR_PARSER: STEP 1 - Getting user configuration...`);
-            
+
             const storage = AnalysisConfigurationStorage.getInstance(context);
             const chartType = await storage.getDirectoryChartType();
             const dimensionMappings = await storage.getDimensionMappingDirectory();
-            
+
             console.log(` DIRECTORY_XR_PARSER: Chart type: ${chartType}`);
             console.log(` DIRECTORY_XR_PARSER: Dimension mappings:`, dimensionMappings);
-            
+
             // =======================================================
             // STEP 2: GENERATE REAL DATA.JSON USING PYTHON ANALYSIS
             // =======================================================
             console.log(` DIRECTORY_XR_PARSER: STEP 2 - Generating real data.json using Python analysis...`);
-            
-            // Create ExecutePython instance
+
             const executePython = new ExecutePython(context);
-            
-            // Create a specialized session for XR directory analysis
+
             const xrAnalysisSession: UnifiedAnalysisSession = {
                 id: session.id,
                 targetPath: session.targetPath,
@@ -69,27 +67,24 @@ export class DirectoryXRParser {
                 requiredFiles: new Map(),
                 templatePaths: new Map(),
                 metadata: {},
-                // ✅ COPY FILTERED FILES FROM ORIGINAL SESSION - CRITICAL FOR DIRECTORY FILTERING
                 filesToHash: session.filesToHash,
                 directoriesToAnalyze: session.directoriesToAnalyze
             };
-            
+
             console.log(` DIRECTORY_XR_PARSER: Executing Python analysis for directory...`);
             console.log(` DIRECTORY_XR_PARSER: Target path: ${xrAnalysisSession.targetPath}`);
             console.log(` DIRECTORY_XR_PARSER: Analysis settings:`, {
                 analysisMode: xrAnalysisSession.analysisMode,
                 isDeep: xrAnalysisSession.isDeep
             });
-            
-            // Execute Python analysis with progress reporting
+
             const analysisResult = await executePython.executeAnalysis(xrAnalysisSession);
-            
+
             let dataJsonContent: string;
             let analysisData: any[] = [];
-            
+
             if (!analysisResult || (Array.isArray(analysisResult) && analysisResult.length === 0)) {
                 console.warn(` DIRECTORY_XR_PARSER: Python analysis returned empty result`);
-                // Create empty array for no files
                 dataJsonContent = JSON.stringify([], null, 2);
                 analysisData = [];
                 console.log(` DIRECTORY_XR_PARSER: Using empty array - no files analyzed`);
@@ -100,14 +95,12 @@ export class DirectoryXRParser {
                     fileCount: Array.isArray(analysisResult) ? analysisResult.length : 0,
                     resultType: typeof analysisResult
                 });
-                
-                // Use analysis result directly as the data.json content (array of files)
+
                 analysisData = Array.isArray(analysisResult) ? analysisResult : [];
                 dataJsonContent = JSON.stringify(analysisData, null, 2);
                 console.log(` DIRECTORY_XR_PARSER: STEP 2 completed - data.json generated (${dataJsonContent.length} chars)`);
                 console.log(` DIRECTORY_XR_PARSER: Generated data for ${analysisData.length} files`);
-                
-                // Log sample file data for verification
+
                 if (analysisData.length > 0) {
                     console.log(` DIRECTORY_XR_PARSER: Sample file data:`, {
                         fileName: analysisData[0].fileName,
@@ -118,54 +111,53 @@ export class DirectoryXRParser {
                     });
                 }
 
-                // 🔥 CRITICAL FIX: Update session.filesToHash with actually analyzed files
-                // This is essential for the DirectoryWatcherOrchestrator to work properly
                 console.log(` DIRECTORY_XR_PARSER: Updating session.filesToHash with ${analysisData.length} analyzed files...`);
                 const filesToHash: { filePath: string; hash: string }[] = [];
-                
+
                 for (const fileData of analysisData) {
-                    if (fileData.filePath) {
-                        try {
-                            // Generate hash for the analyzed file
-                            const fileHash = await SHA256Generator.generateFileHash(fileData.filePath);
-                            const trackedSnapshot = await buildTrackedFileSnapshot(fileData.filePath, fileHash);
-                            filesToHash.push(trackedSnapshot ?? {
-                                filePath: fileData.filePath,
-                                hash: fileHash
-                            });
-                        } catch (hashError) {
-                            console.error(`DIRECTORY_XR_PARSER: Error generating hash for ${fileData.filePath}:`, hashError);
-                            // Add with empty hash as fallback
-                            filesToHash.push({
-                                filePath: fileData.filePath,
-                                hash: ''
-                            });
-                        }
+                    const trackedPath = resolveTrackedSystemPath(session.targetPath, fileData);
+                    if (!trackedPath) {
+                        console.warn(
+                            `DIRECTORY_XR_PARSER: Could not resolve system path for tracked entry: ${fileData.fileName || fileData.relativePath || 'unknown'}`,
+                        );
+                        continue;
+                    }
+
+                    try {
+                        const fileHash = await SHA256Generator.generateFileHash(trackedPath);
+                        const trackedSnapshot = await buildTrackedFileSnapshot(trackedPath, fileHash);
+                        filesToHash.push(trackedSnapshot ?? {
+                            filePath: trackedPath,
+                            hash: fileHash
+                        });
+                    } catch (hashError) {
+                        console.error(`DIRECTORY_XR_PARSER: Error generating hash for ${trackedPath}:`, hashError);
+                        filesToHash.push({
+                            filePath: trackedPath,
+                            hash: ''
+                        });
                     }
                 }
-                
-                // Update the original session with actually analyzed files
+
                 session.filesToHash = filesToHash;
                 console.log(` DIRECTORY_XR_PARSER: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
             }
-            
+
             // =======================================================
             // STEP 3: GENERATE HTML USING TEMPLATEPROCESSOR WITH ANALYSIS DATA
             // =======================================================
             console.log(` DIRECTORY_XR_PARSER: STEP 3 - Generating HTML with TemplateProcessor and analysis data...`);
-            
-            // Convert dimension mappings to the required format
+
             const mappings: DimensionMapping[] = Object.entries(dimensionMappings).map(([dimension, dataField]) => ({
                 dimension,
                 dataField
             }));
             console.log(` DIRECTORY_XR_PARSER: Converted mappings:`, mappings);
-            
-            // Create a temporary output path for HTML generation
+
             const tempOutputPath = path.join(context.storageUri?.fsPath || '/tmp', 'temp_xr_generation');
             await fs.promises.mkdir(tempOutputPath, { recursive: true });
             const tempHtmlPath = path.join(tempOutputPath, 'index.html');
-            
+
             const htmlGenerationResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
                 mappings,
@@ -173,9 +165,9 @@ export class DirectoryXRParser {
                 'data.json', // Data source file name
                 context,
                 tempHtmlPath,
-                analysisData // Pass the Python analysis data for directory detection
+                analysisData
             );
-            
+
             if (!htmlGenerationResult.success) {
                 console.error(` DIRECTORY_XR_PARSER: HTML generation failed:`, htmlGenerationResult.error);
                 return {
@@ -183,11 +175,10 @@ export class DirectoryXRParser {
                     error: `HTML generation failed: ${htmlGenerationResult.error}`
                 };
             }
-            
+
             const htmlContent = await fs.promises.readFile(tempHtmlPath, 'utf8');
             console.log(` DIRECTORY_XR_PARSER: STEP 3 completed - HTML generated (${htmlContent.length} chars)`);
-            
-            // Clean up temp file
+
             try {
                 await fs.promises.unlink(tempHtmlPath);
                 await fs.promises.rmdir(tempOutputPath);
@@ -199,10 +190,10 @@ export class DirectoryXRParser {
             // STEP 4: GET LIVE_SSE_XR.JS FILE (saved as main.js)
             // =======================================================
             console.log(` DIRECTORY_XR_PARSER: STEP 4 - Getting live_sse_XR.js file (will be saved as main.js)...`);
-            
+
             const jsFilePath = path.join(context.extensionPath, 'templates', 'xr', 'sse', 'live_sse_fileXR.js');
             console.log(` DIRECTORY_XR_PARSER: Looking for JS file at: ${jsFilePath}`);
-            
+
             if (!fs.existsSync(jsFilePath)) {
                 console.error(` DIRECTORY_XR_PARSER: live_sse_XR.js not found at: ${jsFilePath}`);
                 return {
@@ -210,7 +201,7 @@ export class DirectoryXRParser {
                     error: `live_sse_XR.js not found at: ${jsFilePath}`
                 };
             }
-            
+
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
             console.log(` DIRECTORY_XR_PARSER: STEP 4 completed - JS file loaded (${jsContent.length} chars)`);
 
@@ -218,23 +209,22 @@ export class DirectoryXRParser {
             // STEP 5: PREPARE FINAL FILES MAP
             // =======================================================
             console.log(` DIRECTORY_XR_PARSER: STEP 5 - Preparing final files map...`);
-            
+
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', htmlContent);
-            generatedFiles.set('main.js', jsContent); // FIXED: Save as main.js instead of live_sse_XR.js
+            generatedFiles.set('main.js', jsContent);
             generatedFiles.set('data.json', dataJsonContent);
-            
+
             console.log(` DIRECTORY_XR_PARSER: All steps completed successfully!`);
             console.log(` DIRECTORY_XR_PARSER: Generated files summary:`);
             console.log(`    index.html: ${htmlContent.length} characters`);
             console.log(`    main.js: ${jsContent.length} characters`);
             console.log(`    data.json: ${dataJsonContent.length} characters`);
-            
+
             return {
                 success: true,
-                generatedFiles: generatedFiles
+                generatedFiles
             };
-            
         } catch (error) {
             console.error(` DIRECTORY_XR_PARSER: Error during directory XR parsing:`, error);
             return {
@@ -245,7 +235,5 @@ export class DirectoryXRParser {
     }
 }
 
-// Export singleton instance
 export const directoryXRParser = new DirectoryXRParser();
-
 

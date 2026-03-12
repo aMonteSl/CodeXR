@@ -1,5 +1,3 @@
-import * as path from 'path';
-
 /**
  * Server configuration interface
  */
@@ -19,18 +17,8 @@ export const DEFAULT_SERVER_CONFIG: ServerConfig = {
     httpMode: 'https-default',
     port: 3000,
     autoOpen: true,
-    openMode: 'browser'
+    openMode: 'browser',
 };
-
-/**
- * Get default certificate paths
- */
-export function getDefaultCertPaths(): { certPath: string; keyPath: string } {
-    return {
-        certPath: path.join(__dirname, '..', '..', '..', 'certs', 'babia_cert.pem'),
-        keyPath: path.join(__dirname, '..', '..', '..', 'certs', 'babia_key.pem')
-    };
-}
 
 /**
  * Convert internal config format to display format
@@ -39,19 +27,19 @@ export function getDisplayFormat(config: ServerConfig): {
     httpMode: string;
     openMode: string;
 } {
-    const httpModeDisplay = {
-        'http': 'HTTP',
-        'https-default': 'HTTPS (default certificates)',
-        'https-custom': 'HTTPS (custom certificates)'
+    const httpModeDisplay: Record<ServerConfig['httpMode'], string> = {
+        http: 'HTTP',
+        'https-default': 'HTTPS (generated local certificates)',
+        'https-custom': 'HTTPS (custom certificates)',
     };
-    
-    const openModeDisplay = {
-        'browser': 'Browser',
-        'lateral-panel': 'Lateral Panel'
+
+    const openModeDisplay: Record<ServerConfig['openMode'], string> = {
+        browser: 'Browser',
+        'lateral-panel': 'Lateral Panel',
     };
-    
+
     return {
         httpMode: httpModeDisplay[config.httpMode],
-        openMode: openModeDisplay[config.openMode]
+        openMode: openModeDisplay[config.openMode],
     };
 }

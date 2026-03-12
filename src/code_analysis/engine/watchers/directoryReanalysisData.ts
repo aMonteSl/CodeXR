@@ -1,17 +1,81 @@
+import * as fs from 'fs';
 import * as path from 'path';
 
 export function isXRDataFormat(data: unknown): data is any[] {
     return Array.isArray(data);
 }
 
-export function removeDeletedFileFromXRFormat(data: any[], deletedPath: string): boolean {
-    const index = data.findIndex((file) => file.file_path === deletedPath || file.filePath === deletedPath);
-    if (index === -1) {
+export function normalizeAnalysisPath(pathValue: string | null | undefined): string | null {
+    if (!pathValue || typeof pathValue !== 'string') {
+        return null;
+    }
+
+    let normalized = pathValue.replace(/\\/g, '/');
+    if (/^[A-Za-z]:/.test(normalized)) {
+        normalized = normalized.slice(2);
+    }
+
+    while (normalized.includes('//')) {
+        normalized = normalized.replace(/\/\//g, '/');
+    }
+
+    return normalized;
+}
+
+export function getAnalysisEntryPathCandidates(entry: any): string[] {
+    const candidates = new Set<string>();
+    const filePath = normalizeAnalysisPath(entry?.filePath);
+    const legacyPath = normalizeAnalysisPath(entry?.file_path);
+
+    if (filePath) {
+        candidates.add(filePath);
+    }
+    if (legacyPath) {
+        candidates.add(legacyPath);
+    }
+
+    return Array.from(candidates);
+}
+
+export function matchesAnalysisEntryPath(entry: any, targetPath: string): boolean {
+    const normalizedTarget = normalizeAnalysisPath(targetPath);
+    if (!normalizedTarget) {
         return false;
     }
 
-    data.splice(index, 1);
-    return true;
+    return getAnalysisEntryPathCandidates(entry).includes(normalizedTarget);
+}
+
+function removeMatchingEntries(entries: any[], targetPath: string): number {
+    const indexesToRemove: number[] = [];
+
+    entries.forEach((entry, index) => {
+        if (matchesAnalysisEntryPath(entry, targetPath)) {
+            indexesToRemove.push(index);
+        }
+    });
+
+    for (const index of indexesToRemove.reverse()) {
+        entries.splice(index, 1);
+    }
+
+    return indexesToRemove.length;
+}
+
+export function hasMatchingXRFile(data: any[], filePath: string): boolean {
+    return data.some((entry) => matchesAnalysisEntryPath(entry, filePath));
+}
+
+export function hasMatchingLivePanelFile(data: any, filePath: string): boolean {
+    if (!data.files || !Array.isArray(data.files)) {
+        return false;
+    }
+
+    return data.files.some((entry: any) => matchesAnalysisEntryPath(entry, filePath));
+}
+
+export function removeDeletedFileFromXRFormat(data: any[], deletedPath: string): boolean {
+    return removeMatchingEntries(data, deletedPath) > 0;
 }
 
 export function removeDeletedFileFromLivePanelFormat(data: any, deletedPath: string): boolean {
@@ -19,13 +83,67 @@ export function removeDeletedFileFromLivePanelFormat(data: any, deletedPath: str
         return false;
     }
 
-    const index = data.files.findIndex((file: any) => file.file_path === deletedPath || file.filePath === deletedPath);
-    if (index === -1) {
-        return false;
+    return removeMatchingEntries(data.files, deletedPath) > 0;
+}
+
+export function upsertXRFiles(data: any[], entries: any[]): boolean {
+    let changed = false;
+
+    for (const entry of entries) {
+        const publicPath = entry?.filePath ?? entry?.file_path;
+        if (typeof publicPath === 'string' && publicPath.length > 0) {
+            removeMatchingEntries(data, publicPath);
+        }
+
+        data.push(entry);
+        changed = true;
     }
 
-    data.files.splice(index, 1);
-    return true;
+    return changed;
+}
+
+export function upsertLivePanelFiles(data: any, entries: any[]): boolean {
+    if (!data.files) {
+        data.files = [];
+    }
+
+    let changed = false;
+    for (const entry of entries) {
+        const publicPath = entry?.filePath ?? entry?.file_path;
+        if (typeof publicPath === 'string' && publicPath.length > 0) {
+            removeMatchingEntries(data.files, publicPath);
+        }
+
+        data.files.push(entry);
+        changed = true;
+    }
+
+    return changed;
+}
+
+export function resolveTrackedSystemPath(rootPath: string, entry: any): string | null {
+    const relativePath = typeof entry?.relativePath === 'string' ? entry.relativePath.trim() : '';
+    if (relativePath) {
+        const systemRelativePath = relativePath.split('/').join(path.sep).split('\\').join(path.sep);
+        return path.normalize(path.resolve(rootPath, systemRelativePath));
+    }
+
+    const fileName = typeof entry?.fileName === 'string' ? entry.fileName.trim() : '';
+    if (fileName) {
+        return path.normalize(path.resolve(rootPath, fileName));
+    }
+
+    const directCandidates = [entry?.filePath, entry?.file_path]
+        .filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+    for (const candidate of directCandidates) {
+        const normalizedCandidate = path.normalize(candidate);
+        if (path.isAbsolute(normalizedCandidate) && fs.existsSync(normalizedCandidate)) {
+            return normalizedCandidate;
+        }
+    }
+
+    return null;
 }
 
 export function recalculateLivePanelSummary(data: any): void {
@@ -80,14 +198,18 @@ export function recalculateLivePanelSummary(data: any): void {
     data.summary = { ...data.summary, ...summary };
 }
 
-export function createEmptyFileEntry(filePath: string): any {
+export function createEmptyFileEntry(filePath: string, rootPath?: string): any {
     const fileName = path.basename(filePath);
     const extension = path.extname(filePath).toLowerCase();
+    const publicFilePath = normalizeAnalysisPath(filePath) ?? filePath;
+    const relativePath = rootPath
+        ? normalizeAnalysisPath(path.relative(rootPath, filePath)) ?? fileName
+        : fileName;
 
     return {
         fileName,
-        filePath,
-        relativePath: fileName,
+        filePath: publicFilePath,
+        relativePath,
         language: getLanguageFromExtension(extension),
         timestamp: new Date().toISOString(),
         status: 'empty',
@@ -121,7 +243,7 @@ export function createEmptyFileEntry(filePath: string): any {
         averageFunctionNestingDepth: 0,
         maxFunctionNestingDepth: 0,
         fileSizeBytes: 0,
-        file_path: filePath,
+        file_path: publicFilePath,
     };
 }
 
@@ -152,6 +274,3 @@ function getLanguageFromExtension(extension: string): string {
 
     return languageMap[extension] || 'Unknown';
 }
-
-
-

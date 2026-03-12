@@ -84,6 +84,16 @@ export class FileWatcherOrchestrator {
         }
     }
 
+    public async updateDebounceConfiguration(): Promise<void> {
+        const newDelayMs = await this.loadDebounceConfiguration();
+        if (newDelayMs === -1) {
+            this.debounceManager?.cancel();
+            return;
+        }
+
+        this.debounceManager?.updateDelay(newDelayMs);
+    }
+
     private async onFileChanged(eventType: string): Promise<void> {
         const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
         const currentSession = sessionRegistry.getSession(this.session.id);
@@ -94,6 +104,7 @@ export class FileWatcherOrchestrator {
 
         const delayMs = await this.loadDebounceConfiguration();
         if (delayMs === -1) {
+            this.debounceManager?.cancel();
             return;
         }
 

@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import { AutoAnalysisDelaySetting } from '../../../../views/subsections/analysis_settings/auto_analysis_delay';
 import { CommandRegistration } from '../analysis_file_mode';
+import { SessionWatcherManager } from '../../../../engine/watchers/sessionWatcherManager';
 
 export class AutoAnalysisDelayCommands {
 
@@ -64,7 +65,6 @@ export class AutoAnalysisDelayCommands {
      */
     private async selectAutoAnalysisDelay(refreshCallback: () => void): Promise<void> {
         try {
-            // Create QuickPick items for predefined options
             const predefinedItems = [
                 {
                     label: '⚡ Real Time (0s)',
@@ -112,21 +112,22 @@ export class AutoAnalysisDelayCommands {
             });
 
             if (!selectedItem) {
-                return; // User cancelled
+                return;
             }
 
             if (selectedItem.value === 'Custom') {
-                // Handle custom input
                 await this.setCustomAutoAnalysisDelay(refreshCallback);
             } else {
-                // Handle predefined value
                 await this.setAutoAnalysisDelay(selectedItem.value, refreshCallback);
             }
-            
         } catch (error) {
             console.error('ANALYSIS: Error selecting auto-analysis delay:', error);
             vscode.window.showErrorMessage(`Failed to select auto-analysis delay: ${error}`);
         }
+    }
+
+    private async refreshActiveWatchers(): Promise<void> {
+        await SessionWatcherManager.refreshActiveWatcherConfigurations(this.context);
     }
 
     /**
@@ -134,7 +135,6 @@ export class AutoAnalysisDelayCommands {
      */
     private async setCustomAutoAnalysisDelay(refreshCallback: () => void): Promise<void> {
         try {
-            // Show input box for custom delay
             const input = await vscode.window.showInputBox({
                 prompt: 'Enter custom auto-analysis delay in milliseconds (0-20000)',
                 placeHolder: '1000',
@@ -151,23 +151,21 @@ export class AutoAnalysisDelayCommands {
             });
 
             if (input === undefined) {
-                return; // User cancelled
+                return;
             }
 
             const customMs = parseInt(input);
-            const newDelayConfig = await this.autoAnalysisDelaySetting.setCustomDelay(customMs);
-            
-            // Show notification to user
+            await this.autoAnalysisDelaySetting.setCustomDelay(customMs);
+            await this.refreshActiveWatchers();
+
             vscode.window.showInformationMessage(
                 `Auto-analysis delay set to custom: ${customMs}ms`,
                 { modal: false }
             );
 
-            // Refresh the tree view to show updated state
             refreshCallback();
 
             console.log(`ANALYSIS: Command executed - Custom auto-analysis delay: ${customMs}ms`);
-            
         } catch (error) {
             console.error('ANALYSIS: Error setting custom auto-analysis delay:', error);
             vscode.window.showErrorMessage(`Failed to set custom auto-analysis delay: ${error}`);
@@ -183,22 +181,19 @@ export class AutoAnalysisDelayCommands {
     ): Promise<void> {
         try {
             await this.autoAnalysisDelaySetting.setDelay(delayType);
-            
-            // Show notification to user
+            await this.refreshActiveWatchers();
+
             vscode.window.showInformationMessage(
                 `Auto-analysis delay set to: ${delayType}`,
                 { modal: false }
             );
 
-            // Refresh the tree view to show updated state
             refreshCallback();
 
             console.log(`ANALYSIS: Command executed - Auto-analysis delay set to: ${delayType}`);
-            
         } catch (error) {
             console.error(`ANALYSIS: Error setting auto-analysis delay to ${delayType}:`, error);
             vscode.window.showErrorMessage(`Failed to set auto-analysis delay to ${delayType}: ${error}`);
         }
     }
 }
-

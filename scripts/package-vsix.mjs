@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,17 @@ const outputDir = resolve(workspaceRoot, 'artifacts');
 const outputPath = resolve(outputDir, `code-xr-${packageJson.version}.vsix`);
 const vsceEntrypoint = resolve(workspaceRoot, 'node_modules', '@vscode', 'vsce', 'vsce');
 const nodeCommand = process.execPath;
+const staleDistCertsPath = resolve(workspaceRoot, 'dist', 'certs');
+
+if (Array.isArray(packageJson.files) && packageJson.files.includes('certs/**/*')) {
+    console.error('VSIX packaging is blocked because package.json still includes certs/**/* in the published files list.');
+    process.exit(1);
+}
+
+if (existsSync(staleDistCertsPath)) {
+    rmSync(staleDistCertsPath, { recursive: true, force: true });
+    console.log(`Removed stale dist certificate directory before packaging: ${staleDistCertsPath}`);
+}
 
 mkdirSync(outputDir, { recursive: true });
 

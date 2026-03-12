@@ -13,6 +13,7 @@ interface ManagedWatcher {
     startWatching(): Promise<string | null>;
     stopWatching(): void | Promise<void>;
     getWatchedFilesCount?(): number;
+    updateDebounceConfiguration?(): Promise<void>;
 }
 
 export class SessionWatcherManager {
@@ -81,6 +82,30 @@ export class SessionWatcherManager {
         }
 
         return stoppedCount;
+    }
+
+    async updateAllWatcherConfigurations(): Promise<number> {
+        let updatedCount = 0;
+
+        for (const [sessionId, orchestrator] of SessionWatcherManager.activeWatchers) {
+            if (!orchestrator.updateDebounceConfiguration) {
+                continue;
+            }
+
+            try {
+                await orchestrator.updateDebounceConfiguration();
+                updatedCount++;
+            } catch (error) {
+                console.error(`SESSION_WATCHER_MANAGER: Error updating watcher configuration for session ${sessionId}:`, error);
+            }
+        }
+
+        return updatedCount;
+    }
+
+    static async refreshActiveWatcherConfigurations(context: vscode.ExtensionContext): Promise<number> {
+        const manager = new SessionWatcherManager(context);
+        return manager.updateAllWatcherConfigurations();
     }
 
     getActiveWatchersInfo(): { sessionId: string; count: number }[] {

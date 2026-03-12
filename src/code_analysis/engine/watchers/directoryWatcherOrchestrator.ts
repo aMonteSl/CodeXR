@@ -71,7 +71,7 @@ export class DirectoryWatcherOrchestrator {
         try {
             const newDelayMs = await this.loadDebounceConfiguration();
             if (newDelayMs === -1) {
-                await this.stopWatching();
+                this.debounceManager?.cancel();
                 return;
             }
 
@@ -95,6 +95,7 @@ export class DirectoryWatcherOrchestrator {
         try {
             const autoEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
             if (!autoEnabled) {
+                this.debounceManager?.cancel();
                 return;
             }
         } catch {
@@ -106,8 +107,14 @@ export class DirectoryWatcherOrchestrator {
             return;
         }
 
-        const fullPath = path.join(dirPath, filename);
-        if (this.hashTracker.shouldSkipEvent(filename)) {
+        const entryName = filename.toString();
+        const fullPath = path.join(dirPath, entryName);
+        if (this.hashTracker.shouldSkipEvent(entryName) || shouldIgnoreDirectoryName(entryName)) {
+            return;
+        }
+
+        if (eventType === 'rename') {
+            this.scheduleDebouncedReanalysis(`rename-${entryName}`);
             return;
         }
 
@@ -115,7 +122,7 @@ export class DirectoryWatcherOrchestrator {
             try {
                 const stats = fs.statSync(fullPath);
                 if (stats.isDirectory()) {
-                    if (this.session.isDeep && !shouldIgnoreDirectoryName(filename)) {
+                    if (this.session.isDeep) {
                         this.scheduleDebouncedReanalysis(`directory-${eventType}`);
                     }
                     return;
@@ -160,26 +167,19 @@ export class DirectoryWatcherOrchestrator {
             const currentByPath = new Map(snapshot.files.map((entry) => [entry.filePath, entry]));
             const diff = this.hashTracker.diffAgainst(snapshot.files);
             const actuallyChanged = await this.hashTracker.resolveActuallyChanged(diff.suspectedChanged, currentByPath);
+            const updatedResults = actuallyChanged.length > 0
+                ? await this.reAnalyzer.reAnalyzeFiles(actuallyChanged) ?? []
+                : [];
 
-            let hasChanges = false;
-
-            if (actuallyChanged.length > 0) {
-                const results = await this.reAnalyzer.reAnalyzeFiles(actuallyChanged);
-                if (results) {
-                    await this.reAnalyzer.updateDataJson(this.session, results);
-                    hasChanges = true;
-                }
-            }
-
-            if (diff.added.length > 0) {
-                await this.reAnalyzer.handleAddedFiles(this.session, diff.added, this.hashTracker);
-                hasChanges = true;
-            }
-
-            if (diff.removed.length > 0) {
-                await this.reAnalyzer.handleDeletedFiles(this.session, diff.removed, this.hashTracker);
-                hasChanges = true;
-            }
+            const hasChanges = await this.reAnalyzer.applyIncrementalChanges(
+                this.session,
+                {
+                    removedFiles: diff.removed,
+                    updatedResults,
+                    addedFiles: diff.added,
+                },
+                this.hashTracker,
+            );
 
             this.session.filesToHash = this.hashTracker.getTrackedFiles();
 

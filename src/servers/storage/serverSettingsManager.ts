@@ -225,7 +225,7 @@ export class ServerSettingsManager {
         if (this.settings.mode === 'HTTP') {
             httpModeDisplay = 'HTTP';
         } else if (this.settings.https.certSource === 'default') {
-            httpModeDisplay = 'HTTPS (default certificates)';
+            httpModeDisplay = 'HTTPS (generated local certificates)';
         } else {
             const certInfo = this.settings.https.certPath && this.settings.https.keyPath
                 ? ` [Cert: ${this.settings.https.certPath}, Key: ${this.settings.https.keyPath}]`
@@ -252,7 +252,7 @@ export class ServerSettingsManager {
         if (updates.httpMode) {
             if (updates.httpMode === 'HTTP') {
                 newUpdates.mode = 'HTTP';
-            } else if (updates.httpMode === 'HTTPS (default certificates)') {
+            } else if (updates.httpMode === 'HTTPS (generated local certificates)') {
                 newUpdates.mode = 'HTTPS';
                 newUpdates.https = {
                     ...this.settings.https,
@@ -331,3 +331,4 @@ export class ServerSettingsManager {
         };
     }
 }
+

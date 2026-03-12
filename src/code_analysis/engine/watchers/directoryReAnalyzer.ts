@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 /**
  * Directory Re-Analyzer
  * Re-analyzes only the directory entries that actually changed and updates data.json in place.
@@ -5,7 +6,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as vscode from 'vscode';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
 import { ExecutePython } from '../utils/executePython';
 import { SessionServerManager } from '../servers/sessionServerManager';
@@ -13,11 +13,21 @@ import { SHA256Generator } from '../../../utils/sha256Generator';
 import { FileHashTracker } from './fileHashTracker';
 import {
     createEmptyFileEntry,
+    hasMatchingLivePanelFile,
+    hasMatchingXRFile,
     isXRDataFormat,
     recalculateLivePanelSummary,
     removeDeletedFileFromLivePanelFormat,
     removeDeletedFileFromXRFormat,
+    upsertLivePanelFiles,
+    upsertXRFiles,
 } from './directoryReanalysisData';
+
+interface IncrementalChangeSet {
+    removedFiles?: string[];
+    updatedResults?: any[];
+    addedFiles?: string[];
+}
 
 export class DirectoryReAnalyzer {
     private executePython: ExecutePython;
@@ -45,216 +55,141 @@ export class DirectoryReAnalyzer {
         }
     }
 
-    async updateDataJson(session: UnifiedAnalysisSession, reAnalysisResults: any[]): Promise<void> {
+    async applyIncrementalChanges(
+        session: UnifiedAnalysisSession,
+        changeSet: IncrementalChangeSet,
+        hashTracker: FileHashTracker,
+    ): Promise<boolean> {
         try {
             if (!session.savedFilesPath) {
                 console.error('DIRECTORY_REANALYZER: No saved files path in session');
-                return;
+                return false;
             }
 
             const dataJsonPath = path.join(session.savedFilesPath, 'data.json');
             if (!fs.existsSync(dataJsonPath)) {
                 console.error(`DIRECTORY_REANALYZER: data.json not found at ${dataJsonPath}`);
-                return;
+                return false;
             }
 
             const currentData = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
             const xrFormat = isXRDataFormat(currentData);
+            let hasChanges = false;
 
-            if (xrFormat) {
-                this.updateXRDataJson(currentData, reAnalysisResults, dataJsonPath);
-            } else {
-                this.updateLivePanelDataJson(currentData, reAnalysisResults, dataJsonPath);
+            if ((changeSet.removedFiles?.length || 0) > 0) {
+                hasChanges = this.applyRemovedFiles(currentData, xrFormat, changeSet.removedFiles!, hashTracker) || hasChanges;
             }
 
+            if ((changeSet.updatedResults?.length || 0) > 0) {
+                hasChanges = this.applyUpdatedResults(currentData, xrFormat, changeSet.updatedResults!) || hasChanges;
+            }
+
+            if ((changeSet.addedFiles?.length || 0) > 0) {
+                hasChanges = await this.applyAddedFiles(currentData, xrFormat, session, changeSet.addedFiles!, hashTracker) || hasChanges;
+            }
+
+            if (!hasChanges) {
+                return false;
+            }
+
+            if (!xrFormat) {
+                recalculateLivePanelSummary(currentData);
+                if (!currentData.summary) {
+                    currentData.summary = {};
+                }
+                currentData.summary.analyzedAt = new Date().toISOString();
+            }
+
+            fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
             await this.sendSSENotification(session);
+            return true;
         } catch (error) {
-            console.error('DIRECTORY_REANALYZER: Error updating data.json:', error);
+            console.error('DIRECTORY_REANALYZER: Error applying incremental changes:', error);
+            return false;
         }
     }
 
-    private updateXRDataJson(currentData: any[], results: any[], dataJsonPath: string): void {
-        const fileMap = new Map<string, number>();
-        currentData.forEach((file: any, index: number) => {
-            if (file.filePath) {
-                fileMap.set(file.filePath, index);
-            }
-            if (file.file_path) {
-                fileMap.set(file.file_path, index);
-            }
-        });
+    private applyRemovedFiles(
+        currentData: any,
+        xrFormat: boolean,
+        removedFiles: string[],
+        hashTracker: FileHashTracker,
+    ): boolean {
+        let hasChanges = false;
 
-        for (const file of results) {
-            const filePath = file.filePath ?? file.file_path;
-            const index = typeof filePath === 'string' ? fileMap.get(filePath) : undefined;
+        for (const removedPath of removedFiles) {
+            const removed = xrFormat
+                ? removeDeletedFileFromXRFormat(currentData, removedPath)
+                : removeDeletedFileFromLivePanelFormat(currentData, removedPath);
 
-            if (index !== undefined) {
-                currentData[index] = file;
-            } else {
-                currentData.push(file);
+            if (removed) {
+                hasChanges = true;
             }
+
+            hashTracker.untrackFile(removedPath);
         }
 
-        fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
+        return hasChanges;
     }
 
-    private updateLivePanelDataJson(currentData: any, results: any[], dataJsonPath: string): void {
-        if (!currentData.files) {
-            currentData.files = [];
+    private applyUpdatedResults(currentData: any, xrFormat: boolean, updatedResults: any[]): boolean {
+        if (updatedResults.length === 0) {
+            return false;
         }
 
-        const fileMap = new Map<string, number>();
-        currentData.files.forEach((file: any, index: number) => {
-            if (file.filePath) {
-                fileMap.set(file.filePath, index);
-            }
-            if (file.file_path) {
-                fileMap.set(file.file_path, index);
-            }
-        });
-
-        for (const file of results) {
-            const filePath = file.filePath ?? file.file_path;
-            const index = typeof filePath === 'string' ? fileMap.get(filePath) : undefined;
-
-            if (index !== undefined) {
-                currentData.files[index] = file;
-            } else {
-                currentData.files.push(file);
-            }
-        }
-
-        recalculateLivePanelSummary(currentData);
-        if (!currentData.summary) {
-            currentData.summary = {};
-        }
-        currentData.summary.analyzedAt = new Date().toISOString();
-
-        fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
+        return xrFormat
+            ? upsertXRFiles(currentData, updatedResults)
+            : upsertLivePanelFiles(currentData, updatedResults);
     }
 
-    async handleAddedFiles(
+    private async applyAddedFiles(
+        currentData: any,
+        xrFormat: boolean,
         session: UnifiedAnalysisSession,
         addedFiles: string[],
         hashTracker: FileHashTracker,
-    ): Promise<void> {
-        try {
-            const dataJsonPath = path.join(session.savedFilesPath!, 'data.json');
-            if (!fs.existsSync(dataJsonPath)) {
-                return;
+    ): Promise<boolean> {
+        let hasChanges = false;
+
+        for (const filePath of addedFiles) {
+            const alreadyExists = xrFormat
+                ? hasMatchingXRFile(currentData, filePath)
+                : hasMatchingLivePanelFile(currentData, filePath);
+
+            if (alreadyExists) {
+                continue;
             }
 
-            const data = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
-            const xrFormat = isXRDataFormat(data);
-            let hasChanges = false;
+            let result: any;
+            try {
+                const reanalysisResults = await this.executePython.executeFileReanalysis([filePath]);
+                result = Array.isArray(reanalysisResults) ? reanalysisResults[0] : reanalysisResults;
 
-            for (const filePath of addedFiles) {
-                const existing = xrFormat
-                    ? data.find((file: any) => file.file_path === filePath || file.filePath === filePath)
-                    : data.files?.find((file: any) => file.file_path === filePath || file.filePath === filePath);
-
-                if (existing) {
-                    continue;
+                if (!result || result.success === false) {
+                    result = createEmptyFileEntry(filePath, session.targetPath);
                 }
-
-                try {
-                    const reanalysisResults = await this.executePython.executeFileReanalysis([filePath]);
-                    let result = Array.isArray(reanalysisResults) ? reanalysisResults[0] : reanalysisResults;
-
-                    if (!result || result.success === false) {
-                        result = createEmptyFileEntry(filePath);
-                    }
-
-                    if (xrFormat) {
-                        data.push(result);
-                    } else {
-                        if (!data.files) {
-                            data.files = [];
-                        }
-                        data.files.push(result);
-                    }
-
-                    hasChanges = true;
-                    const hash = await SHA256Generator.generateFileHash(filePath);
-                    await hashTracker.trackNewFile(filePath, hash);
-                } catch (error) {
-                    console.error(`DIRECTORY_REANALYZER: Error analyzing new file ${filePath}:`, error);
-                    const emptyEntry = createEmptyFileEntry(filePath);
-                    if (xrFormat) {
-                        data.push(emptyEntry);
-                    } else {
-                        if (!data.files) {
-                            data.files = [];
-                        }
-                        data.files.push(emptyEntry);
-                    }
-                    hasChanges = true;
-                }
+            } catch (error) {
+                console.error(`DIRECTORY_REANALYZER: Error analyzing new file ${filePath}:`, error);
+                result = createEmptyFileEntry(filePath, session.targetPath);
             }
 
-            if (!hasChanges) {
-                return;
+            if (xrFormat) {
+                upsertXRFiles(currentData, [result]);
+            } else {
+                upsertLivePanelFiles(currentData, [result]);
             }
+            hasChanges = true;
 
-            if (!xrFormat) {
-                recalculateLivePanelSummary(data);
-                if (!data.summary) {
-                    data.summary = {};
-                }
-                data.summary.analyzedAt = new Date().toISOString();
+            try {
+                const hash = await SHA256Generator.generateFileHash(filePath);
+                await hashTracker.trackNewFile(filePath, hash);
+            } catch (hashError) {
+                console.error(`DIRECTORY_REANALYZER: Error hashing added file ${filePath}:`, hashError);
+                await hashTracker.trackNewFile(filePath, '');
             }
-
-            fs.writeFileSync(dataJsonPath, JSON.stringify(data, null, 2), 'utf8');
-            await this.sendSSENotification(session);
-        } catch (error) {
-            console.error('DIRECTORY_REANALYZER: Error processing added files:', error);
         }
-    }
 
-    async handleDeletedFiles(
-        session: UnifiedAnalysisSession,
-        deletedFiles: string[],
-        hashTracker: FileHashTracker,
-    ): Promise<void> {
-        try {
-            const dataJsonPath = path.join(session.savedFilesPath!, 'data.json');
-            if (!fs.existsSync(dataJsonPath)) {
-                return;
-            }
-
-            const data = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
-            const xrFormat = isXRDataFormat(data);
-            let hasChanges = false;
-
-            for (const deletedPath of deletedFiles) {
-                const removed = xrFormat
-                    ? removeDeletedFileFromXRFormat(data, deletedPath)
-                    : removeDeletedFileFromLivePanelFormat(data, deletedPath);
-
-                if (removed) {
-                    hasChanges = true;
-                }
-
-                hashTracker.untrackFile(deletedPath);
-            }
-
-            if (!hasChanges) {
-                return;
-            }
-
-            if (!xrFormat) {
-                recalculateLivePanelSummary(data);
-                if (!data.summary) {
-                    data.summary = {};
-                }
-                data.summary.analyzedAt = new Date().toISOString();
-            }
-
-            fs.writeFileSync(dataJsonPath, JSON.stringify(data, null, 2), 'utf8');
-            await this.sendSSENotification(session);
-        } catch (error) {
-            console.error('DIRECTORY_REANALYZER: Error processing deleted files:', error);
-        }
+        return hasChanges;
     }
 
     async sendSSENotification(session: UnifiedAnalysisSession): Promise<void> {
@@ -277,3 +212,5 @@ export class DirectoryReAnalyzer {
         }
     }
 }
+
+

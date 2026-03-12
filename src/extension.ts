@@ -5,6 +5,7 @@ import { XRFieldSchemaService } from './code_analysis/services/xrFieldSchemaServ
 import { ModularTreeDataProvider } from './views';
 import { CommonCommands } from './utils/commonCommands';
 import { ServerSettingsManager } from './servers/storage/serverSettingsManager';
+import { GeneratedHttpsCertificateManager } from './servers/runtime/generatedHttpsCertificateManager';
 import { getActiveServerRegistry } from './active_servers/registry/activeServerRegistry';
 import { ServerControl } from './active_servers/runtime/serverControl';
 import { sseManager } from './servers/runtime/sse/SSEManager';
@@ -66,6 +67,7 @@ export async function activate(context: vscode.ExtensionContext) {
             id: 'restore-server-settings',
             run: async () => {
                 await settingsManager.ensureInitialized();
+                await new GeneratedHttpsCertificateManager(context).ensureDefaultCertificatePair();
                 modularTreeDataProvider.refreshSection('SERVERS');
             },
         });
@@ -129,6 +131,8 @@ export async function deactivate() {
         handleError(ErrorDomain.UI, 'Modular tree cleanup', error, ErrorSeverity.Warn);
     }
 }
+
+
 
 
 

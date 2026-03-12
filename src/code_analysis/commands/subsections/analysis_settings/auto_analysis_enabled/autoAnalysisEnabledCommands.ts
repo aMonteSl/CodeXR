@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import { AutoAnalysisEnabledSetting } from '../../../../views/subsections/analysis_settings/auto_analysis_enabled';
 import { CommandRegistration } from '../analysis_file_mode';
+import { SessionWatcherManager } from '../../../../engine/watchers/sessionWatcherManager';
 
 export class AutoAnalysisEnabledCommands {
 
@@ -44,6 +45,10 @@ export class AutoAnalysisEnabledCommands {
         ];
     }
 
+    private async refreshActiveWatchers(): Promise<void> {
+        await SessionWatcherManager.refreshActiveWatcherConfigurations(this.context);
+    }
+
     /**
      * Toggle auto-analysis enabled state command handler
      */
@@ -52,9 +57,9 @@ export class AutoAnalysisEnabledCommands {
             console.log('ANALYSIS: Toggling auto-analysis enabled state');
             
             const newState = await this.autoAnalysisEnabledSetting.toggleEnabled();
+            await this.refreshActiveWatchers();
             console.log(`ANALYSIS: Auto-analysis enabled toggled to: ${newState}`);
             
-            // Refresh the tree view to show the new state
             refreshCallback();
             
         } catch (error) {
@@ -71,9 +76,9 @@ export class AutoAnalysisEnabledCommands {
             console.log(`ANALYSIS: Setting auto-analysis enabled to: ${enabled}`);
             
             await this.autoAnalysisEnabledSetting.setEnabled(enabled);
+            await this.refreshActiveWatchers();
             console.log(`ANALYSIS: Auto-analysis enabled set to: ${enabled}`);
             
-            // Refresh the tree view to show the new state
             refreshCallback();
             
         } catch (error) {
@@ -82,4 +87,3 @@ export class AutoAnalysisEnabledCommands {
         }
     }
 }
-

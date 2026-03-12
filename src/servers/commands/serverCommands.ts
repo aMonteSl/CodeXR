@@ -15,8 +15,8 @@ export interface LegacyServerConfig {
 }
 
 let currentServerConfig: LegacyServerConfig = {
-    mode: 'HTTPS (default certificates)',
-    description: 'HTTPS with default certificates'
+    mode: 'HTTPS (generated local certificates)',
+    description: 'HTTPS with generated local certificates'
 };
 
 // Global multi-server launcher instance
@@ -32,7 +32,7 @@ export async function configureServer(): Promise<void> {
     console.log('SERVER: Server configuration triggered');
     
     const options = [
-        'HTTPS (default certificates)',
+        'HTTPS (generated local certificates)',
         'HTTPS (custom certificates)',
         'HTTP (development only)'
     ];
@@ -45,8 +45,8 @@ export async function configureServer(): Promise<void> {
     if (selected) {
         currentServerConfig.mode = selected;
         switch (selected) {
-            case 'HTTPS (default certificates)':
-                currentServerConfig.description = 'HTTPS with default certificates';
+            case 'HTTPS (generated local certificates)':
+                currentServerConfig.description = 'HTTPS with generated local certificates';
                 break;
             case 'HTTPS (custom certificates)':
                 currentServerConfig.description = 'HTTPS with custom certificates';
@@ -373,3 +373,4 @@ async function handleAutoOpen(serverUrl: string, selectedFile: string, openMode:
         vscode.window.showWarningMessage(`Failed to auto-open: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
+

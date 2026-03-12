@@ -193,6 +193,7 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Shared Workspace Inventory in the Tree**: `Project Structure` and `Files by Language` now reuse a common workspace snapshot and watcher, reducing duplicated work while keeping both sections synchronized.
 - **Active Analyses Quick Actions**: Active analyses now open their main actions on left-click, and each session can export its generated folder for easier debugging and manual inspection.
 - **Cross-Platform Path and Python Environment Hardening**: Windows path normalization, Python environment recovery, and startup verification are more robust across Windows, Linux, and macOS.
+- **Generated Local HTTPS Certificates**: Default HTTPS mode now creates and reuses a self-signed certificate pair inside VS Code global storage on first startup, so the VSIX no longer ships bundled private keys.
 
 ### Key Improvements in v1.1.0
 - **More Expressive XR Data**: The generated `data.json` files now include more useful values for chart mapping and richer exploration in immersive views.
@@ -401,7 +402,7 @@ Customize your immersive experience:
 ### First-Time Setup
 - Code-XR automatically sets up the Python environment on first use
 - No additional configuration required for basic functionality
-- HTTPS certificates are included for WebXR compatibility
+- HTTPS certificates are generated locally on first startup and stored in the extension's VS Code global storage for WebXR compatibility
 - Virtual environment (.venv) is created automatically for isolated dependencies
 
 ## Real-World Use Cases
@@ -576,4 +577,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Experience your code like never before with Code-XR v1.1.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
+
+
 

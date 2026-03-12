@@ -1,24 +1,36 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
 const {
     createEmptyFileEntry,
+    hasMatchingLivePanelFile,
+    hasMatchingXRFile,
     isXRDataFormat,
     recalculateLivePanelSummary,
     removeDeletedFileFromLivePanelFormat,
     removeDeletedFileFromXRFormat,
+    resolveTrackedSystemPath,
+    upsertLivePanelFiles,
+    upsertXRFiles,
 } = require('../../out/code_analysis/engine/watchers/directoryReanalysisData.js');
+
+function createTempDir(prefix) {
+    return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
 
 test('isXRDataFormat distinguishes XR arrays from LivePanel objects', () => {
     assert.equal(isXRDataFormat([]), true);
     assert.equal(isXRDataFormat({ files: [] }), false);
 });
 
-test('createEmptyFileEntry creates a zeroed entry with inferred language', () => {
+test('createEmptyFileEntry creates a zeroed entry with normalized public paths', () => {
     const entry = createEmptyFileEntry('C:/workspace/example.ts');
 
     assert.equal(entry.fileName, 'example.ts');
-    assert.equal(entry.filePath, 'C:/workspace/example.ts');
-    assert.equal(entry.file_path, 'C:/workspace/example.ts');
+    assert.equal(entry.filePath, '/workspace/example.ts');
+    assert.equal(entry.file_path, '/workspace/example.ts');
     assert.equal(entry.language, 'TypeScript');
     assert.equal(entry.status, 'empty');
     assert.equal(entry.totalLines, 0);
@@ -27,28 +39,69 @@ test('createEmptyFileEntry creates a zeroed entry with inferred language', () =>
     assert.deepEqual(entry.classes, []);
 });
 
-test('removeDeletedFileFromXRFormat removes matching files by filePath or file_path', () => {
+test('removeDeletedFileFromXRFormat removes all matching files using system paths against normalized output paths', () => {
     const data = [
-        { filePath: 'src/keep.ts' },
-        { file_path: 'src/remove.ts' },
+        { filePath: '/Users/adria/project/src/keep.ts' },
+        { filePath: '/Users/adria/project/src/remove.ts' },
+        { file_path: '/Users/adria/project/src/remove.ts' },
     ];
 
-    assert.equal(removeDeletedFileFromXRFormat(data, 'src/remove.ts'), true);
-    assert.deepEqual(data, [{ filePath: 'src/keep.ts' }]);
-    assert.equal(removeDeletedFileFromXRFormat(data, 'src/missing.ts'), false);
+    assert.equal(removeDeletedFileFromXRFormat(data, 'C:\\Users\\adria\\project\\src\\remove.ts'), true);
+    assert.deepEqual(data, [{ filePath: '/Users/adria/project/src/keep.ts' }]);
+    assert.equal(removeDeletedFileFromXRFormat(data, 'C:\\Users\\adria\\project\\src\\missing.ts'), false);
 });
 
 test('removeDeletedFileFromLivePanelFormat removes matching files from the files array', () => {
     const data = {
         files: [
-            { filePath: 'src/keep.ts' },
-            { file_path: 'src/remove.ts' },
+            { filePath: '/Users/adria/project/src/keep.ts' },
+            { file_path: '/Users/adria/project/src/remove.ts' },
+            { filePath: '/Users/adria/project/src/remove.ts' },
         ],
     };
 
-    assert.equal(removeDeletedFileFromLivePanelFormat(data, 'src/remove.ts'), true);
-    assert.deepEqual(data.files, [{ filePath: 'src/keep.ts' }]);
-    assert.equal(removeDeletedFileFromLivePanelFormat(data, 'src/missing.ts'), false);
+    assert.equal(removeDeletedFileFromLivePanelFormat(data, 'C:\\Users\\adria\\project\\src\\remove.ts'), true);
+    assert.deepEqual(data.files, [{ filePath: '/Users/adria/project/src/keep.ts' }]);
+    assert.equal(removeDeletedFileFromLivePanelFormat(data, 'C:\\Users\\adria\\project\\src\\missing.ts'), false);
+});
+
+test('upsert helpers replace existing matching entries instead of duplicating them', () => {
+    const xrData = [
+        { filePath: '/Users/adria/project/src/remove.ts', value: 'old' },
+        { file_path: '/Users/adria/project/src/remove.ts', value: 'duplicate' },
+    ];
+    const livePanelData = {
+        files: [
+            { filePath: '/Users/adria/project/src/remove.ts', value: 'old' },
+            { file_path: '/Users/adria/project/src/remove.ts', value: 'duplicate' },
+        ],
+    };
+
+    assert.equal(hasMatchingXRFile(xrData, 'C:\\Users\\adria\\project\\src\\remove.ts'), true);
+    assert.equal(hasMatchingLivePanelFile(livePanelData, 'C:\\Users\\adria\\project\\src\\remove.ts'), true);
+
+    upsertXRFiles(xrData, [{ filePath: '/Users/adria/project/src/remove.ts', value: 'new' }]);
+    upsertLivePanelFiles(livePanelData, [{ filePath: '/Users/adria/project/src/remove.ts', value: 'new' }]);
+
+    assert.deepEqual(xrData, [{ filePath: '/Users/adria/project/src/remove.ts', value: 'new' }]);
+    assert.deepEqual(livePanelData.files, [{ filePath: '/Users/adria/project/src/remove.ts', value: 'new' }]);
+});
+
+test('resolveTrackedSystemPath rebuilds real paths from relativePath for watcher snapshots', () => {
+    const root = createTempDir('codexr-resolve-');
+    const nestedDir = path.join(root, 'src');
+    const filePath = path.join(nestedDir, 'example.ts');
+    fs.mkdirSync(nestedDir, { recursive: true });
+    fs.writeFileSync(filePath, 'export const value = 1;\n');
+
+    const resolved = resolveTrackedSystemPath(root, {
+        filePath: '/tmp/normalized/example.ts',
+        relativePath: 'src/example.ts',
+        fileName: 'example.ts',
+    });
+
+    assert.equal(resolved, filePath);
+    fs.rmSync(root, { recursive: true, force: true });
 });
 
 test('recalculateLivePanelSummary updates totals, languages, and average complexity', () => {
