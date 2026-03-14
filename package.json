@@ -487,7 +487,10 @@
     "test:python": "node test/runners/run-python-tests.cjs",
     "test:all": "npm run test:basic && npm run test:python",
     "test:integration": "node ./node_modules/@vscode/test-cli/out/bin.mjs",
-    "package:vsix": "npm run package && node scripts/package-vsix.mjs"
+    "package:vsix": "npm run package && node scripts/package-vsix.mjs",
+    "test:analysis": "node test/runners/run-analysis-tests.cjs",
+    "test:htmlanalysis": "node test/runners/run-html-analysis-tests.cjs",
+    "report:manual-metrics": "node test/runners/run-analysis-tests.cjs --report-only"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -510,5 +513,4 @@
     "get-port": "^7.1.0"
   }
 }
-
 

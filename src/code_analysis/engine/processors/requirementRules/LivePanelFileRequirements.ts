@@ -1,84 +1,16 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { UnifiedAnalysisSession } from '../../core/analysisSession';
 import { ProcessedRequirements } from '../FileRequirementProcessor';
-import { LivePanelParser } from '../../parsers/livePanelParser';
-import { ExecutePython } from '../../utils/executePython';
+import { AnalysisBootstrap } from '../analysisBootstrap';
 
-/**
- * Handles template files for LivePanel analysis
- * 
- * This class:
- * - Determines which templates are needed based on analysis type
- * - Calls LivePanelParser to load actual files
- * - Returns loaded files, not just paths
- */
 export class LivePanelFileRequirements {
-    private livePanelParser: LivePanelParser;
-    private executePython: ExecutePython;
-    private context: vscode.ExtensionContext;
+    private analysisBootstrap: AnalysisBootstrap;
 
     constructor(context: vscode.ExtensionContext) {
-        console.log('LIVEPANEL_FILE_REQUIREMENTS: Initializing LivePanelFileRequirements...');
-        this.context = context;
-        this.livePanelParser = new LivePanelParser();
-        this.executePython = new ExecutePython(context);
+        this.analysisBootstrap = new AnalysisBootstrap(context);
     }
 
-    /**
-     * Gets loaded template files for LivePanel analysis
-     * 
-     * @param session - Unified analysis session
-     * @param theme - Current user theme (optional, defaults to 'vscode-light')
-     * @returns Promise with loaded template files
-     */
     public async getRequiredFiles(session: UnifiedAnalysisSession, theme?: string): Promise<ProcessedRequirements> {
-        console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Getting template files for LivePanel analysis`);
-        console.log(`LIVEPANEL_FILE_REQUIREMENTS: Target type: ${session.targetType}`);
-        console.log(`LIVEPANEL_FILE_REQUIREMENTS: Theme: ${theme || 'default'}`);
-
-        try {
-            // STEP 1: Load template files
-            console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Step 1 - Loading template files...`);
-            const loadedFiles = await this.livePanelParser.loadTemplateFiles(session.targetType, session.analysisMode, theme);
-            
-            // STEP 2: Execute Python analysis to get data.json
-            console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Step 2 - Executing Python analysis...`);
-            
-            if (session.analysisMode === 'LivePanel' && session.targetType === 'file') {
-                console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Executing file analysis and generating data.json`);
-                const analysisData = await this.executePython.executeAnalysis(session);
-                
-                console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Python analysis completed successfully!`);
-                console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Generated data.json:`, JSON.stringify(analysisData, null, 2));
-                
-                // Convert analysisData to JSON string and add to loadedFiles as data.json
-                const dataJsonContent = JSON.stringify(analysisData, null, 2);
-                loadedFiles.set('data.json', dataJsonContent);
-                
-                console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Added data.json to template files (${dataJsonContent.length} characters)`);
-                
-            } else {
-                console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Skipping Python analysis for ${session.analysisMode}/${session.targetType}`);
-            }
-            
-            const requirements: ProcessedRequirements = {
-                sessionId: session.id,
-                analysisMode: session.analysisMode,
-                targetPath: session.targetPath,
-                loadedFiles: loadedFiles,
-                estimatedComplexity: 'low',
-                processingTime: new Date()
-            };
-
-            console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Loaded ${loadedFiles.size} template files (including data.json)`);
-            console.log(`LIVEPANEL_FILE_REQUIREMENTS:  Files prepared:`, Array.from(loadedFiles.keys()));
-            
-            return requirements;
-
-        } catch (error) {
-            console.error(`LIVEPANEL_FILE_REQUIREMENTS:  Error loading template files:`, error);
-            throw error;
-        }
+        return this.analysisBootstrap.bootstrap(session, theme);
     }
 }

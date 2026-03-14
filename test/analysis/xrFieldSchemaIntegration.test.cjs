@@ -27,7 +27,16 @@ test('XR schema registry includes the new file and directory metrics used by the
     assert.match(source, /_numeric_field\("maxFunctionNestingDepth", "Max Function Nesting Depth"/);
 });
 
-test('Dimension mapping settings consume the schema service instead of hardcoded field lists', () => {
+test('shared dimension mapping core consumes the schema service instead of hardcoded field lists', () => {
+    const sharedCore = readProjectFile(
+        'src',
+        'code_analysis',
+        'views',
+        'subsections',
+        'analysis_settings',
+        'dimension_mapping_shared',
+        'sharedDimensionMappingSettingCore.ts',
+    );
     const fileSetting = readProjectFile(
         'src',
         'code_analysis',
@@ -47,13 +56,13 @@ test('Dimension mapping settings consume the schema service instead of hardcoded
         'dimensionMappingDirectory.ts',
     );
 
-    assert.match(fileSetting, /XRFieldSchemaService/);
-    assert.match(fileSetting, /getFieldsForDataType\('file'/);
-    assert.equal(fileSetting.includes('getAvailableDataFields()'), false);
-    assert.equal(fileSetting.includes('getNumericDataFields()'), false);
+    assert.match(sharedCore, /XRFieldSchemaService/);
+    assert.match(sharedCore, /getFieldsForDataType\(\s*this\.adapter\.targetType,/);
+    assert.equal(sharedCore.includes('getAvailableDataFields()'), false);
+    assert.equal(sharedCore.includes('getNumericDataFields()'), false);
 
-    assert.match(directorySetting, /XRFieldSchemaService/);
-    assert.match(directorySetting, /getFieldsForDataType\('directory'/);
+    assert.match(fileSetting, /SharedDimensionMappingSettingCore/);
+    assert.match(directorySetting, /SharedDimensionMappingSettingCore/);
     assert.equal(directorySetting.includes('DIRECTORY_DATA_FIELDS'), false);
 });
 

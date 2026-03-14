@@ -3,30 +3,49 @@
  * Manages live updates for HTML DOM visualization in both standard and XR modes
  */
 
-console.log('🌐 Setting up EventSource for HTML live reload...');
+console.log('Setting up EventSource for HTML live reload...');
 
 const eventSource = new EventSource('/events');
 let isXRMode = false;
 
 function checkXRMode() {
   isXRMode = !!document.querySelector('a-scene');
-  console.log(isXRMode ? '🥽 XR mode detected' : '🖥️ Standard mode detected');
+  console.log(isXRMode ? 'XR mode detected' : 'Standard mode detected');
   return isXRMode;
+}
+
+function getCurrentDistanceLevel(entity) {
+  const currentConfig = entity.getAttribute('babia-html');
+  return currentConfig && typeof currentConfig.distanceLevels === 'number'
+    ? currentConfig.distanceLevels
+    : 0.7;
+}
+
+function applyBabiaHtmlComponent(entity, htmlContent, distanceLevels) {
+  window.__CODEXR_DOM_HTML_PAYLOAD__ = htmlContent;
+  entity.removeAttribute('babia-html');
+  requestAnimationFrame(() => {
+    entity.setAttribute('babia-html', {
+      renderHTML: true,
+      renderHTMLOnlyLeafs: true,
+      html: htmlContent,
+      distanceLevels,
+    });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', checkXRMode);
 
 eventSource.onopen = function () {
-  console.log('🟢 HTML EventSource connection established');
-  console.log('🌐 DOM Visualization live reload ready - file changes will update automatically');
+  console.log('HTML EventSource connection established');
+  console.log('DOM Visualization live reload ready - file changes will update automatically');
 };
 
 eventSource.onerror = function (err) {
-  console.error('🔴 HTML EventSource error:', err);
+  console.error('HTML EventSource error:', err);
   setTimeout(() => {
-    console.log('🔄 Attempting to reconnect HTML EventSource...');
+    console.log('Attempting to reconnect HTML EventSource...');
     eventSource.close();
-    // Try to reconnect to /events (not /live-reload)
     location.reload();
   }, 3000);
 };
@@ -34,81 +53,44 @@ eventSource.onerror = function (err) {
 eventSource.addEventListener('message', function(event) {
     try {
         const data = JSON.parse(event.data);
-        console.log('🔄 SSE received:', data);
+        console.log('SSE received:', data);
         
-        // Handle different types of updates
         if (data.type === 'htmlUpdated' && data.action === 'reload-html') {
-            console.log('🌐 HTML content updated, updating babia-html component...');
+            console.log('HTML content updated, updating babia-html component...');
             
-            // Get the htmlDOM entity (same as the buttons do)
             let entity = document.querySelector('#htmlDOM');
             if (!entity) {
-                console.warn('⚠️ #htmlDOM entity not found, falling back to page reload');
+                console.warn('#htmlDOM entity not found, falling back to page reload');
+                location.reload();
+                return;
+            }
+
+            if (!data.htmlContent) {
+                console.warn('No htmlContent received in DOM SSE message; reloading page');
                 location.reload();
                 return;
             }
             
-            // Try to get htmlContent from the data
-            let newHtmlContent = '';
-            if (data.htmlContent) {
-                // Direct htmlContent in the SSE message
-                newHtmlContent = data.htmlContent;
-                console.log('📄 Got HTML content directly from SSE message');
-            } else {
-                console.log('📡 Fetching updated data.json...');
-                // Fetch the updated data.json to get htmlContent
-                fetch('/data.json')
-                    .then(response => response.json())
-                    .then(jsonData => {
-                        if (jsonData.htmlContent) {
-                            newHtmlContent = jsonData.htmlContent;
-                            updateBabiaHtmlComponent(entity, newHtmlContent);
-                        } else {
-                            console.warn('⚠️ No htmlContent found in data.json');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('❌ Error fetching data.json:', error);
-                    });
-                return; // Exit here since we're handling async
-            }
-            
-            updateBabiaHtmlComponent(entity, newHtmlContent);
+            updateBabiaHtmlComponent(entity, data.htmlContent);
             
         } else if (data.type === 'analysis-updated' && data.action === 'reload-data') {
-            console.log('📊 Analysis data updated, refreshing...');
+            console.log('Analysis data updated, refreshing...');
             location.reload();
         }
     } catch (error) {
-        console.error('❌ Error parsing SSE message:', error);
+        console.error('Error parsing SSE message:', error);
     }
 });
 
-// Function to update the babia-html component (like the buttons do)
 function updateBabiaHtmlComponent(entity, htmlContent) {
     try {
-        console.log('🔧 Updating babia-html component with new content...');
-        
-        // Update the babia-html attribute with new HTML content (same pattern as buttons)
-        entity.setAttribute('babia-html', {
-            renderHTML: true,
-            renderHTMLOnlyLeafs: true,
-            distanceLevels: 0.7,
-            html: htmlContent
-        });
-        
-        console.log('✅ babia-html component updated successfully');
-        
-        // Show a brief visual feedback
-        const originalColor = entity.getAttribute('material') || {};
-        entity.setAttribute('material', 'color: #00ff00; opacity: 0.3');
-        setTimeout(() => {
-            entity.removeAttribute('material');
-        }, 200);
-        
+        console.log('Updating babia-html component with new content...');
+        const distanceLevels = getCurrentDistanceLevel(entity);
+        applyBabiaHtmlComponent(entity, htmlContent, distanceLevels);
+        console.log('babia-html component updated successfully');
     } catch (error) {
-        console.error('❌ Failed to update babia-html component:', error);
-        console.log('🔄 Falling back to page reload...');
+        console.error('Failed to update babia-html component:', error);
+        console.log('Falling back to page reload...');
         location.reload();
     }
 }

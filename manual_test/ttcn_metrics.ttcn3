@@ -1,0 +1,21 @@
+// TTCN-3 fixture for CodeXR metrics
+module ttcn_metrics {
+  function compute(integer value, integer limit) return integer {
+    if (value > limit) {
+      if ((value mod 2) == 0) {
+        return value;
+      }
+      return limit;
+    }
+    return 0;
+  }
+
+  function helper(integer value, integer offset) return integer {
+    if (value > offset) {
+      if (offset > 0) {
+        return value + offset;
+      }
+    }
+    return value;
+  }
+}

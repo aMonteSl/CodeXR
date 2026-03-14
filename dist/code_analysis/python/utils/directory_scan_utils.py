@@ -9,42 +9,9 @@ ignore rules used by directory XR and LivePanel coordinators.
 import os
 from typing import Iterable, List, Optional, Sequence
 
-ANALYZABLE_EXTENSIONS: List[str] = [
-    '.py', '.pyw', '.pyi',
-    '.rb', '.rbw',
-    '.java',
-    '.c', '.h',
-    '.cpp', '.cxx', '.cc', '.hpp', '.hxx',
-    '.cs',
-    '.erl', '.hrl',
-    '.f90', '.f95', '.f03', '.f08', '.f',
-    '.gd',
-    '.go',
-    '.js', '.mjs', '.cjs',
-    '.kt', '.kts',
-    '.lua',
-    '.m', '.mm',
-    '.php', '.phtml', '.php3', '.php4', '.php5',
-    '.pl', '.pm',
-    '.scala', '.sc',
-    '.sol',
-    '.swift',
-    '.ts', '.tsx',
-    '.ttcn', '.ttcn3',
-    '.vue',
-    '.zig',
-    '.rs',
-    '.dart',
-    '.r',
-    '.sh', '.bash',
-    '.ps1',
-    '.jsx',
-    '.css', '.scss', '.less',
-    '.clj', '.cljs',
-    '.hs',
-    '.ml', '.mli',
-    '.pas',
-]
+from metric_language_contract import get_supported_metric_extensions
+
+ANALYZABLE_EXTENSIONS: List[str] = get_supported_metric_extensions()
 
 EXCLUDED_DIRECTORIES = {
     '.git', '.svn', '.hg', '.bzr',
@@ -63,7 +30,6 @@ def get_analyzable_extensions() -> List[str]:
     return list(ANALYZABLE_EXTENSIONS)
 
 
-
 def should_skip_directory_name(name: str) -> bool:
     if not name or name in {'.', '..'}:
         return True
@@ -72,10 +38,8 @@ def should_skip_directory_name(name: str) -> bool:
     return name.startswith('.')
 
 
-
 def should_skip_file_name(name: str) -> bool:
     return not name or name.startswith('.')
-
 
 
 def is_analyzable_file_path(file_path: str, extensions: Optional[Sequence[str]] = None) -> bool:
@@ -85,7 +49,6 @@ def is_analyzable_file_path(file_path: str, extensions: Optional[Sequence[str]] 
     if should_skip_file_name(os.path.basename(file_path)):
         return False
     return os.path.splitext(file_path)[1].lower() in current_extensions
-
 
 
 def filter_explicit_files_for_analysis(
@@ -103,7 +66,6 @@ def filter_explicit_files_for_analysis(
             break
 
     return sorted(filtered)
-
 
 
 def scan_directory_files_for_analysis(

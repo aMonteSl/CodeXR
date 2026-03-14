@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
 
 /**
@@ -98,6 +99,20 @@ export class VisualizeDOMParser {
             // Add main.js from templateHTMLProcessor 
             resultFiles.set('main.js', processingResult.jsContent);
             console.log(`VISUALIZE_DOM_PARSER:  Added main.js (${processingResult.jsContent.length} chars)`);
+            const virtualScreenRuntimePath = path.join(
+                this.context.extensionPath,
+                'templates',
+                'xr',
+                'shared',
+                'virtualScreenRuntime.js'
+            );
+            if (!fs.existsSync(virtualScreenRuntimePath)) {
+                throw new Error(`Virtual screen runtime not found at ${virtualScreenRuntimePath}`);
+            }
+
+            const virtualScreenRuntime = fs.readFileSync(virtualScreenRuntimePath, 'utf8');
+            resultFiles.set('virtualScreenRuntime.js', virtualScreenRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added virtualScreenRuntime.js (${virtualScreenRuntime.length} chars)`);
 
             // 🔍 FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);
@@ -149,3 +164,7 @@ export class VisualizeDOMParser {
         return canProcess;
     }
 }
+
+
+
+

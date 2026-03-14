@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - 2026-03-12
+## [1.1.0] - 2026-03-13
 
 ### Minor Release - XR Mapping Intelligence, Richer Metrics, and Reliability
 
@@ -15,7 +15,9 @@ This release promotes the latest CodeXR work to 1.1.0 because it combines reliab
 - **Active Analyses Quick Actions**: Active analyses now open their available actions on left-click, and each session can export its generated analysis folder for faster debugging and manual inspection.
 - **Improved XR Path Normalization**: Public analysis payloads use BabiaXR-friendly paths more consistently across Windows, Linux, and macOS.
 - **Generated Local HTTPS Certificates**: Default HTTPS mode now generates and reuses a self-signed certificate pair inside VS Code global storage on first startup, keeping repo PEM files out of the shipped VSIX and out of tracked runtime assets while preserving HTTPS support for WebXR.
+- **Unified Multi-language Analysis Engine**: XR and LivePanel file and directory analysis now share the same Python payload contract, backed by a repo-tracked `manual_test` corpus and the new `npm run test:analysis` validation flow.
 - **Unified Incremental Reanalysis Watchers**: File, directory, XR, LivePanel, and DOM HTML sessions now share the same debounce-driven watcher architecture, use mtime + size as a fast filter before validating with hashes, only re-run analysis when the content really changed, and react to the user's current debounce setting without requiring a fresh analysis session.
+- **Virtual Screen Runtime for XR and DOM**: XR charts and DOM visualization scenes now include a shared virtual screen that can project a native shared screen, tab, or window inside the immersive view. The panel supports move, resize, smooth depth adjustment while dragging, follow mode, an independent `look-at` mode for fixed screens that still face the user, minimize/expand, stop sharing, an auto-sized collapsible side legend, contextual hover chrome, and mouse or VR-controller interaction through the same runtime.
 
 #### Bug Fixes
 - **Faster Directory Analysis Startup and Deep XR Reliability**: Directory analysis no longer performs a full pre-scan and mass hash generation before Python starts. Large ignored folders such as `.git`, `node_modules`, `dist`, and cache directories are now pruned during the shared Python scan, `spawn ENAMETOOLONG` is avoided by not sending huge `--files` argument lists, and hash-based incremental reanalysis is still preserved after the initial run.
@@ -42,6 +44,9 @@ This release promotes the latest CodeXR work to 1.1.0 because it combines reliab
 - **ESLint**: clean lint pass.
 - **Node-Based Unit Tests**: coverage for command registration, directory reanalysis helpers, XR field schema integration, and python-environment utilities.
 - **Python Backend Tests**: coverage for Windows path normalization, XR schema behavior, and XR empty-file fallback handling.
+- **Manual Analysis Corpus Validation**: `npm run test:analysis` now creates a local venv, installs Lizard, analyzes the `manual_test/` fixtures, and verifies that XR and LivePanel share non-placeholder payloads.
+- **HTML DOM XR Validation**: `npm run test:htmlanalysis` validates the DOM HTML visualization contract, runtime integration, and manual DOM fixtures.
+- **VSIX Packaging Validation**: `npm run package:vsix` validates the release bundle and emits the installable package in `artifacts/`.
 
 #### Technical Notes
 - **Backwards Compatibility**: fully backwards compatible with v1.0.0, with no migration required.
@@ -383,6 +388,8 @@ Fixed some issues of the previous version.
 
 ## Earlier Versions
 - Initial development and prototype versions
+
+
 
 
 

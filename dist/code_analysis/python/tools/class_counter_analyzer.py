@@ -498,7 +498,7 @@ def analyze_classes(file_path):
                 })
         class_count = len(class_details)
         
-    elif ext in ['.f90', '.f95', '.f03', '.f08']:
+    elif ext in ['.f', '.f90', '.f95', '.f03', '.f08']:
         # Fortran types (equivalent to classes/structs)
         patterns = [
             (r'^\s*type\s*::\s*(\w+)', 'type'),
@@ -587,3 +587,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

@@ -31,6 +31,13 @@ Our official documentation includes:
 
 *You can also access the documentation directly from VS Code through the CodeXR tree view → "Learn More" section.*
 
+## What's New in v1.1.0
+
+- **Unified analysis engine**: XR, LivePanel, and DOM now share the same modernized analysis bootstrap and payload contract.
+- **Richer real metrics**: File and directory analysis expose corrected ratios, nesting, parameter, complexity-band, and aggregate metrics.
+- **Stable DOM XR visualization**: HTML DOM analysis now feeds BabiaXR with the full stringified HTML contract expected by `babia-html`.
+- **Virtual screen for XR/DOM**: Immersive scenes now include a shared virtual screen that can project a screen, window, or browser tab, with move, resize, depth adjustment by wheel/thumbstick, minimize/expand, stop sharing, `follow`, independent `look-at`, contextual controls, and support for both mouse and VR controllers.
+
 ## Visual Demonstrations
 
 ### 📸 Live Examples - See CodeXR in Action
@@ -205,7 +212,7 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 ---
 ## Analysis Modes Overview
 
-Code-XR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 25+ programming languages** with comprehensive file, directory, and project analysis capabilities.
+Code-XR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 24 code languages plus HTML DOM visualization** with comprehensive file, directory, and project analysis capabilities.
 
 ### LivePanel Analysis Mode (Formerly Static Analysis)
 **Best for:** Detailed metrics review, reporting, and comprehensive code analysis
@@ -246,7 +253,7 @@ Code-XR offers powerful analysis modes, each optimized for different file types 
 ### Common Analysis Features (All Types)
 **Universal capabilities available for files, directories, and projects:**
 
-- **25+ Programming Languages**: Full support for JavaScript, TypeScript, Python, C/C++, C#, Java, Ruby, Go, PHP, Swift, Kotlin, Rust, and many more
+- **24 Code Languages + HTML DOM**: Full support for JavaScript, TypeScript, Python, C/C++, C#, Java, Ruby, Go, PHP, Swift, Kotlin, Scala, Lua, Erlang, Zig, Perl, Solidity, TTCN-3, Objective-C, Fortran, GDScript, Vue, plus HTML DOM visualization
 - **Cyclomatic Complexity**: Industry-standard complexity calculation using Lizard integration
 - **Lines of Code Metrics**: Total lines, code lines, comment lines, and blank lines with language-aware parsing
 - **Function Analysis**: Function count, parameter analysis, complexity per function, and cyclomatic density
@@ -289,13 +296,13 @@ Code-XR offers powerful analysis modes, each optimized for different file types 
 
 ## Supported Languages
 
-Code-XR provides comprehensive analysis for 25+ programming languages through advanced Lizard integration:
+Code-XR provides comprehensive analysis for 24 code languages, plus HTML DOM visualization, through its unified analysis engine:
 
 ### Complete Language Support Matrix
 
 | Language | Extensions | Analysis Types | Comment Detection | Class Detection |
 |----------|------------|----------------|-------------------|-----------------|
-| **JavaScript** | .js, .jsx, .mjs, .cjs | LivePanel, XR | C-style (//, /* */) | ES6 Classes |
+| **JavaScript** | .js, .mjs, .cjs | LivePanel, XR | C-style (//, /* */) | ES6 Classes |
 | **TypeScript** | .ts, .tsx | LivePanel, XR | C-style (//, /* */) | Classes & Interfaces |
 | **Python** | .py, .pyw, .pyi | LivePanel, XR | Hash (#) + Docstrings | Classes & Methods |
 | **C/C++** | .c, .cpp, .cc, .cxx, .h, .hpp, .hxx | LivePanel, XR | C-style (//, /* */) | Classes & Structs |
@@ -306,12 +313,11 @@ Code-XR provides comprehensive analysis for 25+ programming languages through ad
 | **PHP** | .php, .phtml, .php3, .php4, .php5 | LivePanel, XR | C-style + Hash (//, #, /* */) | Classes & Traits |
 | **Swift** | .swift | LivePanel, XR | C-style (//, /* */) | Classes & Structs |
 | **Kotlin** | .kt, .kts | LivePanel, XR | C-style (//, /* */) | Classes & Objects |
-| **Rust** | .rs | LivePanel, XR | C-style (//, /* */) | Structs & Impl |
 | **Scala** | .scala, .sc | LivePanel, XR | C-style (//, /* */) | Classes & Objects |
 | **Lua** | .lua | LivePanel, XR | Double dash (--) | Table-based OOP |
 | **Erlang** | .erl, .hrl | LivePanel, XR | Percent (%) | Modules |
 | **Zig** | .zig | LivePanel, XR | C-style (//) | Structs |
-| **Perl** | .pl, .pm, .pod, .t | LivePanel, XR | Hash (#) | Packages |
+| **Perl** | .pl, .pm | LivePanel, XR | Hash (#) | Packages |
 | **Solidity** | .sol | LivePanel, XR | C-style (//, /* */) | Contracts |
 | **TTCN-3** | .ttcn, .ttcn3 | LivePanel, XR | C-style (//, /* */) | Modules |
 | **Objective-C** | .m, .mm | LivePanel, XR | C-style (//, /* */) | Classes & Categories |
@@ -319,7 +325,6 @@ Code-XR provides comprehensive analysis for 25+ programming languages through ad
 | **GDScript** | .gd | LivePanel, XR | Hash (#) | Classes |
 | **Vue.js** | .vue | LivePanel, XR | HTML (<!-- -->) | Component Analysis |
 | **HTML** | .html, .htm, .xhtml | DOM Visualization | HTML Comments | Element Structure |
-| **Dart** | .dart | LivePanel, XR | C-style (//, /* */) | Classes |
 
 ### Analysis Capabilities by Language
 
@@ -450,7 +455,7 @@ Customize your immersive experience:
 
 ### Analysis Engine
 - **Python-based Coordinators**: Redesigned Python-based analysis coordinators for better accuracy
-- **Multi-language Parsing**: Advanced parsing capabilities for 25+ programming languages
+- **Multi-language Parsing**: Advanced parsing capabilities for 24 code languages plus HTML DOM visualization
 - **Lizard Integration**: Industry-standard complexity analysis using Lizard tool
 - **Performance Optimization**: Optimized for handling large codebases efficiently
 
@@ -577,6 +582,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Experience your code like never before with Code-XR v1.1.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
+
+
 
 
 

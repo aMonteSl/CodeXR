@@ -80,6 +80,7 @@
         vive-focus-controls="hand: right"
         windows-motion-controls="hand: right"
         generic-tracked-controller-controls="hand: right"
+        cursor="rayOrigin: entity; fuse: false"
         raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
         </a-entity>
 
@@ -90,6 +91,22 @@
         </a-entity>
         </a-entity>
     </a-scene>
-    <script nonce="${nonce}" src="${scriptUri}"></script>
+    <script>
+    window.__CODEXR_VIRTUAL_SCREEN_CONFIG__ = {
+        enabled: true,
+        sceneSelector: '#scene',
+        followAnchorSelector: '#rig',
+        anchoredPosition: { x: 0, y: 8.5, z: 6 },
+        anchoredRotation: { x: -12, y: 0, z: 0 },
+        followOffset: { x: 0, y: 0.8, z: -2.4 },
+        followRotation: { x: 0, y: 0, z: 0 }
+    };
+</script>
+<script nonce="${nonce}" src="./virtualScreenRuntime.js"></script>
+<script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>
+
+
+
+

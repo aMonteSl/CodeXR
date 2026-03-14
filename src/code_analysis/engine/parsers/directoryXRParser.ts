@@ -1,7 +1,6 @@
 /**
  * Directory XR Parser
- * Handles parsing of directory structure for XR visualization
- * Generates HTML, JS and data files for XR analysis
+ * Handles parsing of directory structure for XR visualization.
  */
 
 import * as vscode from 'vscode';
@@ -22,137 +21,38 @@ export interface DirectoryXRParsingResult {
     error?: string;
 }
 
+interface DirectoryXRSharedBootstrap {
+    payload: any[];
+    trackedFiles?: { filePath: string; hash: string; size?: number; mtimeMs?: number }[];
+}
+
 export class DirectoryXRParser {
-    /**
-     * Parse directory for XR visualization
-     * Generates the necessary files: HTML, JS, and data.json
-     */
-    async parseDirectoryForXR(session: UnifiedAnalysisSession, context: vscode.ExtensionContext): Promise<DirectoryXRParsingResult> {
-        console.log(` DIRECTORY_XR_PARSER: Starting XR parsing for directory: ${session.targetName}`);
-        console.log(` DIRECTORY_XR_PARSER: Target path: ${session.targetPath}`);
-        console.log(` DIRECTORY_XR_PARSER: Deep analysis: ${session.isDeep}`);
-
+    async parseDirectoryForXR(
+        session: UnifiedAnalysisSession,
+        context: vscode.ExtensionContext,
+        bootstrap?: DirectoryXRSharedBootstrap,
+    ): Promise<DirectoryXRParsingResult> {
         try {
-            // =======================================================
-            // STEP 1: GET CONFIGURATION (CHART TYPE & DIMENSIONS)
-            // =======================================================
-            console.log(` DIRECTORY_XR_PARSER: STEP 1 - Getting user configuration...`);
-
             const storage = AnalysisConfigurationStorage.getInstance(context);
             const chartType = await storage.getDirectoryChartType();
             const dimensionMappings = await storage.getDimensionMappingDirectory();
-
-            console.log(` DIRECTORY_XR_PARSER: Chart type: ${chartType}`);
-            console.log(` DIRECTORY_XR_PARSER: Dimension mappings:`, dimensionMappings);
-
-            // =======================================================
-            // STEP 2: GENERATE REAL DATA.JSON USING PYTHON ANALYSIS
-            // =======================================================
-            console.log(` DIRECTORY_XR_PARSER: STEP 2 - Generating real data.json using Python analysis...`);
-
-            const executePython = new ExecutePython(context);
-
-            const xrAnalysisSession: UnifiedAnalysisSession = {
-                id: session.id,
-                targetPath: session.targetPath,
-                targetName: session.targetName,
-                targetType: 'directory',
-                analysisMode: 'XR',
-                isDeep: session.isDeep,
-                status: 'analyzing',
-                startTime: new Date(),
-                hash256: session.hash256,
-                outputDirectory: session.outputDirectory,
-                outputPath: session.outputPath,
-                requiredFiles: new Map(),
-                templatePaths: new Map(),
-                metadata: {},
-                filesToHash: session.filesToHash,
-                directoriesToAnalyze: session.directoriesToAnalyze
-            };
-
-            console.log(` DIRECTORY_XR_PARSER: Executing Python analysis for directory...`);
-            console.log(` DIRECTORY_XR_PARSER: Target path: ${xrAnalysisSession.targetPath}`);
-            console.log(` DIRECTORY_XR_PARSER: Analysis settings:`, {
-                analysisMode: xrAnalysisSession.analysisMode,
-                isDeep: xrAnalysisSession.isDeep
-            });
-
-            const analysisResult = await executePython.executeAnalysis(xrAnalysisSession);
-
-            let dataJsonContent: string;
-            let analysisData: any[] = [];
-
-            if (!analysisResult || (Array.isArray(analysisResult) && analysisResult.length === 0)) {
-                console.warn(` DIRECTORY_XR_PARSER: Python analysis returned empty result`);
-                dataJsonContent = JSON.stringify([], null, 2);
-                analysisData = [];
-                console.log(` DIRECTORY_XR_PARSER: Using empty array - no files analyzed`);
-            } else {
-                console.log(` DIRECTORY_XR_PARSER: Python analysis completed successfully!`);
-                console.log(` DIRECTORY_XR_PARSER: Analysis result:`, {
-                    isArray: Array.isArray(analysisResult),
-                    fileCount: Array.isArray(analysisResult) ? analysisResult.length : 0,
-                    resultType: typeof analysisResult
-                });
-
-                analysisData = Array.isArray(analysisResult) ? analysisResult : [];
-                dataJsonContent = JSON.stringify(analysisData, null, 2);
-                console.log(` DIRECTORY_XR_PARSER: STEP 2 completed - data.json generated (${dataJsonContent.length} chars)`);
-                console.log(` DIRECTORY_XR_PARSER: Generated data for ${analysisData.length} files`);
-
-                if (analysisData.length > 0) {
-                    console.log(` DIRECTORY_XR_PARSER: Sample file data:`, {
-                        fileName: analysisData[0].fileName,
-                        language: analysisData[0].language,
-                        totalLines: analysisData[0].totalLines,
-                        functionCount: analysisData[0].functionCount,
-                        fileSizeBytes: analysisData[0].fileSizeBytes
-                    });
-                }
-
-                console.log(` DIRECTORY_XR_PARSER: Updating session.filesToHash with ${analysisData.length} analyzed files...`);
-                const filesToHash: { filePath: string; hash: string }[] = [];
-
-                for (const fileData of analysisData) {
-                    const trackedPath = resolveTrackedSystemPath(session.targetPath, fileData);
-                    if (!trackedPath) {
-                        console.warn(
-                            `DIRECTORY_XR_PARSER: Could not resolve system path for tracked entry: ${fileData.fileName || fileData.relativePath || 'unknown'}`,
-                        );
-                        continue;
-                    }
-
-                    try {
-                        const fileHash = await SHA256Generator.generateFileHash(trackedPath);
-                        const trackedSnapshot = await buildTrackedFileSnapshot(trackedPath, fileHash);
-                        filesToHash.push(trackedSnapshot ?? {
-                            filePath: trackedPath,
-                            hash: fileHash
-                        });
-                    } catch (hashError) {
-                        console.error(`DIRECTORY_XR_PARSER: Error generating hash for ${trackedPath}:`, hashError);
-                        filesToHash.push({
-                            filePath: trackedPath,
-                            hash: ''
-                        });
-                    }
-                }
-
-                session.filesToHash = filesToHash;
-                console.log(` DIRECTORY_XR_PARSER: Updated session.filesToHash with ${filesToHash.length} files for watchers`);
-            }
-
-            // =======================================================
-            // STEP 3: GENERATE HTML USING TEMPLATEPROCESSOR WITH ANALYSIS DATA
-            // =======================================================
-            console.log(` DIRECTORY_XR_PARSER: STEP 3 - Generating HTML with TemplateProcessor and analysis data...`);
-
             const mappings: DimensionMapping[] = Object.entries(dimensionMappings).map(([dimension, dataField]) => ({
                 dimension,
-                dataField
+                dataField,
             }));
-            console.log(` DIRECTORY_XR_PARSER: Converted mappings:`, mappings);
+
+            const analysisData = bootstrap?.payload ?? await new ExecutePython(context).executeAnalysis({
+                ...session,
+                analysisMode: 'XR',
+                targetType: 'directory',
+            });
+            const payload = Array.isArray(analysisData) ? analysisData : [];
+
+            if (bootstrap?.trackedFiles) {
+                session.filesToHash = bootstrap.trackedFiles;
+            } else {
+                session.filesToHash = await this.buildTrackedFiles(session, payload);
+            }
 
             const tempOutputPath = path.join(context.storageUri?.fsPath || '/tmp', 'temp_xr_generation');
             await fs.promises.mkdir(tempOutputPath, { recursive: true });
@@ -162,76 +62,90 @@ export class DirectoryXRParser {
                 chartType,
                 mappings,
                 `Directory Analysis: ${session.targetName}`,
-                'data.json', // Data source file name
+                'data.json',
                 context,
                 tempHtmlPath,
-                analysisData
+                payload,
             );
 
             if (!htmlGenerationResult.success) {
-                console.error(` DIRECTORY_XR_PARSER: HTML generation failed:`, htmlGenerationResult.error);
                 return {
                     success: false,
-                    error: `HTML generation failed: ${htmlGenerationResult.error}`
+                    error: `HTML generation failed: ${htmlGenerationResult.error}`,
                 };
             }
 
             const htmlContent = await fs.promises.readFile(tempHtmlPath, 'utf8');
-            console.log(` DIRECTORY_XR_PARSER: STEP 3 completed - HTML generated (${htmlContent.length} chars)`);
-
-            try {
-                await fs.promises.unlink(tempHtmlPath);
-                await fs.promises.rmdir(tempOutputPath);
-            } catch (cleanupError) {
-                console.warn(` DIRECTORY_XR_PARSER: Cleanup warning:`, cleanupError);
-            }
-
-            // =======================================================
-            // STEP 4: GET LIVE_SSE_XR.JS FILE (saved as main.js)
-            // =======================================================
-            console.log(` DIRECTORY_XR_PARSER: STEP 4 - Getting live_sse_XR.js file (will be saved as main.js)...`);
+            await fs.promises.rm(tempOutputPath, { recursive: true, force: true });
 
             const jsFilePath = path.join(context.extensionPath, 'templates', 'xr', 'sse', 'live_sse_fileXR.js');
-            console.log(` DIRECTORY_XR_PARSER: Looking for JS file at: ${jsFilePath}`);
-
             if (!fs.existsSync(jsFilePath)) {
-                console.error(` DIRECTORY_XR_PARSER: live_sse_XR.js not found at: ${jsFilePath}`);
                 return {
                     success: false,
-                    error: `live_sse_XR.js not found at: ${jsFilePath}`
+                    error: `live_sse_fileXR.js not found at: ${jsFilePath}`,
+                };
+            }
+
+            const virtualScreenRuntimePath = path.join(context.extensionPath, 'templates', 'xr', 'shared', 'virtualScreenRuntime.js');
+            if (!fs.existsSync(virtualScreenRuntimePath)) {
+                return {
+                    success: false,
+                    error: `virtualScreenRuntime.js not found at: ${virtualScreenRuntimePath}`,
                 };
             }
 
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
-            console.log(` DIRECTORY_XR_PARSER: STEP 4 completed - JS file loaded (${jsContent.length} chars)`);
-
-            // =======================================================
-            // STEP 5: PREPARE FINAL FILES MAP
-            // =======================================================
-            console.log(` DIRECTORY_XR_PARSER: STEP 5 - Preparing final files map...`);
+            const virtualScreenRuntimeContent = await fs.promises.readFile(virtualScreenRuntimePath, 'utf8');
+            const dataJsonContent = JSON.stringify(payload, null, 2);
 
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', htmlContent);
             generatedFiles.set('main.js', jsContent);
+            generatedFiles.set('virtualScreenRuntime.js', virtualScreenRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
 
-            console.log(` DIRECTORY_XR_PARSER: All steps completed successfully!`);
-            console.log(` DIRECTORY_XR_PARSER: Generated files summary:`);
-            console.log(`    index.html: ${htmlContent.length} characters`);
-            console.log(`    main.js: ${jsContent.length} characters`);
-            console.log(`    data.json: ${dataJsonContent.length} characters`);
+            session.metadata.mainHtmlFileName = 'index.html';
 
             return {
                 success: true,
-                generatedFiles
+                generatedFiles,
             };
         } catch (error) {
-            console.error(` DIRECTORY_XR_PARSER: Error during directory XR parsing:`, error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             };
         }
+    }
+
+    private async buildTrackedFiles(
+        session: UnifiedAnalysisSession,
+        analysisData: any[],
+    ): Promise<{ filePath: string; hash: string; size?: number; mtimeMs?: number }[]> {
+        const filesToHash: { filePath: string; hash: string; size?: number; mtimeMs?: number }[] = [];
+
+        for (const fileData of analysisData) {
+            const trackedPath = resolveTrackedSystemPath(session.targetPath, fileData);
+            if (!trackedPath) {
+                continue;
+            }
+
+            try {
+                const fileHash = await SHA256Generator.generateFileHash(trackedPath);
+                const trackedSnapshot = await buildTrackedFileSnapshot(trackedPath, fileHash);
+                filesToHash.push(trackedSnapshot ?? {
+                    filePath: trackedPath,
+                    hash: fileHash,
+                });
+            } catch {
+                filesToHash.push({
+                    filePath: trackedPath,
+                    hash: '',
+                });
+            }
+        }
+
+        return filesToHash;
     }
 }
 

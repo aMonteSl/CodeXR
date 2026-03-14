@@ -63,7 +63,6 @@ export class LauncherLivePanel {
         session: UnifiedAnalysisSession,
         context: vscode.ExtensionContext,
     ): Promise<void> {
-        const registry = UnifiedSessionRegistry.getInstance(context);
         const configStorage = AnalysisConfigurationStorage.getInstance(context);
 
         await executeLaunchPipeline(session, context, {
@@ -72,18 +71,14 @@ export class LauncherLivePanel {
             progress: { process: 20, save: 40, watcherOrServer: 60, serverOrWatcher: 80, done: 100 },
 
             preValidation: async () => {
-                const dirs = session.directoriesToAnalyze || [];
                 const files = session.filesToHash || [];
-                console.log(`${LOG_PREFIX}: Session has ${dirs.length} directories, ${files.length} files to hash`);
-
-                if (dirs.length === 0) {
-                    console.warn(`${LOG_PREFIX}: No directories to analyze for session ${session.id}`);
-                    registry.updateSessionStatus(session.id, 'error', undefined, 'No directories to analyze');
-                    throw new Error('No directories to analyze');
-                }
+                console.log(`${LOG_PREFIX}: Directory session target path: ${session.targetPath}`);
+                console.log(`${LOG_PREFIX}: Directory session deep mode: ${session.isDeep ? 'enabled' : 'disabled'}`);
+                console.log(`${LOG_PREFIX}: Session currently tracks ${files.length} hashed files`);
+                console.log(`${LOG_PREFIX}: Directory targets will be resolved by the Python coordinator during the initial analysis`);
 
                 if (files.length === 0) {
-                    console.warn(`${LOG_PREFIX}: No files to hash for session ${session.id}`);
+                    console.log(`${LOG_PREFIX}: filesToHash will be populated after the initial directory analysis completes`);
                 }
             },
 

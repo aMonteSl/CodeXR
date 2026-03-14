@@ -25,17 +25,15 @@ test('directory python execution avoids passing large --files argument lists', (
     assert.match(source, /Python coordinator will scan and filter directory contents internally/);
 });
 
-test('directory analyzers still hydrate filesToHash after the initial analysis', () => {
+test('directory analysis bootstrap hydrates filesToHash after the initial analysis for XR and LivePanel', () => {
+    const bootstrapSource = readProjectFile('src', 'code_analysis', 'engine', 'processors', 'analysisBootstrap.ts');
     const xrSource = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
-    const livePanelSource = readProjectFile(
-        'src',
-        'code_analysis',
-        'engine',
-        'processors',
-        'requirementRules',
-        'LivePanelDirectoryRequirements.ts',
-    );
+    const livePanelSource = readProjectFile('src', 'code_analysis', 'engine', 'processors', 'requirementRules', 'LivePanelDirectoryRequirements.ts');
 
-    assert.match(xrSource, /session\.filesToHash = filesToHash/);
-    assert.match(livePanelSource, /session\.filesToHash = filesToHash/);
+    assert.match(bootstrapSource, /const trackedFiles = await this\.buildTrackedFiles\(session, payload\);/);
+    assert.match(bootstrapSource, /session\.filesToHash = trackedFiles/);
+    assert.match(bootstrapSource, /resolveTrackedSystemPath\(session\.targetPath, entry\)/);
+    assert.match(xrSource, /bootstrap\?\.trackedFiles/);
+    assert.match(xrSource, /session\.filesToHash = await this\.buildTrackedFiles\(session, payload\);/);
+    assert.match(livePanelSource, /return this\.analysisBootstrap\.bootstrap\(session, theme\);/);
 });

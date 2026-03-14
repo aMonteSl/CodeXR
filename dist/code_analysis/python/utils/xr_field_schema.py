@@ -127,6 +127,8 @@ def summarize_function_metrics(functions: Iterable[Dict[str, Any]]) -> Dict[str,
     function_list = list(functions or [])
     if not function_list:
         return {
+            "averageFunctionParameters": 0.0,
+            "maxFunctionParameters": 0,
             "averageFunctionLines": 0.0,
             "maxFunctionLines": 0,
             "averageFunctionNestingDepth": 0.0,
@@ -135,11 +137,14 @@ def summarize_function_metrics(functions: Iterable[Dict[str, Any]]) -> Dict[str,
             "criticalComplexityFunctions": 0,
         }
 
+    parameter_counts = [int(func.get("parameters", 0) or 0) for func in function_list]
     line_counts = [int(func.get("lineCount", 0) or 0) for func in function_list]
     nesting_depths = [int(func.get("maxNestingDepth", 0) or 0) for func in function_list]
     complexities = [float(func.get("complexity", 0) or 0) for func in function_list]
 
     return {
+        "averageFunctionParameters": round(sum(parameter_counts) / len(parameter_counts), 2),
+        "maxFunctionParameters": max(parameter_counts) if parameter_counts else 0,
         "averageFunctionLines": round(sum(line_counts) / len(line_counts), 2),
         "maxFunctionLines": max(line_counts) if line_counts else 0,
         "averageFunctionNestingDepth": round(sum(nesting_depths) / len(nesting_depths), 2),

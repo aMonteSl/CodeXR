@@ -1,100 +1,99 @@
 import importlib.util
-import json
 import tempfile
+import types
 import unittest
 from pathlib import Path
+import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-XR_MODULE_PATH = PROJECT_ROOT / 'src' / 'code_analysis' / 'python' / 'XR' / 'xr_file_analysis_coordinator.py'
-UTIL_MODULE_PATH = PROJECT_ROOT / 'src' / 'code_analysis' / 'python' / 'utils' / 'babia_path_utils.py'
+PYTHON_ROOT = PROJECT_ROOT / 'src' / 'code_analysis' / 'python'
+for extra_path in [PYTHON_ROOT, PYTHON_ROOT / 'utils', PYTHON_ROOT / 'tools']:
+    if str(extra_path) not in sys.path:
+        sys.path.insert(0, str(extra_path))
 
-xr_spec = importlib.util.spec_from_file_location('xr_file_analysis_coordinator', XR_MODULE_PATH)
-xr_module = importlib.util.module_from_spec(xr_spec)
-xr_spec.loader.exec_module(xr_module)
+ENGINE_PATH = PYTHON_ROOT / 'utils' / 'file_analysis_engine.py'
+UTILS_PATH = PYTHON_ROOT / 'utils' / 'babia_path_utils.py'
 
-util_spec = importlib.util.spec_from_file_location('babia_path_utils', UTIL_MODULE_PATH)
+
+class _FakeFunction:
+    def __init__(self, name):
+        self.name = name
+        self.start_line = 1
+        self.end_line = 3
+        self.nloc = 3
+        self.cyclomatic_complexity = 2
+        self.parameter_count = 1
+        self.max_nesting_depth = 1
+
+
+class _FakeAnalysis:
+    def __init__(self, file_path, has_functions=True):
+        self.file_path = file_path
+        self.nloc = 3 if has_functions else 0
+        self.function_list = [_FakeFunction(Path(file_path).stem)] if has_functions else []
+
+
+def _fake_analyze_file(file_path):
+    try:
+        content = Path(file_path).read_text(encoding='utf-8')
+    except Exception:
+        content = ''
+    return _FakeAnalysis(file_path, has_functions=bool(content.strip()))
+
+
+fake_lizard_module = types.ModuleType('lizard')
+fake_lizard_module.analyze_file = _fake_analyze_file
+fake_lizard_module.FileAnalyzer = lambda *args, **kwargs: _fake_analyze_file
+fake_lizard_module.get_extensions = lambda *_: []
+sys.modules['lizard'] = fake_lizard_module
+
+engine_spec = importlib.util.spec_from_file_location('file_analysis_engine', ENGINE_PATH)
+engine_module = importlib.util.module_from_spec(engine_spec)
+engine_spec.loader.exec_module(engine_module)
+
+util_spec = importlib.util.spec_from_file_location('babia_path_utils', UTILS_PATH)
 util_module = importlib.util.module_from_spec(util_spec)
 util_spec.loader.exec_module(util_module)
 
-analyze_file_for_xr = xr_module.analyze_file_for_xr
-generate_fallback_xr_data = xr_module.generate_fallback_xr_data
+build_file_snapshot = engine_module.build_file_snapshot
+build_file_payload = engine_module.build_file_payload
 normalize_path_for_babia = util_module.normalize_path_for_babia
 build_tree_path = util_module.build_tree_path
 
 
 class EmptyFileHandlingTests(unittest.TestCase):
-    def test_empty_file_returns_no_functions(self):
+    def test_empty_file_returns_zeroed_snapshot_and_empty_payload(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.ts', delete=False) as handle:
             file_path = handle.name
 
         try:
-            result = generate_fallback_xr_data(file_path)
-            self.assertEqual(result, [])
+            snapshot = build_file_snapshot(file_path)
+            payload = build_file_payload(file_path, snapshot)
+            self.assertEqual(snapshot['totalLines'], 0)
+            self.assertEqual(snapshot['functionCount'], 0)
+            self.assertEqual(snapshot['maxFunctionNestingDepth'], 0)
+            self.assertEqual(payload, [])
         finally:
             Path(file_path).unlink(missing_ok=True)
 
-    def test_non_empty_file_returns_single_fallback_entry_with_normalized_file_path(self):
+    def test_non_empty_file_returns_function_payload_with_normalized_path_and_tree_path(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.ts', delete=False) as handle:
-            handle.write('const value = 1;\n')
+            handle.write('const value = 1;\nfunction renderScene(input) {\n  return input + value;\n}\n')
             file_path = handle.name
 
         try:
-            result = generate_fallback_xr_data(file_path)
-            self.assertEqual(len(result), 1)
-            self.assertEqual(result[0]['lineStart'], 1)
-            self.assertEqual(result[0]['lineEnd'], 1)
-            self.assertEqual(result[0]['lineCount'], 1)
-            self.assertEqual(result[0]['spanLines'], 1)
-            self.assertEqual(result[0]['complexityBand'], 'normal')
-            self.assertEqual(result[0]['filePath'], normalize_path_for_babia(file_path))
-            self.assertEqual(result[0]['treePath'], build_tree_path(Path(file_path).name, Path(file_path).stem))
+            snapshot = build_file_snapshot(file_path)
+            payload = build_file_payload(file_path, snapshot)
+            self.assertEqual(len(payload), 1)
+            self.assertEqual(payload[0]['lineStart'], 1)
+            self.assertEqual(payload[0]['lineEnd'], 3)
+            self.assertEqual(payload[0]['complexityBand'], 'normal')
+            self.assertEqual(payload[0]['filePath'], normalize_path_for_babia(file_path))
+            self.assertEqual(payload[0]['treePath'], build_tree_path(Path(file_path).name, Path(file_path).stem))
         finally:
-            Path(file_path).unlink(missing_ok=True)
-
-    def test_successful_xr_analysis_normalizes_file_path_and_builds_tree_path(self):
-        class FakeCompletedProcess:
-            def __init__(self, stdout):
-                self.returncode = 0
-                self.stdout = stdout
-                self.stderr = ''
-
-        fake_output = json.dumps({
-            'functions': [
-                {
-                    'name': 'renderScene',
-                    'lineStart': 10,
-                    'lineEnd': 30,
-                    'lineCount': 20,
-                    'complexity': 4,
-                    'parameters': 2,
-                    'maxNestingDepth': 1,
-                    'cyclomaticDensity': 0.2,
-                }
-            ]
-        })
-
-        def fake_run(*args, **kwargs):
-            return FakeCompletedProcess(fake_output)
-
-        original_run = xr_module.subprocess.run
-
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.ts', delete=False) as handle:
-            handle.write('function renderScene(a, b) {\n  return a + b;\n}\n')
-            file_path = handle.name
-
-        try:
-            xr_module.subprocess.run = fake_run
-            result = analyze_file_for_xr(file_path)
-            self.assertEqual(len(result), 1)
-            self.assertEqual(result[0]['functionName'], 'renderScene')
-            self.assertEqual(result[0]['spanLines'], 21)
-            self.assertEqual(result[0]['complexityBand'], 'normal')
-            self.assertEqual(result[0]['filePath'], normalize_path_for_babia(file_path))
-            self.assertEqual(result[0]['treePath'], build_tree_path(Path(file_path).name, 'renderScene'))
-        finally:
-            xr_module.subprocess.run = original_run
             Path(file_path).unlink(missing_ok=True)
 
 
 if __name__ == '__main__':
     unittest.main()
+

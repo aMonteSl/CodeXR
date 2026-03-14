@@ -9,7 +9,7 @@ import * as fs from 'fs/promises';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
 import { ExecutePython } from '../utils/executePython';
 import { SSEManager } from '../../../servers/runtime/sse/SSEManager';
-import { VisualizeDOMRequirements } from '../processors/requirementRules/VisualizeDOMRequirements';
+import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
 import { SaveFiles } from '../utils/saveFiles';
 
 export class ReAnalysisManager {
@@ -57,8 +57,8 @@ export class ReAnalysisManager {
                 throw new Error(`Target HTML file does not exist: ${session.targetPath}`);
             }
 
-            const visualizeDOMRequirements = new VisualizeDOMRequirements(this.context);
-            const processedFiles = await visualizeDOMRequirements.getRequiredFiles(session);
+            const processor = new FileRequirementProcessor(this.context);
+            const processedFiles = await processor.processRequirements(session);
             if (processedFiles.loadedFiles.size === 0) {
                 throw new Error('No processed VisualizeDOM files were generated');
             }
@@ -72,12 +72,14 @@ export class ReAnalysisManager {
             );
 
             session.savedFilesPath = savedPath;
+            await this.removeLegacyDomDataJson(savedPath);
+
             session.requiredFiles.clear();
             for (const [fileName, content] of processedFiles.loadedFiles) {
                 session.requiredFiles.set(fileName, content);
             }
 
-            const htmlContent = await fs.readFile(session.targetPath, 'utf-8');
+            const htmlContent = this.extractVisualizeDOMHtmlContent(session, processedFiles.loadedFiles);
             this.sseManager.sendCustomMessage(session.targetPath, {
                 type: 'htmlUpdated',
                 htmlContent,
@@ -92,6 +94,40 @@ export class ReAnalysisManager {
         }
     }
 
+    private extractVisualizeDOMHtmlContent(session: UnifiedAnalysisSession, loadedFiles: Map<string, string>): string {
+        if (typeof session.metadata.domHtmlContent === 'string' && session.metadata.domHtmlContent.length > 0) {
+            return session.metadata.domHtmlContent;
+        }
+
+        const indexHtml = loadedFiles.get('index.html');
+        if (!indexHtml) {
+            return '';
+        }
+
+        const payloadMatch = indexHtml.match(/window\.__CODEXR_DOM_HTML_PAYLOAD__\s*=\s*("(?:\\.|[^"\\])*");/);
+        if (!payloadMatch) {
+            return '';
+        }
+
+        try {
+            return JSON.parse(payloadMatch[1]);
+        } catch {
+            return '';
+        }
+    }
+
+    private async removeLegacyDomDataJson(savedPath: string): Promise<void> {
+        const legacyDataJsonPath = path.join(savedPath, 'data.json');
+        try {
+            await fs.unlink(legacyDataJsonPath);
+        } catch (error) {
+            const code = (error as NodeJS.ErrnoException)?.code;
+            if (code !== 'ENOENT') {
+                console.warn('RE_ANALYSIS_MANAGER: Failed to remove legacy DOM data.json:', error);
+            }
+        }
+    }
+
     private async fileExists(filePath: string): Promise<boolean> {
         try {
             await fs.access(filePath);
@@ -101,3 +137,4 @@ export class ReAnalysisManager {
         }
     }
 }
+

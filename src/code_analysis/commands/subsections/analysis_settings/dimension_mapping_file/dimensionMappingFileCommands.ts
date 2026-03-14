@@ -6,7 +6,6 @@
 import * as vscode from 'vscode';
 import { DimensionMappingFileSetting } from '../../../../views/subsections/analysis_settings/dimension_mapping_file/dimensionMappingFile';
 import { CommandRegistration } from '../analysis_file_mode';
-import { ChartDimension } from '../../../../../babia_templates/models/chartModels';
 
 export class DimensionMappingFileCommands {
     constructor(private readonly dimensionMappingSetting: DimensionMappingFileSetting) {}
@@ -22,8 +21,8 @@ export class DimensionMappingFileCommands {
         return [
             {
                 commandId: 'codeXR.analysis.selectDimensionMappingFile',
-                callback: async (dimension: ChartDimension) => {
-                    await commands.selectDimensionMapping(dimension);
+                callback: async (dimensionName: string) => {
+                    await commands.selectDimensionMapping(dimensionName);
                     refreshCallback();
                 },
                 description: 'Select dimension mapping for a specific chart dimension',
@@ -31,9 +30,9 @@ export class DimensionMappingFileCommands {
         ];
     }
 
-    private async selectDimensionMapping(dimension: ChartDimension): Promise<void> {
+    private async selectDimensionMapping(dimensionName: string): Promise<void> {
         try {
-            await this.dimensionMappingSetting.showDimensionMappingSelection(dimension);
+            await this.dimensionMappingSetting.showDimensionMappingSelection(dimensionName);
         } catch (error) {
             console.error('DIMENSION_MAPPING_FILE_COMMANDS: Error selecting dimension mapping:', error);
             vscode.window.showErrorMessage(`Failed to select dimension mapping: ${error instanceof Error ? error.message : String(error)}`);

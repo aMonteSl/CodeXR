@@ -5,7 +5,7 @@
 
 import * as vscode from 'vscode';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
-import { VisualizeDOMRequirements } from '../processors/requirementRules/VisualizeDOMRequirements';
+import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
 import { SessionWatcherManager } from '../watchers/sessionWatcherManager';
 import { executeLaunchPipeline } from './launchPipeline';
 
@@ -28,8 +28,8 @@ export class LauncherVisualizeDOM {
             rethrowErrors: true,
 
             processRequirements: async () => {
-                const requirements = new VisualizeDOMRequirements(context);
-                return requirements.getRequiredFiles(session);
+                const processor = new FileRequirementProcessor(context);
+                return processor.processRequirements(session);
             },
 
             startWatcher: async () => {

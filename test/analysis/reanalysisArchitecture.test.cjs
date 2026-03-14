@@ -43,8 +43,8 @@ test('watcher configuration changes propagate to active sessions and directory r
     const enabledCommands = readProjectFile('src', 'code_analysis', 'commands', 'subsections', 'analysis_settings', 'auto_analysis_enabled', 'autoAnalysisEnabledCommands.ts');
     const fileWatcher = readProjectFile('src', 'code_analysis', 'engine', 'watchers', 'fileWatcherOrchestrator.ts');
     const directoryWatcher = readProjectFile('src', 'code_analysis', 'engine', 'watchers', 'directoryWatcherOrchestrator.ts');
-    const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
-    const livePanelRequirements = readProjectFile('src', 'code_analysis', 'engine', 'processors', 'requirementRules', 'LivePanelDirectoryRequirements.ts');
+    const analysisBootstrap = readProjectFile('src', 'code_analysis', 'engine', 'processors', 'analysisBootstrap.ts');
+    const livePanelDirectoryRequirements = readProjectFile('src', 'code_analysis', 'engine', 'processors', 'requirementRules', 'LivePanelDirectoryRequirements.ts');
 
     assert.match(sessionWatcherManager, /async updateAllWatcherConfigurations\(\): Promise<number>/);
     assert.match(sessionWatcherManager, /static async refreshActiveWatcherConfigurations\(context: vscode\.ExtensionContext\): Promise<number>/);
@@ -56,6 +56,6 @@ test('watcher configuration changes propagate to active sessions and directory r
     assert.match(directoryWatcher, /if \(eventType === 'rename'\) \{/);
     assert.match(directoryWatcher, /this\.scheduleDebouncedReanalysis\(`rename-\$\{entryName\}`\)/);
     assert.equal(directoryWatcher.includes("if (newDelayMs === -1) {\r\n                await this.stopWatching();"), false);
-    assert.match(directoryParser, /resolveTrackedSystemPath\(session\.targetPath, fileData\)/);
-    assert.match(livePanelRequirements, /resolveTrackedSystemPath\(session\.targetPath, fileData\)/);
+    assert.match(analysisBootstrap, /resolveTrackedSystemPath\(session\.targetPath, entry\)/);
+    assert.match(livePanelDirectoryRequirements, /return this\.analysisBootstrap\.bootstrap\(session, theme\);/);
 });

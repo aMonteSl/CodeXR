@@ -104,14 +104,88 @@
     elements.themeIcon = document.getElementById('theme-icon');
   }
   
-  /**
-   * Load analysis data from multiple sources
-   */
+  function normalizeFunctionEntry(entry) {
+    const lineStart = entry.lineStart || entry.startLine || 0;
+    const lineEnd = entry.lineEnd || entry.endLine || lineStart;
+    const lineCount = entry.lineCount || entry.length || Math.max((lineEnd - lineStart) + 1, 0);
+    return {
+      name: entry.functionName || entry.name || 'Unknown',
+      functionName: entry.functionName || entry.name || 'Unknown',
+      lineStart,
+      lineEnd,
+      lineCount,
+      spanLines: entry.spanLines || Math.max((lineEnd - lineStart) + 1, 0),
+      parameters: entry.parameters || entry.parameterCount || 0,
+      maxNestingDepth: entry.maxNestingDepth || 0,
+      complexity: entry.complexity || 0,
+      complexityBand: entry.complexityBand || 'normal',
+      cyclomaticDensity: entry.cyclomaticDensity || 0,
+      treePath: entry.treePath || '',
+    };
+  }
+
+  function normalizeIncomingAnalysisData(data) {
+    if (Array.isArray(data)) {
+      const functions = data.map(normalizeFunctionEntry);
+      const first = data[0] || {};
+      const computedAverageComplexity = functions.length > 0
+        ? functions.reduce((sum, func) => sum + (func.complexity || 0), 0) / functions.length
+        : 0;
+      const computedMaxComplexity = functions.length > 0
+        ? Math.max(...functions.map((func) => func.complexity || 0))
+        : 0;
+      const computedAverageParameters = functions.length > 0
+        ? functions.reduce((sum, func) => sum + (func.parameters || 0), 0) / functions.length
+        : 0;
+      const computedAverageNestingDepth = functions.length > 0
+        ? functions.reduce((sum, func) => sum + (func.maxNestingDepth || 0), 0) / functions.length
+        : 0;
+      const computedMaxNestingDepth = functions.length > 0
+        ? Math.max(...functions.map((func) => func.maxNestingDepth || 0))
+        : 0;
+
+      return {
+        fileName: first.fileName || 'Unknown File',
+        filePath: first.filePath || '',
+        language: first.language || 'Unknown',
+        timestamp: first.timestamp || 'Unknown Time',
+        totalLines: first.totalLines || 0,
+        codeLines: first.codeLines || 0,
+        commentLines: first.commentLines || 0,
+        blankLines: first.blankLines || 0,
+        commentRatio: typeof first.commentRatio === 'number' ? first.commentRatio : 0,
+        codeRatio: typeof first.codeRatio === 'number' ? first.codeRatio : 0,
+        blankRatio: typeof first.blankRatio === 'number' ? first.blankRatio : 0,
+        functionCount: first.functionCount || functions.length,
+        classCount: first.classCount || 0,
+        fileSizeBytes: first.fileSizeBytes || 0,
+        averageFunctionParameters: typeof first.averageFunctionParameters === 'number' ? first.averageFunctionParameters : computedAverageParameters,
+        maxFunctionParameters: first.maxFunctionParameters || Math.max(...functions.map((func) => func.parameters || 0), 0),
+        averageFunctionNestingDepth: typeof first.averageFunctionNestingDepth === 'number' ? first.averageFunctionNestingDepth : computedAverageNestingDepth,
+        maxFunctionNestingDepth: first.maxFunctionNestingDepth || computedMaxNestingDepth,
+        cyclomaticComplexityDensity: typeof first.cyclomaticComplexityDensity === 'number' ? first.cyclomaticComplexityDensity : 0,
+        complexity: {
+          averageComplexity: Number.isFinite(first.cyclomaticComplexityNumber) ? first.cyclomaticComplexityNumber : computedAverageComplexity,
+          maxComplexity: first.maxComplexity || computedMaxComplexity,
+          highComplexityFunctions: first.highComplexityFunctions || functions.filter((func) => (func.complexity || 0) > 10).length,
+          criticalComplexityFunctions: first.criticalComplexityFunctions || functions.filter((func) => (func.complexity || 0) > 25).length,
+        },
+        functions
+      };
+    }
+
+    if (data && Array.isArray(data.functions)) {
+      return data;
+    }
+
+    return data;
+  }
+
   function loadAnalysisData() {
     // First try: Use injected window.analysisData (preferred for static mode)
     if (window.analysisData) {
       console.log('ANALYSIS_VIEWER: Using injected analysis data');
-      analysisData = window.analysisData;
+      analysisData = normalizeIncomingAnalysisData(window.analysisData);
       renderAnalysisData();
       return;
     }
@@ -127,7 +201,7 @@
       })
       .then(data => {
         console.log('ANALYSIS_VIEWER: Successfully loaded data.json', data);
-        analysisData = data;
+        analysisData = normalizeIncomingAnalysisData(data);
         renderAnalysisData();
       })
       .catch(error => {
@@ -250,7 +324,7 @@
       })
       .then(data => {
         console.log('ANALYSIS_VIEWER: Successfully reloaded data.json via SSE');
-        analysisData = data;
+        analysisData = normalizeIncomingAnalysisData(data);
         renderAnalysisData();
         showReloadNotification();
       })
@@ -431,40 +505,41 @@
       'code-lines': analysisData.codeLines || 0,
       'comment-lines': analysisData.commentLines || 0,
       'blank-lines': analysisData.blankLines || 0,
+      'file-size': formatBytes(analysisData.fileSizeBytes || 0),
       'function-count': analysisData.functionCount || 0,
-      'class-count': analysisData.classCount || 0
+      'class-count': analysisData.classCount || 0,
+      'comment-ratio': formatRatio(analysisData.commentRatio || 0),
+      'code-ratio': formatRatio(analysisData.codeRatio || 0),
+      'blank-ratio': formatRatio(analysisData.blankRatio || 0)
     };
-    
+
     Object.entries(metrics).forEach(([id, value]) => {
       updateElementText(id, value);
     });
   }
-  
-  /**
-   * Render complexity metrics
-   */
+
   function renderComplexityMetrics() {
     const complexity = analysisData.complexity || {};
     const functions = analysisData.functions || [];
-    
-    // Calculate high complexity function count
     const highComplexityCount = functions.filter(f => (f.complexity || 0) > 10).length;
-    
+
     const complexityMetrics = {
       'avg-complexity': (complexity.averageComplexity || 0).toFixed(2),
       'max-complexity': complexity.maxComplexity || 0,
+      'complexity-density': (analysisData.cyclomaticComplexityDensity || 0).toFixed(3),
       'high-complexity-count-summary': highComplexityCount,
-      'high-complexity-count-ccn': highComplexityCount
+      'high-complexity-count-ccn': highComplexityCount,
+      'avg-function-parameters': (analysisData.averageFunctionParameters || 0).toFixed(2),
+      'max-function-parameters': analysisData.maxFunctionParameters || 0,
+      'avg-nesting-depth': (analysisData.averageFunctionNestingDepth || 0).toFixed(2),
+      'max-nesting-depth': analysisData.maxFunctionNestingDepth || 0
     };
-    
+
     Object.entries(complexityMetrics).forEach(([id, value]) => {
       updateElementText(id, value);
     });
   }
-  
-  /**
-   * Render complexity summary section
-   */
+
   function renderComplexitySummary() {
     const functions = analysisData.functions || [];
     
@@ -506,39 +581,39 @@
     if (!tbody) {
       return;
     }
-    
+
     const functions = analysisData.functions || [];
-    
+
     if (functions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="no-data">No functions found in this file</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="no-data">No functions found in this file</td></tr>';
       return;
     }
-    
-    const rows = functions.map((func, index) => {
+
+    const rows = functions.map((func) => {
       const complexity = func.complexity || 0;
       const complexityClass = getComplexityClass(complexity);
       const density = func.cyclomaticDensity || (func.complexity || 0) / Math.max(func.lineCount || 1, 1);
       const densityClass = getDensityClass(density);
-      
+
       return `
         <tr>
-          <td class="function-name">${escapeHtml(func.name || 'Unknown')}</td>
+          <td class="function-name">${escapeHtml(func.name || "Unknown")}</td>
           <td>${func.lineStart || func.startLine || 0}</td>
           <td>${func.lineEnd || func.endLine || 0}</td>
           <td>${func.lineCount || func.length || 0}</td>
+          <td>${func.spanLines || 0}</td>
           <td>${func.parameters || func.parameterCount || 0}</td>
+          <td>${func.maxNestingDepth || 0}</td>
+          <td>${formatComplexityBand(func.complexityBand)}</td>
           <td class="complexity ${complexityClass}">${complexity}</td>
           <td class="density ${densityClass}">${density.toFixed(3)}</td>
         </tr>
       `;
     });
-    
+
     tbody.innerHTML = rows.join('');
   }
-  
-  /**
-   * Render distribution metrics
-   */
+
   function renderDistributionMetrics() {
     const functions = analysisData.functions || [];
     
@@ -776,6 +851,30 @@
   /**
    * Utility function to update element text content
    */
+  function formatRatio(value) {
+    return `${((value || 0) * 100).toFixed(1)}%`;
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes) {
+      return '0 KB';
+    }
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  function formatComplexityBand(value) {
+    if (!value) {
+      return 'Normal';
+    }
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
   function updateElementText(id, value) {
     const element = document.getElementById(id);
     if (element) {
@@ -832,3 +931,5 @@
   };
   
 })();
+
+
