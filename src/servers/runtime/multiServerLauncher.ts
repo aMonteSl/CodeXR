@@ -10,6 +10,7 @@ import { LaunchMode, CertMode } from '../../active_servers/model/activeServerMod
 import { ServerActionHandlers } from '../../active_servers/views/interactions/handleServerActions';
 import { getServerRegistrar } from '../../active_servers/services/serverRegistrar';
 import { NetworkUtils } from '../utils/networkUtils';
+import { SessionVirtualScreenServerConfig } from './virtualScreen/sessionVirtualScreenBroker';
 
 /**
  * Server types supported by the launcher
@@ -48,6 +49,10 @@ export interface MultiServerLaunchResult {
     originalPort?: number;
 }
 
+export interface ServerRuntimeOptions {
+    virtualScreen?: SessionVirtualScreenServerConfig;
+}
+
 /**
  * Running server info
  */
@@ -79,7 +84,12 @@ export class MultiServerLauncher {
      * @param customName Optional custom display name for the server
      * @returns Promise<MultiServerLaunchResult>
      */
-    public async launchServer(htmlFile?: string, customName?: string, additionalMetadata?: Record<string, any>): Promise<MultiServerLaunchResult> {
+    public async launchServer(
+        htmlFile?: string,
+        customName?: string,
+        additionalMetadata?: Record<string, any>,
+        runtimeOptions?: ServerRuntimeOptions,
+    ): Promise<MultiServerLaunchResult> {
         try {
             console.log('SERVER: Starting multi-server launch process...');
             console.log('SERVER: launchServer called with parameters:', { htmlFile, customName });
@@ -123,7 +133,7 @@ export class MultiServerLauncher {
             // Launch the server - Use 0.0.0.0 to listen on all network interfaces for external access
             const host = '0.0.0.0';
             console.log(`SERVER: DEBUG - Configuring server to listen on ${host}:${finalPort} for network access`);
-            const result = await this.launchServerByType(serverType, settings, finalPort, host, htmlFile);
+            const result = await this.launchServerByType(serverType, settings, finalPort, host, htmlFile, runtimeOptions);
             
             if (result.success && result.serverUrl) {
                 console.log(`SERVER: Successfully launched ${serverType} server on port ${finalPort}`);
@@ -399,7 +409,8 @@ export class MultiServerLauncher {
         settings: ServerSettings,
         port: number,
         host: string,
-        htmlFile?: string
+        htmlFile?: string,
+        runtimeOptions?: ServerRuntimeOptions,
     ): Promise<{
         success: boolean;
         serverUrl?: string;
@@ -433,7 +444,8 @@ export class MultiServerLauncher {
                         staticRoot,
                         enableCors,
                         allowedOrigins,
-                        mainFile
+                        mainFile,
+                        virtualScreen: runtimeOptions?.virtualScreen,
                     });
                     break;
 
@@ -446,6 +458,7 @@ export class MultiServerLauncher {
                         enableCors,
                         allowedOrigins,
                         mainFile,
+                        virtualScreen: runtimeOptions?.virtualScreen,
                         extensionContext: this.context
                     });
                     break;
@@ -462,6 +475,7 @@ export class MultiServerLauncher {
                         enableCors,
                         allowedOrigins,
                         mainFile,
+                        virtualScreen: runtimeOptions?.virtualScreen,
                         certPath: settings.https.certPath,
                         keyPath: settings.https.keyPath,
                         extensionContext: this.context

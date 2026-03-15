@@ -14,6 +14,7 @@ import { DimensionMapping } from '../../../babia_templates/models/chartModels';
 import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
+import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
 
 export interface DirectoryXRParsingResult {
     success: boolean;
@@ -76,6 +77,12 @@ export class DirectoryXRParser {
             }
 
             const htmlContent = await fs.promises.readFile(tempHtmlPath, 'utf8');
+            const hydratedHtmlContent = injectVirtualScreenViewerConfig(htmlContent, {
+                virtualScreenSessionId: session.id,
+                virtualScreenSignalPath: '/codexr/virtual-screen/ws',
+                virtualScreenSupportsHostBroadcast: true,
+                virtualScreenSupportsLocalCapture: true,
+            });
             await fs.promises.rm(tempOutputPath, { recursive: true, force: true });
 
             const jsFilePath = path.join(context.extensionPath, 'templates', 'xr', 'sse', 'live_sse_fileXR.js');
@@ -99,7 +106,7 @@ export class DirectoryXRParser {
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
             const generatedFiles = new Map<string, string>();
-            generatedFiles.set('index.html', htmlContent);
+            generatedFiles.set('index.html', hydratedHtmlContent);
             generatedFiles.set('main.js', jsContent);
             generatedFiles.set('virtualScreenRuntime.js', virtualScreenRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);

@@ -6,6 +6,10 @@ import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
+import {
+    SessionVirtualScreenBroker,
+    SessionVirtualScreenServerConfig,
+} from './virtualScreen/sessionVirtualScreenBroker';
 
 /**
  * HTTP Server Configuration
@@ -17,6 +21,7 @@ export interface HttpServerConfig {
     enableCors?: boolean;
     allowedOrigins?: string[];
     mainFile?: string; // Optional main file to serve at root
+    virtualScreen?: SessionVirtualScreenServerConfig;
 }
 
 /**
@@ -27,6 +32,8 @@ export class HttpServer {
     private server: http.Server | null = null;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
+    private virtualScreenBroker: SessionVirtualScreenBroker | null = null;
+    private upgradeAttached = false;
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -42,6 +49,10 @@ export class HttpServer {
             allowedOrigins: ['*'],
             ...cleanConfig
         };
+
+        if (this.config.virtualScreen) {
+            this.virtualScreenBroker = new SessionVirtualScreenBroker(this.config.virtualScreen);
+        }
         
         console.log('SERVER: HTTP server initialized with config:', this.config);
     }
@@ -58,6 +69,7 @@ export class HttpServer {
         return new Promise((resolve, reject) => {
             try {
                 this.server = http.createServer(this.handleRequest.bind(this));
+                this.attachToNodeServer(this.server);
 
                 this.server.on('error', (error: NodeJS.ErrnoException) => {
                     console.error('SERVER: HTTP server error:', error);
@@ -121,6 +133,7 @@ export class HttpServer {
                     console.log('SERVER: HTTP server stopped successfully');
                     this.isRunning = false;
                     this.server = null;
+                    this.virtualScreenBroker?.dispose();
                     resolve();
                 }
             });
@@ -154,12 +167,16 @@ export class HttpServer {
         return `http://${this.config.host}:${this.config.port}`;
     }
 
+    public disposeRuntimeFeatures(): void {
+        this.virtualScreenBroker?.dispose();
+    }
+
     /**
      * Handle incoming HTTP requests
      * @param req - HTTP request
      * @param res - HTTP response
      */
-    private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+    public handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
         const startTime = Date.now();
         const requestUrl = req.url || '/';
         const method = req.method || 'GET';
@@ -201,6 +218,10 @@ export class HttpServer {
         res: http.ServerResponse,
         url: string
     ): Promise<void> {
+        if (this.virtualScreenBroker?.handleHttpRequest(req, res)) {
+            return;
+        }
+
         // Root path - serve main page
         if (url === '/' || url === '/index.html') {
             await this.serveMainPage(res);
@@ -529,5 +550,19 @@ export class HttpServer {
     </div>
 </body>
 </html>`;
+    }
+
+    public attachToNodeServer(server: http.Server): void {
+        if (this.upgradeAttached) {
+            return;
+        }
+
+        server.on('upgrade', (req, socket, head) => {
+            if (this.virtualScreenBroker?.handleUpgrade(req, socket, head)) {
+                return;
+            }
+            socket.destroy();
+        });
+        this.upgradeAttached = true;
     }
 }

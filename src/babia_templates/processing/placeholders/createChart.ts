@@ -126,10 +126,12 @@ export class CreateChart {
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
-                                 axis_name: true"
+                                 axis_name: true;
+                                 extra: 1;
+                                 zone_elevation: 0.01"
                     position="0 1 -10"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
+                    scale="0.01 0.5 0.01"
                     class="babiaxraycasterclass">
                 </a-entity>`
         };

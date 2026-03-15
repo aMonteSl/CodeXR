@@ -6,7 +6,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { MultiServerLauncher } from '../../../servers/runtime/multiServerLauncher';
+import { randomBytes } from 'crypto';
+import { MultiServerLauncher, ServerRuntimeOptions } from '../../../servers/runtime/multiServerLauncher';
 import { ServerSettingsManager } from '../../../servers/storage/serverSettingsManager';
 import { fileToServerMap } from '../../../utils/fileToServerMap';
 import { UnifiedAnalysisSession } from '../core/analysisSession';
@@ -15,6 +16,9 @@ import {
     ServerLaunchResult,
     SessionServerInfo,
 } from './models/sessionServerModels';
+
+const VIRTUAL_SCREEN_SIGNAL_PATH = '/codexr/virtual-screen/ws';
+const VIRTUAL_SCREEN_HOST_PATH = '/codexr/virtual-screen/host';
 
 export class ServerLaunchOrchestrator {
     private multiServerLauncher: MultiServerLauncher | null = null;
@@ -58,13 +62,19 @@ export class ServerLaunchOrchestrator {
             }
 
             const customName = this.generateDescriptiveServerName(request, session);
+            const runtimeOptions = session ? this.createServerRuntimeOptions(session, customName) : undefined;
             const launchResult = await this.multiServerLauncher!.launchServer(
                 htmlFilePath,
                 customName,
                 { sessionId: request.sessionId },
+                runtimeOptions,
             );
 
             if (launchResult.success && launchResult.port && launchResult.serverUrl && launchResult.serverId) {
+                if (session) {
+                    this.hydrateVirtualScreenSessionMetadata(session, launchResult.serverUrl, customName);
+                }
+
                 const sessionServerInfo: SessionServerInfo = {
                     sessionId: request.sessionId,
                     targetPath: request.targetPath,
@@ -188,6 +198,77 @@ export class ServerLaunchOrchestrator {
         }
 
         return targetType === 'directory' ? `LivePanel Directory: ${baseName}` : `LivePanel File: ${baseName}`;
+    }
+
+    private createServerRuntimeOptions(
+        session: UnifiedAnalysisSession,
+        customName: string,
+    ): ServerRuntimeOptions | undefined {
+        if (session.analysisMode !== 'XR' && session.analysisMode !== 'VisualizeDOM') {
+            return undefined;
+        }
+
+        const metadata = this.ensureVirtualScreenMetadata(session, customName);
+        return {
+            virtualScreen: {
+                sessionId: metadata.sessionId,
+                signalPath: metadata.signalPath,
+                hostPath: metadata.hostBroadcasterPath,
+                hostBroadcasterToken: metadata.hostBroadcasterToken,
+                displayName: customName,
+                getHostBroadcasterUrl: () => session.metadata?.virtualScreen?.hostBroadcasterUrl,
+                onHostBroadcastRequested: (event) => {
+                    metadata.hostBroadcastRequested = true;
+                    const hostBroadcasterUrl = event.hostBroadcasterUrl;
+                    const detail = hostBroadcasterUrl
+                        ? `A remote viewer requested the host computer source for "${customName}". Open the broadcaster page to share VS Code or another window from this computer.`
+                        : `A remote viewer requested the host computer source for "${customName}".`;
+                    void vscode.window.showInformationMessage(
+                        detail,
+                        'Open Host Broadcaster',
+                    ).then((selection) => {
+                        if (selection === 'Open Host Broadcaster' && hostBroadcasterUrl) {
+                            void vscode.env.openExternal(vscode.Uri.parse(hostBroadcasterUrl));
+                        }
+                    });
+                },
+            },
+        };
+    }
+
+    private hydrateVirtualScreenSessionMetadata(
+        session: UnifiedAnalysisSession,
+        serverUrl: string,
+        customName: string,
+    ): void {
+        if (session.analysisMode !== 'XR' && session.analysisMode !== 'VisualizeDOM') {
+            return;
+        }
+
+        const metadata = this.ensureVirtualScreenMetadata(session, customName);
+        metadata.hostBroadcasterUrl = `${serverUrl}${metadata.hostBroadcasterPath}?token=${encodeURIComponent(metadata.hostBroadcasterToken)}`;
+    }
+
+    private ensureVirtualScreenMetadata(
+        session: UnifiedAnalysisSession,
+        customName: string,
+    ): Record<string, any> {
+        const existing: Record<string, any> = typeof session.metadata.virtualScreen === 'object' && session.metadata.virtualScreen
+            ? session.metadata.virtualScreen
+            : {};
+
+        Object.assign(existing, {
+            sessionId: session.id,
+            signalPath: VIRTUAL_SCREEN_SIGNAL_PATH,
+            hostBroadcasterPath: VIRTUAL_SCREEN_HOST_PATH,
+            hostBroadcasterToken: existing.hostBroadcasterToken || randomBytes(18).toString('hex'),
+            hostBroadcasterUrl: existing.hostBroadcasterUrl,
+            hostBroadcastRequested: existing.hostBroadcastRequested === true,
+            displayName: existing.displayName || customName,
+        });
+
+        session.metadata.virtualScreen = existing;
+        return existing;
     }
 }
 

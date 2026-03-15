@@ -138,7 +138,7 @@ export class AnalysisBootstrap {
             fileName: session.targetName,
             filePath: session.targetPath,
             title: `DOM Visualization - ${session.targetName}`,
-        }, theme);
+        }, theme, session.id);
 
         this.ensureBootstrapFiles(session, loadedFiles, ['index.html', 'main.js', 'virtualScreenRuntime.js']);
         this.assignMainHtmlFileName(session, loadedFiles, 'index.html');

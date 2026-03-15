@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
+import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
 
 /**
  * VisualizeDOM Parser - Bridge to TemplateHTMLProcessor
@@ -30,7 +31,8 @@ export class VisualizeDOMParser {
      */
     public async processHTMLTemplates(
         templateData: HTMLTemplateData, 
-        theme?: string
+        theme?: string,
+        virtualScreenSessionId?: string,
     ): Promise<Map<string, string>> {
         console.log(`VISUALIZE_DOM_PARSER:  Processing HTML templates for DOM visualization`);
         console.log(`VISUALIZE_DOM_PARSER: File: ${templateData.fileName}`);
@@ -93,8 +95,14 @@ export class VisualizeDOMParser {
             const resultFiles = new Map<string, string>();
 
             // Add index.html from templateHTMLProcessor
-            resultFiles.set('index.html', processingResult.indexHtml);
-            console.log(`VISUALIZE_DOM_PARSER:  Added index.html (${processingResult.indexHtml.length} chars)`);
+            const hydratedIndexHtml = injectVirtualScreenViewerConfig(processingResult.indexHtml, {
+                virtualScreenSessionId: virtualScreenSessionId || templateData.filePath,
+                virtualScreenSignalPath: '/codexr/virtual-screen/ws',
+                virtualScreenSupportsHostBroadcast: true,
+                virtualScreenSupportsLocalCapture: true,
+            });
+            resultFiles.set('index.html', hydratedIndexHtml);
+            console.log(`VISUALIZE_DOM_PARSER:  Added index.html (${hydratedIndexHtml.length} chars)`);
 
             // Add main.js from templateHTMLProcessor 
             resultFiles.set('main.js', processingResult.jsContent);

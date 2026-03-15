@@ -371,11 +371,11 @@ export const chartTemplates: ChartMetadata[] = [
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
                                  axis_name: true;
-                                 extra: 0.5;
-                                 zone_elevation: 0.1"
+                                 extra: 1;
+                                 zone_elevation: 0.01"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="0.5 0.5 0.5"
+                    scale="0.01 0.5 0.01"
                     class="babiaxraycasterclass">
                 </a-entity>`
     }

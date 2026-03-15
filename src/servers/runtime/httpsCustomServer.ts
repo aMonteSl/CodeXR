@@ -48,6 +48,7 @@ export class HttpsCustomServer {
             enableCors: this.config.enableCors,
             allowedOrigins: this.config.allowedOrigins,
             mainFile: this.config.mainFile,
+            virtualScreen: this.config.virtualScreen,
         });
 
         console.log('SERVER: HTTPS server (custom certificates) initialized with config:', {
@@ -80,8 +81,9 @@ export class HttpsCustomServer {
                 const sslOptions = this.loadSslOptions();
 
                 this.server = https.createServer(sslOptions, (req, res) => {
-                    (this.httpHandler as any).handleRequest(req, res);
+                    this.httpHandler.handleRequest(req, res);
                 });
+                this.httpHandler.attachToNodeServer(this.server);
 
                 this.server.on('error', (error: NodeJS.ErrnoException) => {
                     console.error('SERVER: HTTPS server error:', error);
@@ -166,6 +168,7 @@ export class HttpsCustomServer {
                     console.error('SERVER: Error stopping HTTPS server:', error);
                     reject(error);
                 } else {
+                    this.httpHandler.disposeRuntimeFeatures();
                     console.log('SERVER: HTTPS server stopped successfully');
                     this.isRunning = false;
                     this.server = null;
