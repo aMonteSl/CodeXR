@@ -45,11 +45,16 @@ test('boats chart legend text keeps multiline content without width/depth and do
     );
     assert.equal(templateCharts.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
 
-    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?zone_elevation: 0\.01"/);
+    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?height_quarter_legend_title: -3\.5"/);
     assert.ok(boatsBlock);
     assert.match(boatsBlock[0], /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
+    assert.match(boatsBlock[0], /height_building_legend: -0\.5;/);
+    assert.match(boatsBlock[0], /legend_scale: 0\.25;/);
+    assert.match(boatsBlock[0], /legend_lookat: \[laser-controls\];/);
     assert.match(boatsBlock[0], /extra: 1;/);
-    assert.match(templateCharts, /id="chart"[\s\S]*?scale="0\.01 0\.5 0\.01"/);
+    assert.match(boatsBlock[0], /height_quarter_legend_box: 0\.01;/);
+    assert.match(boatsBlock[0], /height_quarter_legend_title: -3\.5/);
+    assert.match(templateCharts, /scale="0\.01 0\.05 0\.01"/);
     assert.doesNotMatch(boatsBlock[0], /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
 
     const donutBlock = templateCharts.match(/babia-doughnut="from: data;[\s\S]*?axis_name: true"/);
@@ -57,9 +62,6 @@ test('boats chart legend text keeps multiline content without width/depth and do
     assert.equal(donutBlock[0].includes('legend_text'), false);
 
     assert.match(createChart, /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
-    assert.match(createChart, /extra: 1;/);
-    assert.match(createChart, /zone_elevation: 0\.01/);
-    assert.match(createChart, /scale="0\.01 0\.5 0\.01"/);
     assert.doesNotMatch(createChart, /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
 });
 
@@ -70,6 +72,10 @@ test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeh
         template,
         /<a-entity id="data" babia-queryjson="url: \$\{DATA_SOURCE\}"><\/a-entity>/,
     );
+});
+
+test('XR template includes lounge room script and entity while preserving configurable environment', () => {
+    const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 
     assert.match(
         template,
@@ -77,8 +83,11 @@ test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeh
     );
     assert.match(
         template,
-        /<a-entity id="loungeRoom" position="0 5\.5 -2" lounge="width: 22; depth: 28; height: 11; north: barrier"><\/a-entity>/,
+        /<a-entity id="env" environment="preset: \$\{ENVIRONMENT_PRESET\}; groundColor: \$\{GROUND_COLOR\}" hide-on-enter-ar><\/a-entity>/,
     );
-    assert.match(template, /<a-entity id="rig" movement-controls="fly: true" position="0 1\.6 2\.5">/);
-    assert.match(template, /<a-entity camera position="0 0 0" look-controls><\/a-entity>/);
+    assert.match(
+        template,
+        /<a-entity id="lounge" position="0 5\.6 -10" lounge="width: 20; depth: 25; height: 11; north: barrier"><\/a-entity>/,
+    );
+    assert.match(template, /<a-entity id="rig" movement-controls="fly: true" position="0 1\.6 2">/);
 });

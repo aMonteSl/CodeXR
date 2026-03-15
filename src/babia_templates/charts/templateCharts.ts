@@ -366,16 +366,21 @@ export const chartTemplates: ChartMetadata[] = [
                                  title: {{TITLE}};
                                  legend: true;
                                  legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};
+                                 height_building_legend: -0.5;
+                                 legend_scale: 0.25;
+                                 legend_lookat: [laser-controls];
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
                                  axis_name: true;
                                  extra: 1;
-                                 zone_elevation: 0.01"
+                                 zone_elevation: 0.01;
+                                 height_quarter_legend_box: 0.01;
+                                 height_quarter_legend_title: -3.5"
                     position="0 2 -10"
                     rotation="0 0 0"
-                    scale="0.01 0.5 0.01"
+                    scale="0.01 0.05 0.01"
                     class="babiaxraycasterclass">
                 </a-entity>`
     }

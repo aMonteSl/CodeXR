@@ -16,7 +16,7 @@
     <!-- Environment Component (v1.5.0: última publicada) -->
     <script src="https://unpkg.com/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
 
-    <!-- Lounge Component (used to build an indoor room around charts) -->
+    <!-- Lounge Component (for room enclosure) -->
     <script src="https://babiaxr.gitlab.io/aframe-babia-components/examples/publications/codecityvs/aframe-lounge-component.min.js"></script>
 
     <!-- Geometry Merger Component (v2.0.1: última publicada) -->
@@ -35,8 +35,8 @@
         <!-- Environment -->
         <a-entity id="env" environment="preset: ${ENVIRONMENT_PRESET}; groundColor: ${GROUND_COLOR}" hide-on-enter-ar></a-entity>
 
-        <!-- Lounge room (keeps user-selected environment while adding an indoor space) -->
-        <a-entity id="loungeRoom" position="0 5.5 -2" lounge="width: 22; depth: 28; height: 11; north: barrier"></a-entity>
+        <!-- Lounge room (kept independent from environment preset) -->
+        <a-entity id="lounge" position="0 5.6 -10" lounge="width: 20; depth: 25; height: 11; north: barrier"></a-entity>
 
         <!-- Light -->
         <a-entity light="color: #fff; type:ambient; intensity: 0.85"></a-entity>
@@ -50,7 +50,7 @@
         <!-- Chart Component (Dynamic) -->
         ${CHART_COMPONENT}
 
-        <a-entity id="rig" movement-controls="fly: true" position="0 1.6 2.5">
+        <a-entity id="rig" movement-controls="fly: true" position="0 1.6 2">
         <!-- Cámara -->
         <a-entity camera position="0 0 0" look-controls></a-entity>
 

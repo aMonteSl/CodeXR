@@ -1,5 +1,6 @@
 *.vsix
 artifacts/
+backups/
 out/
 **/__pycache__/
 **/*.pyc
@@ -7,6 +8,7 @@ out/
 **/*.pyd
 *.tsbuildinfo
 memoriaTFG/
-certs/*.pem
+certs/
 dist/certs/
-
+node_modules/
+dist/
