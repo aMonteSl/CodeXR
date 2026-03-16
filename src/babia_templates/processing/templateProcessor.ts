@@ -1,10 +1,19 @@
 import { DimensionMapping } from '../models/chartModels';
+import { chartTemplates } from '../charts/templateCharts';
 import { getVisualizationConfiguration, VisualizationSettings } from '../../utils/getVisualizationConfiguration';
 import { CreateChart } from './placeholders/createChart';
 import { CreateStructure } from './placeholders/createStructure';
+import { XRFieldTypeMap, XRSchemaTargetType } from '../../code_analysis/services/xrFieldSchemaService';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+
+interface XRVisualizationGenerationOptions {
+    babiaUiEnabled?: boolean;
+    babiaUiVisibleByDefault?: boolean;
+    xrTargetType?: XRSchemaTargetType;
+    fieldTypeMap?: XRFieldTypeMap;
+}
 
 /**
  * BabiaXR Template Processor - Modular Architecture
@@ -24,7 +33,8 @@ export class TemplateProcessor {
         dataSource: string,
         context: vscode.ExtensionContext,
         outputPath: string,
-        analysisData?: any[] // Add optional analysis data to detect type
+        analysisData?: any[], // Add optional analysis data to detect type
+        options?: XRVisualizationGenerationOptions,
     ): Promise<{ success: boolean; error?: string }> {
         try {
             console.log('TEMPLATE_PROCESSOR: Starting modular XR visualization generation');
@@ -56,6 +66,8 @@ export class TemplateProcessor {
                 };
             }
 
+            const chartEntityId = this.extractChartEntityId(chartResult.chartHtml || '');
+
             // Create structural placeholders using CreateStructure module
             const structureResult = CreateStructure.createStructuralPlaceholders(
                 title,
@@ -73,6 +85,16 @@ export class TemplateProcessor {
                     error: `Structure creation failed: ${structureResult.error}` 
                 };
             }
+
+            const babiaUiResult = this.buildBabiaUiPlaceholders(
+                chartId,
+                chartEntityId,
+                mappings,
+                isDirectoryAnalysis,
+                options,
+            );
+            structureResult.placeholders!.set('BABIA_UI_COMPONENT', babiaUiResult.componentHtml);
+            structureResult.placeholders!.set('BABIA_UI_SCRIPT', babiaUiResult.scriptHtml);
 
             // Load XR base template
             const xrTemplate = await this.loadXRTemplate(context);
@@ -208,5 +230,124 @@ export class TemplateProcessor {
         }
 
         return false;
+    }
+
+    private static extractChartEntityId(chartHtml: string): string | undefined {
+        const idMatch = chartHtml.match(/id="([^"]+)"/i);
+        return idMatch?.[1];
+    }
+
+    private static buildBabiaUiPlaceholders(
+        chartId: string,
+        chartEntityId: string | undefined,
+        mappings: DimensionMapping[],
+        isDirectoryAnalysis: boolean,
+        options?: XRVisualizationGenerationOptions,
+    ): { componentHtml: string; scriptHtml: string } {
+        const enabled = options?.babiaUiEnabled !== false;
+        if (!enabled) {
+            return { componentHtml: '', scriptHtml: '' };
+        }
+
+        const chartMetadata = chartTemplates.find((chart) => chart.id === chartId);
+        if (!chartMetadata || !chartEntityId || !options?.fieldTypeMap) {
+            return { componentHtml: '', scriptHtml: '' };
+        }
+
+        const schemaFieldEntries = Object.entries(options.fieldTypeMap);
+        const numericFields = schemaFieldEntries
+            .filter(([, fieldType]) => fieldType === 'numeric')
+            .map(([fieldName]) => fieldName);
+        const anyFields = schemaFieldEntries.map(([fieldName]) => fieldName);
+
+        const selectedFieldByDimension = new Map<string, string>();
+        for (const mapping of mappings) {
+            if (mapping.dataField) {
+                selectedFieldByDimension.set(mapping.dimension, mapping.dataField);
+            }
+        }
+
+        const dimensions: Array<{
+            id: string;
+            label: string;
+            dataType: 'numeric' | 'any';
+            currentField: string;
+            fields: string[];
+            hidden: boolean;
+        }> = [];
+
+        for (const dimension of chartMetadata.dimensions) {
+            const candidateFields = dimension.dataType === 'numeric' ? numericFields : anyFields;
+            if (candidateFields.length === 0) {
+                continue;
+            }
+
+            const selectedField = selectedFieldByDimension.get(dimension.name);
+            const orderedFields = selectedField && candidateFields.includes(selectedField)
+                ? [selectedField, ...candidateFields.filter((fieldName) => fieldName !== selectedField)]
+                : candidateFields;
+
+            dimensions.push({
+                id: dimension.name,
+                label: dimension.label,
+                dataType: dimension.dataType,
+                currentField: orderedFields[0],
+                fields: orderedFields,
+                hidden: false,
+            });
+        }
+
+        if (dimensions.length === 0) {
+            return { componentHtml: '', scriptHtml: '' };
+        }
+
+        const targetType: XRSchemaTargetType = options?.xrTargetType ?? (isDirectoryAnalysis ? 'directory' : 'file');
+        const panelVisibleByDefault = options?.babiaUiVisibleByDefault !== false;
+        const panelId = 'codexrMappingUiPanel';
+        const toggleId = 'codexrMappingUiToggle';
+        const boatsDocked = chartId === 'boats';
+        const uiScale = boatsDocked ? 0.165 : (targetType === 'directory' ? 0.18 : 0.2);
+        const position = boatsDocked
+            ? '3.35 1.24 -15.78'
+            : (targetType === 'directory' ? '9 2.4 -6' : '8 2 -8');
+        const rotation = boatsDocked ? '-28 -138 0' : '0 -70 0';
+        const adaptiveCorner = boatsDocked
+            ? {
+                table: {
+                    anchorX: 0,
+                    anchorY: 1.24,
+                    anchorZ: -18,
+                    width: 5.614,
+                    depth: 3.218,
+                },
+                marginX: 0.62,
+                marginZ: 0.52,
+                panelLift: 0.0,
+                panelForwardOffset: 0.16,
+                switchThreshold: 0.35,
+                switchCooldownMs: 480,
+            }
+            : undefined;
+
+        const model = {
+            chartId,
+            chartEntityId,
+            panelId,
+            toggleId,
+            sceneSelector: '#scene',
+            panelPosition: position,
+            panelRotation: rotation,
+            panelScale: uiScale,
+            panelVisible: panelVisibleByDefault,
+            hideOnEnterAr: boatsDocked,
+            adaptiveCorner,
+            togglePosition: targetType === 'directory' ? '6.8 1.1 -5.6' : '6.2 1 -7.5',
+            dimensions,
+        };
+        const serializedModel = JSON.stringify(model).replace(/<\//g, '<\\/');
+
+        const scriptHtml = `<script id="codexr-tooling-config-xr-mapping-ui" type="application/json">${serializedModel}</script>`;
+
+        return { componentHtml: '', scriptHtml };
     }
 }

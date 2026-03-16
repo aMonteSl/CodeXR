@@ -14,6 +14,7 @@ import { DimensionMappingFileSetting } from './dimension_mapping_file/dimensionM
 import { DimensionMappingDirectorySetting } from './dimension_mapping_directory/dimensionMappingDirectory';
 import { AutoAnalysisDelaySetting } from './auto_analysis_delay';
 import { AutoAnalysisEnabledSetting } from './auto_analysis_enabled';
+import { BabiaUiSetting } from './babia_ui';
 import { FilesByLanguageSortingSetting } from './files_by_language_sorting';
 import { ProfileConfigurationSetting } from './profile_configuration';
 import { AnalysisConfigurationStorage } from '../../../configuration/analysisConfigurationStorage';
@@ -28,6 +29,7 @@ export class AnalysisSettingsSubsectionProvider {
     private dimensionMappingDirectorySetting: DimensionMappingDirectorySetting;
     private autoAnalysisDelaySetting: AutoAnalysisDelaySetting;
     private autoAnalysisEnabledSetting: AutoAnalysisEnabledSetting;
+    private babiaUiSetting: BabiaUiSetting;
     private filesByLanguageSortingSetting: FilesByLanguageSortingSetting;
     private profileConfigurationSetting: ProfileConfigurationSetting;
     
@@ -44,6 +46,7 @@ export class AnalysisSettingsSubsectionProvider {
         this.dimensionMappingDirectorySetting = new DimensionMappingDirectorySetting(context);
         this.autoAnalysisDelaySetting = new AutoAnalysisDelaySetting(context);
         this.autoAnalysisEnabledSetting = new AutoAnalysisEnabledSetting(context);
+        this.babiaUiSetting = new BabiaUiSetting(context);
         this.filesByLanguageSortingSetting = new FilesByLanguageSortingSetting(context);
         
         // Initialize profile configuration setting with storage
@@ -109,6 +112,10 @@ export class AnalysisSettingsSubsectionProvider {
             // Auto Analysis Delay setting
             const autoAnalysisDelayItem = await this.autoAnalysisDelaySetting.getSettingItem();
             children.push(autoAnalysisDelayItem);
+
+            // CodeXR Mapping UI (XR) setting
+            const babiaUiItem = await this.babiaUiSetting.getSettingItem();
+            children.push(babiaUiItem);
             
             // Auto Analysis Enabled setting
             const autoAnalysisEnabledItem = await this.autoAnalysisEnabledSetting.getSettingItem();
@@ -245,6 +252,13 @@ export class AnalysisSettingsSubsectionProvider {
      */
     getAutoAnalysisEnabledSetting(): AutoAnalysisEnabledSetting {
         return this.autoAnalysisEnabledSetting;
+    }
+
+    /**
+     * Get Babia UI setting instance (for command integration)
+     */
+    getBabiaUiSetting(): BabiaUiSetting {
+        return this.babiaUiSetting;
     }
 
     /**

@@ -8,7 +8,22 @@ import { chartTemplates } from '../../../babia_templates/charts/templateCharts';
 import { ChartMetadata, DimensionMapping } from '../../../babia_templates/models/chartModels';
 import { TemplateProcessor } from '../../../babia_templates/processing/templateProcessor';
 import { ExecutePython } from '../utils/executePython';
+import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
+import {
+    BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    copyBoatsPedestalRuntimeToOutput,
+    copyCodeXrRoomAssetsToOutput,
+    CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
+    copyVirtualScreenManagerRuntimeToOutput,
+    copyVirtualScreenRuntimeToOutput,
+    VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME,
+    VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
+    copyXrChartDebugRuntimeToOutput,
+    XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME,
+    copyXrChartMappingUiRuntimeToOutput,
+    XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
+} from '../components/customComponents';
 
 interface FileXRSharedBootstrap {
     payload: any[];
@@ -73,21 +88,19 @@ export class FileXRParser {
                 await fs.promises.copyFile(liveSSEPath, mainJSPath);
             }
 
-            const virtualScreenRuntimePath = path.join(
-                this.context.extensionPath,
-                'templates',
-                'xr',
-                'shared',
-                'virtualScreenRuntime.js',
-            );
-            const virtualScreenOutputPath = path.join(session.outputPath, 'virtualScreenRuntime.js');
-            if (!fs.existsSync(virtualScreenRuntimePath)) {
-                throw new Error(`Virtual screen runtime not found at ${virtualScreenRuntimePath}`);
-            }
-            await fs.promises.copyFile(virtualScreenRuntimePath, virtualScreenOutputPath);
+            await copyVirtualScreenRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyVirtualScreenManagerRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
+            await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyBoatsPedestalRuntimeToOutput(this.context.extensionPath, session.outputPath);
 
             const title = `XR Analysis: ${session.targetName || 'analysis'}`;
             const outputPath = path.join(session.outputPath, 'index.html');
+            const babiaUiConfig = await this.configStorage.getXRBabiaUiConfig();
+            const fieldTypeMap = babiaUiConfig.enabled
+                ? await XRFieldSchemaService.getInstance(this.context).getFieldTypeMap('file')
+                : undefined;
             const templateResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
                 babiaFormatMappings,
@@ -96,6 +109,12 @@ export class FileXRParser {
                 this.context,
                 outputPath,
                 analysisData,
+                {
+                    babiaUiEnabled: babiaUiConfig.enabled,
+                    babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
+                    xrTargetType: 'file',
+                    fieldTypeMap,
+                },
             );
 
             if (!templateResult.success) {
@@ -112,7 +131,16 @@ export class FileXRParser {
             await fs.promises.writeFile(outputPath, hydratedIndexHtml, 'utf8');
 
             const loadedFiles = await this.loadGeneratedFiles(session.outputPath);
-            if (!loadedFiles.has('index.html') || !loadedFiles.has('data.json') || !loadedFiles.has('virtualScreenRuntime.js')) {
+            if (
+                !loadedFiles.has('index.html')
+                || !loadedFiles.has('data.json')
+                || !loadedFiles.has(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME)
+            ) {
                 throw new Error('XR file bootstrap did not generate the required files.');
             }
 

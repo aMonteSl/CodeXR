@@ -54,6 +54,7 @@ export class SaveFiles {
             const savedFiles: string[] = [];
             for (const [fileName, content] of files) {
                 const filePath = path.join(storagePath, fileName);
+                await this.ensureDirectoryExists(path.dirname(filePath));
                 
                 console.log(`SAVE_FILES:  Saving ${fileName}...`);
                 await fs.promises.writeFile(filePath, content, 'utf8');

@@ -140,6 +140,10 @@ export class ProfileConfigurationSetting {
                 languageGroupSortDirection: 'ascending',
                 filesSortBy: 'alphabetical',
                 filesSortDirection: 'ascending'
+            },
+            xrBabiaUi: {
+                enabled: true,
+                visibleByDefault: true,
             }
         };
     }
@@ -180,6 +184,7 @@ export class ProfileConfigurationSetting {
             await this.storage.setAutoAnalysisDelay(defaults.autoAnalysisDelay);
             await this.storage.setAutoAnalysisEnabled(defaults.autoAnalysisEnabled);
             await this.storage.setFilesByLanguageSorting(defaults.filesByLanguageSorting);
+            await this.storage.setXRBabiaUiConfig(defaults.xrBabiaUi);
             
             console.log('PROFILE_CONFIGURATION: Successfully reset to defaults:', defaults);
             vscode.window.showInformationMessage('Analysis settings reset to default values');

@@ -100,6 +100,8 @@
     left: 'codexrMoveLeft',
   };
 
+  const CONFIG_SCRIPT_ID = 'codexr-tooling-config-virtual-screen';
+
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
@@ -125,6 +127,23 @@
     merged.virtualScreenSupportsHostBroadcast = userConfig?.virtualScreenSupportsHostBroadcast !== false;
     merged.virtualScreenSupportsLocalCapture = userConfig?.virtualScreenSupportsLocalCapture !== false;
     return merged;
+  }
+
+  function readConfigFromJsonScript(win) {
+    const document = win?.document;
+    if (!document) {
+      return null;
+    }
+    const scriptEl = document.getElementById(CONFIG_SCRIPT_ID);
+    if (!scriptEl || typeof scriptEl.textContent !== 'string') {
+      return null;
+    }
+    try {
+      return JSON.parse(scriptEl.textContent);
+    } catch (error) {
+      console.warn('VIRTUAL_SCREEN: Invalid JSON config script', error);
+      return null;
+    }
   }
 
   function createRuntime(win) {
@@ -158,7 +177,7 @@
     };
 
     const refs = {
-      config: mergeConfig(win.__CODEXR_VIRTUAL_SCREEN_CONFIG__),
+      config: mergeConfig(readConfigFromJsonScript(win) || win.__CODEXR_VIRTUAL_SCREEN_CONFIG__),
       scene: null,
       followAnchor: null,
       videoSource: null,
@@ -1883,7 +1902,7 @@
     }
 
     function init(userConfig) {
-      refs.config = mergeConfig(userConfig || win.__CODEXR_VIRTUAL_SCREEN_CONFIG__);
+      refs.config = mergeConfig(userConfig || readConfigFromJsonScript(win) || win.__CODEXR_VIRTUAL_SCREEN_CONFIG__);
       if (!refs.config.enabled) {
         return api;
       }
@@ -1903,7 +1922,7 @@
     }
 
     function autoInit() {
-      init(win.__CODEXR_VIRTUAL_SCREEN_CONFIG__);
+      init(readConfigFromJsonScript(win) || win.__CODEXR_VIRTUAL_SCREEN_CONFIG__);
     }
 
     const api = {

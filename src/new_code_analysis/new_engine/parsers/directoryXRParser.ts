@@ -13,6 +13,7 @@ import { TemplateProcessor } from '../../../babia_templates/processing/templateP
 import { ExecutePython } from '../utils/executePython';
 import { DimensionMapping } from '../../../babia_templates/models/chartModels';
 import { SHA256Generator } from '../../../utils/sha256Generator';
+import { XRFieldSchemaService } from '../../../code_analysis/services/xrFieldSchemaService';
 
 export interface DirectoryXRParsingResult {
     success: boolean;
@@ -163,6 +164,10 @@ export class DirectoryXRParser {
             const tempOutputPath = path.join(context.storageUri?.fsPath || '/tmp', 'temp_xr_generation');
             await fs.promises.mkdir(tempOutputPath, { recursive: true });
             const tempHtmlPath = path.join(tempOutputPath, 'index.html');
+            const babiaUiConfig = await storage.getXRBabiaUiConfig();
+            const fieldTypeMap = babiaUiConfig.enabled
+                ? await XRFieldSchemaService.getInstance(context).getFieldTypeMap('directory')
+                : undefined;
             
             const htmlGenerationResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
@@ -171,7 +176,13 @@ export class DirectoryXRParser {
                 'data.json', // Data source file name
                 context,
                 tempHtmlPath,
-                analysisData // Pass the Python analysis data for directory detection
+                analysisData, // Pass the Python analysis data for directory detection
+                {
+                    babiaUiEnabled: babiaUiConfig.enabled,
+                    babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
+                    xrTargetType: 'directory',
+                    fieldTypeMap,
+                },
             );
             
             if (!htmlGenerationResult.success) {

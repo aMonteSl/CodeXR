@@ -131,10 +131,26 @@ export class CreateChart {
                                  color: {{COLOR_FIELD}};
                                  axis_name: true;
                                  extra: 1;
+                                 separation: 0.5;
                                  zone_elevation: 0.01;
-                                 height_quarter_legend_box: 0.01;
-                                 height_quarter_legend_title: -3.5"
-                    position="0 1 -10"
+                                 height_quarter_legend_box: 0.01"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.82;
+                                           minHeightOccupancyRatio: 0.68;
+                                           buildingHeightBandEnabled: true;
+                                           buildingHeightMinTarget: 0.42;
+                                           buildingHeightMaxTarget: 1.22;
+                                           buildingHeightToleranceRatio: 0.08;
+                                           yScaleMin: 0.03;
+                                           yScaleMax: 0.16;
+                                           targetWidth: 5.614;
+                                           targetHeight: 1.8;
+                                           targetDepth: 3.218"
+                    position="0 1 -18"
                     rotation="0 0 0"
                     scale="0.01 0.05 0.01"
                     class="babiaxraycasterclass">

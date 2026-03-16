@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(projectRoot, 'templates', 'xr', 'shared', 'virtualScreenRuntime.js');
+const runtimePath = path.join(projectRoot, 'templates', 'components', 'codexr', 'virtual-screen', 'virtualScreenRuntime.js');
 const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
 const runtimeModule = require(runtimePath);
 
@@ -35,16 +35,39 @@ test('XR and DOM parsers package virtualScreenRuntime.js with generated analysis
     const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
     const domParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'visualizeDOMParser.ts');
     const injector = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'virtualScreenConfigInjector.ts');
+    const componentAsset = readProjectFile('src', 'code_analysis', 'engine', 'components', 'customComponents', 'virtualScreenComponentAsset.ts');
+    const roomAsset = readProjectFile('src', 'code_analysis', 'engine', 'components', 'customComponents', 'codexrRoomComponentAsset.ts');
 
-    assert.match(fileParser, /virtualScreenRuntime\.js/);
-    assert.match(fileParser, /loadedFiles\.has\('virtualScreenRuntime\.js'\)/);
+    assert.match(fileParser, /copyVirtualScreenRuntimeToOutput/);
+    assert.match(fileParser, /VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME/);
+    assert.match(fileParser, /loadedFiles\.has\(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME\)/);
     assert.match(fileParser, /injectVirtualScreenViewerConfig/);
-    assert.match(directoryParser, /generatedFiles\.set\('virtualScreenRuntime\.js', virtualScreenRuntimeContent\)/);
+    assert.match(directoryParser, /readVirtualScreenRuntimeContent/);
+    assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent\)/);
     assert.match(directoryParser, /virtualScreenSignalPath: '\/codexr\/virtual-screen\/ws'/);
-    assert.match(domParser, /resultFiles\.set\('virtualScreenRuntime\.js', virtualScreenRuntime\)/);
+    assert.match(domParser, /readVirtualScreenRuntimeContent/);
+    assert.match(domParser, /resultFiles\.set\(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntime\)/);
     assert.match(domParser, /processHTMLTemplates\([\s\S]*virtualScreenSessionId/s);
     assert.match(injector, /virtualScreenSessionId/);
     assert.match(injector, /virtualScreenSupportsHostBroadcast/);
+    assert.match(componentAsset, /templates',\s*'components',\s*'codexr',\s*'virtual-screen'/);
+    assert.match(componentAsset, /copyVirtualScreenRuntimeToOutput/);
+    assert.match(componentAsset, /readVirtualScreenRuntimeContent/);
+    assert.match(componentAsset, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME = 'codexrMultiScreenManagerRuntime\.js'/);
+    assert.match(componentAsset, /copyVirtualScreenManagerRuntimeToOutput/);
+    assert.match(componentAsset, /readVirtualScreenManagerRuntimeContent/);
+    assert.match(fileParser, /copyCodeXrRoomAssetsToOutput/);
+    assert.match(fileParser, /CODEXR_ROOM_RUNTIME_OUTPUT_NAME/);
+    assert.match(fileParser, /copyVirtualScreenManagerRuntimeToOutput/);
+    assert.match(fileParser, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME/);
+    assert.match(directoryParser, /readCodeXrRoomRuntimeContent/);
+    assert.match(directoryParser, /readCodeXrRoomTextureContents/);
+    assert.match(directoryParser, /readVirtualScreenManagerRuntimeContent/);
+    assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent\)/);
+    assert.match(roomAsset, /CODEXR_ROOM_RUNTIME_OUTPUT_NAME = 'codexrRoomRuntime\.js'/);
+    assert.match(roomAsset, /CODEXR_ROOM_TEXTURE_OUTPUT_DIRECTORY = 'assets\/codexr\/xr-room\/textures'/);
+    assert.match(roomAsset, /copyCodeXrRoomAssetsToOutput/);
+    assert.match(roomAsset, /readCodeXrRoomTextureContents/);
 });
 
 test('virtual screen runtime uses contextual chrome, side legend controls, source chooser, and smoothed 3D drag depth', () => {
