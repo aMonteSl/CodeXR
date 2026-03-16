@@ -9,16 +9,23 @@ export function injectVirtualScreenViewerConfig(
     htmlContent: string,
     config: VirtualScreenViewerConfig,
 ): string {
-    return htmlContent.replace(
-        /(window\.__CODEXR_VIRTUAL_SCREEN_CONFIG__ = \{)([\s\S]*?)(\n\s*\};)/,
-        (_match, prefix: string, body: string, suffix: string) => {
-            const injectedFields = `
-        virtualScreenSessionId: ${JSON.stringify(config.virtualScreenSessionId)},
-        virtualScreenSignalPath: ${JSON.stringify(config.virtualScreenSignalPath)},
-        virtualScreenSupportsHostBroadcast: ${config.virtualScreenSupportsHostBroadcast ? 'true' : 'false'},
-        virtualScreenSupportsLocalCapture: ${config.virtualScreenSupportsLocalCapture ? 'true' : 'false'},`;
+    const scriptTagPattern = /(<script\s+id="codexr-tooling-config-virtual-screen"\s+type="application\/json">)([\s\S]*?)(<\/script>)/;
+    return htmlContent.replace(scriptTagPattern, (_match, prefix: string, jsonBody: string, suffix: string) => {
+        let parsedConfig: Record<string, unknown> = {};
+        try {
+            parsedConfig = JSON.parse(jsonBody.trim());
+        } catch {
+            parsedConfig = {};
+        }
 
-            return `${prefix}${body}${injectedFields}${suffix}`;
-        },
-    );
+        const mergedConfig = {
+            ...parsedConfig,
+            virtualScreenSessionId: config.virtualScreenSessionId,
+            virtualScreenSignalPath: config.virtualScreenSignalPath,
+            virtualScreenSupportsHostBroadcast: config.virtualScreenSupportsHostBroadcast,
+            virtualScreenSupportsLocalCapture: config.virtualScreenSupportsLocalCapture,
+        };
+
+        return `${prefix}${JSON.stringify(mergedConfig)}${suffix}`;
+    });
 }

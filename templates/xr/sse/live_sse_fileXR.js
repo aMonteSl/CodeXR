@@ -51,6 +51,16 @@
       // Add class babiaxraycasterclass
       chartEntities = [...chartEntities, ...document.querySelectorAll('.babiaxraycasterclass')];
 
+      // Preserve custom mapping UI state across chart component rebuilds
+      const mappingUiRuntime = window.CodeXRMappingUiRuntime;
+      const mappingUiState = mappingUiRuntime && typeof mappingUiRuntime.getState === 'function'
+        ? mappingUiRuntime.getState()
+        : null;
+      const chartDebugRuntime = window.CodeXRChartDebug;
+      const chartDebugState = chartDebugRuntime && typeof chartDebugRuntime.getState === 'function'
+        ? chartDebugRuntime.getState()
+        : null;
+
       if (dataEntities.length > 0) {
         const timestamp = Date.now();
         console.log('🔄 Refreshing ' + dataEntities.length + ' data entities');
@@ -105,6 +115,29 @@
               }
             }
           });
+
+          setTimeout(() => {
+            if (mappingUiRuntime && mappingUiState && typeof mappingUiRuntime.restoreState === 'function') {
+              mappingUiRuntime.restoreState(mappingUiState);
+            }
+            if (chartDebugRuntime && chartDebugState && typeof chartDebugRuntime.restoreState === 'function') {
+              chartDebugRuntime.restoreState(chartDebugState);
+            }
+
+            setTimeout(() => {
+              const boatsPedestalRuntime = window.CodeXRBoatsPedestalRuntime;
+              if (boatsPedestalRuntime && typeof boatsPedestalRuntime.renormalizeAll === 'function') {
+                const updated = boatsPedestalRuntime.renormalizeAll('analysis-updated');
+                if (updated > 0) {
+                  console.log('🛟 Re-normalized boats pedestal charts:', updated);
+                }
+              }
+
+              if (mappingUiRuntime && typeof mappingUiRuntime.refreshAdaptivePlacement === 'function') {
+                mappingUiRuntime.refreshAdaptivePlacement();
+              }
+            }, 120);
+          }, 140);
         }, 200);
       } else {
         console.warn('⚠️ No data entities found for refresh');
@@ -148,6 +181,16 @@
             console.log('📊 Data entity refreshed with cache busting');
           }
         });
+
+        setTimeout(() => {
+          const boatsPedestalRuntime = window.CodeXRBoatsPedestalRuntime;
+          if (boatsPedestalRuntime && typeof boatsPedestalRuntime.renormalizeAll === 'function') {
+            const updated = boatsPedestalRuntime.renormalizeAll('dataRefresh');
+            if (updated > 0) {
+              console.log('🛟 Re-normalized boats pedestal charts after data refresh:', updated);
+            }
+          }
+        }, 240);
         
         console.log('✅ XR data refresh completed - A-Frame will handle chart updates');
       } else {

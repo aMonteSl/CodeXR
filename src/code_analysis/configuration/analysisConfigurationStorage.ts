@@ -15,6 +15,7 @@ import {
     ChartType,
     DimensionMapping,
     FilesByLanguageSortingConfig,
+    XRBabiaUiConfig,
     DEFAULT_CONFIGURATION_FILE,
     DEFAULT_ANALYSIS_CONFIGURATION
 } from './models/analysisConfiguration';
@@ -417,6 +418,42 @@ export class AnalysisConfigurationStorage {
      */
     public async setDimensionMappingDirectory(mapping: DimensionMapping): Promise<void> {
         await this.updateConfiguration({ dimensionMappingDirectory: mapping });
+    }
+
+    /**
+     * Get XR Babia UI configuration.
+     */
+    public async getXRBabiaUiConfig(): Promise<XRBabiaUiConfig> {
+        const config = await this.loadConfiguration();
+        return config.xrBabiaUi;
+    }
+
+    /**
+     * Set XR Babia UI configuration.
+     */
+    public async setXRBabiaUiConfig(value: XRBabiaUiConfig): Promise<void> {
+        await this.updateConfiguration({ xrBabiaUi: value });
+    }
+
+    /**
+     * Get whether Babia UI is enabled for XR output injection.
+     */
+    public async getXRBabiaUiEnabled(): Promise<boolean> {
+        const config = await this.loadConfiguration();
+        return config.xrBabiaUi.enabled;
+    }
+
+    /**
+     * Set whether Babia UI is enabled for XR output injection.
+     */
+    public async setXRBabiaUiEnabled(enabled: boolean): Promise<void> {
+        const config = await this.loadConfiguration();
+        await this.updateConfiguration({
+            xrBabiaUi: {
+                ...config.xrBabiaUi,
+                enabled,
+            },
+        });
     }
 }
 

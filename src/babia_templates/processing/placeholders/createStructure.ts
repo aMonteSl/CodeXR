@@ -63,6 +63,8 @@ export class CreateStructure {
             // Additional metadata
             placeholders.set('TIMESTAMP', new Date().toISOString());
             placeholders.set('ANALYSIS_TYPE', analysisType);
+            placeholders.set('BABIA_UI_COMPONENT', '');
+            placeholders.set('BABIA_UI_SCRIPT', '');
 
             console.log(`CREATE_STRUCTURE: Created ${placeholders.size} structural placeholders`);
             return { 

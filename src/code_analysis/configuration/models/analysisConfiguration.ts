@@ -51,6 +51,11 @@ export interface AutoAnalysisDelayConfig {
     autoAnalysisEnabled: boolean; // Auto-analysis enabled/disabled state
 }
 
+export interface XRBabiaUiConfig {
+    enabled: boolean;
+    visibleByDefault: boolean;
+}
+
 export interface AnalysisConfiguration {
     /**
      * Analysis file mode setting
@@ -96,6 +101,11 @@ export interface AnalysisConfiguration {
      * Files by Language sorting configuration
      */
     filesByLanguageSorting: FilesByLanguageSortingConfig;
+
+    /**
+     * Babia UI configuration for XR analyses.
+     */
+    xrBabiaUi: XRBabiaUiConfig;
     
     /**
      * TODO: Add more configuration settings here as they are implemented
@@ -140,6 +150,10 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
         languageGroupSecondarySortDirection: 'descending',
         filesSortBy: 'alphabetical',
         filesSortDirection: 'ascending'
+    },
+    xrBabiaUi: {
+        enabled: true,
+        visibleByDefault: true
     }
 };
 

@@ -89,8 +89,23 @@
 
     </a-scene>
 
+    <script id="codexr-dom-html-payload" type="application/json">${HTML_CONTENT_JSON}</script>
     <script>
-        window.__CODEXR_DOM_HTML_PAYLOAD__ = ${HTML_CONTENT_JSON};
+        function readInitialDomHtmlPayload() {
+            const payloadElement = document.getElementById('codexr-dom-html-payload');
+            if (!payloadElement) {
+                return '';
+            }
+
+            try {
+                return JSON.parse(payloadElement.textContent || '""');
+            } catch (error) {
+                console.warn('DOM visualization payload is not valid JSON', error);
+                return '';
+            }
+        }
+
+        window.__CODEXR_DOM_HTML_PAYLOAD__ = readInitialDomHtmlPayload();
 
         function getCurrentBabiaHtmlState() {
             const entity = document.querySelector('#htmlDOM');

@@ -8,6 +8,7 @@ import { chartTemplates } from '../../../babia_templates/charts/templateCharts';
 import { ChartMetadata, DimensionMapping } from '../../../babia_templates/models/chartModels';
 import { TemplateProcessor } from '../../../babia_templates/processing/templateProcessor';
 import { ExecutePython } from '../utils/executePython';
+import { XRFieldSchemaService } from '../../../code_analysis/services/xrFieldSchemaService';
 
 /**
  * Parsed XR File Analysis result interface
@@ -251,6 +252,10 @@ export class FileXRParser {
 
             // For file analysis, pass the analysisData to detectDirectoryAnalysis (should return false)
             const templateAnalysisData = analysisData; // Use the Python analysis data for template processing
+            const babiaUiConfig = await this.configStorage.getXRBabiaUiConfig();
+            const fieldTypeMap = babiaUiConfig.enabled
+                ? await XRFieldSchemaService.getInstance(this.context).getFieldTypeMap('file')
+                : undefined;
 
             console.log(`FILE_XR_PARSER:  Calling TemplateProcessor.generateXRVisualization()...`);
             console.log(`FILE_XR_PARSER:  This will generate the index.html file with A-Frame XR content`);
@@ -263,7 +268,13 @@ export class FileXRParser {
                 dataSource,
                 this.context,
                 outputPath,
-                templateAnalysisData // Pass the Python analysis data
+                templateAnalysisData, // Pass the Python analysis data
+                {
+                    babiaUiEnabled: babiaUiConfig.enabled,
+                    babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
+                    xrTargetType: 'file',
+                    fieldTypeMap,
+                },
             );
 
             console.log(`FILE_XR_PARSER:  TemplateProcessor.generateXRVisualization() completed!`);

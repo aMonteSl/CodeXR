@@ -9,7 +9,8 @@ import {
     AnalysisDirectorySetting, 
     ViewThemeSetting, 
     AutoAnalysisDelaySetting,
-    AutoAnalysisEnabledSetting
+    AutoAnalysisEnabledSetting,
+    BabiaUiSetting,
 } from '../../../views/subsections/analysis_settings';
 import { ChartTypeFileSetting } from '../../../views/subsections/analysis_settings/chart_type_file/chartTypeFile';
 import { ChartTypeDirectorySetting } from '../../../views/subsections/analysis_settings/chart_type_directory/chartTypeDirectory';
@@ -28,6 +29,7 @@ import { DimensionMappingFileCommands } from './dimension_mapping_file/dimension
 import { DimensionMappingDirectoryCommands } from './dimension_mapping_directory/dimensionMappingDirectoryCommands';
 import { FilesByLanguageSortingCommands } from './filesByLanguageSortingCommands';
 import { ProfileConfigurationCommands } from './profile_configuration';
+import { BabiaUiCommands } from './babia_ui';
 
 export class AnalysisSettingsCommands {
 
@@ -44,6 +46,7 @@ export class AnalysisSettingsCommands {
         viewThemeSetting: ViewThemeSetting,
         autoAnalysisDelaySetting: AutoAnalysisDelaySetting,
         autoAnalysisEnabledSetting: AutoAnalysisEnabledSetting,
+        babiaUiSetting: BabiaUiSetting,
         chartTypeFileSetting: ChartTypeFileSetting,
         chartTypeDirectorySetting: ChartTypeDirectorySetting,
         dimensionMappingFileSetting: DimensionMappingFileSetting,
@@ -128,6 +131,14 @@ export class AnalysisSettingsCommands {
             refreshCallback
         );
         commandRegistrations.push(...autoAnalysisEnabledCommands);
+
+        // Collect Babia UI command registrations
+        const babiaUiCommands = BabiaUiCommands.getCommandRegistrations(
+            context,
+            babiaUiSetting,
+            refreshCallback,
+        );
+        commandRegistrations.push(...babiaUiCommands);
 
         // Collect files by language sorting command registrations
         const filesByLanguageSortingCommands = FilesByLanguageSortingCommands.getCommandRegistrations(

@@ -74,20 +74,37 @@ test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeh
     );
 });
 
-test('XR template includes lounge room script and entity while preserving configurable environment', () => {
+test('XR template includes local CodeXR room component while preserving configurable environment', () => {
     const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 
-    assert.match(
-        template,
-        /<script src="https:\/\/babiaxr\.gitlab\.io\/aframe-babia-components\/examples\/publications\/codecityvs\/aframe-lounge-component\.min\.js"><\/script>/,
-    );
+    assert.doesNotMatch(template, /aframe-lounge-component\.min\.js/);
+    assert.match(template, /src="\.\/codexrRoomRuntime\.js"/);
+    assert.match(template, /src="\.\/codexrMultiScreenManagerRuntime\.js"/);
     assert.match(
         template,
         /<a-entity id="env" environment="preset: \$\{ENVIRONMENT_PRESET\}; groundColor: \$\{GROUND_COLOR\}" hide-on-enter-ar><\/a-entity>/,
     );
-    assert.match(
-        template,
-        /<a-entity id="lounge" position="0 5\.6 -10" lounge="width: 20; depth: 25; height: 11; north: barrier"><\/a-entity>/,
-    );
+    assert.match(template, /id="codexrRoom"/);
+    assert.match(template, /glassRailing: true;/);
+    assert.match(template, /id="codexrScreenManager"/);
+    assert.match(template, /codexr-multi-screen-manager="maxScreens: 5; wall: west"/);
+    assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
+    assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
     assert.match(template, /<a-entity id="rig" movement-controls="fly: true" position="0 1\.6 2">/);
+});
+
+test('XR parsers include CodeXR room runtime in generated assets', () => {
+    const fileParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'fileXRParser.ts');
+    const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
+
+    assert.match(fileParser, /copyCodeXrRoomAssetsToOutput/);
+    assert.match(fileParser, /CODEXR_ROOM_RUNTIME_OUTPUT_NAME/);
+    assert.match(fileParser, /copyVirtualScreenManagerRuntimeToOutput/);
+    assert.match(fileParser, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME/);
+    assert.match(directoryParser, /readCodeXrRoomRuntimeContent/);
+    assert.match(directoryParser, /readCodeXrRoomTextureContents/);
+    assert.match(directoryParser, /readVirtualScreenManagerRuntimeContent/);
+    assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(asset\.relativeOutputPath, asset\.content\)/);
 });

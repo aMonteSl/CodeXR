@@ -88,7 +88,8 @@ test('VisualizeDOM runtime mounts babia-html from a JSON payload so full documen
 
     assert.match(template, /html2canvas\.min\.js/);
     assert.match(template, /babia-html="renderHTML: true; renderHTMLOnlyLeafs: true; distanceLevels: 0\.7"/);
-    assert.match(template, /window\.__CODEXR_DOM_HTML_PAYLOAD__ = \$\{HTML_CONTENT_JSON\};/);
+    assert.match(template, /<script id="codexr-dom-html-payload" type="application\/json">\$\{HTML_CONTENT_JSON\}<\/script>/);
+    assert.match(template, /window\.__CODEXR_DOM_HTML_PAYLOAD__ = readInitialDomHtmlPayload\(\);/);
     assert.match(template, /applyBabiaHtml\(0\.7, window\.__CODEXR_DOM_HTML_PAYLOAD__\);/);
     assert.match(template, /entity\.setAttribute\('babia-html', \{[\s\S]*renderHTML: true,[\s\S]*renderHTMLOnlyLeafs: true,[\s\S]*html: nextHtml,[\s\S]*distanceLevels: distanceLevels,[\s\S]*\}\);/);
     assert.doesNotMatch(template, /babia-html="renderHTML: true; renderHTMLOnlyLeafs: true; distanceLevels: 0\.7; html: \$\{HTML_CONTENT\}"/);

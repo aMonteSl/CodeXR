@@ -28,9 +28,19 @@ def helper(items, seed):
     assert metric_how.compute([5, 12, 7, 15,
                                 3], offset=5) == 34, "Test case 1 failed"
     assert metric_how.compute([1, 2, 3, 4], offset=0) == 0, "Test case 2 failed"
-    assert metric_how.compute([11, 13, 17], offset=3)
+    assert metric_how.compute([11, 13, 17], offset=3) == 33, "Test case 3 failed"
     assert metric_how.compute([8, 9, 10], offset=2) == 0, "Test case 4 failed"
+    return "All tests passed!"
 
+    
+
+def test_helper():
+    assert helper([1, 4, 6, 9, 11], seed=5) == 14, "Test case 1 failed"
+    assert helper([2, 3, 4], seed=5) == 0, "Test case 2 failed"
+    assert helper([6, 7, 8], seed=5) == 12, "Test case 3 failed"
+    assert helper([1, 2, 3], seed=0) == 1, "Test case 4 failed"
+
+    return "All tests passed!"
 
 
 

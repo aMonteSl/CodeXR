@@ -11,10 +11,26 @@ import { AnalysisConfigurationStorage } from '../../configuration/analysisConfig
 import { TemplateProcessor } from '../../../babia_templates/processing/templateProcessor';
 import { ExecutePython } from '../utils/executePython';
 import { DimensionMapping } from '../../../babia_templates/models/chartModels';
+import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
+import {
+    BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
+    readBoatsPedestalRuntimeContent,
+    readCodeXrRoomRuntimeContent,
+    readCodeXrRoomTextureContents,
+    readVirtualScreenManagerRuntimeContent,
+    VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME,
+    readVirtualScreenRuntimeContent,
+    VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
+    readXrChartDebugRuntimeContent,
+    XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME,
+    readXrChartMappingUiRuntimeContent,
+    XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
+} from '../components/customComponents';
 
 export interface DirectoryXRParsingResult {
     success: boolean;
@@ -58,6 +74,10 @@ export class DirectoryXRParser {
             const tempOutputPath = path.join(context.storageUri?.fsPath || '/tmp', 'temp_xr_generation');
             await fs.promises.mkdir(tempOutputPath, { recursive: true });
             const tempHtmlPath = path.join(tempOutputPath, 'index.html');
+            const babiaUiConfig = await storage.getXRBabiaUiConfig();
+            const fieldTypeMap = babiaUiConfig.enabled
+                ? await XRFieldSchemaService.getInstance(context).getFieldTypeMap('directory')
+                : undefined;
 
             const htmlGenerationResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
@@ -67,6 +87,12 @@ export class DirectoryXRParser {
                 context,
                 tempHtmlPath,
                 payload,
+                {
+                    babiaUiEnabled: babiaUiConfig.enabled,
+                    babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
+                    xrTargetType: 'directory',
+                    fieldTypeMap,
+                },
             );
 
             if (!htmlGenerationResult.success) {
@@ -93,23 +119,29 @@ export class DirectoryXRParser {
                 };
             }
 
-            const virtualScreenRuntimePath = path.join(context.extensionPath, 'templates', 'xr', 'shared', 'virtualScreenRuntime.js');
-            if (!fs.existsSync(virtualScreenRuntimePath)) {
-                return {
-                    success: false,
-                    error: `virtualScreenRuntime.js not found at: ${virtualScreenRuntimePath}`,
-                };
-            }
-
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
-            const virtualScreenRuntimeContent = await fs.promises.readFile(virtualScreenRuntimePath, 'utf8');
+            const virtualScreenRuntimeContent = await readVirtualScreenRuntimeContent(context.extensionPath);
+            const virtualScreenManagerRuntimeContent = await readVirtualScreenManagerRuntimeContent(context.extensionPath);
+            const codexrRoomRuntimeContent = await readCodeXrRoomRuntimeContent(context.extensionPath);
+            const xrChartMappingUiRuntimeContent = await readXrChartMappingUiRuntimeContent(context.extensionPath);
+            const xrChartDebugRuntimeContent = await readXrChartDebugRuntimeContent(context.extensionPath);
+            const boatsPedestalRuntimeContent = await readBoatsPedestalRuntimeContent(context.extensionPath);
+            const codexrRoomTextures = await readCodeXrRoomTextureContents(context.extensionPath);
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', hydratedHtmlContent);
             generatedFiles.set('main.js', jsContent);
-            generatedFiles.set('virtualScreenRuntime.js', virtualScreenRuntimeContent);
+            generatedFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent);
+            generatedFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent);
+            generatedFiles.set(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent);
+            generatedFiles.set(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, xrChartMappingUiRuntimeContent);
+            generatedFiles.set(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME, xrChartDebugRuntimeContent);
+            generatedFiles.set(BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME, boatsPedestalRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
+            codexrRoomTextures.forEach((asset) => {
+                generatedFiles.set(asset.relativeOutputPath, asset.content);
+            });
 
             session.metadata.mainHtmlFileName = 'index.html';
 
