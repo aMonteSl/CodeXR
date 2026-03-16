@@ -133,7 +133,8 @@ export class CreateChart {
                                  extra: 1;
                                  separation: 0.5;
                                  zone_elevation: 0.01;
-                                 height_quarter_legend_box: 0.01"
+                                 height_quarter_legend_box: 0.01;
+                                 height_quarter_legend_title: 2.5"
                     codexr-boats-pedestal="enabled: true;
                                            anchorX: 0;
                                            anchorY: 1;
