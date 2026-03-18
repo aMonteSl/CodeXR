@@ -28,7 +28,7 @@ export interface DimensionConflict {
 export interface InvalidTypeMapping {
     dimension: string;
     dataField: string;
-    expectedType: 'numeric';
+    expectedType: 'numeric' | 'text';
     actualType: 'numeric' | 'text' | 'unknown';
 }
 
@@ -81,7 +81,7 @@ export class DimensionMappingValidator {
         if (invalidTypeMappings.length > 0) {
             for (const invalidMapping of invalidTypeMappings) {
                 errors.push(
-                    `Dimension "${invalidMapping.dimension}" requires numeric data, but "${invalidMapping.dataField}" is ${invalidMapping.actualType}.`,
+                    `Dimension "${invalidMapping.dimension}" requires ${invalidMapping.expectedType} data, but "${invalidMapping.dataField}" is ${invalidMapping.actualType}.`,
                 );
             }
         }
@@ -151,16 +151,16 @@ export class DimensionMappingValidator {
         const invalidMappings: InvalidTypeMapping[] = [];
         for (const dimension of chart.dimensions) {
             const mappedField = mappings[dimension.name];
-            if (!mappedField || dimension.dataType !== 'numeric') {
+            if (!mappedField || dimension.dataType === 'any') {
                 continue;
             }
 
             const actualType = fieldTypes[mappedField] ?? 'unknown';
-            if (actualType !== 'numeric') {
+            if (actualType !== dimension.dataType) {
                 invalidMappings.push({
                     dimension: dimension.name,
                     dataField: mappedField,
-                    expectedType: 'numeric',
+                    expectedType: dimension.dataType,
                     actualType,
                 });
             }

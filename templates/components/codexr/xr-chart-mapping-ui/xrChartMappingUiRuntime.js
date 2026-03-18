@@ -28,17 +28,27 @@
     toggle: null,
     rowsRoot: null,
     panelBackground: null,
-    panelBorder: null
+    panelBorder: null,
+    statusText: null
   };
 
   var state = {
     initialized: false,
     visible: true,
     selectedByDimension: {},
+    lastKnownGoodMapping: {},
+    invalidOptionsByDimension: {},
     adaptiveLoopActive: false,
     activeCornerId: null,
     lastCornerSwitchAt: 0,
-    lastConfigSnapshot: null
+    lastConfigSnapshot: null,
+    delayedRenormalizeTimer: null,
+    pendingValidationTimers: [],
+    pendingMappingToken: 0,
+    pendingMapping: null,
+    statusMessage: '',
+    statusLevel: 'info',
+    statusClearTimer: null
   };
 
   var ADAPTIVE_DEFAULTS = {
@@ -119,6 +129,49 @@
       return compacted;
     }
     return compacted.slice(0, 15) + '...';
+  }
+
+  function humanizeFieldName(rawName) {
+    return String(rawName || '')
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim();
+  }
+
+  function getFriendlyAxisLabel(config, dimensionId) {
+    var dimension = getDimensionConfig(config, dimensionId);
+    if (dimension && dimension.label) {
+      return String(dimension.label);
+    }
+    return humanizeFieldName(dimensionId || 'this axis') || 'this axis';
+  }
+
+  function buildFriendlyInvalidMappingMessage(config, dimensionId, fieldName, reason, includeRestoreLine) {
+    var axisLabel = getFriendlyAxisLabel(config, dimensionId);
+    var fieldLabel = humanizeFieldName(fieldName);
+    var lines = [];
+
+    if (reason && /no chart data is available yet/i.test(reason)) {
+      lines.push('This chart is still loading data for ' + axisLabel + '.');
+      lines.push('CodeXR kept the last valid mapping until the visualization is ready.');
+      lines.push('Try again once the chart finishes loading.');
+      return lines.join('\n');
+    }
+
+    if (fieldLabel) {
+      lines.push('"' + fieldLabel + '" caused an invalid chart for ' + axisLabel + '.');
+    } else {
+      lines.push('That field caused an invalid chart for ' + axisLabel + '.');
+    }
+
+    if (includeRestoreLine === false) {
+      lines.push('CodeXR blocked this option because Babia failed the last time it was used.');
+    } else {
+      lines.push('CodeXR restored the last valid mapping to keep the visualization stable.');
+    }
+
+    lines.push('Try another field for this axis.');
+    return lines.join('\n');
   }
 
   function parsePosition(rawPosition) {
@@ -321,19 +374,274 @@
     return getDoc().getElementById(config.chartEntityId || '');
   }
 
-  function applyDimensionSelection(config, dimensionId, fieldName) {
-    var chartEntity = getChartEntity(config);
-    var componentName = COMPONENT_BY_CHART[config.chartId || ''];
+  function cloneMapping(mapping) {
+    return Object.assign({}, mapping || {});
+  }
 
-    if (!chartEntity || !componentName) {
+  function mappingsEqual(left, right) {
+    var leftKeys = Object.keys(left || {});
+    var rightKeys = Object.keys(right || {});
+    if (leftKeys.length !== rightKeys.length) {
+      return false;
+    }
+    return leftKeys.every(function (key) {
+      return (left || {})[key] === (right || {})[key];
+    });
+  }
+
+  function getChartComponentName(config) {
+    return COMPONENT_BY_CHART[(config && config.chartId) || ''] || null;
+  }
+
+  function getDimensionConfig(config, dimensionId) {
+    var dimensions = Array.isArray(config && config.dimensions) ? config.dimensions : [];
+    for (var i = 0; i < dimensions.length; i += 1) {
+      if (dimensions[i] && dimensions[i].id === dimensionId) {
+        return dimensions[i];
+      }
+    }
+    return null;
+  }
+
+  function clearPendingValidationTimers() {
+    while (state.pendingValidationTimers.length > 0) {
+      clearTimeout(state.pendingValidationTimers.pop());
+    }
+  }
+
+  function updateStatusText() {
+    if (!refs.statusText) {
+      return;
+    }
+    refs.statusText.setAttribute('value', state.statusMessage || '');
+    refs.statusText.setAttribute('color', state.statusLevel === 'error' ? '#fca5a5' : '#fde68a');
+    refs.statusText.setAttribute('visible', !!state.statusMessage);
+  }
+
+  function clearStatusTimer() {
+    if (state.statusClearTimer) {
+      clearTimeout(state.statusClearTimer);
+      state.statusClearTimer = null;
+    }
+  }
+
+  function setStatusMessage(message, level, ttlMs) {
+    state.statusMessage = message || '';
+    state.statusLevel = level || 'warning';
+    updateStatusText();
+    clearStatusTimer();
+    if (state.statusMessage && ttlMs !== 0) {
+      state.statusClearTimer = setTimeout(function () {
+        state.statusClearTimer = null;
+        state.statusMessage = '';
+        updateStatusText();
+      }, typeof ttlMs === 'number' ? ttlMs : 3200);
+    }
+  }
+
+  function markInvalidOption(dimensionId, fieldName, reason) {
+    if (!state.invalidOptionsByDimension[dimensionId]) {
+      state.invalidOptionsByDimension[dimensionId] = {};
+    }
+    state.invalidOptionsByDimension[dimensionId][fieldName] = reason || 'This mapping is currently invalid.';
+  }
+
+  function clearInvalidOption(dimensionId, fieldName) {
+    if (!state.invalidOptionsByDimension[dimensionId]) {
+      return;
+    }
+    delete state.invalidOptionsByDimension[dimensionId][fieldName];
+    if (Object.keys(state.invalidOptionsByDimension[dimensionId]).length === 0) {
+      delete state.invalidOptionsByDimension[dimensionId];
+    }
+  }
+
+  function getInvalidOptionReason(dimensionId, fieldName) {
+    return state.invalidOptionsByDimension[dimensionId] && state.invalidOptionsByDimension[dimensionId][fieldName]
+      ? state.invalidOptionsByDimension[dimensionId][fieldName]
+      : '';
+  }
+
+  function applyMappingSnapshot(config, mappingSnapshot, reason) {
+    var chartEntity = getChartEntity(config);
+    var componentName = getChartComponentName(config);
+    if (!chartEntity || !componentName || !mappingSnapshot) {
+      return false;
+    }
+
+    chartEntity.setAttribute(componentName, mappingSnapshot);
+    state.selectedByDimension = cloneMapping(mappingSnapshot);
+    requestChartPedestalRenormalize(reason || 'mapping-ui-snapshot');
+    return true;
+  }
+
+  function inspectChartStatus(config) {
+    var chartEntity = getChartEntity(config);
+    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime || root.CodeXRBoatsPedestalRuntime;
+    if (!chartEntity) {
+      return { ready: false, valid: false, reason: 'chart-not-found' };
+    }
+    if (!chartPedestalRuntime || typeof chartPedestalRuntime.getChartStatus !== 'function') {
+      return { ready: true, valid: true, reason: 'pedestal-runtime-unavailable' };
+    }
+    return chartPedestalRuntime.getChartStatus(chartEntity);
+  }
+
+  function confirmPendingMapping(token) {
+    if (!state.pendingMapping || state.pendingMapping.token !== token) {
+      return;
+    }
+    clearInvalidOption(state.pendingMapping.dimensionId, state.pendingMapping.fieldName);
+    state.lastKnownGoodMapping = cloneMapping(state.pendingMapping.nextMapping);
+    state.pendingMapping = null;
+    clearPendingValidationTimers();
+    resizeTrace('mapping-confirmed', {
+      token: token,
+      selectedByDimension: state.lastKnownGoodMapping
+    });
+  }
+
+  function revertPendingMapping(config, token, reason) {
+    if (!state.pendingMapping || state.pendingMapping.token !== token) {
+      return;
+    }
+    var friendlyMessage = buildFriendlyInvalidMappingMessage(
+      config,
+      state.pendingMapping.dimensionId,
+      state.pendingMapping.fieldName,
+      reason,
+      true
+    );
+    markInvalidOption(state.pendingMapping.dimensionId, state.pendingMapping.fieldName, friendlyMessage);
+    applyMappingSnapshot(config, state.pendingMapping.previousMapping, 'mapping-ui-revert');
+    setStatusMessage(friendlyMessage, 'error', 4800);
+    resizeTrace('mapping-reverted-invalid-babia-frame', {
+      token: token,
+      reason: reason || 'invalid-chart-state'
+    });
+    state.pendingMapping = null;
+    clearPendingValidationTimers();
+    renderRows(config);
+  }
+
+  function evaluatePendingMapping(config, token, isFinalAttempt) {
+    if (!state.pendingMapping || state.pendingMapping.token !== token) {
       return;
     }
 
-    chartEntity.setAttribute(componentName, (function () {
-      var update = {};
-      update[dimensionId] = fieldName;
-      return update;
-    })());
+    var status = inspectChartStatus(config);
+    if (!status || status.ready === false) {
+      if (isFinalAttempt) {
+        revertPendingMapping(config, token, 'The chart could not stabilize after remapping.');
+      }
+      return;
+    }
+
+    if (status.valid) {
+      confirmPendingMapping(token);
+      renderRows(config);
+      return;
+    }
+
+    revertPendingMapping(config, token, status.message || 'The selected mapping produced invalid chart geometry.');
+  }
+
+  function schedulePendingMappingValidation(config, token) {
+    clearPendingValidationTimers();
+    [120, 360, 720, 1200].forEach(function (delay, index, allDelays) {
+      var timer = setTimeout(function () {
+        evaluatePendingMapping(config, token, index === allDelays.length - 1);
+      }, delay);
+      state.pendingValidationTimers.push(timer);
+    });
+  }
+
+  function resizeTrace(label, payload) {
+    if (payload !== undefined) {
+      console.log('[Re-size] ' + label, payload);
+      return;
+    }
+    console.log('[Re-size] ' + label);
+  }
+
+  function requestChartPedestalRenormalize(reason) {
+    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime || root.CodeXRBoatsPedestalRuntime;
+    if (!chartPedestalRuntime || typeof chartPedestalRuntime.renormalizeAll !== 'function') {
+      return;
+    }
+
+    var nextFrame = root.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); };
+    nextFrame(function () {
+      chartPedestalRuntime.renormalizeAll(reason || 'mapping-ui-change');
+    });
+
+    if (state.delayedRenormalizeTimer) {
+      clearTimeout(state.delayedRenormalizeTimer);
+    }
+    state.delayedRenormalizeTimer = setTimeout(function () {
+      state.delayedRenormalizeTimer = null;
+      chartPedestalRuntime.renormalizeAll((reason || 'mapping-ui-change') + '-settled');
+    }, 300);
+  }
+
+  function applyDimensionSelection(config, dimensionId, fieldName, options) {
+    var chartEntity = getChartEntity(config);
+    var componentName = getChartComponentName(config);
+    var alreadySelected = state.selectedByDimension[dimensionId] === fieldName;
+    var forceSelection = !!(options && options.force === true);
+    var invalidOptionReason = getInvalidOptionReason(dimensionId, fieldName);
+
+    if (!chartEntity || !componentName) {
+      return false;
+    }
+
+    if (alreadySelected && !forceSelection) {
+      return false;
+    }
+
+    if (invalidOptionReason && !forceSelection) {
+      setStatusMessage(invalidOptionReason, 'error', 3600);
+      resizeTrace('mapping-selection-blocked', {
+        chartId: config && config.chartId,
+        dimensionId: dimensionId,
+        fieldName: fieldName,
+        reason: invalidOptionReason,
+        phase: 'disabled-option'
+      });
+      return false;
+    }
+
+    var previousMapping = cloneMapping(state.selectedByDimension);
+    var nextMapping = cloneMapping(previousMapping);
+    nextMapping[dimensionId] = fieldName;
+
+    chartEntity.setAttribute(componentName, nextMapping);
+
+    state.selectedByDimension = cloneMapping(nextMapping);
+    clearStatusTimer();
+
+    if (!options || options.trackPending !== false) {
+      clearPendingValidationTimers();
+      state.pendingMappingToken += 1;
+      state.pendingMapping = {
+        token: state.pendingMappingToken,
+        dimensionId: dimensionId,
+        fieldName: fieldName,
+        previousMapping: previousMapping,
+        nextMapping: nextMapping
+      };
+      schedulePendingMappingValidation(config, state.pendingMappingToken);
+    } else {
+      clearInvalidOption(dimensionId, fieldName);
+      state.lastKnownGoodMapping = cloneMapping(nextMapping);
+      state.pendingMapping = null;
+    }
+
+    if (!options || options.renormalize !== false) {
+      requestChartPedestalRenormalize('mapping-ui-change');
+    }
+
+    return true;
   }
 
   function syncToggleLabel(config) {
@@ -403,32 +711,39 @@
         var rowIndex = Math.floor(fieldIndex / cols);
         var colIndex = fieldIndex % cols;
         var isActive = state.selectedByDimension[dimension.id] === fieldName;
+        var invalidReason = getInvalidOptionReason(dimension.id, fieldName);
+        var isDisabled = !!invalidReason && !isActive;
 
         var x = -2.85 + colIndex * colWidth + buttonWidth * 0.5;
         var y = cursorY - rowIndex * 0.28;
 
         var button = createEntity('a-plane', {
           class: 'babiaxraycasterclass codexr-mapping-ui-option',
-          color: isActive ? '#be123c' : '#1e3a5f',
+          color: isActive ? '#be123c' : (isDisabled ? '#334155' : '#1e3a5f'),
           width: buttonWidth,
           height: 0.22,
-          opacity: isActive ? 0.98 : 0.92,
+          opacity: isActive ? 0.98 : (isDisabled ? 0.55 : 0.92),
           position: x + ' ' + y + ' 0.01'
         });
 
         var text = createEntity('a-text', {
           value: compactLabel(fieldName),
           align: 'center',
-          color: '#ffffff',
+          color: isDisabled ? '#cbd5e1' : '#ffffff',
           width: buttonWidth * 1.9,
           position: '0 0 0.01'
         });
 
         button.appendChild(text);
         button.addEventListener('click', function () {
-          state.selectedByDimension[dimension.id] = fieldName;
-          applyDimensionSelection(config, dimension.id, fieldName);
-          renderRows(config);
+          if (isDisabled) {
+            setStatusMessage(invalidReason, 'error', 4000);
+            return;
+          }
+          var changed = applyDimensionSelection(config, dimension.id, fieldName);
+          if (changed) {
+            renderRows(config);
+          }
         });
 
         refs.rowsRoot.appendChild(button);
@@ -437,7 +752,8 @@
       cursorY -= Math.ceil(fields.length / cols) * 0.28 + 0.2;
     });
 
-    var panelHeight = Math.max(2.2, Math.abs(cursorY) + 0.5);
+    var statusOffsetY = -0.36;
+    var panelHeight = Math.max(2.45, Math.abs(cursorY) + 0.92);
     if (refs.panelBackground) {
       refs.panelBackground.setAttribute('height', panelHeight);
     }
@@ -453,6 +769,10 @@
 
     if (refs.rowsRoot) {
       refs.rowsRoot.setAttribute('position', '-0.05 ' + (panelHeight * 0.45 - 0.4) + ' 0.02');
+    }
+    if (refs.statusText) {
+      refs.statusText.setAttribute('position', '-2.85 ' + (-panelHeight * 0.5 + Math.abs(statusOffsetY)) + ' 0.03');
+      updateStatusText();
     }
   }
 
@@ -526,11 +846,23 @@
       position: '-0.05 0.55 0.02'
     });
 
+    refs.statusText = createEntity('a-text', {
+      value: '',
+      align: 'left',
+      color: '#fde68a',
+      width: 5.9,
+      position: '-2.85 -0.86 0.03',
+      visible: false,
+      'wrap-count': 30,
+      baseline: 'top'
+    });
+
     refs.panelContent.appendChild(refs.panelBackground);
     refs.panelContent.appendChild(refs.panelBorder);
     refs.panelContent.appendChild(refs.panelTitleBackdrop);
     refs.panelContent.appendChild(refs.panelTitle);
     refs.panelContent.appendChild(refs.rowsRoot);
+    refs.panelContent.appendChild(refs.statusText);
     refs.panel.appendChild(refs.panelContent);
 
     refs.toggle = createEntity('a-plane', {
@@ -551,6 +883,7 @@
     state.activeCornerId = null;
     syncToggleLabel(config);
     setVisible(config, state.visible);
+    updateStatusText();
     renderRows(config);
 
     if (config.adaptiveCorner) {
@@ -560,7 +893,13 @@
   }
 
   function hydrateStateFromConfig(config) {
+    clearPendingValidationTimers();
+    clearStatusTimer();
     state.selectedByDimension = {};
+    state.invalidOptionsByDimension = {};
+    state.pendingMapping = null;
+    state.statusMessage = '';
+    state.statusLevel = 'info';
     var dimensions = Array.isArray(config.dimensions) ? config.dimensions : [];
     dimensions.forEach(function (dimension) {
       if (!dimension || !dimension.id) {
@@ -570,13 +909,16 @@
       var fallback = fields.length > 0 ? fields[0] : '';
       state.selectedByDimension[dimension.id] = dimension.currentField || fallback;
     });
+    state.lastKnownGoodMapping = cloneMapping(state.selectedByDimension);
     state.visible = config.panelVisible !== false;
   }
 
   function getState() {
     return {
       visible: state.visible,
-      selectedByDimension: Object.assign({}, state.selectedByDimension)
+      selectedByDimension: Object.assign({}, state.selectedByDimension),
+      lastKnownGoodMapping: Object.assign({}, state.lastKnownGoodMapping),
+      invalidOptionsByDimension: JSON.parse(JSON.stringify(state.invalidOptionsByDimension || {}))
     };
   }
 
@@ -595,6 +937,21 @@
         ? runtimeState.selectedByDimension
         : {}
     );
+    state.lastKnownGoodMapping = Object.assign(
+      {},
+      state.selectedByDimension,
+      runtimeState.lastKnownGoodMapping && typeof runtimeState.lastKnownGoodMapping === 'object' && !Array.isArray(runtimeState.lastKnownGoodMapping)
+        ? runtimeState.lastKnownGoodMapping
+        : {}
+    );
+    state.invalidOptionsByDimension = runtimeState.invalidOptionsByDimension && typeof runtimeState.invalidOptionsByDimension === 'object' && !Array.isArray(runtimeState.invalidOptionsByDimension)
+      ? JSON.parse(JSON.stringify(runtimeState.invalidOptionsByDimension))
+      : {};
+    clearPendingValidationTimers();
+    state.pendingMapping = null;
+    clearStatusTimer();
+    state.statusMessage = '';
+    state.statusLevel = 'info';
 
     var dimensions = Array.isArray(config.dimensions) ? config.dimensions : [];
     dimensions.forEach(function (dimension) {
@@ -603,10 +960,11 @@
       }
       var selectedField = state.selectedByDimension[dimension.id];
       if (selectedField) {
-        applyDimensionSelection(config, dimension.id, selectedField);
+        applyDimensionSelection(config, dimension.id, selectedField, { renormalize: false, force: true, trackPending: false });
       }
     });
 
+    requestChartPedestalRenormalize('mapping-ui-restore');
     setVisible(config, state.visible);
     renderRows(config);
     return true;
@@ -642,6 +1000,9 @@
         return;
       }
       setVisible(config, visible);
+    },
+    __testing: {
+      getInvalidOptionReason: getInvalidOptionReason
     }
   };
 

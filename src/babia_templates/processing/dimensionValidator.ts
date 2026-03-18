@@ -56,7 +56,7 @@ export class DimensionValidator {
             }
 
             const dimension = chart.dimensions.find((candidate) => candidate.name === mapping.dimension);
-            if (!dimension || !fieldTypes || dimension.dataType !== 'numeric') {
+            if (!dimension || !fieldTypes || dimension.dataType === 'any') {
                 continue;
             }
 
@@ -67,9 +67,9 @@ export class DimensionValidator {
                 continue;
             }
 
-            if (actualType !== 'numeric') {
+            if (actualType !== dimension.dataType) {
                 result.errors.push(
-                    `Dimension '${mapping.dimension}' (${dimension.label}) requires numeric data, but '${mapping.dataField}' is ${actualType}`,
+                    `Dimension '${mapping.dimension}' (${dimension.label}) requires ${dimension.dataType} data, but '${mapping.dataField}' is ${actualType}`,
                 );
                 result.isValid = false;
             }
@@ -107,7 +107,7 @@ export class DimensionValidator {
             };
         }
 
-        if (dimension.dataType === 'numeric' && fieldTypes) {
+        if (dimension.dataType !== 'any' && fieldTypes) {
             const actualType = fieldTypes[dataField];
             if (actualType === undefined) {
                 return {
@@ -116,10 +116,10 @@ export class DimensionValidator {
                 };
             }
 
-            if (actualType !== 'numeric') {
+            if (actualType !== dimension.dataType) {
                 return {
                     isValid: false,
-                    error: `Dimension '${dimensionName}' requires numeric data, but '${dataField}' is ${actualType}`,
+                    error: `Dimension '${dimensionName}' requires ${dimension.dataType} data, but '${dataField}' is ${actualType}`,
                 };
             }
         }

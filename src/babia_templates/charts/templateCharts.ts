@@ -18,9 +18,11 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            targetHeight: 1.8;
                                            targetDepth: 3.218;
                                            minPlanarOccupancyRatio: 0.62;
+                                           maxPlanarOccupancyRatio: 0.84;
                                            minHeightOccupancyRatio: 0.45;
                                            heightBandMinRatio: 0.38;
                                            heightBandMaxRatio: 0.72;
+                                           tableEdgeMargin: 0.18;
                                            yScaleMin: 0.01;
                                            yScaleMax: 4;
                                            containmentToleranceRatio: 0.018;
@@ -40,7 +42,8 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
@@ -48,6 +51,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'height',
                 label: 'Height',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for bar heights'
             }
@@ -79,14 +83,16 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
                 label: 'Z-Axis',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
@@ -94,6 +100,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'height',
                 label: 'Height',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for bar heights'
             }
@@ -126,7 +133,8 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
@@ -134,6 +142,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'height',
                 label: 'Height',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for cylinder heights'
             },
@@ -141,6 +150,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'radius',
                 label: 'Radius',
                 dataType: 'numeric',
+                valueRule: 'numeric-positive',
                 required: true,
                 description: 'Field containing numeric values for cylinder radius'
             }
@@ -174,14 +184,16 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
                 label: 'Z-Axis',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
@@ -189,6 +201,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'height',
                 label: 'Height',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for cylinder heights'
             },
@@ -196,6 +209,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'radius',
                 label: 'Radius Values',
                 dataType: 'numeric',
+                valueRule: 'numeric-positive',
                 required: true,
                 description: 'Field containing numeric values for cylinder radius'
             }
@@ -230,7 +244,8 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'key',
                 label: 'Key',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names'
             },
@@ -238,6 +253,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'size',
                 label: 'Size', 
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for each category'
             }
@@ -270,7 +286,8 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'key',
                 label: 'Key',
-                dataType: 'any',
+                dataType: 'text',
+                valueRule: 'text-non-empty',
                 required: true,
                 description: 'Field containing category names'
             },
@@ -278,6 +295,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'size',
                 label: 'Size',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for each sector'
             }
@@ -325,6 +343,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'height',
                 label: 'Height',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Field containing numeric values for bubble height positioning'
             },
@@ -332,6 +351,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'radius',
                 label: 'Radius',
                 dataType: 'numeric',
+                valueRule: 'numeric-positive',
                 required: true,
                 description: 'Field containing numeric values for bubble radius/size'
             }
@@ -369,6 +389,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'area',
                 label: 'Area',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Numeric field used to size the boat area (e.g., parameters, function count)'
             },
@@ -376,6 +397,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'height',
                 label: 'Height',
                 dataType: 'numeric',
+                valueRule: 'numeric-finite',
                 required: true,
                 description: 'Numeric field used to control boat height (e.g., lines count, complexity)'
             },

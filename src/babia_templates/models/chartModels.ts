@@ -6,7 +6,8 @@
 /**
  * Supported data types for chart dimensions
  */
-export type DimensionDataType = 'numeric' | 'any';
+export type DimensionDataType = 'numeric' | 'text' | 'any';
+export type DimensionValueRule = 'text-non-empty' | 'numeric-finite' | 'numeric-positive';
 
 /**
  * Chart dimension definition
@@ -20,6 +21,9 @@ export interface ChartDimension {
     
     /** Expected data type for this dimension */
     dataType: DimensionDataType;
+
+    /** Optional runtime rule for validating mapped values */
+    valueRule?: DimensionValueRule;
     
     /** Whether this dimension is required */
     required: boolean;

@@ -94,6 +94,14 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /src="\.\/chartPedestalRuntime\.js"/);
 });
 
+test('XR and DOM templates pin aframe-babia-components to the supported version', () => {
+    const xrTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
+    const domTemplate = readProjectFile('templates', 'xr', 'html', 'dom-visualization-template.html');
+
+    assert.match(xrTemplate, /aframe-babia-components@1\.3\.4\/dist\/aframe-babia-components\.min\.js/);
+    assert.match(domTemplate, /aframe-babia-components@1\.3\.4\/dist\/aframe-babia-components\.min\.js/);
+});
+
 test('XR parsers include CodeXR room runtime in generated assets', () => {
     const fileParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'fileXRParser.ts');
     const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
@@ -118,11 +126,24 @@ test('all XR charts share the same chart-pedestal preset and the programmatic bo
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
-    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*minPlanarOccupancyRatio: 0\.62;[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: 0\.38;[\s\S]*heightBandMaxRatio: 0\.72;[\s\S]*stabilizationStablePasses: 3`;/);
+    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*minPlanarOccupancyRatio: 0\.62;[\s\S]*maxPlanarOccupancyRatio: 0\.84;[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: 0\.38;[\s\S]*heightBandMaxRatio: 0\.72;[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*stabilizationStablePasses: 3`;/);
 
     const matches = templateCharts.match(/codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
     assert.equal(matches.length, 8);
     assert.equal(templateCharts.includes('codexr-boats-pedestal'), false);
     assert.match(createChart, /UNIVERSAL_XR_TABLE_SETTINGS/);
     assert.match(createChart, /codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/);
+});
+
+test('mapping UI triggers chart pedestal renormalization immediately and after geometry settles', () => {
+    const mappingUiRuntime = readProjectFile('templates', 'components', 'codexr', 'xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
+
+    assert.match(mappingUiRuntime, /function requestChartPedestalRenormalize\(reason\)/);
+    assert.match(mappingUiRuntime, /chartPedestalRuntime\.renormalizeAll\(reason \|\| 'mapping-ui-change'\)/);
+    assert.match(mappingUiRuntime, /chartPedestalRuntime\.renormalizeAll\(\(reason \|\| 'mapping-ui-change'\) \+ '-settled'\)/);
+    assert.match(mappingUiRuntime, /applyDimensionSelection\(config, dimensionId, fieldName, options\)/);
+    assert.match(mappingUiRuntime, /var alreadySelected = state\.selectedByDimension\[dimensionId\] === fieldName;/);
+    assert.match(mappingUiRuntime, /var forceSelection = !!\(options && options\.force === true\);/);
+    assert.match(mappingUiRuntime, /if \(alreadySelected && !forceSelection\) \{/);
+    assert.match(mappingUiRuntime, /schedulePendingMappingValidation\(config, state\.pendingMappingToken\);/);
 });
