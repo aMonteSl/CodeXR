@@ -10,8 +10,8 @@ import { TemplateProcessor } from '../../../babia_templates/processing/templateP
 import { ExecutePython } from '../utils/executePython';
 import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import {
-    BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME,
-    copyBoatsPedestalRuntimeToOutput,
+    CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    copyChartPedestalRuntimeToOutput,
     copyCodeXrRoomAssetsToOutput,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
     copyVirtualScreenManagerRuntimeToOutput,
@@ -92,7 +92,7 @@ export class FileXRParser {
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
-            await copyBoatsPedestalRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyChartPedestalRuntimeToOutput(this.context.extensionPath, session.outputPath);
 
             const title = `XR Analysis: ${session.targetName || 'analysis'}`;
             const outputPath = path.join(session.outputPath, 'index.html');
@@ -129,7 +129,7 @@ export class FileXRParser {
                 || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME)
-                || !loadedFiles.has(BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME)
             ) {
                 throw new Error('XR file bootstrap did not generate the required files.');
             }

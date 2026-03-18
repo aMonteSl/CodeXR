@@ -91,6 +91,7 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
     assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
+    assert.match(template, /src="\.\/chartPedestalRuntime\.js"/);
 });
 
 test('XR parsers include CodeXR room runtime in generated assets', () => {
@@ -101,10 +102,27 @@ test('XR parsers include CodeXR room runtime in generated assets', () => {
     assert.match(fileParser, /CODEXR_ROOM_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /copyVirtualScreenManagerRuntimeToOutput/);
     assert.match(fileParser, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME/);
+    assert.match(fileParser, /copyChartPedestalRuntimeToOutput/);
+    assert.match(fileParser, /CHART_PEDESTAL_RUNTIME_OUTPUT_NAME/);
     assert.match(directoryParser, /readCodeXrRoomRuntimeContent/);
     assert.match(directoryParser, /readCodeXrRoomTextureContents/);
     assert.match(directoryParser, /readVirtualScreenManagerRuntimeContent/);
+    assert.match(directoryParser, /readChartPedestalRuntimeContent/);
     assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME, chartPedestalRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(asset\.relativeOutputPath, asset\.content\)/);
+});
+
+test('all XR charts share the same chart-pedestal preset and the programmatic boats fallback reuses it', () => {
+    const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
+    const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
+
+    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*minPlanarOccupancyRatio: 0\.62;[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: 0\.38;[\s\S]*heightBandMaxRatio: 0\.72;[\s\S]*stabilizationStablePasses: 3`;/);
+
+    const matches = templateCharts.match(/codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
+    assert.equal(matches.length, 8);
+    assert.equal(templateCharts.includes('codexr-boats-pedestal'), false);
+    assert.match(createChart, /UNIVERSAL_XR_TABLE_SETTINGS/);
+    assert.match(createChart, /codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/);
 });
