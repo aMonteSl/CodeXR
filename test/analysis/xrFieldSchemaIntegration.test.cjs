@@ -66,6 +66,35 @@ test('shared dimension mapping core consumes the schema service instead of hardc
     assert.equal(directorySetting.includes('DIRECTORY_DATA_FIELDS'), false);
 });
 
+test('XR schema consumers support text-only dimensions for categorical chart axes', () => {
+    const schemaService = readProjectFile(
+        'src',
+        'code_analysis',
+        'services',
+        'xrFieldSchemaService.ts',
+    );
+    const templateProcessor = readProjectFile(
+        'src',
+        'babia_templates',
+        'processing',
+        'templateProcessor.ts',
+    );
+    const templateCharts = readProjectFile(
+        'src',
+        'babia_templates',
+        'charts',
+        'templateCharts.ts',
+    );
+
+    assert.match(schemaService, /if \(dataType === 'text'\)/);
+    assert.match(templateProcessor, /fieldType === 'text'/);
+    assert.match(templateProcessor, /dimension\.dataType === 'text' \? textFields : anyFields/);
+    assert.match(templateProcessor, /valueRule: dimension\.valueRule/);
+    assert.match(templateCharts, /id: 'cylsmap'[\s\S]*name: 'x_axis'[\s\S]*dataType: 'text'/);
+    assert.match(templateCharts, /id: 'cylsmap'[\s\S]*name: 'z_axis'[\s\S]*dataType: 'text'/);
+    assert.match(templateCharts, /id: 'pie'[\s\S]*name: 'key'[\s\S]*dataType: 'text'/);
+});
+
 test('XR launcher validates mappings with schema-provided field types before execution', () => {
     const source = readProjectFile('src', 'code_analysis', 'engine', 'launchers', 'launcherXRAnalysis.ts');
 

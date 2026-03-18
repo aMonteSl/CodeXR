@@ -111,6 +111,10 @@ export class XRFieldSchemaService {
             return fields.filter((field) => field.valueType === 'numeric');
         }
 
+        if (dataType === 'text') {
+            return fields.filter((field) => field.valueType === 'text');
+        }
+
         return fields;
     }
 

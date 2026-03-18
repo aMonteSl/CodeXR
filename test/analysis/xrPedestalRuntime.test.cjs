@@ -53,6 +53,8 @@ test('chart pedestal runtime registers the generic component name and preserves 
 
     assert.ok(componentDefinition);
     assert.ok(legacyComponentDefinition);
+    assert.ok(componentDefinition.schema.maxPlanarOccupancyRatio);
+    assert.ok(componentDefinition.schema.tableEdgeMargin);
     assert.ok(componentDefinition.schema.stabilizationCheckMs);
     assert.ok(componentDefinition.schema.stabilizationMaxChecks);
     assert.ok(componentDefinition.schema.stabilizationStablePasses);
@@ -62,6 +64,7 @@ test('chart pedestal runtime exposes manual debug controls under the generic run
     const { runtime, sandbox } = loadRuntimeSandbox();
 
     assert.ok(runtime);
+    assert.equal(typeof runtime.getChartStatus, 'function');
     assert.equal(runtime.isDebugEnabled(), false);
     runtime.enableDebug();
     assert.equal(runtime.isDebugEnabled(), true);
@@ -79,9 +82,20 @@ test('chart pedestal helper ignores auxiliary bounds metadata and keeps content 
     assert.equal(helpers.matchesIgnoredBoundsMeta({ tagName: 'a-text' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ className: 'chart-legend panel' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ nodeName: 'axis-tick-label' }), true);
+    assert.equal(helpers.matchesIgnoredBoundsMeta({ attributeNames: 'babia-label data-ready' }), true);
+    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ nodeName: 'axis-tick-line' }), false);
+    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ className: 'chart-legend panel' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ id: 'chart-body', className: 'mesh' }), false);
     assert.match(runtimeSource, /function buildContentBounds\(three, object3D\)/);
+    assert.match(runtimeSource, /function buildContainmentBounds\(three, object3D\)/);
+    assert.match(runtimeSource, /function buildRenderableBounds\(three, object3D\)/);
     assert.match(runtimeSource, /function shouldUseContentBounds\(contentBounds, fullBounds\)/);
+    assert.match(runtimeSource, /function inspectInvalidAxisState\(chartEl\)/);
+    assert.match(runtimeSource, /resizeTrace\('invalid-axis-length-detected'/);
+    assert.match(runtimeSource, /this\.lastNormalizationIssue = null;/);
+    assert.match(runtimeSource, /this\.lastSuccessfulNormalizeAt = 0;/);
+    assert.doesNotMatch(runtimeSource, /applyAuxiliaryVisualCompensation: function \(\)/);
+    assert.doesNotMatch(runtimeSource, /codexrAuxiliaryCompensation/);
 });
 
 test('chart pedestal helper computes universal planar fit and height band targets', () => {
@@ -126,7 +140,9 @@ test('chart pedestal helper clamps height band scale and builds stable measureme
     const signature = helpers.buildMeasurementSignature(
         {
             primary: { size: { x: 1, y: 2, z: 3 } },
+            containment: { size: { x: 3.5, y: 4.5, z: 5.5 } },
             full: { size: { x: 4, y: 5, z: 6 } },
+            peakHeight: 1.25,
         },
         {
             scale: { x: 0.5, y: 0.75, z: 1.25 },
@@ -134,7 +150,99 @@ test('chart pedestal helper clamps height band scale and builds stable measureme
         },
     );
 
-    assert.equal(signature, '1|2|3|4|5|6|0.5|0.75|1.25|7|8|9');
+    assert.equal(signature, '1|2|3|3.5|4.5|5.5|4|5|6|1.25|0.5|0.75|1.25|7|8|9');
+});
+
+test('chart pedestal helper computes planar band scaling from content range and containment limits', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const helpers = runtime.__testing;
+
+    const upscale = helpers.computePlanarBandScale(
+        {
+            size: { x: 0.8, y: 1, z: 0.8 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -0.4, y: 0, z: -0.4 }, max: { x: 0.4, y: 1, z: 0.4 } },
+        },
+        {
+            size: { x: 1, y: 1.2, z: 1 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -0.5, y: 0, z: -0.5 }, max: { x: 0.5, y: 1.2, z: 0.5 } },
+        },
+        {
+            targetWidth: 5,
+            targetDepth: 5,
+            minPlanarOccupancyRatio: 0.62,
+            maxPlanarOccupancyRatio: 0.84,
+            pedestalTopPadding: 0.9,
+            tableEdgeMargin: 0.18,
+        },
+    );
+
+    assert.equal(upscale.reason, 'upscale-minimum');
+    assert.equal(upscale.compromised, false);
+    assert.equal(upscale.factor, 3.875);
+
+    const downscale = helpers.computePlanarBandScale(
+        {
+            size: { x: 5.5, y: 1, z: 5 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -2.75, y: 0, z: -2.5 }, max: { x: 2.75, y: 1, z: 2.5 } },
+        },
+        {
+            size: { x: 5.8, y: 1.2, z: 5.4 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -2.9, y: 0, z: -2.7 }, max: { x: 2.9, y: 1.2, z: 2.7 } },
+        },
+        {
+            targetWidth: 5,
+            targetDepth: 5,
+            minPlanarOccupancyRatio: 0.62,
+            maxPlanarOccupancyRatio: 0.84,
+            pedestalTopPadding: 0.9,
+            tableEdgeMargin: 0.18,
+        },
+    );
+
+    assert.equal(downscale.reason, 'downscale-range');
+    assert.equal(downscale.compromised, false);
+    assert.ok(Math.abs(downscale.factor - 0.7636363636363637) < 1e-12);
+});
+
+test('chart pedestal helper computes containment clamp and content peak height', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const helpers = runtime.__testing;
+
+    const containmentLimit = helpers.computeContainmentPlanarLimit(
+        {
+            size: { x: 5.8, y: 1.2, z: 5.4 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -2.9, y: 0, z: -2.7 }, max: { x: 2.9, y: 1.2, z: 2.7 } },
+        },
+        {
+            targetWidth: 5,
+            targetDepth: 5,
+            pedestalTopPadding: 0.9,
+            tableEdgeMargin: 0.18,
+        },
+    );
+
+    assert.ok(Math.abs(containmentLimit.factor - 0.9551724137931035) < 1e-12);
+    assert.ok(Math.abs(containmentLimit.containmentWidthLimit - 5.54) < 1e-12);
+    assert.ok(Math.abs(containmentLimit.containmentDepthLimit - 5.54) < 1e-12);
+
+    const peakHeight = helpers.computePeakHeight(
+        {
+            size: { x: 1, y: 2, z: 1 },
+            center: { x: 0, y: 2, z: 0 },
+            bounds: { min: { x: -0.5, y: 1.03, z: -0.5 }, max: { x: 0.5, y: 2.43, z: 0.5 } },
+        },
+        {
+            anchorY: 1,
+            revealOffsetY: 0.03,
+        },
+    );
+
+    assert.ok(Math.abs(peakHeight - 1.4) < 1e-12);
 });
 
 test('chart pedestal helper computes anchor placement as a delta from measured world bounds', () => {
@@ -165,4 +273,50 @@ test('chart pedestal helper computes anchor placement as a delta from measured w
     assert.equal(offset.deltaX, -4);
     assert.equal(offset.deltaY, 0.13);
     assert.equal(offset.deltaZ, -7);
+});
+
+test('chart pedestal helper detects non-finite axis values from Babia-driven descendants', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const helpers = runtime.__testing;
+
+    const issues = helpers.collectNonFiniteValueIssues({ maxValue: '-Infinity', nested: { safe: 1 } }, 'axis', [], 0);
+    assert.equal(Array.isArray(issues), true);
+    assert.equal(issues.length, 1);
+    assert.equal(issues[0].path, 'axis.maxValue');
+    assert.equal(issues[0].value, '-Infinity');
+
+    const fakeChart = {
+        querySelectorAll(selector) {
+            if (selector !== '[babia-axis-x]') {
+                return [];
+            }
+            return [{
+                id: 'x-axis',
+                getAttribute(name) {
+                    if (name === 'babia-axis-x') {
+                        return { maxValue: '-Infinity', length: 5 };
+                    }
+                    return null;
+                },
+                components: {},
+            }];
+        },
+    };
+
+    const issue = helpers.inspectInvalidAxisState(fakeChart);
+    assert.equal(issue.reason, 'invalid-axis-length');
+    assert.equal(issue.attribute, 'babia-axis-x');
+    assert.equal(issue.elementId, 'x-axis');
+});
+
+test('chart pedestal runtime tracks normalization generations for retry cancellation', () => {
+    assert.match(runtimeSource, /this\.normalizationGeneration = 0;/);
+    assert.match(runtimeSource, /this\.lastStableTransform = null;/);
+    assert.match(runtimeSource, /bumpNormalizationGeneration: function \(\)/);
+    assert.match(runtimeSource, /isCurrentGeneration: function \(generation\)/);
+    assert.match(runtimeSource, /if \(!this\.isCurrentGeneration\(generation\)\) \{/);
+    assert.match(runtimeSource, /var previousTransform = cloneTransform\(el\.object3D\) \|\| this\.lastStableTransform;/);
+    assert.match(runtimeSource, /var initialPlanarBand = computePlanarBandScale\(initialMeasurements\.primary, initialMeasurements\.containment, this\.data\);/);
+    assert.match(runtimeSource, /el\.object3D\.scale\.set\(nextPlanarScale, el\.object3D\.scale\.y, nextPlanarScale\);/);
+    assert.match(runtimeSource, /restoreTransform\(el\.object3D, previousTransform\);/);
 });

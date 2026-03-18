@@ -98,6 +98,7 @@ export class CreateChart {
                     name: 'area',
                     label: 'Area (Parameters)',
                     dataType: 'numeric',
+                    valueRule: 'numeric-finite',
                     required: true,
                     description: 'Function parameters count'
                 },
@@ -105,6 +106,7 @@ export class CreateChart {
                     name: 'height',
                     label: 'Height (Lines Count)',
                     dataType: 'numeric',
+                    valueRule: 'numeric-finite',
                     required: true,
                     description: 'Lines of code count'
                 },

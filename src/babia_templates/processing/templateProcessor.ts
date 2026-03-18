@@ -258,6 +258,9 @@ export class TemplateProcessor {
         const numericFields = schemaFieldEntries
             .filter(([, fieldType]) => fieldType === 'numeric')
             .map(([fieldName]) => fieldName);
+        const textFields = schemaFieldEntries
+            .filter(([, fieldType]) => fieldType === 'text')
+            .map(([fieldName]) => fieldName);
         const anyFields = schemaFieldEntries.map(([fieldName]) => fieldName);
 
         const selectedFieldByDimension = new Map<string, string>();
@@ -270,14 +273,17 @@ export class TemplateProcessor {
         const dimensions: Array<{
             id: string;
             label: string;
-            dataType: 'numeric' | 'any';
+            dataType: 'numeric' | 'text' | 'any';
+            valueRule?: 'text-non-empty' | 'numeric-finite' | 'numeric-positive';
             currentField: string;
             fields: string[];
             hidden: boolean;
         }> = [];
 
         for (const dimension of chartMetadata.dimensions) {
-            const candidateFields = dimension.dataType === 'numeric' ? numericFields : anyFields;
+            const candidateFields = dimension.dataType === 'numeric'
+                ? numericFields
+                : (dimension.dataType === 'text' ? textFields : anyFields);
             if (candidateFields.length === 0) {
                 continue;
             }
@@ -291,6 +297,7 @@ export class TemplateProcessor {
                 id: dimension.name,
                 label: dimension.label,
                 dataType: dimension.dataType,
+                valueRule: dimension.valueRule,
                 currentField: orderedFields[0],
                 fields: orderedFields,
                 hidden: false,

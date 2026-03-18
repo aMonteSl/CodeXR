@@ -189,13 +189,17 @@ export class JsonFieldAnalyzer {
     /**
      * Get fields suitable for a specific dimension type
      */
-    public static getFieldsForDimensionType(analysisResult: JsonAnalysisResult, dimensionDataType: 'numeric' | 'any'): JsonFieldInfo[] {
+    public static getFieldsForDimensionType(analysisResult: JsonAnalysisResult, dimensionDataType: 'numeric' | 'text' | 'any'): JsonFieldInfo[] {
         if (!analysisResult.success) {
             return [];
         }
         
         if (dimensionDataType === 'numeric') {
             return analysisResult.fields.filter(field => field.isNumeric);
+        }
+
+        if (dimensionDataType === 'text') {
+            return analysisResult.fields.filter(field => !field.isNumeric);
         }
         
         // For 'any' type, return all fields
