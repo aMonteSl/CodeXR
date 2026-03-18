@@ -16,9 +16,9 @@ import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 import {
-    BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
-    readBoatsPedestalRuntimeContent,
+    readChartPedestalRuntimeContent,
     readCodeXrRoomRuntimeContent,
     readCodeXrRoomTextureContents,
     readVirtualScreenManagerRuntimeContent,
@@ -118,7 +118,7 @@ export class DirectoryXRParser {
             const codexrRoomRuntimeContent = await readCodeXrRoomRuntimeContent(context.extensionPath);
             const xrChartMappingUiRuntimeContent = await readXrChartMappingUiRuntimeContent(context.extensionPath);
             const xrChartDebugRuntimeContent = await readXrChartDebugRuntimeContent(context.extensionPath);
-            const boatsPedestalRuntimeContent = await readBoatsPedestalRuntimeContent(context.extensionPath);
+            const chartPedestalRuntimeContent = await readChartPedestalRuntimeContent(context.extensionPath);
             const codexrRoomTextures = await readCodeXrRoomTextureContents(context.extensionPath);
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
@@ -130,7 +130,7 @@ export class DirectoryXRParser {
             generatedFiles.set(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent);
             generatedFiles.set(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, xrChartMappingUiRuntimeContent);
             generatedFiles.set(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME, xrChartDebugRuntimeContent);
-            generatedFiles.set(BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME, boatsPedestalRuntimeContent);
+            generatedFiles.set(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME, chartPedestalRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
             codexrRoomTextures.forEach((asset) => {
                 generatedFiles.set(asset.relativeOutputPath, asset.content);

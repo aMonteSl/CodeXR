@@ -1,5 +1,5 @@
 import { ChartMetadata, DimensionMapping } from '../../models/chartModels';
-import { chartTemplates, DEFAULT_BOATS_LEGEND_TEXT } from '../../charts/templateCharts';
+import { chartTemplates, DEFAULT_BOATS_LEGEND_TEXT, UNIVERSAL_XR_TABLE_SETTINGS } from '../../charts/templateCharts';
 
 /**
  * Chart Creator Module - Specialized for Chart Entity Creation
@@ -135,22 +135,7 @@ export class CreateChart {
                                  zone_elevation: 0.01;
                                  height_quarter_legend_box: 0.01;
                                  height_quarter_legend_title: 2.5"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.82;
-                                           minHeightOccupancyRatio: 0.68;
-                                           buildingHeightBandEnabled: true;
-                                           buildingHeightMinTarget: 0.42;
-                                           buildingHeightMaxTarget: 1.22;
-                                           buildingHeightToleranceRatio: 0.08;
-                                           yScaleMin: 0.03;
-                                           yScaleMax: 0.16;
-                                           targetWidth: 5.614;
-                                           targetHeight: 1.8;
-                                           targetDepth: 3.218"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="0.01 0.05 0.01"

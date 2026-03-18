@@ -125,11 +125,11 @@
             }
 
             setTimeout(() => {
-              const boatsPedestalRuntime = window.CodeXRBoatsPedestalRuntime;
-              if (boatsPedestalRuntime && typeof boatsPedestalRuntime.renormalizeAll === 'function') {
-                const updated = boatsPedestalRuntime.renormalizeAll('analysis-updated');
+              const chartPedestalRuntime = window.CodeXRChartPedestalRuntime || window.CodeXRBoatsPedestalRuntime;
+              if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
+                const updated = chartPedestalRuntime.renormalizeAll('analysis-updated');
                 if (updated > 0) {
-                  console.log('🛟 Re-normalized boats pedestal charts:', updated);
+                  console.log('🛟 Re-normalized chart pedestal visualizations:', updated);
                 }
               }
 
@@ -183,11 +183,11 @@
         });
 
         setTimeout(() => {
-          const boatsPedestalRuntime = window.CodeXRBoatsPedestalRuntime;
-          if (boatsPedestalRuntime && typeof boatsPedestalRuntime.renormalizeAll === 'function') {
-            const updated = boatsPedestalRuntime.renormalizeAll('dataRefresh');
+          const chartPedestalRuntime = window.CodeXRChartPedestalRuntime || window.CodeXRBoatsPedestalRuntime;
+          if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
+            const updated = chartPedestalRuntime.renormalizeAll('dataRefresh');
             if (updated > 0) {
-              console.log('🛟 Re-normalized boats pedestal charts after data refresh:', updated);
+              console.log('🛟 Re-normalized chart pedestal visualizations after data refresh:', updated);
             }
           }
         }, 240);

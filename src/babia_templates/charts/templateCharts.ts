@@ -9,6 +9,26 @@ export const DEFAULT_BOATS_LEGEND_TEXT = `{name}
 {farea} (area): {area}
 {fcolor} (color): {color}`;
 
+export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           targetWidth: 5.614;
+                                           targetHeight: 1.8;
+                                           targetDepth: 3.218;
+                                           minPlanarOccupancyRatio: 0.62;
+                                           minHeightOccupancyRatio: 0.45;
+                                           heightBandMinRatio: 0.38;
+                                           heightBandMaxRatio: 0.72;
+                                           yScaleMin: 0.01;
+                                           yScaleMax: 4;
+                                           containmentToleranceRatio: 0.018;
+                                           periodicContainmentEnabled: false;
+                                           stabilizationCheckMs: 140;
+                                           stabilizationMaxChecks: 14;
+                                           stabilizationStablePasses: 3`;
+
 export const chartTemplates: ChartMetadata[] = [
     // Bar Chart Template
     {
@@ -41,15 +61,7 @@ export const chartTemplates: ChartMetadata[] = [
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
                                 axis_name: true"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -96,15 +108,7 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    axis_name: true"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -152,15 +156,7 @@ export const chartTemplates: ChartMetadata[] = [
                                 radius: {{RADIUS_FIELD}};
                                 axis_name: true;
                                 radiusMax: 1;"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -216,15 +212,7 @@ export const chartTemplates: ChartMetadata[] = [
                                    radius: {{RADIUS_FIELD}};
                                    axis_name: true;
                                    radiusMax: 1;"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -264,15 +252,7 @@ export const chartTemplates: ChartMetadata[] = [
                                  key: {{KEY_FIELD}};
                                  size: {{SIZE_FIELD}};
                                  axis_name: true"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="90 0 0"
                     scale="1.5 1.5 1.5"
@@ -312,15 +292,7 @@ export const chartTemplates: ChartMetadata[] = [
                                key: {{KEY_FIELD}};
                                size: {{SIZE_FIELD}};
                                axis_name: true"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="90 0 0"
                     scale="1.5 1.5 1.5"
@@ -378,15 +350,7 @@ export const chartTemplates: ChartMetadata[] = [
                                    heightMax: 5;
                                    radiusMax: 1;"
 
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.12;
-                                           minHeightOccupancyRatio: 0.12;
-                                           periodicContainmentEnabled: false;
-                                           buildingHeightBandEnabled: false"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -442,22 +406,7 @@ export const chartTemplates: ChartMetadata[] = [
                                  zone_elevation: 0.01;
                                  height_quarter_legend_box: 0.01;
                                  height_quarter_legend_title: 2.5"
-                    codexr-boats-pedestal="enabled: true;
-                                           anchorX: 0;
-                                           anchorY: 1;
-                                           anchorZ: -18;
-                                           uiDockEnabled: false;
-                                           minPlanarOccupancyRatio: 0.82;
-                                           minHeightOccupancyRatio: 0.68;
-                                           buildingHeightBandEnabled: true;
-                                           buildingHeightMinTarget: 0.42;
-                                           buildingHeightMaxTarget: 1.22;
-                                           buildingHeightToleranceRatio: 0.08;
-                                           yScaleMin: 0.03;
-                                           yScaleMax: 0.16;
-                                           targetWidth: 5.614;
-                                           targetHeight: 1.8;
-                                           targetDepth: 3.218"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="0.01 0.05 0.01"
