@@ -48,7 +48,6 @@ export class HttpsCustomServer {
             enableCors: this.config.enableCors,
             allowedOrigins: this.config.allowedOrigins,
             mainFile: this.config.mainFile,
-            virtualScreen: this.config.virtualScreen,
         });
 
         console.log('SERVER: HTTPS server (custom certificates) initialized with config:', {

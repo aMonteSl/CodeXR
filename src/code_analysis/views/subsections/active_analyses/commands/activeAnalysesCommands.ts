@@ -97,7 +97,7 @@ export class ActiveAnalysesCommands {
 
         const exportSourcePath = this.resolveExportSourcePath(session);
         const quickPickItems: Array<vscode.QuickPickItem & {
-            action: 'details' | 'browser' | 'host-broadcaster' | 'export' | 'close';
+            action: 'details' | 'browser' | 'export' | 'close';
         }> = [
             {
                 label: 'View Details',
@@ -111,14 +111,6 @@ export class ActiveAnalysesCommands {
                 label: 'Open in Browser',
                 description: 'Open the active analysis in your default browser',
                 action: 'browser',
-            });
-        }
-
-        if (typeof session.metadata?.virtualScreen?.hostBroadcasterUrl === 'string') {
-            quickPickItems.push({
-                label: 'Open Host Broadcaster',
-                description: 'Open the host-only broadcaster page for the virtual screen',
-                action: 'host-broadcaster',
             });
         }
 
@@ -154,9 +146,6 @@ export class ActiveAnalysesCommands {
                 return;
             case 'browser':
                 await this.viewInBrowser(sessionId);
-                return;
-            case 'host-broadcaster':
-                await this.openHostBroadcaster(sessionId);
                 return;
             case 'export':
                 await this.exportFolder(sessionId);
@@ -267,28 +256,6 @@ export class ActiveAnalysesCommands {
         }
 
         await vscode.env.openExternal(vscode.Uri.parse(url));
-    }
-
-    private async openHostBroadcaster(arg?: ActiveAnalysisItem | string | any): Promise<void> {
-        const sessionId = this.extractSessionId(arg);
-        if (!sessionId) {
-            vscode.window.showErrorMessage('No analysis selected');
-            return;
-        }
-
-        const session = this.sessionRegistry.getSession(sessionId);
-        if (!session) {
-            vscode.window.showErrorMessage('Analysis session not found');
-            return;
-        }
-
-        const hostBroadcasterUrl = session.metadata?.virtualScreen?.hostBroadcasterUrl;
-        if (typeof hostBroadcasterUrl !== 'string' || hostBroadcasterUrl.length === 0) {
-            vscode.window.showErrorMessage('No host broadcaster page is available for this analysis');
-            return;
-        }
-
-        await vscode.env.openExternal(vscode.Uri.parse(hostBroadcasterUrl));
     }
 
     private async exportFolder(arg?: ActiveAnalysisItem | string | any): Promise<void> {

@@ -15,7 +15,6 @@ import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
-import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
 import {
     BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
@@ -103,12 +102,6 @@ export class DirectoryXRParser {
             }
 
             const htmlContent = await fs.promises.readFile(tempHtmlPath, 'utf8');
-            const hydratedHtmlContent = injectVirtualScreenViewerConfig(htmlContent, {
-                virtualScreenSessionId: session.id,
-                virtualScreenSignalPath: '/codexr/virtual-screen/ws',
-                virtualScreenSupportsHostBroadcast: true,
-                virtualScreenSupportsLocalCapture: true,
-            });
             await fs.promises.rm(tempOutputPath, { recursive: true, force: true });
 
             const jsFilePath = path.join(context.extensionPath, 'templates', 'xr', 'sse', 'live_sse_fileXR.js');
@@ -130,7 +123,7 @@ export class DirectoryXRParser {
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
             const generatedFiles = new Map<string, string>();
-            generatedFiles.set('index.html', hydratedHtmlContent);
+            generatedFiles.set('index.html', htmlContent);
             generatedFiles.set('main.js', jsContent);
             generatedFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent);

@@ -6,10 +6,6 @@ import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
-import {
-    SessionVirtualScreenBroker,
-    SessionVirtualScreenServerConfig,
-} from './virtualScreen/sessionVirtualScreenBroker';
 
 /**
  * HTTP Server Configuration
@@ -21,7 +17,6 @@ export interface HttpServerConfig {
     enableCors?: boolean;
     allowedOrigins?: string[];
     mainFile?: string; // Optional main file to serve at root
-    virtualScreen?: SessionVirtualScreenServerConfig;
 }
 
 /**
@@ -32,7 +27,6 @@ export class HttpServer {
     private server: http.Server | null = null;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
-    private virtualScreenBroker: SessionVirtualScreenBroker | null = null;
     private upgradeAttached = false;
 
     constructor(config: HttpServerConfig) {
@@ -50,10 +44,6 @@ export class HttpServer {
             ...cleanConfig
         };
 
-        if (this.config.virtualScreen) {
-            this.virtualScreenBroker = new SessionVirtualScreenBroker(this.config.virtualScreen);
-        }
-        
         console.log('SERVER: HTTP server initialized with config:', this.config);
     }
 
@@ -133,7 +123,6 @@ export class HttpServer {
                     console.log('SERVER: HTTP server stopped successfully');
                     this.isRunning = false;
                     this.server = null;
-                    this.virtualScreenBroker?.dispose();
                     resolve();
                 }
             });
@@ -168,7 +157,7 @@ export class HttpServer {
     }
 
     public disposeRuntimeFeatures(): void {
-        this.virtualScreenBroker?.dispose();
+        // Reserved for runtime-specific disposals when needed.
     }
 
     /**
@@ -218,10 +207,6 @@ export class HttpServer {
         res: http.ServerResponse,
         url: string
     ): Promise<void> {
-        if (this.virtualScreenBroker?.handleHttpRequest(req, res)) {
-            return;
-        }
-
         // Root path - serve main page
         if (url === '/' || url === '/index.html') {
             await this.serveMainPage(res);
@@ -556,13 +541,6 @@ export class HttpServer {
         if (this.upgradeAttached) {
             return;
         }
-
-        server.on('upgrade', (req, socket, head) => {
-            if (this.virtualScreenBroker?.handleUpgrade(req, socket, head)) {
-                return;
-            }
-            socket.destroy();
-        });
         this.upgradeAttached = true;
     }
 }
