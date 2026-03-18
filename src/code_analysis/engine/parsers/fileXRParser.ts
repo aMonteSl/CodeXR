@@ -9,7 +9,6 @@ import { ChartMetadata, DimensionMapping } from '../../../babia_templates/models
 import { TemplateProcessor } from '../../../babia_templates/processing/templateProcessor';
 import { ExecutePython } from '../utils/executePython';
 import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
-import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
 import {
     BOATS_PEDESTAL_RUNTIME_OUTPUT_NAME,
     copyBoatsPedestalRuntimeToOutput,
@@ -120,15 +119,6 @@ export class FileXRParser {
             if (!templateResult.success) {
                 throw new Error(`Template generation failed: ${templateResult.error}`);
             }
-
-            const generatedIndexHtml = await fs.promises.readFile(outputPath, 'utf8');
-            const hydratedIndexHtml = injectVirtualScreenViewerConfig(generatedIndexHtml, {
-                virtualScreenSessionId: session.id,
-                virtualScreenSignalPath: '/codexr/virtual-screen/ws',
-                virtualScreenSupportsHostBroadcast: true,
-                virtualScreenSupportsLocalCapture: true,
-            });
-            await fs.promises.writeFile(outputPath, hydratedIndexHtml, 'utf8');
 
             const loadedFiles = await this.loadGeneratedFiles(session.outputPath);
             if (

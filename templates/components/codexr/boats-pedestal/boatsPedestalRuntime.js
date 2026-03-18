@@ -44,11 +44,34 @@
     containmentToleranceRatio: 0.018,
     containmentDamping: 0.985,
     containmentMaxIterations: 8,
-    containmentCheckMs: 700
+    containmentCheckMs: 700,
+    periodicContainmentEnabled: true,
+    renormalizeDebounceMs: 280
   };
 
   function toFixedNumber(value) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
     return Number(value.toFixed(3));
+  }
+
+  function isFiniteVector3Like(value) {
+    return !!value
+      && Number.isFinite(value.x)
+      && Number.isFinite(value.y)
+      && Number.isFinite(value.z);
+  }
+
+  function isFiniteBoundsInfo(boundsInfo) {
+    return !!boundsInfo
+      && !!boundsInfo.bounds
+      && !!boundsInfo.bounds.min
+      && !!boundsInfo.bounds.max
+      && isFiniteVector3Like(boundsInfo.size)
+      && isFiniteVector3Like(boundsInfo.center)
+      && isFiniteVector3Like(boundsInfo.bounds.min)
+      && isFiniteVector3Like(boundsInfo.bounds.max);
   }
 
   function cloneScale(object3D) {
@@ -66,6 +89,9 @@
     bounds.setFromObject(object3D);
     bounds.getSize(size);
     bounds.getCenter(center);
+    if (!isFiniteVector3Like(size) || !isFiniteVector3Like(center) || !isFiniteVector3Like(bounds.min) || !isFiniteVector3Like(bounds.max)) {
+      return null;
+    }
     return {
       bounds: bounds,
       size: size,
@@ -128,7 +154,9 @@
       containmentToleranceRatio: { type: 'number', default: DEFAULTS.containmentToleranceRatio },
       containmentDamping: { type: 'number', default: DEFAULTS.containmentDamping },
       containmentMaxIterations: { type: 'int', default: DEFAULTS.containmentMaxIterations },
-      containmentCheckMs: { type: 'int', default: DEFAULTS.containmentCheckMs }
+      containmentCheckMs: { type: 'int', default: DEFAULTS.containmentCheckMs },
+      periodicContainmentEnabled: { default: DEFAULTS.periodicContainmentEnabled },
+      renormalizeDebounceMs: { type: 'int', default: DEFAULTS.renormalizeDebounceMs }
     },
 
     init: function () {
@@ -140,6 +168,10 @@
       this.nextContainmentCheckAt = 0;
       this.baseScale = null;
       this.nextMissingBandStatsWarnAt = 0;
+      this.nextInvalidTransformWarnAt = 0;
+      this.nextMinimumCompromisedWarnAt = 0;
+      this.lastRenormalizeRequestAt = 0;
+      this.onComponentChangedBound = this.onComponentChanged.bind(this);
 
       if (!this.data.enabled) {
         return;
@@ -147,6 +179,7 @@
 
       this.ensureInitialPlacement();
       this.ensurePedestal();
+      this.el.addEventListener('componentchanged', this.onComponentChangedBound);
 
       // Hide until final footprint normalization is done to avoid visible snapping.
       if (this.el.object3D) {
@@ -154,6 +187,51 @@
       }
 
       this.tryNormalize();
+    },
+
+    warnInvalidTransform: function (reason, details) {
+      var now = Date.now();
+      if (now < this.nextInvalidTransformWarnAt) {
+        return;
+      }
+      this.nextInvalidTransformWarnAt = now + 2000;
+      console.warn('[CodeXR][BoatsPedestal] Skipping invalid transform state:', {
+        reason: reason,
+        details: details || null
+      });
+    },
+
+    warnMinimumCompromised: function (details) {
+      var now = Date.now();
+      if (now < this.nextMinimumCompromisedWarnAt) {
+        return;
+      }
+      this.nextMinimumCompromisedWarnAt = now + 4000;
+      console.warn('[CodeXR][BoatsPedestal] Minimum occupancy relaxed (uniform scale constraint):', details || null);
+    },
+
+    requestRenormalize: function (reason) {
+      var now = Date.now();
+      var debounceMs = Math.max(80, this.data.renormalizeDebounceMs || DEFAULTS.renormalizeDebounceMs);
+      if ((now - this.lastRenormalizeRequestAt) < debounceMs) {
+        return;
+      }
+      this.lastRenormalizeRequestAt = now;
+      this.renormalize(reason || 'componentchanged');
+    },
+
+    onComponentChanged: function (event) {
+      if (!event || !event.detail || !this.data.enabled || !this.el || event.target !== this.el) {
+        return;
+      }
+      var name = event.detail.name || '';
+      if (typeof name !== 'string') {
+        return;
+      }
+      // Trigger re-normalization when chart geometry/mapping updates.
+      if (name.indexOf('babia-') === 0 && name !== 'babia-queryjson') {
+        this.requestRenormalize('chart-componentchanged:' + name);
+      }
     },
 
     update: function (oldData) {
@@ -193,6 +271,19 @@
         return;
       }
 
+      if (!this.data.periodicContainmentEnabled) {
+        return;
+      }
+
+      if (!isFiniteVector3Like(this.el.object3D.position) || !isFiniteVector3Like(this.el.object3D.scale)) {
+        this.warnInvalidTransform('tick-non-finite-object3d', {
+          position: this.el.object3D.position,
+          scale: this.el.object3D.scale
+        });
+        this.renormalize('tick-non-finite-object3d');
+        return;
+      }
+
       if (time < this.nextContainmentCheckAt) {
         return;
       }
@@ -205,6 +296,10 @@
     },
 
     remove: function () {
+      if (this.onComponentChangedBound && this.el && this.el.removeEventListener) {
+        this.el.removeEventListener('componentchanged', this.onComponentChangedBound);
+      }
+
       if (this.retryTimer) {
         clearTimeout(this.retryTimer);
         this.retryTimer = null;
@@ -372,13 +467,22 @@
 
     applyAnchorPlacement: function (boundsInfo) {
       var object3D = this.el && this.el.object3D;
-      if (!object3D || !boundsInfo || !boundsInfo.center || !boundsInfo.bounds) {
+      if (!object3D || !isFiniteBoundsInfo(boundsInfo)) {
         return false;
       }
 
       var centeredX = this.data.anchorX - boundsInfo.center.x;
       var centeredZ = this.data.anchorZ - boundsInfo.center.z;
       var seatedY = (this.data.anchorY + this.data.revealOffsetY) - boundsInfo.bounds.min.y;
+
+      if (!Number.isFinite(centeredX) || !Number.isFinite(centeredZ) || !Number.isFinite(seatedY)) {
+        this.warnInvalidTransform('non-finite-anchor-delta', {
+          centeredX: centeredX,
+          centeredZ: centeredZ,
+          seatedY: seatedY
+        });
+        return false;
+      }
 
       if (Math.abs(centeredX) < 0.0005 && Math.abs(centeredZ) < 0.0005 && Math.abs(seatedY) < 0.0005) {
         return false;
@@ -396,6 +500,14 @@
     syncTransformAttributes: function () {
       var object3D = this.el && this.el.object3D;
       if (!object3D) {
+        return;
+      }
+
+      if (!isFiniteVector3Like(object3D.position) || !isFiniteVector3Like(object3D.scale)) {
+        this.warnInvalidTransform('sync-transform-non-finite', {
+          position: object3D.position,
+          scale: object3D.scale
+        });
         return;
       }
 
@@ -454,6 +566,9 @@
 
       for (var i = 0; i < candidates.length; i += 1) {
         var boundsInfo = buildBounds(three, candidates[i].object3D);
+        if (!isFiniteBoundsInfo(boundsInfo)) {
+          continue;
+        }
         var height = boundsInfo.size.y;
         if (!(height > 0)) {
           continue;
@@ -510,10 +625,23 @@
       var changed = false;
       var targetY = object3D.scale.y;
 
+      if (!Number.isFinite(targetY)) {
+        this.warnInvalidTransform('band-invalid-initial-y-scale', { yScale: targetY });
+        return false;
+      }
+
       if (stats.maxHeight > upperLimit) {
         var overRatio = stats.maxHeight / maxTarget;
+        if (!Number.isFinite(overRatio) || overRatio <= 0) {
+          this.warnInvalidTransform('band-invalid-over-ratio', { overRatio: overRatio });
+          return false;
+        }
         var desiredDown = 1 / Math.max(overRatio, 1.00001);
         var downStep = 1 - ((1 - desiredDown) * 0.75);
+        if (!Number.isFinite(downStep) || downStep <= 0) {
+          this.warnInvalidTransform('band-invalid-down-step', { downStep: downStep });
+          return false;
+        }
         targetY = object3D.scale.y * downStep;
       } else if (stats.inBandCount === 0 && stats.maxHeight < lowerLimit) {
         var requiredUpToBand = lowerLimit / Math.max(stats.maxHeight, 0.00001);
@@ -523,8 +651,17 @@
         var effectiveUp = Math.max(desiredUp, conservativeUpscaleFloor);
         if (effectiveUp > 1.001) {
           var upStep = 1 + ((effectiveUp - 1) * 0.65);
+          if (!Number.isFinite(upStep) || upStep <= 0) {
+            this.warnInvalidTransform('band-invalid-up-step', { upStep: upStep });
+            return false;
+          }
           targetY = object3D.scale.y * upStep;
         }
+      }
+
+      if (!Number.isFinite(targetY)) {
+        this.warnInvalidTransform('band-invalid-target-y', { targetY: targetY });
+        return false;
       }
 
       targetY = clamp(targetY, yMin, yMax);
@@ -532,7 +669,10 @@
       if (Math.abs(targetY - object3D.scale.y) > 0.0001) {
         object3D.scale.y = targetY;
         object3D.updateMatrixWorld(true);
-        this.applyAnchorPlacement(buildBounds(three, object3D));
+        var bandBounds = buildBounds(three, object3D);
+        if (isFiniteBoundsInfo(bandBounds)) {
+          this.applyAnchorPlacement(bandBounds);
+        }
         changed = true;
       }
 
@@ -586,6 +726,10 @@
 
       for (var i = 0; i < maxIterations; i += 1) {
         var boundsInfo = buildBounds(three, el.object3D);
+        if (!isFiniteBoundsInfo(boundsInfo)) {
+          this.warnInvalidTransform('envelope-invalid-bounds', { iteration: i });
+          return changed;
+        }
         var size = boundsInfo.size;
         if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
           return changed;
@@ -594,7 +738,19 @@
         var ratioX = size.x / this.data.targetWidth;
         var ratioY = size.y / this.data.targetHeight;
         var ratioZ = size.z / this.data.targetDepth;
+        if (!Number.isFinite(ratioX) || !Number.isFinite(ratioY) || !Number.isFinite(ratioZ)) {
+          this.warnInvalidTransform('envelope-non-finite-ratios', {
+            ratioX: ratioX,
+            ratioY: ratioY,
+            ratioZ: ratioZ
+          });
+          return changed;
+        }
         var worstRatio = Math.max(ratioX, ratioY, ratioZ);
+        if (!Number.isFinite(worstRatio) || worstRatio <= 0) {
+          this.warnInvalidTransform('envelope-invalid-worst-ratio', { worstRatio: worstRatio });
+          return changed;
+        }
         var smallestPlanarRatio = Math.min(ratioX, ratioZ);
         var overLimit = worstRatio > (1 + toleranceRatio);
         var underPlanarLimit = smallestPlanarRatio < (minPlanar - toleranceRatio);
@@ -603,6 +759,10 @@
 
         if (overLimit) {
           var correction = (1 / worstRatio) * damping;
+          if (!Number.isFinite(correction) || correction <= 0) {
+            this.warnInvalidTransform('envelope-invalid-correction', { correction: correction });
+            return changed;
+          }
           el.object3D.scale.set(
             el.object3D.scale.x * correction,
             el.object3D.scale.y * correction,
@@ -615,8 +775,26 @@
           var heightTargetFactor = underHeightLimit ? (minHeight / Math.max(0.00001, ratioY)) : 1;
           var desiredUpscale = Math.max(planarTargetFactor, heightTargetFactor, 1);
           var maxSafeUpscale = 1 / Math.max(worstRatio, 0.00001);
+
+          // Uniform scaling cannot satisfy requested minimums without exceeding envelope.
+          if (desiredUpscale > (maxSafeUpscale + toleranceRatio)) {
+            this.warnMinimumCompromised({
+              source: source || 'unknown',
+              desiredUpscale: toFixedNumber(desiredUpscale),
+              maxSafeUpscale: toFixedNumber(maxSafeUpscale),
+              ratioX: toFixedNumber(ratioX),
+              ratioY: toFixedNumber(ratioY),
+              ratioZ: toFixedNumber(ratioZ)
+            });
+            break;
+          }
+
           var cappedUpscale = Math.min(desiredUpscale, maxSafeUpscale);
           var smoothUpscale = 1 + ((Math.max(1, cappedUpscale) - 1) * 0.6);
+          if (!Number.isFinite(smoothUpscale) || smoothUpscale <= 0) {
+            this.warnInvalidTransform('envelope-invalid-upscale', { smoothUpscale: smoothUpscale });
+            return changed;
+          }
 
           if (smoothUpscale > 1.0005) {
             el.object3D.scale.set(
@@ -629,7 +807,8 @@
           }
         }
 
-        var moved = this.applyAnchorPlacement((overLimit || underLimit) ? buildBounds(three, el.object3D) : boundsInfo);
+        var nextBounds = (overLimit || underLimit) ? buildBounds(three, el.object3D) : boundsInfo;
+        var moved = isFiniteBoundsInfo(nextBounds) ? this.applyAnchorPlacement(nextBounds) : false;
         changed = changed || moved;
 
         if (!overLimit && !underLimit && !moved) {
@@ -644,11 +823,15 @@
 
       if (source === 'tick' && changed) {
         var finalBounds = buildBounds(three, el.object3D);
-        console.log('[CodeXR][BoatsPedestal] Recontained chart on periodic check:', {
-          width: toFixedNumber(finalBounds.size.x),
-          height: toFixedNumber(finalBounds.size.y),
-          depth: toFixedNumber(finalBounds.size.z)
-        });
+        if (isFiniteBoundsInfo(finalBounds)) {
+          console.log('[CodeXR][BoatsPedestal] Recontained chart on periodic check:', {
+            width: toFixedNumber(finalBounds.size.x),
+            height: toFixedNumber(finalBounds.size.y),
+            depth: toFixedNumber(finalBounds.size.z)
+          });
+        } else {
+          this.warnInvalidTransform('envelope-invalid-final-bounds');
+        }
       }
 
       return changed;
@@ -680,7 +863,7 @@
       this.resetToBaseScale();
 
       var firstBounds = buildBounds(three, el.object3D);
-      if (firstBounds.size.x <= 0 || firstBounds.size.y <= 0 || firstBounds.size.z <= 0) {
+      if (!isFiniteBoundsInfo(firstBounds) || firstBounds.size.x <= 0 || firstBounds.size.y <= 0 || firstBounds.size.z <= 0) {
         this.scheduleRetry('non-positive-size');
         return;
       }
@@ -689,6 +872,10 @@
       var fitX = this.data.targetWidth / firstBounds.size.x;
       var fitZ = this.data.targetDepth / firstBounds.size.z;
       var planarFactor = Math.min(fitX, fitZ);
+      if (!Number.isFinite(planarFactor) || planarFactor <= 0) {
+        this.scheduleRetry('invalid-planar-factor');
+        return;
+      }
 
       el.object3D.scale.set(
         scaleSnapshot.x * planarFactor,
@@ -698,11 +885,23 @@
       el.object3D.updateMatrixWorld(true);
 
       var secondBounds = buildBounds(three, el.object3D);
+      if (!isFiniteBoundsInfo(secondBounds)) {
+        this.scheduleRetry('invalid-second-bounds');
+        return;
+      }
       if (secondBounds.size.y > this.data.targetHeight) {
         var yFactor = this.data.targetHeight / secondBounds.size.y;
+        if (!Number.isFinite(yFactor) || yFactor <= 0) {
+          this.scheduleRetry('invalid-y-factor');
+          return;
+        }
         el.object3D.scale.y = el.object3D.scale.y * yFactor;
         el.object3D.updateMatrixWorld(true);
         secondBounds = buildBounds(three, el.object3D);
+        if (!isFiniteBoundsInfo(secondBounds)) {
+          this.scheduleRetry('invalid-second-bounds-after-y-fit');
+          return;
+        }
       }
 
       this.applyAnchorPlacement(secondBounds);
@@ -710,10 +909,16 @@
       for (var pass = 0; pass < 3; pass += 1) {
         var changedBand = this.enforceBuildingHeightBand('normalize');
         var changedEnvelope = this.enforceEnvelope('normalize');
-        var moved = this.applyAnchorPlacement(buildBounds(three, el.object3D));
+        var normalizedBounds = buildBounds(three, el.object3D);
+        var moved = isFiniteBoundsInfo(normalizedBounds) ? this.applyAnchorPlacement(normalizedBounds) : false;
         if (!changedBand && !changedEnvelope && !moved) {
           break;
         }
+      }
+
+      if (!isFiniteVector3Like(el.object3D.position) || !isFiniteVector3Like(el.object3D.scale)) {
+        this.scheduleRetry('invalid-final-transform');
+        return;
       }
 
       this.syncTransformAttributes();
@@ -723,14 +928,16 @@
       el.object3D.visible = true;
 
       var finalBounds = buildBounds(three, el.object3D);
-      console.log('[CodeXR][BoatsPedestal] Normalized boats chart footprint:', {
-        width: toFixedNumber(finalBounds.size.x),
-        height: toFixedNumber(finalBounds.size.y),
-        depth: toFixedNumber(finalBounds.size.z),
-        targetWidth: this.data.targetWidth,
-        targetHeight: this.data.targetHeight,
-        targetDepth: this.data.targetDepth
-      });
+      if (isFiniteBoundsInfo(finalBounds)) {
+        console.log('[CodeXR][BoatsPedestal] Normalized boats chart footprint:', {
+          width: toFixedNumber(finalBounds.size.x),
+          height: toFixedNumber(finalBounds.size.y),
+          depth: toFixedNumber(finalBounds.size.z),
+          targetWidth: this.data.targetWidth,
+          targetHeight: this.data.targetHeight,
+          targetDepth: this.data.targetDepth
+        });
+      }
     },
 
     scheduleRetry: function (reason) {

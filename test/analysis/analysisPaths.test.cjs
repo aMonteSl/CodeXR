@@ -10,7 +10,6 @@ const webpackConfigSource = fs.readFileSync(path.join(projectRoot, 'webpack.conf
 test('executePython resolves runtime scripts from code_analysis paths', () => {
     assert.match(executePythonSource, /'dist', 'code_analysis', 'python'/);
     assert.match(executePythonSource, /'src', 'code_analysis', 'python'/);
-    assert.equal(executePythonSource.includes('dist/new_code_analysis'), false);
     assert.equal(executePythonSource.includes("'dist', 'analysis', 'python'"), false);
     assert.equal(executePythonSource.includes("'src', 'analysis', 'python'"), false);
 });

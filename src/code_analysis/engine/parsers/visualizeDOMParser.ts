@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
-import { injectVirtualScreenViewerConfig } from './virtualScreenConfigInjector';
 import {
     readVirtualScreenRuntimeContent,
     VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
@@ -98,14 +97,8 @@ export class VisualizeDOMParser {
             const resultFiles = new Map<string, string>();
 
             // Add index.html from templateHTMLProcessor
-            const hydratedIndexHtml = injectVirtualScreenViewerConfig(processingResult.indexHtml, {
-                virtualScreenSessionId: virtualScreenSessionId || templateData.filePath,
-                virtualScreenSignalPath: '/codexr/virtual-screen/ws',
-                virtualScreenSupportsHostBroadcast: true,
-                virtualScreenSupportsLocalCapture: true,
-            });
-            resultFiles.set('index.html', hydratedIndexHtml);
-            console.log(`VISUALIZE_DOM_PARSER:  Added index.html (${hydratedIndexHtml.length} chars)`);
+            resultFiles.set('index.html', processingResult.indexHtml);
+            console.log(`VISUALIZE_DOM_PARSER:  Added index.html (${processingResult.indexHtml.length} chars)`);
 
             // Add main.js from templateHTMLProcessor 
             resultFiles.set('main.js', processingResult.jsContent);

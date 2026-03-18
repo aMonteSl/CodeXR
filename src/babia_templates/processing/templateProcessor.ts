@@ -305,29 +305,24 @@ export class TemplateProcessor {
         const panelVisibleByDefault = options?.babiaUiVisibleByDefault !== false;
         const panelId = 'codexrMappingUiPanel';
         const toggleId = 'codexrMappingUiToggle';
-        const boatsDocked = chartId === 'boats';
-        const uiScale = boatsDocked ? 0.165 : (targetType === 'directory' ? 0.18 : 0.2);
-        const position = boatsDocked
-            ? '3.35 1.24 -15.78'
-            : (targetType === 'directory' ? '9 2.4 -6' : '8 2 -8');
-        const rotation = boatsDocked ? '-28 -138 0' : '0 -70 0';
-        const adaptiveCorner = boatsDocked
-            ? {
-                table: {
-                    anchorX: 0,
-                    anchorY: 1.24,
-                    anchorZ: -18,
-                    width: 5.614,
-                    depth: 3.218,
-                },
-                marginX: 0.62,
-                marginZ: 0.52,
-                panelLift: 0.0,
-                panelForwardOffset: 0.16,
-                switchThreshold: 0.35,
-                switchCooldownMs: 480,
-            }
-            : undefined;
+        const uiScale = 0.165;
+        const position = '3.35 1.24 -15.78';
+        const rotation = '-28 -138 0';
+        const adaptiveCorner = {
+            table: {
+                anchorX: 0,
+                anchorY: 1.24,
+                anchorZ: -18,
+                width: 5.614,
+                depth: 3.218,
+            },
+            marginX: 0.62,
+            marginZ: 0.52,
+            panelLift: 0.0,
+            panelForwardOffset: 0.16,
+            switchThreshold: 0.35,
+            switchCooldownMs: 480,
+        };
 
         const model = {
             chartId,
@@ -339,7 +334,7 @@ export class TemplateProcessor {
             panelRotation: rotation,
             panelScale: uiScale,
             panelVisible: panelVisibleByDefault,
-            hideOnEnterAr: boatsDocked,
+            hideOnEnterAr: true,
             adaptiveCorner,
             togglePosition: targetType === 'directory' ? '6.8 1.1 -5.6' : '6.2 1 -7.5',
             dimensions,

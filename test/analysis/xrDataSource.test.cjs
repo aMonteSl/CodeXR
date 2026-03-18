@@ -45,7 +45,7 @@ test('boats chart legend text keeps multiline content without width/depth and do
     );
     assert.equal(templateCharts.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
 
-    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?height_quarter_legend_title: -3\.5"/);
+    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?class="babiaxraycasterclass">/);
     assert.ok(boatsBlock);
     assert.match(boatsBlock[0], /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
     assert.match(boatsBlock[0], /height_building_legend: -0\.5;/);
@@ -53,7 +53,7 @@ test('boats chart legend text keeps multiline content without width/depth and do
     assert.match(boatsBlock[0], /legend_lookat: \[laser-controls\];/);
     assert.match(boatsBlock[0], /extra: 1;/);
     assert.match(boatsBlock[0], /height_quarter_legend_box: 0\.01;/);
-    assert.match(boatsBlock[0], /height_quarter_legend_title: -3\.5/);
+    assert.match(boatsBlock[0], /height_quarter_legend_title: 2\.5/);
     assert.match(templateCharts, /scale="0\.01 0\.05 0\.01"/);
     assert.doesNotMatch(boatsBlock[0], /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
 
@@ -90,7 +90,7 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /codexr-multi-screen-manager="maxScreens: 5; wall: west"/);
     assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
-    assert.match(template, /<a-entity id="rig" movement-controls="fly: true" position="0 1\.6 2">/);
+    assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
 });
 
 test('XR parsers include CodeXR room runtime in generated assets', () => {

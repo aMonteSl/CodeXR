@@ -41,7 +41,16 @@ export const chartTemplates: ChartMetadata[] = [
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
                                 axis_name: true"
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
@@ -87,7 +96,16 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    axis_name: true"
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
@@ -134,7 +152,16 @@ export const chartTemplates: ChartMetadata[] = [
                                 radius: {{RADIUS_FIELD}};
                                 axis_name: true;
                                 radiusMax: 1;"
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
@@ -189,7 +216,16 @@ export const chartTemplates: ChartMetadata[] = [
                                    radius: {{RADIUS_FIELD}};
                                    axis_name: true;
                                    radiusMax: 1;"
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
@@ -228,7 +264,16 @@ export const chartTemplates: ChartMetadata[] = [
                                  key: {{KEY_FIELD}};
                                  size: {{SIZE_FIELD}};
                                  axis_name: true"
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="90 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
@@ -267,7 +312,16 @@ export const chartTemplates: ChartMetadata[] = [
                                key: {{KEY_FIELD}};
                                size: {{SIZE_FIELD}};
                                axis_name: true"
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="90 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
@@ -324,7 +378,16 @@ export const chartTemplates: ChartMetadata[] = [
                                    heightMax: 5;
                                    radiusMax: 1;"
 
-                    position="0 2 -10"
+                    codexr-boats-pedestal="enabled: true;
+                                           anchorX: 0;
+                                           anchorY: 1;
+                                           anchorZ: -18;
+                                           uiDockEnabled: false;
+                                           minPlanarOccupancyRatio: 0.12;
+                                           minHeightOccupancyRatio: 0.12;
+                                           periodicContainmentEnabled: false;
+                                           buildingHeightBandEnabled: false"
+                    position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">

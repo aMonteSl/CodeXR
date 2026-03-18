@@ -28,7 +28,6 @@
 	"exclude": [
 		"node_modules",
 		"out",
-		"src/new_code_analysis/**/*",
 		"src/configuration/serverConfigurationManager.ts",
 		"src/test/integration/analysisTreeViewSimple.test.ts",
 		"test_dimension_mapping.ts",

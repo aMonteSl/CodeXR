@@ -72,11 +72,6 @@
       pending: 'Choose the VS Code window in the native picker.',
       active: 'Sharing VS Code window',
     },
-    'analysis-host': {
-      pending: 'Waiting for the analysis host computer to start sharing.',
-      active: 'Analysis host computer',
-      unavailable: 'Analysis host broadcast requires HTTPS or localhost.',
-    },
   };
 
   const HEADER_BUTTONS = {
@@ -122,9 +117,6 @@
       : DEFAULT_CONFIG.sizeSteps.slice();
     merged.minWidth = userConfig?.minWidth || DEFAULT_CONFIG.minWidth;
     merged.maxWidth = userConfig?.maxWidth || DEFAULT_CONFIG.maxWidth;
-    merged.virtualScreenSessionId = userConfig?.virtualScreenSessionId || '';
-    merged.virtualScreenSignalPath = userConfig?.virtualScreenSignalPath || '/codexr/virtual-screen/ws';
-    merged.virtualScreenSupportsHostBroadcast = userConfig?.virtualScreenSupportsHostBroadcast !== false;
     merged.virtualScreenSupportsLocalCapture = userConfig?.virtualScreenSupportsLocalCapture !== false;
     return merged;
   }
@@ -155,8 +147,6 @@
       followTransform: null,
       legendSide: 'right',
       chromeVisible: false,
-      sourceMenuOpen: false,
-      sourceMode: null,
       currentSourceLabel: '',
       statusMessage: DEFAULT_CONFIG.labels.idle,
       stream: null,
@@ -169,11 +159,6 @@
       followLoopActive: false,
       faceCameraLoopActive: false,
       legendCollapsed: false,
-      remoteStatus: 'idle',
-      remoteViewerId: null,
-      remotePeer: null,
-      remoteSocket: null,
-      remotePendingCandidates: [],
     };
 
     const refs = {
@@ -193,9 +178,6 @@
       legendText: null,
       legendToggle: null,
       shareButton: null,
-      sourceMenu: null,
-      sourceMenuHint: null,
-      sourceButtons: {},
       headerButtons: {},
       cornerHandles: {},
       edgeHandles: {},
@@ -233,23 +215,6 @@
       }
       refs.followAnchor = getDocument()?.querySelector(refs.config.followAnchorSelector) || getScene();
       return refs.followAnchor;
-    }
-
-    function isLocalhostHostName(hostname) {
-      return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-    }
-
-    function isSecureCaptureContext() {
-      const hostname = win.location?.hostname || '';
-      return win.isSecureContext === true || isLocalhostHostName(hostname);
-    }
-
-    function getSignalUrl() {
-      if (!refs.config.virtualScreenSignalPath || !win.location?.host) {
-        return null;
-      }
-      const protocol = win.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${protocol}//${win.location.host}${refs.config.virtualScreenSignalPath}`;
     }
 
     function getCameraWorldQuaternion() {
@@ -554,24 +519,6 @@
       refs.legendRoot.appendChild(refs.legendToggle);
 
       refs.shareButton = createButton('codexrShareSource', '▣', 0.86, 0.86, 1.6, 4);
-      refs.sourceMenu = createEntity('a-entity', {
-        id: getScopedId('codexrVirtualScreenSourceMenu'),
-      });
-      refs.sourceMenuHint = createEntity('a-text', {
-        id: getScopedId('codexrVirtualScreenSourceMenuHint'),
-        align: 'center',
-        color: '#E2E8F0',
-        width: '5.4',
-        value: 'Choose the source you want on the virtual screen.',
-        position: '0 0.72 0.02',
-      });
-      refs.sourceButtons.thisDevice = createButton('codexrShareThisDevice', '◫', 1.52, 0.34, 2.2, 10);
-      refs.sourceButtons.hostComputer = createButton('codexrShareAnalysisHost', '⌂', 1.52, 0.34, 2.2, 10);
-      refs.sourceButtons.thisDevice.__codexrGlyph = 'This device';
-      refs.sourceButtons.hostComputer.__codexrGlyph = 'Analysis host computer';
-      refs.sourceMenu.appendChild(refs.sourceMenuHint);
-      refs.sourceMenu.appendChild(refs.sourceButtons.thisDevice);
-      refs.sourceMenu.appendChild(refs.sourceButtons.hostComputer);
       refs.headerButtons.lookAt = createButton(HEADER_BUTTONS.lookAt, '◈', 0.24, 0.24, 0.65, 3);
       refs.headerButtons.follow = createButton(HEADER_BUTTONS.follow, '◎', 0.24, 0.24, 0.65, 3);
       refs.headerButtons.minimize = createButton(HEADER_BUTTONS.minimize, '—', 0.24, 0.24, 0.70, 3);
@@ -595,7 +542,6 @@
       refs.root.appendChild(refs.status);
       refs.root.appendChild(refs.legendRoot);
       refs.root.appendChild(refs.shareButton);
-      refs.root.appendChild(refs.sourceMenu);
       Object.values(refs.headerButtons).forEach((button) => refs.root.appendChild(button));
       Object.values(refs.cornerHandles).forEach((handle) => refs.root.appendChild(handle));
       Object.values(refs.edgeHandles).forEach((handle) => refs.root.appendChild(handle));
@@ -616,9 +562,6 @@
         refs.legendText,
         refs.legendToggle,
         refs.shareButton,
-        refs.sourceMenu,
-        refs.sourceMenuHint,
-        ...Object.values(refs.sourceButtons),
         ...Object.values(refs.headerButtons),
         ...Object.values(refs.cornerHandles),
         ...Object.values(refs.edgeHandles),
@@ -685,9 +628,6 @@
       refs.status.setAttribute('width', String(Math.max(6, width + 1.4)));
       refs.status.setAttribute('position', minimized ? '0 0.28 0.04' : '0 0.95 0.04');
       refs.shareButton.setAttribute('position', '0 0 0.04');
-      refs.sourceMenu.setAttribute('position', '0 -0.16 0.05');
-      refs.sourceButtons.thisDevice.setAttribute('position', '0 0.24 0.03');
-      refs.sourceButtons.hostComputer.setAttribute('position', '0 -0.16 0.03');
       refs.legendRoot.setAttribute('position', `${legendOffsetX} ${legendOffsetY} 0.05`);
       refs.legendPanel.setAttribute('width', String(legendWidth));
       refs.legendPanel.setAttribute('height', String(legendHeight));
@@ -729,7 +669,6 @@
       const chromeVisible = state.chromeVisible || !!state.drag;
       const headerVisible = minimized || chromeVisible;
       const showShareButton = state.mode === 'idle';
-      const showSourceMenu = showShareButton && state.sourceMenuOpen;
       const showStatus = !active && !minimized;
       const showLegend = (active || minimized) && chromeVisible;
 
@@ -744,9 +683,6 @@
       setEntityVisible(refs.legendText, showLegend && !state.legendCollapsed);
       setEntityVisible(refs.legendToggle, showLegend);
       setEntityVisible(refs.shareButton, showShareButton);
-      setEntityVisible(refs.sourceMenu, showSourceMenu);
-      setEntityVisible(refs.sourceMenuHint, showSourceMenu);
-      Object.values(refs.sourceButtons).forEach((button) => setEntityVisible(button, showSourceMenu));
       Object.values(refs.headerButtons).forEach((button) => setEntityVisible(button, headerVisible));
       Object.values(refs.cornerHandles).forEach((handle) => setEntityVisible(handle, expanded && chromeVisible));
       Object.values(refs.edgeHandles).forEach((handle) => setEntityVisible(handle, chromeVisible));
@@ -760,8 +696,6 @@
       refs.headerButtons.stop.__codexrGlyph = '×';
 
       setButtonStyle(refs.shareButton, 0.20, '#F8FAFC', '#0F172A');
-      setButtonStyle(refs.sourceButtons.thisDevice, showSourceMenu ? 0.86 : 0.0, '#E2E8F0', '#0F172A');
-      setButtonStyle(refs.sourceButtons.hostComputer, showSourceMenu ? 0.86 : 0.0, '#0F172A', '#F8FAFC');
       setMaterial(refs.legendPanel, `color: #020617; opacity: ${showLegend && !state.legendCollapsed ? 0.84 : 0.0}; transparent: true; shader: flat;`);
       setButtonStyle(refs.legendToggle, showLegend ? 0.88 : 0.0, state.legendCollapsed ? '#16A34A' : '#F59E0B', '#111827');
       setButtonStyle(refs.headerButtons.lookAt, headerVisible ? 0.82 : 0.0, state.lookAtCameraEnabled ? '#7C3AED' : '#C08497', state.lookAtCameraEnabled ? '#F8FAFC' : '#111827');
@@ -807,20 +741,6 @@
       }
       layout();
       refreshUi();
-    }
-
-    function closeSourceMenu() {
-      if (!state.sourceMenuOpen) {
-        return;
-      }
-      state.sourceMenuOpen = false;
-      refreshUi();
-    }
-
-    function toggleSourceMenu() {
-      state.sourceMenuOpen = !state.sourceMenuOpen;
-      refreshUi();
-      showChrome();
     }
 
     function buildCaptureOptions(intent) {
@@ -885,244 +805,8 @@
       }
     }
 
-    function sendRemoteSignal(message) {
-      const socket = state.remoteSocket;
-      if (!socket || socket.readyState !== 1) {
-        return;
-      }
-      socket.send(JSON.stringify(message));
-    }
-
-    function resetRemotePeer() {
-      if (state.remotePeer) {
-        try {
-          state.remotePeer.close();
-        } catch (error) {
-          console.warn('VIRTUAL_SCREEN: remote peer close failed', error);
-        }
-      }
-      state.remotePeer = null;
-      state.remotePendingCandidates = [];
-    }
-
-    function disconnectHostBroadcastViewer(options) {
-      resetRemotePeer();
-      if (options?.closeSocket && state.remoteSocket) {
-        try {
-          state.remoteSocket.close();
-        } catch (error) {
-          console.warn('VIRTUAL_SCREEN: remote socket close failed', error);
-        }
-        state.remoteSocket = null;
-      }
-      if (state.sourceMode === 'analysis-host' && options?.clearSourceMode !== false) {
-        state.sourceMode = null;
-      }
-      if (options?.resetViewerId !== false) {
-        state.remoteViewerId = null;
-      }
-      state.remoteStatus = 'idle';
-    }
-
-    function queueOrApplyRemoteCandidate(candidate) {
-      if (!candidate) {
-        return;
-      }
-      if (!state.remotePeer?.remoteDescription) {
-        state.remotePendingCandidates.push(candidate);
-        return;
-      }
-      state.remotePeer.addIceCandidate(new win.RTCIceCandidate(candidate)).catch(() => {});
-    }
-
-    function flushRemoteCandidates() {
-      if (!state.remotePeer || !Array.isArray(state.remotePendingCandidates) || state.remotePendingCandidates.length === 0) {
-        return;
-      }
-      const pending = state.remotePendingCandidates.slice();
-      state.remotePendingCandidates = [];
-      pending.forEach((candidate) => {
-        state.remotePeer.addIceCandidate(new win.RTCIceCandidate(candidate)).catch(() => {});
-      });
-    }
-
-    function createHostBroadcastPeer() {
-      if (!win.RTCPeerConnection) {
-        setMode('idle', 'WebRTC is not available in this browser.');
-        return null;
-      }
-
-      resetRemotePeer();
-      const peer = new win.RTCPeerConnection({ iceServers: [] });
-      peer.ontrack = function (event) {
-        const nextStream = Array.isArray(event.streams) && event.streams.length > 0
-          ? event.streams[0]
-          : null;
-        if (!nextStream) {
-          return;
-        }
-        state.stream = nextStream;
-        state.streamSourceType = 'host';
-        state.currentSourceLabel = SOURCE_MESSAGES['analysis-host'].active;
-        state.remoteStatus = 'receiving';
-        updateVideoSource(nextStream);
-        setMode('active', SOURCE_MESSAGES['analysis-host'].active);
-      };
-      peer.onicecandidate = function (event) {
-        if (!event.candidate || !state.remoteViewerId) {
-          return;
-        }
-        sendRemoteSignal({
-          type: 'ice-candidate',
-          viewerId: state.remoteViewerId,
-          candidate: event.candidate,
-        });
-      };
-      state.remotePeer = peer;
-      return peer;
-    }
-
-    async function handleRemoteOffer(message) {
-      if (!message?.sdp) {
-        return;
-      }
-      const peer = createHostBroadcastPeer();
-      if (!peer) {
-        return;
-      }
-      await peer.setRemoteDescription(new win.RTCSessionDescription(message.sdp));
-      flushRemoteCandidates();
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      sendRemoteSignal({
-        type: 'answer',
-        viewerId: state.remoteViewerId,
-        sdp: answer,
-      });
-    }
-
-    function handleHostBroadcastMessage(rawMessage) {
-      switch (rawMessage?.type) {
-        case 'viewer-registered':
-          state.remoteViewerId = rawMessage.viewerId || state.remoteViewerId;
-          break;
-        case 'host-status':
-          if (rawMessage.active) {
-            if (!state.stream) {
-              state.remoteStatus = 'connecting';
-              setMode('idle', 'Connecting to the analysis host computer...');
-            }
-          } else if (state.sourceMode === 'analysis-host') {
-            state.remoteStatus = 'waiting-host';
-            if (!state.stream) {
-              setMode('idle', SOURCE_MESSAGES['analysis-host'].pending);
-            }
-          }
-          break;
-        case 'offer':
-          void handleRemoteOffer(rawMessage);
-          break;
-        case 'ice-candidate':
-          queueOrApplyRemoteCandidate(rawMessage.candidate);
-          break;
-        case 'host-stopped':
-          resetRemotePeer();
-          releaseStream(false);
-          state.remoteStatus = 'waiting-host';
-          state.currentSourceLabel = '';
-          if (state.sourceMode === 'analysis-host') {
-            setMode('idle', rawMessage.message || SOURCE_MESSAGES['analysis-host'].pending);
-          }
-          break;
-        case 'error':
-          setMode('idle', rawMessage.message || 'The analysis host broadcast failed.');
-          break;
-        default:
-          break;
-      }
-    }
-
-    function connectHostBroadcastViewer() {
-      closeSourceMenu();
-      if (!refs.config.virtualScreenSupportsHostBroadcast) {
-        setMode('idle', 'The analysis host source is not available in this scene.');
-        return;
-      }
-      if (!isSecureCaptureContext()) {
-        setMode('idle', SOURCE_MESSAGES['analysis-host'].unavailable);
-        return;
-      }
-
-      if (state.streamSourceType === 'local') {
-        releaseStream(true);
-      } else if (state.streamSourceType === 'host') {
-        releaseStream(false);
-      }
-
-      state.sourceMode = 'analysis-host';
-      state.remoteStatus = 'connecting';
-      state.currentSourceLabel = '';
-      const signalUrl = getSignalUrl();
-      if (!signalUrl || !win.WebSocket) {
-        setMode('idle', 'WebSocket signaling is not available in this browser.');
-        return;
-      }
-
-      if (state.remoteSocket && (state.remoteSocket.readyState === 0 || state.remoteSocket.readyState === 1)) {
-        if (state.remoteSocket.readyState === 1) {
-          sendRemoteSignal({
-            type: 'viewer-join',
-            sessionId: refs.config.virtualScreenSessionId,
-            viewerId: state.remoteViewerId,
-          });
-        }
-        setMode('idle', SOURCE_MESSAGES['analysis-host'].pending);
-        return;
-      }
-
-      state.remoteSocket = new win.WebSocket(signalUrl);
-      state.remoteSocket.addEventListener('open', function () {
-        state.remoteStatus = 'waiting-host';
-        sendRemoteSignal({
-          type: 'viewer-join',
-          sessionId: refs.config.virtualScreenSessionId,
-          viewerId: state.remoteViewerId,
-        });
-        sendRemoteSignal({
-          type: 'request-host-start',
-          sessionId: refs.config.virtualScreenSessionId,
-        });
-        setMode('idle', SOURCE_MESSAGES['analysis-host'].pending);
-      });
-      state.remoteSocket.addEventListener('message', function (event) {
-        let payload = null;
-        try {
-          payload = JSON.parse(event.data);
-        } catch (error) {
-          console.warn('VIRTUAL_SCREEN: invalid remote signal payload', error);
-          return;
-        }
-        handleHostBroadcastMessage(payload);
-      });
-      state.remoteSocket.addEventListener('close', function () {
-        resetRemotePeer();
-        if (state.sourceMode === 'analysis-host') {
-          releaseStream(false);
-          state.remoteStatus = 'disconnected';
-          state.currentSourceLabel = '';
-          setMode('idle', 'Analysis host broadcast disconnected. Share again to reconnect.');
-        }
-        state.remoteSocket = null;
-      });
-      state.remoteSocket.addEventListener('error', function () {
-        setMode('idle', 'Could not connect to the analysis host broadcast.');
-      });
-      setMode('idle', 'Connecting to the analysis host computer...');
-    }
-
     function stopCapture(message, options) {
       const shouldMinimize = options?.minimizeAfterStop === true;
-      disconnectHostBroadcastViewer({ closeSocket: true, clearSourceMode: true, resetViewerId: false });
       releaseStream(true);
       state.currentSourceLabel = '';
       if (shouldMinimize) {
@@ -1150,10 +834,7 @@
       }
       const previousStream = state.stream;
       const previousLabel = state.currentSourceLabel;
-      disconnectHostBroadcastViewer({ closeSocket: true, clearSourceMode: false, resetViewerId: false });
-      closeSourceMenu();
       state.lastIntent = intent;
-      state.sourceMode = 'this-device';
       showChrome();
       setMode('idle', SOURCE_MESSAGES[intent].pending);
 
@@ -1181,7 +862,7 @@
     }
 
     function switchSource() {
-      toggleSourceMenu();
+      void startCapture('screen');
     }
     function setAnchoredTransform() {
       if (!refs.root) {
@@ -1835,13 +1516,7 @@
 
     function wireControlHandlers() {
       refs.shareButton.addEventListener('click', function () {
-        toggleSourceMenu();
-      });
-      refs.sourceButtons.thisDevice.addEventListener('click', function () {
         void startCapture('screen');
-      });
-      refs.sourceButtons.hostComputer.addEventListener('click', function () {
-        connectHostBroadcastViewer();
       });
       refs.headerButtons.lookAt.addEventListener('click', function () {
         toggleLookAtCamera();
@@ -1932,10 +1607,8 @@
       requestCapture,
       classifyCaptureError,
       startCapture,
-      connectHostBroadcastViewer,
       stopCapture,
       switchSource,
-      toggleSourceMenu,
       minimize,
       expand,
       toggleLookAtCamera,
@@ -1953,8 +1626,6 @@
           sizeIndex: state.sizeIndex,
           screenWidth: state.screenWidth,
           currentSourceLabel: state.currentSourceLabel,
-          sourceMode: state.sourceMode,
-          remoteStatus: state.remoteStatus,
           lastIntent: state.lastIntent,
           initialized: state.initialized,
           dragActive: !!state.drag,
@@ -1966,9 +1637,6 @@
             followTrackingActive: state.follow && !!state.followTransform,
             faceCameraTrackingActive: !state.follow && !state.drag && state.faceCameraLoopActive,
             hasFollowTransform: !!state.followTransform,
-            sourceMenuOpen: state.sourceMenuOpen,
-            remoteViewerId: state.remoteViewerId,
-            signalingConnected: state.remoteSocket?.readyState === 1,
           };
         },
     };
