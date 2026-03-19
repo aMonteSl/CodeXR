@@ -36,8 +36,9 @@
     pedestalColorTop: '#eadfc9',
     pedestalColorBase: '#5f5243',
     pedestalColorTrim: '#cdbb9a',
-    minPlanarOccupancyRatio: 0.62,
-    maxPlanarOccupancyRatio: 0.84,
+    bootstrapPlanarMaxRatio: 0.84,
+    minPlanarOccupancyRatio: 1.30,
+    maxPlanarOccupancyRatio: 1.35,
     minHeightOccupancyRatio: 0.45,
     heightBandMinRatio: 0.38,
     heightBandMaxRatio: 0.72,
@@ -60,6 +61,28 @@
     enabled: false
   };
 
+  var PID_PROFILE = {
+    planar: {
+      kp: 6.2,
+      ki: 0.55,
+      kd: 1.15,
+      integralLimit: 1.4,
+      maxVelocity: 1.3,
+      epsilon: 0.0015
+    },
+    vertical: {
+      kp: 5.4,
+      ki: 0.45,
+      kd: 0.95,
+      integralLimit: 1.1,
+      maxVelocity: 1.0,
+      epsilon: 0.0015
+    },
+    stableTicks: 8,
+    dtMin: 1 / 120,
+    dtMax: 0.08
+  };
+
   var CONTENT_AUXILIARY_TOKEN_PATTERN = /(legend|label|title|axis|tick|grid|mapping|debug|tooltip)/i;
   var CONTAINMENT_AUXILIARY_TOKEN_PATTERN = /(legend|label|title|mapping|debug|tooltip)/i;
   var TEXT_COMPONENT_KEYS = ['text', 'troika-text'];
@@ -73,6 +96,10 @@
 
   function clamp(value, minValue, maxValue) {
     return Math.max(minValue, Math.min(maxValue, value));
+  }
+
+  function midpoint(minValue, maxValue) {
+    return minValue + ((maxValue - minValue) / 2);
   }
 
   function isFiniteVector3Like(value) {
@@ -91,6 +118,24 @@
       && isFiniteVector3Like(boundsInfo.center)
       && isFiniteVector3Like(boundsInfo.bounds.min)
       && isFiniteVector3Like(boundsInfo.bounds.max);
+  }
+
+  function hasPositiveSize(size) {
+    return !!size
+      && Number.isFinite(size.x)
+      && Number.isFinite(size.y)
+      && Number.isFinite(size.z)
+      && size.x > 0
+      && size.y > 0
+      && size.z > 0;
+  }
+
+  function hasUsableMeasurements(measurements) {
+    return !!measurements
+      && isFiniteBoundsInfo(measurements.primary)
+      && isFiniteBoundsInfo(measurements.containment)
+      && isFiniteBoundsInfo(measurements.full)
+      && hasPositiveSize(measurements.primary.size);
   }
 
   function cloneScale(object3D) {
@@ -179,6 +224,9 @@
   }
 
   function resizeTrace(label, payload) {
+    if (!DEBUG_STATE.enabled) {
+      return;
+    }
     if (payload !== undefined) {
       console.log('[Re-size] ' + label, payload);
       return;
@@ -531,20 +579,146 @@
     }
 
     var limits = computeContainmentLimits(data);
-    var limit = Math.min(
-      containmentBounds.size.x > 0 ? limits.containmentWidthLimit / containmentBounds.size.x : Number.POSITIVE_INFINITY,
-      containmentBounds.size.z > 0 ? limits.containmentDepthLimit / containmentBounds.size.z : Number.POSITIVE_INFINITY
-    );
-
-    if (!Number.isFinite(limit) || limit <= 0) {
-      return null;
-    }
+    var xFactor = containmentBounds.size.x > 0
+      ? (limits.containmentWidthLimit / containmentBounds.size.x)
+      : Number.POSITIVE_INFINITY;
+    var zFactor = containmentBounds.size.z > 0
+      ? (limits.containmentDepthLimit / containmentBounds.size.z)
+      : Number.POSITIVE_INFINITY;
+    var limit = Math.min(xFactor, zFactor);
 
     return {
       factor: limit,
+      xFactor: xFactor,
+      zFactor: zFactor,
       containmentWidthLimit: limits.containmentWidthLimit,
       containmentDepthLimit: limits.containmentDepthLimit,
       edgeMargin: limits.edgeMargin
+    };
+  }
+
+  function resolveBootstrapPlanarMax(data) {
+    return clamp(
+      Number.isFinite(data.bootstrapPlanarMaxRatio) ? data.bootstrapPlanarMaxRatio : DEFAULTS.bootstrapPlanarMaxRatio,
+      0.05,
+      0.99
+    );
+  }
+
+  function resolveSteadyPlanarRange(data) {
+    var minPlanar = clamp(
+      Number.isFinite(data.minPlanarOccupancyRatio) ? data.minPlanarOccupancyRatio : DEFAULTS.minPlanarOccupancyRatio,
+      0.05,
+      0.99
+    );
+    var maxPlanar = clamp(
+      Number.isFinite(data.maxPlanarOccupancyRatio) ? data.maxPlanarOccupancyRatio : DEFAULTS.maxPlanarOccupancyRatio,
+      minPlanar + 0.01,
+      2.5
+    );
+
+    return {
+      min: minPlanar,
+      max: maxPlanar
+    };
+  }
+
+  function computeAxisPlanarBandFactor(primarySize, containmentSize, targetSize, containmentLimitSize, minRatio, maxRatio) {
+    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(targetSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || targetSize <= 0 || containmentLimitSize <= 0) {
+      return null;
+    }
+
+    var ratio = primarySize / targetSize;
+    var minRequiredFactor = ratio < minRatio
+      ? (minRatio / Math.max(ratio, 0.00001))
+      : 1;
+    var maxAllowedByRange = ratio > maxRatio
+      ? (maxRatio / Math.max(ratio, 0.00001))
+      : Number.POSITIVE_INFINITY;
+    var maxAllowedByContainment = containmentLimitSize / containmentSize;
+    var factor = 1;
+    var compromised = false;
+    var reason = 'within-range';
+
+    if (minRequiredFactor > 1.0005) {
+      factor = Math.min(minRequiredFactor, maxAllowedByContainment);
+      if (factor < minRequiredFactor) {
+        compromised = true;
+        reason = 'containment-overflow';
+      } else {
+        reason = 'upscale-minimum';
+      }
+    } else if (maxAllowedByRange < 0.9995 || maxAllowedByContainment < 0.9995) {
+      factor = Math.min(maxAllowedByRange, maxAllowedByContainment);
+      if (factor === maxAllowedByContainment && factor < maxAllowedByRange) {
+        reason = 'downscale-containment';
+      } else {
+        reason = 'downscale-range';
+      }
+    }
+
+    if (!Number.isFinite(factor) || factor <= 0) {
+      factor = 1;
+      compromised = true;
+      reason = 'invalid-factor';
+    }
+
+    return {
+      factor: factor,
+      compromised: compromised,
+      reason: reason,
+      ratio: ratio,
+      minRequiredFactor: minRequiredFactor,
+      maxAllowedByRange: maxAllowedByRange,
+      maxAllowedByContainment: maxAllowedByContainment
+    };
+  }
+
+  function computePlanarAxisTargetScale(primarySize, containmentSize, currentScale, targetSize, containmentLimitSize, range, toleranceRatio) {
+    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(currentScale) || !Number.isFinite(targetSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || currentScale <= 0 || targetSize <= 0 || containmentLimitSize <= 0 || !range) {
+      return null;
+    }
+
+    var ratio = primarySize / targetSize;
+    var setpointRatio = midpoint(range.min, range.max);
+    var containmentTolerance = containmentLimitSize * clamp(
+      Number.isFinite(toleranceRatio) ? toleranceRatio : DEFAULTS.containmentToleranceRatio,
+      0,
+      0.25
+    );
+    var maxAllowedScale = currentScale * (containmentLimitSize / containmentSize);
+    if (!Number.isFinite(maxAllowedScale) || maxAllowedScale <= 0) {
+      maxAllowedScale = currentScale;
+    }
+
+    var withinBand = ratio >= range.min && ratio <= range.max;
+    var overflowing = containmentSize > (containmentLimitSize + containmentTolerance);
+    var desiredScale = currentScale;
+    var reason = 'within-band';
+
+    if (overflowing) {
+      desiredScale = Math.min(currentScale, maxAllowedScale);
+      reason = 'containment-overflow';
+      withinBand = false;
+    } else if (!withinBand) {
+      desiredScale = currentScale * (setpointRatio / Math.max(ratio, 0.00001));
+      reason = ratio < range.min ? 'toward-midpoint-up' : 'toward-midpoint-down';
+    }
+
+    var targetScale = Math.min(desiredScale, maxAllowedScale);
+    if (!Number.isFinite(targetScale) || targetScale <= 0) {
+      targetScale = currentScale;
+    }
+
+    return {
+      ratio: ratio,
+      setpointRatio: setpointRatio,
+      targetScale: targetScale,
+      maxAllowedScale: maxAllowedScale,
+      withinBand: withinBand && !overflowing,
+      overflowing: overflowing,
+      compromised: targetScale + 0.0005 < desiredScale,
+      reason: reason
     };
   }
 
@@ -560,6 +734,51 @@
     return peakHeight;
   }
 
+  function computeBootstrapPlanarScale(primaryBounds, containmentBounds, data) {
+    if (!isFiniteBoundsInfo(primaryBounds) || !isFiniteBoundsInfo(containmentBounds) || !data) {
+      return null;
+    }
+
+    var targetWidth = Math.max(data.targetWidth, 0.0001);
+    var targetDepth = Math.max(data.targetDepth, 0.0001);
+    var containmentLimit = computeContainmentPlanarLimit(containmentBounds, data);
+    var containmentWidthLimit = containmentLimit ? containmentLimit.containmentWidthLimit : targetWidth;
+    var containmentDepthLimit = containmentLimit ? containmentLimit.containmentDepthLimit : targetDepth;
+    var bootstrapMax = resolveBootstrapPlanarMax(data);
+    var xRatio = primaryBounds.size.x / targetWidth;
+    var zRatio = primaryBounds.size.z / targetDepth;
+    var xRangeFactor = xRatio > bootstrapMax
+      ? (bootstrapMax / Math.max(xRatio, 0.00001))
+      : 1;
+    var zRangeFactor = zRatio > bootstrapMax
+      ? (bootstrapMax / Math.max(zRatio, 0.00001))
+      : 1;
+    var xContainmentFactor = containmentBounds.size.x > 0
+      ? containmentWidthLimit / containmentBounds.size.x
+      : 1;
+    var zContainmentFactor = containmentBounds.size.z > 0
+      ? containmentDepthLimit / containmentBounds.size.z
+      : 1;
+    var xFactor = Math.min(1, xRangeFactor, xContainmentFactor);
+    var zFactor = Math.min(1, zRangeFactor, zContainmentFactor);
+
+    return {
+      xFactor: Number.isFinite(xFactor) && xFactor > 0 ? xFactor : 1,
+      zFactor: Number.isFinite(zFactor) && zFactor > 0 ? zFactor : 1,
+      factor: Math.min(
+        Number.isFinite(xFactor) && xFactor > 0 ? xFactor : 1,
+        Number.isFinite(zFactor) && zFactor > 0 ? zFactor : 1
+      ),
+      reason: (xFactor < 0.9995 || zFactor < 0.9995) ? 'bootstrap-containment' : 'bootstrap-visible',
+      maxRatioX: xRatio,
+      maxRatioZ: zRatio,
+      containmentWidthLimit: containmentWidthLimit,
+      containmentDepthLimit: containmentDepthLimit,
+      edgeMargin: containmentLimit ? containmentLimit.edgeMargin : 0,
+      bootstrapPlanarMaxRatio: bootstrapMax
+    };
+  }
+
   function computePlanarBandScale(primaryBounds, containmentBounds, data) {
     if (!isFiniteBoundsInfo(primaryBounds) || !isFiniteBoundsInfo(containmentBounds) || !data) {
       return null;
@@ -570,70 +789,43 @@
     var containmentLimit = computeContainmentPlanarLimit(containmentBounds, data);
     var containmentWidthLimit = containmentLimit ? containmentLimit.containmentWidthLimit : targetWidth;
     var containmentDepthLimit = containmentLimit ? containmentLimit.containmentDepthLimit : targetDepth;
-    var edgeMargin = containmentLimit ? containmentLimit.edgeMargin : 0;
-    var minPlanar = clamp(
-      Number.isFinite(data.minPlanarOccupancyRatio) ? data.minPlanarOccupancyRatio : DEFAULTS.minPlanarOccupancyRatio,
-      0.05,
-      0.98
+    var steadyRange = resolveSteadyPlanarRange(data);
+    var xResult = computeAxisPlanarBandFactor(
+      primaryBounds.size.x,
+      containmentBounds.size.x,
+      targetWidth,
+      containmentWidthLimit,
+      steadyRange.min,
+      steadyRange.max
     );
-    var maxPlanar = clamp(
-      Number.isFinite(data.maxPlanarOccupancyRatio) ? data.maxPlanarOccupancyRatio : DEFAULTS.maxPlanarOccupancyRatio,
-      minPlanar + 0.01,
-      0.99
+    var zResult = computeAxisPlanarBandFactor(
+      primaryBounds.size.z,
+      containmentBounds.size.z,
+      targetDepth,
+      containmentDepthLimit,
+      steadyRange.min,
+      steadyRange.max
     );
-    var xRatio = primaryBounds.size.x / targetWidth;
-    var zRatio = primaryBounds.size.z / targetDepth;
-    var minRatio = Math.min(xRatio, zRatio);
-    var maxRatio = Math.max(xRatio, zRatio);
-    var minRequiredFactor = minRatio < minPlanar
-      ? (minPlanar / Math.max(minRatio, 0.00001))
-      : 1;
-    var maxAllowedByRange = maxRatio > maxPlanar
-      ? (maxPlanar / Math.max(maxRatio, 0.00001))
-      : Number.POSITIVE_INFINITY;
-    var maxAllowedByContainment = containmentLimit ? containmentLimit.factor : Number.POSITIVE_INFINITY;
-    var safeUpperBound = Math.min(maxAllowedByRange, maxAllowedByContainment);
-    var factor = 1;
-    var compromised = false;
-    var reason = 'within-range';
 
-    if (minRequiredFactor > 1.0005) {
-      if (!Number.isFinite(safeUpperBound) || safeUpperBound <= 0) {
-        safeUpperBound = 1;
-      }
-      if (safeUpperBound < minRequiredFactor) {
-        compromised = true;
-        reason = safeUpperBound < 1 ? 'containment-overflow' : 'upscale-capped';
-      } else {
-        reason = 'upscale-minimum';
-      }
-      factor = Math.max(0.2, Math.min(minRequiredFactor, safeUpperBound));
-    } else if (maxAllowedByRange < 0.9995) {
-      factor = Math.max(0.2, Math.min(maxAllowedByRange, maxAllowedByContainment));
-      reason = factor < maxAllowedByRange ? 'downscale-range-contained' : 'downscale-range';
-    } else if (maxAllowedByContainment < 0.9995) {
-      factor = Math.max(0.2, maxAllowedByContainment);
-      reason = 'downscale-containment';
-    }
-
-    if (!Number.isFinite(factor) || factor <= 0) {
-      factor = 1;
-      compromised = true;
-      reason = 'invalid-factor';
+    if (!xResult || !zResult) {
+      return null;
     }
 
     return {
-      factor: factor,
-      compromised: compromised,
-      reason: reason,
-      minRequiredFactor: minRequiredFactor,
-      maxAllowedByRange: maxAllowedByRange,
-      maxAllowedByContainment: maxAllowedByContainment,
+      xFactor: xResult.factor,
+      zFactor: zResult.factor,
+      factor: Math.min(xResult.factor, zResult.factor),
+      compromised: xResult.compromised || zResult.compromised,
+      reason: xResult.reason === zResult.reason ? xResult.reason : 'axis-mixed',
+      x: xResult,
+      z: zResult,
       containmentWidthLimit: containmentWidthLimit,
       containmentDepthLimit: containmentDepthLimit,
-      edgeMargin: edgeMargin,
-      minRatio: minRatio,
-      maxRatio: maxRatio
+      edgeMargin: containmentLimit ? containmentLimit.edgeMargin : 0,
+      minRatioX: xResult.ratio,
+      minRatioZ: zResult.ratio,
+      minPlanar: steadyRange.min,
+      maxPlanar: steadyRange.max
     };
   }
 
@@ -655,6 +847,31 @@
     return {
       changed: Math.abs(targetY - currentScaleY) > 0.0001,
       targetY: targetY
+    };
+  }
+
+  function computeHeightBandTargetScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax) {
+    if (!Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || !bandTargets) {
+      return null;
+    }
+
+    var setpointHeight = midpoint(bandTargets.minHeight, bandTargets.maxHeight);
+    var withinBand = currentHeight >= bandTargets.minHeight && currentHeight <= bandTargets.maxHeight;
+    var targetScale = currentScaleY;
+    var reason = 'within-band';
+
+    if (!withinBand) {
+      targetScale = currentScaleY * (setpointHeight / currentHeight);
+      reason = currentHeight < bandTargets.minHeight ? 'toward-midpoint-up' : 'toward-midpoint-down';
+    }
+
+    targetScale = clamp(targetScale, yScaleMin, yScaleMax);
+
+    return {
+      targetScale: targetScale,
+      setpointHeight: setpointHeight,
+      withinBand: withinBand,
+      reason: reason
     };
   }
 
@@ -701,6 +918,83 @@
     return 1 - ((1 - factor) * damping);
   }
 
+  function createPidAxisState() {
+    return {
+      integral: 0,
+      lastError: 0,
+      initialized: false
+    };
+  }
+
+  function createPidControllerState() {
+    return {
+      active: false,
+      stableTicks: 0,
+      axes: {
+        x: createPidAxisState(),
+        y: createPidAxisState(),
+        z: createPidAxisState()
+      }
+    };
+  }
+
+  function resetPidAxisState(axisState) {
+    if (!axisState) {
+      return;
+    }
+    axisState.integral = 0;
+    axisState.lastError = 0;
+    axisState.initialized = false;
+  }
+
+  function stepPidAxis(axisState, currentValue, targetValue, dtSeconds, profile) {
+    if (!axisState || !Number.isFinite(currentValue) || !Number.isFinite(targetValue) || !Number.isFinite(dtSeconds) || dtSeconds <= 0 || !profile) {
+      return {
+        nextValue: currentValue,
+        changed: false,
+        stable: true,
+        error: 0
+      };
+    }
+
+    var error = targetValue - currentValue;
+    if (Math.abs(error) <= profile.epsilon) {
+      resetPidAxisState(axisState);
+      return {
+        nextValue: currentValue,
+        changed: false,
+        stable: true,
+        error: error
+      };
+    }
+
+    axisState.integral = clamp(
+      axisState.integral + (error * dtSeconds),
+      -profile.integralLimit,
+      profile.integralLimit
+    );
+    var derivative = axisState.initialized
+      ? ((error - axisState.lastError) / Math.max(dtSeconds, 0.0001))
+      : 0;
+    axisState.lastError = error;
+    axisState.initialized = true;
+
+    var velocity = (profile.kp * error) + (profile.ki * axisState.integral) + (profile.kd * derivative);
+    velocity = clamp(velocity, -profile.maxVelocity, profile.maxVelocity);
+
+    var nextValue = currentValue + (velocity * dtSeconds);
+    if ((error > 0 && nextValue > targetValue) || (error < 0 && nextValue < targetValue)) {
+      nextValue = targetValue;
+    }
+
+    return {
+      nextValue: nextValue,
+      changed: Math.abs(nextValue - currentValue) > 0.0001,
+      stable: false,
+      error: error
+    };
+  }
+
   function computeAnchorOffset(measurements, data) {
     if (!measurements || !isFiniteBoundsInfo(measurements.full) || !isFiniteBoundsInfo(measurements.primary) || !data) {
       return null;
@@ -742,6 +1036,7 @@
       pedestalColorTop: { default: DEFAULTS.pedestalColorTop },
       pedestalColorBase: { default: DEFAULTS.pedestalColorBase },
       pedestalColorTrim: { default: DEFAULTS.pedestalColorTrim },
+      bootstrapPlanarMaxRatio: { type: 'number', default: DEFAULTS.bootstrapPlanarMaxRatio },
       minPlanarOccupancyRatio: { type: 'number', default: DEFAULTS.minPlanarOccupancyRatio },
       maxPlanarOccupancyRatio: { type: 'number', default: DEFAULTS.maxPlanarOccupancyRatio },
       minHeightOccupancyRatio: { type: 'number', default: DEFAULTS.minHeightOccupancyRatio },
@@ -781,7 +1076,10 @@
       this.lastStableTransform = null;
       this.lastNormalizationIssue = null;
       this.lastSuccessfulNormalizeAt = 0;
+      this.renderPhase = 'waiting-geometry';
+      this.pidController = createPidControllerState();
       this.onComponentChangedBound = this.onComponentChanged.bind(this);
+      this.onGeometryReadyBound = this.onGeometryReady.bind(this);
 
       if (!this.data.enabled) {
         return;
@@ -790,12 +1088,36 @@
       this.ensureInitialPlacement();
       this.ensurePedestal();
       this.el.addEventListener('componentchanged', this.onComponentChangedBound);
-
-      if (this.el.object3D) {
-        this.el.object3D.visible = false;
-      }
+      this.el.addEventListener('child-attached', this.onGeometryReadyBound);
+      this.el.addEventListener('object3dset', this.onGeometryReadyBound);
 
       this.tryNormalize('init', this.bumpNormalizationGeneration());
+    },
+
+    markWaitingGeometry: function (reason, generation, details) {
+      this.renderPhase = 'waiting-geometry';
+      this.normalized = false;
+      this.deactivateSteadyController();
+      this.lastNormalizationIssue = {
+        reason: reason || 'waiting-geometry',
+        details: details || null,
+        retryCount: this.retryCount,
+        generation: generation,
+        at: Date.now()
+      };
+      if (this.el && this.el.object3D) {
+        if (this.lastStableTransform) {
+          restoreTransform(this.el.object3D, this.lastStableTransform);
+        }
+        this.el.object3D.visible = true;
+      }
+    },
+
+    captureStableTransform: function () {
+      if (!this.el || !this.el.object3D) {
+        return;
+      }
+      this.lastStableTransform = cloneTransform(this.el.object3D) || this.lastStableTransform;
     },
 
     warnInvalidTransform: function (reason, details) {
@@ -847,28 +1169,24 @@
       }
 
       var measurements = this.measureBounds();
-      if (
-        !measurements
-        || !isFiniteBoundsInfo(measurements.primary)
-        || !isFiniteBoundsInfo(measurements.containment)
-        || measurements.primary.size.x <= 0
-        || measurements.primary.size.y <= 0
-        || measurements.primary.size.z <= 0
-      ) {
+      if (!hasUsableMeasurements(measurements)) {
         return {
           ready: false,
           valid: false,
-          reason: this.lastNormalizationIssue ? this.lastNormalizationIssue.reason : 'non-positive-size',
+          reason: this.lastNormalizationIssue ? this.lastNormalizationIssue.reason : 'waiting-geometry',
           message: 'The chart is still rebuilding its geometry.',
-          details: this.lastNormalizationIssue || null
+          details: Object.assign({
+            phase: this.renderPhase
+          }, this.lastNormalizationIssue || {})
         };
       }
 
       return {
         ready: true,
         valid: true,
-        reason: 'ok',
+        reason: this.renderPhase === 'steady-fit' ? 'ok' : this.renderPhase,
         details: {
+          phase: this.renderPhase,
           primaryWidth: toFixedNumber(measurements.primary.size.x),
           primaryHeight: toFixedNumber(measurements.primary.size.y),
           primaryDepth: toFixedNumber(measurements.primary.size.z),
@@ -899,6 +1217,13 @@
       }
     },
 
+    onGeometryReady: function (event) {
+      if (!this.data.enabled || !this.el || !event || event.target !== this.el) {
+        return;
+      }
+      this.requestRenormalize(event.type || 'geometry-ready');
+    },
+
     update: function (oldData) {
       if (!oldData) {
         return;
@@ -916,6 +1241,7 @@
         || oldData.anchorX !== this.data.anchorX
         || oldData.anchorY !== this.data.anchorY
         || oldData.anchorZ !== this.data.anchorZ
+        || oldData.bootstrapPlanarMaxRatio !== this.data.bootstrapPlanarMaxRatio
         || oldData.minPlanarOccupancyRatio !== this.data.minPlanarOccupancyRatio
         || oldData.maxPlanarOccupancyRatio !== this.data.maxPlanarOccupancyRatio
         || oldData.minHeightOccupancyRatio !== this.data.minHeightOccupancyRatio
@@ -929,22 +1255,16 @@
         || oldData.stabilizationMaxChecks !== this.data.stabilizationMaxChecks
         || oldData.stabilizationStablePasses !== this.data.stabilizationStablePasses
       ) {
-        this.normalized = false;
-        this.retryCount = 0;
-        this.stopStabilizationLoop();
         this.ensureInitialPlacement();
         this.refreshPedestalGeometry();
-        if (this.el.object3D) {
-          this.el.object3D.visible = false;
-        }
-        this.tryNormalize('update', this.bumpNormalizationGeneration());
+        this.renormalize('update');
       }
 
       this.refreshUiDock();
     },
 
-    tick: function (time) {
-      if (!this.data.enabled || !this.normalized || !this.el || !this.el.object3D || !this.data.periodicContainmentEnabled) {
+    tick: function (time, timeDelta) {
+      if (!this.data.enabled || !this.normalized || !this.el || !this.el.object3D) {
         return;
       }
 
@@ -957,17 +1277,31 @@
         return;
       }
 
+      if (this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active) {
+        this.runSteadyControllerStep('tick', timeDelta);
+      }
+
+      if (!this.data.periodicContainmentEnabled) {
+        return;
+      }
+
       if (time < this.nextContainmentCheckAt) {
         return;
       }
 
       this.nextContainmentCheckAt = time + Math.max(120, this.data.containmentCheckMs);
-      this.runMaintenancePass('tick');
+      if (!(this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active)) {
+        this.runMaintenancePass('tick');
+      }
     },
 
     remove: function () {
       if (this.onComponentChangedBound && this.el && this.el.removeEventListener) {
         this.el.removeEventListener('componentchanged', this.onComponentChangedBound);
+      }
+      if (this.onGeometryReadyBound && this.el && this.el.removeEventListener) {
+        this.el.removeEventListener('child-attached', this.onGeometryReadyBound);
+        this.el.removeEventListener('object3dset', this.onGeometryReadyBound);
       }
 
       if (this.retryTimer) {
@@ -975,6 +1309,7 @@
         this.retryTimer = null;
       }
 
+      this.deactivateSteadyController();
       this.stopStabilizationLoop();
 
       if (this.pedestalEl && this.pedestalEl.parentNode) {
@@ -1154,8 +1489,7 @@
         return false;
       }
 
-      var basePlanarScale = resolvePlanarScale(this.baseScale);
-      object3D.scale.set(basePlanarScale, this.baseScale.y, basePlanarScale);
+      object3D.scale.set(this.baseScale.x, this.baseScale.y, this.baseScale.z);
       object3D.updateMatrixWorld(true);
       return true;
     },
@@ -1255,24 +1589,23 @@
       );
     },
 
-    applyScaleFactors: function (xzFactor, yFactor) {
+    applyScaleFactors: function (xFactor, yFactor, zFactor) {
       var object3D = this.el && this.el.object3D;
       if (!object3D) {
         return false;
       }
 
-      var currentPlanar = resolvePlanarScale(object3D.scale);
-      var nextPlanar = currentPlanar * xzFactor;
-      var nextX = nextPlanar;
+      var nextX = object3D.scale.x * (Number.isFinite(xFactor) ? xFactor : 1);
       var nextY = clamp(object3D.scale.y * yFactor, Math.max(0.001, this.data.yScaleMin), Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax));
-      var nextZ = nextPlanar;
+      var nextZ = object3D.scale.z * (Number.isFinite(zFactor) ? zFactor : (Number.isFinite(xFactor) ? xFactor : 1));
 
       if (!Number.isFinite(nextX) || !Number.isFinite(nextY) || !Number.isFinite(nextZ) || nextX <= 0 || nextY <= 0 || nextZ <= 0) {
         this.warnInvalidTransform('apply-scale-invalid-target', {
           nextX: nextX,
           nextY: nextY,
           nextZ: nextZ,
-          xzFactor: xzFactor,
+          xFactor: xFactor,
+          zFactor: zFactor,
           yFactor: yFactor
         });
         return false;
@@ -1289,6 +1622,237 @@
       object3D.scale.set(nextX, nextY, nextZ);
       object3D.updateMatrixWorld(true);
       return true;
+    },
+
+    activateSteadyController: function () {
+      if (!this.pidController) {
+        this.pidController = createPidControllerState();
+      }
+      this.pidController.active = true;
+      this.pidController.stableTicks = 0;
+      resetPidAxisState(this.pidController.axes.x);
+      resetPidAxisState(this.pidController.axes.y);
+      resetPidAxisState(this.pidController.axes.z);
+    },
+
+    deactivateSteadyController: function () {
+      if (!this.pidController) {
+        this.pidController = createPidControllerState();
+      }
+      this.pidController.active = false;
+      this.pidController.stableTicks = 0;
+      resetPidAxisState(this.pidController.axes.x);
+      resetPidAxisState(this.pidController.axes.y);
+      resetPidAxisState(this.pidController.axes.z);
+    },
+
+    resolveControllerDtSeconds: function (dtMs) {
+      var fallbackMs = Math.max(16, this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
+      var resolvedMs = Number.isFinite(dtMs) && dtMs > 0 ? dtMs : fallbackMs;
+      return clamp(resolvedMs / 1000, PID_PROFILE.dtMin, PID_PROFILE.dtMax);
+    },
+
+    runSteadyControllerStep: function (source, dtMs) {
+      var object3D = this.el && this.el.object3D;
+      if (!object3D) {
+        return false;
+      }
+
+      var measurements = this.measureBounds();
+      if (!hasUsableMeasurements(measurements)) {
+        this.markWaitingGeometry('waiting-geometry', this.normalizationGeneration, {
+          source: source || 'steady-fit',
+          phase: this.renderPhase
+        });
+        return false;
+      }
+
+      var steadyRange = resolveSteadyPlanarRange(this.data);
+      var containmentLimits = computeContainmentLimits(this.data);
+      var xTarget = computePlanarAxisTargetScale(
+        measurements.primary.size.x,
+        measurements.containment.size.x,
+        object3D.scale.x,
+        Math.max(this.data.targetWidth, 0.0001),
+        containmentLimits.containmentWidthLimit,
+        steadyRange,
+        this.data.containmentToleranceRatio
+      );
+      var zTarget = computePlanarAxisTargetScale(
+        measurements.primary.size.z,
+        measurements.containment.size.z,
+        object3D.scale.z,
+        Math.max(this.data.targetDepth, 0.0001),
+        containmentLimits.containmentDepthLimit,
+        steadyRange,
+        this.data.containmentToleranceRatio
+      );
+      var heightTargets = resolveHeightBandTargets(this.data);
+      var yTarget = computeHeightBandTargetScale(
+        measurements.peakHeight,
+        object3D.scale.y,
+        heightTargets,
+        Math.max(0.001, this.data.yScaleMin),
+        Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax)
+      );
+
+      if (!xTarget || !zTarget || !yTarget) {
+        return false;
+      }
+
+      if (xTarget.compromised || zTarget.compromised) {
+        this.warnMinimumCompromised({
+          source: source || 'steady-fit',
+          reason: xTarget.compromised && zTarget.compromised ? 'axis-mixed' : (xTarget.compromised ? xTarget.reason : zTarget.reason),
+          xRatio: toFixedNumber(xTarget.ratio),
+          zRatio: toFixedNumber(zTarget.ratio),
+          xSetpointRatio: toFixedNumber(xTarget.setpointRatio),
+          zSetpointRatio: toFixedNumber(zTarget.setpointRatio),
+          xTargetScale: toFixedNumber(xTarget.targetScale),
+          zTargetScale: toFixedNumber(zTarget.targetScale),
+          containmentWidthLimit: toFixedNumber(containmentLimits.containmentWidthLimit),
+          containmentDepthLimit: toFixedNumber(containmentLimits.containmentDepthLimit)
+        });
+      }
+
+      var dtSeconds = this.resolveControllerDtSeconds(dtMs);
+      var xStep = stepPidAxis(this.pidController.axes.x, object3D.scale.x, xTarget.targetScale, dtSeconds, PID_PROFILE.planar);
+      var yStep = stepPidAxis(this.pidController.axes.y, object3D.scale.y, yTarget.targetScale, dtSeconds, PID_PROFILE.vertical);
+      var zStep = stepPidAxis(this.pidController.axes.z, object3D.scale.z, zTarget.targetScale, dtSeconds, PID_PROFILE.planar);
+
+      var changed = false;
+      if (
+        Number.isFinite(xStep.nextValue)
+        && Number.isFinite(yStep.nextValue)
+        && Number.isFinite(zStep.nextValue)
+        && xStep.nextValue > 0
+        && yStep.nextValue > 0
+        && zStep.nextValue > 0
+      ) {
+        changed = Math.abs(xStep.nextValue - object3D.scale.x) > 0.0001
+          || Math.abs(yStep.nextValue - object3D.scale.y) > 0.0001
+          || Math.abs(zStep.nextValue - object3D.scale.z) > 0.0001;
+        if (changed) {
+          object3D.scale.set(xStep.nextValue, yStep.nextValue, zStep.nextValue);
+          object3D.updateMatrixWorld(true);
+        }
+      }
+
+      var nextMeasurements = this.measureBounds();
+      var moved = nextMeasurements ? this.applyAnchorPlacement(nextMeasurements) : false;
+      if (nextMeasurements && hasUsableMeasurements(nextMeasurements)) {
+        this.captureStableTransform();
+      }
+      if (changed || moved) {
+        this.syncTransformAttributes();
+      }
+
+      if (xStep.stable && yStep.stable && zStep.stable) {
+        this.pidController.stableTicks += 1;
+      } else {
+        this.pidController.stableTicks = 0;
+      }
+
+      if (this.pidController.stableTicks >= PID_PROFILE.stableTicks) {
+        this.deactivateSteadyController();
+      }
+
+      debugLog('steady-controller-step', {
+        source: source || 'steady-fit',
+        xScale: toFixedNumber(object3D.scale.x),
+        yScale: toFixedNumber(object3D.scale.y),
+        zScale: toFixedNumber(object3D.scale.z),
+        xTarget: toFixedNumber(xTarget.targetScale),
+        yTarget: toFixedNumber(yTarget.targetScale),
+        zTarget: toFixedNumber(zTarget.targetScale),
+        stableTicks: this.pidController.stableTicks
+      });
+
+      return changed || moved;
+    },
+
+    applyBootstrapPlanarFit: function (measurements, source) {
+      if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !isFiniteBoundsInfo(measurements.containment)) {
+        return false;
+      }
+
+      var bootstrapScale = computeBootstrapPlanarScale(measurements.primary, measurements.containment, this.data);
+      if (!bootstrapScale) {
+        return false;
+      }
+
+      var changed = false;
+      if (Math.abs(bootstrapScale.xFactor - 1) > 0.0005 || Math.abs(bootstrapScale.zFactor - 1) > 0.0005) {
+        changed = this.applyScaleFactors(
+          clamp(bootstrapScale.xFactor, 0.2, 4),
+          1,
+          clamp(bootstrapScale.zFactor, 0.2, 4)
+        );
+      }
+
+      if (changed) {
+        debugTable('bootstrap-planar-adjusted', [{
+          source: source || 'bootstrap',
+          xFactor: toFixedNumber(bootstrapScale.xFactor),
+          zFactor: toFixedNumber(bootstrapScale.zFactor),
+          bootstrapPlanarMaxRatio: toFixedNumber(bootstrapScale.bootstrapPlanarMaxRatio)
+        }]);
+      }
+
+      return changed;
+    },
+
+    applySteadyPlanarFit: function (measurements, source) {
+      if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !isFiniteBoundsInfo(measurements.containment)) {
+        return false;
+      }
+
+      var planarBand = computePlanarBandScale(measurements.primary, measurements.containment, this.data);
+      if (!planarBand) {
+        return false;
+      }
+
+      if (planarBand.compromised) {
+        this.warnMinimumCompromised({
+          source: source || 'steady-fit',
+          reason: planarBand.reason,
+          xMinRequiredFactor: toFixedNumber(planarBand.x.minRequiredFactor),
+          zMinRequiredFactor: toFixedNumber(planarBand.z.minRequiredFactor),
+          xMaxAllowedByRange: Number.isFinite(planarBand.x.maxAllowedByRange) ? toFixedNumber(planarBand.x.maxAllowedByRange) : null,
+          zMaxAllowedByRange: Number.isFinite(planarBand.z.maxAllowedByRange) ? toFixedNumber(planarBand.z.maxAllowedByRange) : null,
+          xMaxAllowedByContainment: Number.isFinite(planarBand.x.maxAllowedByContainment) ? toFixedNumber(planarBand.x.maxAllowedByContainment) : null,
+          zMaxAllowedByContainment: Number.isFinite(planarBand.z.maxAllowedByContainment) ? toFixedNumber(planarBand.z.maxAllowedByContainment) : null,
+          primaryWidth: toFixedNumber(measurements.primary.size.x),
+          primaryDepth: toFixedNumber(measurements.primary.size.z),
+          containmentWidth: toFixedNumber(measurements.containment.size.x),
+          containmentDepth: toFixedNumber(measurements.containment.size.z),
+          containmentWidthLimit: toFixedNumber(planarBand.containmentWidthLimit),
+          containmentDepthLimit: toFixedNumber(planarBand.containmentDepthLimit)
+        });
+      }
+
+      var xFactor = softenFactor(planarBand.xFactor, clamp(this.data.containmentDamping, 0.8, 0.999));
+      var zFactor = softenFactor(planarBand.zFactor, clamp(this.data.containmentDamping, 0.8, 0.999));
+      var changed = false;
+      if (Math.abs(xFactor - 1) > 0.0005 || Math.abs(zFactor - 1) > 0.0005) {
+        changed = this.applyScaleFactors(
+          clamp(xFactor, 0.2, 4),
+          1,
+          clamp(zFactor, 0.2, 4)
+        );
+      }
+
+      if (changed) {
+        debugTable('steady-planar-adjusted', [{
+          source: source || 'steady-fit',
+          xFactor: toFixedNumber(planarBand.xFactor),
+          zFactor: toFixedNumber(planarBand.zFactor),
+          xRatio: toFixedNumber(planarBand.x.ratio),
+          zRatio: toFixedNumber(planarBand.z.ratio)
+        }]);
+      }
+
+      return changed;
     },
 
     enforceHeightBand: function (source) {
@@ -1339,50 +1903,23 @@
         return false;
       }
 
-      var damping = clamp(this.data.containmentDamping, 0.8, 0.999);
       var maxIterations = Math.max(1, this.data.containmentMaxIterations);
       var changed = false;
 
       for (var i = 0; i < maxIterations; i += 1) {
         var measurements = this.measureBounds();
-        if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !isFiniteBoundsInfo(measurements.containment) || !isFiniteBoundsInfo(measurements.full)) {
-          this.warnInvalidTransform('envelope-invalid-bounds', { source: source || 'unknown', iteration: i });
+      if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !isFiniteBoundsInfo(measurements.containment) || !isFiniteBoundsInfo(measurements.full)) {
+        this.warnInvalidTransform('envelope-invalid-bounds', { source: source || 'unknown', iteration: i });
+        return changed;
+      }
+
+        if (!hasPositiveSize(measurements.primary.size)) {
           return changed;
         }
 
-        var primary = measurements.primary;
-        var containment = measurements.containment;
-        if (primary.size.x <= 0 || primary.size.y <= 0 || primary.size.z <= 0) {
-          return changed;
-        }
-
-        var planarBand = computePlanarBandScale(primary, containment, this.data);
-        if (!planarBand) {
-          return changed;
-        }
-
-        if (planarBand.compromised) {
-          this.warnMinimumCompromised({
-            source: source || 'unknown',
-            reason: planarBand.reason,
-            minRequiredFactor: toFixedNumber(planarBand.minRequiredFactor),
-            maxAllowedByRange: Number.isFinite(planarBand.maxAllowedByRange) ? toFixedNumber(planarBand.maxAllowedByRange) : null,
-            maxAllowedByContainment: Number.isFinite(planarBand.maxAllowedByContainment) ? toFixedNumber(planarBand.maxAllowedByContainment) : null,
-            primaryWidth: toFixedNumber(primary.size.x),
-            primaryDepth: toFixedNumber(primary.size.z),
-            containmentWidth: toFixedNumber(containment.size.x),
-            containmentDepth: toFixedNumber(containment.size.z),
-            containmentWidthLimit: toFixedNumber(planarBand.containmentWidthLimit),
-            containmentDepthLimit: toFixedNumber(planarBand.containmentDepthLimit)
-          });
-        }
-
-        var xzFactor = softenFactor(planarBand.factor, damping);
-
-        var localChanged = false;
-        if (Math.abs(xzFactor - 1) > 0.0005) {
-          localChanged = this.applyScaleFactors(clamp(xzFactor, 0.2, 4), 1);
-        }
+        var localChanged = this.renderPhase === 'steady-fit'
+          ? this.applySteadyPlanarFit(measurements, source || 'steady-fit')
+          : this.applyBootstrapPlanarFit(measurements, source || 'bootstrap-visible');
 
         var nextMeasurements = this.measureBounds();
         var moved = nextMeasurements ? this.applyAnchorPlacement(nextMeasurements) : false;
@@ -1423,10 +1960,16 @@
         });
         return false;
       }
-      var changedHeight = this.enforceHeightBand(source);
+      if (this.renderPhase === 'steady-fit') {
+        return this.runSteadyControllerStep(source || 'steady-fit', this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
+      }
       var changedEnvelope = this.enforceEnvelope(source);
+      var changedHeight = false;
       var measurements = this.measureBounds();
       var moved = measurements ? this.applyAnchorPlacement(measurements) : false;
+      if (measurements && this.el && this.el.object3D) {
+        this.lastStableTransform = cloneTransform(this.el.object3D) || this.lastStableTransform;
+      }
       if (changedHeight || changedEnvelope || moved) {
         this.syncTransformAttributes();
       }
@@ -1473,6 +2016,20 @@
       var measurements = this.measureBounds();
       var signature = measurements ? buildMeasurementSignature(measurements, this.el.object3D) : null;
 
+      if (!hasUsableMeasurements(measurements)) {
+        this.markWaitingGeometry('waiting-geometry', generation, {
+          source: reason || 'stabilization',
+          phase: this.renderPhase
+        });
+        this.stabilizationChecksRemaining -= 1;
+        if (this.stabilizationChecksRemaining > 0) {
+          this.scheduleStabilizationStep(reason || 'stabilization', generation);
+        } else {
+          this.stopStabilizationLoop();
+        }
+        return;
+      }
+
       if (changed || !signature || signature !== this.lastMeasurementSignature) {
         this.stabilizationStableCount = 0;
       } else {
@@ -1485,9 +2042,23 @@
       debugLog('stabilization-step', {
         reason: reason || 'stabilization',
         changed: changed,
+        phase: this.renderPhase,
         remaining: this.stabilizationChecksRemaining,
         stableCount: this.stabilizationStableCount
       });
+
+      if (
+        this.renderPhase === 'bootstrap-visible'
+        && this.stabilizationStableCount >= Math.max(1, this.data.stabilizationStablePasses || DEFAULTS.stabilizationStablePasses)
+      ) {
+        this.renderPhase = 'steady-fit';
+        this.stabilizationStableCount = 0;
+        this.lastMeasurementSignature = null;
+        this.activateSteadyController();
+        this.runSteadyControllerStep('steady-transition', this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
+        this.stopStabilizationLoop();
+        return;
+      }
 
       if (this.stabilizationChecksRemaining <= 0 || this.stabilizationStableCount >= Math.max(1, this.data.stabilizationStablePasses || DEFAULTS.stabilizationStablePasses)) {
         this.stopStabilizationLoop();
@@ -1499,14 +2070,19 @@
 
     renormalize: function (reason) {
       var generation = this.bumpNormalizationGeneration();
-      if (this.el && this.el.object3D) {
-        this.lastStableTransform = cloneTransform(this.el.object3D) || this.lastStableTransform;
-      }
+      this.captureStableTransform();
       this.normalized = false;
+      this.renderPhase = 'waiting-geometry';
       this.retryCount = 0;
+      this.deactivateSteadyController();
       this.stopStabilizationLoop();
-      if (this.el && this.el.object3D && !this.baseScale) {
-        this.el.object3D.visible = false;
+      if (this.el && this.el.object3D) {
+        if (this.lastStableTransform) {
+          restoreTransform(this.el.object3D, this.lastStableTransform);
+        } else if (this.baseScale) {
+          this.resetToBaseScale();
+        }
+        this.el.object3D.visible = true;
       }
       this.tryNormalize(reason || 'manual-renormalize', generation);
     },
@@ -1519,11 +2095,6 @@
       var three = root.THREE || (root.AFRAME && root.AFRAME.THREE);
       if (!el || !el.object3D || !three || !three.Box3 || !three.Vector3) {
         this.scheduleRetry('missing-three-or-object', generation);
-        return;
-      }
-
-      if (!el.object3D.children || !el.object3D.children.length) {
-        this.scheduleRetry('waiting-object3d-children', generation);
         return;
       }
 
@@ -1546,7 +2117,7 @@
       }
 
       var initialMeasurements = this.measureBounds();
-      if (!initialMeasurements || !isFiniteBoundsInfo(initialMeasurements.primary) || initialMeasurements.primary.size.x <= 0 || initialMeasurements.primary.size.y <= 0 || initialMeasurements.primary.size.z <= 0) {
+      if (!hasUsableMeasurements(initialMeasurements)) {
         resizeTrace('invalid-initial-bounds', {
           reason: reason || 'normalize',
           generation: generation,
@@ -1555,59 +2126,22 @@
           primaryHeight: initialMeasurements && initialMeasurements.primary ? toFixedNumber(initialMeasurements.primary.size.y) : null,
           primaryDepth: initialMeasurements && initialMeasurements.primary ? toFixedNumber(initialMeasurements.primary.size.z) : null
         });
-        this.scheduleRetry('non-positive-size', generation);
-        return;
-      }
-
-      var initialPlanarBand = computePlanarBandScale(initialMeasurements.primary, initialMeasurements.containment, this.data);
-      if (!initialPlanarBand || !Number.isFinite(initialPlanarBand.factor) || initialPlanarBand.factor <= 0) {
-        resizeTrace('invalid-planar-band', {
-          reason: reason || 'normalize',
-          generation: generation,
-          initialPlanarBand: initialPlanarBand || null
-        });
-        this.scheduleRetry('invalid-planar-factor', generation);
-        return;
-      }
-
-      if (initialPlanarBand.compromised) {
-        this.warnMinimumCompromised({
-          source: reason || 'normalize-initial',
-          reason: initialPlanarBand.reason,
-          minRequiredFactor: toFixedNumber(initialPlanarBand.minRequiredFactor),
-          maxAllowedByRange: Number.isFinite(initialPlanarBand.maxAllowedByRange) ? toFixedNumber(initialPlanarBand.maxAllowedByRange) : null,
-          maxAllowedByContainment: Number.isFinite(initialPlanarBand.maxAllowedByContainment) ? toFixedNumber(initialPlanarBand.maxAllowedByContainment) : null,
-          primaryWidth: toFixedNumber(initialMeasurements.primary.size.x),
-          primaryDepth: toFixedNumber(initialMeasurements.primary.size.z),
-          containmentWidth: toFixedNumber(initialMeasurements.containment.size.x),
-          containmentDepth: toFixedNumber(initialMeasurements.containment.size.z),
-          containmentWidthLimit: toFixedNumber(initialPlanarBand.containmentWidthLimit),
-          containmentDepthLimit: toFixedNumber(initialPlanarBand.containmentDepthLimit)
-        });
-      }
-      if (Math.abs(initialPlanarBand.factor - 1) > 0.0005) {
-        resizeTrace('initial-planar-adjustment', {
-          reason: reason || 'normalize',
-          generation: generation,
-          factor: toFixedNumber(initialPlanarBand.factor),
-          planarReason: initialPlanarBand.reason,
-          primaryWidth: toFixedNumber(initialMeasurements.primary.size.x),
-          primaryDepth: toFixedNumber(initialMeasurements.primary.size.z),
-          containmentWidth: toFixedNumber(initialMeasurements.containment.size.x),
-          containmentDepth: toFixedNumber(initialMeasurements.containment.size.z)
-        });
-        var currentPlanarScale = resolvePlanarScale(el.object3D.scale);
-        var nextPlanarScale = currentPlanarScale * initialPlanarBand.factor;
-        if (!Number.isFinite(nextPlanarScale) || nextPlanarScale <= 0) {
-          this.scheduleRetry('invalid-planar-factor', generation);
-          return;
+        if (previousTransform) {
+          restoreTransform(el.object3D, previousTransform);
         }
-        el.object3D.scale.set(nextPlanarScale, el.object3D.scale.y, nextPlanarScale);
-        el.object3D.updateMatrixWorld(true);
+        this.markWaitingGeometry('waiting-geometry', generation, {
+          source: reason || 'normalize',
+          generation: generation
+        });
+        this.scheduleRetry('waiting-geometry', generation);
+        return;
       }
+
+      this.renderPhase = 'bootstrap-visible';
+      this.applyBootstrapPlanarFit(initialMeasurements, reason || 'bootstrap-visible');
 
       var fittedMeasurements = this.measureBounds();
-      if (!fittedMeasurements || !isFiniteBoundsInfo(fittedMeasurements.primary)) {
+      if (!hasUsableMeasurements(fittedMeasurements)) {
         resizeTrace('invalid-fitted-bounds', {
           reason: reason || 'normalize',
           generation: generation
@@ -1615,18 +2149,16 @@
         if (previousTransform) {
           restoreTransform(el.object3D, previousTransform);
         }
-        this.scheduleRetry('invalid-fitted-bounds', generation);
+        this.markWaitingGeometry('waiting-geometry', generation, {
+          source: reason || 'normalize',
+          generation: generation
+        });
+        this.scheduleRetry('waiting-geometry', generation);
         return;
       }
 
       this.applyAnchorPlacement(fittedMeasurements);
-
-      for (var pass = 0; pass < 4; pass += 1) {
-        var changed = this.runMaintenancePass('normalize:' + pass);
-        if (!changed) {
-          break;
-        }
-      }
+      this.runMaintenancePass('bootstrap-visible');
 
       if (!isFiniteVector3Like(el.object3D.position) || !isFiniteVector3Like(el.object3D.scale)) {
         resizeTrace('invalid-final-transform', {
@@ -1648,7 +2180,8 @@
       this.lastSuccessfulNormalizeAt = Date.now();
       this.nextContainmentCheckAt = 0;
       this.lastMeasurementSignature = buildMeasurementSignature(this.measureBounds(), el.object3D);
-      this.lastStableTransform = cloneTransform(el.object3D) || this.lastStableTransform;
+      this.captureStableTransform();
+      this.deactivateSteadyController();
       el.object3D.visible = true;
 
       var finalMeasurements = this.measureBounds();
@@ -1705,11 +2238,14 @@
         if (this.el.object3D) {
           this.el.object3D.visible = true;
         }
-        console.warn('[CodeXR][ChartPedestal] Could not normalize after retries:', {
-          reason: reason,
-          retries: this.retryCount - 1,
-          approxWaitMs: (this.retryCount - 1) * this.data.retryDelayMs
-        });
+        this.markWaitingGeometry(reason === 'invalid-axis-length' ? reason : 'waiting-geometry', generation, details);
+        if (reason === 'invalid-axis-length' || DEBUG_STATE.enabled) {
+          console.warn('[CodeXR][ChartPedestal] Could not normalize after retries:', {
+            reason: reason,
+            retries: this.retryCount - 1,
+            approxWaitMs: (this.retryCount - 1) * this.data.retryDelayMs
+          });
+        }
         return;
       }
 
@@ -1765,8 +2301,6 @@
     var source = data || DEFAULTS;
     var min = Number.isFinite(source.minPlanarOccupancyRatio) ? source.minPlanarOccupancyRatio : DEFAULTS.minPlanarOccupancyRatio;
     var max = Number.isFinite(source.maxPlanarOccupancyRatio) ? source.maxPlanarOccupancyRatio : DEFAULTS.maxPlanarOccupancyRatio;
-    var verticalMin = Number.isFinite(source.heightBandMinRatio) ? source.heightBandMinRatio : DEFAULTS.heightBandMinRatio;
-    var verticalMax = Number.isFinite(source.heightBandMaxRatio) ? source.heightBandMaxRatio : DEFAULTS.heightBandMaxRatio;
 
     return {
       charts: chartCount || 0,
@@ -1775,10 +2309,24 @@
       planar: {
         min: min,
         max: max
+      }
+    };
+  }
+
+  function buildScalePolicySnapshot(data, chartCount) {
+    var source = data || DEFAULTS;
+    return {
+      charts: chartCount || 0,
+      bootstrap: {
+        max: Number.isFinite(source.bootstrapPlanarMaxRatio) ? source.bootstrapPlanarMaxRatio : DEFAULTS.bootstrapPlanarMaxRatio
+      },
+      steady: {
+        min: Number.isFinite(source.minPlanarOccupancyRatio) ? source.minPlanarOccupancyRatio : DEFAULTS.minPlanarOccupancyRatio,
+        max: Number.isFinite(source.maxPlanarOccupancyRatio) ? source.maxPlanarOccupancyRatio : DEFAULTS.maxPlanarOccupancyRatio
       },
       vertical: {
-        min: verticalMin,
-        max: verticalMax
+        min: Number.isFinite(source.heightBandMinRatio) ? source.heightBandMinRatio : DEFAULTS.heightBandMinRatio,
+        max: Number.isFinite(source.heightBandMaxRatio) ? source.heightBandMaxRatio : DEFAULTS.heightBandMaxRatio
       }
     };
   }
@@ -1789,6 +2337,10 @@
     var chartEl = typeof target === 'string'
       ? (doc && doc.querySelector ? doc.querySelector(target) : null)
       : target;
+    if (!chartEl && doc) {
+      var charts = getPedestalCharts(doc);
+      chartEl = charts.length ? charts[0] : null;
+    }
     if (!chartEl) {
       return {
         ready: false,
@@ -1845,9 +2397,7 @@
       if (typeof currentAttr === 'string') {
         nextAttr = {
           minPlanarOccupancyRatio: min,
-          maxPlanarOccupancyRatio: max,
-          heightBandMinRatio: min,
-          heightBandMaxRatio: max
+          maxPlanarOccupancyRatio: max
         };
       } else if (currentAttr && typeof currentAttr === 'object') {
         Object.keys(currentAttr).forEach(function (key) {
@@ -1855,26 +2405,65 @@
         });
         nextAttr.minPlanarOccupancyRatio = min;
         nextAttr.maxPlanarOccupancyRatio = max;
-        nextAttr.heightBandMinRatio = min;
-        nextAttr.heightBandMaxRatio = max;
       } else {
         nextAttr = {
           minPlanarOccupancyRatio: min,
-          maxPlanarOccupancyRatio: max,
-          heightBandMinRatio: min,
-          heightBandMaxRatio: max
+          maxPlanarOccupancyRatio: max
         };
       }
 
       chartEl.setAttribute(info.attrName, nextAttr);
     });
 
-    return buildScaleRangeSnapshot({
+    var firstInfo = charts.length ? resolvePedestalComponentInfo(charts[0]) : null;
+    return buildScaleRangeSnapshot(firstInfo ? firstInfo.data : {
       minPlanarOccupancyRatio: min,
-      maxPlanarOccupancyRatio: max,
-      heightBandMinRatio: min,
-      heightBandMaxRatio: max
+      maxPlanarOccupancyRatio: max
     }, charts.length);
+  };
+  root[RUNTIME_GLOBAL_NAME].getScalePolicy = function () {
+    var doc = root.document;
+    var charts = getPedestalCharts(doc);
+    if (charts.length === 0) {
+      return buildScalePolicySnapshot(DEFAULTS, 0);
+    }
+
+    var info = resolvePedestalComponentInfo(charts[0]);
+    return buildScalePolicySnapshot(info ? info.data : DEFAULTS, charts.length);
+  };
+  root[RUNTIME_GLOBAL_NAME].setHeightBand = function (min, max) {
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      throw new Error('Height band values must be finite numbers.');
+    }
+    if (min <= 0 || max <= 0) {
+      throw new Error('Height band values must be greater than zero.');
+    }
+    if (max <= min) {
+      throw new Error('The maximum height band value must be greater than the minimum.');
+    }
+
+    var doc = root.document;
+    var charts = getPedestalCharts(doc);
+    charts.forEach(function (chartEl) {
+      var info = resolvePedestalComponentInfo(chartEl);
+      if (!info || !chartEl.getAttribute || !chartEl.setAttribute) {
+        return;
+      }
+
+      var currentAttr = chartEl.getAttribute(info.attrName);
+      var nextAttr = {};
+      if (currentAttr && typeof currentAttr === 'object') {
+        Object.keys(currentAttr).forEach(function (key) {
+          nextAttr[key] = currentAttr[key];
+        });
+      }
+      nextAttr.heightBandMinRatio = min;
+      nextAttr.heightBandMaxRatio = max;
+      chartEl.setAttribute(info.attrName, nextAttr);
+    });
+
+    var firstInfo = charts.length ? resolvePedestalComponentInfo(charts[0]) : null;
+    return buildScalePolicySnapshot(firstInfo ? firstInfo.data : DEFAULTS, charts.length);
   };
   root[RUNTIME_GLOBAL_NAME].renormalizeAll = function (reason) {
     var doc = root.document;
@@ -1909,14 +2498,20 @@
     return !!DEBUG_STATE.enabled;
   };
   root[RUNTIME_GLOBAL_NAME].__testing = {
+    PID_PROFILE: PID_PROFILE,
     matchesIgnoredBoundsMeta: matchesIgnoredBoundsMeta,
     matchesIgnoredContainmentBoundsMeta: matchesIgnoredContainmentBoundsMeta,
     computePlanarFitFactor: computePlanarFitFactor,
     computeContainmentPlanarLimit: computeContainmentPlanarLimit,
+    computeBootstrapPlanarScale: computeBootstrapPlanarScale,
     computePlanarBandScale: computePlanarBandScale,
+    computePlanarAxisTargetScale: computePlanarAxisTargetScale,
     computePeakHeight: computePeakHeight,
     resolveHeightBandTargets: resolveHeightBandTargets,
     computeHeightBandScale: computeHeightBandScale,
+    computeHeightBandTargetScale: computeHeightBandTargetScale,
+    createPidAxisState: createPidAxisState,
+    stepPidAxis: stepPidAxis,
     buildMeasurementSignature: buildMeasurementSignature,
     computeAnchorOffset: computeAnchorOffset,
     collectNonFiniteValueIssues: collectNonFiniteValueIssues,

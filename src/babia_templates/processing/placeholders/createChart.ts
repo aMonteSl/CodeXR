@@ -120,7 +120,7 @@ export class CreateChart {
             ],
             htmlTemplate: `<!-- XR Analysis Boats Chart -->
                 <a-entity id="{{CHART_ID}}"
-                    babia-boats="from: data;
+                    babia-boats="from: tree;
                                  title: {{TITLE}};
                                  legend: true;
                                  legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};

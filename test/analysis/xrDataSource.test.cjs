@@ -126,13 +126,31 @@ test('all XR charts share the same chart-pedestal preset and the programmatic bo
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
-    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*minPlanarOccupancyRatio: 0\.62;[\s\S]*maxPlanarOccupancyRatio: 0\.84;[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: 0\.38;[\s\S]*heightBandMaxRatio: 0\.72;[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*stabilizationStablePasses: 3`;/);
+    assert.match(templateCharts, /export const XR_TABLE_BOOTSTRAP_PLANAR_MAX = 0\.84;/);
+    assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MIN = 1\.30;/);
+    assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MAX = 1\.35;/);
+    assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*bootstrapPlanarMaxRatio: \$\{XR_TABLE_BOOTSTRAP_PLANAR_MAX\};[\s\S]*minPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MIN\};[\s\S]*maxPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MAX\};[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: \$\{XR_TABLE_HEIGHT_BAND_MIN\};[\s\S]*heightBandMaxRatio: \$\{XR_TABLE_HEIGHT_BAND_MAX\};[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*stabilizationStablePasses: 3`;/);
 
     const matches = templateCharts.match(/codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
     assert.equal(matches.length, 8);
     assert.equal(templateCharts.includes('codexr-boats-pedestal'), false);
     assert.match(createChart, /UNIVERSAL_XR_TABLE_SETTINGS/);
     assert.match(createChart, /codexr-chart-pedestal="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/);
+    assert.match(createChart, /babia-boats="from: tree;/);
+});
+
+test('XR live SSE refresh lets Babia rebuild boats from refreshed sources instead of forcing a blind chart rebuild', () => {
+    const source = readProjectFile('templates', 'xr', 'sse', 'live_sse_fileXR.js');
+
+    assert.match(source, /const CHART_COMPONENT_TYPES = \[/);
+    assert.match(source, /'babia-boats'/);
+    assert.match(source, /function getChartEntities\(\)/);
+    assert.match(source, /function hasBoatsChart\(chartEntities\)/);
+    assert.match(source, /renormalizeChartPedestals\('analysis-updated'/);
+    assert.match(source, /renormalizeChartPedestals\('analysis-updated-boats-settled'/);
+    assert.match(source, /renormalizeChartPedestals\('dataRefresh-boats-settled'/);
+    assert.doesNotMatch(source, /removeAttribute\(type\)/);
+    assert.doesNotMatch(source, /babiaxraycasterclass/);
 });
 
 test('mapping UI triggers chart pedestal renormalization immediately and after geometry settles', () => {

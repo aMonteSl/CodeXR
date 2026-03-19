@@ -9,6 +9,12 @@ export const DEFAULT_BOATS_LEGEND_TEXT = `{name}
 {farea} (area): {area}
 {fcolor} (color): {color}`;
 
+export const XR_TABLE_BOOTSTRAP_PLANAR_MAX = 0.84;
+export const XR_TABLE_STEADY_PLANAR_MIN = 1.30;
+export const XR_TABLE_STEADY_PLANAR_MAX = 1.35;
+export const XR_TABLE_HEIGHT_BAND_MIN = 0.38;
+export const XR_TABLE_HEIGHT_BAND_MAX = 0.72;
+
 export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            anchorX: 0;
                                            anchorY: 1;
@@ -17,11 +23,12 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            targetWidth: 5.614;
                                            targetHeight: 1.8;
                                            targetDepth: 3.218;
-                                           minPlanarOccupancyRatio: 0.62;
-                                           maxPlanarOccupancyRatio: 0.84;
+                                           bootstrapPlanarMaxRatio: ${XR_TABLE_BOOTSTRAP_PLANAR_MAX};
+                                           minPlanarOccupancyRatio: ${XR_TABLE_STEADY_PLANAR_MIN};
+                                           maxPlanarOccupancyRatio: ${XR_TABLE_STEADY_PLANAR_MAX};
                                            minHeightOccupancyRatio: 0.45;
-                                           heightBandMinRatio: 0.38;
-                                           heightBandMaxRatio: 0.72;
+                                           heightBandMinRatio: ${XR_TABLE_HEIGHT_BAND_MIN};
+                                           heightBandMaxRatio: ${XR_TABLE_HEIGHT_BAND_MAX};
                                            tableEdgeMargin: 0.18;
                                            yScaleMin: 0.01;
                                            yScaleMax: 4;
