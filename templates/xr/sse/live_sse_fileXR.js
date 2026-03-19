@@ -125,7 +125,7 @@
             }
 
             setTimeout(() => {
-              const chartPedestalRuntime = window.CodeXRChartPedestalRuntime || window.CodeXRBoatsPedestalRuntime;
+              const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
               if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
                 const updated = chartPedestalRuntime.renormalizeAll('analysis-updated');
                 if (updated > 0) {
@@ -183,7 +183,7 @@
         });
 
         setTimeout(() => {
-          const chartPedestalRuntime = window.CodeXRChartPedestalRuntime || window.CodeXRBoatsPedestalRuntime;
+          const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
           if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
             const updated = chartPedestalRuntime.renormalizeAll('dataRefresh');
             if (updated > 0) {

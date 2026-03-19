@@ -3,11 +3,8 @@
 
   var AFRAME = root.AFRAME;
   var COMPONENT_NAME = 'codexr-chart-pedestal';
-  var LEGACY_COMPONENT_NAME = 'codexr-boats-pedestal';
   var RUNTIME_GLOBAL_NAME = 'CodeXRChartPedestalRuntime';
-  var LEGACY_RUNTIME_GLOBAL_NAME = 'CodeXRBoatsPedestalRuntime';
   var DEBUG_GLOBAL_NAME = 'CodeXRChartDebugBands';
-  var LEGACY_DEBUG_GLOBAL_NAME = 'CodeXRBoatsDebugBands';
   if (!AFRAME || !AFRAME.registerComponent || AFRAME.components[COMPONENT_NAME]) {
     return;
   }
@@ -46,9 +43,6 @@
     heightBandMaxRatio: 0.72,
     tableEdgeMargin: 0.18,
     buildingHeightBandEnabled: false,
-    buildingHeightMinTarget: 0,
-    buildingHeightMaxTarget: 0,
-    buildingHeightToleranceRatio: 0.08,
     yScaleMin: 0.01,
     yScaleMax: 4,
     containmentToleranceRatio: 0.018,
@@ -488,22 +482,6 @@
   }
 
   function resolveHeightBandTargets(data) {
-    var legacyMin = Number.isFinite(data.buildingHeightMinTarget) && data.buildingHeightMinTarget > 0
-      ? data.buildingHeightMinTarget
-      : null;
-    var legacyMax = Number.isFinite(data.buildingHeightMaxTarget) && data.buildingHeightMaxTarget > 0
-      ? data.buildingHeightMaxTarget
-      : null;
-
-    if (legacyMin && legacyMax && legacyMax > legacyMin) {
-      return {
-        minHeight: legacyMin,
-        maxHeight: legacyMax,
-        minRatio: legacyMin / Math.max(data.targetHeight, 0.0001),
-        maxRatio: legacyMax / Math.max(data.targetHeight, 0.0001)
-      };
-    }
-
     var minRatio = clamp(
       Number.isFinite(data.heightBandMinRatio) ? data.heightBandMinRatio : DEFAULTS.heightBandMinRatio,
       0.05,
@@ -771,9 +749,6 @@
       heightBandMaxRatio: { type: 'number', default: DEFAULTS.heightBandMaxRatio },
       tableEdgeMargin: { type: 'number', default: DEFAULTS.tableEdgeMargin },
       buildingHeightBandEnabled: { default: DEFAULTS.buildingHeightBandEnabled },
-      buildingHeightMinTarget: { type: 'number', default: DEFAULTS.buildingHeightMinTarget },
-      buildingHeightMaxTarget: { type: 'number', default: DEFAULTS.buildingHeightMaxTarget },
-      buildingHeightToleranceRatio: { type: 'number', default: DEFAULTS.buildingHeightToleranceRatio },
       yScaleMin: { type: 'number', default: DEFAULTS.yScaleMin },
       yScaleMax: { type: 'number', default: DEFAULTS.yScaleMax },
       containmentToleranceRatio: { type: 'number', default: DEFAULTS.containmentToleranceRatio },
@@ -1759,8 +1734,53 @@
   };
 
   AFRAME.registerComponent(COMPONENT_NAME, componentDefinition);
-  if (!AFRAME.components[LEGACY_COMPONENT_NAME]) {
-    AFRAME.registerComponent(LEGACY_COMPONENT_NAME, componentDefinition);
+  function getPedestalCharts(doc) {
+    if (!doc || !doc.querySelectorAll) {
+      return [];
+    }
+
+    var charts = doc.querySelectorAll('[' + COMPONENT_NAME + ']');
+    return Array.prototype.slice.call(charts || []);
+  }
+
+  function resolvePedestalComponentInfo(chartEl) {
+    if (!chartEl) {
+      return null;
+    }
+
+    var component = chartEl.components && chartEl.components[COMPONENT_NAME];
+    if (!component) {
+      return null;
+    }
+
+    return {
+      chartEl: chartEl,
+      component: component,
+      attrName: COMPONENT_NAME,
+      data: component.data || DEFAULTS
+    };
+  }
+
+  function buildScaleRangeSnapshot(data, chartCount) {
+    var source = data || DEFAULTS;
+    var min = Number.isFinite(source.minPlanarOccupancyRatio) ? source.minPlanarOccupancyRatio : DEFAULTS.minPlanarOccupancyRatio;
+    var max = Number.isFinite(source.maxPlanarOccupancyRatio) ? source.maxPlanarOccupancyRatio : DEFAULTS.maxPlanarOccupancyRatio;
+    var verticalMin = Number.isFinite(source.heightBandMinRatio) ? source.heightBandMinRatio : DEFAULTS.heightBandMinRatio;
+    var verticalMax = Number.isFinite(source.heightBandMaxRatio) ? source.heightBandMaxRatio : DEFAULTS.heightBandMaxRatio;
+
+    return {
+      charts: chartCount || 0,
+      min: min,
+      max: max,
+      planar: {
+        min: min,
+        max: max
+      },
+      vertical: {
+        min: verticalMin,
+        max: verticalMax
+      }
+    };
   }
 
   root[RUNTIME_GLOBAL_NAME] = root[RUNTIME_GLOBAL_NAME] || {};
@@ -1778,7 +1798,7 @@
       };
     }
 
-    var component = chartEl.components && (chartEl.components[COMPONENT_NAME] || chartEl.components[LEGACY_COMPONENT_NAME]);
+    var component = chartEl.components && chartEl.components[COMPONENT_NAME];
     if (!component || typeof component.getChartStatus !== 'function') {
       return {
         ready: false,
@@ -1790,16 +1810,82 @@
 
     return component.getChartStatus();
   };
+  root[RUNTIME_GLOBAL_NAME].getScaleRange = function () {
+    var doc = root.document;
+    var charts = getPedestalCharts(doc);
+    if (charts.length === 0) {
+      return buildScaleRangeSnapshot(DEFAULTS, 0);
+    }
+
+    var info = resolvePedestalComponentInfo(charts[0]);
+    return buildScaleRangeSnapshot(info ? info.data : DEFAULTS, charts.length);
+  };
+  root[RUNTIME_GLOBAL_NAME].setScaleRange = function (min, max) {
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      throw new Error('Scale range values must be finite numbers.');
+    }
+    if (min <= 0 || max <= 0) {
+      throw new Error('Scale range values must be greater than zero.');
+    }
+    if (max <= min) {
+      throw new Error('The maximum scale range value must be greater than the minimum.');
+    }
+
+    var doc = root.document;
+    var charts = getPedestalCharts(doc);
+    charts.forEach(function (chartEl) {
+      var info = resolvePedestalComponentInfo(chartEl);
+      if (!info || !chartEl.getAttribute || !chartEl.setAttribute) {
+        return;
+      }
+
+      var currentAttr = chartEl.getAttribute(info.attrName);
+      var nextAttr = {};
+
+      if (typeof currentAttr === 'string') {
+        nextAttr = {
+          minPlanarOccupancyRatio: min,
+          maxPlanarOccupancyRatio: max,
+          heightBandMinRatio: min,
+          heightBandMaxRatio: max
+        };
+      } else if (currentAttr && typeof currentAttr === 'object') {
+        Object.keys(currentAttr).forEach(function (key) {
+          nextAttr[key] = currentAttr[key];
+        });
+        nextAttr.minPlanarOccupancyRatio = min;
+        nextAttr.maxPlanarOccupancyRatio = max;
+        nextAttr.heightBandMinRatio = min;
+        nextAttr.heightBandMaxRatio = max;
+      } else {
+        nextAttr = {
+          minPlanarOccupancyRatio: min,
+          maxPlanarOccupancyRatio: max,
+          heightBandMinRatio: min,
+          heightBandMaxRatio: max
+        };
+      }
+
+      chartEl.setAttribute(info.attrName, nextAttr);
+    });
+
+    return buildScaleRangeSnapshot({
+      minPlanarOccupancyRatio: min,
+      maxPlanarOccupancyRatio: max,
+      heightBandMinRatio: min,
+      heightBandMaxRatio: max
+    }, charts.length);
+  };
   root[RUNTIME_GLOBAL_NAME].renormalizeAll = function (reason) {
     var doc = root.document;
     if (!doc || !doc.querySelectorAll) {
       return 0;
     }
 
-    var charts = doc.querySelectorAll('[' + COMPONENT_NAME + '],[' + LEGACY_COMPONENT_NAME + ']');
+    var charts = doc.querySelectorAll('[' + COMPONENT_NAME + ']');
     var count = 0;
     charts.forEach(function (chartEl) {
-      var component = chartEl.components && (chartEl.components[COMPONENT_NAME] || chartEl.components[LEGACY_COMPONENT_NAME]);
+      var component = chartEl.components && chartEl.components[COMPONENT_NAME];
       if (component && typeof component.renormalize === 'function') {
         component.renormalize(reason || 'runtime-request');
         count += 1;
@@ -1836,8 +1922,6 @@
     collectNonFiniteValueIssues: collectNonFiniteValueIssues,
     inspectInvalidAxisState: inspectInvalidAxisState
   };
-  root[LEGACY_RUNTIME_GLOBAL_NAME] = root[RUNTIME_GLOBAL_NAME];
-
   root[DEBUG_GLOBAL_NAME] = root[DEBUG_GLOBAL_NAME] || {
     _els: [],
 
@@ -1870,7 +1954,7 @@
         return null;
       }
 
-      var component = chart.components && (chart.components[COMPONENT_NAME] || chart.components[LEGACY_COMPONENT_NAME]);
+      var component = chart.components && chart.components[COMPONENT_NAME];
       if (!component) {
         console.warn('[CodeXR][ChartBands] chart pedestal component not found on target.');
         return null;
@@ -1966,5 +2050,4 @@
       return true;
     }
   };
-  root[LEGACY_DEBUG_GLOBAL_NAME] = root[DEBUG_GLOBAL_NAME];
 })(typeof window !== 'undefined' ? window : this);

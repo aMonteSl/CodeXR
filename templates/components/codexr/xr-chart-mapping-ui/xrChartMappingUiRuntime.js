@@ -477,7 +477,7 @@
 
   function inspectChartStatus(config) {
     var chartEntity = getChartEntity(config);
-    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime || root.CodeXRBoatsPedestalRuntime;
+    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime;
     if (!chartEntity) {
       return { ready: false, valid: false, reason: 'chart-not-found' };
     }
@@ -565,7 +565,7 @@
   }
 
   function requestChartPedestalRenormalize(reason) {
-    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime || root.CodeXRBoatsPedestalRuntime;
+    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime;
     if (!chartPedestalRuntime || typeof chartPedestalRuntime.renormalizeAll !== 'function') {
       return;
     }

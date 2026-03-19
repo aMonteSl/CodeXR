@@ -44,15 +44,13 @@ function loadRuntimeSandbox() {
         sandbox,
         runtime: sandbox.CodeXRChartPedestalRuntime,
         componentDefinition: registered['codexr-chart-pedestal'],
-        legacyComponentDefinition: registered['codexr-boats-pedestal'],
     };
 }
 
-test('chart pedestal runtime registers the generic component name and preserves the legacy alias', () => {
-    const { componentDefinition, legacyComponentDefinition } = loadRuntimeSandbox();
+test('chart pedestal runtime registers only the generic component name', () => {
+    const { componentDefinition } = loadRuntimeSandbox();
 
     assert.ok(componentDefinition);
-    assert.ok(legacyComponentDefinition);
     assert.ok(componentDefinition.schema.maxPlanarOccupancyRatio);
     assert.ok(componentDefinition.schema.tableEdgeMargin);
     assert.ok(componentDefinition.schema.stabilizationCheckMs);
@@ -65,6 +63,8 @@ test('chart pedestal runtime exposes manual debug controls under the generic run
 
     assert.ok(runtime);
     assert.equal(typeof runtime.getChartStatus, 'function');
+    assert.equal(typeof runtime.getScaleRange, 'function');
+    assert.equal(typeof runtime.setScaleRange, 'function');
     assert.equal(runtime.isDebugEnabled(), false);
     runtime.enableDebug();
     assert.equal(runtime.isDebugEnabled(), true);
@@ -72,7 +72,6 @@ test('chart pedestal runtime exposes manual debug controls under the generic run
     assert.equal(runtime.isDebugEnabled(), false);
     runtime.setDebug(true);
     assert.equal(runtime.isDebugEnabled(), true);
-    assert.equal(sandbox.CodeXRBoatsPedestalRuntime, runtime);
 });
 
 test('chart pedestal helper ignores auxiliary bounds metadata and keeps content helpers available', () => {
@@ -114,15 +113,6 @@ test('chart pedestal helper computes universal planar fit and height band target
     assert.equal(ratioTargets.minRatio, 0.4);
     assert.equal(ratioTargets.maxRatio, 0.7);
 
-    const legacyTargets = helpers.resolveHeightBandTargets({
-        targetHeight: 2,
-        buildingHeightMinTarget: 0.5,
-        buildingHeightMaxTarget: 1.25,
-    });
-    assert.equal(legacyTargets.minHeight, 0.5);
-    assert.equal(legacyTargets.maxHeight, 1.25);
-    assert.equal(legacyTargets.minRatio, 0.25);
-    assert.equal(legacyTargets.maxRatio, 0.625);
 });
 
 test('chart pedestal helper clamps height band scale and builds stable measurement signatures', () => {
@@ -319,4 +309,74 @@ test('chart pedestal runtime tracks normalization generations for retry cancella
     assert.match(runtimeSource, /var initialPlanarBand = computePlanarBandScale\(initialMeasurements\.primary, initialMeasurements\.containment, this\.data\);/);
     assert.match(runtimeSource, /el\.object3D\.scale\.set\(nextPlanarScale, el\.object3D\.scale\.y, nextPlanarScale\);/);
     assert.match(runtimeSource, /restoreTransform\(el\.object3D, previousTransform\);/);
+});
+
+test('chart pedestal runtime reads and updates the shared scale range for active charts', () => {
+    const { runtime, sandbox } = loadRuntimeSandbox();
+
+    const chartAttributes = {
+        'codexr-chart-pedestal': {
+            minPlanarOccupancyRatio: 0.62,
+            maxPlanarOccupancyRatio: 0.84,
+            heightBandMinRatio: 0.38,
+            heightBandMaxRatio: 0.72,
+        },
+    };
+    const chartEl = {
+        components: {
+            'codexr-chart-pedestal': {
+                data: chartAttributes['codexr-chart-pedestal'],
+            },
+        },
+        hasAttribute(name) {
+            return Object.prototype.hasOwnProperty.call(chartAttributes, name);
+        },
+        getAttribute(name) {
+            return chartAttributes[name] || null;
+        },
+        setAttribute(name, value) {
+            chartAttributes[name] = value;
+            this.components['codexr-chart-pedestal'].data = value;
+        },
+    };
+
+    sandbox.document = {
+        querySelectorAll(selector) {
+            assert.equal(selector, '[codexr-chart-pedestal]');
+            return [chartEl];
+        },
+    };
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
+        charts: 1,
+        min: 0.62,
+        max: 0.84,
+        planar: { min: 0.62, max: 0.84 },
+        vertical: { min: 0.38, max: 0.72 },
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.setScaleRange(0.7, 0.9))), {
+        charts: 1,
+        min: 0.7,
+        max: 0.9,
+        planar: { min: 0.7, max: 0.9 },
+        vertical: { min: 0.7, max: 0.9 },
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-pedestal'])), {
+        minPlanarOccupancyRatio: 0.7,
+        maxPlanarOccupancyRatio: 0.9,
+        heightBandMinRatio: 0.7,
+        heightBandMaxRatio: 0.9,
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
+        charts: 1,
+        min: 0.7,
+        max: 0.9,
+        planar: { min: 0.7, max: 0.9 },
+        vertical: { min: 0.7, max: 0.9 },
+    });
+
+    assert.throws(() => runtime.setScaleRange(0.9, 0.7), /maximum/i);
 });
