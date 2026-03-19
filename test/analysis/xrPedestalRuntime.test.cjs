@@ -47,296 +47,306 @@ function loadRuntimeSandbox() {
     };
 }
 
-test('chart pedestal runtime registers only the generic component name', () => {
+test('chart pedestal runtime registers the rectangular bootstrap and steady-state schema', () => {
     const { componentDefinition } = loadRuntimeSandbox();
 
     assert.ok(componentDefinition);
+    assert.ok(componentDefinition.schema.bootstrapPlanarMaxRatio);
+    assert.ok(componentDefinition.schema.minPlanarOccupancyRatio);
     assert.ok(componentDefinition.schema.maxPlanarOccupancyRatio);
+    assert.ok(componentDefinition.schema.heightBandMinRatio);
+    assert.ok(componentDefinition.schema.heightBandMaxRatio);
     assert.ok(componentDefinition.schema.tableEdgeMargin);
-    assert.ok(componentDefinition.schema.stabilizationCheckMs);
-    assert.ok(componentDefinition.schema.stabilizationMaxChecks);
-    assert.ok(componentDefinition.schema.stabilizationStablePasses);
 });
 
-test('chart pedestal runtime exposes manual debug controls under the generic runtime API', () => {
-    const { runtime, sandbox } = loadRuntimeSandbox();
+test('chart pedestal runtime exposes the rebuilt scale policy API', () => {
+    const { runtime } = loadRuntimeSandbox();
 
     assert.ok(runtime);
     assert.equal(typeof runtime.getChartStatus, 'function');
     assert.equal(typeof runtime.getScaleRange, 'function');
     assert.equal(typeof runtime.setScaleRange, 'function');
-    assert.equal(runtime.isDebugEnabled(), false);
-    runtime.enableDebug();
-    assert.equal(runtime.isDebugEnabled(), true);
-    runtime.disableDebug();
-    assert.equal(runtime.isDebugEnabled(), false);
-    runtime.setDebug(true);
-    assert.equal(runtime.isDebugEnabled(), true);
+    assert.equal(typeof runtime.getScalePolicy, 'function');
+    assert.equal(typeof runtime.setHeightBand, 'function');
 });
 
-test('chart pedestal helper ignores auxiliary bounds metadata and keeps content helpers available', () => {
+test('chart pedestal helper keeps ignoring auxiliary content and containment metadata', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
 
     assert.equal(helpers.matchesIgnoredBoundsMeta({ tagName: 'a-text' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ className: 'chart-legend panel' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ nodeName: 'axis-tick-label' }), true);
-    assert.equal(helpers.matchesIgnoredBoundsMeta({ attributeNames: 'babia-label data-ready' }), true);
     assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ nodeName: 'axis-tick-line' }), false);
     assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ className: 'chart-legend panel' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ id: 'chart-body', className: 'mesh' }), false);
-    assert.match(runtimeSource, /function buildContentBounds\(three, object3D\)/);
-    assert.match(runtimeSource, /function buildContainmentBounds\(three, object3D\)/);
-    assert.match(runtimeSource, /function buildRenderableBounds\(three, object3D\)/);
-    assert.match(runtimeSource, /function shouldUseContentBounds\(contentBounds, fullBounds\)/);
-    assert.match(runtimeSource, /function inspectInvalidAxisState\(chartEl\)/);
-    assert.match(runtimeSource, /resizeTrace\('invalid-axis-length-detected'/);
-    assert.match(runtimeSource, /this\.lastNormalizationIssue = null;/);
-    assert.match(runtimeSource, /this\.lastSuccessfulNormalizeAt = 0;/);
-    assert.doesNotMatch(runtimeSource, /applyAuxiliaryVisualCompensation: function \(\)/);
-    assert.doesNotMatch(runtimeSource, /codexrAuxiliaryCompensation/);
 });
 
-test('chart pedestal helper computes universal planar fit and height band targets', () => {
+test('bootstrap planar fit only guarantees visibility and containment', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
 
-    assert.equal(helpers.computePlanarFitFactor({ x: 10, z: 5 }, 5, 5), 0.5);
+    const bootstrap = helpers.computeBootstrapPlanarScale(
+        {
+            size: { x: 6.2, y: 1, z: 2.6 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -3.1, y: 0, z: -1.3 }, max: { x: 3.1, y: 1, z: 1.3 } },
+        },
+        {
+            size: { x: 6.4, y: 1.2, z: 2.8 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -3.2, y: 0, z: -1.4 }, max: { x: 3.2, y: 1.2, z: 1.4 } },
+        },
+        {
+            targetWidth: 5.614,
+            targetDepth: 3.218,
+            bootstrapPlanarMaxRatio: 0.84,
+            pedestalTopPadding: 0.9,
+            tableEdgeMargin: 0.18,
+        },
+    );
 
-    const ratioTargets = helpers.resolveHeightBandTargets({
-        targetHeight: 2,
-        heightBandMinRatio: 0.4,
-        heightBandMaxRatio: 0.7,
-    });
-    assert.equal(ratioTargets.minHeight, 0.8);
-    assert.equal(ratioTargets.maxHeight, 1.4);
-    assert.equal(ratioTargets.minRatio, 0.4);
-    assert.equal(ratioTargets.maxRatio, 0.7);
-
+    assert.ok(bootstrap);
+    assert.ok(bootstrap.xFactor < 1);
+    assert.ok(bootstrap.zFactor <= 1);
+    assert.equal(bootstrap.reason, 'bootstrap-containment');
 });
 
-test('chart pedestal helper clamps height band scale and builds stable measurement signatures', () => {
+test('steady planar fit adjusts X and Z independently for a rectangular table', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const helpers = runtime.__testing;
+
+    const planarBand = helpers.computePlanarBandScale(
+        {
+            size: { x: 3, y: 1, z: 4.6 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -1.5, y: 0, z: -2.3 }, max: { x: 1.5, y: 1, z: 2.3 } },
+        },
+        {
+            size: { x: 3.2, y: 1.2, z: 4.8 },
+            center: { x: 0, y: 0, z: 0 },
+            bounds: { min: { x: -1.6, y: 0, z: -2.4 }, max: { x: 1.6, y: 1.2, z: 2.4 } },
+        },
+        {
+            targetWidth: 5.614,
+            targetDepth: 3.218,
+            minPlanarOccupancyRatio: 1.30,
+            maxPlanarOccupancyRatio: 1.35,
+            pedestalTopPadding: 0.9,
+            tableEdgeMargin: 0.18,
+        },
+    );
+
+    assert.ok(planarBand);
+    assert.ok(planarBand.xFactor > 1);
+    assert.ok(planarBand.zFactor < 1);
+    assert.notEqual(planarBand.xFactor, planarBand.zFactor);
+    assert.equal(planarBand.compromised, false);
+});
+
+test('height band scale remains independent from the planar scale policy', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
 
     const upscale = helpers.computeHeightBandScale(0.4, 1, { minHeight: 0.8, maxHeight: 1.5 }, 0.01, 4);
+    const downscale = helpers.computeHeightBandScale(2, 1, { minHeight: 0.8, maxHeight: 1.5 }, 0.01, 4);
+
     assert.equal(upscale.changed, true);
     assert.equal(upscale.targetY, 2);
-
-    const downscale = helpers.computeHeightBandScale(2, 1, { minHeight: 0.8, maxHeight: 1.5 }, 0.01, 4);
     assert.equal(downscale.changed, true);
     assert.equal(downscale.targetY, 0.75);
-
-    const signature = helpers.buildMeasurementSignature(
-        {
-            primary: { size: { x: 1, y: 2, z: 3 } },
-            containment: { size: { x: 3.5, y: 4.5, z: 5.5 } },
-            full: { size: { x: 4, y: 5, z: 6 } },
-            peakHeight: 1.25,
-        },
-        {
-            scale: { x: 0.5, y: 0.75, z: 1.25 },
-            position: { x: 7, y: 8, z: 9 },
-        },
-    );
-
-    assert.equal(signature, '1|2|3|3.5|4.5|5.5|4|5|6|1.25|0.5|0.75|1.25|7|8|9');
 });
 
-test('chart pedestal helper computes planar band scaling from content range and containment limits', () => {
+test('steady target helpers aim for the midpoint of each band instead of the edges', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
 
-    const upscale = helpers.computePlanarBandScale(
-        {
-            size: { x: 0.8, y: 1, z: 0.8 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -0.4, y: 0, z: -0.4 }, max: { x: 0.4, y: 1, z: 0.4 } },
-        },
-        {
-            size: { x: 1, y: 1.2, z: 1 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -0.5, y: 0, z: -0.5 }, max: { x: 0.5, y: 1.2, z: 0.5 } },
-        },
-        {
-            targetWidth: 5,
-            targetDepth: 5,
-            minPlanarOccupancyRatio: 0.62,
-            maxPlanarOccupancyRatio: 0.84,
-            pedestalTopPadding: 0.9,
-            tableEdgeMargin: 0.18,
-        },
+    const planarTarget = helpers.computePlanarAxisTargetScale(
+        5,
+        5.2,
+        1,
+        5,
+        7,
+        { min: 1.30, max: 1.35 },
+        0.018,
+    );
+    const verticalTarget = helpers.computeHeightBandTargetScale(
+        0.6,
+        1,
+        { minHeight: 0.8, maxHeight: 1.4 },
+        0.01,
+        4,
     );
 
-    assert.equal(upscale.reason, 'upscale-minimum');
-    assert.equal(upscale.compromised, false);
-    assert.equal(upscale.factor, 3.875);
-
-    const downscale = helpers.computePlanarBandScale(
-        {
-            size: { x: 5.5, y: 1, z: 5 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -2.75, y: 0, z: -2.5 }, max: { x: 2.75, y: 1, z: 2.5 } },
-        },
-        {
-            size: { x: 5.8, y: 1.2, z: 5.4 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -2.9, y: 0, z: -2.7 }, max: { x: 2.9, y: 1.2, z: 2.7 } },
-        },
-        {
-            targetWidth: 5,
-            targetDepth: 5,
-            minPlanarOccupancyRatio: 0.62,
-            maxPlanarOccupancyRatio: 0.84,
-            pedestalTopPadding: 0.9,
-            tableEdgeMargin: 0.18,
-        },
-    );
-
-    assert.equal(downscale.reason, 'downscale-range');
-    assert.equal(downscale.compromised, false);
-    assert.ok(Math.abs(downscale.factor - 0.7636363636363637) < 1e-12);
+    assert.ok(planarTarget);
+    assert.ok(Math.abs(planarTarget.setpointRatio - 1.325) < 1e-12);
+    assert.ok(planarTarget.targetScale > 1);
+    assert.ok(verticalTarget);
+    assert.equal(verticalTarget.setpointHeight, 1.1);
+    assert.ok(verticalTarget.targetScale > 1);
 });
 
-test('chart pedestal helper computes containment clamp and content peak height', () => {
+test('pid helper advances scale progressively instead of jumping straight to the target', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
+    const axisState = helpers.createPidAxisState();
 
-    const containmentLimit = helpers.computeContainmentPlanarLimit(
-        {
-            size: { x: 5.8, y: 1.2, z: 5.4 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -2.9, y: 0, z: -2.7 }, max: { x: 2.9, y: 1.2, z: 2.7 } },
-        },
-        {
-            targetWidth: 5,
-            targetDepth: 5,
-            pedestalTopPadding: 0.9,
-            tableEdgeMargin: 0.18,
-        },
+    const step = helpers.stepPidAxis(
+        axisState,
+        1,
+        2,
+        1 / 60,
+        helpers.PID_PROFILE.planar,
     );
 
-    assert.ok(Math.abs(containmentLimit.factor - 0.9551724137931035) < 1e-12);
-    assert.ok(Math.abs(containmentLimit.containmentWidthLimit - 5.54) < 1e-12);
-    assert.ok(Math.abs(containmentLimit.containmentDepthLimit - 5.54) < 1e-12);
-
-    const peakHeight = helpers.computePeakHeight(
-        {
-            size: { x: 1, y: 2, z: 1 },
-            center: { x: 0, y: 2, z: 0 },
-            bounds: { min: { x: -0.5, y: 1.03, z: -0.5 }, max: { x: 0.5, y: 2.43, z: 0.5 } },
-        },
-        {
-            anchorY: 1,
-            revealOffsetY: 0.03,
-        },
-    );
-
-    assert.ok(Math.abs(peakHeight - 1.4) < 1e-12);
+    assert.equal(step.changed, true);
+    assert.equal(step.stable, false);
+    assert.ok(step.nextValue > 1);
+    assert.ok(step.nextValue < 2);
 });
 
-test('chart pedestal helper computes anchor placement as a delta from measured world bounds', () => {
-    const { runtime } = loadRuntimeSandbox();
-    const helpers = runtime.__testing;
-
-    const offset = helpers.computeAnchorOffset(
-        {
-            primary: {
-                center: { x: 4, y: 2, z: -11 },
-                size: { x: 3, y: 1, z: 2 },
-                bounds: { min: { x: 2.5, y: 1.5, z: -12 }, max: { x: 5.5, y: 2.5, z: -10 } },
-            },
-            full: {
-                center: { x: 4.2, y: 2.2, z: -10.4 },
-                size: { x: 4, y: 2, z: 3 },
-                bounds: { min: { x: 2.2, y: 0.9, z: -11.9 }, max: { x: 6.2, y: 2.9, z: -8.9 } },
-            },
-        },
-        {
-            anchorX: 0,
-            anchorY: 1,
-            anchorZ: -18,
-            revealOffsetY: 0.03,
-        },
-    );
-
-    assert.equal(offset.deltaX, -4);
-    assert.equal(offset.deltaY, 0.13);
-    assert.equal(offset.deltaZ, -7);
-});
-
-test('chart pedestal helper detects non-finite axis values from Babia-driven descendants', () => {
-    const { runtime } = loadRuntimeSandbox();
-    const helpers = runtime.__testing;
-
-    const issues = helpers.collectNonFiniteValueIssues({ maxValue: '-Infinity', nested: { safe: 1 } }, 'axis', [], 0);
-    assert.equal(Array.isArray(issues), true);
-    assert.equal(issues.length, 1);
-    assert.equal(issues[0].path, 'axis.maxValue');
-    assert.equal(issues[0].value, '-Infinity');
-
-    const fakeChart = {
-        querySelectorAll(selector) {
-            if (selector !== '[babia-axis-x]') {
-                return [];
-            }
-            return [{
-                id: 'x-axis',
-                getAttribute(name) {
-                    if (name === 'babia-axis-x') {
-                        return { maxValue: '-Infinity', length: 5 };
-                    }
-                    return null;
-                },
-                components: {},
-            }];
-        },
-    };
-
-    const issue = helpers.inspectInvalidAxisState(fakeChart);
-    assert.equal(issue.reason, 'invalid-axis-length');
-    assert.equal(issue.attribute, 'babia-axis-x');
-    assert.equal(issue.elementId, 'x-axis');
-});
-
-test('chart pedestal runtime tracks normalization generations for retry cancellation', () => {
-    assert.match(runtimeSource, /this\.normalizationGeneration = 0;/);
-    assert.match(runtimeSource, /this\.lastStableTransform = null;/);
-    assert.match(runtimeSource, /bumpNormalizationGeneration: function \(\)/);
-    assert.match(runtimeSource, /isCurrentGeneration: function \(generation\)/);
-    assert.match(runtimeSource, /if \(!this\.isCurrentGeneration\(generation\)\) \{/);
-    assert.match(runtimeSource, /var previousTransform = cloneTransform\(el\.object3D\) \|\| this\.lastStableTransform;/);
-    assert.match(runtimeSource, /var initialPlanarBand = computePlanarBandScale\(initialMeasurements\.primary, initialMeasurements\.containment, this\.data\);/);
-    assert.match(runtimeSource, /el\.object3D\.scale\.set\(nextPlanarScale, el\.object3D\.scale\.y, nextPlanarScale\);/);
-    assert.match(runtimeSource, /restoreTransform\(el\.object3D, previousTransform\);/);
-});
-
-test('chart pedestal runtime reads and updates the shared scale range for active charts', () => {
+test('runtime scale commands update planar and vertical policy independently', () => {
     const { runtime, sandbox } = loadRuntimeSandbox();
 
     const chartAttributes = {
         'codexr-chart-pedestal': {
-            minPlanarOccupancyRatio: 0.62,
-            maxPlanarOccupancyRatio: 0.84,
+            bootstrapPlanarMaxRatio: 0.84,
+            minPlanarOccupancyRatio: 1.30,
+            maxPlanarOccupancyRatio: 1.35,
             heightBandMinRatio: 0.38,
             heightBandMaxRatio: 0.72,
         },
     };
+
+    const component = {
+        data: chartAttributes['codexr-chart-pedestal'],
+        getChartStatus() {
+            return {
+                ready: true,
+                valid: true,
+                reason: 'ok',
+            };
+        },
+        renormalize() {},
+    };
+
     const chartEl = {
         components: {
-            'codexr-chart-pedestal': {
-                data: chartAttributes['codexr-chart-pedestal'],
-            },
-        },
-        hasAttribute(name) {
-            return Object.prototype.hasOwnProperty.call(chartAttributes, name);
+            'codexr-chart-pedestal': component,
         },
         getAttribute(name) {
             return chartAttributes[name] || null;
         },
         setAttribute(name, value) {
             chartAttributes[name] = value;
-            this.components['codexr-chart-pedestal'].data = value;
+            component.data = value;
+        },
+    };
+
+    sandbox.document = {
+        querySelector(selector) {
+            assert.equal(selector, '[codexr-chart-pedestal]');
+            return chartEl;
+        },
+        querySelectorAll(selector) {
+            assert.equal(selector, '[codexr-chart-pedestal]');
+            return [chartEl];
+        },
+    };
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
+        charts: 1,
+        min: 1.30,
+        max: 1.35,
+        planar: { min: 1.30, max: 1.35 },
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScalePolicy())), {
+        charts: 1,
+        bootstrap: { max: 0.84 },
+        steady: { min: 1.30, max: 1.35 },
+        vertical: { min: 0.38, max: 0.72 },
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.setScaleRange(1.31, 1.36))), {
+        charts: 1,
+        min: 1.31,
+        max: 1.36,
+        planar: { min: 1.31, max: 1.36 },
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-pedestal'])), {
+        bootstrapPlanarMaxRatio: 0.84,
+        minPlanarOccupancyRatio: 1.31,
+        maxPlanarOccupancyRatio: 1.36,
+        heightBandMinRatio: 0.38,
+        heightBandMaxRatio: 0.72,
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.setHeightBand(0.4, 0.68))), {
+        charts: 1,
+        bootstrap: { max: 0.84 },
+        steady: { min: 1.31, max: 1.36 },
+        vertical: { min: 0.4, max: 0.68 },
+    });
+
+    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-pedestal'])), {
+        bootstrapPlanarMaxRatio: 0.84,
+        minPlanarOccupancyRatio: 1.31,
+        maxPlanarOccupancyRatio: 1.36,
+        heightBandMinRatio: 0.4,
+        heightBandMaxRatio: 0.68,
+    });
+});
+
+test('getChartStatus falls back to the first active chart when no selector is provided', () => {
+    const { runtime, sandbox } = loadRuntimeSandbox();
+    const chartEl = {
+        components: {
+            'codexr-chart-pedestal': {
+                getChartStatus() {
+                    return {
+                        ready: true,
+                        valid: true,
+                        reason: 'ok',
+                        details: { phase: 'steady-fit' },
+                    };
+                },
+            },
+        },
+    };
+
+    sandbox.document = {
+        querySelector() {
+            return null;
+        },
+        querySelectorAll(selector) {
+            assert.equal(selector, '[codexr-chart-pedestal]');
+            return [chartEl];
+        },
+    };
+
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.getChartStatus())), {
+        ready: true,
+        valid: true,
+        reason: 'ok',
+        details: { phase: 'steady-fit' },
+    });
+});
+
+test('getScaleRange keeps the steady planar range separate from the vertical band policy', () => {
+    const { runtime, sandbox } = loadRuntimeSandbox();
+    const chartEl = {
+        components: {
+            'codexr-chart-pedestal': {
+                data: {
+                    bootstrapPlanarMaxRatio: 0.84,
+                    minPlanarOccupancyRatio: 1.30,
+                    maxPlanarOccupancyRatio: 1.35,
+                    heightBandMinRatio: 0.38,
+                    heightBandMaxRatio: 0.72,
+                },
+            },
         },
     };
 
@@ -349,34 +359,22 @@ test('chart pedestal runtime reads and updates the shared scale range for active
 
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
         charts: 1,
-        min: 0.62,
-        max: 0.84,
-        planar: { min: 0.62, max: 0.84 },
-        vertical: { min: 0.38, max: 0.72 },
+        min: 1.30,
+        max: 1.35,
+        planar: { min: 1.30, max: 1.35 },
     });
+});
 
-    assert.deepEqual(JSON.parse(JSON.stringify(runtime.setScaleRange(0.7, 0.9))), {
-        charts: 1,
-        min: 0.7,
-        max: 0.9,
-        planar: { min: 0.7, max: 0.9 },
-        vertical: { min: 0.7, max: 0.9 },
-    });
-
-    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-pedestal'])), {
-        minPlanarOccupancyRatio: 0.7,
-        maxPlanarOccupancyRatio: 0.9,
-        heightBandMinRatio: 0.7,
-        heightBandMaxRatio: 0.9,
-    });
-
-    assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
-        charts: 1,
-        min: 0.7,
-        max: 0.9,
-        planar: { min: 0.7, max: 0.9 },
-        vertical: { min: 0.7, max: 0.9 },
-    });
-
-    assert.throws(() => runtime.setScaleRange(0.9, 0.7), /maximum/i);
+test('runtime source reflects the render-first phase controller and geometry-ready hooks', () => {
+    assert.match(runtimeSource, /this\.renderPhase = 'waiting-geometry';/);
+    assert.match(runtimeSource, /this\.renderPhase = 'bootstrap-visible';/);
+    assert.match(runtimeSource, /this\.activateSteadyController\(\);/);
+    assert.match(runtimeSource, /runSteadyControllerStep: function \(source, dtMs\)/);
+    assert.match(runtimeSource, /stepPidAxis\(this\.pidController\.axes\.x/);
+    assert.match(runtimeSource, /this\.el\.addEventListener\('child-attached', this\.onGeometryReadyBound\);/);
+    assert.match(runtimeSource, /this\.el\.addEventListener\('object3dset', this\.onGeometryReadyBound\);/);
+    assert.match(runtimeSource, /this\.renderPhase === 'steady-fit'/);
+    assert.match(runtimeSource, /markWaitingGeometry: function \(reason, generation, details\)/);
+    assert.doesNotMatch(runtimeSource, /heightBandMinRatio: min,\s*heightBandMaxRatio: max/);
+    assert.match(runtimeSource, /setHeightBand = function \(min, max\)/);
 });

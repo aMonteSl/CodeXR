@@ -3,6 +3,16 @@
 
     const eventSource = new EventSource('/events');
     let isXRMode = false;
+    const CHART_COMPONENT_TYPES = [
+      'babia-bars',
+      'babia-barsmap',
+      'babia-boats',
+      'babia-cyls',
+      'babia-cylsmap',
+      'babia-pie',
+      'babia-doughnut',
+      'babia-bubbles'
+    ];
 
     // Check if we're in an A-Frame scene
     function checkXRMode() {
@@ -12,6 +22,41 @@
     }
 
     document.addEventListener('DOMContentLoaded', checkXRMode);
+
+    function getChartEntities() {
+      const unique = new Set();
+      CHART_COMPONENT_TYPES.forEach(type => {
+        document.querySelectorAll('[' + type + ']').forEach(chartEntity => unique.add(chartEntity));
+      });
+      return Array.from(unique);
+    }
+
+    function hasBoatsChart(chartEntities) {
+      return chartEntities.some(chartEntity => chartEntity && chartEntity.hasAttribute && chartEntity.hasAttribute('babia-boats'));
+    }
+
+    function restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState) {
+      if (mappingUiRuntime && mappingUiState && typeof mappingUiRuntime.restoreState === 'function') {
+        mappingUiRuntime.restoreState(mappingUiState);
+      }
+      if (chartDebugRuntime && chartDebugState && typeof chartDebugRuntime.restoreState === 'function') {
+        chartDebugRuntime.restoreState(chartDebugState);
+      }
+    }
+
+    function renormalizeChartPedestals(reason, mappingUiRuntime) {
+      const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
+      if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
+        const updated = chartPedestalRuntime.renormalizeAll(reason);
+        if (updated > 0) {
+          console.log('🛟 Re-normalized chart pedestal visualizations:', updated);
+        }
+      }
+
+      if (mappingUiRuntime && typeof mappingUiRuntime.refreshAdaptivePlacement === 'function') {
+        mappingUiRuntime.refreshAdaptivePlacement();
+      }
+    }
 
     eventSource.onopen = function() {
       console.log('🟢 EventSource connection established');
@@ -38,18 +83,8 @@
       dataEntities = [...dataEntities, ...document.querySelectorAll('#data')];
       dataEntities = [...dataEntities, ...document.querySelectorAll('[babia-queryjson]')];
       
-      // Find chart entities using all provided selectors
-      let chartEntities = [];
-      
-      chartEntities = [...chartEntities, ...document.querySelectorAll('#chart')];
-      chartEntities = [...chartEntities, ...document.querySelectorAll('[babia-bars]')];
-      chartEntities = [...chartEntities, ...document.querySelectorAll('[babia-boats]')];
-      chartEntities = [...chartEntities, ...document.querySelectorAll('[babia-cylinders]')];
-      chartEntities = [...chartEntities, ...document.querySelectorAll('[babia-pie]')];
-      chartEntities = [...chartEntities, ...document.querySelectorAll('[babia-donut]')];
-      chartEntities = [...chartEntities, ...document.querySelectorAll('[babia-barsmap]')];
-      // Add class babiaxraycasterclass
-      chartEntities = [...chartEntities, ...document.querySelectorAll('.babiaxraycasterclass')];
+      const chartEntities = getChartEntities();
+      const containsBoatsChart = hasBoatsChart(chartEntities);
 
       // Preserve custom mapping UI state across chart component rebuilds
       const mappingUiRuntime = window.CodeXRMappingUiRuntime;
@@ -95,50 +130,18 @@
           }
         });
 
-        // Rebuild charts after data is loaded
+        // Let Babia rebuild from refreshed data/tree sources and only renormalize after the source pipeline settles.
         setTimeout(() => {
-          chartEntities.forEach(chartEntity => {
-            // Find which component type is used
-            // Add chart class babiaxraycasterclass
-            for (const type of ["babia-bars","babia-boats","babia-cylinders","babia-pie","babia-donut","babia-barsmap", "babiaxraycasterclass"]) {
-              if (chartEntity.hasAttribute(type)) {
-                const attributes = chartEntity.getAttribute(type);
-                console.log('🔄 Rebuilding ' + type + ' chart');
-                
-                // Remove and re-add component to force refresh
-                chartEntity.removeAttribute(type);
-                setTimeout(() => {
-                  chartEntity.setAttribute(type, attributes);
-                  console.log('✅ Chart rebuilt successfully');
-                }, 50);
-                break;
-              }
-            }
-          });
+          restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
+          renormalizeChartPedestals('analysis-updated', mappingUiRuntime);
+        }, 260);
 
+        if (containsBoatsChart) {
           setTimeout(() => {
-            if (mappingUiRuntime && mappingUiState && typeof mappingUiRuntime.restoreState === 'function') {
-              mappingUiRuntime.restoreState(mappingUiState);
-            }
-            if (chartDebugRuntime && chartDebugState && typeof chartDebugRuntime.restoreState === 'function') {
-              chartDebugRuntime.restoreState(chartDebugState);
-            }
-
-            setTimeout(() => {
-              const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
-              if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
-                const updated = chartPedestalRuntime.renormalizeAll('analysis-updated');
-                if (updated > 0) {
-                  console.log('🛟 Re-normalized chart pedestal visualizations:', updated);
-                }
-              }
-
-              if (mappingUiRuntime && typeof mappingUiRuntime.refreshAdaptivePlacement === 'function') {
-                mappingUiRuntime.refreshAdaptivePlacement();
-              }
-            }, 120);
-          }, 140);
-        }, 200);
+            restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
+            renormalizeChartPedestals('analysis-updated-boats-settled', mappingUiRuntime);
+          }, 900);
+        }
       } else {
         console.warn('⚠️ No data entities found for refresh');
       }
@@ -182,15 +185,18 @@
           }
         });
 
+        const chartEntities = getChartEntities();
+        const containsBoatsChart = hasBoatsChart(chartEntities);
+
         setTimeout(() => {
-          const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
-          if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
-            const updated = chartPedestalRuntime.renormalizeAll('dataRefresh');
-            if (updated > 0) {
-              console.log('🛟 Re-normalized chart pedestal visualizations after data refresh:', updated);
-            }
-          }
+          renormalizeChartPedestals('dataRefresh', window.CodeXRMappingUiRuntime);
         }, 240);
+
+        if (containsBoatsChart) {
+          setTimeout(() => {
+            renormalizeChartPedestals('dataRefresh-boats-settled', window.CodeXRMappingUiRuntime);
+          }, 900);
+        }
         
         console.log('✅ XR data refresh completed - A-Frame will handle chart updates');
       } else {
