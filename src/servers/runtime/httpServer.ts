@@ -6,6 +6,7 @@ import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
+import { ScreenBroadcastSignalingServer } from './broadcast/screenBroadcastSignalingServer';
 
 /**
  * HTTP Server Configuration
@@ -28,6 +29,7 @@ export class HttpServer {
     private config: HttpServerConfig;
     private isRunning: boolean = false;
     private upgradeAttached = false;
+    private broadcastSignalingServer: ScreenBroadcastSignalingServer | null = null;
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -157,7 +159,8 @@ export class HttpServer {
     }
 
     public disposeRuntimeFeatures(): void {
-        // Reserved for runtime-specific disposals when needed.
+        this.broadcastSignalingServer?.dispose();
+        this.broadcastSignalingServer = null;
     }
 
     /**
@@ -542,5 +545,6 @@ export class HttpServer {
             return;
         }
         this.upgradeAttached = true;
+        this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(server);
     }
 }

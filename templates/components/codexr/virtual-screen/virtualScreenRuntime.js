@@ -31,6 +31,8 @@
 
   const DEFAULT_CONFIG = {
     enabled: true,
+    broadcastEnabled: true,
+    signalingPath: '/codexr-broadcast',
     sceneSelector: 'a-scene',
     followAnchorSelector: '#rig',
     anchoredPosition: { x: 0, y: 8, z: 6 },
@@ -47,7 +49,11 @@
     dragDepthStep: 0.45,
     controllerDepthStep: 0.08,
     instanceId: '',
+    screenId: '',
     videoElementId: '',
+    rtcConfiguration: {
+      iceServers: [],
+    },
     labels: {
       idle: 'Share a screen, window, or browser tab in this XR scene.',
       minimized: 'Virtual screen minimized.',
@@ -56,6 +62,13 @@
       sourceEnded: 'The shared source stopped. Expand the screen to share again.',
       move: 'Drag a side handle to move the virtual screen.',
       resize: 'Drag a corner handle to resize the virtual screen.',
+      broadcasting: 'Broadcasting selected source.',
+      receiving: 'Receiving shared source.',
+      connecting: 'Connecting live share...',
+      noSignal: 'No live source is currently available for this screen.',
+      broadcastUnavailable: 'Live broadcasting requires HTTPS or localhost.',
+      broadcastError: 'Unable to connect the live broadcast.',
+      broadcastStopped: 'Live sharing stopped.',
     },
   };
 
@@ -111,12 +124,14 @@
     merged.anchoredRotation = { ...DEFAULT_CONFIG.anchoredRotation, ...(userConfig?.anchoredRotation || {}) };
     merged.followOffset = { ...DEFAULT_CONFIG.followOffset, ...(userConfig?.followOffset || {}) };
     merged.followRotation = { ...DEFAULT_CONFIG.followRotation, ...(userConfig?.followRotation || {}) };
+    merged.rtcConfiguration = { ...DEFAULT_CONFIG.rtcConfiguration, ...(userConfig?.rtcConfiguration || {}) };
     merged.labels = { ...DEFAULT_CONFIG.labels, ...(userConfig?.labels || {}) };
     merged.sizeSteps = Array.isArray(userConfig?.sizeSteps) && userConfig.sizeSteps.length > 0
       ? userConfig.sizeSteps.slice()
       : DEFAULT_CONFIG.sizeSteps.slice();
     merged.minWidth = userConfig?.minWidth || DEFAULT_CONFIG.minWidth;
     merged.maxWidth = userConfig?.maxWidth || DEFAULT_CONFIG.maxWidth;
+    merged.broadcastEnabled = userConfig?.broadcastEnabled !== false;
     merged.virtualScreenSupportsLocalCapture = userConfig?.virtualScreenSupportsLocalCapture !== false;
     return merged;
   }
@@ -142,6 +157,7 @@
     const state = {
       initialized: false,
       mode: 'idle',
+      presentationMode: 'expanded',
       lookAtCameraEnabled: true,
       follow: false,
       followTransform: null,
@@ -151,9 +167,13 @@
       statusMessage: DEFAULT_CONFIG.labels.idle,
       stream: null,
       streamSourceType: null,
+      hasAudio: false,
       screenWidth: DEFAULT_CONFIG.sizeSteps[DEFAULT_CONFIG.defaultSizeIndex],
       sizeIndex: DEFAULT_CONFIG.defaultSizeIndex,
       lastIntent: 'screen',
+      clientId: '',
+      broadcastRole: 'none',
+      broadcastStatus: 'idle',
       drag: null,
       dragLoopActive: false,
       followLoopActive: false,
@@ -185,6 +205,13 @@
       inputHandlersBound: false,
       controllerTargets: [],
       chromeHideTimer: null,
+      signalingSocket: null,
+      signalingReconnectTimer: null,
+      peerConnections: new Map(),
+      remoteStream: null,
+      activeBroadcasterId: '',
+      broadcastRegistered: false,
+      destroyed: false,
     };
 
     function getDocument() {
@@ -199,6 +226,61 @@
     function getVideoElementId() {
       const configured = String(refs.config.videoElementId || '').trim();
       return configured || getScopedId('codexrVirtualScreenVideo');
+    }
+
+    function getScreenId() {
+      const configured = String(refs.config.screenId || refs.config.instanceId || '').trim();
+      return configured || 'default';
+    }
+
+    function getOrCreateClientId() {
+      if (state.clientId) {
+        return state.clientId;
+      }
+      if (global.crypto && typeof global.crypto.randomUUID === 'function') {
+        state.clientId = global.crypto.randomUUID();
+      } else {
+        state.clientId = `client-${Math.random().toString(36).slice(2, 10)}`;
+      }
+      return state.clientId;
+    }
+
+    function isMinimized() {
+      return state.presentationMode === 'minimized';
+    }
+
+    function hasDisplayedStream() {
+      return state.mode === 'broadcasting' || state.mode === 'viewing';
+    }
+
+    function isSecureBroadcastContext() {
+      if (win.isSecureContext) {
+        return true;
+      }
+      const hostname = String(win.location?.hostname || '').toLowerCase();
+      return hostname === 'localhost'
+        || hostname === '127.0.0.1'
+        || hostname === '[::1]';
+    }
+
+    function canUseBroadcastTransport() {
+      return !!(
+        refs.config.broadcastEnabled
+        && typeof win.WebSocket === 'function'
+        && typeof win.RTCPeerConnection === 'function'
+        && isSecureBroadcastContext()
+      );
+    }
+
+    function buildSignalingUrl() {
+      const location = win.location;
+      if (!location?.host) {
+        return null;
+      }
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const path = refs.config.signalingPath || DEFAULT_CONFIG.signalingPath;
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      return `${protocol}//${location.host}${normalizedPath}`;
     }
 
     function getScene() {
@@ -336,7 +418,7 @@
     function getControlLegend() {
       const lookAtLabel = state.lookAtCameraEnabled ? 'Purple look-at' : 'Pink look-at off';
       const followLabel = state.follow ? 'Orange follow active' : 'Blue follow';
-      if (state.mode === 'minimized') {
+      if (isMinimized()) {
         return `${lookAtLabel}\n${followLabel}\nGreen expand\nRed stop\nMove: sides drag\nDepth: wheel/thumbstick while dragging`;
       }
       return `${lookAtLabel}\n${followLabel}\nYellow minimize\nRed stop\nMove: sides drag\nResize: corners\nDepth: wheel/thumbstick while dragging`;
@@ -584,7 +666,7 @@
     }
 
     function getDisplayedStatusText() {
-      if (state.mode === 'active' || state.mode === 'minimized') {
+      if (hasDisplayedStream() || isMinimized()) {
         return '';
       }
       return state.statusMessage || refs.config.labels.idle;
@@ -596,7 +678,7 @@
       }
       updateLegendSide();
 
-      const minimized = state.mode === 'minimized';
+      const minimized = isMinimized();
       const width = minimized ? refs.config.minimizedWidth : state.screenWidth;
       const height = minimized ? refs.config.minimizedHeight : (state.screenWidth / refs.config.aspectRatio);
       const frameWidth = width + 0.12;
@@ -663,8 +745,8 @@
         return;
       }
 
-      const minimized = state.mode === 'minimized';
-      const active = state.mode === 'active';
+      const minimized = isMinimized();
+      const active = hasDisplayedStream();
       const expanded = !minimized;
       const chromeVisible = state.chromeVisible || !!state.drag;
       const headerVisible = minimized || chromeVisible;
@@ -749,7 +831,7 @@
           cursor: 'always',
           frameRate: { ideal: 30, max: 30 },
         },
-        audio: false,
+        audio: true,
         surfaceSwitching: 'include',
         selfBrowserSurface: 'exclude',
       };
@@ -805,12 +887,402 @@
       }
     }
 
+    function closePeerConnection(peerId) {
+      const connection = refs.peerConnections.get(peerId);
+      if (!connection) {
+        return;
+      }
+      try {
+        connection.onicecandidate = null;
+        connection.ontrack = null;
+        connection.onconnectionstatechange = null;
+        connection.oniceconnectionstatechange = null;
+        connection.close();
+      } catch (_error) {
+        // Ignore peer teardown issues during cleanup.
+      }
+      refs.peerConnections.delete(peerId);
+    }
+
+    function closeAllPeerConnections() {
+      Array.from(refs.peerConnections.keys()).forEach(closePeerConnection);
+    }
+
+    function closeSignalingSocket() {
+      if (refs.signalingReconnectTimer) {
+        clearTimeout(refs.signalingReconnectTimer);
+        refs.signalingReconnectTimer = null;
+      }
+      if (!refs.signalingSocket) {
+        return;
+      }
+      const socket = refs.signalingSocket;
+      refs.signalingSocket = null;
+      refs.broadcastRegistered = false;
+      try {
+        socket.onopen = null;
+        socket.onclose = null;
+        socket.onerror = null;
+        socket.onmessage = null;
+        socket.close();
+      } catch (_error) {
+        // Ignore socket close errors on teardown.
+      }
+    }
+
+    function sendSignaling(payload) {
+      if (!refs.signalingSocket || refs.signalingSocket.readyState !== win.WebSocket.OPEN) {
+        return false;
+      }
+      refs.signalingSocket.send(JSON.stringify(payload));
+      return true;
+    }
+
+    function setBroadcastState(role, status) {
+      state.broadcastRole = role;
+      state.broadcastStatus = status;
+    }
+
+    function createPeerConnection(peerId, role) {
+      const existing = refs.peerConnections.get(peerId);
+      if (existing) {
+        return existing;
+      }
+
+      const connection = new win.RTCPeerConnection(refs.config.rtcConfiguration || {});
+      refs.peerConnections.set(peerId, connection);
+
+      connection.onicecandidate = function (event) {
+        if (!event.candidate) {
+          return;
+        }
+        sendSignaling({
+          type: 'signal-ice',
+          clientId: getOrCreateClientId(),
+          screenId: getScreenId(),
+          targetId: peerId,
+          candidate: event.candidate,
+        });
+      };
+
+      if (role === 'viewer') {
+        connection.ontrack = function (event) {
+          const stream = event.streams?.[0];
+          if (!stream) {
+            return;
+          }
+          refs.remoteStream = stream;
+          refs.activeBroadcasterId = peerId;
+          releaseStream(false);
+          state.stream = stream;
+          state.streamSourceType = 'remote';
+          state.hasAudio = typeof stream.getAudioTracks === 'function' && stream.getAudioTracks().length > 0;
+          state.currentSourceLabel = refs.config.labels.receiving;
+          state.presentationMode = 'expanded';
+          setBroadcastState('viewer', 'live');
+          updateVideoSource(stream);
+          setMode('viewing', refs.config.labels.receiving);
+          showChrome();
+        };
+      }
+
+      connection.onconnectionstatechange = function () {
+        if (role === 'viewer' && ['failed', 'closed', 'disconnected'].includes(connection.connectionState || '')) {
+          if (peerId === refs.activeBroadcasterId) {
+            detachRemoteBroadcast(refs.config.labels.noSignal, { notifyServer: false });
+          }
+        }
+      };
+
+      connection.oniceconnectionstatechange = function () {
+        if (role === 'viewer' && ['failed', 'closed', 'disconnected'].includes(connection.iceConnectionState || '')) {
+          if (peerId === refs.activeBroadcasterId) {
+            detachRemoteBroadcast(refs.config.labels.noSignal, { notifyServer: false });
+          }
+        }
+      };
+
+      return connection;
+    }
+
+    async function startViewerConnection(broadcasterId) {
+      if (!canUseBroadcastTransport() || state.streamSourceType === 'local') {
+        return;
+      }
+      if (!broadcasterId) {
+        return;
+      }
+      if (refs.activeBroadcasterId === broadcasterId && state.broadcastStatus === 'connecting') {
+        return;
+      }
+
+      detachRemoteBroadcast('', { notifyServer: false, preserveStatus: true });
+      refs.activeBroadcasterId = broadcasterId;
+      setBroadcastState('viewer', 'connecting');
+      updateStatus(refs.config.labels.connecting);
+      sendSignaling({
+        type: 'viewer-join',
+        clientId: getOrCreateClientId(),
+        screenId: getScreenId(),
+      });
+    }
+
+    async function handleViewerJoin(viewerId) {
+      if (!viewerId || state.streamSourceType !== 'local' || !state.stream) {
+        return;
+      }
+
+      closePeerConnection(viewerId);
+      const connection = createPeerConnection(viewerId, 'sender');
+      if (typeof state.stream.getTracks === 'function') {
+        state.stream.getTracks().forEach((track) => {
+          connection.addTrack(track, state.stream);
+        });
+      }
+
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      sendSignaling({
+        type: 'signal-offer',
+        clientId: getOrCreateClientId(),
+        screenId: getScreenId(),
+        targetId: viewerId,
+        description: connection.localDescription,
+      });
+    }
+
+    function asRtcDescription(description) {
+      if (!description) {
+        return null;
+      }
+      return typeof win.RTCSessionDescription === 'function'
+        ? new win.RTCSessionDescription(description)
+        : description;
+    }
+
+    function asIceCandidate(candidate) {
+      if (!candidate) {
+        return null;
+      }
+      return typeof win.RTCIceCandidate === 'function'
+        ? new win.RTCIceCandidate(candidate)
+        : candidate;
+    }
+
+    async function applyRemoteOffer(broadcasterId, description) {
+      if (!broadcasterId || !description) {
+        return;
+      }
+      const connection = createPeerConnection(broadcasterId, 'viewer');
+      refs.activeBroadcasterId = broadcasterId;
+      await connection.setRemoteDescription(asRtcDescription(description));
+      const answer = await connection.createAnswer();
+      await connection.setLocalDescription(answer);
+      sendSignaling({
+        type: 'signal-answer',
+        clientId: getOrCreateClientId(),
+        screenId: getScreenId(),
+        targetId: broadcasterId,
+        description: connection.localDescription,
+      });
+    }
+
+    async function applyRemoteAnswer(viewerId, description) {
+      const connection = refs.peerConnections.get(viewerId);
+      if (!connection || !description) {
+        return;
+      }
+      await connection.setRemoteDescription(asRtcDescription(description));
+    }
+
+    async function applyRemoteIce(peerId, candidate) {
+      const connection = refs.peerConnections.get(peerId);
+      if (!connection || !candidate) {
+        return;
+      }
+      await connection.addIceCandidate(asIceCandidate(candidate));
+    }
+
+    function announceBroadcastStart() {
+      if (!canUseBroadcastTransport() || state.streamSourceType !== 'local' || !state.stream) {
+        return;
+      }
+      sendSignaling({
+        type: 'broadcast-start',
+        clientId: getOrCreateClientId(),
+        screenId: getScreenId(),
+        hasAudio: state.hasAudio,
+      });
+    }
+
+    function scheduleSignalingReconnect() {
+      if (refs.signalingReconnectTimer || refs.destroyed || !refs.config.broadcastEnabled || !canUseBroadcastTransport()) {
+        return;
+      }
+      refs.signalingReconnectTimer = setTimeout(function () {
+        refs.signalingReconnectTimer = null;
+        connectSignaling();
+      }, 1400);
+    }
+
+    function handleSignalMessage(message) {
+      switch (message?.type) {
+        case 'registered':
+          refs.broadcastRegistered = true;
+          state.clientId = message.clientId || state.clientId;
+          if (state.streamSourceType === 'local') {
+            announceBroadcastStart();
+          }
+          return;
+        case 'broadcast-live':
+          setBroadcastState('sender', 'live');
+          updateStatus(refs.config.labels.broadcasting);
+          return;
+        case 'broadcast-available':
+          if (state.streamSourceType === 'local') {
+            return;
+          }
+          void startViewerConnection(message.broadcasterId || '');
+          return;
+        case 'broadcast-stopped':
+          if (state.streamSourceType === 'remote') {
+            detachRemoteBroadcast(refs.config.labels.broadcastStopped, { notifyServer: false });
+          } else if (state.streamSourceType === 'local') {
+            setBroadcastState('sender', 'idle');
+          }
+          return;
+        case 'broadcast-replaced':
+          if (state.streamSourceType === 'local') {
+            setBroadcastState('none', 'idle');
+            updateStatus(refs.config.labels.broadcastStopped);
+          }
+          return;
+        case 'viewer-join':
+          void handleViewerJoin(message.viewerId || '');
+          return;
+        case 'signal-offer':
+          void applyRemoteOffer(message.clientId || '', message.description);
+          return;
+        case 'signal-answer':
+          void applyRemoteAnswer(message.clientId || '', message.description);
+          return;
+        case 'signal-ice':
+          void applyRemoteIce(message.clientId || '', message.candidate);
+          return;
+        default:
+          return;
+      }
+    }
+
+    function connectSignaling() {
+      if (refs.destroyed || !refs.config.broadcastEnabled || !canUseBroadcastTransport()) {
+        return;
+      }
+      if (refs.signalingSocket && [win.WebSocket.OPEN, win.WebSocket.CONNECTING].includes(refs.signalingSocket.readyState)) {
+        return;
+      }
+
+      const signalingUrl = buildSignalingUrl();
+      if (!signalingUrl) {
+        return;
+      }
+
+      const socket = new win.WebSocket(signalingUrl);
+      refs.signalingSocket = socket;
+      refs.broadcastRegistered = false;
+
+      socket.onopen = function () {
+        refs.broadcastRegistered = false;
+        setBroadcastState(state.broadcastRole, state.streamSourceType === 'local' ? 'connecting' : state.broadcastStatus);
+        sendSignaling({
+          type: 'register',
+          clientId: getOrCreateClientId(),
+          screenId: getScreenId(),
+        });
+      };
+
+      socket.onmessage = function (event) {
+        try {
+          handleSignalMessage(JSON.parse(event.data));
+        } catch (_error) {
+          updateStatus(refs.config.labels.broadcastError);
+        }
+      };
+
+      socket.onerror = function () {
+        if (state.streamSourceType === 'local') {
+          setBroadcastState('none', 'error');
+          updateStatus(refs.config.labels.broadcastError);
+        }
+      };
+
+      socket.onclose = function () {
+        refs.broadcastRegistered = false;
+        refs.signalingSocket = null;
+        if (refs.destroyed) {
+          return;
+        }
+        if (state.streamSourceType === 'local') {
+          setBroadcastState('sender', 'connecting');
+        }
+        scheduleSignalingReconnect();
+      };
+    }
+
+    function detachRemoteBroadcast(message, options) {
+      const broadcasterId = refs.activeBroadcasterId;
+      if (options?.notifyServer !== false && broadcasterId) {
+        sendSignaling({
+          type: 'viewer-leave',
+          clientId: getOrCreateClientId(),
+          screenId: getScreenId(),
+        });
+      }
+
+      refs.activeBroadcasterId = '';
+      closeAllPeerConnections();
+      refs.remoteStream = null;
+
+      if (state.streamSourceType === 'remote') {
+        releaseStream(false);
+      }
+
+      state.hasAudio = false;
+      state.currentSourceLabel = '';
+
+      if (!options?.preserveStatus) {
+        setBroadcastState('none', 'idle');
+        setMode('idle', message || refs.config.labels.noSignal);
+      }
+    }
+
     function stopCapture(message, options) {
+      if (state.streamSourceType === 'remote') {
+        detachRemoteBroadcast(message || refs.config.labels.broadcastStopped, { notifyServer: true });
+        if (options?.minimizeAfterStop === true) {
+          state.presentationMode = 'minimized';
+          layout();
+          refreshUi();
+        }
+        return;
+      }
+
+      sendSignaling({
+        type: 'broadcast-stop',
+        clientId: getOrCreateClientId(),
+        screenId: getScreenId(),
+        reason: message || refs.config.labels.broadcastStopped,
+      });
+      closeAllPeerConnections();
       const shouldMinimize = options?.minimizeAfterStop === true;
       releaseStream(true);
+      state.hasAudio = false;
       state.currentSourceLabel = '';
+      refs.activeBroadcasterId = '';
+      setBroadcastState('none', 'idle');
+      state.presentationMode = shouldMinimize ? 'minimized' : 'expanded';
       if (shouldMinimize) {
-        setMode('minimized', message || refs.config.labels.minimized);
+        setMode('idle', message || refs.config.labels.minimized);
       } else {
         setMode('idle', message || refs.config.labels.idle);
       }
@@ -832,6 +1304,9 @@
         setMode('idle', 'Local screen capture is disabled for this scene.');
         return;
       }
+      if (state.streamSourceType === 'remote') {
+        detachRemoteBroadcast('', { notifyServer: true, preserveStatus: true });
+      }
       const previousStream = state.stream;
       const previousLabel = state.currentSourceLabel;
       state.lastIntent = intent;
@@ -845,18 +1320,31 @@
         }
         state.stream = stream;
         state.streamSourceType = 'local';
+        state.hasAudio = typeof stream.getAudioTracks === 'function' && stream.getAudioTracks().length > 0;
         updateVideoSource(stream);
         attachTrackEndedListener(stream);
         state.currentSourceLabel = SOURCE_MESSAGES[intent].active;
-        setMode('active', SOURCE_MESSAGES[intent].active);
+        state.presentationMode = 'expanded';
+        setMode('broadcasting', SOURCE_MESSAGES[intent].active);
+        if (canUseBroadcastTransport()) {
+          setBroadcastState('sender', 'connecting');
+          connectSignaling();
+          announceBroadcastStart();
+        } else if (refs.config.broadcastEnabled) {
+          setBroadcastState('none', 'error');
+          updateStatus(refs.config.labels.broadcastUnavailable);
+        } else {
+          setBroadcastState('none', 'idle');
+        }
       } catch (error) {
         if (previousStream) {
           state.stream = previousStream;
           state.currentSourceLabel = previousLabel;
-          setMode('active', previousLabel || refs.config.labels.idle);
+          setMode('broadcasting', previousLabel || refs.config.labels.idle);
           return;
         }
         state.currentSourceLabel = '';
+        state.hasAudio = false;
         setMode('idle', classifyCaptureError(error));
       }
     }
@@ -974,15 +1462,17 @@
     }
 
     function minimize() {
-      setMode('minimized', refs.config.labels.minimized);
+      state.presentationMode = 'minimized';
+      layout();
+      refreshUi();
+      updateStatus(refs.config.labels.minimized);
     }
 
     function expand() {
-      if (state.stream) {
-        setMode('active', state.currentSourceLabel || refs.config.labels.idle);
-      } else {
-        setMode('idle', refs.config.labels.idle);
-      }
+      state.presentationMode = 'expanded';
+      layout();
+      refreshUi();
+      updateStatus(state.currentSourceLabel || refs.config.labels.idle);
       showChrome();
     }
 
@@ -1430,7 +1920,7 @@
     }
 
     function startDrag(kind, handleKey, evt) {
-      if ((state.mode === 'minimized' && kind === 'resize') || !global.THREE || !refs.root?.object3D) {
+      if ((isMinimized() && kind === 'resize') || !global.THREE || !refs.root?.object3D) {
         return;
       }
       if (state.follow) {
@@ -1484,7 +1974,7 @@
         applyFaceCameraOrientation();
         ensureFaceCameraLoop();
       }
-      updateStatus(state.currentSourceLabel || (state.mode === 'minimized' ? refs.config.labels.minimized : refs.config.labels.idle));
+      updateStatus(state.currentSourceLabel || (isMinimized() ? refs.config.labels.minimized : refs.config.labels.idle));
       scheduleChromeHide();
     }
 
@@ -1528,7 +2018,7 @@
         toggleLegend();
       });
       refs.headerButtons.minimize.addEventListener('click', function () {
-        if (state.mode === 'minimized') {
+        if (isMinimized()) {
           expand();
         } else {
           minimize();
@@ -1561,6 +2051,7 @@
 
     function finishInitialization() {
       ensureVideoSource();
+      getOrCreateClientId();
       state.screenWidth = refs.config.sizeSteps[clamp(refs.config.defaultSizeIndex || DEFAULT_CONFIG.defaultSizeIndex, 0, refs.config.sizeSteps.length - 1)];
       state.sizeIndex = findClosestSizeIndex(state.screenWidth);
       createUi();
@@ -1572,6 +2063,9 @@
       setMode('idle', refs.config.labels.idle);
       if (state.lookAtCameraEnabled) {
         ensureFaceCameraLoop();
+      }
+      if (refs.config.broadcastEnabled && canUseBroadcastTransport()) {
+        connectSignaling();
       }
       state.initialized = true;
     }
@@ -1600,6 +2094,42 @@
       init(readConfigFromJsonScript(win) || win.__CODEXR_VIRTUAL_SCREEN_CONFIG__);
     }
 
+    function restoreState(snapshot) {
+      if (!snapshot || typeof snapshot !== 'object') {
+        return api;
+      }
+      if (typeof snapshot.screenWidth === 'number') {
+        setScreenWidth(snapshot.screenWidth, { silent: true });
+      }
+      if (snapshot.presentationMode === 'minimized') {
+        state.presentationMode = 'minimized';
+      } else if (snapshot.presentationMode === 'expanded') {
+        state.presentationMode = 'expanded';
+      }
+      if (typeof snapshot.lookAtCameraEnabled === 'boolean') {
+        state.lookAtCameraEnabled = snapshot.lookAtCameraEnabled;
+      }
+      layout();
+      refreshUi();
+      return api;
+    }
+
+    function destroy() {
+      refs.destroyed = true;
+      stopCapture('Virtual screen closed.', { minimizeAfterStop: false });
+      closeAllPeerConnections();
+      closeSignalingSocket();
+      if (refs.root?.parentElement) {
+        refs.root.parentElement.removeChild(refs.root);
+      }
+      refs.root = null;
+      const video = refs.videoSource || getDocument()?.getElementById(getVideoElementId()) || null;
+      if (video?.parentElement) {
+        video.parentElement.removeChild(video);
+      }
+      refs.videoSource = null;
+    }
+
     const api = {
       init,
       autoInit,
@@ -1617,16 +2147,24 @@
       adjustSize,
       setScreenWidth,
       setDisplayName,
+      restoreState,
+      destroy,
       getState() {
         return {
           mode: state.mode,
+          presentationMode: state.presentationMode,
           lookAtCameraEnabled: state.lookAtCameraEnabled,
           follow: state.follow,
           chromeVisible: state.chromeVisible,
           sizeIndex: state.sizeIndex,
           screenWidth: state.screenWidth,
           currentSourceLabel: state.currentSourceLabel,
+          screenId: getScreenId(),
+          broadcastRole: state.broadcastRole,
+          broadcastStatus: state.broadcastStatus,
+          hasAudio: state.hasAudio,
           lastIntent: state.lastIntent,
+          clientId: state.clientId,
           initialized: state.initialized,
           dragActive: !!state.drag,
             dragPointerType: state.drag?.pointerType || null,

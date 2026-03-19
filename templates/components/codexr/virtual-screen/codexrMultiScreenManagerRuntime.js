@@ -280,9 +280,12 @@
         runtime.init({
           ...sharedConfig,
           enabled: true,
+          broadcastEnabled: sharedConfig.broadcastEnabled !== false,
+          signalingPath: sharedConfig.signalingPath || '/codexr-broadcast',
           sceneSelector: '#scene',
           followAnchorSelector: '#rig',
           instanceId,
+          screenId: instanceId,
           videoElementId: `codexrVirtualScreenVideo-${instanceId}`,
           anchoredPosition: {
             x: spawn.x,
@@ -308,7 +311,11 @@
         }
 
         try {
-          record.runtime?.stopCapture?.('Screen removed.', { minimizeAfterStop: false });
+          if (typeof record.runtime?.destroy === 'function') {
+            record.runtime.destroy();
+          } else {
+            record.runtime?.stopCapture?.('Screen removed.', { minimizeAfterStop: false });
+          }
         } catch (_error) {
           // Ignore runtime stop errors and continue cleanup.
         }
