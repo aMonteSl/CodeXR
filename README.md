@@ -36,7 +36,11 @@ Our official documentation includes:
 - **Unified analysis engine**: XR, LivePanel, and DOM now share the same modernized analysis bootstrap and payload contract.
 - **Richer real metrics**: File and directory analysis expose corrected ratios, nesting, parameter, complexity-band, and aggregate metrics.
 - **Stable DOM XR visualization**: HTML DOM analysis now feeds BabiaXR with the full stringified HTML contract expected by `babia-html`.
-- **Virtual screen for XR/DOM**: Immersive scenes now include a shared virtual screen that can project a screen, window, or browser tab, with move, resize, depth adjustment by wheel/thumbstick, minimize/expand, stop sharing, `follow`, independent `look-at`, contextual controls, and support for both mouse and VR controllers.
+- **Shared virtual screens for XR/DOM**: Immersive scenes now include collaborative virtual screens plus a control panel to create, bring, and remove shared screens across connected clients.
+- **Live shared screen broadcasting**: Shared screens can project a screen, window, or browser tab with synchronized layout updates and real-time video/audio playback across connected devices.
+- **XR chart pedestal/table auto-scaling**: XR charts now mount on a shared table/pedestal that recenters the chart and rescales it in `X`, `Y`, and `Z` within stable viewing bands.
+- **In-scene Mapping UI with recovery**: XR scenes now expose a Mapping UI next to the chart so users can remap dimensions live, detect invalid BabiaXR rebuilds, restore the last valid mapping, and disable the failing option for the session.
+- **Real-time collaborative XR/DOM sessions**: Connected users can now see shared mapping changes, shared chart updates, shared screen interactions, and remote presence markers with server-assigned display names in the same live session.
 
 ## Visual Demonstrations
 
@@ -178,7 +182,7 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 
 ### XR Visualization Features
 - **3D Charts**: Bars, cylinders, bubbles showing function metrics in immersive 3D space
-- **Interactive Navigation**: VR controller support or mouse/keyboard controls
+- **Interactive Navigation**: Mouse/keyboard controls plus runtime bindings for A-Frame/WebXR controllers; physical-headset validation is still pending for v1.1.0
 - **Real-time Updates**: Changes in your code immediately reflect in the visualization
 - **Customizable Mapping**: Choose what metrics map to X, Y, Z dimensions and colors
 - **Spatial Understanding**: Visualize code complexity relationships in 3D space
@@ -201,6 +205,9 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Active Analyses Quick Actions**: Active analyses now open their main actions on left-click, and each session can export its generated folder for easier debugging and manual inspection.
 - **Cross-Platform Path and Python Environment Hardening**: Windows path normalization, Python environment recovery, and startup verification are more robust across Windows, Linux, and macOS.
 - **Generated Local HTTPS Certificates**: Default HTTPS mode now creates and reuses a self-signed certificate pair inside VS Code global storage on first startup, so the VSIX no longer ships bundled private keys.
+- **Collaborative XR/DOM Screens and Presence**: XR and DOM sessions now share virtual screens, live mapping changes, shared chart updates, and visible remote participants in the same room session.
+- **Safer XR Mapping Recovery**: The Mapping UI now detects broken BabiaXR rebuilds caused by invalid field choices, restores the last valid chart state, warns the user, and disables the failing option for the current session.
+- **XR Chart Pedestal/Table Layout**: Charts now render on a shared pedestal/table that stabilizes their placement and keeps the visual scale useful across `X`, `Y`, and `Z`.
 
 ### Key Improvements in v1.1.0
 - **More Expressive XR Data**: The generated `data.json` files now include more useful values for chart mapping and richer exploration in immersive views.
@@ -208,6 +215,11 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Cleaner Directory Reanalysis**: Added and deleted files are reflected more accurately across XR and LivePanel during directory reanalysis.
 - **Safer Environment Recovery**: Existing valid virtual environments are verified and refreshed instead of being unnecessarily recreated.
 - **Validation Coverage**: The release is backed by TypeScript and ESLint validation, Node-based unit tests, and Python backend tests covering path normalization, XR schema behavior, and XR file fallback handling.
+
+### XR Hardware Validation Status for v1.1.0
+- **Validated today**: Desktop/browser flows, shared-screen collaboration, shared mapping, shared chart refresh, and the runtime hooks used for mouse plus A-Frame/WebXR controller interaction.
+- **Not validated yet**: Physical VR headsets and real VR controller hardware.
+- **Current expectation**: The runtime includes controller-oriented hooks such as `raycaster-intersected`, `thumbstickmoved`, A-Frame tracked-controller selectors, and `babiaxraycasterclass` targets, but this release does not guarantee that every XR control behaves exactly as expected on real headset hardware.
 
 ---
 ## Analysis Modes Overview
@@ -232,7 +244,7 @@ Code-XR offers powerful analysis modes, each optimized for different file types 
 **Features:**
 - Immersive 3D visualizations with bars, cylinders, bubbles, and boats
 - Real-time updates as you edit code, directories, and projects without exiting VR/AR mode
-- Universal VR controller support for all major headsets
+- Runtime bindings for mouse plus A-Frame/WebXR controllers, pending validation on physical VR headset hardware in v1.1.0
 - Multi-dimensional metric mapping (complexity, LOC, parameters, file size)
 - Customizable environments and color palettes for optimal viewing
 - Spatial representation of code complexity and structure
@@ -349,7 +361,7 @@ Code-XR provides comprehensive analysis for 24 code languages, plus HTML DOM vis
 - **Left Joystick**: Move forward/backward/left/right in 3D space
 - **Right Joystick**: Rotate view smoothly for comfortable navigation
 - **Hand Tracking**: Natural gesture-based interaction (supported devices)
-- **Button Mapping**: Universal support for all major VR headsets
+- **Controller Runtime Hooks**: The extension includes bindings for controller rays and thumbsticks through A-Frame/WebXR components, but v1.1.0 has not been validated yet on physical headset/controller hardware
 
 ### Desktop Controls
 - **Mouse**: Click and drag to rotate view around code visualizations
@@ -423,6 +435,7 @@ Customize your immersive experience:
 - **Onboarding**: Help new team members understand codebase structure
 - **AR Presentations**: Use AR mode for immersive code walkthroughs
 - **Code Reviews**: Enhanced visual context for reviewing complex code
+- **Shared Working Sessions**: Create or move shared virtual screens, remap charts, and watch other participants interact with the same live XR/DOM room in real time
 
 ### Educational Purposes
 - **Learning Patterns**: Visualize how different programming patterns affect complexity
@@ -441,7 +454,7 @@ Customize your immersive experience:
 ### VR/AR Best Practices
 - **AR Mode**: Use on mobile devices or AR headsets for best experience
 - **VR Navigation**: Take breaks during long analysis sessions to prevent fatigue
-- **Controller Setup**: Ensure controllers are charged before starting VR sessions
+- **Controller Setup**: Ensure controllers are charged before starting VR sessions; note that v1.1.0 controller interactions have not yet been validated on physical headset hardware
 - **Lighting**: Ensure adequate room lighting for AR tracking
 
 ### Analysis Workflow

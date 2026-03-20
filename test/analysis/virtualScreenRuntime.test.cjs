@@ -57,11 +57,14 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(runtimeSource, /CodeXRCollaborationRuntime/);
     assert.match(runtimeSource, /function cloneVector\(/);
     assert.match(runtimeSource, /placeInFrontOfUserOnInit/);
+    assert.match(runtimeSource, /deferInitialSharedState/);
+    assert.match(runtimeSource, /function flushInitialSharedState\(/);
     assert.match(runtimeSource, /function ensureRemoteAudioSource\(/);
     assert.match(runtimeSource, /function syncRemoteAudioPlayback\(/);
     assert.match(runtimeSource, /audioUnlockRequired/);
     assert.match(runtimeSource, /systemAudio: 'include'/);
     assert.match(runtimeSource, /windowAudio: 'system'/);
+    assert.doesNotMatch(runtimeSource, /preferCurrentTab/);
     assert.match(runtimeSource, /ownerPeerId/);
     assert.match(runtimeSource, /normalizeBroadcastState/);
     assert.match(runtimeSource, /setManagerCallbacks/);
@@ -88,10 +91,16 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(multiScreenManagerSource, /ensureRemoteScreen/);
     assert.match(multiScreenManagerSource, /buildManagedScreenId/);
     assert.match(multiScreenManagerSource, /bringScreenInFrontOfUser/);
+    assert.match(multiScreenManagerSource, /schedulePlaceScreenInFrontOfUser/);
+    assert.match(multiScreenManagerSource, /this\.schedulePlaceScreenInFrontOfUser\(instanceId/);
+    assert.match(multiScreenManagerSource, /deferInitialSharedState: true/);
+    assert.match(multiScreenManagerSource, /runtime\?\.flushInitialSharedState\?\.\(\)/);
+    assert.match(multiScreenManagerSource, /const canDelete = entry\.instanceId !== 'default'/);
     assert.match(multiScreenManagerSource, /screen:\$\{peerId\}:\$\{counter\}/);
     assert.match(multiScreenManagerSource, /setManagerCallbacks/);
     assert.match(multiScreenManagerSource, /onStateChange/);
     assert.match(multiScreenManagerSource, /onTransformChange/);
+    assert.doesNotMatch(multiScreenManagerSource, /placeInFrontOfUser: true/);
     assert.doesNotMatch(multiScreenManagerSource, /managed-\$\{this\.nextManagedInstance\}/);
     assert.doesNotMatch(multiScreenManagerSource, /Spawn Zone/);
     assert.doesNotMatch(multiScreenManagerSource, /Add and Bring stack here/);
@@ -162,6 +171,7 @@ test('virtual screen runtime requests screen audio and exposes broadcast-aware s
     assert.equal(screenOptions.monitorTypeSurfaces, 'include');
     assert.equal(windowOptions.monitorTypeSurfaces, 'exclude');
     assert.equal(screenOptions.audio, true);
+    assert.equal('preferCurrentTab' in screenOptions, false);
 
     await runtime.requestCapture('screen');
     assert.deepEqual(capturedOptions, screenOptions);
@@ -177,7 +187,28 @@ test('virtual screen runtime requests screen audio and exposes broadcast-aware s
     assert.equal(state.audioUnlockRequired, false);
     assert.equal(typeof runtime.restoreState, 'function');
     assert.equal(typeof runtime.placeInFrontOfUser, 'function');
+    assert.equal(typeof runtime.flushInitialSharedState, 'function');
     assert.equal(typeof runtime.destroy, 'function');
+});
+
+test('release documentation covers shared screens, mapping recovery, pedestal scaling, and XR hardware caveat', () => {
+    const readme = readProjectFile('README.md');
+    const changelog = readProjectFile('CHANGELOG.md');
+
+    assert.match(readme, /Shared virtual screens for XR\/DOM/);
+    assert.match(readme, /Live shared screen broadcasting/);
+    assert.match(readme, /XR chart pedestal\/table auto-scaling/);
+    assert.match(readme, /In-scene Mapping UI with recovery/);
+    assert.match(readme, /Real-time collaborative XR\/DOM sessions/);
+    assert.match(readme, /XR Hardware Validation Status for v1\.1\.0/);
+    assert.match(readme, /not been validated yet on physical headset\/controller hardware/i);
+
+    assert.match(changelog, /Shared Screen Broadcasting with Video\/Audio/);
+    assert.match(changelog, /Collaborative XR\/DOM Room Sessions/);
+    assert.match(changelog, /auto-rescales it across `X`, `Y`, and `Z`/);
+    assert.match(changelog, /warns the user about the failed field choice/);
+    assert.match(changelog, /XR Hardware Validation Status/);
+    assert.match(changelog, /XR Controller Caveat/);
 });
 
 test('analysis asset pipeline packages collaboration, screen, manager, and DOM shared runtimes together', () => {
