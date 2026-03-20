@@ -50,6 +50,7 @@
     controllerDepthStep: 0.08,
     instanceId: '',
     screenId: '',
+    ownerPeerId: '',
     displayName: '',
     managedScreen: false,
     collaborationSource: 'local',
@@ -126,6 +127,17 @@
 
   function formatVector(vector) {
     return `${vector.x} ${vector.y} ${vector.z}`;
+  }
+
+  function cloneVector(vector) {
+    if (!vector || typeof vector !== 'object') {
+      return null;
+    }
+    return {
+      x: Number.isFinite(vector.x) ? vector.x : 0,
+      y: Number.isFinite(vector.y) ? vector.y : 0,
+      z: Number.isFinite(vector.z) ? vector.z : 0,
+    };
   }
 
   function mergeConfig(userConfig) {
@@ -226,9 +238,16 @@
       peerConnections: new Map(),
       remoteStream: null,
       activeBroadcasterId: '',
+      broadcastState: {
+        active: false,
+        broadcasterPeerId: '',
+        hasAudio: false,
+        sourceKind: '',
+      },
       broadcastRegistered: false,
       destroyed: false,
       sharedTransformTimer: null,
+      managerCallbacks: null,
     };
 
     function getDocument() {
@@ -252,6 +271,22 @@
 
     function getDisplayName() {
       return String(state.displayName || refs.config.displayName || getScreenId()).trim();
+    }
+
+    function getOwnerPeerId() {
+      const configured = String(refs.config.ownerPeerId || '').trim();
+      if (configured) {
+        return configured;
+      }
+      return getCollaborationClient()?.getPeerId?.() || '';
+    }
+
+    function getResolvedRoomId() {
+      const configured = String(refs.config.roomId || '').trim();
+      if (configured) {
+        return configured;
+      }
+      return getCollaborationClient()?.getRoomId?.() || '';
     }
 
     function isRemoteScreen() {
@@ -861,6 +896,53 @@
       publishSharedScreenState();
     }
 
+    function normalizeBroadcastState(snapshot) {
+      if (!snapshot || typeof snapshot !== 'object') {
+        return {
+          active: false,
+          broadcasterPeerId: '',
+          hasAudio: false,
+          sourceKind: '',
+        };
+      }
+      return {
+        active: snapshot.active === true,
+        broadcasterPeerId: typeof snapshot.broadcasterPeerId === 'string' ? snapshot.broadcasterPeerId.trim() : '',
+        hasAudio: snapshot.hasAudio === true,
+        sourceKind: typeof snapshot.sourceKind === 'string' ? snapshot.sourceKind.trim() : '',
+      };
+    }
+
+    function setSharedBroadcastState(snapshot) {
+      refs.broadcastState = normalizeBroadcastState(snapshot);
+      return refs.broadcastState;
+    }
+
+    function syncLocalBroadcastState() {
+      if (state.streamSourceType === 'local') {
+        setSharedBroadcastState({
+          active: state.broadcastStatus === 'connecting' || state.broadcastStatus === 'live',
+          broadcasterPeerId: getCollaborationClient()?.getPeerId?.() || getOwnerPeerId(),
+          hasAudio: state.hasAudio,
+          sourceKind: state.lastIntent || 'screen',
+        });
+        return refs.broadcastState;
+      }
+      if (state.streamSourceType !== 'remote' && state.broadcastRole !== 'viewer') {
+        setSharedBroadcastState({
+          active: false,
+          broadcasterPeerId: '',
+          hasAudio: false,
+          sourceKind: refs.broadcastState?.sourceKind || '',
+        });
+      }
+      return refs.broadcastState;
+    }
+
+    function getManagerCallbacks() {
+      return refs.managerCallbacks || null;
+    }
+
     function setMode(mode, message) {
       state.mode = mode;
       if (typeof message === 'string' && message.length > 0) {
@@ -898,10 +980,12 @@
     }
 
     function buildSharedScreenState() {
+      const broadcast = syncLocalBroadcastState();
       return {
         entityKind: 'screen',
         entityId: getScreenId(),
         screenId: getScreenId(),
+        ownerPeerId: getOwnerPeerId() || null,
         managed: !!refs.config.managedScreen,
         displayName: getDisplayName(),
         presentationMode: state.presentationMode,
@@ -913,6 +997,7 @@
         hasAudio: state.hasAudio,
         gestureOwnerPeerId: state.gestureOwnerPeerId,
         collaborationSource: refs.config.collaborationSource || 'local',
+        broadcast,
         transform: getTransformSnapshot(),
       };
     }
@@ -921,16 +1006,48 @@
       if (state.suppressSharedPublish || refs.config.collaborationEnabled === false) {
         return false;
       }
+      const sharedState = buildSharedScreenState();
+      const managerCallbacks = getManagerCallbacks();
+      if (managerCallbacks?.onStateChange) {
+        return managerCallbacks.onStateChange(sharedState, {
+          eventType: eventType || 'entity-updated',
+        }) !== false;
+      }
       const client = getCollaborationClient();
       if (!client || typeof client.sendEntityState !== 'function') {
         return false;
       }
-      return client.sendEntityState(buildSharedScreenState(), eventType || 'entity-updated');
+      return client.sendEntityState(sharedState, eventType || 'entity-updated');
     }
 
     function publishSharedTransform(forceImmediate) {
       if (state.suppressSharedPublish || refs.config.collaborationEnabled === false) {
         return false;
+      }
+      const managerCallbacks = getManagerCallbacks();
+      const transform = getTransformSnapshot();
+      if (!transform) {
+        return false;
+      }
+      const sendThroughManager = function () {
+        refs.sharedTransformTimer = null;
+        return managerCallbacks.onTransformChange(transform, {
+          forceImmediate: forceImmediate === true,
+        }) !== false;
+      };
+      if (managerCallbacks?.onTransformChange) {
+        if (forceImmediate === true) {
+          if (refs.sharedTransformTimer) {
+            clearTimeout(refs.sharedTransformTimer);
+            refs.sharedTransformTimer = null;
+          }
+          return sendThroughManager();
+        }
+        if (refs.sharedTransformTimer) {
+          return true;
+        }
+        refs.sharedTransformTimer = setTimeout(sendThroughManager, 60);
+        return true;
       }
       const client = getCollaborationClient();
       if (!client || typeof client.sendEntityTransform !== 'function') {
@@ -942,7 +1059,7 @@
         client.sendEntityTransform({
           entityKind: 'screen',
           entityId: getScreenId(),
-          transform: getTransformSnapshot(),
+          transform,
         });
       };
 
@@ -1003,15 +1120,37 @@
         if (snapshot.transform?.rotation) {
           refs.root?.setAttribute('rotation', formatVector(snapshot.transform.rotation));
         }
+        if (typeof snapshot.ownerPeerId === 'string' && snapshot.ownerPeerId.trim().length > 0) {
+          refs.config.ownerPeerId = snapshot.ownerPeerId.trim();
+        }
         state.gestureOwnerPeerId = snapshot.gestureOwnerPeerId || null;
         if (typeof snapshot.broadcastStatus === 'string' && state.streamSourceType !== 'local') {
           state.broadcastStatus = snapshot.broadcastStatus;
         }
         state.hasAudio = snapshot.hasAudio === true;
+        const sharedBroadcast = normalizeBroadcastState(snapshot.broadcast);
+        setSharedBroadcastState(sharedBroadcast);
+        if (state.streamSourceType !== 'local') {
+          if (sharedBroadcast.active) {
+            setBroadcastState('viewer', state.streamSourceType === 'remote' ? 'live' : 'connecting');
+          } else if (state.streamSourceType !== 'remote') {
+            setBroadcastState('none', 'idle');
+          }
+        }
         layout();
         refreshUi();
         if (meta?.type === 'entity-lock-denied') {
           updateStatus(refs.config.labels.collaborationLocked);
+        }
+        if (state.streamSourceType !== 'local') {
+          if (sharedBroadcast.active) {
+            ensureRemoteBroadcastSubscription(sharedBroadcast);
+          } else if (state.streamSourceType === 'remote') {
+            detachRemoteBroadcast(refs.config.labels.broadcastStopped, {
+              notifyServer: false,
+              preserveStatus: false,
+            });
+          }
         }
         return true;
       } finally {
@@ -1154,13 +1293,18 @@
       if (!refs.signalingSocket || refs.signalingSocket.readyState !== win.WebSocket.OPEN) {
         return false;
       }
-      refs.signalingSocket.send(JSON.stringify(payload));
+      refs.signalingSocket.send(JSON.stringify({
+        ...payload,
+        roomId: payload?.roomId || getResolvedRoomId(),
+        screenId: payload?.screenId || getScreenId(),
+      }));
       return true;
     }
 
     function setBroadcastState(role, status) {
       state.broadcastRole = role;
       state.broadcastStatus = status;
+      syncLocalBroadcastState();
     }
 
     function createPeerConnection(peerId, role) {
@@ -1225,25 +1369,53 @@
       return connection;
     }
 
+    function ensureRemoteBroadcastSubscription(sharedBroadcast) {
+      if (state.streamSourceType === 'local' || sharedBroadcast?.active !== true) {
+        return;
+      }
+      connectSignaling();
+      if (!refs.signalingSocket || refs.signalingSocket.readyState !== win.WebSocket.OPEN || refs.broadcastRegistered !== true) {
+        return;
+      }
+      if (state.streamSourceType === 'remote') {
+        return;
+      }
+      if (
+        state.broadcastRole === 'viewer'
+        && state.broadcastStatus === 'connecting'
+        && (!sharedBroadcast?.broadcasterPeerId || refs.activeBroadcasterId === sharedBroadcast.broadcasterPeerId)
+      ) {
+        return;
+      }
+      void startViewerConnection(sharedBroadcast?.broadcasterPeerId || '');
+    }
+
     async function startViewerConnection(broadcasterId) {
       if (!canUseBroadcastTransport() || state.streamSourceType === 'local') {
         return;
       }
-      if (!broadcasterId) {
-        return;
+      if (state.broadcastRole === 'viewer' && state.broadcastStatus === 'connecting') {
+        if (!broadcasterId || refs.activeBroadcasterId === broadcasterId) {
+          return;
+        }
       }
-      if (refs.activeBroadcasterId === broadcasterId && state.broadcastStatus === 'connecting') {
+      if (broadcasterId && refs.activeBroadcasterId === broadcasterId && state.broadcastStatus === 'live') {
         return;
       }
 
-      detachRemoteBroadcast('', { notifyServer: false, preserveStatus: true });
-      refs.activeBroadcasterId = broadcasterId;
+      detachRemoteBroadcast('', {
+        notifyServer: false,
+        preserveStatus: true,
+        skipSharedPublish: true,
+      });
+      if (broadcasterId) {
+        refs.activeBroadcasterId = broadcasterId;
+      }
       setBroadcastState('viewer', 'connecting');
       updateStatus(refs.config.labels.connecting);
       sendSignaling({
         type: 'viewer-join',
         clientId: getOrCreateClientId(),
-        screenId: getScreenId(),
       });
     }
 
@@ -1265,7 +1437,6 @@
       sendSignaling({
         type: 'signal-offer',
         clientId: getOrCreateClientId(),
-        screenId: getScreenId(),
         targetId: viewerId,
         description: connection.localDescription,
       });
@@ -1301,7 +1472,6 @@
       sendSignaling({
         type: 'signal-answer',
         clientId: getOrCreateClientId(),
-        screenId: getScreenId(),
         targetId: broadcasterId,
         description: connection.localDescription,
       });
@@ -1330,7 +1500,6 @@
       sendSignaling({
         type: 'broadcast-start',
         clientId: getOrCreateClientId(),
-        screenId: getScreenId(),
         hasAudio: state.hasAudio,
       });
     }
@@ -1352,10 +1521,18 @@
           state.clientId = message.clientId || state.clientId;
           if (state.streamSourceType === 'local') {
             announceBroadcastStart();
+          } else if (refs.broadcastState.active) {
+            ensureRemoteBroadcastSubscription(refs.broadcastState);
           }
           return;
         case 'broadcast-live':
           setBroadcastState('sender', 'live');
+          setSharedBroadcastState({
+            active: true,
+            broadcasterPeerId: getCollaborationClient()?.getPeerId?.() || getOwnerPeerId(),
+            hasAudio: state.hasAudio,
+            sourceKind: state.lastIntent || 'screen',
+          });
           updateStatus(refs.config.labels.broadcasting);
           publishSharedScreenState();
           return;
@@ -1363,6 +1540,12 @@
           if (state.streamSourceType === 'local') {
             return;
           }
+          setSharedBroadcastState({
+            active: true,
+            broadcasterPeerId: refs.broadcastState?.broadcasterPeerId || '',
+            hasAudio: message.hasAudio === true,
+            sourceKind: refs.broadcastState?.sourceKind || 'screen',
+          });
           void startViewerConnection(message.broadcasterId || '');
           return;
         case 'broadcast-stopped':
@@ -1371,6 +1554,12 @@
           } else if (state.streamSourceType === 'local') {
             setBroadcastState('sender', 'idle');
           }
+          setSharedBroadcastState({
+            active: false,
+            broadcasterPeerId: '',
+            hasAudio: false,
+            sourceKind: refs.broadcastState?.sourceKind || '',
+          });
           publishSharedScreenState();
           return;
         case 'broadcast-replaced':
@@ -1378,6 +1567,12 @@
             setBroadcastState('none', 'idle');
             updateStatus(refs.config.labels.broadcastStopped);
           }
+          setSharedBroadcastState({
+            active: false,
+            broadcasterPeerId: '',
+            hasAudio: false,
+            sourceKind: refs.broadcastState?.sourceKind || '',
+          });
           publishSharedScreenState();
           return;
         case 'viewer-join':
@@ -1420,7 +1615,6 @@
         sendSignaling({
           type: 'register',
           clientId: getOrCreateClientId(),
-          screenId: getScreenId(),
         });
       };
 
@@ -1458,7 +1652,6 @@
         sendSignaling({
           type: 'viewer-leave',
           clientId: getOrCreateClientId(),
-          screenId: getScreenId(),
         });
       }
 
@@ -1478,25 +1671,37 @@
         setMode('idle', message || refs.config.labels.noSignal);
       }
 
-      publishSharedScreenState();
+      if (options?.clearSharedBroadcast === true) {
+        setSharedBroadcastState({
+          active: false,
+          broadcasterPeerId: '',
+          hasAudio: false,
+          sourceKind: refs.broadcastState?.sourceKind || '',
+        });
+      }
+
+      if (options?.skipSharedPublish !== true) {
+        publishSharedScreenState();
+      }
     }
 
     function stopCapture(message, options) {
       if (state.streamSourceType === 'remote') {
-        detachRemoteBroadcast(message || refs.config.labels.broadcastStopped, { notifyServer: true });
+        detachRemoteBroadcast(message || refs.config.labels.broadcastStopped, {
+          notifyServer: true,
+          skipSharedPublish: true,
+        });
         if (options?.minimizeAfterStop === true) {
           state.presentationMode = 'minimized';
           layout();
           refreshUi();
         }
-        publishSharedScreenState();
         return;
       }
 
       sendSignaling({
         type: 'broadcast-stop',
         clientId: getOrCreateClientId(),
-        screenId: getScreenId(),
         reason: message || refs.config.labels.broadcastStopped,
       });
       closeAllPeerConnections();
@@ -1506,6 +1711,12 @@
       state.currentSourceLabel = '';
       refs.activeBroadcasterId = '';
       setBroadcastState('none', 'idle');
+      setSharedBroadcastState({
+        active: false,
+        broadcasterPeerId: '',
+        hasAudio: false,
+        sourceKind: refs.broadcastState?.sourceKind || '',
+      });
       state.presentationMode = shouldMinimize ? 'minimized' : 'expanded';
       if (shouldMinimize) {
         setMode('idle', message || refs.config.labels.minimized);
@@ -1553,6 +1764,12 @@
         state.currentSourceLabel = SOURCE_MESSAGES[intent].active;
         state.presentationMode = 'expanded';
         setMode('broadcasting', SOURCE_MESSAGES[intent].active);
+        setSharedBroadcastState({
+          active: true,
+          broadcasterPeerId: getCollaborationClient()?.getPeerId?.() || getOwnerPeerId(),
+          hasAudio: state.hasAudio,
+          sourceKind: intent || 'screen',
+        });
         if (canUseBroadcastTransport()) {
           setBroadcastState('sender', 'connecting');
           connectSignaling();
@@ -1574,6 +1791,12 @@
         }
         state.currentSourceLabel = '';
         state.hasAudio = false;
+        setSharedBroadcastState({
+          active: false,
+          broadcasterPeerId: '',
+          hasAudio: false,
+          sourceKind: intent || refs.broadcastState?.sourceKind || 'screen',
+        });
         setMode('idle', classifyCaptureError(error));
         publishSharedScreenState();
       }
@@ -2378,7 +2601,12 @@
     function destroy() {
       refs.destroyed = true;
       if (!isRemoteScreen() && refs.config.managedScreen) {
-        getCollaborationClient()?.removeEntity?.('screen', getScreenId());
+        const managerCallbacks = getManagerCallbacks();
+        if (managerCallbacks?.onRemoveEntity) {
+          managerCallbacks.onRemoveEntity(getScreenId(), { runtime: api });
+        } else {
+          getCollaborationClient()?.removeEntity?.('screen', getScreenId());
+        }
       }
       stopCapture('Virtual screen closed.', { minimizeAfterStop: false });
       closeAllPeerConnections();
@@ -2416,6 +2644,10 @@
       applySharedScreenState,
       handleCollaborationMessage,
       getSharedScreenState: buildSharedScreenState,
+      setManagerCallbacks(callbacks) {
+        refs.managerCallbacks = callbacks || null;
+        return api;
+      },
       isRemoteScreen,
       restoreState,
       destroy,
@@ -2433,6 +2665,7 @@
           screenId: getScreenId(),
           managed: !!refs.config.managedScreen,
           collaborationSource: refs.config.collaborationSource || 'local',
+          ownerPeerId: getOwnerPeerId() || null,
           broadcastRole: state.broadcastRole,
           broadcastStatus: state.broadcastStatus,
           hasAudio: state.hasAudio,

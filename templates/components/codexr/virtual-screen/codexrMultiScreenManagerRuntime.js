@@ -58,7 +58,9 @@
         if (!this.runtimeFactory || typeof this.runtimeFactory.getState !== 'function') {
           return;
         }
-        this.ensureScreenRecord('default', this.runtimeFactory, false);
+        const record = this.ensureScreenRecord('default', this.runtimeFactory, false);
+        this.attachRuntimeToManager('default', this.runtimeFactory);
+        this.syncRecordMetadataFromState(record, this.runtimeFactory.getState?.());
       },
 
       getRuntimeRootByInstance: function (instanceId) {
@@ -86,23 +88,52 @@
         if (existing) {
           if (runtime) {
             existing.runtime = runtime;
-            existing.displayName = runtime.getState?.().displayName || existing.displayName;
+            this.syncRecordMetadataFromState(existing, runtime.getState?.());
           }
           return existing;
         }
 
         const vscreenIndex = this.getNextVscreenIndex();
+        const runtimeState = runtime?.getState?.() || {};
         const record = {
           instanceId,
           runtime,
           managed,
-          collaborationSource: runtime?.getState?.().collaborationSource || 'local',
+          collaborationSource: runtimeState.collaborationSource || 'local',
           vscreenIndex,
-          displayName: `vscreen ${vscreenIndex}`,
+          displayName: runtimeState.displayName || `vscreen ${vscreenIndex}`,
+          ownerPeerId: runtimeState.ownerPeerId || null,
         };
 
         this.activeScreens.set(instanceId, record);
         return record;
+      },
+
+      syncRecordMetadataFromState: function (record, runtimeState) {
+        if (!record || !runtimeState || typeof runtimeState !== 'object') {
+          return record || null;
+        }
+        if (typeof runtimeState.displayName === 'string' && runtimeState.displayName.trim().length > 0) {
+          record.displayName = runtimeState.displayName.trim();
+        }
+        if (typeof runtimeState.collaborationSource === 'string' && runtimeState.collaborationSource.trim().length > 0) {
+          record.collaborationSource = runtimeState.collaborationSource.trim();
+        }
+        if (typeof runtimeState.ownerPeerId === 'string' && runtimeState.ownerPeerId.trim().length > 0) {
+          record.ownerPeerId = runtimeState.ownerPeerId.trim();
+        }
+        return record;
+      },
+
+      getLocalPeerId: function () {
+        return this.collaborationClient?.getPeerId?.() || '';
+      },
+
+      buildManagedScreenId: function () {
+        const peerId = this.getLocalPeerId() || 'anon';
+        const counter = this.nextManagedInstance;
+        this.nextManagedInstance += 1;
+        return `screen:${peerId}:${counter}`;
       },
 
       createWallControls: function () {
@@ -295,6 +326,7 @@
         const transform = options?.transform || {};
         const position = transform.position || options?.anchoredPosition || this.getNextSpawnSlotPosition();
         const rotation = transform.rotation || options?.anchoredRotation || { x: 0, y: 90, z: 0 };
+        const roomId = this.collaborationClient?.getRoomId?.() || collaborationConfig.roomId || '';
         return {
           ...sharedConfig,
           enabled: true,
@@ -302,6 +334,7 @@
           collaborationEnabled: collaborationConfig.collaborationEnabled !== false,
           presenceEnabled: collaborationConfig.presenceEnabled !== false,
           cursorPresenceEnabled: collaborationConfig.cursorPresenceEnabled === true,
+          roomId,
           signalingPath: sharedConfig.signalingPath || '/codexr-broadcast',
           roomSignalingPath: collaborationConfig.roomSignalingPath || '/codexr-room',
           sessionEndpoint: collaborationConfig.sessionEndpoint || '/api/collaboration/session',
@@ -311,6 +344,7 @@
           screenId: instanceId,
           managedScreen: true,
           collaborationSource: options?.collaborationSource || 'local',
+          ownerPeerId: options?.ownerPeerId || options?.sharedState?.ownerPeerId || null,
           displayName: options?.displayName || instanceId,
           videoElementId: `codexrVirtualScreenVideo-${instanceId}`,
           anchoredPosition: {
@@ -336,11 +370,59 @@
         }
 
         const runtime = this.runtimeFactory.createRuntime(root);
+        this.attachRuntimeToManager(instanceId, runtime);
         runtime.init(this.buildRuntimeInitConfig(instanceId, options));
         if (options?.sharedState) {
           runtime.applySharedScreenState?.(options.sharedState, { source: 'manager-create' });
         }
         return runtime;
+      },
+
+      attachRuntimeToManager: function (instanceId, runtime) {
+        if (!runtime || typeof runtime.setManagerCallbacks !== 'function') {
+          return runtime;
+        }
+        runtime.setManagerCallbacks({
+          onStateChange: (sharedState, meta) => {
+            this.publishScreenState(instanceId, sharedState, meta?.eventType || 'entity-updated');
+          },
+          onTransformChange: (transform) => {
+            this.publishScreenTransform(instanceId, transform);
+          },
+          onRemoveEntity: () => {
+            this.removeScreenEntity(instanceId);
+          },
+        });
+        return runtime;
+      },
+
+      publishScreenState: function (instanceId, sharedState, eventType) {
+        if (!sharedState || !this.collaborationClient || typeof this.collaborationClient.sendEntityState !== 'function') {
+          return false;
+        }
+        const record = this.activeScreens.get(instanceId);
+        if (record) {
+          this.syncRecordMetadataFromState(record, sharedState);
+        }
+        return this.collaborationClient.sendEntityState(sharedState, eventType || 'entity-updated');
+      },
+
+      publishScreenTransform: function (instanceId, transform) {
+        if (!transform || !this.collaborationClient || typeof this.collaborationClient.sendEntityTransform !== 'function') {
+          return false;
+        }
+        return this.collaborationClient.sendEntityTransform({
+          entityKind: 'screen',
+          entityId: instanceId,
+          transform,
+        });
+      },
+
+      removeScreenEntity: function (instanceId) {
+        if (instanceId === 'default' || !this.collaborationClient || typeof this.collaborationClient.removeEntity !== 'function') {
+          return false;
+        }
+        return this.collaborationClient.removeEntity('screen', instanceId);
       },
 
       ensureRemoteScreen: function (sharedState) {
@@ -350,6 +432,7 @@
         if (sharedState.entityId === 'default') {
           const defaultRecord = this.activeScreens.get('default');
           defaultRecord?.runtime?.applySharedScreenState?.(sharedState, { source: 'manager-default' });
+          this.syncRecordMetadataFromState(defaultRecord, sharedState);
           return defaultRecord || null;
         }
 
@@ -357,7 +440,7 @@
         if (existing) {
           existing.runtime?.applySharedScreenState?.(sharedState, { source: 'manager-existing' });
           existing.collaborationSource = 'remote';
-          existing.displayName = sharedState.displayName || existing.displayName;
+          this.syncRecordMetadataFromState(existing, sharedState);
           this.remoteScreens.set(sharedState.entityId, existing);
           return existing;
         }
@@ -365,6 +448,7 @@
         const runtime = this.createManagedRuntime(sharedState.entityId, {
           collaborationSource: 'remote',
           displayName: sharedState.displayName || sharedState.entityId,
+          ownerPeerId: sharedState.ownerPeerId || null,
           transform: sharedState.transform || null,
           sharedState,
           idleLabel: `${sharedState.displayName || sharedState.entityId}: waiting for source.`,
@@ -375,7 +459,7 @@
 
         const record = this.ensureScreenRecord(sharedState.entityId, runtime, true);
         record.collaborationSource = 'remote';
-        record.displayName = sharedState.displayName || record.displayName;
+        this.syncRecordMetadataFromState(record, sharedState);
         this.remoteScreens.set(sharedState.entityId, record);
         this.refreshPanel();
         return record;
@@ -421,10 +505,10 @@
           return;
         }
 
-        const instanceId = `managed-${this.nextManagedInstance}`;
-        this.nextManagedInstance += 1;
+        const instanceId = this.buildManagedScreenId();
         const runtime = this.createManagedRuntime(instanceId, {
           collaborationSource: 'local',
+          ownerPeerId: this.getLocalPeerId() || null,
           displayName: `vscreen ${this.nextVscreenIndex}`,
         });
         if (!runtime) {
@@ -442,8 +526,9 @@
           return;
         }
 
+        record.runtime?.setManagerCallbacks?.(null);
         if (instanceId !== 'default' && options?.remote !== true) {
-          this.collaborationClient?.removeEntity?.('screen', instanceId);
+          this.removeScreenEntity(instanceId);
         }
 
         try {
@@ -479,16 +564,12 @@
         const target = this.getNextSpawnSlotPosition();
         screenRoot.setAttribute('position', `${target.x} ${target.y} ${target.z}`);
         const rotation = screenRoot.getAttribute('rotation') || { x: 0, y: 90, z: 0 };
-        this.collaborationClient?.sendEntityTransform?.({
-          entityKind: 'screen',
-          entityId: instanceId,
-          transform: {
-            position: target,
-            rotation: {
-              x: Number(rotation.x) || 0,
-              y: Number(rotation.y) || 0,
-              z: Number(rotation.z) || 0,
-            },
+        this.publishScreenTransform(instanceId, {
+          position: target,
+          rotation: {
+            x: Number(rotation.x) || 0,
+            y: Number(rotation.y) || 0,
+            z: Number(rotation.z) || 0,
           },
         });
       },
