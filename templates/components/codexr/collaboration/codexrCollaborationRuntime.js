@@ -102,6 +102,14 @@
     };
   }
 
+  function getPresenceLabel(presenceState) {
+    const displayName = String(presenceState?.displayName || '').trim();
+    if (displayName) {
+      return displayName;
+    }
+    return String(presenceState?.peerId || '').slice(0, 6);
+  }
+
   function cloneVector(vector) {
     if (!vector || typeof vector !== 'object') {
       return null;
@@ -157,6 +165,7 @@
       sessionInfo: null,
       sessionInfoPromise: null,
       peerId: '',
+      displayName: '',
       roomId: '',
       joinedRoom: false,
       snapshotReady: false,
@@ -378,6 +387,7 @@
       switch (message.type) {
         case 'room-joined':
           shared.peerId = String(message.peerId || shared.peerId || '').trim();
+          shared.displayName = String(message.displayName || shared.displayName || '').trim();
           shared.roomId = String(message.roomId || shared.roomId || '').trim();
           shared.joinedRoom = true;
           ensurePresenceLoop();
@@ -523,6 +533,7 @@
       const cursorState = shared.config.cursorPresenceEnabled ? shared.localCursorState : null;
       return {
         peerId: shared.peerId || '',
+        displayName: shared.displayName || '',
         head: getPoseFromEntity(getHeadEntity()),
         leftHand: getPoseFromEntity(getDocument()?.querySelector('#leftController')),
         rightHand: getPoseFromEntity(getDocument()?.querySelector('#rightController')),
@@ -685,7 +696,7 @@
       rootEl.appendChild(label);
       overlayRoot.appendChild(rootEl);
 
-      const cursor = { rootEl };
+      const cursor = { rootEl, labelEl: label };
       shared.remoteCursors.set(peerId, cursor);
       return cursor;
     }
@@ -712,6 +723,7 @@
       if (presenceState.head || presenceState.leftHand || presenceState.rightHand) {
         const avatar = ensureRemoteAvatar(presenceState.peerId);
         if (avatar) {
+          avatar.label.setAttribute('value', getPresenceLabel(presenceState));
           setPoseEntity(avatar.head, presenceState.head, true);
           setPoseEntity(avatar.leftHand, presenceState.leftHand, true);
           setPoseEntity(avatar.rightHand, presenceState.rightHand, true);
@@ -731,6 +743,9 @@
       if (shared.config.cursorPresenceEnabled && presenceState.cursor) {
         const cursor = ensureRemoteCursor(presenceState.peerId);
         if (cursor) {
+          if (cursor.labelEl) {
+            cursor.labelEl.textContent = getPresenceLabel(presenceState);
+          }
           if (presenceState.cursor.visible === false) {
             cursor.rootEl.style.display = 'none';
           } else {

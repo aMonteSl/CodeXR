@@ -56,6 +56,12 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(runtimeSource, /sessionEndpoint: '\/api\/collaboration\/session'/);
     assert.match(runtimeSource, /CodeXRCollaborationRuntime/);
     assert.match(runtimeSource, /function cloneVector\(/);
+    assert.match(runtimeSource, /placeInFrontOfUserOnInit/);
+    assert.match(runtimeSource, /function ensureRemoteAudioSource\(/);
+    assert.match(runtimeSource, /function syncRemoteAudioPlayback\(/);
+    assert.match(runtimeSource, /audioUnlockRequired/);
+    assert.match(runtimeSource, /systemAudio: 'include'/);
+    assert.match(runtimeSource, /windowAudio: 'system'/);
     assert.match(runtimeSource, /ownerPeerId/);
     assert.match(runtimeSource, /normalizeBroadcastState/);
     assert.match(runtimeSource, /setManagerCallbacks/);
@@ -81,17 +87,23 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(multiScreenManagerSource, /applyCollaborationSnapshot/);
     assert.match(multiScreenManagerSource, /ensureRemoteScreen/);
     assert.match(multiScreenManagerSource, /buildManagedScreenId/);
+    assert.match(multiScreenManagerSource, /bringScreenInFrontOfUser/);
     assert.match(multiScreenManagerSource, /screen:\$\{peerId\}:\$\{counter\}/);
     assert.match(multiScreenManagerSource, /setManagerCallbacks/);
     assert.match(multiScreenManagerSource, /onStateChange/);
     assert.match(multiScreenManagerSource, /onTransformChange/);
     assert.doesNotMatch(multiScreenManagerSource, /managed-\$\{this\.nextManagedInstance\}/);
+    assert.doesNotMatch(multiScreenManagerSource, /Spawn Zone/);
+    assert.doesNotMatch(multiScreenManagerSource, /Add and Bring stack here/);
+    assert.doesNotMatch(multiScreenManagerSource, /Focus/);
     assert.match(multiScreenManagerSource, /showPanel: \{ type: 'boolean', default: true \}/);
     assert.match(collaborationRuntimeSource, /room-join/);
     assert.match(collaborationRuntimeSource, /room-snapshot/);
     assert.match(collaborationRuntimeSource, /entity-transform/);
     assert.match(collaborationRuntimeSource, /presence-update/);
     assert.match(collaborationRuntimeSource, /cursorPresenceEnabled/);
+    assert.match(collaborationRuntimeSource, /getPresenceLabel/);
+    assert.match(collaborationRuntimeSource, /displayName/);
     assert.match(broadcastServerSource, /roomId/);
     assert.match(broadcastServerSource, /DEFAULT_ROOM_ID/);
     assert.match(broadcastServerSource, /getScreenKey/);
@@ -162,7 +174,9 @@ test('virtual screen runtime requests screen audio and exposes broadcast-aware s
     assert.equal(state.broadcastRole, 'none');
     assert.equal(state.broadcastStatus, 'idle');
     assert.equal(state.hasAudio, false);
+    assert.equal(state.audioUnlockRequired, false);
     assert.equal(typeof runtime.restoreState, 'function');
+    assert.equal(typeof runtime.placeInFrontOfUser, 'function');
     assert.equal(typeof runtime.destroy, 'function');
 });
 

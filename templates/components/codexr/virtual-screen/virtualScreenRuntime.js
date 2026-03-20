@@ -53,6 +53,7 @@
     ownerPeerId: '',
     displayName: '',
     managedScreen: false,
+    placeInFrontOfUserOnInit: false,
     collaborationSource: 'local',
     collaborationEnabled: true,
     presenceEnabled: true,
@@ -80,6 +81,8 @@
       broadcastError: 'Unable to connect the live broadcast.',
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
+      audioUnlock: 'Enable Audio',
+      audioUnlockPrompt: 'Tap to enable this shared screen audio.',
     },
   };
 
@@ -193,6 +196,7 @@
       stream: null,
       streamSourceType: null,
       hasAudio: false,
+      audioUnlockRequired: false,
       screenWidth: DEFAULT_CONFIG.sizeSteps[DEFAULT_CONFIG.defaultSizeIndex],
       sizeIndex: DEFAULT_CONFIG.defaultSizeIndex,
       lastIntent: 'screen',
@@ -214,6 +218,7 @@
       scene: null,
       followAnchor: null,
       videoSource: null,
+      remoteAudioSource: null,
       root: null,
       frame: null,
       display: null,
@@ -226,6 +231,7 @@
       legendText: null,
       legendToggle: null,
       shareButton: null,
+      audioUnlockButton: null,
       headerButtons: {},
       cornerHandles: {},
       edgeHandles: {},
@@ -417,6 +423,79 @@
       }
       refs.videoSource = video;
       return video;
+    }
+
+    function ensureRemoteAudioSource() {
+      if (refs.remoteAudioSource && refs.remoteAudioSource.isConnected) {
+        return refs.remoteAudioSource;
+      }
+      const document = getDocument();
+      if (!document) {
+        return null;
+      }
+      const audioElementId = getScopedId('codexrVirtualScreenRemoteAudio');
+      let audio = document.getElementById(audioElementId);
+      if (!audio) {
+        audio = document.createElement('audio');
+        audio.id = audioElementId;
+        audio.autoplay = true;
+        audio.muted = false;
+        audio.playsInline = true;
+        audio.setAttribute('playsinline', 'true');
+        audio.style.display = 'none';
+        document.body.appendChild(audio);
+      }
+      refs.remoteAudioSource = audio;
+      return audio;
+    }
+
+    function clearRemoteAudioPlayback() {
+      state.audioUnlockRequired = false;
+      const audio = refs.remoteAudioSource || getDocument()?.getElementById(getScopedId('codexrVirtualScreenRemoteAudio')) || null;
+      if (!audio) {
+        refreshUi();
+        return;
+      }
+      try {
+        audio.pause();
+      } catch (_error) {
+        // Ignore audio pause issues during cleanup.
+      }
+      audio.srcObject = null;
+      refreshUi();
+    }
+
+    function syncRemoteAudioPlayback(stream) {
+      const hasRemoteAudio = state.streamSourceType === 'remote'
+        && state.hasAudio
+        && typeof stream?.getAudioTracks === 'function'
+        && stream.getAudioTracks().length > 0;
+
+      if (!hasRemoteAudio) {
+        clearRemoteAudioPlayback();
+        return;
+      }
+
+      const audio = ensureRemoteAudioSource();
+      if (!audio) {
+        return;
+      }
+
+      audio.muted = false;
+      audio.srcObject = stream;
+      const playResult = audio.play();
+      if (playResult && typeof playResult.then === 'function') {
+        playResult.then(() => {
+          state.audioUnlockRequired = false;
+          refreshUi();
+        }).catch(() => {
+          state.audioUnlockRequired = true;
+          refreshUi();
+        });
+      } else {
+        state.audioUnlockRequired = false;
+        refreshUi();
+      }
     }
 
     function createEntity(tagName, attributes) {
@@ -683,6 +762,7 @@
       refs.legendRoot.appendChild(refs.legendToggle);
 
       refs.shareButton = createButton('codexrShareSource', '▣', 0.86, 0.86, 1.6, 4);
+      refs.audioUnlockButton = createButton('codexrEnableAudio', refs.config.labels.audioUnlock, 1.52, 0.34, 3.1, 18);
       refs.headerButtons.lookAt = createButton(HEADER_BUTTONS.lookAt, '◈', 0.24, 0.24, 0.65, 3);
       refs.headerButtons.follow = createButton(HEADER_BUTTONS.follow, '◎', 0.24, 0.24, 0.65, 3);
       refs.headerButtons.minimize = createButton(HEADER_BUTTONS.minimize, '—', 0.24, 0.24, 0.70, 3);
@@ -706,6 +786,7 @@
       refs.root.appendChild(refs.status);
       refs.root.appendChild(refs.legendRoot);
       refs.root.appendChild(refs.shareButton);
+      refs.root.appendChild(refs.audioUnlockButton);
       Object.values(refs.headerButtons).forEach((button) => refs.root.appendChild(button));
       Object.values(refs.cornerHandles).forEach((handle) => refs.root.appendChild(handle));
       Object.values(refs.edgeHandles).forEach((handle) => refs.root.appendChild(handle));
@@ -726,6 +807,7 @@
         refs.legendText,
         refs.legendToggle,
         refs.shareButton,
+        refs.audioUnlockButton,
         ...Object.values(refs.headerButtons),
         ...Object.values(refs.cornerHandles),
         ...Object.values(refs.edgeHandles),
@@ -792,6 +874,7 @@
       refs.status.setAttribute('width', String(Math.max(6, width + 1.4)));
       refs.status.setAttribute('position', minimized ? '0 0.28 0.04' : '0 0.95 0.04');
       refs.shareButton.setAttribute('position', '0 0 0.04');
+      refs.audioUnlockButton.setAttribute('position', minimized ? '0 -0.06 0.04' : `0 ${-(halfHeight - 0.28)} 0.04`);
       refs.legendRoot.setAttribute('position', `${legendOffsetX} ${legendOffsetY} 0.05`);
       refs.legendPanel.setAttribute('width', String(legendWidth));
       refs.legendPanel.setAttribute('height', String(legendHeight));
@@ -834,6 +917,7 @@
       const headerVisible = minimized || chromeVisible;
       const showShareButton = state.mode === 'idle';
       const showStatus = !active && !minimized;
+      const showAudioUnlock = state.audioUnlockRequired && state.streamSourceType === 'remote' && state.hasAudio;
       const showLegend = (active || minimized) && chromeVisible;
 
       setEntityVisible(refs.display, active && expanded);
@@ -847,6 +931,7 @@
       setEntityVisible(refs.legendText, showLegend && !state.legendCollapsed);
       setEntityVisible(refs.legendToggle, showLegend);
       setEntityVisible(refs.shareButton, showShareButton);
+      setEntityVisible(refs.audioUnlockButton, showAudioUnlock);
       Object.values(refs.headerButtons).forEach((button) => setEntityVisible(button, headerVisible));
       Object.values(refs.cornerHandles).forEach((handle) => setEntityVisible(handle, expanded && chromeVisible));
       Object.values(refs.edgeHandles).forEach((handle) => setEntityVisible(handle, chromeVisible));
@@ -858,8 +943,10 @@
       refs.headerButtons.follow.__codexrGlyph = state.follow ? '◉' : '◎';
       refs.headerButtons.minimize.__codexrGlyph = minimized ? '□' : '—';
       refs.headerButtons.stop.__codexrGlyph = '×';
+      refs.audioUnlockButton.__codexrGlyph = refs.config.labels.audioUnlock;
 
       setButtonStyle(refs.shareButton, 0.20, '#F8FAFC', '#0F172A');
+      setButtonStyle(refs.audioUnlockButton, showAudioUnlock ? 0.92 : 0.0, '#0EA5E9', '#F8FAFC');
       setMaterial(refs.legendPanel, `color: #020617; opacity: ${showLegend && !state.legendCollapsed ? 0.84 : 0.0}; transparent: true; shader: flat;`);
       setButtonStyle(refs.legendToggle, showLegend ? 0.88 : 0.0, state.legendCollapsed ? '#16A34A' : '#F59E0B', '#111827');
       setButtonStyle(refs.headerButtons.lookAt, headerVisible ? 0.82 : 0.0, state.lookAtCameraEnabled ? '#7C3AED' : '#C08497', state.lookAtCameraEnabled ? '#F8FAFC' : '#111827');
@@ -1191,6 +1278,9 @@
           frameRate: { ideal: 30, max: 30 },
         },
         audio: true,
+        systemAudio: 'include',
+        windowAudio: 'system',
+        preferCurrentTab: true,
         surfaceSwitching: 'include',
         selfBrowserSurface: 'exclude',
       };
@@ -1224,15 +1314,18 @@
       if (!video) {
         return;
       }
+      video.muted = true;
       video.srcObject = stream;
       const playResult = video.play();
       if (playResult && typeof playResult.catch === 'function') {
         playResult.catch(() => {});
       }
+      syncRemoteAudioPlayback(stream);
     }
 
     function releaseStream(stopTracks) {
       if (!state.stream) {
+        clearRemoteAudioPlayback();
         return;
       }
       if (stopTracks && state.streamSourceType === 'local' && typeof state.stream.getTracks === 'function') {
@@ -1240,10 +1333,12 @@
       }
       state.stream = null;
       state.streamSourceType = null;
+      state.audioUnlockRequired = false;
       const video = ensureVideoSource();
       if (video) {
         video.srcObject = null;
       }
+      clearRemoteAudioPlayback();
     }
 
     function closePeerConnection(peerId) {
@@ -1888,6 +1983,55 @@
       publishSharedTransform(true);
     }
 
+    function buildFrontOfUserFollowTransform() {
+      if (!global.THREE) {
+        return null;
+      }
+      const followOffset = refs.config.followOffset || DEFAULT_CONFIG.followOffset;
+      const position = new global.THREE.Vector3(
+        Number(followOffset.x) || 0,
+        Number(followOffset.y) || 0,
+        Number(followOffset.z) || 0,
+      );
+      return {
+        position,
+        distance: position.length(),
+      };
+    }
+
+    function placeInFrontOfUser(options) {
+      if (!refs.root) {
+        return false;
+      }
+      const followTransform = buildFrontOfUserFollowTransform();
+      if (!followTransform) {
+        return false;
+      }
+      state.follow = false;
+      state.followTransform = followTransform;
+      if (!applyFollowTransform()) {
+        return false;
+      }
+      if (state.lookAtCameraEnabled) {
+        applyFaceCameraOrientation();
+      }
+      layout();
+      refreshUi();
+      if (options?.showChrome !== false) {
+        showChrome();
+      }
+      if (options?.updateStatus !== false) {
+        updateStatus(state.currentSourceLabel || 'Virtual screen moved in front of you.');
+      }
+      if (options?.publishState === true) {
+        publishSharedScreenState();
+      }
+      if (options?.publishTransform === true) {
+        publishSharedTransform(true);
+      }
+      return true;
+    }
+
     function adjustSize(direction) {
       const nextIndex = clamp(findClosestSizeIndex(state.screenWidth) + direction, 0, refs.config.sizeSteps.length - 1);
       state.sizeIndex = nextIndex;
@@ -2481,6 +2625,14 @@
       refs.shareButton.addEventListener('click', function () {
         void startCapture('screen');
       });
+      refs.audioUnlockButton.addEventListener('click', function () {
+        if (!state.stream || state.streamSourceType !== 'remote') {
+          return;
+        }
+        state.audioUnlockRequired = false;
+        syncRemoteAudioPlayback(state.stream);
+        showChrome();
+      });
       refs.headerButtons.lookAt.addEventListener('click', function () {
         toggleLookAtCamera();
       });
@@ -2530,6 +2682,14 @@
       state.displayName = refs.config.displayName || state.displayName;
       createUi();
       setAnchoredTransform();
+      if (refs.config.placeInFrontOfUserOnInit === true) {
+        placeInFrontOfUser({
+          publishState: false,
+          publishTransform: false,
+          updateStatus: false,
+          showChrome: false,
+        });
+      }
       if (state.lookAtCameraEnabled) {
         applyFaceCameraOrientation();
       }
@@ -2621,6 +2781,11 @@
         video.parentElement.removeChild(video);
       }
       refs.videoSource = null;
+      const audio = refs.remoteAudioSource || getDocument()?.getElementById(getScopedId('codexrVirtualScreenRemoteAudio')) || null;
+      if (audio?.parentElement) {
+        audio.parentElement.removeChild(audio);
+      }
+      refs.remoteAudioSource = null;
     }
 
     const api = {
@@ -2640,6 +2805,7 @@
       adjustSize,
       setScreenWidth,
       setDisplayName,
+      placeInFrontOfUser,
       publishInitialSharedState,
       applySharedScreenState,
       handleCollaborationMessage,
@@ -2669,6 +2835,7 @@
           broadcastRole: state.broadcastRole,
           broadcastStatus: state.broadcastStatus,
           hasAudio: state.hasAudio,
+          audioUnlockRequired: state.audioUnlockRequired,
           gestureOwnerPeerId: state.gestureOwnerPeerId,
           activeBroadcasterId: refs.activeBroadcasterId || null,
           lastIntent: state.lastIntent,

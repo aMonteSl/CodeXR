@@ -26,13 +26,11 @@
       init: function () {
         this.nextVscreenIndex = 0;
         this.nextManagedInstance = 1;
-        this.nextSpawnSlot = 0;
 
         this.activeScreens = new Map();
         this.remoteScreens = new Map();
 
         this.panelEntriesRoot = null;
-        this.panelFooter = null;
 
         this.runtimeFactory = root.CodeXRVirtualScreenRuntime || null;
         this.collaborationClient = root.CodeXRCollaborationRuntime?.getClient?.(root) || null;
@@ -173,36 +171,7 @@
 
         this.panelEntriesRoot = document.createElement('a-entity');
         this.panelEntriesRoot.setAttribute('id', 'codexrScreensEntries');
-        this.panelEntriesRoot.setAttribute('position', '-0.62 0.34 0.03');
-
-        const spawnArea = document.createElement('a-plane');
-        spawnArea.setAttribute('id', 'codexrSpawnAreaInPanel');
-        spawnArea.setAttribute('width', '1.25');
-        spawnArea.setAttribute('height', '2.7');
-        spawnArea.setAttribute('color', '#0b1220');
-        spawnArea.setAttribute('material', 'opacity: 0.74; transparent: true; shader: flat;');
-        spawnArea.setAttribute('position', '1.38 -0.2 0.03');
-
-        const spawnTitle = document.createElement('a-text');
-        spawnTitle.setAttribute('value', 'Spawn Zone');
-        spawnTitle.setAttribute('align', 'center');
-        spawnTitle.setAttribute('color', '#bfdbfe');
-        spawnTitle.setAttribute('width', '2.1');
-        spawnTitle.setAttribute('position', '1.38 1.0 0.04');
-
-        const spawnHint = document.createElement('a-text');
-        spawnHint.setAttribute('value', 'Add and Bring stack here');
-        spawnHint.setAttribute('align', 'center');
-        spawnHint.setAttribute('color', '#cbd5e1');
-        spawnHint.setAttribute('width', '1.9');
-        spawnHint.setAttribute('position', '1.38 -1.45 0.04');
-
-        this.panelFooter = document.createElement('a-text');
-        this.panelFooter.setAttribute('value', 'Focus: recenter. Bring: move target to spawn zone.');
-        this.panelFooter.setAttribute('align', 'center');
-        this.panelFooter.setAttribute('color', '#cbd5e1');
-        this.panelFooter.setAttribute('width', '4.0');
-        this.panelFooter.setAttribute('position', '0 -1.7 0.03');
+        this.panelEntriesRoot.setAttribute('position', '0 0.34 0.03');
 
         addButton.addEventListener('click', () => this.addScreen());
 
@@ -211,10 +180,6 @@
         controlsRoot.appendChild(addButton);
         controlsRoot.appendChild(activeTitle);
         controlsRoot.appendChild(this.panelEntriesRoot);
-        controlsRoot.appendChild(spawnArea);
-        controlsRoot.appendChild(spawnTitle);
-        controlsRoot.appendChild(spawnHint);
-        controlsRoot.appendChild(this.panelFooter);
         this.el.appendChild(controlsRoot);
       },
 
@@ -254,7 +219,7 @@
           row.setAttribute('position', `0 ${0.62 - (index * 0.31)} 0`);
 
           const bg = document.createElement('a-plane');
-          bg.setAttribute('width', '2.5');
+          bg.setAttribute('width', '3.15');
           bg.setAttribute('height', '0.25');
           bg.setAttribute('color', '#1e293b');
           bg.setAttribute('material', 'opacity: 0.82; transparent: true; shader: flat;');
@@ -266,18 +231,14 @@
           text.setAttribute('value', summary);
           text.setAttribute('align', 'left');
           text.setAttribute('color', '#dbeafe');
-          text.setAttribute('width', '2.3');
-          text.setAttribute('position', '-1.15 -0.03 0.02');
+          text.setAttribute('width', '2.2');
+          text.setAttribute('position', '-1.45 -0.03 0.02');
 
-          const bringBtn = this.makeButton('Bring', '#2563eb', '0.82 0 0.02', 0.52, () => {
-            this.repositionScreenToSpawnZone(entry.instanceId);
+          const bringBtn = this.makeButton('Bring', '#2563eb', '0.92 0 0.02', 0.56, () => {
+            this.bringScreenInFrontOfUser(entry.instanceId);
           });
 
-          const focusBtn = this.makeButton('Focus', '#0f766e', '1.38 0 0.02', 0.52, () => {
-            entry.runtime?.recenter?.();
-          });
-
-          const removeBtn = this.makeButton('Del', '#b91c1c', '1.94 0 0.02', 0.44, () => {
+          const removeBtn = this.makeButton('Del', '#b91c1c', '1.58 0 0.02', 0.46, () => {
             this.destroyScreen(entry.instanceId);
             this.refreshPanel();
           });
@@ -285,25 +246,9 @@
           row.appendChild(bg);
           row.appendChild(text);
           row.appendChild(bringBtn);
-          row.appendChild(focusBtn);
           row.appendChild(removeBtn);
           this.panelEntriesRoot.appendChild(row);
         });
-      },
-
-      getSpawnSlotPosition: function (slotIndex) {
-        const normalized = Number(slotIndex || 0);
-        return {
-          x: -7.95,
-          y: 3.15 - (normalized * 0.72),
-          z: -9.45,
-        };
-      },
-
-      getNextSpawnSlotPosition: function () {
-        const slot = this.nextSpawnSlot % 4;
-        this.nextSpawnSlot += 1;
-        return this.getSpawnSlotPosition(slot);
       },
 
       getSceneSelector: function () {
@@ -324,7 +269,7 @@
         const sharedConfig = root.__CODEXR_VIRTUAL_SCREEN_CONFIG__ || {};
         const collaborationConfig = root.__CODEXR_COLLABORATION_CONFIG__ || {};
         const transform = options?.transform || {};
-        const position = transform.position || options?.anchoredPosition || this.getNextSpawnSlotPosition();
+        const position = transform.position || options?.anchoredPosition || sharedConfig.anchoredPosition || { x: 0, y: 8, z: 6 };
         const rotation = transform.rotation || options?.anchoredRotation || { x: 0, y: 90, z: 0 };
         const roomId = this.collaborationClient?.getRoomId?.() || collaborationConfig.roomId || '';
         return {
@@ -343,6 +288,7 @@
           instanceId,
           screenId: instanceId,
           managedScreen: true,
+          placeInFrontOfUserOnInit: options?.placeInFrontOfUser === true,
           collaborationSource: options?.collaborationSource || 'local',
           ownerPeerId: options?.ownerPeerId || options?.sharedState?.ownerPeerId || null,
           displayName: options?.displayName || instanceId,
@@ -508,6 +454,7 @@
         const instanceId = this.buildManagedScreenId();
         const runtime = this.createManagedRuntime(instanceId, {
           collaborationSource: 'local',
+          placeInFrontOfUser: true,
           ownerPeerId: this.getLocalPeerId() || null,
           displayName: `vscreen ${this.nextVscreenIndex}`,
         });
@@ -555,23 +502,17 @@
         this.remoteScreens.delete(instanceId);
       },
 
-      repositionScreenToSpawnZone: function (instanceId) {
-        const screenRoot = this.getRuntimeRootByInstance(instanceId);
-        if (!screenRoot) {
-          return;
+      bringScreenInFrontOfUser: function (instanceId) {
+        const record = this.activeScreens.get(instanceId);
+        if (!record?.runtime?.placeInFrontOfUser) {
+          return false;
         }
-
-        const target = this.getNextSpawnSlotPosition();
-        screenRoot.setAttribute('position', `${target.x} ${target.y} ${target.z}`);
-        const rotation = screenRoot.getAttribute('rotation') || { x: 0, y: 90, z: 0 };
-        this.publishScreenTransform(instanceId, {
-          position: target,
-          rotation: {
-            x: Number(rotation.x) || 0,
-            y: Number(rotation.y) || 0,
-            z: Number(rotation.z) || 0,
-          },
-        });
+        return record.runtime.placeInFrontOfUser({
+          publishState: true,
+          publishTransform: true,
+          updateStatus: false,
+          showChrome: true,
+        }) !== false;
       },
 
       tickBehavior: function () {

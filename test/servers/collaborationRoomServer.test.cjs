@@ -61,14 +61,24 @@ test('collaboration room server isolates rooms, snapshots shared state, and rele
     try {
         await Promise.all([waitForOpen(host), waitForOpen(peer), waitForOpen(isolated)]);
 
+        const hostJoined = waitForMessage(host, (payload) => payload.type === 'room-joined');
+        const peerJoined = waitForMessage(peer, (payload) => payload.type === 'room-joined');
+        const isolatedJoined = waitForMessage(isolated, (payload) => payload.type === 'room-joined');
+        const hostSnapshot = waitForMessage(host, (payload) => payload.type === 'room-snapshot');
+        const peerSnapshot = waitForMessage(peer, (payload) => payload.type === 'room-snapshot');
+        const isolatedSnapshot = waitForMessage(isolated, (payload) => payload.type === 'room-snapshot');
+
         host.send(JSON.stringify({ type: 'room-join', roomId: 'codexr-session:alpha' }));
         peer.send(JSON.stringify({ type: 'room-join', roomId: 'codexr-session:alpha' }));
         isolated.send(JSON.stringify({ type: 'room-join', roomId: 'codexr-session:beta' }));
 
         await Promise.all([
-            waitForMessage(host, (payload) => payload.type === 'room-snapshot'),
-            waitForMessage(peer, (payload) => payload.type === 'room-snapshot'),
-            waitForMessage(isolated, (payload) => payload.type === 'room-snapshot'),
+            hostJoined,
+            peerJoined,
+            isolatedJoined,
+            hostSnapshot,
+            peerSnapshot,
+            isolatedSnapshot,
         ]);
 
         const peerPresence = waitForMessage(peer, (payload) => payload.type === 'presence-joined');
@@ -79,7 +89,10 @@ test('collaboration room server isolates rooms, snapshots shared state, and rele
                 head: { position: { x: 1, y: 2, z: 3 } },
             },
         }));
-        assert.equal((await peerPresence).payload.head.position.x, 1);
+        const receivedPresence = await peerPresence;
+        assert.equal(receivedPresence.payload.head.position.x, 1);
+        assert.equal(typeof receivedPresence.payload.displayName, 'string');
+        assert.equal(receivedPresence.payload.displayName.length > 0, true);
 
         const sharedEntity = {
             entityKind: 'screen',
@@ -101,11 +114,16 @@ test('collaboration room server isolates rooms, snapshots shared state, and rele
 
         const lateJoiner = new WebSocket(url);
         await waitForOpen(lateJoiner);
+        const lateJoined = waitForMessage(lateJoiner, (payload) => payload.type === 'room-joined');
+        const lateSnapshotPromise = waitForMessage(lateJoiner, (payload) => payload.type === 'room-snapshot');
         lateJoiner.send(JSON.stringify({ type: 'room-join', roomId: 'codexr-session:alpha' }));
-        const lateSnapshot = await waitForMessage(lateJoiner, (payload) => payload.type === 'room-snapshot');
+        await lateJoined;
+        const lateSnapshot = await lateSnapshotPromise;
         assert.equal(lateSnapshot.payload.entities.length, 1);
         assert.equal(lateSnapshot.payload.entities[0].entityId, 'managed-1');
         assert.equal(lateSnapshot.payload.presence.length, 1);
+        assert.equal(typeof lateSnapshot.payload.presence[0].displayName, 'string');
+        assert.equal(lateSnapshot.payload.presence[0].displayName.length > 0, true);
 
         isolated.send(JSON.stringify({
             type: 'room-join',
@@ -143,6 +161,42 @@ test('collaboration room server isolates rooms, snapshots shared state, and rele
         host.close();
         peer.close();
         isolated.close();
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('collaboration room server assigns shared Star Wars display names and composes names when the simple pool is exhausted', async () => {
+    const { CollaborationRoomServer } = loadCollaborationRoomServer();
+    const server = http.createServer((_req, res) => {
+        res.writeHead(200);
+        res.end('ok');
+    });
+    const collaboration = new CollaborationRoomServer(server);
+
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const url = `ws://127.0.0.1:${port}/codexr-room`;
+    const sockets = [];
+
+    try {
+        for (let index = 0; index < 15; index += 1) {
+            const socket = new WebSocket(url);
+            sockets.push(socket);
+            await waitForOpen(socket);
+            socket.__joinedPromise = waitForMessage(socket, (payload) => payload.type === 'room-joined');
+            socket.__snapshotPromise = waitForMessage(socket, (payload) => payload.type === 'room-snapshot');
+            socket.send(JSON.stringify({ type: 'room-join', roomId: 'codexr-session:names' }));
+        }
+
+        const joinMessages = await Promise.all(sockets.map((socket) => socket.__joinedPromise));
+        await Promise.all(sockets.map((socket) => socket.__snapshotPromise));
+
+        const displayNames = joinMessages.map((payload) => payload.displayName);
+        assert.equal(new Set(displayNames).size, displayNames.length);
+        assert.equal(displayNames.some((name) => typeof name === 'string' && name.includes(' ')), true);
+    } finally {
+        sockets.forEach((socket) => socket.close());
         collaboration.dispose();
         await new Promise((resolve) => server.close(resolve));
     }
