@@ -195,6 +195,78 @@
         return btn;
       },
 
+      placeScreenInFrontOfUser: function (instanceId, options) {
+        const record = this.activeScreens.get(instanceId);
+        if (!record?.runtime?.placeInFrontOfUser) {
+          console.log('[CodeXR][VirtualScreenManager] placeScreenInFrontOfUser skipped: runtime missing', {
+            instanceId,
+            hasRecord: !!record,
+            hasRuntime: !!record?.runtime,
+          });
+          return false;
+        }
+        const result = record.runtime.placeInFrontOfUser({
+          publishState: true,
+          publishTransform: true,
+          updateStatus: false,
+          showChrome: true,
+          ...(options || {}),
+        }) !== false;
+        console.log('[CodeXR][VirtualScreenManager] placeScreenInFrontOfUser result', {
+          instanceId,
+          result,
+          options: options || null,
+          state: record.runtime.getState?.() || null,
+        });
+        return result;
+      },
+
+      schedulePlaceScreenInFrontOfUser: function (instanceId, options) {
+        const record = this.activeScreens.get(instanceId);
+        const flushInitialSharedState = () => {
+          record?.runtime?.flushInitialSharedState?.();
+        };
+        const keepTryingAfterSuccess = options?.keepTryingAfterSuccess === true;
+        const attemptPlace = (remainingAttempts) => {
+          console.log('[CodeXR][VirtualScreenManager] schedulePlaceScreenInFrontOfUser attempt', {
+            instanceId,
+            remainingAttempts,
+            options: options || null,
+          });
+          if (this.placeScreenInFrontOfUser(instanceId, options)) {
+            const state = record?.runtime?.getState?.() || null;
+            console.log('[CodeXR][VirtualScreenManager] schedulePlaceScreenInFrontOfUser placed', {
+              instanceId,
+              remainingAttempts,
+              state,
+            });
+            if (!keepTryingAfterSuccess || remainingAttempts <= 0) {
+              flushInitialSharedState();
+              this.refreshPanel();
+              return true;
+            }
+            root.setTimeout(() => {
+              attemptPlace(remainingAttempts - 1);
+            }, 75);
+            return true;
+          }
+          if (remainingAttempts <= 0) {
+            flushInitialSharedState();
+            console.log('[CodeXR][VirtualScreenManager] schedulePlaceScreenInFrontOfUser exhausted retries', {
+              instanceId,
+              options: options || null,
+              recordState: record?.runtime?.getState?.() || null,
+            });
+            return false;
+          }
+          root.setTimeout(() => {
+            attemptPlace(remainingAttempts - 1);
+          }, 50);
+          return false;
+        };
+        return attemptPlace(Number(options?.retryCount) || 0);
+      },
+
       clearChildren: function (entity) {
         if (!entity) {
           return;
@@ -238,15 +310,18 @@
             this.bringScreenInFrontOfUser(entry.instanceId);
           });
 
-          const removeBtn = this.makeButton('Del', '#b91c1c', '1.58 0 0.02', 0.46, () => {
-            this.destroyScreen(entry.instanceId);
-            this.refreshPanel();
-          });
+          const canDelete = entry.instanceId !== 'default';
 
           row.appendChild(bg);
           row.appendChild(text);
           row.appendChild(bringBtn);
-          row.appendChild(removeBtn);
+          if (canDelete) {
+            const removeBtn = this.makeButton('Del', '#b91c1c', '1.58 0 0.02', 0.46, () => {
+              this.destroyScreen(entry.instanceId);
+              this.refreshPanel();
+            });
+            row.appendChild(removeBtn);
+          }
           this.panelEntriesRoot.appendChild(row);
         });
       },
@@ -288,7 +363,8 @@
           instanceId,
           screenId: instanceId,
           managedScreen: true,
-          placeInFrontOfUserOnInit: options?.placeInFrontOfUser === true,
+          placeInFrontOfUserOnInit: false,
+          deferInitialSharedState: options?.deferInitialSharedState === true,
           collaborationSource: options?.collaborationSource || 'local',
           ownerPeerId: options?.ownerPeerId || options?.sharedState?.ownerPeerId || null,
           displayName: options?.displayName || instanceId,
@@ -448,29 +524,54 @@
 
       addScreen: function () {
         if (this.activeScreens.size >= this.data.maxScreens) {
+          console.log('[CodeXR][VirtualScreenManager] addScreen skipped: maxScreens reached', {
+            activeScreens: this.activeScreens.size,
+            maxScreens: this.data.maxScreens,
+          });
           return;
         }
 
         const instanceId = this.buildManagedScreenId();
+        console.log('[CodeXR][VirtualScreenManager] addScreen start', {
+          instanceId,
+          peerId: this.getLocalPeerId() || null,
+          nextVscreenIndex: this.nextVscreenIndex,
+        });
         const runtime = this.createManagedRuntime(instanceId, {
           collaborationSource: 'local',
-          placeInFrontOfUser: true,
+          deferInitialSharedState: true,
           ownerPeerId: this.getLocalPeerId() || null,
           displayName: `vscreen ${this.nextVscreenIndex}`,
         });
         if (!runtime) {
+          console.log('[CodeXR][VirtualScreenManager] addScreen failed: runtime not created', {
+            instanceId,
+          });
           return;
         }
 
         const record = this.ensureScreenRecord(instanceId, runtime, true);
-        runtime.setDisplayName?.(record.displayName);
+        console.log('[CodeXR][VirtualScreenManager] addScreen runtime created', {
+          instanceId,
+          displayName: record.displayName,
+          initialState: runtime.getState?.() || null,
+        });
+        this.schedulePlaceScreenInFrontOfUser(instanceId, {
+          retryCount: 12,
+          keepTryingAfterSuccess: true,
+          updateStatus: false,
+          showChrome: true,
+        });
         this.refreshPanel();
       },
 
       destroyScreen: function (instanceId, options) {
         const record = this.activeScreens.get(instanceId);
         if (!record) {
-          return;
+          return false;
+        }
+        if (instanceId === 'default' && options?.remote !== true) {
+          return false;
         }
 
         record.runtime?.setManagerCallbacks?.(null);
@@ -500,19 +601,17 @@
 
         this.activeScreens.delete(instanceId);
         this.remoteScreens.delete(instanceId);
+        this.refreshPanel();
+        return true;
       },
 
       bringScreenInFrontOfUser: function (instanceId) {
-        const record = this.activeScreens.get(instanceId);
-        if (!record?.runtime?.placeInFrontOfUser) {
-          return false;
-        }
-        return record.runtime.placeInFrontOfUser({
+        return this.placeScreenInFrontOfUser(instanceId, {
           publishState: true,
           publishTransform: true,
           updateStatus: false,
           showChrome: true,
-        }) !== false;
+        });
       },
 
       tickBehavior: function () {

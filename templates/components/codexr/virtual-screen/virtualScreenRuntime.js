@@ -54,6 +54,7 @@
     displayName: '',
     managedScreen: false,
     placeInFrontOfUserOnInit: false,
+    deferInitialSharedState: false,
     collaborationSource: 'local',
     collaborationEnabled: true,
     presenceEnabled: true,
@@ -254,6 +255,8 @@
       destroyed: false,
       sharedTransformTimer: null,
       managerCallbacks: null,
+      initialSharedStateDeferred: false,
+      initialSharedStatePublished: false,
     };
 
     function getDocument() {
@@ -1249,7 +1252,22 @@
       if (isRemoteScreen()) {
         return false;
       }
-      return publishSharedScreenState('entity-added');
+      if (refs.initialSharedStatePublished) {
+        return true;
+      }
+      if (refs.initialSharedStateDeferred) {
+        return false;
+      }
+      const published = publishSharedScreenState('entity-added');
+      if (published) {
+        refs.initialSharedStatePublished = true;
+      }
+      return published;
+    }
+
+    function flushInitialSharedState() {
+      refs.initialSharedStateDeferred = false;
+      return publishInitialSharedState();
     }
 
     function handleCollaborationMessage(message) {
@@ -1280,7 +1298,6 @@
         audio: true,
         systemAudio: 'include',
         windowAudio: 'system',
-        preferCurrentTab: true,
         surfaceSwitching: 'include',
         selfBrowserSurface: 'exclude',
       };
@@ -1985,6 +2002,9 @@
 
     function buildFrontOfUserFollowTransform() {
       if (!global.THREE) {
+        console.log('[CodeXR][VirtualScreen] buildFrontOfUserFollowTransform failed: THREE unavailable', {
+          screenId: getScreenId(),
+        });
         return null;
       }
       const followOffset = refs.config.followOffset || DEFAULT_CONFIG.followOffset;
@@ -1993,6 +2013,15 @@
         Number(followOffset.y) || 0,
         Number(followOffset.z) || 0,
       );
+      console.log('[CodeXR][VirtualScreen] buildFrontOfUserFollowTransform', {
+        screenId: getScreenId(),
+        followOffset: {
+          x: position.x,
+          y: position.y,
+          z: position.z,
+        },
+        followAnchorSelector: refs.config.followAnchorSelector,
+      });
       return {
         position,
         distance: position.length(),
@@ -2001,15 +2030,39 @@
 
     function placeInFrontOfUser(options) {
       if (!refs.root) {
+        console.log('[CodeXR][VirtualScreen] placeInFrontOfUser failed: root missing', {
+          screenId: getScreenId(),
+        });
         return false;
       }
       const followTransform = buildFrontOfUserFollowTransform();
       if (!followTransform) {
+        console.log('[CodeXR][VirtualScreen] placeInFrontOfUser failed: follow transform missing', {
+          screenId: getScreenId(),
+        });
         return false;
       }
       state.follow = false;
       state.followTransform = followTransform;
       if (!applyFollowTransform()) {
+        console.log('[CodeXR][VirtualScreen] placeInFrontOfUser failed: applyFollowTransform returned false', {
+          screenId: getScreenId(),
+          followTransform: {
+            position: {
+              x: followTransform.position.x,
+              y: followTransform.position.y,
+              z: followTransform.position.z,
+            },
+            distance: followTransform.distance,
+          },
+          rootPosition: refs.root?.object3D?.position
+            ? {
+              x: refs.root.object3D.position.x,
+              y: refs.root.object3D.position.y,
+              z: refs.root.object3D.position.z,
+            }
+            : null,
+        });
         return false;
       }
       if (state.lookAtCameraEnabled) {
@@ -2029,6 +2082,24 @@
       if (options?.publishTransform === true) {
         publishSharedTransform(true);
       }
+      const rootWorldPosition = getWorldPosition(refs.root);
+      console.log('[CodeXR][VirtualScreen] placeInFrontOfUser success', {
+        screenId: getScreenId(),
+        rootLocalPosition: refs.root?.object3D?.position
+          ? {
+            x: refs.root.object3D.position.x,
+            y: refs.root.object3D.position.y,
+            z: refs.root.object3D.position.z,
+          }
+          : null,
+        rootWorldPosition: rootWorldPosition?.clone
+          ? {
+            x: rootWorldPosition.x,
+            y: rootWorldPosition.y,
+            z: rootWorldPosition.z,
+          }
+          : null,
+      });
       return true;
     }
 
@@ -2231,11 +2302,22 @@
 
     function applyFollowTransform() {
       if (!state.followTransform?.position?.clone) {
+        console.log('[CodeXR][VirtualScreen] applyFollowTransform failed: missing followTransform position', {
+          screenId: getScreenId(),
+        });
         return false;
       }
       const cameraWorldPosition = getCameraWorldPosition();
       const cameraWorldQuaternion = getCameraWorldQuaternion();
       if (!cameraWorldPosition?.clone || !cameraWorldQuaternion?.clone) {
+        console.log('[CodeXR][VirtualScreen] applyFollowTransform failed: camera transform unavailable', {
+          screenId: getScreenId(),
+          hasCameraWorldPosition: !!cameraWorldPosition?.clone,
+          hasCameraWorldQuaternion: !!cameraWorldQuaternion?.clone,
+          followAnchorSelector: refs.config.followAnchorSelector,
+          followAnchorConnected: !!getFollowAnchor()?.isConnected,
+          sceneHasCamera: !!getScene()?.camera,
+        });
         return false;
       }
 
@@ -2244,6 +2326,20 @@
         .add(cameraWorldPosition.clone());
       const targetWorldQuaternion = computeFaceUserQuaternion(targetWorldPosition, cameraWorldPosition);
       const applied = applyWorldTransform(refs.root, targetWorldPosition, targetWorldQuaternion);
+      console.log('[CodeXR][VirtualScreen] applyFollowTransform', {
+        screenId: getScreenId(),
+        applied,
+        cameraWorldPosition: {
+          x: cameraWorldPosition.x,
+          y: cameraWorldPosition.y,
+          z: cameraWorldPosition.z,
+        },
+        targetWorldPosition: {
+          x: targetWorldPosition.x,
+          y: targetWorldPosition.y,
+          z: targetWorldPosition.z,
+        },
+      });
       if (applied && updateLegendSide()) {
         layout();
       }
@@ -2713,6 +2809,8 @@
 
     function init(userConfig) {
       refs.config = mergeConfig(userConfig || readConfigFromJsonScript(win) || win.__CODEXR_VIRTUAL_SCREEN_CONFIG__);
+      refs.initialSharedStateDeferred = refs.config.deferInitialSharedState === true;
+      refs.initialSharedStatePublished = false;
       if (!refs.config.enabled) {
         return api;
       }
@@ -2807,6 +2905,7 @@
       setDisplayName,
       placeInFrontOfUser,
       publishInitialSharedState,
+      flushInitialSharedState,
       applySharedScreenState,
       handleCollaborationMessage,
       getSharedScreenState: buildSharedScreenState,
