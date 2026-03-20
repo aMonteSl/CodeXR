@@ -82,6 +82,7 @@ export class ServerLaunchOrchestrator {
                     tempDir,
                     fileUri: request.targetPath,
                     serverRef: this.getServerRefById(launchResult.serverId),
+                    activeServerId: launchResult.activeServerId,
                 });
 
                 return {

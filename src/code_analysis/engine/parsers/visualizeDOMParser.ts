@@ -2,6 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
 import {
+    CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
+    CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME,
+    readCodeXrCollaborationRuntimeContent,
+    readCodeXrDomSceneCollaborationRuntimeContent,
+    readVirtualScreenManagerRuntimeContent,
+    VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME,
     readVirtualScreenRuntimeContent,
     VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
@@ -103,9 +109,18 @@ export class VisualizeDOMParser {
             // Add main.js from templateHTMLProcessor 
             resultFiles.set('main.js', processingResult.jsContent);
             console.log(`VISUALIZE_DOM_PARSER:  Added main.js (${processingResult.jsContent.length} chars)`);
+            const collaborationRuntime = await readCodeXrCollaborationRuntimeContent(this.context.extensionPath);
+            resultFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME} (${collaborationRuntime.length} chars)`);
             const virtualScreenRuntime = await readVirtualScreenRuntimeContent(this.context.extensionPath);
             resultFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME} (${virtualScreenRuntime.length} chars)`);
+            const virtualScreenManagerRuntime = await readVirtualScreenManagerRuntimeContent(this.context.extensionPath);
+            resultFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME} (${virtualScreenManagerRuntime.length} chars)`);
+            const domSceneCollaborationRuntime = await readCodeXrDomSceneCollaborationRuntimeContent(this.context.extensionPath);
+            resultFiles.set(CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME, domSceneCollaborationRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME} (${domSceneCollaborationRuntime.length} chars)`);
 
             // 🔍 FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);

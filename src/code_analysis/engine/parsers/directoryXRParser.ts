@@ -17,8 +17,10 @@ import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 import {
     CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
     readChartPedestalRuntimeContent,
+    readCodeXrCollaborationRuntimeContent,
     readCodeXrRoomRuntimeContent,
     readCodeXrRoomTextureContents,
     readVirtualScreenManagerRuntimeContent,
@@ -115,6 +117,7 @@ export class DirectoryXRParser {
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
             const virtualScreenRuntimeContent = await readVirtualScreenRuntimeContent(context.extensionPath);
             const virtualScreenManagerRuntimeContent = await readVirtualScreenManagerRuntimeContent(context.extensionPath);
+            const collaborationRuntimeContent = await readCodeXrCollaborationRuntimeContent(context.extensionPath);
             const codexrRoomRuntimeContent = await readCodeXrRoomRuntimeContent(context.extensionPath);
             const xrChartMappingUiRuntimeContent = await readXrChartMappingUiRuntimeContent(context.extensionPath);
             const xrChartDebugRuntimeContent = await readXrChartDebugRuntimeContent(context.extensionPath);
@@ -125,6 +128,7 @@ export class DirectoryXRParser {
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', htmlContent);
             generatedFiles.set('main.js', jsContent);
+            generatedFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent);
             generatedFiles.set(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent);

@@ -72,3 +72,16 @@ test('mapping UI runtime keeps the user-facing rollback message centered on Babi
     assert.match(runtimeSource, /setStatusMessage\(friendlyMessage, 'error', 4800\);/);
     assert.match(runtimeSource, /setStatusMessage\(invalidOptionReason, 'error', 3600\);/);
 });
+
+test('mapping UI runtime publishes only confirmed mappings through the shared collaboration room', () => {
+    assert.match(runtimeSource, /var SHARED_ENTITY_KIND = 'mapping';/);
+    assert.match(runtimeSource, /function getCollaborationClient\(\)/);
+    assert.match(runtimeSource, /function buildSharedMappingState\(config\)/);
+    assert.match(runtimeSource, /function publishSharedMappingState\(config, eventType\)/);
+    assert.match(runtimeSource, /function applySharedMappingState\(config, snapshot\)/);
+    assert.match(runtimeSource, /function registerSharedMappingEntity\(config\)/);
+    assert.match(runtimeSource, /publishSharedMappingState\(config\);/);
+    assert.match(runtimeSource, /registerSharedMappingEntity\(config\);/);
+    assert.match(runtimeSource, /entityKind: SHARED_ENTITY_KIND/);
+    assert.match(runtimeSource, /selectedByDimension: cloneMapping\(state\.lastKnownGoodMapping \|\| state\.selectedByDimension\)/);
+});

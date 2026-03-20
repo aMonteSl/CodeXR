@@ -20,6 +20,7 @@
       schema: {
         maxScreens: { type: 'number', default: 6 },
         wall: { type: 'string', default: 'west' },
+        showPanel: { type: 'boolean', default: true },
       },
 
       init: function () {
@@ -28,14 +29,19 @@
         this.nextSpawnSlot = 0;
 
         this.activeScreens = new Map();
+        this.remoteScreens = new Map();
 
         this.panelEntriesRoot = null;
         this.panelFooter = null;
 
         this.runtimeFactory = root.CodeXRVirtualScreenRuntime || null;
+        this.collaborationClient = root.CodeXRCollaborationRuntime?.getClient?.(root) || null;
 
-        this.createWallControls();
+        if (this.data.showPanel !== false) {
+          this.createWallControls();
+        }
         this.registerDefaultScreen();
+        this.collaborationClient?.registerManager?.(this);
 
         this.panelRefreshHandle = root.setInterval(() => this.refreshPanel(), 350);
       },
@@ -45,6 +51,7 @@
           root.clearInterval(this.panelRefreshHandle);
           this.panelRefreshHandle = null;
         }
+        this.collaborationClient?.unregisterManager?.(this);
       },
 
       registerDefaultScreen: function () {
@@ -79,6 +86,7 @@
         if (existing) {
           if (runtime) {
             existing.runtime = runtime;
+            existing.displayName = runtime.getState?.().displayName || existing.displayName;
           }
           return existing;
         }
@@ -88,6 +96,7 @@
           instanceId,
           runtime,
           managed,
+          collaborationSource: runtime?.getState?.().collaborationSource || 'local',
           vscreenIndex,
           displayName: `vscreen ${vscreenIndex}`,
         };
@@ -200,6 +209,9 @@
       },
 
       refreshPanel: function () {
+        if (!this.panelEntriesRoot) {
+          return;
+        }
         this.clearChildren(this.panelEntriesRoot);
 
         const entries = Array.from(this.activeScreens.values())
@@ -263,51 +275,175 @@
         return this.getSpawnSlotPosition(slot);
       },
 
-      addScreen: function () {
-        if (this.activeScreens.size >= this.data.maxScreens) {
+      getSceneSelector: function () {
+        return root.document?.querySelector('#scene') ? '#scene' : 'a-scene';
+      },
+
+      getFollowAnchorSelector: function () {
+        if (root.document?.querySelector('#rig')) {
+          return '#rig';
+        }
+        if (root.document?.querySelector('#cameraRig')) {
+          return '#cameraRig';
+        }
+        return '#rig';
+      },
+
+      buildRuntimeInitConfig: function (instanceId, options) {
+        const sharedConfig = root.__CODEXR_VIRTUAL_SCREEN_CONFIG__ || {};
+        const collaborationConfig = root.__CODEXR_COLLABORATION_CONFIG__ || {};
+        const transform = options?.transform || {};
+        const position = transform.position || options?.anchoredPosition || this.getNextSpawnSlotPosition();
+        const rotation = transform.rotation || options?.anchoredRotation || { x: 0, y: 90, z: 0 };
+        return {
+          ...sharedConfig,
+          enabled: true,
+          broadcastEnabled: sharedConfig.broadcastEnabled !== false,
+          collaborationEnabled: collaborationConfig.collaborationEnabled !== false,
+          presenceEnabled: collaborationConfig.presenceEnabled !== false,
+          cursorPresenceEnabled: collaborationConfig.cursorPresenceEnabled === true,
+          signalingPath: sharedConfig.signalingPath || '/codexr-broadcast',
+          roomSignalingPath: collaborationConfig.roomSignalingPath || '/codexr-room',
+          sessionEndpoint: collaborationConfig.sessionEndpoint || '/api/collaboration/session',
+          sceneSelector: sharedConfig.sceneSelector || this.getSceneSelector(),
+          followAnchorSelector: sharedConfig.followAnchorSelector || this.getFollowAnchorSelector(),
+          instanceId,
+          screenId: instanceId,
+          managedScreen: true,
+          collaborationSource: options?.collaborationSource || 'local',
+          displayName: options?.displayName || instanceId,
+          videoElementId: `codexrVirtualScreenVideo-${instanceId}`,
+          anchoredPosition: {
+            x: Number(position.x) || 0,
+            y: Number(position.y) || 0,
+            z: Number(position.z) || 0,
+          },
+          anchoredRotation: {
+            x: Number(rotation.x) || 0,
+            y: Number(rotation.y) || 0,
+            z: Number(rotation.z) || 0,
+          },
+          labels: {
+            ...(sharedConfig.labels || {}),
+            idle: options?.idleLabel || `${instanceId}: choose source independently.`,
+          },
+        };
+      },
+
+      createManagedRuntime: function (instanceId, options) {
+        if (!this.runtimeFactory || typeof this.runtimeFactory.createRuntime !== 'function') {
+          return null;
+        }
+
+        const runtime = this.runtimeFactory.createRuntime(root);
+        runtime.init(this.buildRuntimeInitConfig(instanceId, options));
+        if (options?.sharedState) {
+          runtime.applySharedScreenState?.(options.sharedState, { source: 'manager-create' });
+        }
+        return runtime;
+      },
+
+      ensureRemoteScreen: function (sharedState) {
+        if (!sharedState || sharedState.entityKind !== 'screen' || !sharedState.entityId) {
+          return null;
+        }
+        if (sharedState.entityId === 'default') {
+          const defaultRecord = this.activeScreens.get('default');
+          defaultRecord?.runtime?.applySharedScreenState?.(sharedState, { source: 'manager-default' });
+          return defaultRecord || null;
+        }
+
+        const existing = this.activeScreens.get(sharedState.entityId);
+        if (existing) {
+          existing.runtime?.applySharedScreenState?.(sharedState, { source: 'manager-existing' });
+          existing.collaborationSource = 'remote';
+          existing.displayName = sharedState.displayName || existing.displayName;
+          this.remoteScreens.set(sharedState.entityId, existing);
+          return existing;
+        }
+
+        const runtime = this.createManagedRuntime(sharedState.entityId, {
+          collaborationSource: 'remote',
+          displayName: sharedState.displayName || sharedState.entityId,
+          transform: sharedState.transform || null,
+          sharedState,
+          idleLabel: `${sharedState.displayName || sharedState.entityId}: waiting for source.`,
+        });
+        if (!runtime) {
+          return null;
+        }
+
+        const record = this.ensureScreenRecord(sharedState.entityId, runtime, true);
+        record.collaborationSource = 'remote';
+        record.displayName = sharedState.displayName || record.displayName;
+        this.remoteScreens.set(sharedState.entityId, record);
+        this.refreshPanel();
+        return record;
+      },
+
+      removeRemoteScreen: function (screenId) {
+        if (!screenId || screenId === 'default') {
           return;
         }
-        if (!this.runtimeFactory || typeof this.runtimeFactory.createRuntime !== 'function') {
+        const record = this.remoteScreens.get(screenId) || this.activeScreens.get(screenId);
+        if (!record) {
+          return;
+        }
+        this.destroyScreen(screenId, { remote: true });
+        this.remoteScreens.delete(screenId);
+      },
+
+      applyCollaborationSnapshot: function (entities) {
+        const screenStates = Array.isArray(entities)
+          ? entities.filter((entity) => entity && entity.entityKind === 'screen')
+          : [];
+        const seen = new Set(['default']);
+
+        screenStates.forEach((entity) => {
+          seen.add(entity.entityId);
+          if (entity.entityId === 'default') {
+            this.activeScreens.get('default')?.runtime?.applySharedScreenState?.(entity, { source: 'snapshot' });
+            return;
+          }
+          this.ensureRemoteScreen(entity);
+        });
+
+        Array.from(this.remoteScreens.keys()).forEach((screenId) => {
+          if (!seen.has(screenId)) {
+            this.removeRemoteScreen(screenId);
+          }
+        });
+        this.refreshPanel();
+      },
+
+      addScreen: function () {
+        if (this.activeScreens.size >= this.data.maxScreens) {
           return;
         }
 
         const instanceId = `managed-${this.nextManagedInstance}`;
         this.nextManagedInstance += 1;
-        const sharedConfig = root.__CODEXR_VIRTUAL_SCREEN_CONFIG__ || {};
-        const runtime = this.runtimeFactory.createRuntime(root);
-        const spawn = this.getNextSpawnSlotPosition();
-
-        runtime.init({
-          ...sharedConfig,
-          enabled: true,
-          broadcastEnabled: sharedConfig.broadcastEnabled !== false,
-          signalingPath: sharedConfig.signalingPath || '/codexr-broadcast',
-          sceneSelector: '#scene',
-          followAnchorSelector: '#rig',
-          instanceId,
-          screenId: instanceId,
-          videoElementId: `codexrVirtualScreenVideo-${instanceId}`,
-          anchoredPosition: {
-            x: spawn.x,
-            y: spawn.y,
-            z: spawn.z,
-          },
-          anchoredRotation: { x: 0, y: 90, z: 0 },
-          labels: {
-            ...(sharedConfig.labels || {}),
-            idle: `${instanceId}: choose source independently.`,
-          },
+        const runtime = this.createManagedRuntime(instanceId, {
+          collaborationSource: 'local',
+          displayName: `vscreen ${this.nextVscreenIndex}`,
         });
+        if (!runtime) {
+          return;
+        }
 
         const record = this.ensureScreenRecord(instanceId, runtime, true);
         runtime.setDisplayName?.(record.displayName);
         this.refreshPanel();
       },
 
-      destroyScreen: function (instanceId) {
+      destroyScreen: function (instanceId, options) {
         const record = this.activeScreens.get(instanceId);
         if (!record) {
           return;
+        }
+
+        if (instanceId !== 'default' && options?.remote !== true) {
+          this.collaborationClient?.removeEntity?.('screen', instanceId);
         }
 
         try {
@@ -331,6 +467,7 @@
         }
 
         this.activeScreens.delete(instanceId);
+        this.remoteScreens.delete(instanceId);
       },
 
       repositionScreenToSpawnZone: function (instanceId) {
@@ -341,6 +478,19 @@
 
         const target = this.getNextSpawnSlotPosition();
         screenRoot.setAttribute('position', `${target.x} ${target.y} ${target.z}`);
+        const rotation = screenRoot.getAttribute('rotation') || { x: 0, y: 90, z: 0 };
+        this.collaborationClient?.sendEntityTransform?.({
+          entityKind: 'screen',
+          entityId: instanceId,
+          transform: {
+            position: target,
+            rotation: {
+              x: Number(rotation.x) || 0,
+              y: Number(rotation.y) || 0,
+              z: Number(rotation.z) || 0,
+            },
+          },
+        });
       },
 
       tickBehavior: function () {
