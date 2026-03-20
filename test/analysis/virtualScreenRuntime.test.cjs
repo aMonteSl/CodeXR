@@ -47,6 +47,7 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     const multiScreenManagerSource = readProjectFile('templates', 'components', 'codexr', 'virtual-screen', 'codexrMultiScreenManagerRuntime.js');
     const collaborationRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'collaboration', 'codexrCollaborationRuntime.js');
     const httpServerSource = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const broadcastServerSource = readProjectFile('src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts');
     const runtimeIndexSource = readProjectFile('src', 'servers', 'runtime', 'index.ts');
 
     assert.match(runtimeSource, /broadcastEnabled: true/);
@@ -54,6 +55,11 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(runtimeSource, /roomSignalingPath: '\/codexr-room'/);
     assert.match(runtimeSource, /sessionEndpoint: '\/api\/collaboration\/session'/);
     assert.match(runtimeSource, /CodeXRCollaborationRuntime/);
+    assert.match(runtimeSource, /function cloneVector\(/);
+    assert.match(runtimeSource, /ownerPeerId/);
+    assert.match(runtimeSource, /normalizeBroadcastState/);
+    assert.match(runtimeSource, /setManagerCallbacks/);
+    assert.match(runtimeSource, /roomId: payload\?\.roomId \|\| getResolvedRoomId\(\)/);
     assert.match(runtimeSource, /sendEntityState/);
     assert.match(runtimeSource, /sendEntityTransform/);
     assert.match(runtimeSource, /new win\.WebSocket/);
@@ -69,16 +75,27 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(runtimeSource, /screenId/);
     assert.match(runtimeSource, /collaborationSource/);
     assert.match(runtimeSource, /gestureOwnerPeerId/);
+    assert.match(runtimeSource, /broadcast,/);
 
     assert.match(multiScreenManagerSource, /registerManager/);
     assert.match(multiScreenManagerSource, /applyCollaborationSnapshot/);
     assert.match(multiScreenManagerSource, /ensureRemoteScreen/);
+    assert.match(multiScreenManagerSource, /buildManagedScreenId/);
+    assert.match(multiScreenManagerSource, /screen:\$\{peerId\}:\$\{counter\}/);
+    assert.match(multiScreenManagerSource, /setManagerCallbacks/);
+    assert.match(multiScreenManagerSource, /onStateChange/);
+    assert.match(multiScreenManagerSource, /onTransformChange/);
+    assert.doesNotMatch(multiScreenManagerSource, /managed-\$\{this\.nextManagedInstance\}/);
     assert.match(multiScreenManagerSource, /showPanel: \{ type: 'boolean', default: true \}/);
     assert.match(collaborationRuntimeSource, /room-join/);
     assert.match(collaborationRuntimeSource, /room-snapshot/);
     assert.match(collaborationRuntimeSource, /entity-transform/);
     assert.match(collaborationRuntimeSource, /presence-update/);
     assert.match(collaborationRuntimeSource, /cursorPresenceEnabled/);
+    assert.match(broadcastServerSource, /roomId/);
+    assert.match(broadcastServerSource, /DEFAULT_ROOM_ID/);
+    assert.match(broadcastServerSource, /getScreenKey/);
+    assert.match(broadcastServerSource, /roomId \|\| client\.roomId/);
 
     assert.match(httpServerSource, /CollaborationRoomServer/);
     assert.match(httpServerSource, /case '\/collaboration\/session'/);
@@ -141,6 +158,7 @@ test('virtual screen runtime requests screen audio and exposes broadcast-aware s
     assert.equal(state.mode, 'idle');
     assert.equal(state.presentationMode, 'expanded');
     assert.equal(state.screenId, 'default');
+    assert.equal(state.ownerPeerId, null);
     assert.equal(state.broadcastRole, 'none');
     assert.equal(state.broadcastStatus, 'idle');
     assert.equal(state.hasAudio, false);

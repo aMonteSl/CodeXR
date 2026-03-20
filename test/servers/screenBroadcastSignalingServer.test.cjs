@@ -44,7 +44,27 @@ function waitForMessage(socket, predicate) {
     });
 }
 
-test('screen broadcast signaling routes presence and WebRTC messages by screenId', async () => {
+function waitForSilence(socket, durationMs, predicate) {
+    return new Promise((resolve, reject) => {
+        function onMessage(raw) {
+            const payload = JSON.parse(raw.toString('utf8'));
+            if (predicate(payload)) {
+                clearTimeout(timeout);
+                socket.off('message', onMessage);
+                reject(new Error(`Unexpected signaling message: ${payload.type}`));
+            }
+        }
+
+        const timeout = setTimeout(() => {
+            socket.off('message', onMessage);
+            resolve();
+        }, durationMs);
+
+        socket.on('message', onMessage);
+    });
+}
+
+test('screen broadcast signaling routes presence and WebRTC messages by roomId + screenId', async () => {
     const { ScreenBroadcastSignalingServer } = loadBroadcastSignalingServer();
     const server = http.createServer((_req, res) => {
         res.writeHead(200);
@@ -55,6 +75,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address();
     const url = `ws://127.0.0.1:${port}/codexr-broadcast`;
+    const roomId = 'codexr-session:test-room';
 
     const broadcaster = new WebSocket(url);
     const viewer = new WebSocket(url);
@@ -65,11 +86,13 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         broadcaster.send(JSON.stringify({
             type: 'register',
             clientId: 'sender-1',
+            roomId,
             screenId: 'default',
         }));
         viewer.send(JSON.stringify({
             type: 'register',
             clientId: 'viewer-1',
+            roomId,
             screenId: 'default',
         }));
 
@@ -84,6 +107,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         broadcaster.send(JSON.stringify({
             type: 'broadcast-start',
             clientId: 'sender-1',
+            roomId,
             screenId: 'default',
             hasAudio: true,
         }));
@@ -95,6 +119,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         viewer.send(JSON.stringify({
             type: 'viewer-join',
             clientId: 'viewer-1',
+            roomId,
             screenId: 'default',
         }));
         assert.equal((await viewerJoinOnBroadcaster).viewerId, 'viewer-1');
@@ -103,6 +128,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         broadcaster.send(JSON.stringify({
             type: 'signal-offer',
             clientId: 'sender-1',
+            roomId,
             screenId: 'default',
             targetId: 'viewer-1',
             description: { type: 'offer', sdp: 'offer-sdp' },
@@ -113,6 +139,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         viewer.send(JSON.stringify({
             type: 'signal-answer',
             clientId: 'viewer-1',
+            roomId,
             screenId: 'default',
             targetId: 'sender-1',
             description: { type: 'answer', sdp: 'answer-sdp' },
@@ -123,6 +150,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         broadcaster.send(JSON.stringify({
             type: 'signal-ice',
             clientId: 'sender-1',
+            roomId,
             screenId: 'default',
             targetId: 'viewer-1',
             candidate: { candidate: 'host 1 udp 1 127.0.0.1 9 typ host' },
@@ -133,6 +161,7 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
         broadcaster.send(JSON.stringify({
             type: 'broadcast-stop',
             clientId: 'sender-1',
+            roomId,
             screenId: 'default',
             reason: 'test-complete',
         }));
@@ -140,6 +169,76 @@ test('screen broadcast signaling routes presence and WebRTC messages by screenId
     } finally {
         broadcaster.close();
         viewer.close();
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('screen broadcast signaling isolates active broadcasts across rooms', async () => {
+    const { ScreenBroadcastSignalingServer } = loadBroadcastSignalingServer();
+    const server = http.createServer((_req, res) => {
+        res.writeHead(200);
+        res.end('ok');
+    });
+    const signaling = new ScreenBroadcastSignalingServer(server);
+
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const url = `ws://127.0.0.1:${port}/codexr-broadcast`;
+
+    const broadcaster = new WebSocket(url);
+    const sameRoomViewer = new WebSocket(url);
+    const otherRoomViewer = new WebSocket(url);
+
+    try {
+        await Promise.all([
+            waitForOpen(broadcaster),
+            waitForOpen(sameRoomViewer),
+            waitForOpen(otherRoomViewer),
+        ]);
+
+        broadcaster.send(JSON.stringify({
+            type: 'register',
+            clientId: 'sender-room-a',
+            roomId: 'codexr-session:room-a',
+            screenId: 'default',
+        }));
+        sameRoomViewer.send(JSON.stringify({
+            type: 'register',
+            clientId: 'viewer-room-a',
+            roomId: 'codexr-session:room-a',
+            screenId: 'default',
+        }));
+        otherRoomViewer.send(JSON.stringify({
+            type: 'register',
+            clientId: 'viewer-room-b',
+            roomId: 'codexr-session:room-b',
+            screenId: 'default',
+        }));
+
+        await Promise.all([
+            waitForMessage(broadcaster, (payload) => payload.type === 'registered'),
+            waitForMessage(sameRoomViewer, (payload) => payload.type === 'registered'),
+            waitForMessage(otherRoomViewer, (payload) => payload.type === 'registered'),
+        ]);
+
+        const sameRoomAvailability = waitForMessage(sameRoomViewer, (payload) => payload.type === 'broadcast-available');
+        const otherRoomSilence = waitForSilence(otherRoomViewer, 350, (payload) => payload.type === 'broadcast-available');
+
+        broadcaster.send(JSON.stringify({
+            type: 'broadcast-start',
+            clientId: 'sender-room-a',
+            roomId: 'codexr-session:room-a',
+            screenId: 'default',
+            hasAudio: false,
+        }));
+
+        assert.equal((await sameRoomAvailability).broadcasterId, 'sender-room-a');
+        await otherRoomSilence;
+    } finally {
+        broadcaster.close();
+        sameRoomViewer.close();
+        otherRoomViewer.close();
         signaling.dispose();
         await new Promise((resolve) => server.close(resolve));
     }
