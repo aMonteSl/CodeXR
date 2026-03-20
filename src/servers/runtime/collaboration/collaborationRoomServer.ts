@@ -23,6 +23,7 @@ export interface SharedEntityState extends Record<string, unknown> {
 
 export interface SharedPresenceState extends Record<string, unknown> {
     peerId: string;
+    displayName?: string;
     head?: unknown;
     leftHand?: unknown;
     rightHand?: unknown;
@@ -36,6 +37,7 @@ interface CollaborationPeer {
     socket: WebSocket;
     joinedRoom: boolean;
     roomId: string | null;
+    displayName: string;
 }
 
 interface CollaborationRoomState {
@@ -43,6 +45,8 @@ interface CollaborationRoomState {
     revision: number;
     entities: Map<string, SharedEntityState>;
     presence: Map<string, SharedPresenceState>;
+    displayNames: Map<string, string>;
+    nextDisplayNameIndex: number;
 }
 
 interface CollaborationMessage {
@@ -55,6 +59,34 @@ interface CollaborationMessage {
 }
 
 const DEFAULT_ROOM_ID = 'codexr-session:default';
+const STAR_WARS_PRIMARY_NAMES = [
+    'Anakin',
+    'Leia',
+    'Luke',
+    'Rey',
+    'Ahsoka',
+    'Padme',
+    'Lando',
+    'Mace',
+    'Yoda',
+    'Jyn',
+    'Sabine',
+    'Din',
+];
+const STAR_WARS_SECONDARY_NAMES = [
+    'Skywalker',
+    'Kenobi',
+    'Palpatine',
+    'Organa',
+    'Solo',
+    'Amidala',
+    'Tano',
+    'Jinn',
+    'Fett',
+    'Dooku',
+    'Erso',
+    'Syndulla',
+];
 
 export class CollaborationRoomServer {
     private readonly path: string;
@@ -116,6 +148,7 @@ export class CollaborationRoomServer {
             socket,
             joinedRoom: false,
             roomId: null,
+            displayName: '',
         };
 
         this.peers.set(peerId, peer);
@@ -185,10 +218,12 @@ export class CollaborationRoomServer {
         peer.roomId = nextRoomId;
 
         const room = this.ensureRoom(nextRoomId);
+        peer.displayName = this.getOrAssignDisplayName(room, peer.id);
 
         this.send(peer, {
             type: 'room-joined',
             peerId: peer.id,
+            displayName: peer.displayName,
             roomId: room.id,
             revision: room.revision,
         });
@@ -216,6 +251,7 @@ export class CollaborationRoomServer {
             ...(previous || {}),
             ...payload,
             peerId: peer.id,
+            displayName: peer.displayName || this.getOrAssignDisplayName(room, peer.id),
             lastSeenAt: new Date().toISOString(),
         };
 
@@ -491,6 +527,8 @@ export class CollaborationRoomServer {
             revision: 0,
             entities: new Map<string, SharedEntityState>(),
             presence: new Map<string, SharedPresenceState>(),
+            displayNames: new Map<string, string>(),
+            nextDisplayNameIndex: 0,
         };
         this.rooms.set(normalizedRoomId, created);
         return created;
@@ -567,6 +605,33 @@ export class CollaborationRoomServer {
 
     private getEntityKey(entityKind: string, entityId: string): string {
         return `${entityKind}:${entityId}`;
+    }
+
+    private getOrAssignDisplayName(room: CollaborationRoomState, peerId: string): string {
+        const existing = room.displayNames.get(peerId);
+        if (existing) {
+            return existing;
+        }
+
+        const displayName = this.buildStarWarsDisplayName(room.nextDisplayNameIndex);
+        room.nextDisplayNameIndex += 1;
+        room.displayNames.set(peerId, displayName);
+        return displayName;
+    }
+
+    private buildStarWarsDisplayName(index: number): string {
+        if (index < STAR_WARS_PRIMARY_NAMES.length) {
+            return STAR_WARS_PRIMARY_NAMES[index];
+        }
+
+        const compositeIndex = index - STAR_WARS_PRIMARY_NAMES.length;
+        const pairSpace = STAR_WARS_PRIMARY_NAMES.length * STAR_WARS_SECONDARY_NAMES.length;
+        const cycle = Math.floor(compositeIndex / pairSpace);
+        const pairIndex = compositeIndex % pairSpace;
+        const firstName = STAR_WARS_PRIMARY_NAMES[Math.floor(pairIndex / STAR_WARS_SECONDARY_NAMES.length)];
+        const secondName = STAR_WARS_SECONDARY_NAMES[pairIndex % STAR_WARS_SECONDARY_NAMES.length];
+        const composed = `${firstName} ${secondName}`;
+        return cycle > 0 ? `${composed} ${cycle + 1}` : composed;
     }
 
     private createId(prefix: string): string {
