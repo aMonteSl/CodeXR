@@ -41,6 +41,7 @@ export interface MultiServerLaunchResult {
     serverUrl?: string;
     serverType?: ServerType;
     serverId?: string;
+    activeServerId?: string;
     error?: string;
     port?: number;
     httpsOverridden?: boolean;
@@ -199,6 +200,7 @@ export class MultiServerLauncher {
                     serverUrl: result.serverUrl,
                     serverType: serverType,
                     serverId: serverId,
+                    activeServerId: serverInfo.activeServerId || undefined,
                     port: finalPort,
                     httpsOverridden: isHttpsOverridden,
                     portChanged: portChanged,

@@ -9,6 +9,7 @@
 
   var CONFIG_KEY = '__CODEXR_XR_MAPPING_UI__';
   var CONFIG_SCRIPT_ID = 'codexr-tooling-config-xr-mapping-ui';
+  var SHARED_ENTITY_KIND = 'mapping';
   var COMPONENT_BY_CHART = {
     bars: 'babia-bars',
     barsmap: 'babia-barsmap',
@@ -48,7 +49,8 @@
     pendingMapping: null,
     statusMessage: '',
     statusLevel: 'info',
-    statusClearTimer: null
+    statusClearTimer: null,
+    suppressSharedPublish: false
   };
 
   var ADAPTIVE_DEFAULTS = {
@@ -199,6 +201,14 @@
   function getScene() {
     var document = getDoc();
     return document ? document.querySelector('a-scene') : null;
+  }
+
+  function getCollaborationClient() {
+    var collaborationRuntime = root.CodeXRCollaborationRuntime;
+    if (!collaborationRuntime || typeof collaborationRuntime.getClient !== 'function') {
+      return null;
+    }
+    return collaborationRuntime.getClient(root);
   }
 
   function getCameraWorldPosition() {
@@ -487,7 +497,79 @@
     return chartPedestalRuntime.getChartStatus(chartEntity);
   }
 
-  function confirmPendingMapping(token) {
+  function getSharedMappingEntityId(config) {
+    var chartEntity = getChartEntity(config);
+    var baseId = chartEntity && chartEntity.id
+      ? chartEntity.id
+      : config && (config.chartEntityId || config.chartSelector || config.chartId)
+        ? String(config.chartEntityId || config.chartSelector || config.chartId)
+        : 'default-chart';
+    return String(baseId).replace(/[^a-zA-Z0-9_-]/g, '-');
+  }
+
+  function buildSharedMappingState(config) {
+    return {
+      entityKind: SHARED_ENTITY_KIND,
+      entityId: getSharedMappingEntityId(config),
+      chartId: config && config.chartId ? config.chartId : '',
+      componentName: getChartComponentName(config) || '',
+      selectedByDimension: cloneMapping(state.lastKnownGoodMapping || state.selectedByDimension)
+    };
+  }
+
+  function publishSharedMappingState(config, eventType) {
+    if (state.suppressSharedPublish) {
+      return false;
+    }
+    var client = getCollaborationClient();
+    if (!client || typeof client.sendEntityState !== 'function') {
+      return false;
+    }
+    return client.sendEntityState(buildSharedMappingState(config), eventType || 'entity-updated');
+  }
+
+  function applySharedMappingState(config, snapshot) {
+    if (!snapshot || typeof snapshot !== 'object' || !snapshot.selectedByDimension) {
+      return false;
+    }
+
+    state.suppressSharedPublish = true;
+    try {
+      clearPendingValidationTimers();
+      state.pendingMapping = null;
+      state.selectedByDimension = cloneMapping(snapshot.selectedByDimension);
+      state.lastKnownGoodMapping = cloneMapping(snapshot.selectedByDimension);
+      applyMappingSnapshot(config, snapshot.selectedByDimension, 'mapping-ui-room-sync');
+      renderRows(config);
+      return true;
+    } finally {
+      state.suppressSharedPublish = false;
+    }
+  }
+
+  function publishInitialSharedMappingState(config) {
+    return publishSharedMappingState(config, 'entity-added');
+  }
+
+  function registerSharedMappingEntity(config) {
+    var client = getCollaborationClient();
+    if (!client || typeof client.registerEntityRuntime !== 'function') {
+      return;
+    }
+
+    client.registerEntityRuntime({
+      entityKind: SHARED_ENTITY_KIND,
+      entityId: getSharedMappingEntityId(config),
+      applySharedState: function (snapshot) {
+        applySharedMappingState(config, snapshot);
+      },
+      publishInitialSharedState: function () {
+        publishInitialSharedMappingState(config);
+      }
+    });
+  }
+
+  function confirmPendingMapping(config, token) {
     if (!state.pendingMapping || state.pendingMapping.token !== token) {
       return;
     }
@@ -499,6 +581,7 @@
       token: token,
       selectedByDimension: state.lastKnownGoodMapping
     });
+    publishSharedMappingState(config);
   }
 
   function revertPendingMapping(config, token, reason) {
@@ -538,7 +621,7 @@
     }
 
     if (status.valid) {
-      confirmPendingMapping(token);
+      confirmPendingMapping(config, token);
       renderRows(config);
       return;
     }
@@ -980,6 +1063,7 @@
 
     hydrateStateFromConfig(config);
     buildUi(config);
+    registerSharedMappingEntity(config);
   }
 
   var runtime = {

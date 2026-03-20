@@ -50,6 +50,15 @@
     controllerDepthStep: 0.08,
     instanceId: '',
     screenId: '',
+    displayName: '',
+    managedScreen: false,
+    collaborationSource: 'local',
+    collaborationEnabled: true,
+    presenceEnabled: true,
+    cursorPresenceEnabled: false,
+    roomId: '',
+    roomSignalingPath: '/codexr-room',
+    sessionEndpoint: '/api/collaboration/session',
     videoElementId: '',
     rtcConfiguration: {
       iceServers: [],
@@ -69,6 +78,7 @@
       broadcastUnavailable: 'Live broadcasting requires HTTPS or localhost.',
       broadcastError: 'Unable to connect the live broadcast.',
       broadcastStopped: 'Live sharing stopped.',
+      collaborationLocked: 'This screen is currently being edited by another user.',
     },
   };
 
@@ -132,6 +142,9 @@
     merged.minWidth = userConfig?.minWidth || DEFAULT_CONFIG.minWidth;
     merged.maxWidth = userConfig?.maxWidth || DEFAULT_CONFIG.maxWidth;
     merged.broadcastEnabled = userConfig?.broadcastEnabled !== false;
+    merged.collaborationEnabled = userConfig?.collaborationEnabled !== false;
+    merged.presenceEnabled = userConfig?.presenceEnabled !== false;
+    merged.cursorPresenceEnabled = userConfig?.cursorPresenceEnabled === true;
     merged.virtualScreenSupportsLocalCapture = userConfig?.virtualScreenSupportsLocalCapture !== false;
     return merged;
   }
@@ -171,6 +184,9 @@
       screenWidth: DEFAULT_CONFIG.sizeSteps[DEFAULT_CONFIG.defaultSizeIndex],
       sizeIndex: DEFAULT_CONFIG.defaultSizeIndex,
       lastIntent: 'screen',
+      displayName: '',
+      gestureOwnerPeerId: null,
+      suppressSharedPublish: false,
       clientId: '',
       broadcastRole: 'none',
       broadcastStatus: 'idle',
@@ -212,6 +228,7 @@
       activeBroadcasterId: '',
       broadcastRegistered: false,
       destroyed: false,
+      sharedTransformTimer: null,
     };
 
     function getDocument() {
@@ -231,6 +248,36 @@
     function getScreenId() {
       const configured = String(refs.config.screenId || refs.config.instanceId || '').trim();
       return configured || 'default';
+    }
+
+    function getDisplayName() {
+      return String(state.displayName || refs.config.displayName || getScreenId()).trim();
+    }
+
+    function isRemoteScreen() {
+      return refs.config.collaborationSource === 'remote';
+    }
+
+    function getCollaborationClient() {
+      const collaborationRuntime = global.CodeXRCollaborationRuntime;
+      if (!collaborationRuntime || typeof collaborationRuntime.getClient !== 'function') {
+        return null;
+      }
+      const client = collaborationRuntime.getClient(win);
+      if (!client || typeof client.connect !== 'function') {
+        return null;
+      }
+      client.connect({
+        collaborationEnabled: refs.config.collaborationEnabled !== false,
+        presenceEnabled: refs.config.presenceEnabled !== false,
+        cursorPresenceEnabled: refs.config.cursorPresenceEnabled === true,
+        roomId: refs.config.roomId || '',
+        roomSignalingPath: refs.config.roomSignalingPath || '/codexr-room',
+        sessionEndpoint: refs.config.sessionEndpoint || '/api/collaboration/session',
+        virtualScreenConfig: refs.config,
+        sceneSelector: refs.config.sceneSelector || 'a-scene',
+      });
+      return client;
     }
 
     function getOrCreateClientId() {
@@ -811,6 +858,7 @@
       refreshUi();
       showChrome();
       updateStatus(state.currentSourceLabel || (state.lookAtCameraEnabled ? 'Look-at enabled.' : 'Look-at disabled.'));
+      publishSharedScreenState();
     }
 
     function setMode(mode, message) {
@@ -823,6 +871,178 @@
       }
       layout();
       refreshUi();
+    }
+
+    function getTransformSnapshot() {
+      if (!refs.root) {
+        return null;
+      }
+      return {
+        position: cloneVector(refs.root.getAttribute('position')),
+        rotation: cloneVector(refs.root.getAttribute('rotation')),
+      };
+    }
+
+    function getSerializableFollowTransform() {
+      if (!state.followTransform?.position) {
+        return null;
+      }
+      return {
+        position: {
+          x: state.followTransform.position.x,
+          y: state.followTransform.position.y,
+          z: state.followTransform.position.z,
+        },
+        distance: typeof state.followTransform.distance === 'number' ? state.followTransform.distance : null,
+      };
+    }
+
+    function buildSharedScreenState() {
+      return {
+        entityKind: 'screen',
+        entityId: getScreenId(),
+        screenId: getScreenId(),
+        managed: !!refs.config.managedScreen,
+        displayName: getDisplayName(),
+        presentationMode: state.presentationMode,
+        lookAtCameraEnabled: state.lookAtCameraEnabled,
+        follow: state.follow,
+        followTransform: getSerializableFollowTransform(),
+        screenWidth: state.screenWidth,
+        broadcastStatus: state.broadcastStatus,
+        hasAudio: state.hasAudio,
+        gestureOwnerPeerId: state.gestureOwnerPeerId,
+        collaborationSource: refs.config.collaborationSource || 'local',
+        transform: getTransformSnapshot(),
+      };
+    }
+
+    function publishSharedScreenState(eventType) {
+      if (state.suppressSharedPublish || refs.config.collaborationEnabled === false) {
+        return false;
+      }
+      const client = getCollaborationClient();
+      if (!client || typeof client.sendEntityState !== 'function') {
+        return false;
+      }
+      return client.sendEntityState(buildSharedScreenState(), eventType || 'entity-updated');
+    }
+
+    function publishSharedTransform(forceImmediate) {
+      if (state.suppressSharedPublish || refs.config.collaborationEnabled === false) {
+        return false;
+      }
+      const client = getCollaborationClient();
+      if (!client || typeof client.sendEntityTransform !== 'function') {
+        return false;
+      }
+
+      const sendNow = function () {
+        refs.sharedTransformTimer = null;
+        client.sendEntityTransform({
+          entityKind: 'screen',
+          entityId: getScreenId(),
+          transform: getTransformSnapshot(),
+        });
+      };
+
+      if (forceImmediate === true) {
+        if (refs.sharedTransformTimer) {
+          clearTimeout(refs.sharedTransformTimer);
+          refs.sharedTransformTimer = null;
+        }
+        sendNow();
+        return true;
+      }
+
+      if (refs.sharedTransformTimer) {
+        return true;
+      }
+
+      refs.sharedTransformTimer = setTimeout(sendNow, 60);
+      return true;
+    }
+
+    function applySharedScreenState(snapshot, meta) {
+      if (!snapshot || typeof snapshot !== 'object') {
+        return false;
+      }
+
+      state.suppressSharedPublish = true;
+      try {
+        if (typeof snapshot.displayName === 'string' && snapshot.displayName.trim().length > 0) {
+          state.displayName = snapshot.displayName.trim();
+        }
+        if (typeof snapshot.lookAtCameraEnabled === 'boolean') {
+          state.lookAtCameraEnabled = snapshot.lookAtCameraEnabled;
+        }
+        if (snapshot.presentationMode === 'minimized' || snapshot.presentationMode === 'expanded') {
+          state.presentationMode = snapshot.presentationMode;
+        }
+        if (typeof snapshot.screenWidth === 'number') {
+          setScreenWidth(snapshot.screenWidth, { silent: true });
+        }
+        if (typeof snapshot.follow === 'boolean') {
+          state.follow = snapshot.follow;
+        }
+        if (snapshot.followTransform?.position && global.THREE) {
+          state.followTransform = {
+            position: new global.THREE.Vector3(
+              Number(snapshot.followTransform.position.x) || 0,
+              Number(snapshot.followTransform.position.y) || 0,
+              Number(snapshot.followTransform.position.z) || 0,
+            ),
+            distance: Number(snapshot.followTransform.distance) || 0,
+          };
+        } else if (!snapshot.follow) {
+          state.followTransform = null;
+        }
+        if (snapshot.transform?.position) {
+          refs.root?.setAttribute('position', formatVector(snapshot.transform.position));
+        }
+        if (snapshot.transform?.rotation) {
+          refs.root?.setAttribute('rotation', formatVector(snapshot.transform.rotation));
+        }
+        state.gestureOwnerPeerId = snapshot.gestureOwnerPeerId || null;
+        if (typeof snapshot.broadcastStatus === 'string' && state.streamSourceType !== 'local') {
+          state.broadcastStatus = snapshot.broadcastStatus;
+        }
+        state.hasAudio = snapshot.hasAudio === true;
+        layout();
+        refreshUi();
+        if (meta?.type === 'entity-lock-denied') {
+          updateStatus(refs.config.labels.collaborationLocked);
+        }
+        return true;
+      } finally {
+        state.suppressSharedPublish = false;
+      }
+    }
+
+    function publishInitialSharedState() {
+      if (isRemoteScreen()) {
+        return false;
+      }
+      return publishSharedScreenState('entity-added');
+    }
+
+    function handleCollaborationMessage(message) {
+      if (!message?.type) {
+        return;
+      }
+      if (message.type === 'entity-lock-denied') {
+        state.gestureOwnerPeerId = message.payload?.gestureOwnerPeerId || null;
+        if (state.drag) {
+          endDrag();
+        }
+        updateStatus(refs.config.labels.collaborationLocked);
+        refreshUi();
+        return;
+      }
+      if (message.payload?.entityKind === 'screen' && message.payload?.entityId === getScreenId()) {
+        state.gestureOwnerPeerId = message.payload?.gestureOwnerPeerId || null;
+        refreshUi();
+      }
     }
 
     function buildCaptureOptions(intent) {
@@ -1137,6 +1357,7 @@
         case 'broadcast-live':
           setBroadcastState('sender', 'live');
           updateStatus(refs.config.labels.broadcasting);
+          publishSharedScreenState();
           return;
         case 'broadcast-available':
           if (state.streamSourceType === 'local') {
@@ -1150,12 +1371,14 @@
           } else if (state.streamSourceType === 'local') {
             setBroadcastState('sender', 'idle');
           }
+          publishSharedScreenState();
           return;
         case 'broadcast-replaced':
           if (state.streamSourceType === 'local') {
             setBroadcastState('none', 'idle');
             updateStatus(refs.config.labels.broadcastStopped);
           }
+          publishSharedScreenState();
           return;
         case 'viewer-join':
           void handleViewerJoin(message.viewerId || '');
@@ -1254,6 +1477,8 @@
         setBroadcastState('none', 'idle');
         setMode('idle', message || refs.config.labels.noSignal);
       }
+
+      publishSharedScreenState();
     }
 
     function stopCapture(message, options) {
@@ -1264,6 +1489,7 @@
           layout();
           refreshUi();
         }
+        publishSharedScreenState();
         return;
       }
 
@@ -1286,6 +1512,7 @@
       } else {
         setMode('idle', message || refs.config.labels.idle);
       }
+      publishSharedScreenState();
     }
 
     function attachTrackEndedListener(stream) {
@@ -1336,16 +1563,19 @@
         } else {
           setBroadcastState('none', 'idle');
         }
+        publishSharedScreenState();
       } catch (error) {
         if (previousStream) {
           state.stream = previousStream;
           state.currentSourceLabel = previousLabel;
           setMode('broadcasting', previousLabel || refs.config.labels.idle);
+          publishSharedScreenState();
           return;
         }
         state.currentSourceLabel = '';
         state.hasAudio = false;
         setMode('idle', classifyCaptureError(error));
+        publishSharedScreenState();
       }
     }
 
@@ -1409,6 +1639,7 @@
       } else {
         enableFollow();
       }
+      publishSharedScreenState();
     }
 
     function recenter() {
@@ -1430,6 +1661,8 @@
       }
       showChrome();
       updateStatus(state.currentSourceLabel || 'Virtual screen recentered.');
+      publishSharedScreenState();
+      publishSharedTransform(true);
     }
 
     function adjustSize(direction) {
@@ -1440,6 +1673,7 @@
       refreshUi();
       showChrome();
       updateStatus(state.currentSourceLabel || 'Virtual screen size updated.');
+      publishSharedScreenState();
     }
 
     function setScreenWidth(width, options) {
@@ -1451,13 +1685,18 @@
       if (!options?.silent) {
         showChrome();
         updateStatus(state.currentSourceLabel || 'Virtual screen size updated.');
+        publishSharedScreenState();
       }
       return state.screenWidth;
     }
 
     function setDisplayName(name) {
-      if (typeof name === 'string' && name.trim().length > 0 && state.mode === 'idle') {
-        updateStatus(name.trim());
+      if (typeof name === 'string' && name.trim().length > 0) {
+        state.displayName = name.trim();
+        if (state.mode === 'idle') {
+          updateStatus(name.trim());
+        }
+        publishSharedScreenState();
       }
     }
 
@@ -1466,6 +1705,7 @@
       layout();
       refreshUi();
       updateStatus(refs.config.labels.minimized);
+      publishSharedScreenState();
     }
 
     function expand() {
@@ -1474,6 +1714,7 @@
       refreshUi();
       updateStatus(state.currentSourceLabel || refs.config.labels.idle);
       showChrome();
+      publishSharedScreenState();
     }
 
     function getWorldPosition(entity) {
@@ -1803,6 +2044,7 @@
       state.sizeIndex = findClosestSizeIndex(state.screenWidth);
       layout();
       refreshUi();
+      publishSharedScreenState();
     }
 
     function applyDragRootWorldPosition(worldPosition) {
@@ -1836,6 +2078,7 @@
         z: refs.root.object3D.position.z,
         handle: state.drag?.handleKey || 'unknown',
       });
+      publishSharedTransform(false);
     }
 
     function adjustDragDepth(delta) {
@@ -1926,6 +2169,9 @@
       if (state.follow) {
         disableFollow();
       }
+      const collaborationClient = getCollaborationClient();
+      state.gestureOwnerPeerId = collaborationClient?.getPeerId?.() || state.gestureOwnerPeerId || null;
+      collaborationClient?.lockEntity?.('screen', getScreenId());
       const pointerEl = getPointerEntity(evt);
       const startPoint = getWorldPointFromEvent(evt, pointerEl);
       const rootWorldPosition = getWorldPosition(refs.root);
@@ -1976,6 +2222,10 @@
       }
       updateStatus(state.currentSourceLabel || (isMinimized() ? refs.config.labels.minimized : refs.config.labels.idle));
       scheduleChromeHide();
+      getCollaborationClient()?.unlockEntity?.('screen', getScreenId());
+      state.gestureOwnerPeerId = null;
+      publishSharedScreenState();
+      publishSharedTransform(true);
     }
 
     function wireCleanupHandlers() {
@@ -2054,6 +2304,7 @@
       getOrCreateClientId();
       state.screenWidth = refs.config.sizeSteps[clamp(refs.config.defaultSizeIndex || DEFAULT_CONFIG.defaultSizeIndex, 0, refs.config.sizeSteps.length - 1)];
       state.sizeIndex = findClosestSizeIndex(state.screenWidth);
+      state.displayName = refs.config.displayName || state.displayName;
       createUi();
       setAnchoredTransform();
       if (state.lookAtCameraEnabled) {
@@ -2068,6 +2319,13 @@
         connectSignaling();
       }
       state.initialized = true;
+      getCollaborationClient()?.registerEntityRuntime?.({
+        entityKind: 'screen',
+        entityId: getScreenId(),
+        applySharedState: applySharedScreenState,
+        publishInitialSharedState: publishInitialSharedState,
+        handleCollaborationMessage: handleCollaborationMessage,
+      });
     }
 
     function init(userConfig) {
@@ -2109,6 +2367,9 @@
       if (typeof snapshot.lookAtCameraEnabled === 'boolean') {
         state.lookAtCameraEnabled = snapshot.lookAtCameraEnabled;
       }
+      if (typeof snapshot.displayName === 'string' && snapshot.displayName.trim().length > 0) {
+        state.displayName = snapshot.displayName.trim();
+      }
       layout();
       refreshUi();
       return api;
@@ -2116,9 +2377,13 @@
 
     function destroy() {
       refs.destroyed = true;
+      if (!isRemoteScreen() && refs.config.managedScreen) {
+        getCollaborationClient()?.removeEntity?.('screen', getScreenId());
+      }
       stopCapture('Virtual screen closed.', { minimizeAfterStop: false });
       closeAllPeerConnections();
       closeSignalingSocket();
+      getCollaborationClient()?.unregisterEntityRuntime?.('screen', getScreenId());
       if (refs.root?.parentElement) {
         refs.root.parentElement.removeChild(refs.root);
       }
@@ -2147,6 +2412,11 @@
       adjustSize,
       setScreenWidth,
       setDisplayName,
+      publishInitialSharedState,
+      applySharedScreenState,
+      handleCollaborationMessage,
+      getSharedScreenState: buildSharedScreenState,
+      isRemoteScreen,
       restoreState,
       destroy,
       getState() {
@@ -2159,10 +2429,15 @@
           sizeIndex: state.sizeIndex,
           screenWidth: state.screenWidth,
           currentSourceLabel: state.currentSourceLabel,
+          displayName: getDisplayName(),
           screenId: getScreenId(),
+          managed: !!refs.config.managedScreen,
+          collaborationSource: refs.config.collaborationSource || 'local',
           broadcastRole: state.broadcastRole,
           broadcastStatus: state.broadcastStatus,
           hasAudio: state.hasAudio,
+          gestureOwnerPeerId: state.gestureOwnerPeerId,
+          activeBroadcasterId: refs.activeBroadcasterId || null,
           lastIntent: state.lastIntent,
           clientId: state.clientId,
           initialized: state.initialized,
@@ -2182,6 +2457,9 @@
     api.DEFAULT_CONFIG = DEFAULT_CONFIG;
     api.mergeConfig = mergeConfig;
     api.createRuntime = createRuntime;
+    api.getSharedRoomClient = function () {
+      return getCollaborationClient();
+    };
     return api;
   }
 
@@ -2189,6 +2467,9 @@
   runtime.DEFAULT_CONFIG = DEFAULT_CONFIG;
   runtime.mergeConfig = mergeConfig;
   runtime.createRuntime = createRuntime;
+  runtime.getSharedRoomClient = function () {
+    return global.CodeXRCollaborationRuntime?.getClient?.(global) || null;
+  };
   return runtime;
 });
 

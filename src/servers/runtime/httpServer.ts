@@ -7,6 +7,7 @@ import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
 import { ScreenBroadcastSignalingServer } from './broadcast/screenBroadcastSignalingServer';
+import { CollaborationRoomServer } from './collaboration/collaborationRoomServer';
 
 /**
  * HTTP Server Configuration
@@ -30,6 +31,7 @@ export class HttpServer {
     private isRunning: boolean = false;
     private upgradeAttached = false;
     private broadcastSignalingServer: ScreenBroadcastSignalingServer | null = null;
+    private collaborationRoomServer: CollaborationRoomServer | null = null;
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -159,6 +161,8 @@ export class HttpServer {
     }
 
     public disposeRuntimeFeatures(): void {
+        this.collaborationRoomServer?.dispose();
+        this.collaborationRoomServer = null;
         this.broadcastSignalingServer?.dispose();
         this.broadcastSignalingServer = null;
     }
@@ -321,6 +325,10 @@ export class HttpServer {
                     port: this.config.port,
                     cors: this.config.enableCors
                 });
+                break;
+
+            case '/collaboration/session':
+                this.sendJsonResponse(res, 200, this.buildCollaborationSessionDescriptor());
                 break;
 
             default:
@@ -545,6 +553,26 @@ export class HttpServer {
             return;
         }
         this.upgradeAttached = true;
+        this.collaborationRoomServer = new CollaborationRoomServer(server);
         this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(server);
+    }
+
+    private buildCollaborationSessionDescriptor(): Record<string, unknown> {
+        const fileUri = fileToServerMap.findFileByPort(this.config.port);
+        const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
+        const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
+
+        return {
+            roomId: `codexr-session:${activeServerId}`,
+            activeServerId,
+            fileUri: fileUri || null,
+            capabilities: {
+                collaboration: true,
+                presence: true,
+                media: true,
+            },
+            roomSocketPath: '/codexr-room',
+            broadcastSocketPath: '/codexr-broadcast',
+        };
     }
 }

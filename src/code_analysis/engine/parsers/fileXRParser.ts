@@ -12,7 +12,9 @@ import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import {
     CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
     copyChartPedestalRuntimeToOutput,
+    CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     copyCodeXrRoomAssetsToOutput,
+    copyCodeXrCollaborationRuntimeToOutput,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
     copyVirtualScreenManagerRuntimeToOutput,
     copyVirtualScreenRuntimeToOutput,
@@ -89,6 +91,7 @@ export class FileXRParser {
 
             await copyVirtualScreenRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyVirtualScreenManagerRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeXrCollaborationRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
@@ -124,6 +127,7 @@ export class FileXRParser {
             if (
                 !loadedFiles.has('index.html')
                 || !loadedFiles.has('data.json')
+                || !loadedFiles.has(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)

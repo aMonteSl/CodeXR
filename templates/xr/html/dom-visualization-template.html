@@ -24,6 +24,12 @@
             position="-2 2 0"
             babia-html="renderHTML: true; renderHTMLOnlyLeafs: true; distanceLevels: 0.7"></a-entity>
 
+        <a-entity
+            id="codexrScreenManager"
+            codexr-multi-screen-manager="maxScreens: 5; wall: west; showPanel: false"
+            position="0 0 0">
+        </a-entity>
+
         <a-entity position="0 3 0">
             <a-plane id="rotateX" class="babiaxraycasterclass" position="-1 1 -3" width="1" height="0.5" color="blue"
                 rotation="0 0 0" text="value: RotateX; color: white; align: center; width: 3;"></a-plane>
@@ -147,36 +153,16 @@
             });
         }
 
+        window.CodeXRDomCollaborationHelpers = {
+            getCurrentBabiaHtmlState,
+            applyBabiaHtml,
+        };
+
         document.addEventListener('DOMContentLoaded', function () {
             applyBabiaHtml(0.7, window.__CODEXR_DOM_HTML_PAYLOAD__);
         });
-
-        document.querySelector('#rotateX').addEventListener('click', function () {
-            let entity = document.querySelector('#htmlDOM');
-            let rotation = entity.getAttribute('rotation');
-            entity.setAttribute('rotation', { x: rotation.x + 90, y: rotation.y, z: rotation.z });
-        });
-
-        document.querySelector('#rotateY').addEventListener('click', function () {
-            let entity = document.querySelector('#htmlDOM');
-            let rotation = entity.getAttribute('rotation');
-            entity.setAttribute('rotation', { x: rotation.x, y: rotation.y + 90, z: rotation.z });
-        });
-
-        document.querySelector('#rotateZ').addEventListener('click', function () {
-            let entity = document.querySelector('#htmlDOM');
-            let rotation = entity.getAttribute('rotation');
-            entity.setAttribute('rotation', { x: rotation.x, y: rotation.y, z: rotation.z + 90 });
-        });
-
-        document.querySelector('#collapse').addEventListener('click', function () {
-            applyBabiaHtml(0.01);
-        });
-
-        document.querySelector('#expand').addEventListener('click', function () {
-            applyBabiaHtml(0.7);
-        });
     </script>
+    <script id="codexr-tooling-config-collaboration" type="application/json">{"enabled":true,"collaborationEnabled":true,"presenceEnabled":true,"cursorPresenceEnabled":true,"sceneSelector":"a-scene","roomSignalingPath":"/codexr-room","sessionEndpoint":"/api/collaboration/session","broadcastSocketPath":"/codexr-broadcast"}</script>
     <script>
     window.__CODEXR_VIRTUAL_SCREEN_CONFIG__ = {
         enabled: true,
@@ -184,6 +170,11 @@
         signalingPath: '/codexr-broadcast',
         sceneSelector: 'a-scene',
         followAnchorSelector: '#cameraRig',
+        collaborationEnabled: true,
+        presenceEnabled: true,
+        cursorPresenceEnabled: true,
+        roomSignalingPath: '/codexr-room',
+        sessionEndpoint: '/api/collaboration/session',
         anchoredPosition: { x: 3.2, y: 4.2, z: -0.4 },
         anchoredRotation: { x: -10, y: -18, z: 0 },
         followOffset: { x: 0.8, y: 0.4, z: -2.1 },
@@ -193,7 +184,10 @@
         }
     };
 </script>
+<script nonce="${nonce}" src="./codexrCollaborationRuntime.js"></script>
 <script nonce="${nonce}" src="./virtualScreenRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrDomSceneCollaborationRuntime.js"></script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>
