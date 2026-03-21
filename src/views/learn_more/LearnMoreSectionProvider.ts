@@ -26,13 +26,13 @@ export class LearnMoreSectionProvider extends BaseSectionProvider<LearnMoreModul
 
     getSectionItem(): LearnMoreModularTreeItem {
         return new LearnMoreModularTreeItem(
-            'LEARN MORE',
+            'LEARN MORE & SUPPORT',
             vscode.TreeItemCollapsibleState.Collapsed,
             'section',
             undefined,
             new vscode.ThemeIcon('book', new vscode.ThemeColor('charts.foreground')),
-            'Access CodeXR documentation, tutorials, and examples',
-            'Official docs & tutorials',
+            'Access CodeXR documentation, tutorials, examples, and support options',
+            'Docs, tutorials & support',
             'learnMoreSection'
         );
     }

@@ -12,3 +12,5 @@ certs/
 dist/certs/
 node_modules/
 dist/
+.vscode-test/
+.vscode/

@@ -8,8 +8,9 @@
     "type": "git",
     "url": "https://github.com/aMonteSl/CodeXR.git"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "publisher": "aMonteSl",
+  "author": "Adrián Montes Linares",
   "engines": {
     "vscode": "^1.98.0"
   },
@@ -28,6 +29,7 @@
     "resources/**/*",
     "README.md",
     "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
     "CHANGELOG.md",
     "templates/**/*",
     "examples/**/*"
@@ -512,6 +514,11 @@
   },
   "dependencies": {
     "get-port": "^7.1.0",
+    "bufferutil": "^4.1.0",
+    "utf-8-validate": "^6.0.6",
     "ws": "^8.19.0"
+  },
+  "overrides": {
+    "serialize-javascript": "7.0.4"
   }
 }
