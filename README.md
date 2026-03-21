@@ -114,79 +114,39 @@ Experience CodeXR's powerful analysis capabilities through these real-world demo
 
 ### Video Tutorials - Complete Learning Experience
 
-Comprehensive video guides to master every aspect of CodeXR. **Watch directly in the README:**
+Comprehensive video guides to master every aspect of CodeXR.
 
 #### Core Interface & Features
-<div align="center">
-
 **Complete UI Tutorial - Master the entire CodeXR interface and workflow**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/KRgLdLZJXHA" title="Complete UI Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
+[Watch Complete UI Tutorial](https://www.youtube.com/watch?v=KRgLdLZJXHA)
 
 #### File Analysis Workflows
-<div align="center">
-
 **File Analysis - LivePanel Mode & XR Mode**
 
-<table>
-<tr>
-<td align="center" width="50%">
-<b>LivePanel Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/n5ZcjlR4pPc" title="File Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Analyze files using LivePanel (right-click & UI methods)</i>
-</td>
-<td align="center" width="50%">
-<b>XR Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/38jGwFGORvc" title="File Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Immersive 3D file analysis in extended reality</i>
-</td>
-</tr>
-</table>
+- **LivePanel Mode**: [Watch File Analysis - LivePanel](https://www.youtube.com/watch?v=n5ZcjlR4pPc)
+- **XR Mode**: [Watch File Analysis - XR](https://www.youtube.com/watch?v=38jGwFGORvc)
 
 **DOM Visualization - Interactive HTML structure analysis**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/110b-AergdU" title="DOM Visualization" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
+[Watch DOM Visualization](https://www.youtube.com/watch?v=110b-AergdU)
 
 #### Directory & Project Analysis
-<div align="center">
-
 **Directory Analysis - LivePanel & XR Mode**
 
-<table>
-<tr>
-<td align="center" width="50%">
-<b>LivePanel Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/sPWjcgV-gZQ" title="Directory Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Comprehensive directory analysis with detailed metrics</i>
-</td>
-<td align="center" width="50%">
-<b>XR Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/TnfS2SevtWU" title="Directory Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>3D directory visualization in immersive environments</i>
-</td>
-</tr>
-</table>
+- **LivePanel Mode**: [Watch Directory Analysis - LivePanel](https://www.youtube.com/watch?v=sPWjcgV-gZQ)
+- **XR Mode**: [Watch Directory Analysis - XR](https://www.youtube.com/watch?v=TnfS2SevtWU)
 
 **Project Analysis - Both LivePanel and XR Modes**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/NluAHe3BQu8" title="Project Analysis" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
+[Watch Project Analysis](https://www.youtube.com/watch?v=NluAHe3BQu8)
 
 #### Advanced AR/VR Experiences
-<div align="center">
-
 **AR Programming Experience - Real-world augmented reality coding**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/d7fojpP90Dk" title="AR Programming Experience" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+[Watch AR Programming Experience](https://www.youtube.com/watch?v=d7fojpP90Dk)
 
-</div>
-
-*These embedded video tutorials provide hands-on demonstrations of every CodeXR feature, using AR experience.*
+*These video tutorials provide hands-on demonstrations of every CodeXR feature, including AR experiences.*
 
 ## Quick Start Guide
 
@@ -243,34 +203,6 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 - **Visual Hierarchy**: Clear parent-child relationships in tree structure
 - **Real-time Updates**: See DOM changes as you edit HTML files
 
-## What's New in v1.1.0 - XR Metrics, Smarter Mapping, and Reliability
-
-### Minor Release Highlights - Version 1.1.0
-- **Live XR Field Schema from Python**: Dimension Mapping now loads the available XR fields and their value types directly from the Python analyzer, so the UI stays aligned with the real analysis output.
-- **Richer XR Metrics**: File and directory XR analyses now expose additional metrics such as `spanLines`, `complexityBand`, line ratios, complexity buckets, and function-summary aggregates for more expressive charts.
-- **Typed BabiaXR Validation**: Chart mappings now validate numeric-only versus free-form BabiaXR dimensions before launch, reducing invalid visualization setups.
-- **Improved XR Boats Hierarchy for File Analysis**: File XR boats now use a synthetic `treePath` so neighborhoods render correctly while every building still represents one function.
-- **Shared Workspace Inventory in the Tree**: `Project Structure` and `Files by Language` now reuse a common workspace snapshot and watcher, reducing duplicated work while keeping both sections synchronized.
-- **Active Analyses Quick Actions**: Active analyses now open their main actions on left-click, and each session can export its generated folder for easier debugging and manual inspection.
-- **Cross-Platform Path and Python Environment Hardening**: Windows path normalization, Python environment recovery, and startup verification are more robust across Windows, Linux, and macOS.
-- **Generated Local HTTPS Certificates**: Default HTTPS mode now creates and reuses a self-signed certificate pair inside VS Code global storage on first startup, so the VSIX no longer ships bundled private keys.
-- **Collaborative XR/DOM Screens and Presence**: XR and DOM sessions now share virtual screens, live mapping changes, shared chart updates, and visible remote participants in the same room session.
-- **Safer XR Mapping Recovery**: The Mapping UI now detects broken BabiaXR rebuilds caused by invalid field choices, restores the last valid chart state, warns the user, and disables the failing option for the current session.
-- **XR Chart Pedestal/Table Layout**: Charts now render on a shared pedestal/table that stabilizes their placement and keeps the visual scale useful across `X`, `Y`, and `Z`.
-
-### Key Improvements in v1.1.0
-- **More Expressive XR Data**: The generated `data.json` files now include more useful values for chart mapping and richer exploration in immersive views.
-- **UI/Backend Consistency**: The mapping UI no longer relies on stale hardcoded field lists; the Python analyzer is now the source of truth for XR mapping fields.
-- **Cleaner Directory Reanalysis**: Added and deleted files are reflected more accurately across XR and LivePanel during directory reanalysis.
-- **Safer Environment Recovery**: Existing valid virtual environments are verified and refreshed instead of being unnecessarily recreated.
-- **Validation Coverage**: The release is backed by TypeScript and ESLint validation, Node-based unit tests, and Python backend tests covering path normalization, XR schema behavior, and XR file fallback handling.
-
-### XR Hardware Validation Status for v1.1.0
-- **Validated today**: Desktop/browser flows, shared-screen collaboration, shared mapping, shared chart refresh, and the runtime hooks used for mouse plus A-Frame/WebXR controller interaction.
-- **Not validated yet**: Physical VR headsets and real VR controller hardware.
-- **Current expectation**: The runtime includes controller-oriented hooks such as `raycaster-intersected`, `thumbstickmoved`, A-Frame tracked-controller selectors, and `babiaxraycasterclass` targets, but this release does not guarantee that every XR control behaves exactly as expected on real headset hardware.
-
----
 ## Analysis Modes Overview
 
 Code-XR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 24 code languages plus HTML DOM visualization** with comprehensive file, directory, and project analysis capabilities.
@@ -333,7 +265,7 @@ Code-XR offers powerful analysis modes, each optimized for different file types 
 - **Export Individual Reports**: Save detailed reports for specific files
 
 ### Directory Analysis Specifics
-**New in v0.0.9:** Complete directory analysis implementation
+Complete directory analysis implementation
 
 - **Batch Processing**: Analyze entire directories with progress tracking and status updates
 - **Recursive Scanning**: Deep analysis modes for comprehensive subdirectory traversal (configurable depth)
@@ -535,7 +467,7 @@ Customize your immersive experience:
 
 ## Dependencies and Requirements
 
-### System Requirements
+### End-User Requirements
 - **Visual Studio Code**: 1.98.0 or higher
 - **Node.js**: 16+ for extension runtime
 - **Python**: 3.7+ (automatically managed through virtual environment)
@@ -586,7 +518,7 @@ npm run package:vsix
 npm run test
 ```
 
-### Development Requirements
+### Development Requirements (Contributors)
 - **Node.js**: 16+
 - **Python**: 3.7+ (for analysis components)
 - **TypeScript**: For extension development
@@ -651,7 +583,7 @@ If you find CodeXR valuable and would like to support its continued development,
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
 
-Your support helps us:
+Your support helps me:
 - Add new features and improvements
 - Fix bugs and maintain compatibility
 - Provide better support and documentation
