@@ -12,6 +12,15 @@ export class LearnMoreCommands {
                     LearnMoreCommands.handleLearnMore();
                 },
                 errorMessage: 'Failed to open CodeXR documentation'
+            },
+            {
+                id: 'codeXR.supportDeveloper',
+                module: 'LEARN_MORE',
+                description: 'Support CodeXR development on Buy Me a Coffee',
+                handler: () => {
+                    LearnMoreCommands.handleSupportDeveloper();
+                },
+                errorMessage: 'Failed to open Buy Me a Coffee page'
             }
         ];
     }
@@ -29,5 +38,20 @@ export class LearnMoreCommands {
         });
 
         vscode.env.openExternal(vscode.Uri.parse(websiteUrl));
+    }
+
+    private static handleSupportDeveloper(): void {
+        const coffeeUrl = 'https://buymeacoffee.com/adrianadyrx';
+
+        vscode.window.showInformationMessage(
+            'Thank you for supporting CodeXR development! Opening Buy Me a Coffee...',
+            'Open Page'
+        ).then(selection => {
+            if (selection === 'Open Page') {
+                vscode.env.openExternal(vscode.Uri.parse(coffeeUrl));
+            }
+        });
+
+        vscode.env.openExternal(vscode.Uri.parse(coffeeUrl));
     }
 }

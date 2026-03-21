@@ -207,6 +207,19 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 
 *These embedded video tutorials provide hands-on demonstrations of every CodeXR feature, using AR experience.*
 
+## Support CodeXR Development
+
+If you find CodeXR valuable and would like to support its continued development, consider buying the developer a coffee:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
+
+Your support helps us:
+- Add new features and improvements
+- Fix bugs and maintain compatibility
+- Provide better support and documentation
+
+---
+
 ## Quick Start Guide
 
 ### Get Started in 30 Seconds
