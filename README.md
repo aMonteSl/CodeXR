@@ -117,34 +117,74 @@ Experience CodeXR's powerful analysis capabilities through these real-world demo
 Comprehensive video guides to master every aspect of CodeXR.
 
 #### Core Interface & Features
+<div align="center">
+
 **Complete UI Tutorial - Master the entire CodeXR interface and workflow**
 
-[Watch Complete UI Tutorial](https://www.youtube.com/watch?v=KRgLdLZJXHA)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/KRgLdLZJXHA" title="Complete UI Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
 
 #### File Analysis Workflows
+<div align="center">
+
 **File Analysis - LivePanel Mode & XR Mode**
 
-- **LivePanel Mode**: [Watch File Analysis - LivePanel](https://www.youtube.com/watch?v=n5ZcjlR4pPc)
-- **XR Mode**: [Watch File Analysis - XR](https://www.youtube.com/watch?v=38jGwFGORvc)
+<table>
+<tr>
+<td align="center" width="50%">
+<b>LivePanel Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/n5ZcjlR4pPc" title="File Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Analyze files using LivePanel (right-click & UI methods)</i>
+</td>
+<td align="center" width="50%">
+<b>XR Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/38jGwFGORvc" title="File Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Immersive 3D file analysis in extended reality</i>
+</td>
+</tr>
+</table>
 
 **DOM Visualization - Interactive HTML structure analysis**
 
-[Watch DOM Visualization](https://www.youtube.com/watch?v=110b-AergdU)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/110b-AergdU" title="DOM Visualization" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
 
 #### Directory & Project Analysis
+<div align="center">
+
 **Directory Analysis - LivePanel & XR Mode**
 
-- **LivePanel Mode**: [Watch Directory Analysis - LivePanel](https://www.youtube.com/watch?v=sPWjcgV-gZQ)
-- **XR Mode**: [Watch Directory Analysis - XR](https://www.youtube.com/watch?v=TnfS2SevtWU)
+<table>
+<tr>
+<td align="center" width="50%">
+<b>LivePanel Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/sPWjcgV-gZQ" title="Directory Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Comprehensive directory analysis with detailed metrics</i>
+</td>
+<td align="center" width="50%">
+<b>XR Mode</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/TnfS2SevtWU" title="Directory Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>3D directory visualization in immersive environments</i>
+</td>
+</tr>
+</table>
 
 **Project Analysis - Both LivePanel and XR Modes**
 
-[Watch Project Analysis](https://www.youtube.com/watch?v=NluAHe3BQu8)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/NluAHe3BQu8" title="Project Analysis" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
 
 #### Advanced AR/VR Experiences
+<div align="center">
+
 **AR Programming Experience - Real-world augmented reality coding**
 
-[Watch AR Programming Experience](https://www.youtube.com/watch?v=d7fojpP90Dk)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/d7fojpP90Dk" title="AR Programming Experience" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+</div>
 
 *These video tutorials provide hands-on demonstrations of every CodeXR feature, including AR experiences.*
 
