@@ -4,7 +4,7 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 
 **Gain unprecedented insights into your codebase by stepping into an XR representation of your code structure that updates in real-time as you work.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/aMonteSl.code-xr)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
 [![Active Installations](https://img.shields.io/visual-studio-marketplace/i/aMonteSl.code-xr?label=Total%20Downloads)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
 [![Visual Studio Marketplace Rating](https://img.shields.io/visual-studio-marketplace/r/aMonteSl.code-xr)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
@@ -555,13 +555,13 @@ We welcome contributions! Here's how you can help:
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)** - see the [LICENSE](LICENSE) file for details.
 
-### MIT License Summary
-- **Freedom to use**: Use the software for any purpose
-- **Freedom to modify**: Modify the software to suit your needs
-- **Freedom to distribute**: Share the software with others
-- **Freedom to contribute**: Contribute back to the project
+### GPLv3 Summary
+- You can use, study, and modify the software.
+- If you distribute modified versions, you must also provide the source code under GPLv3.
+- Derivative works distributed to others must remain under GPLv3-compatible terms.
+- The software is provided without warranty.
 
 ## Acknowledgments
 
