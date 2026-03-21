@@ -177,13 +177,13 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
         this.registerSection({
             sectionName: 'learnMore',
             createHeader: () => this.createStaticSectionHeader(
-                'LEARN MORE',
+                'LEARN MORE & SUPPORT',
                 'learnMore',
                 vscode.TreeItemCollapsibleState.Collapsed,
                 'section',
                 new vscode.ThemeIcon('book', new vscode.ThemeColor('charts.foreground')),
-                'Access CodeXR documentation, tutorials, and examples',
-                'Official docs & tutorials',
+                'Access CodeXR documentation, tutorials, examples, and support options',
+                'Docs, tutorials & support',
                 'learnMoreSection',
             ),
             createProvider: () => new LearnMoreSectionProvider(this.context),
