@@ -179,7 +179,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
             createHeader: () => this.createStaticSectionHeader(
                 'LEARN MORE & SUPPORT',
                 'learnMore',
-                vscode.TreeItemCollapsibleState.Collapsed,
+                vscode.TreeItemCollapsibleState.Expanded,
                 'section',
                 new vscode.ThemeIcon('book', new vscode.ThemeColor('charts.foreground')),
                 'Access CodeXR documentation, tutorials, examples, and support options',
