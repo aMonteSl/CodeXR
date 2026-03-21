@@ -1,8 +1,8 @@
 # Changelog
 
-## [1.1.0] - 2026-03-13
+## [1.1.0] - 2026-03-21
 
-### Minor Release - XR Mapping Intelligence, Richer Metrics, and Reliability
+### Plugin Optimization Update - Enhanced Performance, Stability, and Collaborative Immersion
 
 This release promotes the latest CodeXR work to 1.1.0 because it combines reliability fixes with new XR functionality, richer analysis data, and a smarter configuration experience powered directly by the Python backend.
 
@@ -53,12 +53,6 @@ This release promotes the latest CodeXR work to 1.1.0 because it combines reliab
 - **HTML DOM XR Validation**: `npm run test:htmlanalysis` validates the DOM HTML visualization contract, runtime integration, and manual DOM fixtures.
 - **VSIX Packaging Validation**: `npm run package:vsix` validates the release bundle and emits the installable package in `artifacts/`.
 - **XR Hardware Validation Status**: this release has not yet been tested on physical VR headsets or real VR controller hardware; current XR confidence is based on desktop/browser validation plus static verification of controller-facing hooks such as `raycaster-intersected`, `thumbstickmoved`, A-Frame tracked-controller selectors, and `babiaxraycasterclass` targets.
-
-#### Technical Notes
-- **Backwards Compatibility**: fully backwards compatible with v1.0.0, with no migration required.
-- **Private Python Environment**: the plugin virtual environment remains isolated to CodeXR and does not modify the user's global Python installation.
-- **Recovery Behavior**: startup, verification, reinitialize, and debug-failure flows now share the same recovery-safe environment management strategy.
-- **XR Controller Caveat**: v1.1.0 ships the runtime/controller bindings for immersive interaction, but real-headset behavior is not guaranteed yet because physical XR hardware validation is still pending.
 
 ---
 ## [1.0.0] - 2025-07-28
