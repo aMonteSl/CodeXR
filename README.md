@@ -6,7 +6,7 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/aMonteSl.code-xr)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
-[![Active Installations](https://img.shields.io/visual-studio-marketplace/i/aMonteSl.code-xr?label=Total%20Downloads)]
+[![Active Installations](https://img.shields.io/visual-studio-marketplace/i/aMonteSl.code-xr?label=Total%20Downloads)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
 [![Visual Studio Marketplace Rating](https://img.shields.io/visual-studio-marketplace/r/aMonteSl.code-xr)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
 [![A-Frame Version](https://img.shields.io/badge/A--Frame-1.7.1-brightgreen)](https://aframe.io/)
 [![WebXR](https://img.shields.io/badge/WebXR-Compatible-blue)](https://webxr.org/)
@@ -16,6 +16,7 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 [![Node.js](https://img.shields.io/badge/Node.js-16%2B-green)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue)](https://www.python.org/)
 [![Documentation](https://img.shields.io/badge/Docs-Official%20Website-blue)](https://amontesl.github.io/code-xr-docs/)
+[![Support](https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
 
 ## Official Documentation
 
@@ -46,7 +47,7 @@ Our official documentation includes:
 
 Explore the major visual and functional improvements introduced in CodeXR v1.1.0.
 
-### 🎨 Visual Scene Enhancements
+### Visual Scene Enhancements
 From a simple A-Frame scenario to a complete immersive room with custom components and textures.
 
 | v1.0.0 | v1.1.0 |
@@ -54,7 +55,7 @@ From a simple A-Frame scenario to a complete immersive room with custom componen
 | ![v1.0.0 Scene](resources/comparison/scene-v1.0.0.png) | ![v1.1.0 Scene](resources/comparison/scene-v1.1.0.png) |
 | *Simple A-Frame scene* | *Immersive room with custom assets and textures* |
 
-### ⚡ Analysis Speed & Performance
+### Analysis Speed & Performance
 For the same analysis workflow, execution time drops from **54 seconds** to **3 seconds**.
 This means **18x faster execution** and a **94.44% reduction in analysis time**.
 
@@ -63,7 +64,7 @@ This means **18x faster execution** and a **94.44% reduction in analysis time**.
 | ![v1.0.0 Speed](resources/comparison/performance-v1.0.0.gif) | ![v1.1.0 Speed](resources/comparison/performance-v1.1.0.gif) |
 | *54s runtime for the same analysis* | *3s runtime with optimized pipeline* |
 
-### 📺 New Virtual Screen Component & Controler
+### New Virtual Screen Component & Controler
 Project any screen, tab, or window from any connected device and broadcast it in real time inside the XR environment, including both video and audio.
 
 <div align="center">
@@ -72,7 +73,7 @@ Project any screen, tab, or window from any connected device and broadcast it in
 
 </div>
 
-### 🎪 New Pedestal/Table Layout componentes & Mapping UI
+### New Pedestal/Table Layout componentes & Mapping UI
 Includes a pedestal that rescales charts to maintain a stable approximate size and a Mapping UI to change represented data in real time without re-running analysis.
 
 <div align="center">
@@ -81,7 +82,7 @@ Includes a pedestal that rescales charts to maintain a stable approximate size a
 
 </div>
 
-### 👥 Interactive Collaborative Workspace
+### Interactive Collaborative Workspace
 The collaborative server is interactive: users are identified and assigned random names, and every interaction is synchronized so all participants see it live (moving screens, projecting content, changing chart values, and more).
 
 <div align="center">
@@ -92,7 +93,7 @@ The collaborative server is interactive: users are identified and assigned rando
 
 ## Visual Demonstrations
 
-### 📸 Live Examples - See CodeXR in Action
+### Live Examples - See CodeXR in Action
 
 Experience CodeXR's powerful analysis capabilities through these real-world demonstrations:
 
@@ -111,7 +112,7 @@ Experience CodeXR's powerful analysis capabilities through these real-world demo
 
 </div>
 
-### 🎥 Video Tutorials - Complete Learning Experience
+### Video Tutorials - Complete Learning Experience
 
 Comprehensive video guides to master every aspect of CodeXR. **Watch directly in the README:**
 
@@ -186,19 +187,6 @@ Comprehensive video guides to master every aspect of CodeXR. **Watch directly in
 </div>
 
 *These embedded video tutorials provide hands-on demonstrations of every CodeXR feature, using AR experience.*
-
-## Support CodeXR Development
-
-If you find CodeXR valuable and would like to support its continued development, consider buying the developer a coffee:
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
-
-Your support helps us:
-- Add new features and improvements
-- Fix bugs and maintain compatibility
-- Provide better support and documentation
-
----
 
 ## Quick Start Guide
 
@@ -656,6 +644,17 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Experience your code like never before with Code-XR v1.1.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
+
+## Support CodeXR Development
+
+If you find CodeXR valuable and would like to support its continued development, consider buying the developer a coffee:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
+
+Your support helps us:
+- Add new features and improvements
+- Fix bugs and maintain compatibility
+- Provide better support and documentation
 
 
 
