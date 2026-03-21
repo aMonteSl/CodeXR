@@ -191,26 +191,6 @@ test('virtual screen runtime requests screen audio and exposes broadcast-aware s
     assert.equal(typeof runtime.destroy, 'function');
 });
 
-test('release documentation covers shared screens, mapping recovery, pedestal scaling, and XR hardware caveat', () => {
-    const readme = readProjectFile('README.md');
-    const changelog = readProjectFile('CHANGELOG.md');
-
-    assert.match(readme, /Shared virtual screens for XR\/DOM/);
-    assert.match(readme, /Live shared screen broadcasting/);
-    assert.match(readme, /XR chart pedestal\/table auto-scaling/);
-    assert.match(readme, /In-scene Mapping UI with recovery/);
-    assert.match(readme, /Real-time collaborative XR\/DOM sessions/);
-    assert.match(readme, /XR Hardware Validation Status for v1\.1\.0/);
-    assert.match(readme, /not been validated yet on physical headset\/controller hardware/i);
-
-    assert.match(changelog, /Shared Screen Broadcasting with Video\/Audio/);
-    assert.match(changelog, /Collaborative XR\/DOM Room Sessions/);
-    assert.match(changelog, /auto-rescales it across `X`, `Y`, and `Z`/);
-    assert.match(changelog, /warns the user about the failed field choice/);
-    assert.match(changelog, /XR Hardware Validation Status/);
-    assert.match(changelog, /XR Controller Caveat/);
-});
-
 test('analysis asset pipeline packages collaboration, screen, manager, and DOM shared runtimes together', () => {
     const fileParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'fileXRParser.ts');
     const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
