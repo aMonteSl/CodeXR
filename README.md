@@ -42,73 +42,53 @@ Our official documentation includes:
 - **In-scene Mapping UI with recovery**: XR scenes now expose a Mapping UI next to the chart so users can remap dimensions live, detect invalid BabiaXR rebuilds, restore the last valid mapping, and disable the failing option for the session.
 - **Real-time collaborative XR/DOM sessions**: Connected users can now see shared mapping changes, shared chart updates, shared screen interactions, and remote presence markers with server-assigned display names in the same live session.
 
-## Version Comparison: v1.0.0 → v1.1.0
+## Version Comparison/Improvements v1.0.0 -> v1.1.0
 
-Explore the major visual and functional improvements in CodeXR v1.1.0 with this comprehensive before-and-after comparison:
+Explore the major visual and functional improvements introduced in CodeXR v1.1.0.
 
 ### 🎨 Visual Scene Enhancements
-Enhanced rendering quality and immersive environment improvements for better visual fidelity in XR scenes.
+From a simple A-Frame scenario to a complete immersive room with custom components and textures.
 
 | v1.0.0 | v1.1.0 |
 |:---:|:---:|
 | ![v1.0.0 Scene](resources/comparison/scene-v1.0.0.png) | ![v1.1.0 Scene](resources/comparison/scene-v1.1.0.png) |
-| *Basic XR environment rendering* | *Enhanced XR environment with improved lighting and materials* |
+| *Simple A-Frame scene* | *Immersive room with custom assets and textures* |
 
 ### ⚡ Analysis Speed & Performance
-Significant performance improvements in analysis execution and data processing.
+For the same analysis workflow, execution time drops from **54 seconds** to **3 seconds**.
+This means **18x faster execution** and a **94.44% reduction in analysis time**.
 
 | v1.0.0 | v1.1.0 |
 |:---:|:---:|
 | ![v1.0.0 Speed](resources/comparison/performance-v1.0.0.gif) | ![v1.1.0 Speed](resources/comparison/performance-v1.1.0.gif) |
-| *Standard analysis duration* | *Optimized analysis with 40% faster execution* |
+| *54s runtime for the same analysis* | *3s runtime with optimized pipeline* |
 
-### 📺 Virtual Screen Component (NEW) 
-New interactive virtual screen sharing system for collaborative XR sessions.
+### 📺 New Virtual Screen Component & Controler
+Project any screen, tab, or window from any connected device and broadcast it in real time inside the XR environment, including both video and audio.
 
-| v1.0.0 | v1.1.0 |
-|:---:|:---:|
-| ![v1.0.0 No Screens](resources/comparison/screens-v1.0.0.png) | ![v1.1.0 Virtual Screens](resources/comparison/screens-v1.1.0.png) |
-| *No virtual screen support* | *Shared virtual screens with real-time broadcasting* |
+<div align="center">
 
-### 🎪 Pedestal/Table Layout Component (NEW)
-Automatic chart mounting and scaling on a dedicated pedestal/table for better spatial organization.
+![Virtual Screen and Controler](resources/screen/virtualScreenAndControler-v.1.1.0.png)
 
-| v1.0.0 | v1.1.0 |
-|:---:|:---:|
-| ![v1.0.0 No Pedestal](resources/comparison/pedestal-v1.0.0.png) | ![v1.1.0 Pedestal](resources/comparison/pedestal-v1.1.0.png) |
-| *Charts positioned manually* | *Auto-scaled chart pedestal with intelligent repositioning* |
+</div>
 
-### 🎮 Virtual Screen Controller Panel (NEW)
-New management interface for controlling virtual screens directly from the immersive scene.
+### 🎪 New Pedestal/Table Layout componentes & Mapping UI
+Includes a pedestal that rescales charts to maintain a stable approximate size and a Mapping UI to change represented data in real time without re-running analysis.
 
-| v1.0.0 | v1.1.0 |
-|:---:|:---:|
-| ![v1.0.0 No Control](resources/comparison/controller-v1.0.0.png) | ![v1.1.0 Control Panel](resources/comparison/controller-v1.1.0.gif) |
-| *Manual screen management* | *Intuitive control panel for screen management* |
+<div align="center">
 
-### 🏢 Enhanced Workspace Environment
-Improved workspace settings and environmental presets for customized immersive experiences.
+![Pedestal and Mapping UI](resources/pedestal/pedestalAndMappingUI.png)
 
-| v1.0.0 | v1.1.0 |
-|:---:|:---:|
-| ![v1.0.0 Environment](resources/comparison/environment-v1.0.0.png) | ![v1.1.0 Environment](resources/comparison/environment-v1.1.0.png) |
-| *Basic environment selection* | *Advanced workspace presets with enhanced customization* |
+</div>
 
-### 🗺️ In-Scene Mapping UI Panel (NEW)
-Direct dimension mapping controls available within the immersive XR scene without leaving the experience.
+### 👥 Interactive Collaborative Workspace
+The collaborative server is interactive: users are identified and assigned random names, and every interaction is synchronized so all participants see it live (moving screens, projecting content, changing chart values, and more).
 
-| v1.0.0 | v1.1.0 |
-|:---:|:---:|
-| ![v1.0.0 Mapping](resources/comparison/mapping-v1.0.0.png) | ![v1.1.0 Mapping UI](resources/comparison/mapping-v1.1.0.gif) |
-| *External mapping configuration* | *In-scene mapping UI with live preview and safe recovery* |
+<div align="center">
 
-### 👥 Collaborative Workspaces with Avatars (NEW)
-Real-time multi-user collaboration with persistent user presence indicators and synchronized interactions.
+![Collaborative Workspace](resources/collaborative/collaborativeWorkspace.png)
 
-| v1.0.0 | v1.1.0 |
-|:---:|:---:|
-| ![v1.0.0 SingleUser](resources/comparison/collab-v1.0.0.png) | ![v1.1.0 Collaborative](resources/comparison/collab-v1.1.0.gif) |
-| *Single-user analysis only* | *Multi-user sessions with presence avatars and synchronized state* |
+</div>
 
 ## Visual Demonstrations
 
