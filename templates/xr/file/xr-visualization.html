@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.4/dist/aframe-extras.min.js"></script> 
 
     <!-- Babia -->
-    <script src="https://unpkg.com/aframe-babia-components/dist/aframe-babia-components.min.js"></script>
+    <script src="https://unpkg.com/aframe-babia-components@1.3.4/dist/aframe-babia-components.min.js"></script>
 
     <!-- Environment Component (v1.5.0: última publicada) -->
     <script src="https://unpkg.com/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
@@ -32,6 +32,32 @@
         <!-- Environment -->
         <a-entity id="env" environment="preset: ${ENVIRONMENT_PRESET}; groundColor: ${GROUND_COLOR}" hide-on-enter-ar></a-entity>
 
+        <!-- CodeXR room (kept independent from environment preset) -->
+        <a-entity
+            id="codexrRoom"
+            position="0 0 -10"
+            hide-on-enter-ar
+            codexr-room="
+                width: 22;
+                depth: 26;
+                height: 11;
+                openSide: south;
+                wallTexture: ./assets/codexr/xr-room/textures/wall.svg;
+                floorTexture: ./assets/codexr/xr-room/textures/floor.svg;
+                ceilingTexture: ./assets/codexr/xr-room/textures/ceiling.svg;
+                railingTexture: ./assets/codexr/xr-room/textures/railing.svg;
+                glassRailing: true;
+                glassRailingOpacity: 0.34;
+                glassRailingTint: #d7ecff;
+            ">
+        </a-entity>
+
+        <a-entity
+            id="codexrScreenManager"
+            codexr-multi-screen-manager="maxScreens: 5; wall: west"
+            position="0 0 0">
+        </a-entity>
+
         <!-- Light -->
         <a-entity light="color: #fff; type:ambient; intensity: 0.85"></a-entity>
         
@@ -44,9 +70,12 @@
         <!-- Chart Component (Dynamic) -->
         ${CHART_COMPONENT}
 
-        <a-entity id="rig" movement-controls="fly: true" position="0 1.2 12">
+        <!-- Babia UI panel and toggle (optional) -->
+        ${BABIA_UI_COMPONENT}
+
+        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75">
         <!-- Cámara -->
-        <a-entity camera position="0 3 4" look-controls></a-entity>
+        <a-entity camera position="0 0 0" look-controls></a-entity>
 
         <!-- Mando izquierdo SIN raycaster (solo visual) -->
         <a-entity
@@ -80,6 +109,7 @@
         vive-focus-controls="hand: right"
         windows-motion-controls="hand: right"
         generic-tracked-controller-controls="hand: right"
+        cursor="rayOrigin: entity; fuse: false"
         raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
         </a-entity>
 
@@ -90,6 +120,20 @@
         </a-entity>
         </a-entity>
     </a-scene>
-    <script nonce="${nonce}" src="${scriptUri}"></script>
+    <script id="codexr-tooling-config-collaboration" type="application/json">{"enabled":true,"collaborationEnabled":true,"presenceEnabled":true,"cursorPresenceEnabled":false,"sceneSelector":"#scene","roomSignalingPath":"/codexr-room","sessionEndpoint":"/api/collaboration/session","broadcastSocketPath":"/codexr-broadcast"}</script>
+    <script id="codexr-tooling-config-virtual-screen" type="application/json">{"enabled":true,"broadcastEnabled":true,"signalingPath":"/codexr-broadcast","sceneSelector":"#scene","followAnchorSelector":"#rig","anchoredPosition":{"x":0,"y":5,"z":-22},"anchoredRotation":{"x":-12,"y":0,"z":0},"followOffset":{"x":0,"y":0.8,"z":-2.4},"followRotation":{"x":0,"y":0,"z":0}}</script>
+<script nonce="${nonce}" src="./codexrCollaborationRuntime.js"></script>
+<script nonce="${nonce}" src="./virtualScreenRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrRoomRuntime.js"></script>
+<script nonce="${nonce}" src="./xrChartMappingUiRuntime.js"></script>
+<script nonce="${nonce}" src="./xrChartDebugRuntime.js"></script>
+<script nonce="${nonce}" src="./chartPedestalRuntime.js"></script>
+<script nonce="${nonce}" src="${scriptUri}"></script>
+${BABIA_UI_SCRIPT}
 </body>
 </html>
+
+
+
+

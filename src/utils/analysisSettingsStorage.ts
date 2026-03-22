@@ -391,7 +391,7 @@ export class AnalysisSettingsStorage {
         });
         
         await this.saveConfiguration(context, config);
-        console.log(`ANALYSIS: Updated dimension mapping: ${dimensionName} → ${dataField}`);
+        console.log(`ANALYSIS: Updated dimension mapping: ${dimensionName}  ${dataField}`);
     }
 
     /**

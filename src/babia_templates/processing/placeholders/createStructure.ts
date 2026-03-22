@@ -63,6 +63,8 @@ export class CreateStructure {
             // Additional metadata
             placeholders.set('TIMESTAMP', new Date().toISOString());
             placeholders.set('ANALYSIS_TYPE', analysisType);
+            placeholders.set('BABIA_UI_COMPONENT', '');
+            placeholders.set('BABIA_UI_SCRIPT', '');
 
             console.log(`CREATE_STRUCTURE: Created ${placeholders.size} structural placeholders`);
             return { 
@@ -135,7 +137,7 @@ export class CreateStructure {
                 return '<a-entity id="tree" babia-treebuilder="field: filePath; split_by: /; from: data"></a-entity>';
             } else {
                 console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (file analysis)`);
-                return '<a-entity id="tree" babia-treebuilder="field: functionName; split_by: /; from: data"></a-entity>';
+                return '<a-entity id="tree" babia-treebuilder="field: treePath; split_by: /; from: data"></a-entity>';
             }
         }
 
@@ -306,3 +308,5 @@ ${scriptContent}
         return ['xr', 'dom', 'none'].includes(type);
     }
 }
+
+

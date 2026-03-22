@@ -6,6 +6,8 @@ import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
+import { ScreenBroadcastSignalingServer } from './broadcast/screenBroadcastSignalingServer';
+import { CollaborationRoomServer } from './collaboration/collaborationRoomServer';
 
 /**
  * HTTP Server Configuration
@@ -27,6 +29,9 @@ export class HttpServer {
     private server: http.Server | null = null;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
+    private upgradeAttached = false;
+    private broadcastSignalingServer: ScreenBroadcastSignalingServer | null = null;
+    private collaborationRoomServer: CollaborationRoomServer | null = null;
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -42,7 +47,7 @@ export class HttpServer {
             allowedOrigins: ['*'],
             ...cleanConfig
         };
-        
+
         console.log('SERVER: HTTP server initialized with config:', this.config);
     }
 
@@ -58,6 +63,7 @@ export class HttpServer {
         return new Promise((resolve, reject) => {
             try {
                 this.server = http.createServer(this.handleRequest.bind(this));
+                this.attachToNodeServer(this.server);
 
                 this.server.on('error', (error: NodeJS.ErrnoException) => {
                     console.error('SERVER: HTTP server error:', error);
@@ -154,12 +160,19 @@ export class HttpServer {
         return `http://${this.config.host}:${this.config.port}`;
     }
 
+    public disposeRuntimeFeatures(): void {
+        this.collaborationRoomServer?.dispose();
+        this.collaborationRoomServer = null;
+        this.broadcastSignalingServer?.dispose();
+        this.broadcastSignalingServer = null;
+    }
+
     /**
      * Handle incoming HTTP requests
      * @param req - HTTP request
      * @param res - HTTP response
      */
-    private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+    public handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
         const startTime = Date.now();
         const requestUrl = req.url || '/';
         const method = req.method || 'GET';
@@ -312,6 +325,10 @@ export class HttpServer {
                     port: this.config.port,
                     cors: this.config.enableCors
                 });
+                break;
+
+            case '/collaboration/session':
+                this.sendJsonResponse(res, 200, this.buildCollaborationSessionDescriptor());
                 break;
 
             default:
@@ -529,5 +546,33 @@ export class HttpServer {
     </div>
 </body>
 </html>`;
+    }
+
+    public attachToNodeServer(server: http.Server): void {
+        if (this.upgradeAttached) {
+            return;
+        }
+        this.upgradeAttached = true;
+        this.collaborationRoomServer = new CollaborationRoomServer(server);
+        this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(server);
+    }
+
+    private buildCollaborationSessionDescriptor(): Record<string, unknown> {
+        const fileUri = fileToServerMap.findFileByPort(this.config.port);
+        const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
+        const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
+
+        return {
+            roomId: `codexr-session:${activeServerId}`,
+            activeServerId,
+            fileUri: fileUri || null,
+            capabilities: {
+                collaboration: true,
+                presence: true,
+                media: true,
+            },
+            roomSocketPath: '/codexr-room',
+            broadcastSocketPath: '/codexr-broadcast',
+        };
     }
 }

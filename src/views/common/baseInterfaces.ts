@@ -44,9 +44,9 @@ export class ModularTreeItem extends vscode.TreeItem {
     public visualizeDataItemType?: 'chart-type' | 'select-json' | 'dimension-mapping' | 'dimension-item' | 'launch-visualization' | 'browse-visualizations' | 'stored-visualization' | 'error';
     public visualizeDataItem?: any;
     
-    // Code Analysis-specific properties for compatibility
-    public codeAnalysisItemType?: 'section' | 'subsection' | 'language-group' | 'file-item' | 'error' | 'scanning';
-    public originalCodeAnalysisItem?: any;
+    // Analysis-specific properties for compatibility
+    public analysisItemType?: 'section' | 'subsection' | 'language-group' | 'file-item' | 'error' | 'scanning';
+    public originalAnalysisItem?: any;
     
     // Visualization Settings-specific properties for compatibility
     public visualizationSettingsItemType?: 'settings-field' | 'error';

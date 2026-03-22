@@ -12,6 +12,8 @@ export { HttpsCustomServer, HttpsCustomServerConfig } from './httpsCustomServer'
 
 // Utility classes
 export { PortManager } from './portManager';
+export { ScreenBroadcastSignalingServer } from './broadcast/screenBroadcastSignalingServer';
+export { CollaborationRoomServer } from './collaboration/collaborationRoomServer';
 
 // Main launcher and types
 export { 

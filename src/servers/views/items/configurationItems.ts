@@ -4,14 +4,22 @@ import { ServerNodeIcons } from './serverNodeIcons';
 import { ServerSettingsManager } from '../../storage/serverSettingsManager';
 
 /**
- * Get current server configuration
+ * Ensure persisted server configuration has been loaded.
+ */
+export async function ensureServerConfigReady(): Promise<void> {
+    const manager = ServerSettingsManager.getInstance();
+    await manager.ensureInitialized();
+}
+
+/**
+ * Get current server configuration.
  */
 export function getServerConfig() {
     return ServerSettingsManager.getInstance().getLegacyConfig();
 }
 
 /**
- * Update server configuration
+ * Update server configuration.
  */
 export async function updateServerConfig(updates: any): Promise<void> {
     const manager = ServerSettingsManager.getInstance();
@@ -19,16 +27,11 @@ export async function updateServerConfig(updates: any): Promise<void> {
 }
 
 /**
- * Create configuration items for the server tree view
+ * Create configuration items for the server tree view.
  */
 export function createConfigurationItems(): ServerTreeItem[] {
     const config = getServerConfig();
-    
-    // Determine icon based on HTTP mode security
-    const httpModeIcon = config.httpMode === 'HTTP' 
-        ? ServerNodeIcons.httpModeUnsecure 
-        : ServerNodeIcons.httpModeSecure;
-    
+
     return [
         new ServerTreeItem(
             `HTTP Mode: ${config.httpMode}`,
@@ -36,10 +39,10 @@ export function createConfigurationItems(): ServerTreeItem[] {
             'config-option',
             {
                 command: 'codexr.server.config.httpMode',
-                title: 'Configure HTTP Mode'
+                title: 'Configure HTTP Mode',
             },
             ServerNodeIcons.httpMode,
-            `Click to change server mode (currently: ${config.httpMode})`
+            `Click to change server mode (currently: ${config.httpMode})`,
         ),
         new ServerTreeItem(
             `Default Port: ${config.port}`,
@@ -47,10 +50,10 @@ export function createConfigurationItems(): ServerTreeItem[] {
             'config-option',
             {
                 command: 'codexr.server.config.port',
-                title: 'Configure Port'
+                title: 'Configure Port',
             },
             ServerNodeIcons.defaultPort,
-            `Click to change default port (currently: ${config.port})`
+            `Click to change default port (currently: ${config.port})`,
         ),
         new ServerTreeItem(
             `Auto-Open: ${config.autoOpen ? 'Enabled' : 'Disabled'}`,
@@ -58,10 +61,10 @@ export function createConfigurationItems(): ServerTreeItem[] {
             'config-option',
             {
                 command: 'codexr.server.config.autoOpen',
-                title: 'Toggle Auto-Open'
+                title: 'Toggle Auto-Open',
             },
             ServerNodeIcons.autoOpen,
-            `Click to toggle auto-open (currently: ${config.autoOpen ? 'enabled' : 'disabled'})`
+            `Click to toggle auto-open (currently: ${config.autoOpen ? 'enabled' : 'disabled'})`,
         ),
         new ServerTreeItem(
             `Open Mode: ${config.openMode}`,
@@ -69,10 +72,10 @@ export function createConfigurationItems(): ServerTreeItem[] {
             'config-option',
             {
                 command: 'codexr.server.config.openMode',
-                title: 'Configure Open Mode'
+                title: 'Configure Open Mode',
             },
             ServerNodeIcons.openMode,
-            `Click to change open mode (currently: ${config.openMode})`
+            `Click to change open mode (currently: ${config.openMode})`,
         ),
         new ServerTreeItem(
             'Reset to Default',
@@ -80,10 +83,10 @@ export function createConfigurationItems(): ServerTreeItem[] {
             'config-option',
             {
                 command: 'codexr.server.config.resetToDefault',
-                title: 'Reset to Default Settings'
+                title: 'Reset to Default Settings',
             },
             ServerNodeIcons.reset,
-            'Reset all server configuration to default values'
-        )
+            'Reset all server configuration to default values',
+        ),
     ];
 }

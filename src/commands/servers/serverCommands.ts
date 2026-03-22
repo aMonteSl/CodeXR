@@ -1,44 +1,73 @@
 import * as vscode from 'vscode';
-import { 
-    configureServer, 
-    startLocalServer, 
-    configureHttpMode, 
-    configurePort, 
-    toggleAutoOpen, 
+import {
+    configureServer,
+    startLocalServer,
+    configureHttpMode,
+    configurePort,
+    toggleAutoOpen,
     configureOpenMode,
     resetToDefault,
-    setExtensionContext 
+    setExtensionContext
 } from '../../servers/commands/serverCommands';
+import { ExtensionCommandRegistration } from '../shared';
 
 /**
- * Registers all server-related commands
+ * Server command declarations for centralized registration.
  */
-export function registerServerCommands(context: vscode.ExtensionContext): void {
-    console.log('SERVER: Registering server commands');
-    
-    // Set the extension context for server commands
+export function getServerCommandRegistrations(
+    context: vscode.ExtensionContext,
+): ExtensionCommandRegistration[] {
     setExtensionContext(context);
-    
-    // Main server commands
-    const configureServerCommand = vscode.commands.registerCommand('codexr.server.configure', configureServer);
-    const startLocalServerCommand = vscode.commands.registerCommand('codexr.server.launch', startLocalServer);
-    
-    // Configuration option commands (UI stubs)
-    const configureHttpModeCommand = vscode.commands.registerCommand('codexr.server.config.httpMode', configureHttpMode);
-    const configurePortCommand = vscode.commands.registerCommand('codexr.server.config.port', configurePort);
-    const toggleAutoOpenCommand = vscode.commands.registerCommand('codexr.server.config.autoOpen', toggleAutoOpen);
-    const configureOpenModeCommand = vscode.commands.registerCommand('codexr.server.config.openMode', configureOpenMode);
-    const resetToDefaultCommand = vscode.commands.registerCommand('codexr.server.config.resetToDefault', resetToDefault);
-    
-    context.subscriptions.push(
-        configureServerCommand,
-        startLocalServerCommand,
-        configureHttpModeCommand,
-        configurePortCommand,
-        toggleAutoOpenCommand,
-        configureOpenModeCommand,
-        resetToDefaultCommand
-    );
-    
-    console.log('SERVER: Server commands registered successfully');
+
+    return [
+        {
+            id: 'codexr.server.configure',
+            module: 'SERVER',
+            description: 'Server configuration',
+            handler: configureServer,
+            errorMessage: 'Failed to configure server'
+        },
+        {
+            id: 'codexr.server.launch',
+            module: 'SERVER',
+            description: 'Start local server',
+            handler: startLocalServer,
+            errorMessage: 'Failed to start local server'
+        },
+        {
+            id: 'codexr.server.config.httpMode',
+            module: 'SERVER',
+            description: 'Configure HTTP mode',
+            handler: configureHttpMode,
+            errorMessage: 'Failed to configure HTTP mode'
+        },
+        {
+            id: 'codexr.server.config.port',
+            module: 'SERVER',
+            description: 'Configure default port',
+            handler: configurePort,
+            errorMessage: 'Failed to configure default port'
+        },
+        {
+            id: 'codexr.server.config.autoOpen',
+            module: 'SERVER',
+            description: 'Toggle auto-open',
+            handler: toggleAutoOpen,
+            errorMessage: 'Failed to toggle auto-open'
+        },
+        {
+            id: 'codexr.server.config.openMode',
+            module: 'SERVER',
+            description: 'Configure open mode',
+            handler: configureOpenMode,
+            errorMessage: 'Failed to configure open mode'
+        },
+        {
+            id: 'codexr.server.config.resetToDefault',
+            module: 'SERVER',
+            description: 'Reset server configuration',
+            handler: resetToDefault,
+            errorMessage: 'Failed to reset server configuration'
+        }
+    ];
 }

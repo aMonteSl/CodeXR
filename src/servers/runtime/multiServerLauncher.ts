@@ -41,6 +41,7 @@ export interface MultiServerLaunchResult {
     serverUrl?: string;
     serverType?: ServerType;
     serverId?: string;
+    activeServerId?: string;
     error?: string;
     port?: number;
     httpsOverridden?: boolean;
@@ -79,12 +80,17 @@ export class MultiServerLauncher {
      * @param customName Optional custom display name for the server
      * @returns Promise<MultiServerLaunchResult>
      */
-    public async launchServer(htmlFile?: string, customName?: string, additionalMetadata?: Record<string, any>): Promise<MultiServerLaunchResult> {
+    public async launchServer(
+        htmlFile?: string,
+        customName?: string,
+        additionalMetadata?: Record<string, any>,
+    ): Promise<MultiServerLaunchResult> {
         try {
             console.log('SERVER: Starting multi-server launch process...');
             console.log('SERVER: launchServer called with parameters:', { htmlFile, customName });
 
             // Load current settings
+            await this.settingsManager.ensureInitialized();
             const settings = this.settingsManager.getServerSettings();
             console.log('SERVER: Loaded settings:', {
                 ...settings,
@@ -145,10 +151,10 @@ export class MultiServerLauncher {
                     const launchMode: LaunchMode = this.determineLaunchMode(settings);
                     const certMode: CertMode = this.determineCertMode(serverType, result.httpsOverridden);
                     
-                    console.log('SERVER: 🔍 DEBUG - About to register server with the following details:');
-                    console.log('SERVER: 🔍 DEBUG - customName:', customName);
-                    console.log('SERVER: 🔍 DEBUG - port:', finalPort);
-                    console.log('SERVER: 🔍 DEBUG - url:', result.serverUrl);
+                    console.log('SERVER:  DEBUG - About to register server with the following details:');
+                    console.log('SERVER:  DEBUG - customName:', customName);
+                    console.log('SERVER:  DEBUG - port:', finalPort);
+                    console.log('SERVER:  DEBUG - url:', result.serverUrl);
                     
                     const registrar = getServerRegistrar();
                     const activeServer = registrar.registerServer({
@@ -171,9 +177,9 @@ export class MultiServerLauncher {
                         }
                     });
                     
-                    console.log('SERVER: ✅ Successfully registered server with registry:');
-                    console.log('SERVER: ✅ Registered server ID:', activeServer.id);
-                    console.log('SERVER: ✅ Registered server customName:', activeServer.customName);
+                    console.log('SERVER:  Successfully registered server with registry:');
+                    console.log('SERVER:  Registered server ID:', activeServer.id);
+                    console.log('SERVER:  Registered server customName:', activeServer.customName);
                     
                     serverInfo.activeServerId = activeServer.id;
                     this.servers.set(serverId, serverInfo);
@@ -194,6 +200,7 @@ export class MultiServerLauncher {
                     serverUrl: result.serverUrl,
                     serverType: serverType,
                     serverId: serverId,
+                    activeServerId: serverInfo.activeServerId || undefined,
                     port: finalPort,
                     httpsOverridden: isHttpsOverridden,
                     portChanged: portChanged,
@@ -398,7 +405,7 @@ export class MultiServerLauncher {
         settings: ServerSettings,
         port: number,
         host: string,
-        htmlFile?: string
+        htmlFile?: string,
     ): Promise<{
         success: boolean;
         serverUrl?: string;
@@ -432,12 +439,12 @@ export class MultiServerLauncher {
                         staticRoot,
                         enableCors,
                         allowedOrigins,
-                        mainFile
+                        mainFile,
                     });
                     break;
 
                 case 'https-default':
-                    console.log('SERVER: Creating HTTPS server with default certificates...');
+                    console.log('SERVER: Creating HTTPS server with generated local certificates...');
                     server = new HttpsDefaultServer({
                         port,
                         host,
@@ -649,3 +656,4 @@ export class MultiServerLauncher {
         }
     }
 }
+

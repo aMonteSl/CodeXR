@@ -49,12 +49,28 @@
             <div class="metric-label">Blank Lines</div>
           </div>
           <div class="metric">
+            <div class="metric-value" id="file-size">0 KB</div>
+            <div class="metric-label">File Size</div>
+          </div>
+          <div class="metric">
             <div class="metric-value" id="function-count">0</div>
             <div class="metric-label">Functions</div>
           </div>
           <div class="metric">
             <div class="metric-value" id="class-count">0</div>
             <div class="metric-label">Classes</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="comment-ratio">0.0%</div>
+            <div class="metric-label">Comment Ratio</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="code-ratio">0.0%</div>
+            <div class="metric-label">Code Ratio</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="blank-ratio">0.0%</div>
+            <div class="metric-label">Blank Ratio</div>
           </div>
           <div class="metric ccn-metric">
             <div class="metric-value" id="avg-complexity">-</div>
@@ -64,9 +80,29 @@
             <div class="metric-value" id="max-complexity">-</div>
             <div class="metric-label">Max Complexity (CCN)</div>
           </div>
+          <div class="metric ccn-metric">
+            <div class="metric-value" id="complexity-density">0.000</div>
+            <div class="metric-label">Complexity Density</div>
+          </div>
           <div class="metric ccn-metric high-complexity-metric">
             <div class="metric-value" id="high-complexity-count-summary">-</div>
             <div class="metric-label">High CCN Functions</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="avg-function-parameters">0.0</div>
+            <div class="metric-label">Avg Parameters</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="max-function-parameters">0</div>
+            <div class="metric-label">Max Parameters</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="avg-nesting-depth">0.0</div>
+            <div class="metric-label">Avg Nesting Depth</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="max-nesting-depth">0</div>
+            <div class="metric-label">Max Nesting Depth</div>
           </div>
         </div>
       </div>
@@ -103,7 +139,10 @@
                 <th>Start Line</th>
                 <th>End Line</th>
                 <th>Length</th>
+                <th>Span</th>
                 <th>Parameters</th>
+                <th>Nesting</th>
+                <th>Band</th>
                 <th>CCN</th>
                 <th>Density</th>
               </tr>

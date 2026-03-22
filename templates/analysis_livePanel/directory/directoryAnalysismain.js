@@ -90,6 +90,143 @@ function init() {
 }
 
 // Load and display analysis data
+function normalizePathValue(value) {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+
+  return value.replace(/\\/g, '/').replace(/\/+/g, '/');
+}
+
+function deriveDirectoryPath(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return 'Unknown';
+  }
+
+  const first = files[0] || {};
+  const normalizedFilePath = normalizePathValue(first.filePath || '');
+  const normalizedRelativePath = normalizePathValue(first.relativePath || first.fileName || '');
+
+  if (!normalizedFilePath) {
+    return 'Unknown';
+  }
+
+  if (normalizedRelativePath && normalizedFilePath.endsWith(normalizedRelativePath)) {
+    return normalizedFilePath.slice(0, normalizedFilePath.length - normalizedRelativePath.length).replace(/\/$/, '') || normalizedFilePath;
+  }
+
+  const lastSlash = normalizedFilePath.lastIndexOf('/');
+  return lastSlash > 0 ? normalizedFilePath.slice(0, lastSlash) : normalizedFilePath;
+}
+
+function buildSummaryFromFiles(files) {
+  const summary = {
+    totalFiles: Array.isArray(files) ? files.length : 0,
+    totalFilesAnalyzed: 0,
+    totalFilesNotAnalyzed: 0,
+    totalLines: 0,
+    totalComments: 0,
+    totalBlankLines: 0,
+    totalFunctions: 0,
+    totalClasses: 0,
+    averageComplexity: 0,
+    commentRatio: 0,
+    codeRatio: 0,
+    blankRatio: 0,
+    highComplexityFunctions: 0,
+    criticalComplexityFunctions: 0,
+    averageFunctionParameters: 0,
+    maxFunctionParameters: 0,
+    averageFunctionNestingDepth: 0,
+    maxFunctionNestingDepth: 0,
+    totalFileSizeBytes: 0,
+    languages: {}
+  };
+
+  let complexityWeight = 0;
+  let parameterWeight = 0;
+  let nestingWeight = 0;
+  let totalCodeLines = 0;
+  let totalFunctionsForAggregates = 0;
+
+  (files || []).forEach((file) => {
+    const status = file.status || 'success';
+    if (status === 'success') {
+      summary.totalFilesAnalyzed += 1;
+    } else {
+      summary.totalFilesNotAnalyzed += 1;
+    }
+
+    summary.totalLines += file.totalLines || 0;
+    summary.totalComments += file.commentLines || 0;
+    summary.totalBlankLines += file.blankLines || 0;
+    totalCodeLines += file.codeLines || 0;
+    summary.totalFunctions += file.functionCount || 0;
+    summary.totalClasses += file.classCount || 0;
+    summary.totalFileSizeBytes += file.fileSizeBytes || 0;
+    summary.highComplexityFunctions += file.highComplexityFunctions || 0;
+    summary.criticalComplexityFunctions += file.criticalComplexityFunctions || 0;
+    summary.maxFunctionParameters = Math.max(summary.maxFunctionParameters, file.maxFunctionParameters || 0);
+    summary.maxFunctionNestingDepth = Math.max(summary.maxFunctionNestingDepth, file.maxFunctionNestingDepth || 0);
+
+    const language = file.language || 'Unknown';
+    summary.languages[language] = (summary.languages[language] || 0) + 1;
+
+    const functionCount = file.functionCount || 0;
+    if (functionCount > 0) {
+      complexityWeight += (file.cyclomaticComplexityNumber || 0) * functionCount;
+      parameterWeight += (file.averageFunctionParameters || 0) * functionCount;
+      nestingWeight += (file.averageFunctionNestingDepth || 0) * functionCount;
+      totalFunctionsForAggregates += functionCount;
+    }
+  });
+
+  summary.averageComplexity = totalFunctionsForAggregates > 0
+    ? complexityWeight / totalFunctionsForAggregates
+    : 0;
+  summary.averageFunctionParameters = totalFunctionsForAggregates > 0
+    ? parameterWeight / totalFunctionsForAggregates
+    : 0;
+  summary.averageFunctionNestingDepth = totalFunctionsForAggregates > 0
+    ? nestingWeight / totalFunctionsForAggregates
+    : 0;
+  summary.commentRatio = summary.totalLines > 0 ? summary.totalComments / summary.totalLines : 0;
+  summary.codeRatio = summary.totalLines > 0 ? totalCodeLines / summary.totalLines : 0;
+  summary.blankRatio = summary.totalLines > 0 ? summary.totalBlankLines / summary.totalLines : 0;
+
+  return summary;
+}
+
+function normalizeIncomingDirectoryAnalysisData(data) {
+  if (Array.isArray(data)) {
+    return {
+      directoryPath: deriveDirectoryPath(data),
+      timestamp: (data[0] && data[0].timestamp) || 'Unknown',
+      summary: buildSummaryFromFiles(data),
+      files: data
+    };
+  }
+
+  return data;
+}
+
+function formatRatio(value) {
+  return `${((value || 0) * 100).toFixed(1)}%`;
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) {
+    return '0 KB';
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 function loadAnalysisData(data) {
   console.log('📊 loadAnalysisData called with:', data);
   debugLog('Loading analysis data:', data);
@@ -98,8 +235,8 @@ function loadAnalysisData(data) {
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
   const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
   
-  analysisData = data;
-  fileData = data.files || [];
+  analysisData = normalizeIncomingDirectoryAnalysisData(data);
+  fileData = analysisData.files || [];
   
   console.log('📊 File data loaded:', fileData.length, 'files');
   debugLog('File data loaded:', fileData.length, 'files');
@@ -428,7 +565,7 @@ function updateSummary() {
   if (!analysisData.summary) {
     return;
   }
-  
+
   const summary = analysisData.summary;
   document.getElementById('total-files').textContent = summary.totalFiles;
   document.getElementById('total-files-analyzed').textContent = summary.totalFilesAnalyzed;
@@ -440,9 +577,17 @@ function updateSummary() {
   document.getElementById('total-classes').textContent = summary.totalClasses;
   document.getElementById('avg-complexity').textContent = summary.averageComplexity.toFixed(1);
   document.getElementById('max-complexity').textContent = findMaxComplexity();
+  document.getElementById('comment-ratio-summary').textContent = formatRatio(summary.commentRatio);
+  document.getElementById('code-ratio-summary').textContent = formatRatio(summary.codeRatio);
+  document.getElementById('blank-ratio-summary').textContent = formatRatio(summary.blankRatio);
+  document.getElementById('high-complexity-functions').textContent = summary.highComplexityFunctions;
+  document.getElementById('critical-complexity-functions').textContent = summary.criticalComplexityFunctions;
+  document.getElementById('avg-function-params').textContent = (summary.averageFunctionParameters || 0).toFixed(2);
+  document.getElementById('max-function-params').textContent = summary.maxFunctionParameters || 0;
+  document.getElementById('avg-function-nesting').textContent = (summary.averageFunctionNestingDepth || 0).toFixed(2);
+  document.getElementById('max-function-nesting').textContent = summary.maxFunctionNestingDepth || 0;
 }
 
-// Find maximum AVERAGE complexity across all files (not function-level max)
 function findMaxComplexity() {
   let maxAvgComplexity = 0;
   fileData.forEach(file => {
@@ -733,48 +878,37 @@ function updateTopComplexFiles() {
     .slice(0, 10);
 
   const container = document.getElementById('complex-files-list');
-  const isDeepMode = window.analysisMode === 'deep';
-  
+  const isDeepMode = window.analysisMode === "deep";
+
   container.innerHTML = sortedFiles.map(file => {
     const complexity = file.cyclomaticComplexityNumber || 0;
     const classification = getFileComplexityClassification(complexity);
-    
-    // Show relative path for deep mode, just filename for shallow mode
-    const displayName = isDeepMode && file.relativePath && file.relativePath !== file.fileName 
-      ? file.relativePath 
+    const displayName = isDeepMode && file.relativePath && file.relativePath !== file.fileName
+      ? file.relativePath
       : file.fileName;
-    
+
     return `
       <div class="file-item ${classification.cssClass}">
         <div class="file-name" title="${file.filePath}">${displayName}</div>
         <div class="file-details">
           <span class="complexity-badge ${classification.cssClass}">${complexity.toFixed(1)} CCN</span>
           <span>${file.functionCount || 0} functions</span>
-          <span>${file.totalLines || 0} lines</span>
+          <span>${file.maxFunctionNestingDepth || 0} max nesting</span>
+          <span>${file.highComplexityFunctions || 0} high-risk</span>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// Update file table
 function updateFileTable() {
   const tbody = document.getElementById('file-table-body');
-  const isDeepMode = window.analysisMode === 'deep';
-  
+
   tbody.innerHTML = fileData.map(file => {
     const avgComplexity = file.cyclomaticComplexityNumber || 0;
     const classification = getFileComplexityClassification(avgComplexity);
-    const fileSizeKB = file.fileSizeBytes ? (file.fileSizeBytes / 1024).toFixed(1) + ' KB' : '0 KB';
-    
-    // Find max function complexity for this file
     const maxFunctionComplexity = file.maxComplexity || 0;
-    
-    // Show relative path for deep mode, just filename for shallow mode
-    const displayName = isDeepMode && file.relativePath && file.relativePath !== file.fileName 
-      ? file.relativePath 
-      : file.fileName;
-    
+
     return `
       <tr class="${classification.cssClass}">
         <td class="file-name clickable" title="${file.filePath}" data-file-path="${file.filePath}">
@@ -783,25 +917,29 @@ function updateFileTable() {
         <td class="relative-path" title="${file.relativePath || file.fileName}">
           ${file.relativePath || file.fileName}
         </td>
-        <td>${file.language || 'Unknown'}</td>
-        <td>${fileSizeKB}</td>
+        <td>${file.language || "Unknown"}</td>
+        <td>${formatFileSize(file.fileSizeBytes || 0)}</td>
         <td>${(file.totalLines || 0).toLocaleString()}</td>
         <td>${file.functionCount || 0}</td>
-        <td>${file.classCount || 0}</td>
         <td>${avgComplexity.toFixed(1)}</td>
         <td>${maxFunctionComplexity}</td>
+        <td>${formatRatio(file.commentRatio || 0)}</td>
+        <td>${(file.averageFunctionParameters || 0).toFixed(2)}</td>
+        <td>${file.maxFunctionParameters || 0}</td>
+        <td>${(file.averageFunctionNestingDepth || 0).toFixed(2)}</td>
+        <td>${file.maxFunctionNestingDepth || 0}</td>
+        <td>${file.highComplexityFunctions || 0}</td>
+        <td>${file.criticalComplexityFunctions || 0}</td>
       </tr>
     `;
   }).join('');
-  
-  // Add click handlers for file names
+
   const fileNameCells = document.querySelectorAll('.file-name.clickable');
   fileNameCells.forEach(cell => {
     cell.addEventListener('click', handleFileClick);
   });
 }
 
-// Handle file name click to open individual analysis
 function handleFileClick(event) {
   const filePath = event.currentTarget.getAttribute('data-file-path');
   if (!filePath) {
@@ -1193,3 +1331,4 @@ function init() {
   console.log('🔍 Legacy init function called');
   // This is now handled by DOMContentLoaded
 }
+

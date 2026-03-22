@@ -8,6 +8,7 @@ export interface ServerInfo {
     tempDir: string;
     fileUri: string;
     serverRef: http.Server;
+    activeServerId?: string;
 }
 
 /**

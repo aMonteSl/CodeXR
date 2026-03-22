@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Advanced DOM Fixture</title>
+    <style>
+      body { margin: 0; font-family: Arial, sans-serif; }
+      .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+    </style>
+    <script>
+      window.shouldDisappear = true;
+    </script>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#reports">Reports</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <section id="overview">
+        <article>
+          <h2>Analytics Hub</h2>
+          <p>Nested DOM fixture for advanced visualization checks.</p>
+          <div class="grid">
+            <section>
+              <h3>KPIs</h3>
+              <ul>
+                <li>Revenue</li>
+                <li>Retention</li>
+                <li>Churn</li>
+              </ul>
+            </section>
+            <aside>
+              <form>
+                <label for="range">Range</label>
+                <select id="range" name="range">
+                  <option>7 days</option>
+                  <option>30 days</option>
+                </select>
+                <button type="submit">Apply</button>
+              </form>
+            </aside>
+          </div>
+        </article>
+      </section>
+      <section id="reports">
+        <table>
+          <thead>
+            <tr><th>Team</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Platform</td><td>Healthy</td></tr>
+            <tr><td>Growth</td><td>Watch</td></tr>
+            <tr><td>Revenue</td><td>Healthy</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+    <footer>
+      <small>Generated for CodeXR DOM tests.</small>
+    </footer>
+  </body>
+</html>

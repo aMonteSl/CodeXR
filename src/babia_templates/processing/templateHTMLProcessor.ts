@@ -88,7 +88,7 @@ export class TemplateHTMLProcessor {
                 jsContent: processedJs
             };
 
-            console.log('TEMPLATE_HTML_PROCESSOR: 🔍 DEBUG - About to return result:', {
+            console.log('TEMPLATE_HTML_PROCESSOR:  DEBUG - About to return result:', {
                 success: returnResult.success,
                 hasIndexHtml: !!returnResult.indexHtml,
                 hasJsContent: !!returnResult.jsContent,
@@ -98,8 +98,8 @@ export class TemplateHTMLProcessor {
                 jsContentType: typeof returnResult.jsContent
             });
 
-            console.log('TEMPLATE_HTML_PROCESSOR: 🔍 DEBUG - indexHtml preview:', returnResult.indexHtml?.substring(0, 100) + '...');
-            console.log('TEMPLATE_HTML_PROCESSOR: 🔍 DEBUG - jsContent preview:', returnResult.jsContent?.substring(0, 100) + '...');
+            console.log('TEMPLATE_HTML_PROCESSOR:  DEBUG - indexHtml preview:', returnResult.indexHtml?.substring(0, 100) + '...');
+            console.log('TEMPLATE_HTML_PROCESSOR:  DEBUG - jsContent preview:', returnResult.jsContent?.substring(0, 100) + '...');
 
             return returnResult;
 
@@ -198,6 +198,7 @@ export class TemplateHTMLProcessor {
 
             // HTML content for babia-html component
             HTML_CONTENT: escapedHtmlContent,
+            HTML_CONTENT_JSON: this.escapeHtmlForJsonScript(templateData.htmlContent),
 
             // Visualization settings
             BACKGROUND_COLOR: visualizationSettings.backgroundColor,
@@ -247,13 +248,20 @@ export class TemplateHTMLProcessor {
      */
     private static escapeHtmlForAttribute(htmlContent: string): string {
         return htmlContent
-            // Replace quotes
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;')
-            // Keep other HTML entities as-is since they're handled by babia-html
-            // Remove extra whitespace
             .replace(/\s+/g, ' ')
             .trim();
+    }
+
+    private static escapeHtmlForJsonScript(htmlContent: string): string {
+        return JSON.stringify(htmlContent)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026');
     }
 
     /**
@@ -285,3 +293,4 @@ export class TemplateHTMLProcessor {
         return true;
     }
 }
+

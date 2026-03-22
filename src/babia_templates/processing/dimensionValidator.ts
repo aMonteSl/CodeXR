@@ -1,27 +1,24 @@
 import { ChartMetadata, DimensionMapping, ChartValidationResult } from '../models/chartModels';
+import { XRFieldTypeMap } from '../../code_analysis/services/xrFieldSchemaService';
 
 /**
  * BabiaXR Dimension Validator
- * Validates dimension mappings against chart requirements
+ * Validates dimension mappings against chart requirements.
  */
 export class DimensionValidator {
-    
-    /**
-     * Validate dimension mappings for a given chart
-     */
     public static validateMappings(
-        chart: ChartMetadata, 
-        mappings: DimensionMapping[]
+        chart: ChartMetadata,
+        mappings: DimensionMapping[],
+        fieldTypes?: XRFieldTypeMap,
     ): ChartValidationResult {
         const result: ChartValidationResult = {
             isValid: true,
             errors: [],
-            warnings: []
+            warnings: [],
         };
 
-        // Check for required dimensions
-        const requiredDimensions = chart.dimensions.filter(d => d.required);
-        const mappedDimensions = new Set(mappings.map(m => m.dimension));
+        const requiredDimensions = chart.dimensions.filter((dimension) => dimension.required);
+        const mappedDimensions = new Set(mappings.map((mapping) => mapping.dimension));
 
         for (const requiredDim of requiredDimensions) {
             if (!mappedDimensions.has(requiredDim.name)) {
@@ -30,8 +27,7 @@ export class DimensionValidator {
             }
         }
 
-        // Check for invalid dimension names
-        const validDimensionNames = new Set(chart.dimensions.map(d => d.name));
+        const validDimensionNames = new Set(chart.dimensions.map((dimension) => dimension.name));
         for (const mapping of mappings) {
             if (!validDimensionNames.has(mapping.dimension)) {
                 result.errors.push(`Unknown dimension '${mapping.dimension}' for chart type '${chart.name}'`);
@@ -39,7 +35,6 @@ export class DimensionValidator {
             }
         }
 
-        // Check for duplicate mappings
         const dimensionCounts = new Map<string, number>();
         for (const mapping of mappings) {
             const count = dimensionCounts.get(mapping.dimension) || 0;
@@ -53,16 +48,34 @@ export class DimensionValidator {
             }
         }
 
-        // Check for empty data fields
         for (const mapping of mappings) {
             if (!mapping.dataField || mapping.dataField.trim() === '') {
                 result.errors.push(`Dimension '${mapping.dimension}' has no data field specified`);
                 result.isValid = false;
+                continue;
+            }
+
+            const dimension = chart.dimensions.find((candidate) => candidate.name === mapping.dimension);
+            if (!dimension || !fieldTypes || dimension.dataType === 'any') {
+                continue;
+            }
+
+            const actualType = fieldTypes[mapping.dataField];
+            if (actualType === undefined) {
+                result.errors.push(`Data field '${mapping.dataField}' is not available for chart type '${chart.name}'`);
+                result.isValid = false;
+                continue;
+            }
+
+            if (actualType !== dimension.dataType) {
+                result.errors.push(
+                    `Dimension '${mapping.dimension}' (${dimension.label}) requires ${dimension.dataType} data, but '${mapping.dataField}' is ${actualType}`,
+                );
+                result.isValid = false;
             }
         }
 
-        // Add warnings for optional dimensions that are not mapped
-        const optionalDimensions = chart.dimensions.filter(d => !d.required);
+        const optionalDimensions = chart.dimensions.filter((dimension) => !dimension.required);
         for (const optionalDim of optionalDimensions) {
             if (!mappedDimensions.has(optionalDim.name)) {
                 result.warnings.push(`Optional dimension '${optionalDim.name}' (${optionalDim.label}) is not mapped`);
@@ -72,57 +85,63 @@ export class DimensionValidator {
         return result;
     }
 
-    /**
-     * Validate a specific data field against dimension requirements
-     */
     public static validateDataField(
-        dimensionName: string, 
-        dataField: string, 
-        chart: ChartMetadata
+        dimensionName: string,
+        dataField: string,
+        chart: ChartMetadata,
+        fieldTypes?: XRFieldTypeMap,
     ): { isValid: boolean; error?: string } {
-        const dimension = chart.dimensions.find(d => d.name === dimensionName);
-        
+        const dimension = chart.dimensions.find((candidate) => candidate.name === dimensionName);
+
         if (!dimension) {
             return {
                 isValid: false,
-                error: `Dimension '${dimensionName}' does not exist for chart type '${chart.name}'`
+                error: `Dimension '${dimensionName}' does not exist for chart type '${chart.name}'`,
             };
         }
 
         if (!dataField || dataField.trim() === '') {
             return {
                 isValid: false,
-                error: `Data field for dimension '${dimensionName}' cannot be empty`
+                error: `Data field for dimension '${dimensionName}' cannot be empty`,
             };
         }
 
-        // Additional validation can be added here for data type checking
-        // when we have access to actual data structure
+        if (dimension.dataType !== 'any' && fieldTypes) {
+            const actualType = fieldTypes[dataField];
+            if (actualType === undefined) {
+                return {
+                    isValid: false,
+                    error: `Data field '${dataField}' is not available for chart type '${chart.name}'`,
+                };
+            }
+
+            if (actualType !== dimension.dataType) {
+                return {
+                    isValid: false,
+                    error: `Dimension '${dimensionName}' requires ${dimension.dataType} data, but '${dataField}' is ${actualType}`,
+                };
+            }
+        }
 
         return { isValid: true };
     }
 
-    /**
-     * Get missing required dimensions
-     */
     public static getMissingRequiredDimensions(
-        chart: ChartMetadata, 
-        mappings: DimensionMapping[]
+        chart: ChartMetadata,
+        mappings: DimensionMapping[],
     ): string[] {
-        const requiredDimensions = chart.dimensions.filter(d => d.required);
-        const mappedDimensions = new Set(mappings.map(m => m.dimension));
-        
+        const requiredDimensions = chart.dimensions.filter((dimension) => dimension.required);
+        const mappedDimensions = new Set(mappings.map((mapping) => mapping.dimension));
+
         return requiredDimensions
-            .filter(d => !mappedDimensions.has(d.name))
-            .map(d => d.name);
+            .filter((dimension) => !mappedDimensions.has(dimension.name))
+            .map((dimension) => dimension.name);
     }
 
-    /**
-     * Check if all required dimensions are mapped
-     */
     public static areAllRequiredDimensionsMapped(
-        chart: ChartMetadata, 
-        mappings: DimensionMapping[]
+        chart: ChartMetadata,
+        mappings: DimensionMapping[],
     ): boolean {
         return this.getMissingRequiredDimensions(chart, mappings).length === 0;
     }

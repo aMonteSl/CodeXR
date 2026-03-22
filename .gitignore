@@ -1,2 +1,16 @@
-*.vsix
+artifacts/
+backups/
+out/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+*.tsbuildinfo
 memoriaTFG/
+certs/
+dist/certs/
+node_modules/
+dist/
+.vscode-test/
+.vscode/
+*.vsix

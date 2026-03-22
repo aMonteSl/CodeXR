@@ -1,142 +1,140 @@
 import * as vscode from 'vscode';
 import { registerAllCommands } from './commands/index';
+import { initializePythonEnvOnStartup } from './commands/python_env/pythonEnvCommands';
+import { XRFieldSchemaService } from './code_analysis/services/xrFieldSchemaService';
 import { ModularTreeDataProvider } from './views';
 import { CommonCommands } from './utils/commonCommands';
 import { ServerSettingsManager } from './servers/storage/serverSettingsManager';
+import { GeneratedHttpsCertificateManager } from './servers/runtime/generatedHttpsCertificateManager';
 import { getActiveServerRegistry } from './active_servers/registry/activeServerRegistry';
 import { ServerControl } from './active_servers/runtime/serverControl';
-import { VisualizeDataModel } from './visualize_data/model/visualizeDataModel';
 import { sseManager } from './servers/runtime/sse/SSEManager';
 import { fileToServerMap } from './utils/fileToServerMap';
-import { ServerWatcherIntegration } from './new_code_analysis/services/serverWatcherIntegration';
-import { CleanAnalysisCommands } from './new_code_analysis/commands/clean_analysis/cleanAnalysisCommands';
-import { AnalysisConfigurationStorage } from './new_code_analysis/configuration';
+import { ServerWatcherIntegration } from './code_analysis/services/serverWatcherIntegration';
+import { CleanAnalysisCommands } from './code_analysis/commands/clean_analysis/cleanAnalysisCommands';
+import { AnalysisConfigurationStorage } from './code_analysis/configuration';
 import { handleError, ErrorDomain, ErrorSeverity } from './utils/errorHandler';
 import { initializeExtensionContext } from './core/extensionContext';
+import { CodeXRLogger } from './core/logging/logger';
+import { StartupCoordinator } from './core/startup/startupCoordinator';
 
-// Global context reference for cleanup
+const startupLogger = CodeXRLogger.getLogger('STARTUP');
+
 let extensionContext: vscode.ExtensionContext;
 let globalModularTreeDataProvider: ModularTreeDataProvider | null = null;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-	
-	// Store context globally for cleanup
-	extensionContext = context;
+    const activationStartedAt = Date.now();
+    extensionContext = context;
 
-	// Initialize the extension context holder (available to all modules)
-	initializeExtensionContext(context);
+    initializeExtensionContext(context);
+    CodeXRLogger.initialize(context);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "CodeXR" is now active!');
+    startupLogger.info('Activating CodeXR.');
 
-	try {
-		// Step 1: Initialize server settings manager and restore settings FIRST
-		console.log('SERVER: Initializing server settings manager');
-		const settingsManager = ServerSettingsManager.getInstance(context);
-		await settingsManager.restoreServerSettings();
-		console.log('SERVER: Settings restoration completed');
+    try {
+        AnalysisConfigurationStorage.initialize(context);
 
-		// Step 1.5: Initialize analysis configuration storage (singleton)
-		console.log('NEW_CODE_ANALYSIS: Initializing configuration storage');
-		AnalysisConfigurationStorage.initialize(context);
-		console.log('NEW_CODE_ANALYSIS: Configuration storage initialized');
+        const settingsManager = ServerSettingsManager.getInstance(context);
+        getActiveServerRegistry();
+        ServerControl.initialize(context);
 
-		// Step 2: Initialize active servers registry
-		console.log('ACTIVE_SERVERS: Initializing active servers registry');
-		const activeServerRegistry = getActiveServerRegistry();
-		ServerControl.initialize(context);
-		console.log('ACTIVE_SERVERS: Registry initialized');
+        const modularTreeDataProvider = new ModularTreeDataProvider(context);
+        globalModularTreeDataProvider = modularTreeDataProvider;
 
-		// Step 2.5: Initialize server-watcher integration service
-		console.log('SERVER_WATCHER_INTEGRATION: Initializing integration service');
-		ServerWatcherIntegration.initialize(context);
-		console.log('SERVER_WATCHER_INTEGRATION: Service initialized');
+        const modularTreeView = vscode.window.createTreeView('codexrTree', {
+            treeDataProvider: modularTreeDataProvider,
+            showCollapseAll: true,
+            canSelectMany: false,
+        });
 
-		// Step 2.7: Execute automatic workspace cleanup on plugin startup
-		console.log('WORKSPACE_CLEANUP: Executing automatic workspace cleanup on plugin restart');
-		await CleanAnalysisCommands.executeStartupCleanup(context);
-		console.log('WORKSPACE_CLEANUP: Automatic cleanup completed');
+        context.subscriptions.push(modularTreeView);
+        CommonCommands.setModularTreeProvider(modularTreeDataProvider);
+        registerAllCommands(context, modularTreeDataProvider, undefined);
 
-		// Step 3: Register the modular tree view AFTER settings are restored
-		console.log('MODULAR_TREE: Registering modular tree view with all sections');
-		const modularTreeDataProvider = new ModularTreeDataProvider(context);
-		globalModularTreeDataProvider = modularTreeDataProvider; // Store globally for cleanup
-		const modularTreeView = vscode.window.createTreeView('codexrTree', {
-			treeDataProvider: modularTreeDataProvider,
-			showCollapseAll: true,
-			canSelectMany: false
-		});
+        const startupCoordinator = new StartupCoordinator(
+            CodeXRLogger.getLogger('STARTUP_DEFERRED'),
+            undefined,
+            { maxConcurrent: 3 },
+        );
+        
+        context.subscriptions.push({
+            dispose: () => startupCoordinator.dispose(),
+        });
+        const xrFieldSchemaService = XRFieldSchemaService.getInstance(context);
 
-		context.subscriptions.push(modularTreeView);
-		console.log('MODULAR_TREE: Tree view registered successfully with all sections');
+        startupCoordinator.schedule({
+            id: 'restore-server-settings',
+            run: async () => {
+                await settingsManager.ensureInitialized();
+                await new GeneratedHttpsCertificateManager(context).ensureDefaultCertificatePair();
+                modularTreeDataProvider.refreshSection('SERVERS');
+            },
+        });
 
-		// Step 3.5: Set up common commands with the modular tree provider
-		console.log('COMMON_COMMANDS: Setting up common commands with modular tree provider');
-		CommonCommands.setModularTreeProvider(modularTreeDataProvider);
-		console.log('COMMON_COMMANDS: Common commands configured');
+        startupCoordinator.schedule({
+            id: 'initialize-server-watcher-integration',
+            run: async () => {
+                ServerWatcherIntegration.initialize(context);
+            },
+        });
 
-		// Step 3.6: Code Analysis will start background scanning automatically when provider is created
-		console.log('CODE_ANALYSIS: Background file scanning will start automatically');
+        startupCoordinator.schedule({
+            id: 'initialize-python-env',
+            run: async () => {
+                await initializePythonEnvOnStartup();
+                await xrFieldSchemaService.prefetchAll();
+                modularTreeDataProvider.refreshSection('pythonEnv');
+                modularTreeDataProvider.refreshSection('analysis');
+            },
+        });
 
-		// Step 4: Register all commands after tree views are created
-		registerAllCommands(context, modularTreeDataProvider, undefined);
+        startupCoordinator.schedule({
+            id: 'cleanup-stale-analysis-artifacts',
+            run: async () => {
+                await CleanAnalysisCommands.executeStartupCleanup(context, activationStartedAt);
+            },
+        });
 
-		// Step 5: Reset Visualize Data state to ensure clean UI/model synchronization
-		console.log('VISUALIZE-DATA: Resetting state to ensure clean UI/model synchronization');
-		VisualizeDataModel.resetVisualizeDataState(context);
-		console.log('VISUALIZE-DATA: State reset completed');
-
-		// Step 7: Trigger initial refresh to ensure UI reflects loaded settings
-		console.log('MODULAR_TREE: Triggering initial tree view refresh with loaded settings');
-		vscode.commands.executeCommand('codexr.tree.refresh');
-		
-		console.log('MODULAR_TREE: Extension activation completed successfully');
-	} catch (error) {
-		console.error('MODULAR_TREE: Error during extension activation:', error);
-		vscode.window.showErrorMessage(`CodeXR activation failed: ${error}`);
-	}
+        startupCoordinator.start();
+        startupLogger.info('CodeXR activation completed. Deferred startup tasks queued.');
+    } catch (error) {
+        startupLogger.error('Extension activation failed.', error);
+        vscode.window.showErrorMessage(`CodeXR activation failed: ${error}`);
+    }
 }
 
-// This method is called when your extension is deactivated
 export async function deactivate() {
-	console.log('MODULAR_TREE: CodeXR extension deactivated');
-	
-	// Cleanup active servers registry
-	try {
-		console.log('ACTIVE_SERVERS: Cleaning up active servers registry');
-		const registry = getActiveServerRegistry();
-		const cleanedCount = registry.cleanupInactiveServers();
-		console.log(`ACTIVE_SERVERS: Registry cleanup completed - removed ${cleanedCount} inactive servers`);
-	} catch (error) {
-		handleError(ErrorDomain.ActiveServers, 'Registry cleanup', error, ErrorSeverity.Warn);
-	}
-	
-	// Cleanup SSE manager and file-to-server mapping
-	try {
-		console.log('SSE: Cleaning up SSE manager and file mappings');
-		
-		sseManager.dispose();
-		fileToServerMap.clearAll();
-		
-		console.log('SSE: SSE and file mapping cleanup completed');
-	} catch (error) {
-		handleError(ErrorDomain.SSE, 'SSE and file mapping cleanup', error, ErrorSeverity.Warn);
-	}
+    startupLogger.info('Deactivating CodeXR.');
 
-	// Cleanup modular tree data provider and file watchers
-	try {
-		console.log('MODULAR_TREE: Cleaning up modular tree data provider');
-		
-		if (globalModularTreeDataProvider) {
-			globalModularTreeDataProvider.dispose();
-			globalModularTreeDataProvider = null;
-		}
-		
-		console.log('MODULAR_TREE: Modular tree cleanup completed');
-	} catch (error) {
-		handleError(ErrorDomain.UI, 'Modular tree cleanup', error, ErrorSeverity.Warn);
-	}
+    try {
+        const registry = getActiveServerRegistry();
+        const cleanedCount = registry.cleanupInactiveServers();
+        startupLogger.debug(() => `Active server registry cleanup removed ${cleanedCount} inactive servers.`);
+    } catch (error) {
+        handleError(ErrorDomain.ActiveServers, 'Registry cleanup', error, ErrorSeverity.Warn);
+    }
+
+    try {
+        sseManager.dispose();
+        fileToServerMap.clearAll();
+    } catch (error) {
+        handleError(ErrorDomain.SSE, 'SSE and file mapping cleanup', error, ErrorSeverity.Warn);
+    }
+
+    try {
+        if (globalModularTreeDataProvider) {
+            globalModularTreeDataProvider.dispose();
+            globalModularTreeDataProvider = null;
+        }
+    } catch (error) {
+        handleError(ErrorDomain.UI, 'Modular tree cleanup', error, ErrorSeverity.Warn);
+    }
 }
+
+
+
+
+
+
+

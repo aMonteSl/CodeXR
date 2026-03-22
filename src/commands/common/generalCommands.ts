@@ -1,36 +1,46 @@
-import * as vscode from 'vscode';
 import { CommonCommands } from '../../utils/commonCommands';
+import { ExtensionCommandRegistration } from '../shared';
 
 /**
- * Register general/common commands used throughout the extension
+ * General/common commands used throughout the extension.
  */
-export function registerGeneralCommands(context: vscode.ExtensionContext): void {
-    console.log('GENERAL_COMMANDS: Registering general commands');
-    
-    // Register the main tree refresh command (replaces codexr.servers.refresh)
-    const refreshTreeCommand = vscode.commands.registerCommand('codexr.tree.refresh', () => {
-        console.log('GENERAL_COMMANDS: Tree refresh command executed');
-        CommonCommands.refreshTreeView();
-    });
-    
-    // Register legacy command for backward compatibility
-    const legacyRefreshCommand = vscode.commands.registerCommand('codexr.servers.refresh', () => {
-        console.log('GENERAL_COMMANDS: Legacy servers refresh command executed, delegating to tree refresh');
-        CommonCommands.refreshTreeView();
-    });
-    
-    // Register a general modular tree refresh command
-    const modularTreeRefreshCommand = vscode.commands.registerCommand('codeXR.modularTree.refresh', () => {
-        console.log('GENERAL_COMMANDS: Modular tree refresh command executed');
-        CommonCommands.refreshTreeView();
-    });
-    
-    // Add commands to subscriptions
-    context.subscriptions.push(
-        refreshTreeCommand,
-        legacyRefreshCommand,
-        modularTreeRefreshCommand
-    );
-    
-    console.log('GENERAL_COMMANDS: Registered 3 general commands (tree refresh, legacy refresh, modular refresh)');
+export function getGeneralCommandRegistrations(): ExtensionCommandRegistration[] {
+    return [
+        {
+            id: 'codexr.tree.refresh',
+            module: 'GENERAL_COMMANDS',
+            description: 'Tree refresh',
+            handler: () => {
+                console.log('GENERAL_COMMANDS: Tree refresh command executed');
+                CommonCommands.refreshTreeView();
+            },
+        },
+        {
+            id: 'codexr.servers.refresh',
+            module: 'GENERAL_COMMANDS',
+            description: 'Legacy tree refresh',
+            handler: () => {
+                console.log('GENERAL_COMMANDS: Legacy servers refresh command executed, delegating to tree refresh');
+                CommonCommands.refreshTreeView();
+            },
+        },
+        {
+            id: 'codexr.servers.refreshServers',
+            module: 'GENERAL_COMMANDS',
+            description: 'Legacy server tree refresh alias',
+            handler: () => {
+                console.log('GENERAL_COMMANDS: Legacy server refresh alias executed, delegating to tree refresh');
+                CommonCommands.refreshTreeView();
+            },
+        },
+        {
+            id: 'codeXR.modularTree.refresh',
+            module: 'GENERAL_COMMANDS',
+            description: 'Modular tree refresh',
+            handler: () => {
+                console.log('GENERAL_COMMANDS: Modular tree refresh command executed');
+                CommonCommands.refreshTreeView();
+            },
+        },
+    ];
 }

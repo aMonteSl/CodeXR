@@ -58,6 +58,23 @@ export class LearnMoreModularItemFactory {
         );
         
         items.push(learnMoreItem);
+
+        const supportItem = new LearnMoreModularTreeItem(
+            'Support CodeXR (Buy Me a Coffee)',
+            vscode.TreeItemCollapsibleState.None,
+            'action',
+            {
+                command: 'codeXR.supportDeveloper',
+                title: 'Support Developer',
+                arguments: []
+            },
+            new vscode.ThemeIcon('heart', new vscode.ThemeColor('charts.foreground')),
+            'Support CodeXR development on Buy Me a Coffee',
+            'Help sustain development',
+            'learnMoreSupportAction'
+        );
+
+        items.push(supportItem);
         
         return items;
     }

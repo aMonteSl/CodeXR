@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="ceilingBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7f8f9"/>
+      <stop offset="100%" stop-color="#e7eaee"/>
+    </linearGradient>
+    <pattern id="modernGrid" width="96" height="96" patternUnits="userSpaceOnUse">
+      <rect width="96" height="96" fill="url(#ceilingBase)"/>
+      <rect x="0" y="0" width="96" height="96" fill="none" stroke="#d2d8df" stroke-width="1"/>
+      <rect x="44" y="0" width="8" height="96" fill="#c9d0d8" opacity="0.25"/>
+      <rect x="0" y="44" width="96" height="8" fill="#c9d0d8" opacity="0.25"/>
+      <rect x="46" y="0" width="4" height="96" fill="#fbfdff" opacity="0.75"/>
+      <rect x="0" y="46" width="96" height="4" fill="#fbfdff" opacity="0.75"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" fill="url(#modernGrid)"/>
+</svg>

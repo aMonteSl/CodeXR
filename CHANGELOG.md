@@ -1,81 +1,60 @@
 # Changelog
 
-## [1.0.1] - 2025-07-29
+## [1.1.0] - 2026-03-21
 
-### Patch Release - Bug Fixes and Code Quality
+### Plugin Optimization Update - Enhanced Performance, Stability, and Collaborative Immersion
 
-This maintenance release includes critical bug fixes and extensive code refactoring to improve code quality, maintainability, and reliability.
+This release promotes the latest CodeXR work to 1.1.0 because it combines reliability fixes with new XR functionality, richer analysis data, and a smarter configuration experience powered directly by the Python backend.
+
+#### New Features & Improvements
+- **Live XR Field Schema from Python**: Dimension Mapping for file and directory XR analysis now loads its available fields and value types from the Python analyzer, keeping the UI aligned with the real backend output.
+- **Expanded XR Metrics**: XR file and directory analysis now expose additional metrics such as `spanLines`, `complexityBand`, `commentRatio`, `codeRatio`, `blankRatio`, `highComplexityFunctions`, `criticalComplexityFunctions`, `averageFunctionLines`, `maxFunctionLines`, `averageFunctionNestingDepth`, and `maxFunctionNestingDepth`.
+- **Typed Dimension Validation for BabiaXR**: Dimension Mapping now validates field compatibility using the chart dimension constraints, preventing text fields from being assigned to numeric-only BabiaXR dimensions.
+- **Improved XR Boats Hierarchy for File Analysis**: File-based XR boats visualizations now generate a synthetic `treePath` per function so BabiaXR renders visible neighborhoods while keeping one building per function and preserving the function-level analysis data.
+- **Shared Workspace Inventory for Tree Sections**: Project Structure and Files by Language now share a single workspace snapshot and watcher, reducing duplicated work while keeping both views synchronized from the same inventory logic.
+- **Active Analyses Quick Actions**: Active analyses now open their available actions on left-click, and each session can export its generated analysis folder for faster debugging and manual inspection.
+- **Improved XR Path Normalization**: Public analysis payloads use BabiaXR-friendly paths more consistently across Windows, Linux, and macOS.
+- **Generated Local HTTPS Certificates**: Default HTTPS mode now generates and reuses a self-signed certificate pair inside VS Code global storage on first startup, keeping repo PEM files out of the shipped VSIX and out of tracked runtime assets while preserving HTTPS support for WebXR.
+- **Unified Multi-language Analysis Engine**: XR and LivePanel file and directory analysis now share the same Python payload contract, backed by a repo-tracked `manual_test` corpus and the new `npm run test:analysis` validation flow.
+- **Unified Incremental Reanalysis Watchers**: File, directory, XR, LivePanel, and DOM HTML sessions now share the same debounce-driven watcher architecture, use mtime + size as a fast filter before validating with hashes, only re-run analysis when the content really changed, and react to the user's current debounce setting without requiring a fresh analysis session.
+- **Virtual Screen Runtime for XR and DOM**: XR charts and DOM visualization scenes now include shared virtual screens that can project a native shared screen, tab, or window inside the immersive view. The panel supports creating, bringing, and deleting shared screens, move, resize, smooth depth adjustment while dragging, follow mode, an independent `look-at` mode for fixed screens that still face the user, minimize/expand, stop sharing, an auto-sized collapsible side legend, contextual hover chrome, and runtime bindings for mouse plus A-Frame/WebXR-style controller interaction.
+- **Shared Screen Broadcasting with Video/Audio**: Shared screens now propagate the selected desktop, window, or browser-tab content to other connected devices in real time, including remote audio playback when the chosen source exposes audio tracks.
+- **Universal XR Chart Pedestal and Table Layout**: XR charts now render on a shared CodeXR chart pedestal/table that recenters the chart, keeps it inside a useful size band, and auto-rescales it across `X`, `Y`, and `Z` while stabilizing the visualization after rebuilds or remaps without requiring chart-specific layout rules.
+- **In-Scene XR Mapping UI**: XR analysis scenes now include a contextual field-mapping panel near the chart, making it possible to remap chart dimensions directly inside the immersive experience without leaving XR.
+- **Safe Mapping Recovery Inside XR**: XR chart remapping now applies selections tentatively, lets Babia rebuild the chart, automatically restores the last valid mapping if the resulting geometry becomes invalid, warns the user about the failed field choice, and temporarily disables the failing field/axis combination for the session so the immersive scene stays stable while the user tries another mapping.
+- **Collaborative XR/DOM Room Sessions**: Connected users now share screen layout changes, Mapping UI updates, chart refreshes, and visible presence markers with server-assigned display names inside the same live collaboration room.
 
 #### Bug Fixes
-- **Fixed Deleted Files Handling in XR Format**: Resolved issue where deleted files were not properly removed from visualizations when re-analyzing directories in XR format. The `handleDeletedFiles()` method now correctly detects and supports both XR (plain array) and LivePanel (object with `.files` property) data structures.
+- **Faster Directory Analysis Startup and Deep XR Reliability**: Directory analysis no longer performs a full pre-scan and mass hash generation before Python starts. Large ignored folders such as `.git`, `node_modules`, `dist`, and cache directories are now pruned during the shared Python scan, `spawn ENAMETOOLONG` is avoided by not sending huge `--files` argument lists, and hash-based incremental reanalysis is still preserved after the initial run.
+- **Fixed Deleted, Renamed, and Moved Files Handling During Directory Reanalysis**: Incremental directory reanalysis now matches internal system paths against the BabiaXR-normalized paths stored in `data.json`, removes only the affected entries when files disappear, and treats rename or move operations as remove + add so XR and LivePanel outputs stay in sync without leaving stale records behind.
+- **Enhanced Empty File Handling in Directory Analysis**: New files created during directory analysis now appear in visualizations immediately, even if they are empty, with metrics initialized to 0 so the visualization reflects the actual file system state.
+- **Fixed Windows Path Compatibility with BabiaXR**: Windows file paths are normalized before being passed to BabiaXR, converting backslashes to forward slashes and removing drive-letter prefixes so directory neighborhoods are organized consistently across Windows, macOS, and Linux.
+- **Fixed Server-Analysis Closure Inconsistency**: Closing an analysis now closes its associated server more reliably through the bidirectional lookup strategy implemented in the server-analysis integration flow.
+- **Hardened Python Environment Installation on Windows**:
+  - Package operations inside the plugin venv now run through the virtual-environment interpreter using `python -m pip` instead of invoking `pip.exe` directly.
+  - Added `ensurepip --upgrade` fallback when `pip` is missing inside the CodeXR virtual environment.
+  - If `pip` upgrade fails but the venv pip still works, CodeXR now continues with a warning instead of aborting the whole setup.
+  - Retry logic now removes invalid file blockers at the `venv` path before recreation, preventing `WinError 267` after forced-failure tests.
+- **Fixed Startup/Reinitialize Behavior for Existing Environments**: If the CodeXR virtual environment already exists and is valid, startup and `Reinitialize Python Environment` now verify it and refresh metadata instead of reinstalling it.
 
-- **Enhanced Empty File Handling in Directory Analysis**: New files created during directory analysis now appear in visualizations immediately, even if they are empty. Previously, empty files would not be added to the data structure, making it difficult to track newly created files. Now all new files are displayed with a complete data entry where all metrics are initialized to 0, reflecting the actual file system state accurately.
+#### Python Environment UI & Workflow
+- Added a dedicated `PYTHON ENV` section in the CodeXR tree view with `Ready`, `Installing`, and `Error` states.
+- Added `Show Python Environment Status`, `Verify Installation`, and `Reinitialize Python Environment` actions in the UI.
+- Added progress, warning, and error notifications for virtual-environment setup using the VS Code extension API.
+- Added guided retry behavior when setup fails, while restricting the rest of the plugin UI until recovery is completed.
+- Added `CodeXR: Debug Python Environment Failure` to simulate a controlled setup failure and validate the recovery UI.
 
-- **Fixed Windows Path Compatibility with BabiaXR**: Resolved critical issue where Windows file paths (using backslashes and drive letters) were not properly handled by BabiaXR neighborhoods organization. Added `normalize_path_for_babia()` normalization function that:
-  - Converts all file path separators from backslashes to Unix-style forward slashes
-  - Removes Windows drive letter prefixes (C:, D:, E:, etc.)
-  - Handles edge cases like double slashes and multiple consecutive backslashes
-  - Applies normalization to all file paths before passing data to BabiaXR
-  This ensures consistent neighborhood organization and file visualization across Windows, macOS, and Linux platforms. Unit tests (12/12 passing) validate path normalization for absolute paths with drive letters, relative paths, and all edge cases.
-
-- **Fixed Server-Analysis Closure Inconsistency**: Implemented bidirectional server-analysis closure to ensure consistency:
-  - **Problem**: Closing a server from Active Servers panel closed its linked analysis, but closing an analysis only sometimes closed its server
-  - **Solution**: Enhanced `serverWatcherIntegration.ts` with multi-strategy server lookup that:
-    1. First attempts to close server by port (if `session.assignedPort` exists)
-    2. Falls back to metadata sessionId matching if port lookup fails
-    3. Uses directory path matching as final fallback
-    4. Provides detailed logging to identify which lookup strategy succeeds
-  - **Result**: Closing an analysis now reliably closes its associated server regardless of launch source (analysis flow, manual launch, or visualization)
-  - Handles edge cases where server-session relationship may be incomplete or unclear
-
-#### Code Refactoring & Quality Improvements
-
-Comprehensive refactoring of core analysis engine with 10 strategic phases:
-
-1. **File I/O Operations Optimization**: Refactored file reading operations in `fileAnalyzer.ts` to use efficient buffering and streaming for large files, improving memory usage and performance.
-
-2. **Type Safety Enhancement**: Added comprehensive TypeScript type annotations across analysis modules, reducing potential runtime errors and improving IDE support.
-
-3. **Function Extraction & Modularization**: Extracted complex analysis logic into smaller, reusable functions to improve code readability and testability.
-
-4. **Error Handling Standardization**: Implemented consistent error handling patterns with detailed logging for better debugging and user feedback.
-
-5. **Performance Optimization**: Optimized hot paths in data processing pipelines, including caching frequently accessed values and reducing unnecessary recalculations.
-
-6. **Code Duplication Removal**: Eliminated code duplication across analysis modules through function extraction and shared utility creation.
-
-7. **Module Restructuring**: Reorganized module dependencies for better separation of concerns and reduced coupling between components.
-
-8. **Testing Infrastructure**: Added comprehensive test coverage for critical paths and edge cases in analysis engine.
-
-9. **Configuration Management**: Refactored configuration handling to support multiple profiles and improved persistence mechanisms.
-
-10. **Documentation & Comments**: Added detailed comments and docstrings throughout codebase for improved maintainability and onboarding.
-
-#### Quality Metrics
-- **TypeScript Compilation**: 0 errors, strict mode compliance
-- **ESLint**: 0 errors, 0 warnings
-- **Build Bundle**: 1.42 MB optimized bundle size
-- **Integration Tests**: 17/17 tests passed for empty file handling feature (100% success rate)
-- **Path Normalization Tests**: 12/12 tests passed for Windows path compatibility including drive letter removal (100% success rate)
-- **Server-Analysis Closure**: Bidirectional closure now guaranteed with multi-strategy server lookup
-- **Format Support**: Both XR (array) and LivePanel (object) data formats fully tested and validated
-- **Platform Compatibility**: Validated across Windows (path normalization with drive letter removal, server-analysis closure), macOS, and Linux
-
-#### Technical Details
-- **Backwards Compatibility**: 100% backwards compatible with v1.0.0, no breaking changes
-- **Data Format Support**: Enhanced `directoryReAnalyzer.ts` with improved format detection and handling for both XR and LivePanel analysis modes
-- **Empty File Handling**: New files immediately appear in visualizations with metrics initialized to 0, reflecting actual file system state
-- **Error Resilience**: Graceful error handling ensures empty/failed analyses don't block visualization updates
-- **Memory Efficiency**: Improved memory usage through optimized data structures and streaming operations
-
-#### Migration Notes
-No migration required. Version 1.0.1 is a drop-in replacement for 1.0.0 with no configuration changes needed.
-
-**Note**: Users experiencing issues with deleted files not appearing in updated visualizations should refresh their analysis to apply fixes.
+#### Validation
+- **TypeScript Compilation**: clean compilation.
+- **ESLint**: clean lint pass.
+- **Node-Based Unit Tests**: coverage for command registration, directory reanalysis helpers, XR field schema integration, and python-environment utilities.
+- **Python Backend Tests**: coverage for Windows path normalization, XR schema behavior, and XR empty-file fallback handling.
+- **Manual Analysis Corpus Validation**: `npm run test:analysis` now creates a local venv, installs Lizard, analyzes the `manual_test/` fixtures, and verifies that XR and LivePanel share non-placeholder payloads.
+- **HTML DOM XR Validation**: `npm run test:htmlanalysis` validates the DOM HTML visualization contract, runtime integration, and manual DOM fixtures.
+- **VSIX Packaging Validation**: `npm run package:vsix` validates the release bundle and emits the installable package in `artifacts/`.
+- **XR Hardware Validation Status**: this release has not yet been tested on physical VR headsets or real VR controller hardware; current XR confidence is based on desktop/browser validation plus static verification of controller-facing hooks such as `raycaster-intersected`, `thumbstickmoved`, A-Frame tracked-controller selectors, and `babiaxraycasterclass` targets.
 
 ---
-
 ## [1.0.0] - 2025-07-28
 
 ### Major Release - Version 1.0.0 
@@ -391,7 +370,7 @@ Fixed some issues of the previous version.
 - Enhanced JSON data processing to preserve original data structure while reordering attributes
 - Implemented a more reliable temporary file handling system using the extension's global storage path
 - Improved error handling when copying data files to visualization projects
-- Reorganized internal structure of src/analysis and src/pythonEnv
+- Reorganized internal structure of src/code_analysis and src/pythonEnv
 - Refactored status bar logic for better maintainability
 - Improved event management and disposal
 - Changed analysis command naming:
@@ -410,3 +389,11 @@ Fixed some issues of the previous version.
 
 ## Earlier Versions
 - Initial development and prototype versions
+
+
+
+
+
+
+
+

@@ -8,23 +8,10 @@
  */
 
 import * as vscode from 'vscode';
-import { handleError, formatErrorMessage, ErrorDomain, ErrorSeverity } from './errorHandler';
+import type { ExtensionCommandRegistration } from '../commands/shared';
+import { handleError, ErrorDomain, ErrorSeverity } from './errorHandler';
 
-/** Descriptor for a single VS Code command. */
-export interface CommandConfig<TArgs extends any[] = any[]> {
-    /** The full VS Code command identifier, e.g. `'codeXR.visualizeData.chartType'` */
-    id: string;
-    /** Short module tag for log messages, e.g. `'VISUALIZE_DATA'` */
-    module: string;
-    /** Human-readable description for log messages, e.g. `'Chart Type selection'` */
-    description: string;
-    /** The async handler that performs the actual work. */
-    handler: (...args: TArgs) => Promise<void> | void;
-    /** Custom error message prefix. If omitted, auto-generated from description. */
-    errorMessage?: string;
-    /** If true, errors are logged but NOT shown to the user via showErrorMessage. */
-    silentErrors?: boolean;
-}
+export type CommandConfig<TArgs extends any[] = any[]> = ExtensionCommandRegistration<TArgs>;
 
 export class CommandBuilder {
     /**
@@ -58,7 +45,7 @@ export class CommandBuilder {
         context: vscode.ExtensionContext,
         configs: CommandConfig[],
     ): vscode.Disposable[] {
-        const disposables = configs.map(c => this.register(context, c));
+        const disposables = configs.map(config => this.register(context, config));
         console.log(`COMMAND_BUILDER: Registered ${configs.length} commands`);
         return disposables;
     }

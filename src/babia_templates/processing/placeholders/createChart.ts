@@ -1,5 +1,5 @@
 import { ChartMetadata, DimensionMapping } from '../../models/chartModels';
-import { chartTemplates } from '../../charts/templateCharts';
+import { chartTemplates, DEFAULT_BOATS_LEGEND_TEXT, UNIVERSAL_XR_TABLE_SETTINGS } from '../../charts/templateCharts';
 
 /**
  * Chart Creator Module - Specialized for Chart Entity Creation
@@ -98,6 +98,7 @@ export class CreateChart {
                     name: 'area',
                     label: 'Area (Parameters)',
                     dataType: 'numeric',
+                    valueRule: 'numeric-finite',
                     required: true,
                     description: 'Function parameters count'
                 },
@@ -105,30 +106,41 @@ export class CreateChart {
                     name: 'height',
                     label: 'Height (Lines Count)',
                     dataType: 'numeric',
+                    valueRule: 'numeric-finite',
                     required: true,
                     description: 'Lines of code count'
                 },
                 {
                     name: 'color',
                     label: 'Color (Complexity)',
-                    dataType: 'numeric',
+                    dataType: 'any',
                     required: true,
-                    description: 'Cyclomatic complexity'
+                    description: 'Categorical or numeric field used for boat color grouping'
                 }
             ],
             htmlTemplate: `<!-- XR Analysis Boats Chart -->
                 <a-entity id="{{CHART_ID}}"
-                    babia-boats="from: data;
+                    babia-boats="from: tree;
                                  title: {{TITLE}};
                                  legend: true;
+                                 legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};
+                                 height_building_legend: -0.5;
+                                 legend_scale: 0.25;
+                                 legend_lookat: [laser-controls];
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
-                                 axis_name: true"
-                    position="0 1 -10"
+                                 axis_name: true;
+                                 extra: 1;
+                                 separation: 0.5;
+                                 zone_elevation: 0.01;
+                                 height_quarter_legend_box: 0.01;
+                                 height_quarter_legend_title: 2.5"
+                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
+                    scale="0.01 0.05 0.01"
                     class="babiaxraycasterclass">
                 </a-entity>`
         };
@@ -297,3 +309,4 @@ export class CreateChart {
         ];
     }
 }
+
