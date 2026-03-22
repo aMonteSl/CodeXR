@@ -1,6 +1,9 @@
 name: Deploy Pages Redirect
 
 on:
+  push:
+    branches:
+      - master
   release:
     types: [published]
   workflow_dispatch:
