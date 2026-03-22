@@ -1,5 +1,4 @@
 *.vsix
-artifacts/
 backups/
 out/
 **/__pycache__/
