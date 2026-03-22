@@ -116,6 +116,28 @@ Experience CodeXR's powerful analysis capabilities through these real-world demo
 
 Comprehensive video guides to master every aspect of CodeXR.
 
+#### Latest Updates
+<div align="center">
+
+**Newest XR Analysis Workflows**
+
+<table>
+<tr>
+<td align="center" width="50%">
+<b>New File XR Analysis Workflow</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/j8dgZtmjNks" title="New File XR Analysis Workflow" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Explore the updated XR workflow for single-file analysis.</i>
+</td>
+<td align="center" width="50%">
+<b>New Directory/Project XR Analysis Workflow</b><br/>
+<iframe width="280" height="157" src="https://www.youtube.com/embed/m6FHpENUvtU" title="New Directory and Project XR Analysis Workflow" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
+<i>Discover the new XR workflow for directory and project analysis.</i>
+</td>
+</tr>
+</table>
+
+</div>
+
 #### Core Interface & Features
 <div align="center">
 

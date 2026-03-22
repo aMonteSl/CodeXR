@@ -883,8 +883,10 @@
       visible: true
     });
 
-    if (config.hideOnEnterAr) {
+    if (config.hideOnEnterAr === true) {
       refs.panel.setAttribute('hide-on-enter-ar', '');
+    } else {
+      refs.panel.removeAttribute('hide-on-enter-ar');
     }
 
     refs.panelContent = createEntity('a-entity', {

@@ -341,7 +341,7 @@ export class TemplateProcessor {
             panelRotation: rotation,
             panelScale: uiScale,
             panelVisible: panelVisibleByDefault,
-            hideOnEnterAr: true,
+            hideOnEnterAr: false,
             adaptiveCorner,
             togglePosition: targetType === 'directory' ? '6.8 1.1 -5.6' : '6.2 1 -7.5',
             dimensions,
