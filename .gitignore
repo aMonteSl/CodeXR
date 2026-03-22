@@ -1,4 +1,4 @@
-*.vsix
+artifacts/
 backups/
 out/
 **/__pycache__/
@@ -13,3 +13,4 @@ node_modules/
 dist/
 .vscode-test/
 .vscode/
+*.vsix
