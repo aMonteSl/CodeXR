@@ -11,6 +11,7 @@ import { ExecutePython } from '../utils/executePython';
 import { SSEManager } from '../../../servers/runtime/sse/SSEManager';
 import { FileRequirementProcessor } from '../processors/FileRequirementProcessor';
 import { SaveFiles } from '../utils/saveFiles';
+import { analysisUpdateEvents } from '../../historical';
 
 export class ReAnalysisManager {
     private executePython: ExecutePython;
@@ -37,6 +38,11 @@ export class ReAnalysisManager {
 
             await fs.writeFile(dataJsonPath, newDataJsonContent, 'utf-8');
             session.requiredFiles.set('data.json', newDataJsonContent);
+            analysisUpdateEvents.emit({
+                sessionId: session.id,
+                targetPath: session.targetPath,
+                updatedAt: new Date().toISOString(),
+            });
 
             if (session.analysisMode === 'XR') {
                 this.sseManager.sendDataRefresh(session.targetPath);

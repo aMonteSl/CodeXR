@@ -10,10 +10,14 @@ import { TemplateProcessor } from '../../../babia_templates/processing/templateP
 import { ExecutePython } from '../utils/executePython';
 import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import {
-    CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
-    copyChartPedestalRuntimeToOutput,
+    ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
+    HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
+    copyAnalysisTableRuntimeToOutput,
+    copyHistoricalComparisonRuntimeToOutput,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     copyCodeXrRoomAssetsToOutput,
+    copyCodeXrAvatarRuntimeToOutput,
     copyCodeXrCollaborationRuntimeToOutput,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
     copyVirtualScreenManagerRuntimeToOutput,
@@ -91,11 +95,13 @@ export class FileXRParser {
 
             await copyVirtualScreenRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyVirtualScreenManagerRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeXrAvatarRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrCollaborationRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
-            await copyChartPedestalRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyAnalysisTableRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyHistoricalComparisonRuntimeToOutput(this.context.extensionPath, session.outputPath);
 
             const title = `XR Analysis: ${session.targetName || 'analysis'}`;
             const outputPath = path.join(session.outputPath, 'index.html');
@@ -127,13 +133,15 @@ export class FileXRParser {
             if (
                 !loadedFiles.has('index.html')
                 || !loadedFiles.has('data.json')
+                || !loadedFiles.has(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME)
-                || !loadedFiles.has(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME)
             ) {
                 throw new Error('XR file bootstrap did not generate the required files.');
             }

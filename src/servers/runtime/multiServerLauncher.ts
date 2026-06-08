@@ -128,7 +128,14 @@ export class MultiServerLauncher {
             // Launch the server - Use 0.0.0.0 to listen on all network interfaces for external access
             const host = '0.0.0.0';
             console.log(`SERVER: DEBUG - Configuring server to listen on ${host}:${finalPort} for network access`);
-            const result = await this.launchServerByType(serverType, settings, finalPort, host, htmlFile);
+            const result = await this.launchServerByType(
+                serverType,
+                settings,
+                finalPort,
+                host,
+                htmlFile,
+                additionalMetadata,
+            );
             
             if (result.success && result.serverUrl) {
                 console.log(`SERVER: Successfully launched ${serverType} server on port ${finalPort}`);
@@ -406,6 +413,7 @@ export class MultiServerLauncher {
         port: number,
         host: string,
         htmlFile?: string,
+        additionalMetadata?: Record<string, any>,
     ): Promise<{
         success: boolean;
         serverUrl?: string;
@@ -440,6 +448,10 @@ export class MultiServerLauncher {
                         enableCors,
                         allowedOrigins,
                         mainFile,
+                        extensionContext: this.context,
+                        analysisSessionId: typeof additionalMetadata?.sessionId === 'string'
+                            ? additionalMetadata.sessionId
+                            : undefined,
                     });
                     break;
 
@@ -452,7 +464,10 @@ export class MultiServerLauncher {
                         enableCors,
                         allowedOrigins,
                         mainFile,
-                        extensionContext: this.context
+                        extensionContext: this.context,
+                        analysisSessionId: typeof additionalMetadata?.sessionId === 'string'
+                            ? additionalMetadata.sessionId
+                            : undefined,
                     });
                     break;
 
@@ -470,7 +485,10 @@ export class MultiServerLauncher {
                         mainFile,
                         certPath: settings.https.certPath,
                         keyPath: settings.https.keyPath,
-                        extensionContext: this.context
+                        extensionContext: this.context,
+                        analysisSessionId: typeof additionalMetadata?.sessionId === 'string'
+                            ? additionalMetadata.sessionId
+                            : undefined,
                     });
                     break;
 

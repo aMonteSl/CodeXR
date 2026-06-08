@@ -3,6 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { generateNonce } from '../../utils/nonceGenerator';
 import { CodeXRLogger } from '../../core/logging/logger';
+import {
+    DEFAULT_REMOTE_ACCESS_SETTINGS,
+    RemoteAccessSettings,
+} from '../../remote_access';
 
 const logger = CodeXRLogger.getLogger('SERVER_SETTINGS');
 
@@ -21,6 +25,7 @@ export interface ServerSettings {
         autoOpen: boolean;
         openMode: 'browser' | 'lateralPanel';
     };
+    remoteAccess: RemoteAccessSettings;
     configNonce: string;
     version: string;
 }
@@ -40,8 +45,9 @@ export const DEFAULT_SERVER_SETTINGS: ServerSettings = {
         autoOpen: true,
         openMode: 'browser',
     },
+    remoteAccess: { ...DEFAULT_REMOTE_ACCESS_SETTINGS },
     configNonce: generateNonce(),
-    version: '1.0.0',
+    version: '1.2.0',
 };
 
 /**
@@ -113,7 +119,7 @@ export class ServerSettingsManager {
      * Get current server settings.
      */
     public getServerSettings(): ServerSettings {
-        return { ...this.settings };
+        return this.deepMerge({}, this.settings);
     }
 
     /**
@@ -219,6 +225,7 @@ export class ServerSettingsManager {
         port: number;
         autoOpen: boolean;
         openMode: string;
+        remoteAccessEnabled: boolean;
     } {
         let httpModeDisplay: string;
 
@@ -238,6 +245,7 @@ export class ServerSettingsManager {
             port: this.settings.defaultPort,
             autoOpen: this.settings.launch.autoOpen,
             openMode: this.settings.launch.openMode === 'browser' ? 'Browser' : 'Lateral Panel',
+            remoteAccessEnabled: this.settings.remoteAccess.enabled,
         };
     }
 
@@ -287,6 +295,13 @@ export class ServerSettingsManager {
                 ...(updates.openMode !== undefined && {
                     openMode: updates.openMode === 'Browser' ? 'browser' : 'lateralPanel',
                 }),
+            };
+        }
+
+        if (updates.remoteAccessEnabled !== undefined) {
+            newUpdates.remoteAccess = {
+                ...this.settings.remoteAccess,
+                enabled: !!updates.remoteAccessEnabled,
             };
         }
 

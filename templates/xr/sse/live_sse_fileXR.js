@@ -44,12 +44,12 @@
       }
     }
 
-    function renormalizeChartPedestals(reason, mappingUiRuntime) {
-      const chartPedestalRuntime = window.CodeXRChartPedestalRuntime;
-      if (chartPedestalRuntime && typeof chartPedestalRuntime.renormalizeAll === 'function') {
-        const updated = chartPedestalRuntime.renormalizeAll(reason);
+    function renormalizeChartContainment(reason, mappingUiRuntime) {
+      const analysisTableRuntime = window.CodeXRAnalysisTableRuntime;
+      if (analysisTableRuntime && typeof analysisTableRuntime.renormalizeAll === 'function') {
+        const updated = analysisTableRuntime.renormalizeAll(reason);
         if (updated > 0) {
-          console.log('🛟 Re-normalized chart pedestal visualizations:', updated);
+          console.log('[CodeXR] Re-normalized chart containment:', updated);
         }
       }
 
@@ -133,13 +133,13 @@
         // Let Babia rebuild from refreshed data/tree sources and only renormalize after the source pipeline settles.
         setTimeout(() => {
           restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
-          renormalizeChartPedestals('analysis-updated', mappingUiRuntime);
+          renormalizeChartContainment('analysis-updated', mappingUiRuntime);
         }, 260);
 
         if (containsBoatsChart) {
           setTimeout(() => {
             restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
-            renormalizeChartPedestals('analysis-updated-boats-settled', mappingUiRuntime);
+            renormalizeChartContainment('analysis-updated-boats-settled', mappingUiRuntime);
           }, 900);
         }
       } else {
@@ -189,12 +189,12 @@
         const containsBoatsChart = hasBoatsChart(chartEntities);
 
         setTimeout(() => {
-          renormalizeChartPedestals('dataRefresh', window.CodeXRMappingUiRuntime);
+          renormalizeChartContainment('dataRefresh', window.CodeXRMappingUiRuntime);
         }, 240);
 
         if (containsBoatsChart) {
           setTimeout(() => {
-            renormalizeChartPedestals('dataRefresh-boats-settled', window.CodeXRMappingUiRuntime);
+            renormalizeChartContainment('dataRefresh-boats-settled', window.CodeXRMappingUiRuntime);
           }, 900);
         }
         

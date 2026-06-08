@@ -1,5 +1,17 @@
 import * as vscode from 'vscode';
 import { ActiveServer } from '../../../active_servers/model/activeServerModel';
+import { COLLABORATION_AVATARS, ConnectedParticipantSummary } from '../../../collaboration';
+import { NetworkUtils } from '../../../servers/utils/networkUtils';
+
+export type ActiveServerItemType =
+    | 'server-item'
+    | 'control-option'
+    | 'no-servers'
+    | 'info-item'
+    | 'participants-group'
+    | 'participant-item'
+    | 'actions-group'
+    | 'action-item';
 
 /**
  * Active Server tree items for the Active Servers section
@@ -8,7 +20,7 @@ export class ActiveServerTreeItem extends vscode.TreeItem {
     constructor(
         label: string,
         collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly activeServerItemType: 'server-item' | 'control-option' | 'no-servers',
+        public readonly activeServerItemType: ActiveServerItemType,
         command?: vscode.Command,
         iconPath?: vscode.ThemeIcon | vscode.Uri | { light: vscode.Uri; dark: vscode.Uri },
         tooltip?: string,
@@ -92,7 +104,7 @@ export class ActiveServerItemFactory {
         
         return new ActiveServerTreeItem(
             label,
-            vscode.TreeItemCollapsibleState.None,
+            vscode.TreeItemCollapsibleState.Collapsed,
             'server-item',
             command,
             icon,
@@ -101,6 +113,188 @@ export class ActiveServerItemFactory {
             contextValue,
             server
         );
+    }
+
+    static createServerChildren(
+        server: ActiveServer,
+        participants: ConnectedParticipantSummary[],
+    ): ActiveServerTreeItem[] {
+        const protocol = server.certMode === 'http' ? 'http' : 'https';
+        const lanUrl = `${protocol}://${NetworkUtils.getLocalIPAddress()}:${server.port}`;
+        const remoteState = server.remoteAccess?.status || 'stopped';
+        const children = [
+            this.createCommandItem(
+                'Direccion de red local',
+                lanUrl,
+                'globe',
+                'codeXR.activeServers.copyLanUrl',
+                server,
+                'info-item',
+            ),
+            this.createCommandItem(
+                'Conexion remota',
+                this.getRemoteStatusDescription(server),
+                remoteState === 'shared' ? 'radio-tower' : remoteState === 'error' ? 'error' : 'circle-outline',
+                'codeXR.activeServers.showRemoteStatus',
+                server,
+                'info-item',
+            ),
+        ];
+
+        if (server.remoteAccess?.status === 'shared' && server.remoteAccess.invitationUrl) {
+            children.push(this.createCommandItem(
+                'Copiar invitacion remota',
+                server.remoteAccess.invitationUrl,
+                'copy',
+                'codeXR.activeServers.copyRemoteInvitation',
+                server,
+                'info-item',
+            ));
+        }
+
+        children.push(new ActiveServerTreeItem(
+            `Usuarios conectados (${participants.length})`,
+            vscode.TreeItemCollapsibleState.Expanded,
+            'participants-group',
+            undefined,
+            new vscode.ThemeIcon('accounts'),
+            `${participants.length} usuario(s) conectado(s)`,
+            undefined,
+            'activeServerParticipants',
+            server,
+        ));
+        children.push(new ActiveServerTreeItem(
+            'Acciones',
+            vscode.TreeItemCollapsibleState.Collapsed,
+            'actions-group',
+            undefined,
+            new vscode.ThemeIcon('tools'),
+            'Acciones disponibles para este servidor',
+            undefined,
+            'activeServerActions',
+            server,
+        ));
+        return children;
+    }
+
+    static createParticipantItems(
+        server: ActiveServer,
+        participants: ConnectedParticipantSummary[],
+    ): ActiveServerTreeItem[] {
+        if (participants.length === 0) {
+            return [new ActiveServerTreeItem(
+                'Ningun usuario conectado',
+                vscode.TreeItemCollapsibleState.None,
+                'info-item',
+                undefined,
+                new vscode.ThemeIcon('info'),
+                'La lista se actualizara cuando alguien entre en la escena.',
+                undefined,
+                'activeServerInfo',
+                server,
+            )];
+        }
+
+        return participants.map((participant) => {
+            const avatar = COLLABORATION_AVATARS.find((candidate) => candidate.id === participant.avatarId);
+            const client = participant.clientKind === 'codexr' ? 'CodeXR' : 'Navegador';
+            const scope = participant.connectionScope === 'remote' ? 'Remoto' : 'Local';
+            const avatarLabel = avatar?.label || participant.avatarId;
+            return new ActiveServerTreeItem(
+                participant.displayName,
+                vscode.TreeItemCollapsibleState.None,
+                'participant-item',
+                undefined,
+                new vscode.ThemeIcon('account'),
+                [
+                    `Nombre: ${participant.displayName}`,
+                    `Avatar: ${avatarLabel}`,
+                    `Origen: ${client}`,
+                    `Conexion: ${scope}`,
+                ].join('\n'),
+                `${avatarLabel} | ${client} | ${scope}`,
+                'activeServerParticipant',
+                server,
+            );
+        });
+    }
+
+    static createActionItems(server: ActiveServer): ActiveServerTreeItem[] {
+        const actions: Array<[string, string, string]> = [
+            ['Abrir en navegador', 'codeXR.activeServers.openInBrowser', 'link-external'],
+        ];
+        if (server.certMode === 'http') {
+            actions.push(['Abrir en panel', 'codeXR.activeServers.openInPanel', 'open-preview']);
+        }
+        actions.push(['Copiar direccion', 'codeXR.activeServers.copyUrl', 'copy']);
+
+        if (server.remoteAccess?.status === 'shared' || server.remoteAccess?.status === 'starting') {
+            if (server.remoteAccess.invitationUrl) {
+                actions.push(['Copiar invitacion remota', 'codeXR.activeServers.copyRemoteInvitation', 'copy']);
+            }
+            actions.push(['Ver estado remoto', 'codeXR.activeServers.showRemoteStatus', 'info']);
+            actions.push(['Detener conexion remota', 'codeXR.activeServers.stopRemoteAccess', 'debug-stop']);
+        } else {
+            actions.push(['Iniciar conexion remota', 'codeXR.activeServers.startRemoteAccess', 'radio-tower']);
+            if (server.remoteAccess?.status === 'error') {
+                actions.push(['Ver error remoto', 'codeXR.activeServers.showRemoteStatus', 'error']);
+            }
+        }
+
+        actions.push(
+            ['Informacion del servidor', 'codeXR.activeServers.showDetails', 'info'],
+            ['Detener servidor', 'codeXR.activeServers.stopServer', 'stop-circle'],
+        );
+
+        return actions.map(([label, command, icon]) => this.createCommandItem(
+            label,
+            undefined,
+            icon,
+            command,
+            server,
+            'action-item',
+        ));
+    }
+
+    private static createCommandItem(
+        label: string,
+        description: string | undefined,
+        icon: string,
+        command: string,
+        server: ActiveServer,
+        type: ActiveServerItemType,
+    ): ActiveServerTreeItem {
+        return new ActiveServerTreeItem(
+            label,
+            vscode.TreeItemCollapsibleState.None,
+            type,
+            {
+                command,
+                title: label,
+                arguments: [server.id],
+            },
+            new vscode.ThemeIcon(icon),
+            description ? `${label}\n${description}` : label,
+            description,
+            'activeServerChild',
+            server,
+        );
+    }
+
+    private static getRemoteStatusDescription(server: ActiveServer): string {
+        const state = server.remoteAccess;
+        if (!state || state.status === 'stopped') {
+            return 'No compartido';
+        }
+        if (state.status === 'starting') {
+            return 'Iniciando...';
+        }
+        if (state.status === 'error') {
+            return state.error || 'Error';
+        }
+        return state.pendingRequests > 0
+            ? `Compartido | ${state.pendingRequests} solicitud(es) pendiente(s)`
+            : 'Compartido';
     }
     
     /**

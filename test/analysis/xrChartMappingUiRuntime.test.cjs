@@ -40,6 +40,7 @@ test('mapping UI runtime only exposes session invalid-option helpers for chart r
 
     assert.ok(runtime.__testing);
     assert.equal(typeof runtime.__testing.getInvalidOptionReason, 'function');
+    assert.equal(typeof runtime.__testing.buildChartComponentUpdate, 'function');
     assert.equal('validateValueRule' in runtime.__testing, false);
     assert.equal('validateCylsGeometry' in runtime.__testing, false);
     assert.equal('validateCylsMapGeometry' in runtime.__testing, false);
@@ -48,10 +49,11 @@ test('mapping UI runtime only exposes session invalid-option helpers for chart r
 
 test('mapping UI runtime relies on post-Babia validation and rollback instead of prechecking field values', () => {
     assert.match(runtimeSource, /function inspectChartStatus\(config\)/);
-    assert.match(runtimeSource, /function evaluatePendingMapping\(config, token, isFinalAttempt\)/);
-    assert.match(runtimeSource, /var status = inspectChartStatus\(config\);/);
-    assert.match(runtimeSource, /if \(status\.valid\) \{/);
-    assert.match(runtimeSource, /revertPendingMapping\(config, token, status\.message \|\| 'The selected mapping produced invalid chart geometry\.'\);/);
+    assert.match(runtimeSource, /function evaluatePendingMapping\(config, token, result\)/);
+    assert.match(runtimeSource, /runtime\.waitForChartsStable\(chartIds/);
+    assert.match(runtimeSource, /if \(result && result\.valid\) \{/);
+    assert.match(runtimeSource, /if \(result && result\.state === 'invalid'\) \{/);
+    assert.match(runtimeSource, /invalidStatus\?\.message \|\| 'The selected mapping produced invalid chart geometry\.'/);
     assert.match(runtimeSource, /markInvalidOption\(state\.pendingMapping\.dimensionId, state\.pendingMapping\.fieldName, friendlyMessage\);/);
     assert.match(runtimeSource, /applyMappingSnapshot\(config, state\.pendingMapping\.previousMapping, 'mapping-ui-revert'\)/);
     assert.match(runtimeSource, /state\.lastKnownGoodMapping = cloneMapping\(state\.pendingMapping\.nextMapping\);/);
@@ -61,6 +63,79 @@ test('mapping UI runtime relies on post-Babia validation and rollback instead of
     assert.doesNotMatch(runtimeSource, /validateValueRule/);
     assert.doesNotMatch(runtimeSource, /validateCylsGeometry/);
     assert.doesNotMatch(runtimeSource, /validateCylsMapGeometry/);
+});
+
+test('mapping updates preserve each comparison chart datasource and chart-specific options', () => {
+    const runtime = loadRuntime();
+    const leftChart = {
+        getAttribute(componentName) {
+            assert.equal(componentName, 'babia-boats');
+            return {
+                from: 'codexrComparisonTreeLeft',
+                area: 'functionCount',
+                height: 'totalLines',
+                color: 'cyclomaticComplexityNumber',
+                legend: true,
+            };
+        },
+    };
+    const rightChart = {
+        getAttribute() {
+            return {
+                from: 'codexrComparisonTreeRight',
+                area: 'functionCount',
+                height: 'totalLines',
+                color: 'cyclomaticComplexityNumber',
+                legend: false,
+            };
+        },
+    };
+
+    const mapping = {
+        area: 'commentLines',
+        height: 'maxFunctionParameters',
+        color: 'cyclomaticComplexityNumber',
+    };
+    const leftUpdate = runtime.__testing.buildChartComponentUpdate(leftChart, 'babia-boats', mapping);
+    const rightUpdate = runtime.__testing.buildChartComponentUpdate(rightChart, 'babia-boats', mapping);
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(leftUpdate)),
+        {
+            from: 'codexrComparisonTreeLeft',
+            area: 'commentLines',
+            height: 'maxFunctionParameters',
+            color: 'cyclomaticComplexityNumber',
+            legend: true,
+        },
+    );
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(rightUpdate)),
+        {
+            from: 'codexrComparisonTreeRight',
+            area: 'commentLines',
+            height: 'maxFunctionParameters',
+            color: 'cyclomaticComplexityNumber',
+            legend: false,
+        },
+    );
+});
+
+test('mapping UI disables raycast interaction for hidden views and keeps a stable shared entity id', () => {
+    assert.match(runtimeSource, /function setEntityInteractionEnabled\(entity, enabled\)/);
+    assert.match(runtimeSource, /querySelectorAll\('\[data-codexr-interactive="true"\]'\)/);
+    assert.match(runtimeSource, /control\.classList\.remove\('babiaxraycasterclass'\)/);
+    assert.match(runtimeSource, /setEntityInteractionEnabled\(previousView\.content, false\)/);
+    assert.match(runtimeSource, /setEntityInteractionEnabled\(refs\.rowsRoot, nextViewId === 'mapping'\)/);
+    assert.match(runtimeSource, /setEntityInteractionEnabled\(targetView\.content, true\)/);
+    assert.match(runtimeSource, /data-codexr-interactive/);
+    assert.match(runtimeSource, /config\.chartEntityId \|\| config\.chartSelector \|\| config\.chartId/);
+});
+
+test('mapping UI emits confirmed mappings for local and collaborative updates', () => {
+    assert.match(runtimeSource, /function notifyMappingConfirmed\(mapping\)/);
+    assert.match(runtimeSource, /new root\.CustomEvent\('codexr-mapping-confirmed'/);
+    assert.match(runtimeSource, /notifyMappingConfirmed\(state\.lastKnownGoodMapping\)/);
 });
 
 test('mapping UI runtime keeps the user-facing rollback message centered on Babia chart failures', () => {

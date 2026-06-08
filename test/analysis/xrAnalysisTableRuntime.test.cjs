@@ -10,8 +10,8 @@ const runtimePath = path.join(
     'templates',
     'components',
     'codexr',
-    'chart-pedestal',
-    'chartPedestalRuntime.js',
+    'analysis-table',
+    'analysisTableRuntime.js',
 );
 const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
 
@@ -42,12 +42,12 @@ function loadRuntimeSandbox() {
 
     return {
         sandbox,
-        runtime: sandbox.CodeXRChartPedestalRuntime,
-        componentDefinition: registered['codexr-chart-pedestal'],
+        runtime: sandbox.CodeXRAnalysisTableRuntime,
+        componentDefinition: registered['codexr-chart-containment'],
     };
 }
 
-test('chart pedestal runtime registers the rectangular bootstrap and steady-state schema', () => {
+test('analysis table runtime registers the rectangular bootstrap and steady-state schema', () => {
     const { componentDefinition } = loadRuntimeSandbox();
 
     assert.ok(componentDefinition);
@@ -59,7 +59,7 @@ test('chart pedestal runtime registers the rectangular bootstrap and steady-stat
     assert.ok(componentDefinition.schema.tableEdgeMargin);
 });
 
-test('chart pedestal runtime exposes the rebuilt scale policy API', () => {
+test('analysis table runtime exposes the scale policy API', () => {
     const { runtime } = loadRuntimeSandbox();
 
     assert.ok(runtime);
@@ -70,7 +70,7 @@ test('chart pedestal runtime exposes the rebuilt scale policy API', () => {
     assert.equal(typeof runtime.setHeightBand, 'function');
 });
 
-test('chart pedestal helper keeps ignoring auxiliary content and containment metadata', () => {
+test('chart containment helper ignores auxiliary content and containment metadata', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
 
@@ -101,7 +101,7 @@ test('bootstrap planar fit only guarantees visibility and containment', () => {
             targetWidth: 5.614,
             targetDepth: 3.218,
             bootstrapPlanarMaxRatio: 0.84,
-            pedestalTopPadding: 0.9,
+            tableTopPadding: 0.9,
             tableEdgeMargin: 0.18,
         },
     );
@@ -130,9 +130,9 @@ test('steady planar fit adjusts X and Z independently for a rectangular table', 
         {
             targetWidth: 5.614,
             targetDepth: 3.218,
-            minPlanarOccupancyRatio: 1.30,
-            maxPlanarOccupancyRatio: 1.35,
-            pedestalTopPadding: 0.9,
+            minPlanarOccupancyRatio: 0.78,
+            maxPlanarOccupancyRatio: 0.92,
+            tableTopPadding: 0.9,
             tableEdgeMargin: 0.18,
         },
     );
@@ -162,12 +162,11 @@ test('steady target helpers aim for the midpoint of each band instead of the edg
     const helpers = runtime.__testing;
 
     const planarTarget = helpers.computePlanarAxisTargetScale(
-        5,
-        5.2,
+        2.4,
+        2.6,
         1,
         5,
-        7,
-        { min: 1.30, max: 1.35 },
+        { min: 0.78, max: 0.92 },
         0.018,
     );
     const verticalTarget = helpers.computeHeightBandTargetScale(
@@ -179,7 +178,7 @@ test('steady target helpers aim for the midpoint of each band instead of the edg
     );
 
     assert.ok(planarTarget);
-    assert.ok(Math.abs(planarTarget.setpointRatio - 1.325) < 1e-12);
+    assert.ok(Math.abs(planarTarget.setpointRatio - 0.85) < 1e-12);
     assert.ok(planarTarget.targetScale > 1);
     assert.ok(verticalTarget);
     assert.equal(verticalTarget.setpointHeight, 1.1);
@@ -209,17 +208,17 @@ test('runtime scale commands update planar and vertical policy independently', (
     const { runtime, sandbox } = loadRuntimeSandbox();
 
     const chartAttributes = {
-        'codexr-chart-pedestal': {
+        'codexr-chart-containment': {
             bootstrapPlanarMaxRatio: 0.84,
-            minPlanarOccupancyRatio: 1.30,
-            maxPlanarOccupancyRatio: 1.35,
+            minPlanarOccupancyRatio: 0.78,
+            maxPlanarOccupancyRatio: 0.92,
             heightBandMinRatio: 0.38,
             heightBandMaxRatio: 0.72,
         },
     };
 
     const component = {
-        data: chartAttributes['codexr-chart-pedestal'],
+        data: chartAttributes['codexr-chart-containment'],
         getChartStatus() {
             return {
                 ready: true,
@@ -232,7 +231,7 @@ test('runtime scale commands update planar and vertical policy independently', (
 
     const chartEl = {
         components: {
-            'codexr-chart-pedestal': component,
+            'codexr-chart-containment': component,
         },
         getAttribute(name) {
             return chartAttributes[name] || null;
@@ -245,40 +244,40 @@ test('runtime scale commands update planar and vertical policy independently', (
 
     sandbox.document = {
         querySelector(selector) {
-            assert.equal(selector, '[codexr-chart-pedestal]');
+            assert.equal(selector, '[codexr-chart-containment]');
             return chartEl;
         },
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-pedestal]');
+            assert.equal(selector, '[codexr-chart-containment]');
             return [chartEl];
         },
     };
 
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
         charts: 1,
-        min: 1.30,
-        max: 1.35,
-        planar: { min: 1.30, max: 1.35 },
+        min: 0.78,
+        max: 0.92,
+        planar: { min: 0.78, max: 0.92 },
     });
 
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScalePolicy())), {
         charts: 1,
         bootstrap: { max: 0.84 },
-        steady: { min: 1.30, max: 1.35 },
+        steady: { min: 0.78, max: 0.92 },
         vertical: { min: 0.38, max: 0.72 },
     });
 
-    assert.deepEqual(JSON.parse(JSON.stringify(runtime.setScaleRange(1.31, 1.36))), {
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.setScaleRange(0.8, 0.9))), {
         charts: 1,
-        min: 1.31,
-        max: 1.36,
-        planar: { min: 1.31, max: 1.36 },
+        min: 0.8,
+        max: 0.9,
+        planar: { min: 0.8, max: 0.9 },
     });
 
-    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-pedestal'])), {
+    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-containment'])), {
         bootstrapPlanarMaxRatio: 0.84,
-        minPlanarOccupancyRatio: 1.31,
-        maxPlanarOccupancyRatio: 1.36,
+        minPlanarOccupancyRatio: 0.8,
+        maxPlanarOccupancyRatio: 0.9,
         heightBandMinRatio: 0.38,
         heightBandMaxRatio: 0.72,
     });
@@ -286,24 +285,29 @@ test('runtime scale commands update planar and vertical policy independently', (
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.setHeightBand(0.4, 0.68))), {
         charts: 1,
         bootstrap: { max: 0.84 },
-        steady: { min: 1.31, max: 1.36 },
+        steady: { min: 0.8, max: 0.9 },
         vertical: { min: 0.4, max: 0.68 },
     });
 
-    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-pedestal'])), {
+    assert.deepEqual(JSON.parse(JSON.stringify(chartAttributes['codexr-chart-containment'])), {
         bootstrapPlanarMaxRatio: 0.84,
-        minPlanarOccupancyRatio: 1.31,
-        maxPlanarOccupancyRatio: 1.36,
+        minPlanarOccupancyRatio: 0.8,
+        maxPlanarOccupancyRatio: 0.9,
         heightBandMinRatio: 0.4,
         heightBandMaxRatio: 0.68,
     });
+
+    assert.throws(
+        () => runtime.setScaleRange(0.8, 1.1),
+        /percentages below 1/,
+    );
 });
 
 test('getChartStatus falls back to the first active chart when no selector is provided', () => {
     const { runtime, sandbox } = loadRuntimeSandbox();
     const chartEl = {
         components: {
-            'codexr-chart-pedestal': {
+            'codexr-chart-containment': {
                 getChartStatus() {
                     return {
                         ready: true,
@@ -321,7 +325,7 @@ test('getChartStatus falls back to the first active chart when no selector is pr
             return null;
         },
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-pedestal]');
+            assert.equal(selector, '[codexr-chart-containment]');
             return [chartEl];
         },
     };
@@ -338,11 +342,11 @@ test('getScaleRange keeps the steady planar range separate from the vertical ban
     const { runtime, sandbox } = loadRuntimeSandbox();
     const chartEl = {
         components: {
-            'codexr-chart-pedestal': {
+            'codexr-chart-containment': {
                 data: {
                     bootstrapPlanarMaxRatio: 0.84,
-                    minPlanarOccupancyRatio: 1.30,
-                    maxPlanarOccupancyRatio: 1.35,
+                    minPlanarOccupancyRatio: 0.78,
+                    maxPlanarOccupancyRatio: 0.92,
                     heightBandMinRatio: 0.38,
                     heightBandMaxRatio: 0.72,
                 },
@@ -352,16 +356,16 @@ test('getScaleRange keeps the steady planar range separate from the vertical ban
 
     sandbox.document = {
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-pedestal]');
+            assert.equal(selector, '[codexr-chart-containment]');
             return [chartEl];
         },
     };
 
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.getScaleRange())), {
         charts: 1,
-        min: 1.30,
-        max: 1.35,
-        planar: { min: 1.30, max: 1.35 },
+        min: 0.78,
+        max: 0.92,
+        planar: { min: 0.78, max: 0.92 },
     });
 });
 

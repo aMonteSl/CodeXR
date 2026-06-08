@@ -124,6 +124,17 @@ export class ServerItemFactory {
                 `Click to change open mode (currently: ${config.openMode})`
             ),
             new ServerTreeItem(
+                `Conexiones entre redes: ${config.remoteAccessEnabled ? 'Habilitadas' : 'Deshabilitadas'}`,
+                vscode.TreeItemCollapsibleState.None,
+                'config-option',
+                {
+                    command: 'codexr.server.config.remoteAccess',
+                    title: 'Configurar conexiones entre redes',
+                },
+                new vscode.ThemeIcon(config.remoteAccessEnabled ? 'globe' : 'circle-slash'),
+                'Habilita la posibilidad de compartir servidores concretos mediante Cloudflare Quick Tunnel.',
+            ),
+            new ServerTreeItem(
                 'Reset to Default',
                 vscode.TreeItemCollapsibleState.None,
                 'config-option',

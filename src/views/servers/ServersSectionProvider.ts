@@ -131,6 +131,9 @@ export class ServersSectionProvider extends BaseSectionProvider<ServerTreeItem> 
         if (label.includes('Open Mode')) {
             return 'openMode';
         }
+        if (label.includes('Conexiones entre redes')) {
+            return 'remoteAccess';
+        }
         if (label.includes('Reset')) {
             return 'reset';
         }

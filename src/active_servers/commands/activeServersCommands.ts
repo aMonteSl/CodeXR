@@ -59,6 +59,66 @@ export class ActiveServersCommands {
                 errorMessage: 'Failed to copy active server URL'
             },
             {
+                id: 'codeXR.activeServers.copyLanUrl',
+                module: 'ACTIVE_SERVER',
+                description: 'Copy active server LAN URL',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.copyLanUrl(serverId);
+                    }
+                },
+                errorMessage: 'Failed to copy active server LAN URL'
+            },
+            {
+                id: 'codeXR.activeServers.startRemoteAccess',
+                module: 'ACTIVE_SERVER',
+                description: 'Start remote access',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.startRemoteAccess(serverId);
+                    }
+                },
+                errorMessage: 'Failed to start remote access',
+            },
+            {
+                id: 'codeXR.activeServers.copyRemoteInvitation',
+                module: 'ACTIVE_SERVER',
+                description: 'Copy remote invitation',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.copyRemoteInvitation(serverId);
+                    }
+                },
+                errorMessage: 'Failed to copy remote invitation',
+            },
+            {
+                id: 'codeXR.activeServers.stopRemoteAccess',
+                module: 'ACTIVE_SERVER',
+                description: 'Stop remote access',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.stopRemoteAccess(serverId);
+                    }
+                },
+                errorMessage: 'Failed to stop remote access',
+            },
+            {
+                id: 'codeXR.activeServers.showRemoteStatus',
+                module: 'ACTIVE_SERVER',
+                description: 'Show remote access status',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.showRemoteStatus(serverId);
+                    }
+                },
+                errorMessage: 'Failed to show remote access status',
+            },
+            {
                 id: 'codeXR.activeServers.stopServer',
                 module: 'ACTIVE_SERVER',
                 description: 'Stop active server',
@@ -143,6 +203,11 @@ export class ActiveServersCommands {
             openInBrowser: 'codeXR.activeServers.openInBrowser',
             openInPanel: 'codeXR.activeServers.openInPanel',
             copyUrl: 'codeXR.activeServers.copyUrl',
+            copyLanUrl: 'codeXR.activeServers.copyLanUrl',
+            startRemoteAccess: 'codeXR.activeServers.startRemoteAccess',
+            copyRemoteInvitation: 'codeXR.activeServers.copyRemoteInvitation',
+            stopRemoteAccess: 'codeXR.activeServers.stopRemoteAccess',
+            showRemoteStatus: 'codeXR.activeServers.showRemoteStatus',
             stopServer: 'codeXR.activeServers.stopServer',
             showDetails: 'codeXR.activeServers.showDetails',
             stopAllServers: 'codeXR.activeServers.stopAllServers',

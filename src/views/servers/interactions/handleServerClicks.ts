@@ -50,6 +50,9 @@ export class ServerClickHandler {
             case 'openMode':
                 await vscode.commands.executeCommand('codexr.server.config.openMode');
                 break;
+            case 'remoteAccess':
+                await vscode.commands.executeCommand('codexr.server.config.remoteAccess');
+                break;
             case 'reset':
                 await vscode.commands.executeCommand('codexr.server.config.resetToDefault');
                 break;

@@ -1,4 +1,8 @@
-# Code-XR — Code Visualization in Extended Reality (v1.1.0)
+# CodeXR - Code Visualization in Extended Reality (v1.2.0)
+
+> La colaboración entre redes usa Cloudflare Quick Tunnel como servicio temporal
+> sin SLA. Consulta [cómo funciona, sus límites y consideraciones de
+> privacidad](docs/CLOUDFLARE_REMOTE_ACCESS.md).
 
 A revolutionary Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code panels and breathtaking XR/VR environments powered by BabiaXR and A-Frame. Dive deep into your codebase with comprehensive file analysis, directory scanning, and interactive DOM visualization.
 
@@ -34,12 +38,14 @@ Our official documentation includes:
 
 ## What's New in v1.1.0
 
+> The current `v1.2.0` work is tracked in [`docs/ROADMAP_V1.2.0.md`](docs/ROADMAP_V1.2.0.md), including per-installation identity, shared avatars, an optional one-time glTF download, and protected cross-network sessions through Cloudflare Quick Tunnel.
+
 - **Unified analysis engine**: XR, LivePanel, and DOM now share the same modernized analysis bootstrap and payload contract.
 - **Richer real metrics**: File and directory analysis expose corrected ratios, nesting, parameter, complexity-band, and aggregate metrics.
 - **Stable DOM XR visualization**: HTML DOM analysis now feeds BabiaXR with the full stringified HTML contract expected by `babia-html`.
 - **Shared virtual screens for XR/DOM**: Immersive scenes now include collaborative virtual screens plus a control panel to create, bring, and remove shared screens across connected clients.
 - **Live shared screen broadcasting**: Shared screens can project a screen, window, or browser tab with synchronized layout updates and real-time video/audio playback across connected devices.
-- **XR chart pedestal/table auto-scaling**: XR charts now mount on a shared table/pedestal that recenters the chart and rescales it in `X`, `Y`, and `Z` within stable viewing bands.
+- **XR analysis table auto-scaling**: XR charts use a shared containment engine that recenters and rescales them in `X`, `Y`, and `Z` within stable viewing bands.
 - **In-scene Mapping UI with recovery**: XR scenes now expose a Mapping UI next to the chart so users can remap dimensions live, detect invalid BabiaXR rebuilds, restore the last valid mapping, and disable the failing option for the session.
 - **Real-time collaborative XR/DOM sessions**: Connected users can now see shared mapping changes, shared chart updates, shared screen interactions, and remote presence markers with server-assigned display names in the same live session.
 
@@ -74,11 +80,11 @@ Project any screen, tab, or window from any connected device and broadcast it in
 </div>
 
 ### New Pedestal/Table Layout componentes & Mapping UI
-Includes a pedestal that rescales charts to maintain a stable approximate size and a Mapping UI to change represented data in real time without re-running analysis.
+Includes an analysis table that rescales charts to maintain a stable approximate size and a Mapping UI to change represented data in real time without re-running analysis.
 
 <div align="center">
 
-![Pedestal and Mapping UI](resources/pedestal/pedestalAndMappingUI.png)
+![Analysis table and Mapping UI](resources/analysis-table/analysisTableAndMappingUI.png)
 
 </div>
 
@@ -267,7 +273,7 @@ Comprehensive video guides to master every aspect of CodeXR.
 
 ## Analysis Modes Overview
 
-Code-XR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 24 code languages plus HTML DOM visualization** with comprehensive file, directory, and project analysis capabilities.
+CodeXR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 24 code languages plus HTML DOM visualization** with comprehensive file, directory, and project analysis capabilities.
 
 ### LivePanel Analysis Mode (Formerly Static Analysis)
 **Best for:** Detailed metrics review, reporting, and comprehensive code analysis
@@ -351,7 +357,7 @@ Complete directory analysis implementation
 
 ## Supported Languages
 
-Code-XR provides comprehensive analysis for 24 code languages, plus HTML DOM visualization, through its unified analysis engine:
+CodeXR provides comprehensive analysis for 24 code languages, plus HTML DOM visualization, through its unified analysis engine:
 
 ### Complete Language Support Matrix
 
@@ -455,12 +461,12 @@ Customize your immersive experience:
 ### Quick Installation
 1. Open **Visual Studio Code**
 2. Go to **Extensions** (Ctrl+Shift+X)
-3. Search for **"Code-XR"**
+3. Search for **"CodeXR"**
 4. Click **"Install"**
 5. **Restart VS Code** for full functionality
 
 ### First-Time Setup
-- Code-XR automatically sets up the Python environment on first use
+- CodeXR automatically sets up the Python environment on first use
 - No additional configuration required for basic functionality
 - HTTPS certificates are generated locally on first startup and stored in the extension's VS Code global storage for WebXR compatibility
 - Virtual environment (.venv) is created automatically for isolated dependencies
@@ -537,7 +543,7 @@ Customize your immersive experience:
 - **Storage**: 100MB for extension, additional space for analysis results
 
 ### Automatic Dependencies
-Code-XR automatically manages the following dependencies:
+CodeXR automatically manages the following dependencies:
 - **Python Virtual Environment**: Created in `globalStorage` directory from VS Code
 - **Lizard**: Code complexity analysis tool
 - **Required Python Packages**: Automatically installed as needed
@@ -635,7 +641,7 @@ This project is licensed under the **GNU General Public License v3.0 (GPLv3)** -
 
 ---
 
-**Experience your code like never before with Code-XR v1.1.0 - Where comprehensive code analysis meets extended reality!**
+**Experience your code like never before with CodeXR v1.2.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
 

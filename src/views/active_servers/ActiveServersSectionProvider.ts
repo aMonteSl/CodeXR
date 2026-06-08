@@ -3,6 +3,15 @@ import { SectionProvider } from '../common/baseInterfaces';
 import { ActiveServerTreeItem, ActiveServerItemFactory } from './items/activeServerItems';
 import { ActiveServerClickHandler } from './interactions/handleActiveServerClicks';
 import { getActiveServerRegistry } from '../../active_servers/registry/activeServerRegistry';
+import { ActiveServer } from '../../active_servers/model/activeServerModel';
+import { ConnectedParticipantSummary } from '../../collaboration';
+
+interface ParticipantAwareServer {
+    getConnectedParticipants(): ConnectedParticipantSummary[];
+    onConnectedParticipantsChanged(
+        listener: (participants: ConnectedParticipantSummary[]) => void,
+    ): () => void;
+}
 
 /**
  * Active Servers section provider - manages running servers display and control
@@ -15,6 +24,8 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
         this._onDidChangeTreeData.event;
 
     private clickHandler: ActiveServerClickHandler;
+    private readonly participantSubscriptions = new Map<string, () => void>();
+    private readonly registrySubscription: vscode.Disposable;
 
     constructor(private context: vscode.ExtensionContext) {
         console.log('ACTIVE_SERVERS_MODULAR: Initializing Active Servers section provider');
@@ -24,10 +35,12 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
         const registry = getActiveServerRegistry();
         console.log(`ACTIVE_SERVERS_MODULAR: Connected to active server registry, current servers: ${registry.getAllServers().length}`);
         
-        registry.onRegistryChange(() => {
+        this.registrySubscription = registry.onRegistryChange(() => {
             console.log('ACTIVE_SERVERS_MODULAR: Active servers registry changed, refreshing section');
+            this.reconcileParticipantSubscriptions();
             this.refresh();
         });
+        this.reconcileParticipantSubscriptions();
     }
 
     /**
@@ -65,9 +78,21 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
      * Get children items for the Active Servers section
      */
     async getChildren(element?: ActiveServerTreeItem): Promise<ActiveServerTreeItem[]> {
-        // If element is provided, it means we're getting children for a specific item
-        // For the Active Servers section, we only have flat items, so return empty for sub-items
         if (element) {
+            const server = element.activeServer;
+            if (!server) {
+                return [];
+            }
+            const participants = this.getParticipants(server);
+            if (element.activeServerItemType === 'server-item') {
+                return ActiveServerItemFactory.createServerChildren(server, participants);
+            }
+            if (element.activeServerItemType === 'participants-group') {
+                return ActiveServerItemFactory.createParticipantItems(server, participants);
+            }
+            if (element.activeServerItemType === 'actions-group') {
+                return ActiveServerItemFactory.createActionItems(server);
+            }
             return [];
         }
 
@@ -113,6 +138,15 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
         this._onDidChangeTreeData.fire();
     }
 
+    dispose(): void {
+        this.registrySubscription.dispose();
+        for (const dispose of this.participantSubscriptions.values()) {
+            dispose();
+        }
+        this.participantSubscriptions.clear();
+        this._onDidChangeTreeData.dispose();
+    }
+
     /**
      * Handle item clicks (additional method for interaction)
      */
@@ -125,5 +159,41 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
      */
     async handleContextMenu(action: string, item: ActiveServerTreeItem): Promise<void> {
         await this.clickHandler.handleContextMenuAction(action, item);
+    }
+
+    private getParticipants(server: ActiveServer): ConnectedParticipantSummary[] {
+        const runtime = this.asParticipantAwareServer(server);
+        return runtime?.getConnectedParticipants() || [];
+    }
+
+    private reconcileParticipantSubscriptions(): void {
+        const servers = getActiveServerRegistry().getAllServers();
+        const activeIds = new Set(servers.map((server) => server.id));
+        for (const [serverId, dispose] of this.participantSubscriptions) {
+            if (!activeIds.has(serverId)) {
+                dispose();
+                this.participantSubscriptions.delete(serverId);
+            }
+        }
+        for (const server of servers) {
+            if (this.participantSubscriptions.has(server.id)) {
+                continue;
+            }
+            const runtime = this.asParticipantAwareServer(server);
+            if (!runtime) {
+                continue;
+            }
+            const dispose = runtime.onConnectedParticipantsChanged(() => this.refresh());
+            this.participantSubscriptions.set(server.id, dispose);
+        }
+    }
+
+    private asParticipantAwareServer(server: ActiveServer): ParticipantAwareServer | null {
+        const runtime = server.serverInstance as Partial<ParticipantAwareServer> | undefined;
+        return runtime
+            && typeof runtime.getConnectedParticipants === 'function'
+            && typeof runtime.onConnectedParticipantsChanged === 'function'
+            ? runtime as ParticipantAwareServer
+            : null;
     }
 }

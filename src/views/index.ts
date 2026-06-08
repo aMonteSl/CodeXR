@@ -17,6 +17,7 @@ export * from './babia_examples';
 export * from './visualize_data';
 export * from './python_env';
 export * from './visualization_settings';
+export * from './collaboration';
 export * from './learn_more';
 
 // New code analysis views (experimental)

@@ -1,11 +1,17 @@
-(function registerCodeXRChartPedestalComponent(root) {
+(function registerCodeXRAnalysisTableComponents(root) {
   'use strict';
 
   var AFRAME = root.AFRAME;
-  var COMPONENT_NAME = 'codexr-chart-pedestal';
-  var RUNTIME_GLOBAL_NAME = 'CodeXRChartPedestalRuntime';
+  var COMPONENT_NAME = 'codexr-chart-containment';
+  var TABLE_COMPONENT_NAME = 'codexr-analysis-table';
+  var RUNTIME_GLOBAL_NAME = 'CodeXRAnalysisTableRuntime';
   var DEBUG_GLOBAL_NAME = 'CodeXRChartDebugBands';
-  if (!AFRAME || !AFRAME.registerComponent || AFRAME.components[COMPONENT_NAME]) {
+  if (!AFRAME || !AFRAME.registerComponent) {
+    return;
+  }
+  var registerContainment = !AFRAME.components[COMPONENT_NAME];
+  var registerTable = !AFRAME.components[TABLE_COMPONENT_NAME];
+  if (!registerContainment && !registerTable) {
     return;
   }
 
@@ -19,26 +25,10 @@
     revealOffsetY: 0.03,
     retries: 45,
     retryDelayMs: 90,
-    pedestalYOffset: -0.12,
-    pedestalTopPadding: 0.9,
-    pedestalTopThickness: 0.14,
-    pedestalBaseRadius: 1.45,
-    pedestalBaseHeight: 0.78,
-    uiDockEnabled: false,
-    uiDockWidth: 1.46,
-    uiDockDepth: 0.82,
-    uiDockHeight: 0.05,
-    uiDockOffsetX: 3.35,
-    uiDockOffsetY: 0.2,
-    uiDockOffsetZ: 2.22,
-    uiDockColor: '#11253a',
-    uiDockTrimColor: '#1f6a9b',
-    pedestalColorTop: '#eadfc9',
-    pedestalColorBase: '#5f5243',
-    pedestalColorTrim: '#cdbb9a',
+    tableTopPadding: 0.9,
     bootstrapPlanarMaxRatio: 0.84,
-    minPlanarOccupancyRatio: 1.30,
-    maxPlanarOccupancyRatio: 1.35,
+    minPlanarOccupancyRatio: 0.78,
+    maxPlanarOccupancyRatio: 0.92,
     minHeightOccupancyRatio: 0.45,
     heightBandMinRatio: 0.38,
     heightBandMaxRatio: 0.72,
@@ -50,7 +40,7 @@
     containmentDamping: 0.985,
     containmentMaxIterations: 8,
     containmentCheckMs: 700,
-    periodicContainmentEnabled: false,
+    periodicContainmentEnabled: true,
     renormalizeDebounceMs: 280,
     stabilizationCheckMs: 140,
     stabilizationMaxChecks: 14,
@@ -211,7 +201,7 @@
       return;
     }
     var args = Array.prototype.slice.call(arguments);
-    args.unshift('[CodeXR][ChartPedestal]');
+    args.unshift('[CodeXR][AnalysisTable]');
     console.log.apply(console, args);
   }
 
@@ -219,7 +209,7 @@
     if (!DEBUG_STATE.enabled || typeof console.table !== 'function') {
       return;
     }
-    console.log('[CodeXR][ChartPedestal] ' + label);
+    console.log('[CodeXR][AnalysisTable] ' + label);
     console.table(payload);
   }
 
@@ -556,8 +546,8 @@
   function computeContainmentLimits(data) {
     var targetWidth = Math.max(data.targetWidth, 0.0001);
     var targetDepth = Math.max(data.targetDepth, 0.0001);
-    var topWidth = Math.max(targetWidth, targetWidth + Math.max(0, data.pedestalTopPadding || 0));
-    var topDepth = Math.max(targetDepth, targetDepth + Math.max(0, data.pedestalTopPadding || 0));
+    var topWidth = Math.max(targetWidth, targetWidth + Math.max(0, data.tableTopPadding || 0));
+    var topDepth = Math.max(targetDepth, targetDepth + Math.max(0, data.tableTopPadding || 0));
     var edgeMargin = clamp(
       Number.isFinite(data.tableEdgeMargin) ? data.tableEdgeMargin : DEFAULTS.tableEdgeMargin,
       0,
@@ -608,13 +598,13 @@
   function resolveSteadyPlanarRange(data) {
     var minPlanar = clamp(
       Number.isFinite(data.minPlanarOccupancyRatio) ? data.minPlanarOccupancyRatio : DEFAULTS.minPlanarOccupancyRatio,
-      0.05,
-      0.99
+      0.10,
+      0.98
     );
     var maxPlanar = clamp(
       Number.isFinite(data.maxPlanarOccupancyRatio) ? data.maxPlanarOccupancyRatio : DEFAULTS.maxPlanarOccupancyRatio,
       minPlanar + 0.01,
-      2.5
+      0.99
     );
 
     return {
@@ -623,12 +613,12 @@
     };
   }
 
-  function computeAxisPlanarBandFactor(primarySize, containmentSize, targetSize, containmentLimitSize, minRatio, maxRatio) {
-    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(targetSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || targetSize <= 0 || containmentLimitSize <= 0) {
+  function computeAxisPlanarBandFactor(primarySize, containmentSize, containmentLimitSize, minRatio, maxRatio) {
+    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || containmentLimitSize <= 0) {
       return null;
     }
 
-    var ratio = primarySize / targetSize;
+    var ratio = primarySize / containmentLimitSize;
     var minRequiredFactor = ratio < minRatio
       ? (minRatio / Math.max(ratio, 0.00001))
       : 1;
@@ -674,12 +664,12 @@
     };
   }
 
-  function computePlanarAxisTargetScale(primarySize, containmentSize, currentScale, targetSize, containmentLimitSize, range, toleranceRatio) {
-    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(currentScale) || !Number.isFinite(targetSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || currentScale <= 0 || targetSize <= 0 || containmentLimitSize <= 0 || !range) {
+  function computePlanarAxisTargetScale(primarySize, containmentSize, currentScale, containmentLimitSize, range, toleranceRatio) {
+    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(currentScale) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || currentScale <= 0 || containmentLimitSize <= 0 || !range) {
       return null;
     }
 
-    var ratio = primarySize / targetSize;
+    var ratio = primarySize / containmentLimitSize;
     var setpointRatio = midpoint(range.min, range.max);
     var containmentTolerance = containmentLimitSize * clamp(
       Number.isFinite(toleranceRatio) ? toleranceRatio : DEFAULTS.containmentToleranceRatio,
@@ -793,7 +783,6 @@
     var xResult = computeAxisPlanarBandFactor(
       primaryBounds.size.x,
       containmentBounds.size.x,
-      targetWidth,
       containmentWidthLimit,
       steadyRange.min,
       steadyRange.max
@@ -801,7 +790,6 @@
     var zResult = computeAxisPlanarBandFactor(
       primaryBounds.size.z,
       containmentBounds.size.z,
-      targetDepth,
       containmentDepthLimit,
       steadyRange.min,
       steadyRange.max
@@ -1019,23 +1007,7 @@
       revealOffsetY: { type: 'number', default: DEFAULTS.revealOffsetY },
       retries: { type: 'int', default: DEFAULTS.retries },
       retryDelayMs: { type: 'int', default: DEFAULTS.retryDelayMs },
-      pedestalYOffset: { type: 'number', default: DEFAULTS.pedestalYOffset },
-      pedestalTopPadding: { type: 'number', default: DEFAULTS.pedestalTopPadding },
-      pedestalTopThickness: { type: 'number', default: DEFAULTS.pedestalTopThickness },
-      pedestalBaseRadius: { type: 'number', default: DEFAULTS.pedestalBaseRadius },
-      pedestalBaseHeight: { type: 'number', default: DEFAULTS.pedestalBaseHeight },
-      uiDockEnabled: { default: DEFAULTS.uiDockEnabled },
-      uiDockWidth: { type: 'number', default: DEFAULTS.uiDockWidth },
-      uiDockDepth: { type: 'number', default: DEFAULTS.uiDockDepth },
-      uiDockHeight: { type: 'number', default: DEFAULTS.uiDockHeight },
-      uiDockOffsetX: { type: 'number', default: DEFAULTS.uiDockOffsetX },
-      uiDockOffsetY: { type: 'number', default: DEFAULTS.uiDockOffsetY },
-      uiDockOffsetZ: { type: 'number', default: DEFAULTS.uiDockOffsetZ },
-      uiDockColor: { default: DEFAULTS.uiDockColor },
-      uiDockTrimColor: { default: DEFAULTS.uiDockTrimColor },
-      pedestalColorTop: { default: DEFAULTS.pedestalColorTop },
-      pedestalColorBase: { default: DEFAULTS.pedestalColorBase },
-      pedestalColorTrim: { default: DEFAULTS.pedestalColorTrim },
+      tableTopPadding: { type: 'number', default: DEFAULTS.tableTopPadding },
       bootstrapPlanarMaxRatio: { type: 'number', default: DEFAULTS.bootstrapPlanarMaxRatio },
       minPlanarOccupancyRatio: { type: 'number', default: DEFAULTS.minPlanarOccupancyRatio },
       maxPlanarOccupancyRatio: { type: 'number', default: DEFAULTS.maxPlanarOccupancyRatio },
@@ -1068,8 +1040,6 @@
       this.nextContainmentCheckAt = 0;
       this.baseScale = null;
       this.normalized = false;
-      this.pedestalEl = null;
-      this.uiDockEl = null;
       this.nextInvalidTransformWarnAt = 0;
       this.nextMinimumCompromisedWarnAt = 0;
       this.normalizationGeneration = 0;
@@ -1086,7 +1056,6 @@
       }
 
       this.ensureInitialPlacement();
-      this.ensurePedestal();
       this.el.addEventListener('componentchanged', this.onComponentChangedBound);
       this.el.addEventListener('child-attached', this.onGeometryReadyBound);
       this.el.addEventListener('object3dset', this.onGeometryReadyBound);
@@ -1126,7 +1095,7 @@
         return;
       }
       this.nextInvalidTransformWarnAt = now + 2000;
-      console.warn('[CodeXR][ChartPedestal] Skipping invalid transform state:', {
+      console.warn('[CodeXR][AnalysisTable] Skipping invalid transform state:', {
         reason: reason,
         details: details || null
       });
@@ -1139,7 +1108,7 @@
       }
       this.nextMinimumCompromisedWarnAt = now + 4000;
       resizeTrace('minimum-occupancy-relaxed', details || null);
-      console.warn('[CodeXR][ChartPedestal] Minimum occupancy relaxed to preserve containment:', details || null);
+      console.warn('[CodeXR][AnalysisTable] Minimum occupancy relaxed to preserve containment:', details || null);
     },
 
     requestRenormalize: function (reason) {
@@ -1162,6 +1131,8 @@
         return {
           ready: true,
           valid: false,
+          stabilized: false,
+          geometryState: 'invalid',
           reason: axisIssue.reason || 'invalid-axis-length',
           message: 'The selected mapping generated invalid axis values.',
           details: axisIssue
@@ -1173,6 +1144,8 @@
         return {
           ready: false,
           valid: false,
+          stabilized: false,
+          geometryState: 'rebuilding',
           reason: this.lastNormalizationIssue ? this.lastNormalizationIssue.reason : 'waiting-geometry',
           message: 'The chart is still rebuilding its geometry.',
           details: Object.assign({
@@ -1181,9 +1154,13 @@
         };
       }
 
+      var stabilized = this.renderPhase === 'steady-fit'
+        && (!this.pidController || !this.pidController.active);
       return {
         ready: true,
         valid: true,
+        stabilized: stabilized,
+        geometryState: stabilized ? 'stabilized' : 'valid',
         reason: this.renderPhase === 'steady-fit' ? 'ok' : this.renderPhase,
         details: {
           phase: this.renderPhase,
@@ -1256,11 +1233,8 @@
         || oldData.stabilizationStablePasses !== this.data.stabilizationStablePasses
       ) {
         this.ensureInitialPlacement();
-        this.refreshPedestalGeometry();
         this.renormalize('update');
       }
-
-      this.refreshUiDock();
     },
 
     tick: function (time, timeDelta) {
@@ -1312,164 +1286,10 @@
       this.deactivateSteadyController();
       this.stopStabilizationLoop();
 
-      if (this.pedestalEl && this.pedestalEl.parentNode) {
-        this.pedestalEl.parentNode.removeChild(this.pedestalEl);
-      }
-      this.pedestalEl = null;
-
-      if (this.uiDockEl && this.uiDockEl.parentNode) {
-        this.uiDockEl.parentNode.removeChild(this.uiDockEl);
-      }
-      this.uiDockEl = null;
     },
 
     ensureInitialPlacement: function () {
       this.el.setAttribute('position', this.data.anchorX + ' ' + this.data.anchorY + ' ' + this.data.anchorZ);
-    },
-
-    ensurePedestal: function () {
-      if (this.pedestalEl) {
-        this.refreshPedestalGeometry();
-        return;
-      }
-
-      var sceneEl = this.el.sceneEl;
-      if (!sceneEl || (!sceneEl.parentNode && sceneEl !== this.el.parentNode)) {
-        return;
-      }
-
-      var document = this.el.ownerDocument;
-      var pedestal = document.createElement('a-entity');
-      var top = document.createElement('a-box');
-      var trim = document.createElement('a-ring');
-      var base = document.createElement('a-cylinder');
-
-      pedestal.setAttribute('id', (this.el.id || 'boats-chart') + '-pedestal');
-
-      top.setAttribute('position', '0 0 0');
-      top.setAttribute('class', 'babiaxraycasterclass');
-
-      trim.setAttribute('position', '0 0.005 0');
-      trim.setAttribute('rotation', '-90 0 0');
-      trim.setAttribute('radius-inner', '0.8');
-      trim.setAttribute('radius-outer', '1');
-
-      base.setAttribute('position', '0 -0.45 0');
-      base.setAttribute('class', 'babiaxraycasterclass');
-
-      pedestal.appendChild(base);
-      pedestal.appendChild(top);
-      pedestal.appendChild(trim);
-
-      sceneEl.appendChild(pedestal);
-      this.pedestalEl = pedestal;
-      this.refreshPedestalGeometry();
-      this.refreshUiDock();
-    },
-
-    shouldRenderUiDock: function () {
-      if (!this.data.uiDockEnabled) {
-        return false;
-      }
-
-      var document = this.el.ownerDocument;
-      return !!document.getElementById('codexr-tooling-config-xr-mapping-ui');
-    },
-
-    ensureUiDock: function () {
-      if (this.uiDockEl) {
-        return;
-      }
-
-      var sceneEl = this.el.sceneEl;
-      if (!sceneEl) {
-        return;
-      }
-
-      var document = this.el.ownerDocument;
-      var dock = document.createElement('a-entity');
-      var plate = document.createElement('a-box');
-      var trim = document.createElement('a-box');
-
-      dock.setAttribute('id', (this.el.id || 'boats-chart') + '-pedestal-ui-dock');
-      dock.setAttribute('hide-on-enter-ar', '');
-
-      plate.setAttribute('class', 'babiaxraycasterclass');
-      trim.setAttribute('class', 'babiaxraycasterclass');
-
-      dock.appendChild(plate);
-      dock.appendChild(trim);
-      sceneEl.appendChild(dock);
-      this.uiDockEl = dock;
-    },
-
-    refreshUiDock: function () {
-      if (!this.shouldRenderUiDock()) {
-        if (this.uiDockEl && this.uiDockEl.parentNode) {
-          this.uiDockEl.parentNode.removeChild(this.uiDockEl);
-        }
-        this.uiDockEl = null;
-        return;
-      }
-
-      this.ensureUiDock();
-      if (!this.uiDockEl) {
-        return;
-      }
-
-      var plate = this.uiDockEl.children[0];
-      var trim = this.uiDockEl.children[1];
-      var baseY = this.data.anchorY + this.data.pedestalYOffset + this.data.uiDockOffsetY;
-
-      this.uiDockEl.setAttribute(
-        'position',
-        this.data.anchorX + this.data.uiDockOffsetX + ' '
-          + baseY + ' '
-          + (this.data.anchorZ + this.data.uiDockOffsetZ)
-      );
-
-      plate.setAttribute('width', this.data.uiDockWidth);
-      plate.setAttribute('height', this.data.uiDockHeight);
-      plate.setAttribute('depth', this.data.uiDockDepth);
-      plate.setAttribute('position', '0 0 0');
-      plate.setAttribute('material', 'color: ' + this.data.uiDockColor + '; metalness: 0.22; roughness: 0.72');
-
-      trim.setAttribute('width', this.data.uiDockWidth + 0.03);
-      trim.setAttribute('height', this.data.uiDockHeight + 0.02);
-      trim.setAttribute('depth', this.data.uiDockDepth + 0.03);
-      trim.setAttribute('position', '0 -0.005 -0.003');
-      trim.setAttribute('material', 'color: ' + this.data.uiDockTrimColor + '; opacity: 0.42; transparent: true; metalness: 0.35; roughness: 0.4');
-    },
-
-    refreshPedestalGeometry: function () {
-      if (!this.pedestalEl) {
-        return;
-      }
-
-      var top = this.pedestalEl.children[1];
-      var trim = this.pedestalEl.children[2];
-      var base = this.pedestalEl.children[0];
-      var topWidth = this.data.targetWidth + this.data.pedestalTopPadding;
-      var topDepth = this.data.targetDepth + this.data.pedestalTopPadding;
-      var baseRadius = this.data.pedestalBaseRadius;
-
-      this.pedestalEl.setAttribute('position', this.data.anchorX + ' ' + (this.data.anchorY + this.data.pedestalYOffset - this.data.revealOffsetY) + ' ' + this.data.anchorZ);
-
-      top.setAttribute('width', topWidth);
-      top.setAttribute('height', this.data.pedestalTopThickness);
-      top.setAttribute('depth', topDepth);
-      top.setAttribute('material', 'color: ' + this.data.pedestalColorTop + '; metalness: 0.05; roughness: 0.88');
-
-      trim.setAttribute('radius-inner', Math.max(0.15, Math.min(topWidth, topDepth) * 0.38));
-      trim.setAttribute('radius-outer', Math.max(0.2, Math.min(topWidth, topDepth) * 0.46));
-      trim.setAttribute('material', 'color: ' + this.data.pedestalColorTrim + '; metalness: 0.22; roughness: 0.45');
-
-      base.setAttribute('radius', baseRadius);
-      base.setAttribute('height', this.data.pedestalBaseHeight);
-      base.setAttribute('position', '0 ' + (-(this.data.pedestalBaseHeight / 2) - (this.data.pedestalTopThickness / 2)) + ' 0');
-      base.setAttribute('material', 'color: ' + this.data.pedestalColorBase + '; metalness: 0.28; roughness: 0.7');
-
-      this.refreshUiDock();
     },
 
     ensureBaseScale: function () {
@@ -1673,7 +1493,6 @@
         measurements.primary.size.x,
         measurements.containment.size.x,
         object3D.scale.x,
-        Math.max(this.data.targetWidth, 0.0001),
         containmentLimits.containmentWidthLimit,
         steadyRange,
         this.data.containmentToleranceRatio
@@ -1682,7 +1501,6 @@
         measurements.primary.size.z,
         measurements.containment.size.z,
         object3D.scale.z,
-        Math.max(this.data.targetDepth, 0.0001),
         containmentLimits.containmentDepthLimit,
         steadyRange,
         this.data.containmentToleranceRatio
@@ -2240,7 +2058,7 @@
         }
         this.markWaitingGeometry(reason === 'invalid-axis-length' ? reason : 'waiting-geometry', generation, details);
         if (reason === 'invalid-axis-length' || DEBUG_STATE.enabled) {
-          console.warn('[CodeXR][ChartPedestal] Could not normalize after retries:', {
+          console.warn('[CodeXR][AnalysisTable] Could not normalize after retries:', {
             reason: reason,
             retries: this.retryCount - 1,
             approxWaitMs: (this.retryCount - 1) * this.data.retryDelayMs
@@ -2269,8 +2087,121 @@
     }
   };
 
-  AFRAME.registerComponent(COMPONENT_NAME, componentDefinition);
-  function getPedestalCharts(doc) {
+  var analysisTableDefinition = {
+    schema: {
+      mode: { default: 'single', oneOf: ['single', 'historical-compare'] },
+      width: { type: 'number', default: 6.514 },
+      depth: { type: 'number', default: 4.118 },
+      anchorX: { type: 'number', default: DEFAULTS.anchorX },
+      anchorY: { type: 'number', default: DEFAULTS.anchorY },
+      anchorZ: { type: 'number', default: DEFAULTS.anchorZ },
+      topThickness: { type: 'number', default: 0.14 },
+      baseRadius: { type: 'number', default: 1.45 },
+      baseHeight: { type: 'number', default: 0.78 }
+    },
+
+    init: function () {
+      this.groupEl = root.document.createElement('a-entity');
+      this.baseEl = root.document.createElement('a-cylinder');
+      this.topEl = root.document.createElement('a-box');
+      this.trimEl = root.document.createElement('a-box');
+      this.leftZoneEl = root.document.createElement('a-box');
+      this.rightZoneEl = root.document.createElement('a-box');
+      this.dividerEl = root.document.createElement('a-box');
+
+      this.groupEl.setAttribute('id', 'codexr-analysis-table-geometry');
+      this.topEl.setAttribute('class', 'babiaxraycasterclass');
+      this.baseEl.setAttribute('class', 'babiaxraycasterclass');
+
+      this.groupEl.appendChild(this.baseEl);
+      this.groupEl.appendChild(this.trimEl);
+      this.groupEl.appendChild(this.topEl);
+      this.groupEl.appendChild(this.leftZoneEl);
+      this.groupEl.appendChild(this.rightZoneEl);
+      this.groupEl.appendChild(this.dividerEl);
+      this.el.appendChild(this.groupEl);
+
+      this.refreshGeometry();
+    },
+
+    update: function () {
+      this.refreshGeometry();
+    },
+
+    remove: function () {
+      if (this.groupEl && this.groupEl.parentNode) {
+        this.groupEl.parentNode.removeChild(this.groupEl);
+      }
+    },
+
+    refreshGeometry: function () {
+      if (!this.groupEl) {
+        return;
+      }
+      var comparison = this.data.mode === 'historical-compare';
+      var topY = this.data.anchorY - 0.15;
+      var halfWidth = (this.data.width - 0.18) / 2;
+      this.groupEl.setAttribute('position', this.data.anchorX + ' ' + topY + ' ' + this.data.anchorZ);
+
+      this.topEl.setAttribute('width', this.data.width);
+      this.topEl.setAttribute('height', this.data.topThickness);
+      this.topEl.setAttribute('depth', this.data.depth);
+      this.topEl.setAttribute(
+        'material',
+        comparison
+          ? 'color: #123b52; metalness: 0.18; roughness: 0.72'
+          : 'color: #eadfc9; metalness: 0.05; roughness: 0.88'
+      );
+
+      this.trimEl.setAttribute('width', this.data.width + 0.08);
+      this.trimEl.setAttribute('height', 0.05);
+      this.trimEl.setAttribute('depth', this.data.depth + 0.08);
+      this.trimEl.setAttribute('position', '0 -0.085 0');
+      this.trimEl.setAttribute(
+        'material',
+        comparison
+          ? 'color: #2f9db2; metalness: 0.3; roughness: 0.4'
+          : 'color: #cdbb9a; metalness: 0.22; roughness: 0.45'
+      );
+
+      this.baseEl.setAttribute('radius', this.data.baseRadius);
+      this.baseEl.setAttribute('height', this.data.baseHeight);
+      this.baseEl.setAttribute('position', '0 ' + (-(this.data.baseHeight / 2) - 0.07) + ' 0');
+      this.baseEl.setAttribute(
+        'material',
+        comparison
+          ? 'color: #14344a; metalness: 0.28; roughness: 0.66'
+          : 'color: #5f5243; metalness: 0.28; roughness: 0.7'
+      );
+
+      [
+        { el: this.leftZoneEl, x: -(halfWidth / 2) - 0.045, color: '#256d85' },
+        { el: this.rightZoneEl, x: (halfWidth / 2) + 0.045, color: '#2b8a66' }
+      ].forEach(function (zone) {
+        zone.el.setAttribute('visible', comparison);
+        zone.el.setAttribute('width', halfWidth);
+        zone.el.setAttribute('height', 0.018);
+        zone.el.setAttribute('depth', Math.max(0.2, this.data.depth - 0.24));
+        zone.el.setAttribute('position', zone.x + ' 0.082 0');
+        zone.el.setAttribute('material', 'color: ' + zone.color + '; opacity: 0.42; transparent: true');
+      }, this);
+
+      this.dividerEl.setAttribute('visible', comparison);
+      this.dividerEl.setAttribute('width', 0.05);
+      this.dividerEl.setAttribute('height', 0.05);
+      this.dividerEl.setAttribute('depth', this.data.depth - 0.18);
+      this.dividerEl.setAttribute('position', '0 0.09 0');
+      this.dividerEl.setAttribute('material', 'color: #b8f3ff; emissive: #246d7a; emissiveIntensity: 0.25');
+    }
+  };
+
+  if (registerTable) {
+    AFRAME.registerComponent(TABLE_COMPONENT_NAME, analysisTableDefinition);
+  }
+  if (registerContainment) {
+    AFRAME.registerComponent(COMPONENT_NAME, componentDefinition);
+  }
+  function getContainmentCharts(doc) {
     if (!doc || !doc.querySelectorAll) {
       return [];
     }
@@ -2279,7 +2210,7 @@
     return Array.prototype.slice.call(charts || []);
   }
 
-  function resolvePedestalComponentInfo(chartEl) {
+  function resolveContainmentComponentInfo(chartEl) {
     if (!chartEl) {
       return null;
     }
@@ -2338,7 +2269,7 @@
       ? (doc && doc.querySelector ? doc.querySelector(target) : null)
       : target;
     if (!chartEl && doc) {
-      var charts = getPedestalCharts(doc);
+      var charts = getContainmentCharts(doc);
       chartEl = charts.length ? charts[0] : null;
     }
     if (!chartEl) {
@@ -2355,21 +2286,116 @@
       return {
         ready: false,
         valid: false,
-        reason: 'pedestal-component-missing',
-        message: 'The chart pedestal runtime is not attached.'
+        reason: 'containment-component-missing',
+        message: 'The chart containment runtime is not attached.'
       };
     }
 
     return component.getChartStatus();
   };
+  root[RUNTIME_GLOBAL_NAME].waitForChartsStable = function (targets, options) {
+    var doc = root.document;
+    var targetList = Array.isArray(targets) ? targets : [targets];
+    var timeoutMs = Math.max(1000, Number(options && options.timeoutMs) || 10000);
+    var pollMs = Math.max(50, Number(options && options.pollMs) || 120);
+    var stablePassesRequired = Math.max(1, Number(options && options.stablePasses) || 2);
+    var startedAt = Date.now();
+    var stablePasses = 0;
+
+    return new Promise(function (resolve) {
+      function inspect() {
+        var statuses = targetList.map(function (target) {
+          var chart = typeof target === 'string'
+            ? (doc && doc.getElementById ? doc.getElementById(target) : null)
+            : target;
+          return root[RUNTIME_GLOBAL_NAME].getChartStatus(chart);
+        });
+        var invalid = statuses.find(function (status) {
+          return status && status.ready === true && status.valid === false;
+        });
+        if (invalid) {
+          resolve({
+            state: 'invalid',
+            valid: false,
+            stabilized: false,
+            statuses: statuses,
+            reason: invalid.reason || 'invalid-chart'
+          });
+          return;
+        }
+
+        var allReady = statuses.length > 0 && statuses.every(function (status) {
+          return status && status.ready === true && status.valid === true;
+        });
+        var allStabilized = allReady && statuses.every(function (status) {
+          return status.stabilized === true || status.geometryState === 'stabilized';
+        });
+        stablePasses = allStabilized ? stablePasses + 1 : 0;
+        if (stablePasses >= stablePassesRequired) {
+          resolve({
+            state: 'stabilized',
+            valid: true,
+            stabilized: true,
+            statuses: statuses
+          });
+          return;
+        }
+
+        if ((Date.now() - startedAt) >= timeoutMs) {
+          resolve({
+            state: allReady ? 'valid-timeout' : 'timeout',
+            valid: allReady,
+            stabilized: false,
+            statuses: statuses,
+            reason: allReady ? 'stabilization-timeout' : 'geometry-timeout'
+          });
+          return;
+        }
+        setTimeout(inspect, pollMs);
+      }
+      inspect();
+    });
+  };
+  root[RUNTIME_GLOBAL_NAME].getAnalysisTableZones = function (mode) {
+    var fullWidth = 5.614;
+    var fullDepth = 3.218;
+    if (mode !== 'historical-compare') {
+      return [{
+        id: 'single',
+        anchorX: 0,
+        anchorZ: DEFAULTS.anchorZ,
+        width: fullWidth,
+        depth: fullDepth
+      }];
+    }
+    var centerGap = 0.18;
+    var zoneWidth = (fullWidth - centerGap) / 2;
+    var centerOffset = (zoneWidth + centerGap) / 2;
+    return [
+      {
+        id: 'left',
+        anchorX: -centerOffset,
+        anchorZ: DEFAULTS.anchorZ,
+        width: zoneWidth,
+        depth: fullDepth
+      },
+      {
+        id: 'right',
+        anchorX: centerOffset,
+        anchorZ: DEFAULTS.anchorZ,
+        width: zoneWidth,
+        depth: fullDepth
+      }
+    ];
+  };
   root[RUNTIME_GLOBAL_NAME].getScaleRange = function () {
     var doc = root.document;
-    var charts = getPedestalCharts(doc);
+    var charts = getContainmentCharts(doc);
     if (charts.length === 0) {
       return buildScaleRangeSnapshot(DEFAULTS, 0);
     }
 
-    var info = resolvePedestalComponentInfo(charts[0]);
+    var info = resolveContainmentComponentInfo(charts[0]);
     return buildScaleRangeSnapshot(info ? info.data : DEFAULTS, charts.length);
   };
   root[RUNTIME_GLOBAL_NAME].setScaleRange = function (min, max) {
@@ -2382,11 +2408,14 @@
     if (max <= min) {
       throw new Error('The maximum scale range value must be greater than the minimum.');
     }
+    if (max > 0.99) {
+      throw new Error('Planar occupancy values must be percentages below 1.');
+    }
 
     var doc = root.document;
-    var charts = getPedestalCharts(doc);
+    var charts = getContainmentCharts(doc);
     charts.forEach(function (chartEl) {
-      var info = resolvePedestalComponentInfo(chartEl);
+      var info = resolveContainmentComponentInfo(chartEl);
       if (!info || !chartEl.getAttribute || !chartEl.setAttribute) {
         return;
       }
@@ -2415,7 +2444,7 @@
       chartEl.setAttribute(info.attrName, nextAttr);
     });
 
-    var firstInfo = charts.length ? resolvePedestalComponentInfo(charts[0]) : null;
+    var firstInfo = charts.length ? resolveContainmentComponentInfo(charts[0]) : null;
     return buildScaleRangeSnapshot(firstInfo ? firstInfo.data : {
       minPlanarOccupancyRatio: min,
       maxPlanarOccupancyRatio: max
@@ -2423,12 +2452,12 @@
   };
   root[RUNTIME_GLOBAL_NAME].getScalePolicy = function () {
     var doc = root.document;
-    var charts = getPedestalCharts(doc);
+    var charts = getContainmentCharts(doc);
     if (charts.length === 0) {
       return buildScalePolicySnapshot(DEFAULTS, 0);
     }
 
-    var info = resolvePedestalComponentInfo(charts[0]);
+    var info = resolveContainmentComponentInfo(charts[0]);
     return buildScalePolicySnapshot(info ? info.data : DEFAULTS, charts.length);
   };
   root[RUNTIME_GLOBAL_NAME].setHeightBand = function (min, max) {
@@ -2443,9 +2472,9 @@
     }
 
     var doc = root.document;
-    var charts = getPedestalCharts(doc);
+    var charts = getContainmentCharts(doc);
     charts.forEach(function (chartEl) {
-      var info = resolvePedestalComponentInfo(chartEl);
+      var info = resolveContainmentComponentInfo(chartEl);
       if (!info || !chartEl.getAttribute || !chartEl.setAttribute) {
         return;
       }
@@ -2462,7 +2491,7 @@
       chartEl.setAttribute(info.attrName, nextAttr);
     });
 
-    var firstInfo = charts.length ? resolvePedestalComponentInfo(charts[0]) : null;
+    var firstInfo = charts.length ? resolveContainmentComponentInfo(charts[0]) : null;
     return buildScalePolicySnapshot(firstInfo ? firstInfo.data : DEFAULTS, charts.length);
   };
   root[RUNTIME_GLOBAL_NAME].renormalizeAll = function (reason) {
@@ -2551,7 +2580,7 @@
 
       var component = chart.components && chart.components[COMPONENT_NAME];
       if (!component) {
-        console.warn('[CodeXR][ChartBands] chart pedestal component not found on target.');
+        console.warn('[CodeXR][ChartBands] chart containment component not found on target.');
         return null;
       }
 

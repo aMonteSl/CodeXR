@@ -64,7 +64,9 @@
     sessionEndpoint: '/api/collaboration/session',
     videoElementId: '',
     rtcConfiguration: {
-      iceServers: [],
+      iceServers: [
+        { urls: 'stun:stun.cloudflare.com:3478' },
+      ],
     },
     labels: {
       idle: 'Share a screen, window, or browser tab in this XR scene.',
@@ -80,6 +82,7 @@
       noSignal: 'No live source is currently available for this screen.',
       broadcastUnavailable: 'Live broadcasting requires HTTPS or localhost.',
       broadcastError: 'Unable to connect the live broadcast.',
+      iceFailed: 'The shared screen could not cross this network (restrictive NAT). Collaboration remains active.',
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
       audioUnlock: 'Enable Audio',
@@ -1465,7 +1468,10 @@
       connection.onconnectionstatechange = function () {
         if (role === 'viewer' && ['failed', 'closed', 'disconnected'].includes(connection.connectionState || '')) {
           if (peerId === refs.activeBroadcasterId) {
-            detachRemoteBroadcast(refs.config.labels.noSignal, { notifyServer: false });
+            const message = connection.connectionState === 'failed'
+              ? refs.config.labels.iceFailed
+              : refs.config.labels.noSignal;
+            detachRemoteBroadcast(message, { notifyServer: false });
           }
         }
       };
@@ -1473,7 +1479,10 @@
       connection.oniceconnectionstatechange = function () {
         if (role === 'viewer' && ['failed', 'closed', 'disconnected'].includes(connection.iceConnectionState || '')) {
           if (peerId === refs.activeBroadcasterId) {
-            detachRemoteBroadcast(refs.config.labels.noSignal, { notifyServer: false });
+            const message = connection.iceConnectionState === 'failed'
+              ? refs.config.labels.iceFailed
+              : refs.config.labels.noSignal;
+            detachRemoteBroadcast(message, { notifyServer: false });
           }
         }
       };

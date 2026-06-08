@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
@@ -8,6 +9,19 @@ import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
 import { ScreenBroadcastSignalingServer } from './broadcast/screenBroadcastSignalingServer';
 import { CollaborationRoomServer } from './collaboration/collaborationRoomServer';
+import {
+    CollaborationConfiguration,
+    CollaborationProfile,
+    CollaborationProfileManager,
+    ConnectedParticipantSummary,
+    DEFAULT_COLLABORATION_PROFILE,
+} from '../../collaboration';
+import { RemoteSessionAuthority } from '../../remote_access';
+import {
+    HistoricalComparisonRequest,
+    HistoricalComparisonService,
+    analysisUpdateEvents,
+} from '../../code_analysis/historical';
 
 /**
  * HTTP Server Configuration
@@ -19,6 +33,8 @@ export interface HttpServerConfig {
     enableCors?: boolean;
     allowedOrigins?: string[];
     mainFile?: string; // Optional main file to serve at root
+    extensionContext?: vscode.ExtensionContext;
+    analysisSessionId?: string;
 }
 
 /**
@@ -32,6 +48,13 @@ export class HttpServer {
     private upgradeAttached = false;
     private broadcastSignalingServer: ScreenBroadcastSignalingServer | null = null;
     private collaborationRoomServer: CollaborationRoomServer | null = null;
+    private collaborationProfileSubscription: vscode.Disposable | null = null;
+    private readonly remoteSessionAuthority = new RemoteSessionAuthority();
+    private remotePublicUrl: string | null = null;
+    private historicalComparisonService: HistoricalComparisonService | null = null;
+    private analysisUpdateSubscription: (() => void) | null = null;
+    private historicalRefreshTimer: NodeJS.Timeout | null = null;
+    private historicalRefreshQueued = false;
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -47,6 +70,19 @@ export class HttpServer {
             allowedOrigins: ['*'],
             ...cleanConfig
         };
+
+        if (this.config.extensionContext && this.config.analysisSessionId && this.config.staticRoot) {
+            this.historicalComparisonService = new HistoricalComparisonService(
+                this.config.extensionContext,
+                this.config.analysisSessionId,
+                this.config.staticRoot,
+            );
+            this.analysisUpdateSubscription = analysisUpdateEvents.on((event) => {
+                if (event.sessionId === this.config.analysisSessionId) {
+                    this.scheduleHistoricalComparisonRefresh();
+                }
+            });
+        }
 
         console.log('SERVER: HTTP server initialized with config:', this.config);
     }
@@ -124,6 +160,7 @@ export class HttpServer {
                     console.error('SERVER: Error stopping HTTP server:', error);
                     reject(error);
                 } else {
+                    this.disposeRuntimeFeatures();
                     console.log('SERVER: HTTP server stopped successfully');
                     this.isRunning = false;
                     this.server = null;
@@ -160,11 +197,65 @@ export class HttpServer {
         return `http://${this.config.host}:${this.config.port}`;
     }
 
+    public getRemoteSessionAuthority(): RemoteSessionAuthority {
+        return this.remoteSessionAuthority;
+    }
+
+    public getConnectedParticipants(): ConnectedParticipantSummary[] {
+        return this.collaborationRoomServer?.getConnectedParticipants(this.getCollaborationRoomId()) || [];
+    }
+
+    public onConnectedParticipantsChanged(
+        listener: (participants: ConnectedParticipantSummary[]) => void,
+    ): () => void {
+        if (!this.collaborationRoomServer) {
+            return () => undefined;
+        }
+        return this.collaborationRoomServer.onParticipantsChanged((changedRoomId, participants) => {
+            if (changedRoomId === this.getCollaborationRoomId()) {
+                listener(participants);
+            }
+        });
+    }
+
+    public createInvitation(): string {
+        return this.remoteSessionAuthority.createInvitation();
+    }
+
+    public setRemotePublicUrl(publicUrl: string | null): void {
+        this.remotePublicUrl = publicUrl;
+    }
+
+    public createAuthenticatedBrowserUrl(baseUrl: string): string {
+        const profileManager = CollaborationProfileManager.getInstance();
+        if (!profileManager) {
+            return baseUrl;
+        }
+        const token = this.remoteSessionAuthority.createLocalBrowserToken(
+            profileManager.getInstallationId(),
+            profileManager.getConfiguration().profile,
+        );
+        const target = new URL('/api/remote/browser', baseUrl);
+        target.searchParams.set('token', token);
+        return target.toString();
+    }
+
     public disposeRuntimeFeatures(): void {
+        this.collaborationProfileSubscription?.dispose();
+        this.collaborationProfileSubscription = null;
         this.collaborationRoomServer?.dispose();
         this.collaborationRoomServer = null;
         this.broadcastSignalingServer?.dispose();
         this.broadcastSignalingServer = null;
+        this.remoteSessionAuthority.revokeAll();
+        this.analysisUpdateSubscription?.();
+        this.analysisUpdateSubscription = null;
+        if (this.historicalRefreshTimer) {
+            clearTimeout(this.historicalRefreshTimer);
+            this.historicalRefreshTimer = null;
+        }
+        void this.historicalComparisonService?.dispose();
+        this.historicalComparisonService = null;
     }
 
     /**
@@ -175,9 +266,15 @@ export class HttpServer {
     public handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
         const startTime = Date.now();
         const requestUrl = req.url || '/';
+        const safeRequestUrl = new URL(requestUrl, 'http://codexr.local').pathname;
         const method = req.method || 'GET';
         
-        console.log(`SERVER: ${method} ${requestUrl} - Processing request`);
+        console.log(`SERVER: ${method} ${safeRequestUrl} - Processing request`);
+
+        if (!this.isRequestAuthorized(req, requestUrl)) {
+            this.sendErrorResponse(res, 404, 'Resource not found');
+            return;
+        }
 
         // Add CORS headers if enabled
         if (this.config.enableCors) {
@@ -195,10 +292,10 @@ export class HttpServer {
         this.routeRequest(req, res, requestUrl)
             .then(() => {
                 const duration = Date.now() - startTime;
-                console.log(`SERVER: ${method} ${requestUrl} - Completed in ${duration}ms`);
+                console.log(`SERVER: ${method} ${safeRequestUrl} - Completed in ${duration}ms`);
             })
             .catch((error) => {
-                console.error(`SERVER: ${method} ${requestUrl} - Error:`, error);
+                console.error(`SERVER: ${method} ${safeRequestUrl} - Error:`, error);
                 this.sendErrorResponse(res, 500, 'Internal Server Error');
             });
     }
@@ -217,6 +314,11 @@ export class HttpServer {
         // Root path - serve main page
         if (url === '/' || url === '/index.html') {
             await this.serveMainPage(res);
+            return;
+        }
+
+        if (url.startsWith('/join')) {
+            this.servePairingPage(res, url);
             return;
         }
 
@@ -305,7 +407,7 @@ export class HttpServer {
         res: http.ServerResponse,
         url: string
     ): Promise<void> {
-        const apiPath = url.replace('/api', '');
+        const apiPath = new URL(url, 'http://codexr.local').pathname.replace('/api', '');
 
         switch (apiPath) {
             case '/status':
@@ -328,12 +430,365 @@ export class HttpServer {
                 break;
 
             case '/collaboration/session':
-                this.sendJsonResponse(res, 200, this.buildCollaborationSessionDescriptor());
+                this.sendJsonResponse(res, 200, await this.buildCollaborationSessionDescriptor(req));
+                break;
+
+            case '/collaboration/avatar-model':
+                await this.serveAvatarModel(req, res);
+                break;
+
+            case '/remote/pair/request':
+                await this.handlePairingRequest(req, res);
+                break;
+
+            case '/remote/identity':
+                await this.handleBrowserIdentity(req, res);
+                break;
+
+            case '/remote/pair/confirm':
+                await this.handlePairingConfirmation(req, res);
+                break;
+
+            case '/remote/browser':
+                this.handleBrowserTokenExchange(req, res, url);
+                break;
+
+            case '/remote/profile':
+                await this.handleRemoteProfileUpdate(req, res);
                 break;
 
             default:
                 this.sendErrorResponse(res, 404, 'API endpoint not found');
         }
+    }
+
+    private async serveAvatarModel(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            this.sendErrorResponse(res, 405, 'Method not allowed');
+            return;
+        }
+
+        const modelPath = CollaborationProfileManager.getInstance()?.getAvatarModelPath();
+        if (!modelPath) {
+            this.sendErrorResponse(res, 404, 'Avatar model is not installed');
+            return;
+        }
+        const stats = await fs.promises.stat(modelPath);
+        res.writeHead(200, {
+            'Content-Type': 'model/gltf-binary',
+            'Content-Length': stats.size,
+            'Cache-Control': 'public, max-age=604800, immutable',
+            'X-CodeXR-Asset-Source': 'Quaternius-via-Poly-Pizza',
+        });
+        if (req.method === 'HEAD') {
+            res.end();
+            return;
+        }
+        fs.createReadStream(modelPath)
+            .on('error', () => this.sendErrorResponse(res, 500, 'Unable to read avatar model'))
+            .pipe(res);
+    }
+
+    private isRequestAuthorized(req: http.IncomingMessage, requestUrl: string): boolean {
+        if (!this.isRemoteRequest(req)) {
+            return true;
+        }
+        const pathname = new URL(requestUrl, 'https://codexr.local').pathname;
+        if (
+            pathname === '/join'
+            || pathname === '/api/remote/identity'
+            || pathname === '/api/remote/pair/request'
+            || pathname === '/api/remote/pair/confirm'
+            || pathname === '/api/remote/browser'
+            || pathname === '/api/remote/profile'
+        ) {
+            return true;
+        }
+        return !!this.remoteSessionAuthority.resolveCookie(req.headers.cookie);
+    }
+
+    private isWebSocketAuthorized(req: http.IncomingMessage): boolean {
+        return !this.isRemoteRequest(req)
+            || !!this.remoteSessionAuthority.resolveCookie(req.headers.cookie);
+    }
+
+    private isRemoteRequest(req: http.IncomingMessage): boolean {
+        const hostname = String(req.headers.host || '').split(':')[0].toLowerCase();
+        return hostname.endsWith('.trycloudflare.com')
+            || typeof req.headers['cf-connecting-ip'] === 'string';
+    }
+
+    private async handlePairingRequest(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
+        if (req.method !== 'POST') {
+            this.sendErrorResponse(res, 405, 'Method not allowed');
+            return;
+        }
+        try {
+            const payload = await this.readJsonBody(req);
+            const isCodeXR = payload.clientKind === 'codexr';
+            const browserProfile = {
+                identityMode: payload.identityMode === 'custom' ? 'custom' : 'anonymous',
+                customName: String(payload.customName || ''),
+                avatarId: DEFAULT_COLLABORATION_PROFILE.avatarId,
+            } satisfies CollaborationProfile;
+            const result = this.remoteSessionAuthority.createPairingRequest({
+                invitationToken: String(payload.invitationToken || ''),
+                remoteAddress: this.getRemoteAddress(req),
+                installationId: isCodeXR
+                    ? String(payload.installationId || '')
+                    : `browser-${crypto.randomUUID()}`,
+                profile: isCodeXR
+                    ? payload.profile as CollaborationProfile
+                    : browserProfile,
+                clientKind: isCodeXR ? 'codexr' : 'browser',
+                identityToken: isCodeXR ? undefined : String(payload.identityToken || ''),
+            });
+            this.sendJsonResponse(res, 202, result);
+        } catch (error) {
+            this.sendPairingError(res, error);
+        }
+    }
+
+    private async handleBrowserIdentity(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
+        if (req.method !== 'POST') {
+            this.sendErrorResponse(res, 405, 'Method not allowed');
+            return;
+        }
+        try {
+            const payload = await this.readJsonBody(req);
+            const result = this.remoteSessionAuthority.createBrowserIdentity({
+                invitationToken: String(payload.invitationToken || ''),
+                remoteAddress: this.getRemoteAddress(req),
+            });
+            this.sendJsonResponse(res, 200, result);
+        } catch (error) {
+            this.sendPairingError(res, error);
+        }
+    }
+
+    private async handlePairingConfirmation(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
+        if (req.method !== 'POST') {
+            this.sendErrorResponse(res, 405, 'Method not allowed');
+            return;
+        }
+        try {
+            const payload = await this.readJsonBody(req);
+            const result = this.remoteSessionAuthority.confirmPairing(
+                String(payload.requestId || ''),
+                String(payload.code || ''),
+                this.getRemoteAddress(req),
+            );
+            const origin = this.getRequestOrigin(req);
+            const browserUrl = new URL('/api/remote/browser', origin);
+            browserUrl.searchParams.set('token', result.browserToken);
+            this.sendJsonResponse(res, 200, {
+                extensionToken: result.extensionToken,
+                browserUrl: browserUrl.toString(),
+                expiresAt: result.expiresAt,
+            });
+        } catch (error) {
+            this.sendPairingError(res, error);
+        }
+    }
+
+    private handleBrowserTokenExchange(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+        requestUrl: string,
+    ): void {
+        if (req.method !== 'GET') {
+            this.sendErrorResponse(res, 405, 'Method not allowed');
+            return;
+        }
+        const token = new URL(requestUrl, 'https://codexr.local').searchParams.get('token') || '';
+        const session = this.remoteSessionAuthority.exchangeBrowserToken(token);
+        if (!session) {
+            this.sendErrorResponse(res, 404, 'Resource not found');
+            return;
+        }
+        const secure = this.isRemoteRequest(req) ? '; Secure' : '';
+        res.writeHead(303, {
+            Location: '/',
+            'Cache-Control': 'no-store',
+            'Set-Cookie': `codexr_session=${session.sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200${secure}`,
+        });
+        res.end();
+    }
+
+    private async handleRemoteProfileUpdate(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
+        if (req.method !== 'PUT') {
+            this.sendErrorResponse(res, 405, 'Method not allowed');
+            return;
+        }
+        try {
+            const token = this.readBearerToken(req);
+            const payload = await this.readJsonBody(req);
+            const sessions = this.remoteSessionAuthority.updateExtensionProfile(
+                token,
+                payload.profile as CollaborationProfile,
+            );
+            for (const session of sessions) {
+                this.collaborationRoomServer?.updateSessionProfile(session.sessionId, session.profile);
+            }
+            this.sendJsonResponse(res, 200, { profile: sessions[0]?.profile });
+        } catch {
+            this.sendErrorResponse(res, 404, 'Resource not found');
+        }
+    }
+
+    private servePairingPage(res: http.ServerResponse, requestUrl: string): void {
+        const invitationToken = new URL(requestUrl, 'https://codexr.local')
+            .searchParams.get('invite') || '';
+        if (
+            !/^[a-zA-Z0-9_-]{20,100}$/.test(invitationToken)
+            || !this.remoteSessionAuthority.isInvitationValid(invitationToken)
+        ) {
+            this.sendErrorResponse(res, 404, 'Resource not found');
+            return;
+        }
+        const tokenLiteral = JSON.stringify(invitationToken);
+        const html = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unirse a CodeXR</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#111827;color:#f9fafb;display:grid;place-items:center;min-height:100vh;margin:0}
+main{width:min(440px,calc(100% - 40px));background:#1f2937;border-radius:12px;padding:24px}
+input,button{box-sizing:border-box;width:100%;padding:12px;margin-top:12px;border-radius:7px;border:1px solid #4b5563}
+button{background:#2563eb;color:white;font-weight:600;cursor:pointer}.error{color:#fca5a5}
+fieldset{border:0;padding:0;margin:16px 0}.choice{display:flex;gap:8px;align-items:center;margin-top:10px}.choice input{width:auto;margin:0}
+.hint{color:#cbd5e1;font-size:.92rem}#code,#confirm{display:none}
+</style>
+</head>
+<body><main>
+<h1>Conectar con CodeXR</h1>
+<section id="identity-step">
+<p>Elige como quieres aparecer antes de solicitar acceso.</p>
+<fieldset>
+<label class="choice"><input type="radio" name="identity" value="anonymous" checked> Continuar como anonimo</label>
+<label class="choice"><input type="radio" name="identity" value="custom"> Usar un nombre personalizado</label>
+</fieldset>
+<label for="name">Nombre visible</label>
+<input id="name" maxlength="32" disabled>
+<p id="identity-hint" class="hint">CodeXR te ha reservado este alias anonimo.</p>
+</section>
+<p>Solicita acceso y pide al anfitrión el código temporal de seis cifras.</p>
+<button id="request">Solicitar acceso</button>
+<input id="code" inputmode="numeric" maxlength="6" placeholder="Código de 6 cifras" disabled>
+<button id="confirm" disabled>Conectar</button>
+<p id="status" aria-live="polite"></p>
+</main>
+<script>
+const invitationToken=${tokenLiteral};let requestId='',identityToken='',anonymousAlias='';
+const status=document.querySelector('#status'),code=document.querySelector('#code'),confirmButton=document.querySelector('#confirm'),nameInput=document.querySelector('#name'),requestButton=document.querySelector('#request');
+function selectedMode(){return document.querySelector('input[name="identity"]:checked').value}
+function updateIdentityMode(){const custom=selectedMode()==='custom';nameInput.disabled=!custom;nameInput.value=custom?'':anonymousAlias;document.querySelector('#identity-hint').textContent=custom?'Escribe entre 2 y 32 caracteres.':'CodeXR te ha reservado este alias anonimo.'}
+document.querySelectorAll('input[name="identity"]').forEach(input=>input.onchange=updateIdentityMode);
+async function prepareIdentity(){requestButton.disabled=true;status.textContent='Preparando identidad...';try{const response=await fetch('/api/remote/identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({invitationToken})});if(!response.ok)throw new Error();const data=await response.json();identityToken=data.identityToken;anonymousAlias=data.anonymousAlias;nameInput.value=anonymousAlias;requestButton.disabled=false;status.textContent='';}catch{status.className='error';status.textContent='La invitacion no es valida o ya no esta disponible.'}}
+document.querySelector('#request').onclick=async()=>{status.textContent='Solicitando acceso...';try{
+const mode=selectedMode(),customName=mode==='custom'?nameInput.value:'';
+const response=await fetch('/api/remote/pair/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({invitationToken,clientKind:'browser',identityToken,identityMode:mode,customName})});
+if(!response.ok)throw new Error();const data=await response.json();requestId=data.requestId;code.disabled=false;confirmButton.disabled=false;status.textContent='Solicitud enviada.';
+}catch{status.className='error';status.textContent='Revisa el nombre o solicita una invitacion nueva.'}};
+const submitIdentity=requestButton.onclick;requestButton.onclick=async()=>{await submitIdentity();if(requestId){document.querySelector('#identity-step').style.display='none';requestButton.style.display='none';code.style.display='block';confirmButton.style.display='block';status.className='';status.textContent='Solicitud enviada. Introduce el codigo que te facilite el anfitrion.';}else{status.className='error';status.textContent='Revisa el nombre o solicita una invitacion nueva.'}};
+confirmButton.onclick=async()=>{status.className='';status.textContent='Verificando...';try{
+const response=await fetch('/api/remote/pair/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({requestId,code:code.value})});
+if(!response.ok)throw new Error();const data=await response.json();location.replace(data.browserUrl);
+}catch{status.className='error';status.textContent='Codigo incorrecto, caducado o sin intentos disponibles.'}};
+prepareIdentity();
+</script></body></html>`;
+        res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'",
+        });
+        res.end(html);
+    }
+
+    private readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
+        return new Promise((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            let size = 0;
+            req.on('data', (chunk: Buffer) => {
+                size += chunk.length;
+                if (size > 16 * 1024) {
+                    reject(new Error('request-too-large'));
+                    req.destroy();
+                    return;
+                }
+                chunks.push(chunk);
+            });
+            req.on('end', () => {
+                try {
+                    const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+                    resolve(parsed && typeof parsed === 'object' ? parsed : {});
+                } catch {
+                    reject(new Error('invalid-json'));
+                }
+            });
+            req.on('error', reject);
+        });
+    }
+
+    private getRequestOrigin(req: http.IncomingMessage): string {
+        if (this.isRemoteRequest(req) && this.remotePublicUrl) {
+            return this.remotePublicUrl;
+        }
+        const forwardedProtocol = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+        const protocol = forwardedProtocol || (this.isRemoteRequest(req) ? 'https' : 'http');
+        return `${protocol}://${req.headers.host || `localhost:${this.config.port}`}`;
+    }
+
+    private getRemoteAddress(req: http.IncomingMessage): string {
+        return String(req.headers['cf-connecting-ip'] || req.socket.remoteAddress || 'unknown').slice(0, 120);
+    }
+
+    private readBearerToken(req: http.IncomingMessage): string {
+        const authorization = String(req.headers.authorization || '');
+        return authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    }
+
+    private sendPairingError(res: http.ServerResponse, error: unknown): void {
+        const code = error instanceof Error ? error.message : '';
+        if (code === 'too-many-pairing-requests') {
+            this.sendErrorResponse(res, 429, 'Too many pending requests');
+            return;
+        }
+        if (code === 'invalid-pairing-code') {
+            this.sendErrorResponse(res, 401, 'Invalid pairing code');
+            return;
+        }
+        if (code === 'pairing-attempts-exceeded') {
+            this.sendErrorResponse(res, 429, 'Pairing attempts exceeded');
+            return;
+        }
+        if (code === 'pairing-expired') {
+            this.sendErrorResponse(res, 410, 'Pairing request expired');
+            return;
+        }
+        if (code === 'invalid-profile') {
+            this.sendErrorResponse(res, 400, 'Invalid collaboration profile');
+            return;
+        }
+        if (code === 'invalid-browser-identity') {
+            this.sendErrorResponse(res, 401, 'Invalid browser identity');
+            return;
+        }
+        this.sendErrorResponse(res, 404, 'Resource not found');
     }
 
     /**
@@ -553,14 +1008,115 @@ export class HttpServer {
             return;
         }
         this.upgradeAttached = true;
-        this.collaborationRoomServer = new CollaborationRoomServer(server);
-        this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(server);
+        this.collaborationRoomServer = new CollaborationRoomServer(server, '/codexr-room', {
+            authorizeUpgrade: (request) => this.isWebSocketAuthorized(request),
+            resolveSession: (request) => this.remoteSessionAuthority.resolveCookie(request.headers.cookie),
+            handleApplicationMessage: async (messageContext, message) => {
+                if (!this.historicalComparisonService) {
+                    return false;
+                }
+                if (message.type === 'historical-comparison-references-request') {
+                    try {
+                        const references = await this.historicalComparisonService.getReferences();
+                        messageContext.send({
+                            type: 'historical-comparison-references',
+                            payload: references,
+                        });
+                    } catch (error) {
+                        messageContext.send({
+                            type: 'historical-comparison-error',
+                            payload: {
+                                code: 'references-unavailable',
+                                message: error instanceof Error ? error.message : String(error),
+                            },
+                        });
+                    }
+                    return true;
+                }
+                if (message.type === 'historical-comparison-start') {
+                    if (this.historicalComparisonService.isBusy()) {
+                        messageContext.send({
+                            type: 'historical-comparison-error',
+                            payload: {
+                                code: 'comparison-busy',
+                                message: 'Another historical comparison is already running.',
+                            },
+                        });
+                        return true;
+                    }
+                    const request: HistoricalComparisonRequest = {
+                        leftSourceId: String(message.payload?.leftSourceId || ''),
+                        rightSourceId: String(message.payload?.rightSourceId || ''),
+                    };
+                    void this.historicalComparisonService.compare(request, (progress) => {
+                        messageContext.broadcast({
+                            type: 'historical-comparison-progress',
+                            payload: progress,
+                        });
+                    }).then((result) => {
+                        messageContext.upsertSharedEntity({
+                            entityKind: 'historical-comparison',
+                            entityId: 'main',
+                            mode: 'historical-compare',
+                            result,
+                        });
+                    }).catch((error) => {
+                        messageContext.broadcast({
+                            type: 'historical-comparison-error',
+                            payload: {
+                                code: error instanceof Error ? error.message : 'comparison-failed',
+                                message: error instanceof Error ? error.message : String(error),
+                            },
+                        });
+                    });
+                    return true;
+                }
+                if (message.type === 'historical-comparison-reset') {
+                    this.historicalComparisonService.clearActiveComparison();
+                    messageContext.upsertSharedEntity({
+                        entityKind: 'historical-comparison',
+                        entityId: 'main',
+                        mode: 'single',
+                        result: null,
+                    });
+                    return true;
+                }
+                return false;
+            },
+        });
+        const profileManager = CollaborationProfileManager.getInstance();
+        this.collaborationProfileSubscription = profileManager?.onDidChange((configuration) => {
+            const sessions = this.remoteSessionAuthority.updateInstallationProfile(
+                profileManager.getInstallationId(),
+                configuration.profile,
+            );
+            for (const session of sessions) {
+                this.collaborationRoomServer?.updateSessionProfile(session.sessionId, session.profile);
+            }
+        }) || null;
+        this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(
+            server,
+            '/codexr-broadcast',
+            (request) => this.isWebSocketAuthorized(request),
+        );
     }
 
-    private buildCollaborationSessionDescriptor(): Record<string, unknown> {
+    private async buildCollaborationSessionDescriptor(
+        req: http.IncomingMessage,
+    ): Promise<Record<string, unknown>> {
         const fileUri = fileToServerMap.findFileByPort(this.config.port);
         const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
         const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
+        const collaborationConfiguration = CollaborationProfileManager.getInstance()?.getConfiguration()
+            || this.getDefaultCollaborationConfiguration();
+        const session = this.remoteSessionAuthority.resolveCookie(req.headers.cookie);
+        const profile = session?.profile || DEFAULT_COLLABORATION_PROFILE;
+        const historicalComparison = this.historicalComparisonService
+            ? await this.historicalComparisonService.getAvailability()
+            : {
+                enabled: false,
+                reason: 'Historical comparison is not available for this server.',
+            };
 
         return {
             roomId: `codexr-session:${activeServerId}`,
@@ -570,9 +1126,77 @@ export class HttpServer {
                 collaboration: true,
                 presence: true,
                 media: true,
+                historicalComparison: historicalComparison.enabled,
+                historicalComparisonReason: historicalComparison.reason,
             },
             roomSocketPath: '/codexr-room',
             broadcastSocketPath: '/codexr-broadcast',
+            collaborationProfile: profile,
+            avatarModelAvailable: collaborationConfiguration.avatarModelAvailable,
+            profileRevision: collaborationConfiguration.revision,
+        };
+    }
+
+    private getCollaborationRoomId(): string {
+        const fileUri = fileToServerMap.findFileByPort(this.config.port);
+        const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
+        const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
+        return `codexr-session:${activeServerId}`;
+    }
+
+    private scheduleHistoricalComparisonRefresh(): void {
+        if (!this.historicalComparisonService?.hasLiveSource()) {
+            return;
+        }
+        this.historicalRefreshQueued = true;
+        if (this.historicalRefreshTimer) {
+            clearTimeout(this.historicalRefreshTimer);
+        }
+        this.historicalRefreshTimer = setTimeout(() => {
+            this.historicalRefreshTimer = null;
+            void this.refreshHistoricalComparison();
+        }, 350);
+    }
+
+    private async refreshHistoricalComparison(): Promise<void> {
+        if (!this.historicalComparisonService || !this.historicalRefreshQueued) {
+            return;
+        }
+        this.historicalRefreshQueued = false;
+        if (this.historicalComparisonService.isBusy()) {
+            this.scheduleHistoricalComparisonRefresh();
+            return;
+        }
+        try {
+            const result = await this.historicalComparisonService.refreshActiveComparison((progress) => {
+                this.collaborationRoomServer?.broadcastServerMessage(this.getCollaborationRoomId(), {
+                    type: 'historical-comparison-progress',
+                    payload: progress,
+                });
+            });
+            if (result) {
+                this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                    entityKind: 'historical-comparison',
+                    entityId: 'main',
+                    mode: 'historical-compare',
+                    result,
+                });
+            }
+        } catch (error) {
+            console.error('[CodeXR][HistoricalComparison] Live refresh failed:', error);
+            this.scheduleHistoricalComparisonRefresh();
+        }
+    }
+
+    private getDefaultCollaborationConfiguration(): CollaborationConfiguration {
+        return {
+            profile: {
+                identityMode: 'anonymous',
+                customName: '',
+                avatarId: 'avatar-1',
+            },
+            avatarModelAvailable: false,
+            revision: 0,
         };
     }
 }

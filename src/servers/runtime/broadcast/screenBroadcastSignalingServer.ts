@@ -48,6 +48,7 @@ export class ScreenBroadcastSignalingServer {
     constructor(
         private readonly server: http.Server,
         path = '/codexr-broadcast',
+        private readonly authorizeUpgrade: (request: http.IncomingMessage) => boolean = () => true,
     ) {
         this.path = path.startsWith('/') ? path : `/${path}`;
         this.socketServer = new WebSocketServer({ noServer: true });
@@ -82,6 +83,10 @@ export class ScreenBroadcastSignalingServer {
     private handleUpgrade(req: http.IncomingMessage, socket: net.Socket, head: Buffer): void {
         const pathname = new URL(req.url || '/', 'http://codexr.local').pathname;
         if (pathname !== this.path) {
+            return;
+        }
+        if (!this.authorizeUpgrade(req)) {
+            socket.destroy();
             return;
         }
 

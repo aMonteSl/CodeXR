@@ -2,8 +2,10 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TemplateHTMLProcessor, HTMLTemplateData } from '../../../babia_templates/processing/templateHTMLProcessor';
 import {
+    CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME,
+    readCodeXrAvatarRuntimeContent,
     readCodeXrCollaborationRuntimeContent,
     readCodeXrDomSceneCollaborationRuntimeContent,
     readVirtualScreenManagerRuntimeContent,
@@ -109,6 +111,9 @@ export class VisualizeDOMParser {
             // Add main.js from templateHTMLProcessor 
             resultFiles.set('main.js', processingResult.jsContent);
             console.log(`VISUALIZE_DOM_PARSER:  Added main.js (${processingResult.jsContent.length} chars)`);
+            const avatarRuntime = await readCodeXrAvatarRuntimeContent(this.context.extensionPath);
+            resultFiles.set(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME, avatarRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_AVATAR_RUNTIME_OUTPUT_NAME} (${avatarRuntime.length} chars)`);
             const collaborationRuntime = await readCodeXrCollaborationRuntimeContent(this.context.extensionPath);
             resultFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME} (${collaborationRuntime.length} chars)`);

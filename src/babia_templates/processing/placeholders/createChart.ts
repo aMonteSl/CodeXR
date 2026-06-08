@@ -137,7 +137,7 @@ export class CreateChart {
                                  zone_elevation: 0.01;
                                  height_quarter_legend_box: 0.01;
                                  height_quarter_legend_title: 2.5"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="0.01 0.05 0.01"

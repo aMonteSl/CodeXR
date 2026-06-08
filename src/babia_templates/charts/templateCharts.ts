@@ -10,8 +10,8 @@ export const DEFAULT_BOATS_LEGEND_TEXT = `{name}
 {fcolor} (color): {color}`;
 
 export const XR_TABLE_BOOTSTRAP_PLANAR_MAX = 0.84;
-export const XR_TABLE_STEADY_PLANAR_MIN = 1.30;
-export const XR_TABLE_STEADY_PLANAR_MAX = 1.35;
+export const XR_TABLE_STEADY_PLANAR_MIN = 0.78;
+export const XR_TABLE_STEADY_PLANAR_MAX = 0.92;
 export const XR_TABLE_HEIGHT_BAND_MIN = 0.38;
 export const XR_TABLE_HEIGHT_BAND_MAX = 0.72;
 
@@ -19,7 +19,7 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            anchorX: 0;
                                            anchorY: 1;
                                            anchorZ: -18;
-                                           uiDockEnabled: false;
+                                           tableTopPadding: 0.9;
                                            targetWidth: 5.614;
                                            targetHeight: 1.8;
                                            targetDepth: 3.218;
@@ -33,7 +33,7 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            yScaleMin: 0.01;
                                            yScaleMax: 4;
                                            containmentToleranceRatio: 0.018;
-                                           periodicContainmentEnabled: false;
+                                           periodicContainmentEnabled: true;
                                            stabilizationCheckMs: 140;
                                            stabilizationMaxChecks: 14;
                                            stabilizationStablePasses: 3`;
@@ -72,7 +72,7 @@ export const chartTemplates: ChartMetadata[] = [
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
                                 axis_name: true"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -122,7 +122,7 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    axis_name: true"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -173,7 +173,7 @@ export const chartTemplates: ChartMetadata[] = [
                                 radius: {{RADIUS_FIELD}};
                                 axis_name: true;
                                 radiusMax: 1;"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -233,7 +233,7 @@ export const chartTemplates: ChartMetadata[] = [
                                    radius: {{RADIUS_FIELD}};
                                    axis_name: true;
                                    radiusMax: 1;"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -275,7 +275,7 @@ export const chartTemplates: ChartMetadata[] = [
                                  key: {{KEY_FIELD}};
                                  size: {{SIZE_FIELD}};
                                  axis_name: true"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="90 0 0"
                     scale="1.5 1.5 1.5"
@@ -317,7 +317,7 @@ export const chartTemplates: ChartMetadata[] = [
                                key: {{KEY_FIELD}};
                                size: {{SIZE_FIELD}};
                                axis_name: true"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="90 0 0"
                     scale="1.5 1.5 1.5"
@@ -377,7 +377,7 @@ export const chartTemplates: ChartMetadata[] = [
                                    heightMax: 5;
                                    radiusMax: 1;"
 
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="1.5 1.5 1.5"
@@ -435,7 +435,7 @@ export const chartTemplates: ChartMetadata[] = [
                                  zone_elevation: 0.01;
                                  height_quarter_legend_box: 0.01;
                                  height_quarter_legend_title: 2.5"
-                    codexr-chart-pedestal="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
                     scale="0.01 0.05 0.01"

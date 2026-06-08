@@ -16,10 +16,14 @@ import { SHA256Generator } from '../../../utils/sha256Generator';
 import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 import {
-    CHART_PEDESTAL_RUNTIME_OUTPUT_NAME,
+    ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
+    HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
-    readChartPedestalRuntimeContent,
+    readAnalysisTableRuntimeContent,
+    readHistoricalComparisonRuntimeContent,
+    readCodeXrAvatarRuntimeContent,
     readCodeXrCollaborationRuntimeContent,
     readCodeXrRoomRuntimeContent,
     readCodeXrRoomTextureContents,
@@ -117,24 +121,28 @@ export class DirectoryXRParser {
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
             const virtualScreenRuntimeContent = await readVirtualScreenRuntimeContent(context.extensionPath);
             const virtualScreenManagerRuntimeContent = await readVirtualScreenManagerRuntimeContent(context.extensionPath);
+            const avatarRuntimeContent = await readCodeXrAvatarRuntimeContent(context.extensionPath);
             const collaborationRuntimeContent = await readCodeXrCollaborationRuntimeContent(context.extensionPath);
             const codexrRoomRuntimeContent = await readCodeXrRoomRuntimeContent(context.extensionPath);
             const xrChartMappingUiRuntimeContent = await readXrChartMappingUiRuntimeContent(context.extensionPath);
             const xrChartDebugRuntimeContent = await readXrChartDebugRuntimeContent(context.extensionPath);
-            const chartPedestalRuntimeContent = await readChartPedestalRuntimeContent(context.extensionPath);
+            const analysisTableRuntimeContent = await readAnalysisTableRuntimeContent(context.extensionPath);
+            const historicalComparisonRuntimeContent = await readHistoricalComparisonRuntimeContent(context.extensionPath);
             const codexrRoomTextures = await readCodeXrRoomTextureContents(context.extensionPath);
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', htmlContent);
             generatedFiles.set('main.js', jsContent);
+            generatedFiles.set(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME, avatarRuntimeContent);
             generatedFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent);
             generatedFiles.set(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent);
             generatedFiles.set(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, xrChartMappingUiRuntimeContent);
             generatedFiles.set(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME, xrChartDebugRuntimeContent);
-            generatedFiles.set(CHART_PEDESTAL_RUNTIME_OUTPUT_NAME, chartPedestalRuntimeContent);
+            generatedFiles.set(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent);
+            generatedFiles.set(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
             codexrRoomTextures.forEach((asset) => {
                 generatedFiles.set(asset.relativeOutputPath, asset.content);

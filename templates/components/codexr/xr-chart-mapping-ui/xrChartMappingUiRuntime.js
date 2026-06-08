@@ -50,7 +50,11 @@
     statusMessage: '',
     statusLevel: 'info',
     statusClearTimer: null,
-    suppressSharedPublish: false
+    suppressSharedPublish: false,
+    chartEntityIdsOverride: null,
+    activePanelView: 'mapping',
+    mappingPanelHeight: 2.45,
+    panelViews: {}
   };
 
   var ADAPTIVE_DEFAULTS = {
@@ -381,7 +385,24 @@
   }
 
   function getChartEntity(config) {
-    return getDoc().getElementById(config.chartEntityId || '');
+    var entities = getChartEntities(config);
+    return entities.length ? entities[0] : null;
+  }
+
+  function getChartEntities(config) {
+    var document = getDoc();
+    if (!document || !config) {
+      return [];
+    }
+    var ids = Array.isArray(state.chartEntityIdsOverride) && state.chartEntityIdsOverride.length
+      ? state.chartEntityIdsOverride
+      : (Array.isArray(config.chartEntityIds) && config.chartEntityIds.length
+        ? config.chartEntityIds
+        : [config.chartEntityId]);
+    return ids
+      .filter(Boolean)
+      .map(function (id) { return document.getElementById(id); })
+      .filter(Boolean);
   }
 
   function cloneMapping(mapping) {
@@ -401,6 +422,25 @@
 
   function getChartComponentName(config) {
     return COMPONENT_BY_CHART[(config && config.chartId) || ''] || null;
+  }
+
+  function buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot) {
+    var currentData = chartEntity && componentName
+      ? chartEntity.getAttribute(componentName)
+      : null;
+    var preservedData = currentData && typeof currentData === 'object' && !Array.isArray(currentData)
+      ? currentData
+      : {};
+    return Object.assign({}, preservedData, mappingSnapshot || {});
+  }
+
+  function applyMappingToCharts(chartEntities, componentName, mappingSnapshot) {
+    chartEntities.forEach(function (chartEntity) {
+      chartEntity.setAttribute(
+        componentName,
+        buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot)
+      );
+    });
   }
 
   function getDimensionConfig(config, dimensionId) {
@@ -473,35 +513,40 @@
   }
 
   function applyMappingSnapshot(config, mappingSnapshot, reason) {
-    var chartEntity = getChartEntity(config);
+    var chartEntities = getChartEntities(config);
     var componentName = getChartComponentName(config);
-    if (!chartEntity || !componentName || !mappingSnapshot) {
+    if (!chartEntities.length || !componentName || !mappingSnapshot) {
       return false;
     }
 
-    chartEntity.setAttribute(componentName, mappingSnapshot);
+    applyMappingToCharts(chartEntities, componentName, mappingSnapshot);
     state.selectedByDimension = cloneMapping(mappingSnapshot);
-    requestChartPedestalRenormalize(reason || 'mapping-ui-snapshot');
+    requestChartContainmentRenormalize(reason || 'mapping-ui-snapshot');
     return true;
   }
 
   function inspectChartStatus(config) {
-    var chartEntity = getChartEntity(config);
-    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime;
-    if (!chartEntity) {
+    var chartEntities = getChartEntities(config);
+    var analysisTableRuntime = root.CodeXRAnalysisTableRuntime;
+    if (!chartEntities.length) {
       return { ready: false, valid: false, reason: 'chart-not-found' };
     }
-    if (!chartPedestalRuntime || typeof chartPedestalRuntime.getChartStatus !== 'function') {
-      return { ready: true, valid: true, reason: 'pedestal-runtime-unavailable' };
+    if (!analysisTableRuntime || typeof analysisTableRuntime.getChartStatus !== 'function') {
+      return { ready: true, valid: true, reason: 'containment-runtime-unavailable' };
     }
-    return chartPedestalRuntime.getChartStatus(chartEntity);
+    var statuses = chartEntities.map(function (chartEntity) {
+      return analysisTableRuntime.getChartStatus(chartEntity);
+    });
+    var pending = statuses.find(function (status) { return !status || status.ready === false; });
+    if (pending) {
+      return pending;
+    }
+    return statuses.find(function (status) { return status.valid === false; })
+      || { ready: true, valid: true, reason: 'ok' };
   }
 
   function getSharedMappingEntityId(config) {
-    var chartEntity = getChartEntity(config);
-    var baseId = chartEntity && chartEntity.id
-      ? chartEntity.id
-      : config && (config.chartEntityId || config.chartSelector || config.chartId)
+    var baseId = config && (config.chartEntityId || config.chartSelector || config.chartId)
         ? String(config.chartEntityId || config.chartSelector || config.chartId)
         : 'default-chart';
     return String(baseId).replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -541,6 +586,7 @@
       state.lastKnownGoodMapping = cloneMapping(snapshot.selectedByDimension);
       applyMappingSnapshot(config, snapshot.selectedByDimension, 'mapping-ui-room-sync');
       renderRows(config);
+      notifyMappingConfirmed(state.lastKnownGoodMapping);
       return true;
     } finally {
       state.suppressSharedPublish = false;
@@ -569,6 +615,24 @@
     });
   }
 
+  function notifyMappingConfirmed(mapping) {
+    var document = getDoc();
+    if (!document || typeof document.dispatchEvent !== 'function') {
+      return;
+    }
+    var detail = {
+      selectedByDimension: cloneMapping(mapping || {})
+    };
+    if (typeof root.CustomEvent === 'function') {
+      document.dispatchEvent(new root.CustomEvent('codexr-mapping-confirmed', { detail: detail }));
+      return;
+    }
+    document.dispatchEvent({
+      type: 'codexr-mapping-confirmed',
+      detail: detail
+    });
+  }
+
   function confirmPendingMapping(config, token) {
     if (!state.pendingMapping || state.pendingMapping.token !== token) {
       return;
@@ -582,6 +646,7 @@
       selectedByDimension: state.lastKnownGoodMapping
     });
     publishSharedMappingState(config);
+    notifyMappingConfirmed(state.lastKnownGoodMapping);
   }
 
   function revertPendingMapping(config, token, reason) {
@@ -607,35 +672,71 @@
     renderRows(config);
   }
 
-  function evaluatePendingMapping(config, token, isFinalAttempt) {
+  function evaluatePendingMapping(config, token, result) {
     if (!state.pendingMapping || state.pendingMapping.token !== token) {
       return;
     }
 
-    var status = inspectChartStatus(config);
-    if (!status || status.ready === false) {
-      if (isFinalAttempt) {
-        revertPendingMapping(config, token, 'The chart could not stabilize after remapping.');
-      }
-      return;
-    }
-
-    if (status.valid) {
+    if (result && result.valid) {
       confirmPendingMapping(config, token);
+      if (!result.stabilized) {
+        setStatusMessage(
+          'The mapping is valid; CodeXR will keep stabilizing the chart in the background.',
+          'info',
+          2600
+        );
+      }
       renderRows(config);
       return;
     }
 
-    revertPendingMapping(config, token, status.message || 'The selected mapping produced invalid chart geometry.');
+    if (result && result.state === 'invalid') {
+      var invalidStatus = (result.statuses || []).find(function (status) {
+        return status && status.valid === false && status.ready === true;
+      });
+      revertPendingMapping(
+        config,
+        token,
+        invalidStatus?.message || 'The selected mapping produced invalid chart geometry.'
+      );
+      return;
+    }
+
+    applyMappingSnapshot(config, state.pendingMapping.previousMapping, 'mapping-ui-timeout-revert');
+    state.pendingMapping = null;
+    setStatusMessage(
+      'The chart did not finish rebuilding. CodeXR restored the previous mapping; you can try this field again.',
+      'error',
+      4800
+    );
+    renderRows(config);
   }
 
   function schedulePendingMappingValidation(config, token) {
     clearPendingValidationTimers();
-    [120, 360, 720, 1200].forEach(function (delay, index, allDelays) {
+    var runtime = root.CodeXRAnalysisTableRuntime;
+    var chartIds = getChartEntities(config).map(function (entity) { return entity.id; }).filter(Boolean);
+    requestChartContainmentRenormalize('mapping-ui-validation-start');
+    if (!runtime || typeof runtime.waitForChartsStable !== 'function') {
       var timer = setTimeout(function () {
-        evaluatePendingMapping(config, token, index === allDelays.length - 1);
-      }, delay);
+        var status = inspectChartStatus(config);
+        evaluatePendingMapping(config, token, {
+          state: status && status.valid ? 'valid-timeout' : 'invalid',
+          valid: !!(status && status.valid),
+          stabilized: false,
+          statuses: status ? [status] : []
+        });
+      }, 1200);
       state.pendingValidationTimers.push(timer);
+      return;
+    }
+
+    runtime.waitForChartsStable(chartIds, {
+      timeoutMs: 10000,
+      pollMs: 120,
+      stablePasses: 2
+    }).then(function (result) {
+      evaluatePendingMapping(config, token, result);
     });
   }
 
@@ -647,15 +748,15 @@
     console.log('[Re-size] ' + label);
   }
 
-  function requestChartPedestalRenormalize(reason) {
-    var chartPedestalRuntime = root.CodeXRChartPedestalRuntime;
-    if (!chartPedestalRuntime || typeof chartPedestalRuntime.renormalizeAll !== 'function') {
+  function requestChartContainmentRenormalize(reason) {
+    var analysisTableRuntime = root.CodeXRAnalysisTableRuntime;
+    if (!analysisTableRuntime || typeof analysisTableRuntime.renormalizeAll !== 'function') {
       return;
     }
 
     var nextFrame = root.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); };
     nextFrame(function () {
-      chartPedestalRuntime.renormalizeAll(reason || 'mapping-ui-change');
+      analysisTableRuntime.renormalizeAll(reason || 'mapping-ui-change');
     });
 
     if (state.delayedRenormalizeTimer) {
@@ -663,18 +764,18 @@
     }
     state.delayedRenormalizeTimer = setTimeout(function () {
       state.delayedRenormalizeTimer = null;
-      chartPedestalRuntime.renormalizeAll((reason || 'mapping-ui-change') + '-settled');
+      analysisTableRuntime.renormalizeAll((reason || 'mapping-ui-change') + '-settled');
     }, 300);
   }
 
   function applyDimensionSelection(config, dimensionId, fieldName, options) {
-    var chartEntity = getChartEntity(config);
+    var chartEntities = getChartEntities(config);
     var componentName = getChartComponentName(config);
     var alreadySelected = state.selectedByDimension[dimensionId] === fieldName;
     var forceSelection = !!(options && options.force === true);
     var invalidOptionReason = getInvalidOptionReason(dimensionId, fieldName);
 
-    if (!chartEntity || !componentName) {
+    if (!chartEntities.length || !componentName) {
       return false;
     }
 
@@ -698,7 +799,7 @@
     var nextMapping = cloneMapping(previousMapping);
     nextMapping[dimensionId] = fieldName;
 
-    chartEntity.setAttribute(componentName, nextMapping);
+    applyMappingToCharts(chartEntities, componentName, nextMapping);
 
     state.selectedByDimension = cloneMapping(nextMapping);
     clearStatusTimer();
@@ -721,7 +822,7 @@
     }
 
     if (!options || options.renormalize !== false) {
-      requestChartPedestalRenormalize('mapping-ui-change');
+      requestChartContainmentRenormalize('mapping-ui-change');
     }
 
     return true;
@@ -753,6 +854,204 @@
       refs.panelContent.setAttribute('visible', state.visible);
     }
     syncToggleLabel(config);
+  }
+
+  function setEntityInteractionEnabled(entity, enabled) {
+    if (!entity) {
+      return;
+    }
+    var controls = [entity].concat(
+      entity.querySelectorAll
+        ? Array.prototype.slice.call(entity.querySelectorAll('[data-codexr-interactive="true"]'))
+        : []
+    );
+    controls.forEach(function (control) {
+      if (!control || !control.classList) {
+        return;
+      }
+      if (enabled) {
+        control.classList.add('babiaxraycasterclass');
+      } else {
+        control.classList.remove('babiaxraycasterclass');
+      }
+    });
+  }
+
+  function applyPanelHeight(panelHeight) {
+    var height = Math.max(2.45, Number(panelHeight) || 2.45);
+    if (refs.panelBackground) {
+      refs.panelBackground.setAttribute('height', height);
+    }
+    if (refs.panelBorder) {
+      refs.panelBorder.setAttribute('height', height + 0.05);
+    }
+    if (refs.panelTitleBackdrop) {
+      refs.panelTitleBackdrop.setAttribute('position', '0 ' + (height * 0.5 + 0.23) + ' 0.02');
+    }
+    if (refs.panelTitle) {
+      refs.panelTitle.setAttribute('position', '0 ' + (height * 0.5 + 0.23) + ' 0.03');
+    }
+    if (refs.rowsRoot) {
+      refs.rowsRoot.setAttribute('position', '-0.05 ' + (height * 0.45 - 0.4) + ' 0.02');
+    }
+    if (refs.statusText) {
+      refs.statusText.setAttribute('position', '-2.85 ' + (-height * 0.5 + 0.36) + ' 0.03');
+    }
+    if (refs.toggle) {
+      refs.toggle.setAttribute('position', '2.95 ' + (height * 0.5 + 0.17) + ' 0.04');
+    }
+    Object.keys(state.panelViews).forEach(function (viewId, index) {
+      var view = state.panelViews[viewId];
+      view.button?.setAttribute(
+        'position',
+        (2.53 - (index * 0.42)) + ' ' + (height * 0.5 + 0.17) + ' 0.04'
+      );
+    });
+  }
+
+  function syncPanelViewButtons() {
+    Object.keys(state.panelViews).forEach(function (viewId) {
+      var view = state.panelViews[viewId];
+      var active = state.activePanelView === viewId;
+      view.button?.setAttribute('material', {
+        color: active ? '#be123c' : '#0e7490',
+        opacity: 0.98,
+        shader: 'flat',
+        transparent: true
+      });
+      view.button?.setAttribute('text', {
+        value: active ? 'M' : view.buttonLabel,
+        align: 'center',
+        color: '#ffffff',
+        width: 1,
+        baseline: 'center',
+        anchor: 'center'
+      });
+    });
+  }
+
+  function showPanelView(viewId) {
+    var targetView = viewId && viewId !== 'mapping' ? state.panelViews[viewId] : null;
+    var nextViewId = targetView ? viewId : 'mapping';
+    var previousView = state.panelViews[state.activePanelView];
+    if (previousView && previousView.id !== nextViewId) {
+      previousView.content.setAttribute('visible', false);
+      setEntityInteractionEnabled(previousView.content, false);
+      previousView.onHide?.();
+    }
+
+    state.activePanelView = nextViewId;
+    if (refs.rowsRoot) {
+      refs.rowsRoot.setAttribute('visible', nextViewId === 'mapping');
+      setEntityInteractionEnabled(refs.rowsRoot, nextViewId === 'mapping');
+    }
+    if (refs.statusText) {
+      refs.statusText.setAttribute('visible', nextViewId === 'mapping' && !!state.statusMessage);
+    }
+
+    if (nextViewId === 'mapping') {
+      if (refs.panelTitle) {
+        refs.panelTitle.setAttribute('value', 'CodeXR Field Mapping');
+      }
+      Object.keys(state.panelViews).forEach(function (registeredViewId) {
+        state.panelViews[registeredViewId].content.setAttribute('visible', false);
+        setEntityInteractionEnabled(state.panelViews[registeredViewId].content, false);
+      });
+      applyPanelHeight(state.mappingPanelHeight);
+    } else {
+      targetView.content.setAttribute('visible', true);
+      setEntityInteractionEnabled(targetView.content, true);
+      if (refs.panelTitle) {
+        refs.panelTitle.setAttribute('value', targetView.title);
+      }
+      applyPanelHeight(targetView.panelHeight);
+      targetView.onShow?.();
+    }
+
+    setVisible(getConfig() || {}, true);
+    syncPanelViewButtons();
+    return nextViewId;
+  }
+
+  function registerPanelView(options) {
+    if (!options || !options.id || !options.content || !refs.panel || !refs.panelContent) {
+      return function () {};
+    }
+    var viewId = String(options.id);
+    var existing = state.panelViews[viewId];
+    if (existing) {
+      existing.button?.remove();
+      existing.content?.remove();
+    }
+
+    var content = options.content;
+    content.setAttribute('visible', false);
+    setEntityInteractionEnabled(content, false);
+    refs.panelContent.appendChild(content);
+    var button = createEntity('a-plane', {
+      id: 'codexrMappingUiView-' + viewId,
+      class: 'babiaxraycasterclass codexr-mapping-ui-view-toggle',
+      'data-codexr-interactive': 'true',
+      width: 0.34,
+      height: 0.34
+    });
+    refs.panel.appendChild(button);
+
+    state.panelViews[viewId] = {
+      id: viewId,
+      title: String(options.title || viewId),
+      buttonLabel: String(options.buttonLabel || 'V').slice(0, 1).toUpperCase(),
+      panelHeight: Math.max(2.45, Number(options.panelHeight) || 2.45),
+      content: content,
+      button: button,
+      onShow: typeof options.onShow === 'function' ? options.onShow : null,
+      onHide: typeof options.onHide === 'function' ? options.onHide : null
+    };
+    button.addEventListener('click', function () {
+      showPanelView(state.activePanelView === viewId ? 'mapping' : viewId);
+    });
+    applyPanelHeight(state.activePanelView === 'mapping'
+      ? state.mappingPanelHeight
+      : state.panelViews[state.activePanelView]?.panelHeight);
+    syncPanelViewButtons();
+
+    return function () {
+      var view = state.panelViews[viewId];
+      if (!view) {
+        return;
+      }
+      if (state.activePanelView === viewId) {
+        showPanelView('mapping');
+      }
+      view.button?.remove();
+      view.content?.remove();
+      delete state.panelViews[viewId];
+      applyPanelHeight(state.mappingPanelHeight);
+    };
+  }
+
+  function setPanelViewTitle(viewId, title) {
+    var view = state.panelViews[String(viewId || '')];
+    if (!view) {
+      return false;
+    }
+    view.title = String(title || view.title);
+    if (state.activePanelView === view.id && refs.panelTitle) {
+      refs.panelTitle.setAttribute('value', view.title);
+    }
+    return true;
+  }
+
+  function setPanelViewHeight(viewId, panelHeight) {
+    var view = state.panelViews[String(viewId || '')];
+    if (!view) {
+      return false;
+    }
+    view.panelHeight = Math.max(2.45, Number(panelHeight) || view.panelHeight);
+    if (state.activePanelView === view.id) {
+      applyPanelHeight(view.panelHeight);
+    }
+    return true;
   }
 
   function renderRows(config) {
@@ -802,6 +1101,7 @@
 
         var button = createEntity('a-plane', {
           class: 'babiaxraycasterclass codexr-mapping-ui-option',
+          'data-codexr-interactive': 'true',
           color: isActive ? '#be123c' : (isDisabled ? '#334155' : '#1e3a5f'),
           width: buttonWidth,
           height: 0.22,
@@ -835,26 +1135,12 @@
       cursorY -= Math.ceil(fields.length / cols) * 0.28 + 0.2;
     });
 
-    var statusOffsetY = -0.36;
     var panelHeight = Math.max(2.45, Math.abs(cursorY) + 0.92);
-    if (refs.panelBackground) {
-      refs.panelBackground.setAttribute('height', panelHeight);
-    }
-    if (refs.panelBorder) {
-      refs.panelBorder.setAttribute('height', panelHeight + 0.05);
-    }
-    if (refs.panelTitleBackdrop) {
-      refs.panelTitleBackdrop.setAttribute('position', '0 ' + (panelHeight * 0.5 + 0.23) + ' 0.02');
-    }
-    if (refs.panelTitle) {
-      refs.panelTitle.setAttribute('position', '0 ' + (panelHeight * 0.5 + 0.23) + ' 0.03');
-    }
-
-    if (refs.rowsRoot) {
-      refs.rowsRoot.setAttribute('position', '-0.05 ' + (panelHeight * 0.45 - 0.4) + ' 0.02');
+    state.mappingPanelHeight = panelHeight;
+    if (state.activePanelView === 'mapping') {
+      applyPanelHeight(panelHeight);
     }
     if (refs.statusText) {
-      refs.statusText.setAttribute('position', '-2.85 ' + (-panelHeight * 0.5 + Math.abs(statusOffsetY)) + ' 0.03');
       updateStatusText();
     }
   }
@@ -1049,7 +1335,7 @@
       }
     });
 
-    requestChartPedestalRenormalize('mapping-ui-restore');
+    requestChartContainmentRenormalize('mapping-ui-restore');
     setVisible(config, state.visible);
     renderRows(config);
     return true;
@@ -1087,8 +1373,23 @@
       }
       setVisible(config, visible);
     },
+    registerPanelView: registerPanelView,
+    showPanelView: showPanelView,
+    setPanelViewTitle: setPanelViewTitle,
+    setPanelViewHeight: setPanelViewHeight,
+    getActivePanelView: function () {
+      return state.activePanelView;
+    },
+    setChartEntityIds: function (chartEntityIds) {
+      state.chartEntityIdsOverride = Array.isArray(chartEntityIds)
+        ? chartEntityIds.filter(Boolean).map(String)
+        : null;
+      requestChartContainmentRenormalize('mapping-ui-targets-changed');
+      return state.chartEntityIdsOverride ? state.chartEntityIdsOverride.slice() : [];
+    },
     __testing: {
-      getInvalidOptionReason: getInvalidOptionReason
+      getInvalidOptionReason: getInvalidOptionReason,
+      buildChartComponentUpdate: buildChartComponentUpdate
     }
   };
 

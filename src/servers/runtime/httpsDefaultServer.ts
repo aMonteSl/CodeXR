@@ -4,9 +4,11 @@ import * as path from 'path';
 import { X509Certificate } from 'crypto';
 import * as vscode from 'vscode';
 import { HttpServer, HttpServerConfig } from './httpServer';
+import { ConnectedParticipantSummary } from '../../collaboration';
 import { NetworkUtils } from '../utils/networkUtils';
 import { PortManager } from './portManager';
 import { GeneratedHttpsCertificateManager } from './generatedHttpsCertificateManager';
+import { RemoteSessionAuthority } from '../../remote_access';
 
 export interface HttpsDefaultServerConfig extends Omit<HttpServerConfig, 'port'> {
     port: number;
@@ -43,6 +45,8 @@ export class HttpsDefaultServer {
             enableCors: this.config.enableCors,
             allowedOrigins: this.config.allowedOrigins,
             mainFile: this.config.mainFile,
+            extensionContext: this.config.extensionContext,
+            analysisSessionId: this.config.analysisSessionId,
         });
 
         console.log('SERVER: HTTPS server (generated local certificates) initialized with config:', {
@@ -177,6 +181,32 @@ export class HttpsDefaultServer {
             return null;
         }
         return `https://${this.config.host}:${this.config.port}`;
+    }
+
+    public createAuthenticatedBrowserUrl(baseUrl: string): string {
+        return this.httpHandler.createAuthenticatedBrowserUrl(baseUrl);
+    }
+
+    public createInvitation(): string {
+        return this.httpHandler.createInvitation();
+    }
+
+    public setRemotePublicUrl(publicUrl: string | null): void {
+        this.httpHandler.setRemotePublicUrl(publicUrl);
+    }
+
+    public getRemoteSessionAuthority(): RemoteSessionAuthority {
+        return this.httpHandler.getRemoteSessionAuthority();
+    }
+
+    public getConnectedParticipants(): ConnectedParticipantSummary[] {
+        return this.httpHandler.getConnectedParticipants();
+    }
+
+    public onConnectedParticipantsChanged(
+        listener: (participants: ConnectedParticipantSummary[]) => void,
+    ): () => void {
+        return this.httpHandler.onConnectedParticipantsChanged(listener);
     }
 
     public getCertificateInfo(): {

@@ -4,6 +4,7 @@ import { getActiveServerRegistry } from '../../registry/activeServerRegistry';
 import { ServerControl } from '../../runtime/serverControl';
 import { PreviewRenderer } from '../../../servers/runtime/previewRenderer';
 import { NetworkUtils } from '../../../servers/utils/networkUtils';
+import { RemoteAccessManager } from '../../../remote_access';
 
 /**
  * Server Action Handlers
@@ -54,7 +55,10 @@ export class ServerActionHandlers {
         }
 
         try {
-            await PreviewRenderer.openPreview(server.url, server.htmlFile || '', 'browser');
+            const browserUrl = typeof server.serverInstance?.createAuthenticatedBrowserUrl === 'function'
+                ? server.serverInstance.createAuthenticatedBrowserUrl(server.url)
+                : server.url;
+            await PreviewRenderer.openPreview(browserUrl, server.htmlFile || '', 'browser');
             console.log(`ACTIVE_SERVER: Opened ${server.url} in browser`);
             vscode.window.showInformationMessage(`Opened ${server.url} in browser`);
         } catch (error) {
@@ -101,7 +105,10 @@ export class ServerActionHandlers {
 
         try {
             console.log(`ACTIVE_SERVER: Opening HTTP server ${serverId} (${server.url}) in lateral panel`);
-            await PreviewRenderer.openPreview(server.url, server.htmlFile || '', 'lateralPanel', serverId);
+            const panelUrl = typeof server.serverInstance?.createAuthenticatedBrowserUrl === 'function'
+                ? server.serverInstance.createAuthenticatedBrowserUrl(server.url)
+                : server.url;
+            await PreviewRenderer.openPreview(panelUrl, server.htmlFile || '', 'lateralPanel', serverId);
             console.log(`ACTIVE_SERVER: Successfully opened ${server.url} in lateral panel`);
             vscode.window.showInformationMessage(`Opened ${server.url} in VS Code panel`);
         } catch (error) {
@@ -174,6 +181,61 @@ export class ServerActionHandlers {
         }
     }
 
+    public static async copyLanUrl(serverId: string): Promise<void> {
+        const server = getActiveServerRegistry().getServer(serverId);
+        if (!server) {
+            vscode.window.showErrorMessage(`Server not found: ${serverId}`);
+            return;
+        }
+        const protocol = server.url.startsWith('https') ? 'https' : 'http';
+        const lanUrl = `${protocol}://${NetworkUtils.getLocalIPAddress()}:${server.port}`;
+        await vscode.env.clipboard.writeText(lanUrl);
+        vscode.window.showInformationMessage(`Direccion de red copiada: ${lanUrl}`);
+    }
+
+    public static async startRemoteAccess(serverId: string): Promise<void> {
+        const manager = RemoteAccessManager.getInstance();
+        if (!manager) {
+            throw new Error('El gestor de acceso remoto no está inicializado.');
+        }
+        const state = await manager.startSharing(serverId);
+        if (state.status === 'shared' && state.invitationUrl) {
+            await vscode.env.clipboard.writeText(state.invitationUrl);
+            vscode.window.showInformationMessage(
+                'Servidor compartido mediante Cloudflare. El enlace de invitación se ha copiado al portapapeles.',
+            );
+        }
+    }
+
+    public static async copyRemoteInvitation(serverId: string): Promise<void> {
+        const manager = RemoteAccessManager.getInstance();
+        if (!manager) {
+            throw new Error('El gestor de acceso remoto no está inicializado.');
+        }
+        await manager.copyInvitation(serverId);
+    }
+
+    public static async stopRemoteAccess(serverId: string): Promise<void> {
+        const manager = RemoteAccessManager.getInstance();
+        if (!manager) {
+            throw new Error('El gestor de acceso remoto no está inicializado.');
+        }
+        await manager.stopSharing(serverId);
+    }
+
+    public static async showRemoteStatus(serverId: string): Promise<void> {
+        const state = getActiveServerRegistry().getServer(serverId)?.remoteAccess;
+        const detail = state
+            ? [
+                `Estado: ${state.status}`,
+                `Solicitudes pendientes: ${state.pendingRequests}`,
+                state.publicUrl ? `URL pública: ${state.publicUrl}` : '',
+                state.error ? `Error: ${state.error}` : '',
+            ].filter(Boolean).join('\n')
+            : 'Estado: detenido';
+        await vscode.window.showInformationMessage('Acceso remoto de CodeXR', { modal: true, detail });
+    }
+
     /**
      * Stop server
      */
@@ -197,6 +259,7 @@ export class ServerActionHandlers {
 
         if (response === 'Stop') {
             try {
+                await RemoteAccessManager.getInstance()?.stopSharing(serverId, false);
                 console.log(`ACTIVE_SERVER: Stopping server ${serverId} (${server.url})`);
                 const success = await ServerControl.stopServer(serverId);
                 
@@ -267,6 +330,7 @@ export class ServerActionHandlers {
 
         if (response === 'Stop All') {
             try {
+                await RemoteAccessManager.getInstance()?.stopAll();
                 console.log(`ACTIVE_SERVER: Stopping ${allServers.length} servers`);
                 const success = await ServerControl.stopAllServers();
                 
@@ -318,6 +382,39 @@ export class ServerActionHandlers {
             }
         ];
 
+        if (server.remoteAccess?.status === 'shared' || server.remoteAccess?.status === 'starting') {
+            actions.push(
+                {
+                    label: 'Copiar invitación remota',
+                    description: 'Copiar el enlace temporal protegido',
+                    action: 'copyRemoteInvitation',
+                },
+                {
+                    label: 'Estado remoto',
+                    description: 'Ver solicitudes pendientes y estado del túnel',
+                    action: 'remoteStatus',
+                },
+                {
+                    label: 'Detener conexión remota',
+                    description: 'Cerrar el túnel y revocar las sesiones remotas',
+                    action: 'stopRemoteAccess',
+                },
+            );
+        } else {
+            actions.push({
+                label: 'Iniciar conexión remota',
+                description: 'Publicar temporalmente mediante Cloudflare Quick Tunnel',
+                action: 'startRemoteAccess',
+            });
+            if (server.remoteAccess?.status === 'error') {
+                actions.push({
+                    label: 'Ver error remoto',
+                    description: server.remoteAccess.error || 'Error de túnel',
+                    action: 'remoteStatus',
+                });
+            }
+        }
+
         // Add lateral panel option only for HTTP servers
         if (isHttp) {
             actions.push({
@@ -367,6 +464,18 @@ export class ServerActionHandlers {
                 break;
             case 'showDetails':
                 await this.showServerDetails(server.id);
+                break;
+            case 'startRemoteAccess':
+                await this.startRemoteAccess(server.id);
+                break;
+            case 'copyRemoteInvitation':
+                await this.copyRemoteInvitation(server.id);
+                break;
+            case 'remoteStatus':
+                await this.showRemoteStatus(server.id);
+                break;
+            case 'stopRemoteAccess':
+                await this.stopRemoteAccess(server.id);
                 break;
             case 'stopServer':
                 await this.stopServer(server.id);

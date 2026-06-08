@@ -291,7 +291,7 @@ window.CodeXRBoatsDebugBands = window.CodeXRBoatsDebugBands || {
     });
     return heights;
   },
-  show(target = '[codexr-boats-pedestal]') {
+  show(target = '[codexr-chart-containment]') {
     this._cleanup();
 
     const chart = typeof target === 'string' ? document.querySelector(target) : target;
@@ -300,9 +300,9 @@ window.CodeXRBoatsDebugBands = window.CodeXRBoatsDebugBands || {
       return null;
     }
 
-    const cmp = chart.components && chart.components['codexr-boats-pedestal'];
+    const cmp = chart.components && chart.components['codexr-chart-containment'];
     if (!cmp) {
-      console.warn('[CodeXR][BoatsBands] codexr-boats-pedestal component not found on target.');
+      console.warn('[CodeXR][BoatsBands] codexr-chart-containment component not found on target.');
       return null;
     }
 

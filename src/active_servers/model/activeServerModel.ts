@@ -42,6 +42,9 @@ export interface ActiveServer {
     
     /** Current server status */
     status: ServerStatus;
+
+    /** Optional public tunnel state for this server. */
+    remoteAccess?: RemoteAccessState;
     
     /** HTML file being served (if any) */
     htmlFile?: string;
@@ -88,3 +91,4 @@ export interface RegistryEvent {
     server?: ActiveServer;
     timestamp: number;
 }
+import { RemoteAccessState } from '../../remote_access/model/remoteAccessModel';

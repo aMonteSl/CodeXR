@@ -20,6 +20,8 @@ test('XR and DOM templates expose the shared virtual screen runtime with broadca
     assert.match(xrTemplate, /"roomSignalingPath":"\/codexr-room"/);
     assert.match(xrTemplate, /"sessionEndpoint":"\/api\/collaboration\/session"/);
     assert.match(xrTemplate, /src="\.\/codexrCollaborationRuntime\.js"/);
+    assert.match(xrTemplate, /src="\.\/codexrAvatarRuntime\.js"/);
+    assert.doesNotMatch(xrTemplate, /codexrCollaborationUiRuntime/);
     assert.match(xrTemplate, /<script id="codexr-tooling-config-virtual-screen" type="application\/json">/);
     assert.match(xrTemplate, /"broadcastEnabled":true/);
     assert.match(xrTemplate, /"signalingPath":"\/codexr-broadcast"/);
@@ -38,6 +40,8 @@ test('XR and DOM templates expose the shared virtual screen runtime with broadca
     assert.match(domTemplate, /followAnchorSelector: '#cameraRig'/);
     assert.match(domTemplate, /codexr-multi-screen-manager="maxScreens: 5; wall: west; showPanel: false"/);
     assert.match(domTemplate, /src="\.\/codexrCollaborationRuntime\.js"/);
+    assert.match(domTemplate, /src="\.\/codexrAvatarRuntime\.js"/);
+    assert.doesNotMatch(domTemplate, /codexrCollaborationUiRuntime/);
     assert.match(domTemplate, /src="\.\/virtualScreenRuntime\.js"/);
     assert.match(domTemplate, /src="\.\/codexrMultiScreenManagerRuntime\.js"/);
     assert.match(domTemplate, /src="\.\/codexrDomSceneCollaborationRuntime\.js"/);
@@ -46,6 +50,7 @@ test('XR and DOM templates expose the shared virtual screen runtime with broadca
 test('virtual screen runtime includes WebRTC broadcasting primitives and shared-room collaboration hooks', () => {
     const multiScreenManagerSource = readProjectFile('templates', 'components', 'codexr', 'virtual-screen', 'codexrMultiScreenManagerRuntime.js');
     const collaborationRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'collaboration', 'codexrCollaborationRuntime.js');
+    const avatarRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'avatar', 'codexrAvatarRuntime.js');
     const httpServerSource = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
     const broadcastServerSource = readProjectFile('src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts');
     const runtimeIndexSource = readProjectFile('src', 'servers', 'runtime', 'index.ts');
@@ -73,6 +78,8 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(runtimeSource, /sendEntityTransform/);
     assert.match(runtimeSource, /new win\.WebSocket/);
     assert.match(runtimeSource, /new win\.RTCPeerConnection/);
+    assert.match(runtimeSource, /stun:stun\.cloudflare\.com:3478/);
+    assert.match(runtimeSource, /restrictive NAT/);
     assert.match(runtimeSource, /viewer-join/);
     assert.match(runtimeSource, /signal-offer/);
     assert.match(runtimeSource, /signal-answer/);
@@ -113,6 +120,24 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(collaborationRuntimeSource, /cursorPresenceEnabled/);
     assert.match(collaborationRuntimeSource, /getPresenceLabel/);
     assert.match(collaborationRuntimeSource, /displayName/);
+    assert.doesNotMatch(collaborationRuntimeSource, /identity-update/);
+    assert.match(collaborationRuntimeSource, /participant-kick/);
+    assert.match(collaborationRuntimeSource, /host-transfer/);
+    assert.match(collaborationRuntimeSource, /presenter-started/);
+    assert.doesNotMatch(collaborationRuntimeSource, /followParticipant/);
+    assert.doesNotMatch(collaborationRuntimeSource, /teleportToParticipant/);
+    assert.doesNotMatch(collaborationRuntimeSource, /profile-config-updated/);
+    assert.match(collaborationRuntimeSource, /body: getPoseFromEntity\(getBodyEntity\(\)\)/);
+    assert.match(collaborationRuntimeSource, /getTrackedControllerPose/);
+    assert.match(collaborationRuntimeSource, /ray:/);
+    assert.match(avatarRuntimeSource, /codexr-avatar/);
+    assert.match(avatarRuntimeSource, /configureAsset/);
+    assert.doesNotMatch(avatarRuntimeSource, /codexr-avatar-assets-consent-required/);
+    assert.match(avatarRuntimeSource, /setAttribute\('rotation', '0 180 0'\)/);
+    assert.match(avatarRuntimeSource, /horizontalDistance/);
+    assert.match(avatarRuntimeSource, /!this\.modelActive/);
+    assert.match(avatarRuntimeSource, /animation-mixer/);
+    assert.match(avatarRuntimeSource, /lodDistance/);
     assert.match(broadcastServerSource, /roomId/);
     assert.match(broadcastServerSource, /DEFAULT_ROOM_ID/);
     assert.match(broadcastServerSource, /getScreenKey/);
@@ -120,10 +145,12 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
 
     assert.match(httpServerSource, /CollaborationRoomServer/);
     assert.match(httpServerSource, /case '\/collaboration\/session'/);
+    assert.match(httpServerSource, /case '\/collaboration\/avatar-model'/);
+    assert.match(httpServerSource, /CollaborationProfileManager/);
     assert.match(httpServerSource, /roomId: `codexr-session:\$\{activeServerId\}`/);
-    assert.match(httpServerSource, /new CollaborationRoomServer\(server\)/);
+    assert.match(httpServerSource, /new CollaborationRoomServer\(server, '\/codexr-room'/);
     assert.match(httpServerSource, /ScreenBroadcastSignalingServer/);
-    assert.match(httpServerSource, /new ScreenBroadcastSignalingServer\(server\)/);
+    assert.match(httpServerSource, /new ScreenBroadcastSignalingServer\(/);
     assert.match(runtimeIndexSource, /CollaborationRoomServer/);
     assert.match(runtimeIndexSource, /ScreenBroadcastSignalingServer/);
 });
@@ -197,21 +224,29 @@ test('analysis asset pipeline packages collaboration, screen, manager, and DOM s
     const domParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'visualizeDOMParser.ts');
     const componentAsset = readProjectFile('src', 'code_analysis', 'engine', 'components', 'customComponents', 'virtualScreenComponentAsset.ts');
     const collaborationAsset = readProjectFile('src', 'code_analysis', 'engine', 'components', 'customComponents', 'collaborationComponentAsset.ts');
+    const avatarAsset = readProjectFile('src', 'code_analysis', 'engine', 'components', 'customComponents', 'avatarComponentAsset.ts');
 
     assert.match(fileParser, /copyVirtualScreenRuntimeToOutput/);
     assert.match(fileParser, /copyVirtualScreenManagerRuntimeToOutput/);
     assert.match(fileParser, /copyCodeXrCollaborationRuntimeToOutput/);
+    assert.match(fileParser, /copyCodeXrAvatarRuntimeToOutput/);
+    assert.doesNotMatch(fileParser, /CollaborationUi/);
     assert.match(directoryParser, /readVirtualScreenRuntimeContent/);
     assert.match(directoryParser, /readCodeXrCollaborationRuntimeContent/);
+    assert.match(directoryParser, /readCodeXrAvatarRuntimeContent/);
+    assert.doesNotMatch(directoryParser, /CollaborationUi/);
     assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntimeContent\)/);
     assert.match(domParser, /readVirtualScreenRuntimeContent/);
     assert.match(domParser, /readCodeXrCollaborationRuntimeContent/);
+    assert.match(domParser, /readCodeXrAvatarRuntimeContent/);
+    assert.doesNotMatch(domParser, /CollaborationUi/);
     assert.match(domParser, /readVirtualScreenManagerRuntimeContent/);
     assert.match(domParser, /readCodeXrDomSceneCollaborationRuntimeContent/);
     assert.match(componentAsset, /copyVirtualScreenRuntimeToOutput/);
     assert.match(collaborationAsset, /copyCodeXrCollaborationRuntimeToOutput/);
     assert.match(collaborationAsset, /copyCodeXrDomSceneCollaborationRuntimeToOutput/);
+    assert.match(avatarAsset, /copyCodeXrAvatarRuntimeToOutput/);
 
     assert.doesNotMatch(runtimeSource, /request-host-start/);
     assert.doesNotMatch(runtimeSource, /virtualScreenSupportsHostBroadcast/);

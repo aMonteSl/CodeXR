@@ -334,6 +334,7 @@ export class TemplateProcessor {
         const model = {
             chartId,
             chartEntityId,
+            targetType,
             panelId,
             toggleId,
             sceneSelector: '#scene',

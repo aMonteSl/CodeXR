@@ -1,8 +1,8 @@
 {
   "name": "code-xr",
-  "displayName": "Code-XR",
+  "displayName": "CodeXR",
   "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -31,6 +31,7 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "CHANGELOG.md",
+    "docs/**/*",
     "templates/**/*",
     "examples/**/*"
   ],
@@ -39,6 +40,30 @@
       {
         "command": "CodeXR.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "codeXR.collaboration.selectIdentity",
+        "title": "CodeXR: Select Collaboration Identity"
+      },
+      {
+        "command": "codeXR.collaboration.setName",
+        "title": "CodeXR: Set Collaboration Name"
+      },
+      {
+        "command": "codeXR.collaboration.selectAvatar",
+        "title": "CodeXR: Select Avatar Color"
+      },
+      {
+        "command": "codeXR.collaboration.downloadAvatarModel",
+        "title": "CodeXR: Download Avatar Model"
+      },
+      {
+        "command": "codeXR.collaboration.manageAvatarModel",
+        "title": "CodeXR: Manage Avatar Model"
+      },
+      {
+        "command": "codeXR.collaboration.joinRemote",
+        "title": "CodeXR: Join Remote Session"
       },
       {
         "command": "codexr.server.launch",
@@ -71,6 +96,11 @@
         "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
+        "command": "codexr.server.config.remoteAccess",
+        "title": "Configure Cross-Network Connections",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
         "command": "codeXR.activeServers.showActions",
         "title": "Show Server Actions",
         "icon": "$(menu)",
@@ -92,6 +122,24 @@
         "command": "codeXR.activeServers.copyUrl",
         "title": "Copy URL",
         "icon": "$(copy)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.activeServers.startRemoteAccess",
+        "title": "Start Remote Access",
+        "icon": "$(remote-explorer)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.activeServers.copyRemoteInvitation",
+        "title": "Copy Remote Invitation",
+        "icon": "$(link)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.activeServers.stopRemoteAccess",
+        "title": "Stop Remote Access",
+        "icon": "$(debug-disconnect)",
         "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
@@ -328,7 +376,7 @@
       "activitybar": [
         {
           "id": "codexr",
-          "title": "Code-XR",
+          "title": "CodeXR",
           "icon": "resources/icon.svg"
         }
       ]
@@ -337,7 +385,7 @@
       "codexr": [
         {
           "id": "codexrTree",
-          "name": "Code-XR",
+          "name": "CodeXR",
           "when": "true",
           "icon": "$(server-environment)"
         }

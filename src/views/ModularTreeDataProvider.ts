@@ -8,6 +8,7 @@ import { PythonEnvSectionProvider } from './python_env';
 import { AnalysisSectionProvider } from '../code_analysis/views/AnalysisSectionProvider';
 import { VisualizationSettingsSectionProvider } from './visualization_settings';
 import { LearnMoreSectionProvider } from './learn_more';
+import { CollaborationSectionProvider } from './collaboration';
 import { PythonEnvUiStateService } from '../python_env/runtime/pythonEnvUiState';
 import { VenvManager } from '../python_env/runtime/venvManager';
 import { PythonEnvItems } from '../python_env/views/items/pythonEnvItems';
@@ -157,6 +158,21 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
             },
             createProvider: () => new PythonEnvSectionProvider(this.context),
             interactiveWhenRestricted: true,
+        });
+
+        this.registerSection({
+            sectionName: 'collaboration',
+            createHeader: () => this.createStaticSectionHeader(
+                'COLLABORATION',
+                'collaboration',
+                vscode.TreeItemCollapsibleState.Expanded,
+                'section',
+                new vscode.ThemeIcon('organization'),
+                'Configure your shared identity and avatar',
+                undefined,
+                'collaborationSection',
+            ),
+            createProvider: () => new CollaborationSectionProvider(this.context),
         });
 
         this.registerSection({
@@ -407,6 +423,7 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
             child.analysisItemType ||
             child.pythonEnvItemType ||
             child.visualizationSettingsItemType ||
+            child.collaborationItemType ||
             child.learnMoreItemType ||
             child.type ||
             'item',
@@ -442,6 +459,9 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
         if (child.visualizationSettingsItemType) {
             (modularItem as any).visualizationSettingsItemType = child.visualizationSettingsItemType;
             (modularItem as any).originalSettingsItem = child.originalSettingsItem;
+        }
+        if (child.collaborationItemType) {
+            (modularItem as any).collaborationItemType = child.collaborationItemType;
         }
         if (child.learnMoreItemType) {
             (modularItem as any).learnMoreItemType = child.learnMoreItemType;
@@ -548,6 +568,17 @@ export class ModularTreeDataProvider implements vscode.TreeDataProvider<ModularT
                     element.description,
                     element.contextValue,
                     (element as any).originalSettingsItem,
+                );
+            }
+            case 'collaboration': {
+                const { CollaborationTreeItem } = require('./collaboration/items/collaborationItems');
+                return new CollaborationTreeItem(
+                    typeof element.label === 'string' ? element.label : element.label?.label || 'Unknown',
+                    (element as any).collaborationItemType || 'info',
+                    typeof element.description === 'string' ? element.description : undefined,
+                    element.command,
+                    element.iconPath,
+                    typeof element.tooltip === 'string' ? element.tooltip : undefined,
                 );
             }
             case 'learnMore': {

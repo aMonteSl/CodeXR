@@ -22,6 +22,7 @@ import {
     upsertLivePanelFiles,
     upsertXRFiles,
 } from './directoryReanalysisData';
+import { analysisUpdateEvents } from '../../historical';
 
 interface IncrementalChangeSet {
     removedFiles?: string[];
@@ -101,6 +102,11 @@ export class DirectoryReAnalyzer {
             }
 
             fs.writeFileSync(dataJsonPath, JSON.stringify(currentData, null, 2), 'utf8');
+            analysisUpdateEvents.emit({
+                sessionId: session.id,
+                targetPath: session.targetPath,
+                updatedAt: new Date().toISOString(),
+            });
             await this.sendSSENotification(session);
             return true;
         } catch (error) {

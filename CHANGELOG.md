@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.2.0] - Unreleased
+
+### Collaboration 2.0
+
+- Added authoritative host and guest roles, automatic host promotion, host transfer, connection removal, and presenter administration.
+- Added persistent anonymous or custom identities, Unicode name validation, duplicate-name resolution, and six synchronized avatar skins.
+- Added the independent `codexr-avatar` component with procedural fallback, pose interpolation, hands, animation selection, LOD, and distance hiding.
+- Added an optional 2.16 MiB animated glTF avatar download with explicit consent, source/license disclosure, and browser caching. No avatar model is bundled in the VSIX.
+- Added a central `COLLABORATION` section in the CodeXR sidebar for identity, display name, avatar color, and the optional model download.
+- Stores the optional avatar model once in VS Code global storage and reuses it across all analyses.
+- Keeps roles and presentation authority internal instead of rendering collaboration controls in the scene.
+- Removed participant, follow, teleport, presentation, and skin controls from the browser/XR scene while retaining the shared controller or desktop pointer ray.
+- Corrected avatar facing direction and keeps the body upright when the tracked head crouches.
+- Scoped collaboration identity to each CodeXR installation; direct browser connections now remain anonymous.
+- Added optional cross-network collaboration through a per-server Cloudflare Quick Tunnel, disabled by default.
+- Added invitation tokens, host-visible six-digit pairing codes, one-use browser tokens, session cookies, rate limits, and complete revocation when sharing stops.
+- Added `Unirse a sesión remota` in `COLLABORATION` plus start, status, copy, and stop actions in `Active Servers`.
+- Added Cloudflare STUN for direct WebRTC screen sharing across networks, with clear TURN limitations.
+- Pinned optional `cloudflared` 2026.5.2 downloads and verifies SHA-256 before running without a shell.
+- Removed procedural hand markers while glTF avatars are active and ignores untracked controllers.
+- Added server, runtime, consent, packaging, and compatibility tests for the new collaboration contracts.
+- Renamed visible product references from Code-XR to CodeXR while retaining the compatible `code-xr` extension identifier.
+
 ## [1.1.0] - 2026-03-21
 
 ### Plugin Optimization Update - Enhanced Performance, Stability, and Collaborative Immersion
@@ -19,7 +42,7 @@ This release promotes the latest CodeXR work to 1.1.0 because it combines reliab
 - **Unified Incremental Reanalysis Watchers**: File, directory, XR, LivePanel, and DOM HTML sessions now share the same debounce-driven watcher architecture, use mtime + size as a fast filter before validating with hashes, only re-run analysis when the content really changed, and react to the user's current debounce setting without requiring a fresh analysis session.
 - **Virtual Screen Runtime for XR and DOM**: XR charts and DOM visualization scenes now include shared virtual screens that can project a native shared screen, tab, or window inside the immersive view. The panel supports creating, bringing, and deleting shared screens, move, resize, smooth depth adjustment while dragging, follow mode, an independent `look-at` mode for fixed screens that still face the user, minimize/expand, stop sharing, an auto-sized collapsible side legend, contextual hover chrome, and runtime bindings for mouse plus A-Frame/WebXR-style controller interaction.
 - **Shared Screen Broadcasting with Video/Audio**: Shared screens now propagate the selected desktop, window, or browser-tab content to other connected devices in real time, including remote audio playback when the chosen source exposes audio tracks.
-- **Universal XR Chart Pedestal and Table Layout**: XR charts now render on a shared CodeXR chart pedestal/table that recenters the chart, keeps it inside a useful size band, and auto-rescales it across `X`, `Y`, and `Z` while stabilizing the visualization after rebuilds or remaps without requiring chart-specific layout rules.
+- **Universal XR Analysis Table Layout**: XR charts now render through a shared CodeXR containment engine that recenters each chart, keeps it inside a useful size band, and auto-rescales it across `X`, `Y`, and `Z` while stabilizing the visualization after rebuilds or remaps without requiring chart-specific layout rules.
 - **In-Scene XR Mapping UI**: XR analysis scenes now include a contextual field-mapping panel near the chart, making it possible to remap chart dimensions directly inside the immersive experience without leaving XR.
 - **Safe Mapping Recovery Inside XR**: XR chart remapping now applies selections tentatively, lets Babia rebuild the chart, automatically restores the last valid mapping if the resulting geometry becomes invalid, warns the user about the failed field choice, and temporarily disables the failing field/axis combination for the session so the immersive scene stays stable while the user tries another mapping.
 - **Collaborative XR/DOM Room Sessions**: Connected users now share screen layout changes, Mapping UI updates, chart refreshes, and visible presence markers with server-assigned display names inside the same live collaboration room.
@@ -91,7 +114,7 @@ This release represents a stable, production-ready version of CodeXR with all ma
 
 ### Major Release - Complete Plugin Re-work
 
-This version represents a complete re-work and modernization of the Code-XR extension with significant architectural improvements and new analysis capabilities.
+This version represents a complete re-work and modernization of the CodeXR extension with significant architectural improvements and new analysis capabilities.
 
 #### New Features
 - **Enhanced Directory Analysis**: Complete implementation of directory analysis in all forms (LivePanel and XR modes)
