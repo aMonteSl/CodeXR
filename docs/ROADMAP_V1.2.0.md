@@ -10,8 +10,8 @@ CodeXR 1.2.0 evoluciona la visualizacion de codigo hacia un espacio de trabajo X
 | --- | --- | --- |
 | 1. Fundamentos y arquitectura | En progreso | Unificar versiones WebXR, contratos y componentes propios |
 | 2. Workspace multiestacion | Planificado | Estaciones XR y organizacion espacial persistente |
-| 3. Grafo de dependencias | Planificado | Nuevo componente visual independiente de BabiaXR |
-| 4. Comparador temporal | Parcialmente completado | Mesa dual, referencias Git locales, selector compartido y resumen delta |
+| 3. Grafo de dependencias | Implementado; validacion multiusuario pendiente | Analisis bajo demanda, 23 lenguajes, tres layouts y colaboracion |
+| 4. Comparador temporal | Implementado; validación multiusuario pendiente | Mesa dual, Git local independiente del proveedor, selector transaccional y fuente Live |
 | 5. Colaboracion 2.0 | Implementado; validacion XR pendiente | Perfil por instalacion, avatares, presencia y puntero |
 | 6. Conexion entre redes | Implementado; prueba real pendiente | Quick Tunnel, emparejamiento, sesiones y revocacion |
 | 7. Asistencia con IA | En estudio | IA local o gratuita, privada y opcional |
@@ -36,11 +36,20 @@ CodeXR 1.2.0 evoluciona la visualizacion de codigo hacia un espacio de trabajo X
 
 ## 3. Grafo de dependencias
 
-- Crear un componente propio `codexr-dependency-graph`.
-- Representar archivos, modulos, paquetes y relaciones de importacion.
-- Ofrecer agrupacion por carpeta, lenguaje o paquete.
-- Visualizar ciclos, nodos centrales, dependencias huerfanas y zonas de alto acoplamiento.
-- Publicar seleccion y transformaciones mediante la API comun de colaboracion.
+- Componente propio `codexr-dependency-graph`, sin modificar BabiaXR.
+- Aristas direccionales con presets por tipo e intensidad, flujo adaptativo y
+  portal agregado para dependencias externas ocultas.
+- Tercer modo de `codexr-analysis-table`, activado desde el panel compacto.
+- Analisis bajo demanda de los 23 lenguajes del contrato de metricas.
+- Imports, includes, requires, herencia, implementacion y llamadas con confianza explicita.
+- Vista por archivos o grupos, dependencias externas opcionales y deteccion de ciclos.
+- Layouts `force-3d`, `hierarchical` y `metric-space` calculados en Web Worker.
+- Mapping independiente para tamano, altura, color y posicion por metricas de grafo.
+- Estado autoritativo y configuracion compartida mediante WebSocket.
+
+La arquitectura, resolucion, limites, compatibilidad con proveedores Git y
+estrategia de pruebas se describen en
+[Grafo XR de dependencias](DEPENDENCY_GRAPH_XR.md).
 
 ## 4. Comparador temporal
 
@@ -58,6 +67,10 @@ La arquitectura se divide en una mesa `codexr-analysis-table`, controladores
 `codexr-chart-containment` por gráfico, un servicio Git sin shell y un
 coordinador autoritativo por servidor. Las solicitudes compartidas viajan por
 WebSocket para seguir funcionando mediante Quick Tunnel.
+
+La arquitectura, compatibilidad con GitHub y GitLab, materialización segura,
+reactividad Live, Field Mapping y estrategia de pruebas se describen en
+[Comparador histórico XR](HISTORICAL_COMPARISON_XR.md).
 
 - Comparar dos revisiones, ramas o capturas del mismo analisis.
 - Representar altas, bajas y cambios de complejidad en el espacio.
@@ -217,7 +230,7 @@ Este diseno sustituye la copia de binarios propuesta inicialmente. No se anade u
 - Validar reconexion, restauracion de perfil y degradacion offline.
 - Preparar notas de migracion desde 1.1.0 y avisos de privacidad.
 
-Estado automatizado actual: TypeScript y ESLint limpios, 130 pruebas Node y 22 pruebas Python superadas.
+Estado automatizado actual: TypeScript y ESLint limpios, 160 pruebas Node y 22 pruebas Python superadas.
 
 ## Secuencia de entrega
 

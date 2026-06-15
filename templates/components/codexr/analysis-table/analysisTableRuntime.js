@@ -2089,7 +2089,7 @@
 
   var analysisTableDefinition = {
     schema: {
-      mode: { default: 'single', oneOf: ['single', 'historical-compare'] },
+      mode: { default: 'single', oneOf: ['selection', 'single', 'historical-compare', 'dependency-graph'] },
       width: { type: 'number', default: 6.514 },
       depth: { type: 'number', default: 4.118 },
       anchorX: { type: 'number', default: DEFAULTS.anchorX },
@@ -2139,6 +2139,8 @@
         return;
       }
       var comparison = this.data.mode === 'historical-compare';
+      var dependencyGraph = this.data.mode === 'dependency-graph';
+      var selection = this.data.mode === 'selection';
       var topY = this.data.anchorY - 0.15;
       var halfWidth = (this.data.width - 0.18) / 2;
       this.groupEl.setAttribute('position', this.data.anchorX + ' ' + topY + ' ' + this.data.anchorZ);
@@ -2150,7 +2152,11 @@
         'material',
         comparison
           ? 'color: #123b52; metalness: 0.18; roughness: 0.72'
-          : 'color: #eadfc9; metalness: 0.05; roughness: 0.88'
+          : dependencyGraph
+            ? 'color: #2d174f; metalness: 0.2; roughness: 0.68'
+            : selection
+              ? 'color: #b45309; metalness: 0.14; roughness: 0.72'
+              : 'color: #eadfc9; metalness: 0.05; roughness: 0.88'
       );
 
       this.trimEl.setAttribute('width', this.data.width + 0.08);
@@ -2161,7 +2167,11 @@
         'material',
         comparison
           ? 'color: #2f9db2; metalness: 0.3; roughness: 0.4'
-          : 'color: #cdbb9a; metalness: 0.22; roughness: 0.45'
+          : dependencyGraph
+            ? 'color: #f59e0b; metalness: 0.32; roughness: 0.38'
+            : selection
+              ? 'color: #fbbf24; metalness: 0.28; roughness: 0.42'
+              : 'color: #cdbb9a; metalness: 0.22; roughness: 0.45'
       );
 
       this.baseEl.setAttribute('radius', this.data.baseRadius);
@@ -2171,7 +2181,11 @@
         'material',
         comparison
           ? 'color: #14344a; metalness: 0.28; roughness: 0.66'
-          : 'color: #5f5243; metalness: 0.28; roughness: 0.7'
+          : dependencyGraph
+            ? 'color: #21113b; metalness: 0.3; roughness: 0.62'
+            : selection
+              ? 'color: #78350f; metalness: 0.26; roughness: 0.66'
+              : 'color: #5f5243; metalness: 0.28; roughness: 0.7'
       );
 
       [

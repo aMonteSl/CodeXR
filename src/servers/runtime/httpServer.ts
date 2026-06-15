@@ -22,6 +22,13 @@ import {
     HistoricalComparisonService,
     analysisUpdateEvents,
 } from '../../code_analysis/historical';
+import { DependencyGraphService } from '../../code_analysis/dependencies';
+import {
+    AnalysisSourceChangeBatch,
+    AnalysisViewMode,
+    analysisRefreshCoordinator,
+} from '../../code_analysis/refresh';
+import { SessionWatcherManager } from '../../code_analysis/engine/watchers/sessionWatcherManager';
 
 /**
  * HTTP Server Configuration
@@ -52,9 +59,11 @@ export class HttpServer {
     private readonly remoteSessionAuthority = new RemoteSessionAuthority();
     private remotePublicUrl: string | null = null;
     private historicalComparisonService: HistoricalComparisonService | null = null;
+    private dependencyGraphService: DependencyGraphService | null = null;
     private analysisUpdateSubscription: (() => void) | null = null;
     private historicalRefreshTimer: NodeJS.Timeout | null = null;
     private historicalRefreshQueued = false;
+    private refreshCoordinatorDisposables: Array<() => void> = [];
 
     constructor(config: HttpServerConfig) {
         // Ensure port is a number and create clean config
@@ -77,11 +86,30 @@ export class HttpServer {
                 this.config.analysisSessionId,
                 this.config.staticRoot,
             );
+            this.dependencyGraphService = new DependencyGraphService(
+                this.config.extensionContext,
+                this.config.analysisSessionId,
+                this.config.staticRoot,
+            );
             this.analysisUpdateSubscription = analysisUpdateEvents.on((event) => {
                 if (event.sessionId === this.config.analysisSessionId) {
-                    this.scheduleHistoricalComparisonRefresh();
+                    const view = analysisRefreshCoordinator.getViewState(event.sessionId);
+                    if (view.mode === 'historical-compare') {
+                        this.scheduleHistoricalComparisonRefresh();
+                    }
                 }
             });
+            this.refreshCoordinatorDisposables.push(
+                analysisRefreshCoordinator.registerHandler(
+                    this.config.analysisSessionId,
+                    'dependency-graph',
+                    this.refreshDependencyGraph.bind(this),
+                ),
+                analysisRefreshCoordinator.onStateChanged(
+                    this.config.analysisSessionId,
+                    () => this.publishAnalysisViewState(),
+                ),
+            );
         }
 
         console.log('SERVER: HTTP server initialized with config:', this.config);
@@ -254,8 +282,16 @@ export class HttpServer {
             clearTimeout(this.historicalRefreshTimer);
             this.historicalRefreshTimer = null;
         }
+        for (const dispose of this.refreshCoordinatorDisposables.splice(0)) {
+            dispose();
+        }
+        if (this.config.analysisSessionId) {
+            analysisRefreshCoordinator.disposeSession(this.config.analysisSessionId);
+        }
         void this.historicalComparisonService?.dispose();
         this.historicalComparisonService = null;
+        void this.dependencyGraphService?.dispose();
+        this.dependencyGraphService = null;
     }
 
     /**
@@ -1012,6 +1048,204 @@ prepareIdentity();
             authorizeUpgrade: (request) => this.isWebSocketAuthorized(request),
             resolveSession: (request) => this.remoteSessionAuthority.resolveCookie(request.headers.cookie),
             handleApplicationMessage: async (messageContext, message) => {
+                if (message.type === 'analysis-mode-selection') {
+                    this.setAnalysisViewMode('selection');
+                    return true;
+                }
+                if (message.type === 'analysis-mode-activate') {
+                    const requestedMode = String(message.payload?.mode || '');
+                    if (
+                        requestedMode === 'single'
+                        || requestedMode === 'historical-compare'
+                        || requestedMode === 'dependency-graph'
+                    ) {
+                        const mode = requestedMode as Exclude<AnalysisViewMode, 'selection'>;
+                        if (mode !== 'single') {
+                            const entityKind = mode === 'historical-compare'
+                                ? 'historical-comparison'
+                                : 'dependency-graph';
+                            const snapshot = this.collaborationRoomServer?.getServerEntity(
+                                this.getCollaborationRoomId(),
+                                entityKind,
+                                'main',
+                            );
+                            const available = mode === 'historical-compare'
+                                ? !!snapshot?.result
+                                : typeof snapshot?.datasetUrl === 'string';
+                            analysisRefreshCoordinator.setSnapshotAvailable(
+                                this.config.analysisSessionId!,
+                                mode,
+                                available,
+                            );
+                            if (!available) {
+                                this.setAnalysisViewMode('selection');
+                                return true;
+                            }
+                        }
+                        await this.activateAnalysisViewMode(mode);
+                    }
+                    return true;
+                }
+                if (message.type === 'dependency-graph-settings') {
+                    const allowedLayouts = new Set(['force-3d', 'hierarchical', 'metric-space']);
+                    const allowedRelations = new Set([
+                        'import', 'include', 'require', 'inheritance', 'implementation', 'call', 'contains',
+                    ]);
+                    const allowedMetrics = new Set([
+                        'degree', 'fanIn', 'fanOut', 'totalLines', 'relationCount',
+                        'cycleSize', 'language',
+                    ]);
+                    const allowedEdgeEncodings = new Set([
+                        'relation-type', 'intensity-color', 'intensity-width', 'intensity-combined',
+                    ]);
+                    const payload = message.payload || {};
+                    const requestedScope = payload.scope && typeof payload.scope === 'object'
+                        ? payload.scope as Record<string, unknown>
+                        : null;
+                    const requestedRelativePath = typeof requestedScope?.relativePath === 'string'
+                        ? requestedScope.relativePath.replace(/\\/g, '/')
+                        : null;
+                    const scope = requestedScope
+                        && (requestedScope.kind === 'directory' || requestedScope.kind === 'file')
+                        && requestedRelativePath !== null
+                        && requestedRelativePath.length <= 1024
+                        && !requestedRelativePath.startsWith('/')
+                        && !requestedRelativePath.split('/').includes('..')
+                        ? {
+                            kind: requestedScope.kind,
+                            relativePath: requestedRelativePath,
+                        }
+                        : null;
+                    const relationFilters = Object.fromEntries(
+                        Object.entries(payload.relationFilters || {})
+                            .filter(([key, value]) => allowedRelations.has(key) && typeof value === 'boolean'),
+                    );
+                    const mapping = Object.fromEntries(
+                        Object.entries(payload.mapping || {})
+                            .filter(([, value]) => allowedMetrics.has(String(value))),
+                    );
+                    messageContext.upsertSharedEntity({
+                        entityKind: 'dependency-graph',
+                        entityId: 'main',
+                        ...(allowedLayouts.has(String(payload.layout)) ? { layout: payload.layout } : {}),
+                        ...(typeof payload.showExternal === 'boolean' ? { showExternal: payload.showExternal } : {}),
+                        ...(allowedEdgeEncodings.has(String(payload.edgeEncoding))
+                            ? { edgeEncoding: payload.edgeEncoding }
+                            : {}),
+                        ...(Object.keys(relationFilters).length ? { relationFilters } : {}),
+                        ...(Object.keys(mapping).length ? { mapping } : {}),
+                        ...(scope ? { scope } : {}),
+                    });
+                    return true;
+                }
+                if (message.type === 'dependency-file-scope-request') {
+                    if (!this.dependencyGraphService) {
+                        return false;
+                    }
+                    try {
+                        const relativePath = String(message.payload?.relativePath || '');
+                        const dataset = await this.dependencyGraphService.analyzeFileScope(
+                            relativePath,
+                            (progressMessage) => messageContext.send({
+                                type: 'dependency-graph-progress',
+                                payload: { message: progressMessage },
+                            }),
+                        );
+                        messageContext.upsertSharedEntity({
+                            entityKind: 'dependency-graph',
+                            entityId: 'main',
+                            mode: 'dependency-graph',
+                            status: 'ready',
+                            message: 'File dependency scope ready.',
+                            datasetUrl: `/dependencies/dependency-scope-${dataset.revision}.json`,
+                            revision: dataset.revision,
+                            scope: {
+                                kind: 'file',
+                                relativePath: dataset.targetRelativePath || relativePath,
+                            },
+                        });
+                    } catch (error) {
+                        messageContext.send({
+                            type: 'dependency-graph-error',
+                            payload: { message: error instanceof Error ? error.message : String(error) },
+                        });
+                    }
+                    return true;
+                }
+                if (message.type === 'dependency-graph-start') {
+                    if (!this.dependencyGraphService) {
+                        return false;
+                    }
+                    const availability = this.dependencyGraphService.getAvailability();
+                    if (!availability.enabled) {
+                        messageContext.send({
+                            type: 'dependency-graph-error',
+                            payload: { message: availability.reason },
+                        });
+                        return true;
+                    }
+                    if (this.dependencyGraphService.isBusy()) {
+                        messageContext.send({
+                            type: 'dependency-graph-error',
+                            payload: { message: 'A dependency analysis is already running.' },
+                        });
+                        return true;
+                    }
+                    const existingDependencyState = this.collaborationRoomServer?.getServerEntity(
+                        this.getCollaborationRoomId(),
+                        'dependency-graph',
+                        'main',
+                    );
+                    const hasCachedDataset = typeof existingDependencyState?.datasetUrl === 'string'
+                        && existingDependencyState.datasetUrl.length > 0;
+                    const forceFullRefresh = message.payload?.forceFull === true;
+                    analysisRefreshCoordinator.setSnapshotAvailable(
+                        this.config.analysisSessionId!,
+                        'dependency-graph',
+                        hasCachedDataset,
+                    );
+                    await this.activateAnalysisViewMode('dependency-graph');
+                    messageContext.upsertSharedEntity({
+                        entityKind: 'dependency-graph',
+                        entityId: 'main',
+                        mode: 'dependency-graph',
+                        status: hasCachedDataset && !forceFullRefresh ? 'ready' : 'analyzing',
+                        message: hasCachedDataset && !forceFullRefresh
+                            ? 'Restoring dependency graph...'
+                            : 'Scanning project dependencies...',
+                        layout: existingDependencyState?.layout || 'force-3d',
+                        showExternal: typeof existingDependencyState?.showExternal === 'boolean'
+                            ? existingDependencyState.showExternal
+                            : false,
+                        edgeEncoding: existingDependencyState?.edgeEncoding || 'relation-type',
+                        relationFilters: existingDependencyState?.relationFilters || {
+                            import: true,
+                            include: true,
+                            require: true,
+                            inheritance: true,
+                            implementation: true,
+                            call: false,
+                            contains: true,
+                        },
+                        mapping: existingDependencyState?.mapping || {
+                            size: 'degree',
+                            height: 'fanIn',
+                            color: 'language',
+                            x: 'fanOut',
+                            z: 'fanIn',
+                        },
+                        scope: existingDependencyState?.scope || {
+                            ...this.dependencyGraphService.getInitialScope(),
+                        },
+                    });
+                    if (!hasCachedDataset || forceFullRefresh) {
+                        analysisRefreshCoordinator.requestRefresh(
+                            this.config.analysisSessionId!,
+                            'dependency-graph',
+                        );
+                    }
+                    return true;
+                }
                 if (!this.historicalComparisonService) {
                     return false;
                 }
@@ -1048,42 +1282,57 @@ prepareIdentity();
                         leftSourceId: String(message.payload?.leftSourceId || ''),
                         rightSourceId: String(message.payload?.rightSourceId || ''),
                     };
-                    void this.historicalComparisonService.compare(request, (progress) => {
-                        messageContext.broadcast({
-                            type: 'historical-comparison-progress',
-                            payload: progress,
-                        });
-                    }).then((result) => {
-                        messageContext.upsertSharedEntity({
-                            entityKind: 'historical-comparison',
-                            entityId: 'main',
-                            mode: 'historical-compare',
-                            result,
-                        });
-                    }).catch((error) => {
-                        messageContext.broadcast({
-                            type: 'historical-comparison-error',
-                            payload: {
-                                code: error instanceof Error ? error.message : 'comparison-failed',
-                                message: error instanceof Error ? error.message : String(error),
-                            },
-                        });
-                    });
-                    return true;
-                }
-                if (message.type === 'historical-comparison-reset') {
-                    this.historicalComparisonService.clearActiveComparison();
-                    messageContext.upsertSharedEntity({
-                        entityKind: 'historical-comparison',
-                        entityId: 'main',
-                        mode: 'single',
-                        result: null,
-                    });
+                    analysisRefreshCoordinator.setRefreshEnabled(
+                        this.config.analysisSessionId!,
+                        'historical-compare',
+                        request.leftSourceId === 'working-copy' || request.rightSourceId === 'working-copy',
+                    );
+                    this.setAnalysisViewMode('selection');
+                    void (async () => {
+                        try {
+                            await SessionWatcherManager.reconcileSession(
+                                this.config.analysisSessionId!,
+                            );
+                            await analysisRefreshCoordinator.refreshMode(
+                                this.config.analysisSessionId!,
+                                'historical-compare',
+                            );
+                            const result = await this.historicalComparisonService!.compare(request, (progress) => {
+                                messageContext.broadcast({
+                                    type: 'historical-comparison-progress',
+                                    payload: progress,
+                                });
+                            });
+                            messageContext.upsertSharedEntity({
+                                entityKind: 'historical-comparison',
+                                entityId: 'main',
+                                mode: 'historical-compare',
+                                result,
+                            });
+                            analysisRefreshCoordinator.setSnapshotAvailable(
+                                this.config.analysisSessionId!,
+                                'historical-compare',
+                                true,
+                            );
+                            this.setAnalysisViewMode('historical-compare');
+                        } catch (error) {
+                            messageContext.broadcast({
+                                type: 'historical-comparison-error',
+                                payload: {
+                                    code: error instanceof Error ? error.message : 'comparison-failed',
+                                    message: error instanceof Error ? error.message : String(error),
+                                },
+                            });
+                        }
+                    })();
                     return true;
                 }
                 return false;
             },
         });
+        if (this.config.analysisSessionId) {
+            this.publishAnalysisViewState();
+        }
         const profileManager = CollaborationProfileManager.getInstance();
         this.collaborationProfileSubscription = profileManager?.onDidChange((configuration) => {
             const sessions = this.remoteSessionAuthority.updateInstallationProfile(
@@ -1117,6 +1366,10 @@ prepareIdentity();
                 enabled: false,
                 reason: 'Historical comparison is not available for this server.',
             };
+        const dependencyGraph = this.dependencyGraphService?.getAvailability() || {
+            enabled: false,
+            reason: 'Dependency analysis is not available for this server.',
+        };
 
         return {
             roomId: `codexr-session:${activeServerId}`,
@@ -1128,6 +1381,8 @@ prepareIdentity();
                 media: true,
                 historicalComparison: historicalComparison.enabled,
                 historicalComparisonReason: historicalComparison.reason,
+                dependencyGraph: dependencyGraph.enabled,
+                dependencyGraphReason: dependencyGraph.reason,
             },
             roomSocketPath: '/codexr-room',
             broadcastSocketPath: '/codexr-broadcast',
@@ -1156,6 +1411,115 @@ prepareIdentity();
             this.historicalRefreshTimer = null;
             void this.refreshHistoricalComparison();
         }, 350);
+    }
+
+    private async refreshDependencyGraph(batch: AnalysisSourceChangeBatch): Promise<void> {
+        if (!this.dependencyGraphService) {
+            return;
+        }
+        try {
+            this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                entityKind: 'dependency-graph',
+                entityId: 'main',
+                status: 'analyzing',
+                message: 'Refreshing changed project dependencies...',
+            });
+            const dataset = await this.dependencyGraphService.analyze({
+                sourceRevision: batch.sourceRevision,
+                changedFiles: batch.changedFiles,
+                addedFiles: batch.addedFiles,
+                removedFiles: batch.removedFiles,
+                forceFullScan: batch.forceRefresh || !this.dependencyGraphService.hasGeneratedDataset(),
+            }, (message) => {
+                this.collaborationRoomServer?.broadcastServerMessage(this.getCollaborationRoomId(), {
+                    type: 'dependency-graph-progress',
+                    payload: { message },
+                });
+            });
+            const currentEntity = this.collaborationRoomServer?.getServerEntity(
+                this.getCollaborationRoomId(),
+                'dependency-graph',
+                'main',
+            );
+            const currentScope = currentEntity?.scope && typeof currentEntity.scope === 'object'
+                ? currentEntity.scope as Record<string, unknown>
+                : null;
+            if (
+                dataset.targetType === 'directory'
+                &&
+                currentScope?.kind === 'file'
+                && typeof currentScope.relativePath === 'string'
+            ) {
+                const fileDataset = await this.dependencyGraphService.analyzeFileScope(
+                    currentScope.relativePath,
+                );
+                this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                    entityKind: 'dependency-graph',
+                    entityId: 'main',
+                    mode: 'dependency-graph',
+                    status: 'ready',
+                    message: 'File dependencies refreshed.',
+                    datasetUrl: `/dependencies/dependency-scope-${fileDataset.revision}.json`,
+                    projectDatasetUrl: `/dependencies/dependency-graph-${dataset.revision}.json`,
+                    revision: fileDataset.revision,
+                    sourceRevision: dataset.sourceRevision,
+                    scope: {
+                        kind: 'file',
+                        relativePath: fileDataset.targetRelativePath || currentScope.relativePath,
+                    },
+                });
+                return;
+            }
+            this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                entityKind: 'dependency-graph',
+                entityId: 'main',
+                mode: 'dependency-graph',
+                status: 'ready',
+                message: 'Dependency graph refreshed.',
+                datasetUrl: `/dependencies/dependency-graph-${dataset.revision}.json`,
+                revision: dataset.revision,
+                sourceRevision: dataset.sourceRevision,
+            });
+        } catch (error) {
+            this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                entityKind: 'dependency-graph',
+                entityId: 'main',
+                status: 'error',
+                message: error instanceof Error ? error.message : String(error),
+            });
+            this.collaborationRoomServer?.broadcastServerMessage(this.getCollaborationRoomId(), {
+                type: 'dependency-graph-error',
+                payload: { message: error instanceof Error ? error.message : String(error) },
+            });
+            throw error;
+        }
+    }
+
+    private setAnalysisViewMode(mode: AnalysisViewMode): void {
+        if (!this.config.analysisSessionId) {
+            return;
+        }
+        analysisRefreshCoordinator.setActiveMode(this.config.analysisSessionId, mode);
+    }
+
+    private async activateAnalysisViewMode(
+        mode: Exclude<AnalysisViewMode, 'selection'>,
+    ): Promise<void> {
+        if (!this.config.analysisSessionId) {
+            return;
+        }
+        analysisRefreshCoordinator.activateMode(this.config.analysisSessionId, mode);
+        await SessionWatcherManager.reconcileSession(this.config.analysisSessionId);
+    }
+
+    private publishAnalysisViewState(): void {
+        if (!this.config.analysisSessionId || !this.collaborationRoomServer) {
+            return;
+        }
+        this.collaborationRoomServer.upsertServerEntity(
+            this.getCollaborationRoomId(),
+            analysisRefreshCoordinator.getViewState(this.config.analysisSessionId),
+        );
     }
 
     private async refreshHistoricalComparison(): Promise<void> {

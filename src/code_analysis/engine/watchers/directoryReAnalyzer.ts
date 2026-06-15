@@ -60,6 +60,7 @@ export class DirectoryReAnalyzer {
         session: UnifiedAnalysisSession,
         changeSet: IncrementalChangeSet,
         hashTracker: FileHashTracker,
+        options: { notifyClients?: boolean } = {},
     ): Promise<boolean> {
         try {
             if (!session.savedFilesPath) {
@@ -107,7 +108,9 @@ export class DirectoryReAnalyzer {
                 targetPath: session.targetPath,
                 updatedAt: new Date().toISOString(),
             });
-            await this.sendSSENotification(session);
+            if (options.notifyClients !== false) {
+                await this.sendSSENotification(session);
+            }
             return true;
         } catch (error) {
             console.error('DIRECTORY_REANALYZER: Error applying incremental changes:', error);

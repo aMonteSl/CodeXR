@@ -1,0 +1,340 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CodeXR XR mode cycle harness</title>
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <style>
+    body { margin: 0; }
+    #test-status {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 10;
+      padding: 8px 12px;
+      color: #dff7ff;
+      background: rgba(5, 15, 30, .82);
+      font: 13px/1.35 monospace;
+      white-space: pre;
+    }
+    #test-controls {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+    }
+    #test-controls button {
+      padding: 7px 10px;
+      color: white;
+      border: 1px solid #67e8f9;
+      background: #0f3a5a;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="test-status">CodeXR XR mode harness</div>
+  <div id="test-controls">
+    <button data-testid="mode-selector" onclick="CodeXRAnalysisModeRuntime.openSelector()">Selector</button>
+    <button data-testid="mode-normal" onclick="CodeXRHarness.client.sendMessage('analysis-mode-activate',{mode:'single'})">Normal</button>
+    <button data-testid="mode-history" onclick="CodeXRHistoricalComparisonRuntime.activate()">History</button>
+    <button data-testid="mode-compare" onclick="CodeXRHarness.client.sendMessage('historical-comparison-start',{leftSourceId:'working-copy',rightSourceId:'commit-1'})">Compare</button>
+    <button data-testid="mode-history-resume" onclick="CodeXRHistoricalComparisonRuntime.__testing.selectHistoricalMode()">Resume history</button>
+    <button data-testid="mode-dependencies" onclick="CodeXRDependencyGraphRuntime.start()">Dependencies</button>
+    <button data-testid="mode-dependencies-resume" onclick="CodeXRDependencyGraphRuntime.__testing.selectDependencyMode()">Resume dependencies</button>
+    <button
+      data-testid="debug-status"
+      onclick="try{CodeXRHarness.debugStatus=CodeXRDebug.status();CodeXRHarness.debugError='';}catch(error){CodeXRHarness.debugError=error?.stack||String(error);}">
+      Debug
+    </button>
+  </div>
+  <a-scene id="scene" background="color: #cbd5e1">
+    <a-entity light="type: ambient; intensity: 1.1"></a-entity>
+    <a-entity light="type: directional; intensity: .8" position="-2 8 4"></a-entity>
+    <a-plane position="0 0 -18" rotation="-90 0 0" width="18" height="14" color="#334155"></a-plane>
+    <a-entity
+      id="codexrAnalysisTable"
+      codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
+    </a-entity>
+    <a-entity id="data" babia-queryjson="url: ./xr-mode-normal-data.json"></a-entity>
+    <a-entity
+      id="normalChart"
+      position="0 1 -18"
+      babia-bars="from: data; x_axis: name; height: totalLines; radius: complexity; color: language">
+    </a-entity>
+    <a-entity id="rig" position="0 2.8 -5">
+      <a-camera id="head" look-controls wasd-controls></a-camera>
+      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .babiaxraycasterclass"></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script id="codexr-tooling-config-xr-mapping-ui" type="application/json">
+  {
+    "sceneSelector": "#scene",
+    "chartEntityId": "normalChart",
+    "chartType": "bars",
+    "targetType": "directory",
+    "panelPosition": "3.8 2.8 -10",
+    "panelRotation": "0 -18 0",
+    "panelScale": 0.7,
+    "panelVisible": true,
+    "dimensions": [
+      {
+        "id": "height",
+        "label": "Height",
+        "dataType": "numeric",
+        "componentProperty": "height",
+        "selected": "totalLines",
+        "fields": ["totalLines", "complexity", "functionCount", "fanIn", "fanOut"]
+      },
+      {
+        "id": "area",
+        "label": "Area",
+        "dataType": "numeric",
+        "componentProperty": "radius",
+        "selected": "complexity",
+        "fields": ["complexity", "totalLines", "functionCount", "fanIn", "fanOut"]
+      },
+      {
+        "id": "color",
+        "label": "Color",
+        "dataType": "any",
+        "componentProperty": "color",
+        "selected": "language",
+        "fields": ["language", "complexity", "totalLines", "functionCount"]
+      }
+    ]
+  }
+  </script>
+
+  <script>
+    AFRAME.registerComponent('babia-queryjson', {
+      schema: { url: { type: 'string' } },
+      init: function () { this.load(); },
+      update: function () { this.load(); },
+      load: async function () {
+        if (!this.data.url) return;
+        try {
+          const response = await fetch(this.data.url);
+          this.el._codexrData = await response.json();
+          this.el.emit('babiaDataReady', { data: this.el._codexrData });
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    });
+    AFRAME.registerComponent('babia-bars', {
+      schema: {
+        from: { type: 'string' },
+        x_axis: { type: 'string', default: 'name' },
+        height: { type: 'string', default: 'totalLines' },
+        radius: { type: 'string', default: 'complexity' },
+        color: { type: 'string', default: 'language' }
+      },
+      init: function () {
+        this.root = document.createElement('a-entity');
+        this.el.appendChild(this.root);
+        this.render = this.render.bind(this);
+        document.getElementById(this.data.from)?.addEventListener('babiaDataReady', this.render);
+        setTimeout(this.render, 50);
+      },
+      update: function () { setTimeout(this.render, 0); },
+      render: function () {
+        if (!this.root) return;
+        this.root.replaceChildren();
+        const source = document.getElementById(this.data.from);
+        const rows = source?._codexrData || [
+          { name: 'cached', totalLines: 12, complexity: 3, language: 'JS' }
+        ];
+        rows.slice(0, 10).forEach((row, index) => {
+          const bar = document.createElement('a-box');
+          const height = .35 + Math.min(2.4, Number(row[this.data.height] || 1) / 18);
+          const size = .22 + Math.min(.42, Number(row[this.data.radius] || 1) / 35);
+          bar.setAttribute('position', `${(index - 4.5) * .55} ${height / 2} 0`);
+          bar.setAttribute('width', size);
+          bar.setAttribute('depth', size);
+          bar.setAttribute('height', height);
+          bar.setAttribute('color', ['#06b6d4', '#f97316', '#a855f7', '#22c55e'][index % 4]);
+          this.root.appendChild(bar);
+        });
+        this.el.emit('babiaBarsReady');
+      }
+    });
+  </script>
+  <script>
+    (function createHarnessCollaboration(root) {
+      const entityRuntimes = new Map();
+      const messageListeners = new Map();
+      const analysisState = {
+        entityKind: 'analysis-view',
+        entityId: 'main',
+        mode: 'single',
+        status: 'ready',
+        hasUsableSnapshot: true,
+        sourceRevision: 1,
+        appliedRevision: { single: 1, 'historical-compare': 1, 'dependency-graph': 1 },
+        modeRevision: { single: 1, 'historical-compare': 1, 'dependency-graph': 1 }
+      };
+      const dependencyState = {
+        entityKind: 'dependency-graph',
+        entityId: 'main',
+        mode: 'dependency-graph',
+        status: 'ready',
+        message: 'Harness dependency graph ready.',
+        datasetUrl: './xr-mode-dependency-data.json',
+        revision: 1,
+        sourceRevision: 1,
+        layout: 'force-3d',
+        showExternal: false,
+        edgeEncoding: 'relation-type',
+        relationFilters: {
+          import: true, include: true, require: true,
+          inheritance: true, implementation: true, call: true, contains: true
+        },
+        mapping: {
+          size: 'degree', height: 'fanIn', color: 'language', x: 'fanOut', z: 'fanIn'
+        },
+        scope: { kind: 'directory', relativePath: '' }
+      };
+      const historyResult = {
+        revision: 1,
+        left: {
+          source: { id: 'working-copy', label: 'main (live)', live: true },
+          url: './xr-mode-history-left.json',
+          itemCount: 4
+        },
+        right: {
+          source: { id: 'commit-1', label: 'HEAD~1', live: false },
+          url: './xr-mode-history-right.json',
+          itemCount: 4
+        },
+        delta: { added: 1, removed: 1, modified: 2, unchanged: 1, metrics: [] },
+        generatedAt: new Date().toISOString()
+      };
+      function apply(kind, snapshot) {
+        entityRuntimes.get(kind)?.applySharedState?.(snapshot);
+        document.getElementById('test-status').textContent =
+          `Mode: ${analysisState.mode}\nPanel: ${root.CodeXRMappingUiRuntime?.getActivePanelView?.() || 'loading'}`;
+      }
+      function emit(type, payload) {
+        (messageListeners.get(type) || []).forEach(listener => listener({ type, payload }));
+      }
+      const client = {
+        registerEntityRuntime(runtime) {
+          entityRuntimes.set(runtime.entityKind, runtime);
+          if (runtime.entityKind === 'analysis-view') setTimeout(() => apply('analysis-view', analysisState), 0);
+          if (runtime.entityKind === 'dependency-graph') setTimeout(() => apply('dependency-graph', dependencyState), 0);
+        },
+        onMessage(type, listener) {
+          const listeners = messageListeners.get(type) || [];
+          listeners.push(listener);
+          messageListeners.set(type, listeners);
+          return () => messageListeners.set(type, listeners.filter(item => item !== listener));
+        },
+        async getSessionInfoAsync() {
+          return {
+            capabilities: {
+              historicalComparison: true,
+              dependencyGraph: true
+            }
+          };
+        },
+        sendMessage(type, payload) {
+          if (type === 'analysis-mode-selection') {
+            Object.assign(analysisState, { mode: 'selection', status: 'selecting', hasUsableSnapshot: false });
+            setTimeout(() => apply('analysis-view', analysisState), 120);
+          } else if (type === 'analysis-mode-activate') {
+            Object.assign(analysisState, {
+              mode: payload.mode,
+              status: 'ready',
+              hasUsableSnapshot: true
+            });
+            apply('analysis-view', analysisState);
+          } else if (type === 'dependency-graph-start') {
+            Object.assign(analysisState, {
+              mode: 'dependency-graph',
+              status: 'ready',
+              hasUsableSnapshot: true
+            });
+            apply('dependency-graph', dependencyState);
+            apply('analysis-view', analysisState);
+          } else if (type === 'historical-comparison-references-request') {
+            emit('historical-comparison-references', {
+              pageSize: 5,
+              activeRequest: null,
+              sources: [
+                { id: 'working-copy', kind: 'workingCopy', label: 'main (live)', live: true, dirty: true },
+                {
+                  id: 'commit-1', kind: 'gitRef', refType: 'commit',
+                  refName: 'HEAD~1', commitSha: '1234567890abcdef',
+                  label: '1234567', description: 'Previous stable revision', live: false,
+                  committedAt: '2026-06-14'
+                }
+              ]
+            });
+          } else if (type === 'historical-comparison-start') {
+            apply('historical-comparison', {
+              entityKind: 'historical-comparison',
+              entityId: 'main',
+              mode: 'historical-compare',
+              result: historyResult
+            });
+            Object.assign(analysisState, {
+              mode: 'historical-compare',
+              status: 'ready',
+              hasUsableSnapshot: true
+            });
+            apply('analysis-view', analysisState);
+          }
+          return true;
+        }
+      };
+      root.CodeXRCollaborationRuntime = { getClient: () => client };
+      root.CodeXRHarness = {
+        apply, analysisState, dependencyState, historyResult, client,
+        entityKinds: () => Array.from(entityRuntimes.keys())
+      };
+    })(window);
+  </script>
+
+  <script src="../../templates/components/codexr/xr-chart-mapping-ui/xrChartMappingUiRuntime.js?v=modefix3"></script>
+  <script src="../../templates/components/codexr/analysis-table/analysisTableRuntime.js?v=modefix5"></script>
+  <script src="../../templates/components/codexr/analysis-mode/analysisModeRuntime.js?v=modefix7"></script>
+  <script src="../../templates/components/codexr/historical-comparison/historicalComparisonRuntime.js?v=modefix8"></script>
+  <script src="../../templates/components/codexr/render-budget/renderBudgetRuntime.js?v=modefix3"></script>
+  <script src="../../templates/components/codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js?v=modefix3"></script>
+  <script src="../../templates/components/codexr/dependency-graph/dependencyGraphRuntime.js?v=modefix7"></script>
+  <script src="../../templates/components/codexr/debug/codexrDebugRuntime.js?v=modefix3"></script>
+  <script>
+    setInterval(function () {
+      var status = document.getElementById('test-status');
+      var modeState = window.CodeXRAnalysisModeRuntime?.getState?.() || {};
+      var mode = modeState.mode || 'unavailable';
+      var panel = window.CodeXRMappingUiRuntime?.getActivePanelView?.() || 'unavailable';
+      var tableMode = document.getElementById('codexrAnalysisTable')
+        ?.getAttribute('codexr-analysis-table')?.mode || 'unavailable';
+      var roots = [
+        document.getElementById('normalChart')?.getAttribute('visible') !== false ? 'normal' : null,
+        document.getElementById('codexrHistoricalComparisonRoot') ? 'history' : null,
+        document.getElementById('codexrDependencyGraph') ? 'dependencies' : null
+      ].filter(Boolean);
+      status.textContent = [
+        'Mode: ' + mode,
+        'Requested: ' + String(modeState.requestedMode || 'unavailable'),
+        'Transitioning: ' + String(!!modeState.transitioning),
+        'Table mode: ' + tableMode,
+        'Panel: ' + panel,
+        'Roots: ' + roots.join(','),
+        'Header buttons: ' + document.querySelectorAll('.codexr-mapping-ui-view-toggle').length,
+        'Mapping ready: ' + String(window.CodeXRMappingUiRuntime?.isPanelReady?.()),
+        'Mode runtime: ' + String(!!window.CodeXRAnalysisModeRuntime),
+        'Entities: ' + String(window.CodeXRHarness?.entityKinds?.().join(',')),
+        'Debug mode: ' + String(window.CodeXRHarness?.debugStatus?.graph?.layout || 'not captured'),
+        'Debug error: ' + String(window.CodeXRHarness?.debugError || 'none')
+      ].join('\n');
+    }, 250);
+  </script>
+</body>
+</html>

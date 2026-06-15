@@ -181,6 +181,16 @@ export class CollaborationRoomServer {
         this.upsertAuthoritativeEntity(room, entity, 'server');
     }
 
+    public getServerEntity(
+        roomId: string,
+        entityKind: string,
+        entityId: string,
+    ): SharedEntityState | null {
+        const room = this.rooms.get(this.resolveRoomId(roomId, null));
+        const entity = room?.entities.get(this.getEntityKey(entityKind, entityId));
+        return entity ? { ...entity } : null;
+    }
+
     public broadcastServerMessage(roomId: string, payload: Record<string, unknown>): void {
         const room = this.ensureRoom(roomId);
         this.broadcast(room, {

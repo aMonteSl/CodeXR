@@ -22,7 +22,10 @@ export class ReAnalysisManager {
         this.sseManager = SSEManager.getInstance();
     }
 
-    async executeDataJsonRegeneration(session: UnifiedAnalysisSession): Promise<boolean> {
+    async executeDataJsonRegeneration(
+        session: UnifiedAnalysisSession,
+        options: { notifyClients?: boolean } = {},
+    ): Promise<boolean> {
         try {
             if (!session.savedFilesPath) {
                 throw new Error(`Session ${session.id} does not have saved files path`);
@@ -44,10 +47,12 @@ export class ReAnalysisManager {
                 updatedAt: new Date().toISOString(),
             });
 
-            if (session.analysisMode === 'XR') {
-                this.sseManager.sendDataRefresh(session.targetPath);
-            } else {
-                this.sseManager.sendUpdate(session.targetPath);
+            if (options.notifyClients !== false) {
+                if (session.analysisMode === 'XR') {
+                    this.sseManager.sendDataRefresh(session.targetPath);
+                } else {
+                    this.sseManager.sendUpdate(session.targetPath);
+                }
             }
 
             return true;

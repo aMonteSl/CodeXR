@@ -65,6 +65,18 @@ Usage in this project:
 - Used as a free STUN server to help direct WebRTC screen-sharing connections discover public network candidates.
 - CodeXR does not configure Cloudflare TURN credentials in version 1.2.0.
 
+### 7) tree-sitter-language-pack
+- Project: tree-sitter-language-pack
+- Source: https://github.com/kreuzberg-dev/tree-sitter-language-pack
+- Package: https://pypi.org/project/tree-sitter-language-pack/
+- License: MIT
+
+Usage in this project:
+- Installed at a pinned version inside the CodeXR-managed Python virtual environment.
+- Provides structured parsers used by the dependency-analysis adapters.
+- CodeXR retains explicit language fallbacks and reports when structured parsing is unavailable.
+- The package and its parsers are installed once per CodeXR environment, not once per analysis.
+
 ## Notes
 
 - Third-party licenses remain the property of their respective authors.

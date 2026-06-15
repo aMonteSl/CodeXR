@@ -17,12 +17,22 @@ import { buildTrackedFileSnapshot } from '../watchers/directorySnapshot';
 import { resolveTrackedSystemPath } from '../watchers/directoryReanalysisData';
 import {
     ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
+    ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
+    RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
+    DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
+    CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
     CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
     readAnalysisTableRuntimeContent,
+    readAnalysisModeRuntimeContent,
     readHistoricalComparisonRuntimeContent,
+    readDependencyGraphRuntimeContent,
+    readRenderBudgetRuntimeContent,
+    readDependencyVisualBudgetRuntimeContent,
+    readCodeXrDebugRuntimeContent,
     readCodeXrAvatarRuntimeContent,
     readCodeXrCollaborationRuntimeContent,
     readCodeXrRoomRuntimeContent,
@@ -127,7 +137,12 @@ export class DirectoryXRParser {
             const xrChartMappingUiRuntimeContent = await readXrChartMappingUiRuntimeContent(context.extensionPath);
             const xrChartDebugRuntimeContent = await readXrChartDebugRuntimeContent(context.extensionPath);
             const analysisTableRuntimeContent = await readAnalysisTableRuntimeContent(context.extensionPath);
+            const analysisModeRuntimeContent = await readAnalysisModeRuntimeContent(context.extensionPath);
             const historicalComparisonRuntimeContent = await readHistoricalComparisonRuntimeContent(context.extensionPath);
+            const dependencyGraphRuntimeContent = await readDependencyGraphRuntimeContent(context.extensionPath);
+            const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
+            const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
+            const codexrDebugRuntimeContent = await readCodeXrDebugRuntimeContent(context.extensionPath);
             const codexrRoomTextures = await readCodeXrRoomTextureContents(context.extensionPath);
             const dataJsonContent = JSON.stringify(payload, null, 2);
 
@@ -142,7 +157,12 @@ export class DirectoryXRParser {
             generatedFiles.set(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, xrChartMappingUiRuntimeContent);
             generatedFiles.set(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME, xrChartDebugRuntimeContent);
             generatedFiles.set(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent);
+            generatedFiles.set(ANALYSIS_MODE_RUNTIME_OUTPUT_NAME, analysisModeRuntimeContent);
             generatedFiles.set(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent);
+            generatedFiles.set(RENDER_BUDGET_RUNTIME_OUTPUT_NAME, renderBudgetRuntimeContent);
+            generatedFiles.set(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME, dependencyVisualBudgetRuntimeContent);
+            generatedFiles.set(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, dependencyGraphRuntimeContent);
+            generatedFiles.set(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME, codexrDebugRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
             codexrRoomTextures.forEach((asset) => {
                 generatedFiles.set(asset.relativeOutputPath, asset.content);

@@ -6,6 +6,11 @@ import { PythonEnvStorage, PythonEnvMetadata } from '../storage/pythonEnvStorage
 import { ExecutableCommand, PythonEnvUtils } from '../utils/pythonEnvUtils';
 import { PythonEnvUiStateService } from './pythonEnvUiState';
 import { CodeXRLogger } from '../../core/logging/logger';
+import {
+    CODEXR_PYTHON_PACKAGES,
+    CodeXRPythonPackage,
+    getPinnedPythonRequirement,
+} from './pythonPackageManifest';
 
 const logger = CodeXRLogger.getLogger('PYTHON_ENV');
 
@@ -63,6 +68,7 @@ export class VenvManager {
 
             if (venvExists) {
                 this.logInfo('PYTHON_ENV: Existing valid environment found, verifying current installation');
+                await this.ensureRequiredPackagesAvailable();
                 await this.refreshEnvironmentMetadata();
                 this.uiState.setReady('Python environment is ready.');
                 return;
@@ -369,8 +375,8 @@ export class VenvManager {
             throw new Error('CodeXR could not execute pip inside its virtual environment. Reinitialize the environment.');
         }
 
-        if (!(await this.verifyLizardInstallation())) {
-            throw new Error('CodeXR could not verify the lizard dependency inside its virtual environment. Reinitialize the environment.');
+        if (!(await this.verifyRequiredPackages())) {
+            throw new Error('CodeXR could not verify its Python analysis dependencies. Reinitialize the environment.');
         }
 
         const dependencies = await this.getInstalledDependencies();
@@ -458,14 +464,8 @@ export class VenvManager {
      * Verify that lizard is working correctly in the environment.
      */
     public async verifyLizardInstallation(): Promise<boolean> {
-        try {
-            const venvPath = this.storage.getVenvPath();
-            await this.executeCommand(PythonEnvUtils.getVenvModuleCommand(venvPath, 'lizard', ['--version']));
-            return true;
-        } catch (error) {
-            this.logInfo('PYTHON_ENV: Lizard verification failed:', error);
-            return false;
-        }
+        const pkg = CODEXR_PYTHON_PACKAGES.find(item => item.distribution === 'lizard');
+        return pkg ? this.verifyPackage(pkg) : false;
     }
 
     /**
@@ -673,7 +673,9 @@ export class VenvManager {
                 await this.runVenvPip(['install', pkg]);
             }
 
-            await this.installLizardPackage(progress);
+            for (const pkg of CODEXR_PYTHON_PACKAGES) {
+                await this.installRequiredPackage(pkg, progress);
+            }
             await this.updateDependenciesList();
 
             this.logInfo('PYTHON_ENV: Base packages installed successfully');
@@ -683,69 +685,45 @@ export class VenvManager {
         }
     }
 
-    /**
-     * Ensure lizard package is available in the environment.
-     */
-    private async ensureLizardAvailable(): Promise<void> {
-        this.logInfo('PYTHON_ENV: Checking lizard availability in existing environment...');
-
-        const isWorking = await this.verifyLizardInstallation();
-        if (isWorking) {
-            this.logInfo('PYTHON_ENV: Lizard is already installed in the environment');
-            return;
+    private async ensureRequiredPackagesAvailable(): Promise<void> {
+        for (const pkg of CODEXR_PYTHON_PACKAGES) {
+            if (!(await this.verifyPackage(pkg))) {
+                this.logInfo(`PYTHON_ENV: Installing missing required package ${pkg.distribution}...`);
+                await this.installRequiredPackage(pkg);
+            }
         }
-
-        this.logInfo('PYTHON_ENV: Lizard not available, installing...');
-        await this.installLizardPackage();
         await this.updateDependenciesList();
-
-        if (!(await this.verifyLizardInstallation())) {
-            throw new Error(
-                'CodeXR could not verify the lizard installation inside its virtual environment. ' +
-                'Retry the installation from the Python Environment section.',
-            );
-        }
     }
 
-    /**
-     * Install lizard package for code complexity analysis.
-     */
-    private async installLizardPackage(progress?: vscode.Progress<{ increment?: number; message?: string }>): Promise<void> {
-        this.logInfo('PYTHON_ENV: Installing lizard package for code complexity analysis...');
-
-        const isInstalled = await this.isPackageInstalled('lizard');
-        if (isInstalled && await this.verifyLizardInstallation()) {
-            this.logInfo('PYTHON_ENV: Lizard is already installed - skipping installation');
-            return;
-        }
-
-        if (progress) {
-            this.reportInstallProgress(progress, 10, 'Installing lizard for code analysis...');
-        }
-
-        await this.runVenvPip(['install', 'lizard']);
-
-        if (!(await this.verifyLizardInstallation())) {
-            throw new Error(
-                'CodeXR installed lizard inside the virtual environment but could not verify it afterwards.',
-            );
-        }
-
-        this.logInfo('PYTHON_ENV: Lizard has been installed successfully');
+    private async verifyRequiredPackages(): Promise<boolean> {
+        const results = await Promise.all(CODEXR_PYTHON_PACKAGES.map(pkg => this.verifyPackage(pkg)));
+        return results.every(Boolean);
     }
 
-    /**
-     * Check if a package is installed in the virtual environment.
-     */
-    private async isPackageInstalled(packageName: string): Promise<boolean> {
+    private async verifyPackage(pkg: CodeXRPythonPackage): Promise<boolean> {
         try {
             const venvPath = this.storage.getVenvPath();
-            await this.executeCommand(
-                PythonEnvUtils.getVenvPythonCommand(venvPath, ['-c', `import ${packageName}`]),
-            );
+            await this.executeCommand(PythonEnvUtils.getVenvPythonCommand(venvPath, pkg.verificationArgs));
             return true;
         } catch (error) {
+            this.logInfo(`PYTHON_ENV: ${pkg.distribution} verification failed:`, error);
             return false;
+        }
+    }
+
+    private async installRequiredPackage(
+        pkg: CodeXRPythonPackage,
+        progress?: vscode.Progress<{ increment?: number; message?: string }>,
+    ): Promise<void> {
+        if (await this.verifyPackage(pkg)) {
+            return;
+        }
+        if (progress) {
+            this.reportInstallProgress(progress, 10, `Installing ${pkg.distribution} for ${pkg.purpose}...`);
+        }
+        await this.runVenvPip(['install', getPinnedPythonRequirement(pkg)]);
+        if (!(await this.verifyPackage(pkg))) {
+            throw new Error(`CodeXR installed ${pkg.distribution} but could not verify it afterwards.`);
         }
     }
 

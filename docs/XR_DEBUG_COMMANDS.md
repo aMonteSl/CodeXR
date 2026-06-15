@@ -1,4 +1,67 @@
-# CodeXR XR Chart Debug Commands
+# CodeXR XR Debug Commands
+
+## Command catalog
+
+Every generated XR scene exposes a general browser-console catalog:
+
+```js
+CodeXR.help();
+```
+
+It prints grouped tables with each command, a short explanation and whether
+the command is available in the current scene. The returned array can also be
+inspected programmatically. Existing `CodeXRDebug` and `CodeXRChartDebug`
+APIs remain compatible.
+
+Dependency scenes additionally expose:
+
+```js
+CodeXRDependencyGraphRuntime.start();
+CodeXRDependencyGraphRuntime.openModeSelector();
+CodeXRDependencyGraphRuntime.openDirectory("src/tools");
+CodeXRDependencyGraphRuntime.openFile("src/tools/parser.ts");
+```
+
+Paths are project-relative and are validated by the server before file
+analysis. Console navigation changes the same shared scope as the XR panel.
+
+## Visualization status
+
+Every generated XR chart exposes `window.CodeXRDebug` in the browser console.
+It complements the chart movement tools documented below.
+
+```js
+CodeXRDebug.status();
+```
+
+The command prints and returns FPS, P95 frame time, target FPS, render quality,
+desktop/VR/AR mode, dependency density, visible graph counts, mappings,
+selection, animation state and Three.js renderer statistics.
+
+Continuous console monitoring:
+
+```js
+CodeXRDebug.watch(1000);
+CodeXRDebug.stopWatch();
+```
+
+Optional desktop HUD:
+
+```js
+CodeXRDebug.hud(true);
+CodeXRDebug.toggleHud();
+```
+
+The HUD is disabled by default and is hidden automatically while the scene is
+in VR or AR. It does not collect telemetry.
+
+Command summary:
+
+```js
+CodeXRDebug.help();
+```
+
+## Chart movement
 
 This document describes the browser-console API exposed by `window.CodeXRChartDebug` in XR chart visualizations.
 

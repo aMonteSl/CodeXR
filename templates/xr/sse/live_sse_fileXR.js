@@ -14,6 +14,30 @@
       'babia-bubbles'
     ];
 
+    function getNormalRefreshRuntime() {
+      return window.CodeXRNormalAnalysisRefreshRuntime || {
+        begin: function () { return Date.now(); },
+        complete: function () {}
+      };
+    }
+
+    async function completeNormalRefresh(generation, reason, chartEntities) {
+      const chartIds = (chartEntities || [])
+        .map(chart => chart && chart.id)
+        .filter(Boolean);
+      if (chartIds.length && window.CodeXRAnalysisTableRuntime?.waitForChartsStable) {
+        await window.CodeXRAnalysisTableRuntime.waitForChartsStable(chartIds, {
+          timeoutMs: 8000,
+          pollMs: 100,
+          stablePasses: 2
+        });
+      }
+      getNormalRefreshRuntime().complete(generation);
+      document.dispatchEvent(new CustomEvent('codexr-normal-analysis-refreshed', {
+        detail: { generation: generation, reason: reason }
+      }));
+    }
+
     // Check if we're in an A-Frame scene
     function checkXRMode() {
       isXRMode = !!document.querySelector('a-scene');
@@ -85,6 +109,7 @@
       
       const chartEntities = getChartEntities();
       const containsBoatsChart = hasBoatsChart(chartEntities);
+      const refreshGeneration = getNormalRefreshRuntime().begin('analysis-updated');
 
       // Preserve custom mapping UI state across chart component rebuilds
       const mappingUiRuntime = window.CodeXRMappingUiRuntime;
@@ -140,10 +165,22 @@
           setTimeout(() => {
             restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState);
             renormalizeChartContainment('analysis-updated-boats-settled', mappingUiRuntime);
+            void completeNormalRefresh(
+              refreshGeneration,
+              'analysis-updated-boats-settled',
+              chartEntities
+            );
           }, 900);
+        } else {
+          setTimeout(() => {
+            void completeNormalRefresh(refreshGeneration, 'analysis-updated', chartEntities);
+          }, 300);
         }
       } else {
         console.warn('⚠️ No data entities found for refresh');
+      }
+      if (dataEntities.length === 0) {
+        void completeNormalRefresh(refreshGeneration, 'analysis-updated-no-data', chartEntities);
       }
     });
   
@@ -156,6 +193,7 @@
       // Simple approach: just reload the data entities with cache busting
       // A-Frame will automatically re-render charts with fresh data
       const dataEntities = document.querySelectorAll('[babia-queryjson]');
+      const refreshGeneration = getNormalRefreshRuntime().begin('dataRefresh');
       
       if (dataEntities.length > 0) {
         const timestamp = Date.now();
@@ -195,12 +233,24 @@
         if (containsBoatsChart) {
           setTimeout(() => {
             renormalizeChartContainment('dataRefresh-boats-settled', window.CodeXRMappingUiRuntime);
+            void completeNormalRefresh(
+              refreshGeneration,
+              'dataRefresh-boats-settled',
+              chartEntities
+            );
           }, 900);
+        } else {
+          setTimeout(() => {
+            void completeNormalRefresh(refreshGeneration, 'dataRefresh', chartEntities);
+          }, 300);
         }
         
         console.log('✅ XR data refresh completed - A-Frame will handle chart updates');
       } else {
         console.warn('⚠️ No babia-queryjson data entities found for refresh');
+      }
+      if (dataEntities.length === 0) {
+        void completeNormalRefresh(refreshGeneration, 'dataRefresh-no-data', []);
       }
     });
   

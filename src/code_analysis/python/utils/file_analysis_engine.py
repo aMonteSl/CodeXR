@@ -56,6 +56,7 @@ def _normalize_function_metrics(raw_functions: List[Dict[str, Any]]) -> List[Dic
 
     for func in raw_functions or []:
         function_name = str(func.get('name') or 'unknown').strip() or 'unknown'
+        qualified_name = str(func.get('longName') or function_name).strip() or function_name
         line_start = _safe_int(func.get('lineStart'), 0)
         line_end = _safe_int(func.get('lineEnd'), line_start)
         line_count = _safe_int(func.get('lineCount'), max((line_end - line_start) + 1, 0))
@@ -70,6 +71,7 @@ def _normalize_function_metrics(raw_functions: List[Dict[str, Any]]) -> List[Dic
         normalized.append(
             {
                 'functionName': function_name,
+                'qualifiedName': qualified_name,
                 'lineStart': line_start,
                 'lineEnd': line_end,
                 'lineCount': line_count,
@@ -166,6 +168,7 @@ def build_file_payload(file_path: str, snapshot: Optional[Dict[str, Any]] = None
         payload.append(
             {
                 'functionName': function.get('functionName', 'unknown'),
+                'qualifiedName': function.get('qualifiedName', function.get('functionName', 'unknown')),
                 'lineStart': function.get('lineStart', 0),
                 'lineEnd': function.get('lineEnd', 0),
                 'lineCount': function.get('lineCount', 0),

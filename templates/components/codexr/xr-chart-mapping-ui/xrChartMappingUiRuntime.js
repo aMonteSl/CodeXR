@@ -900,8 +900,11 @@
     if (refs.toggle) {
       refs.toggle.setAttribute('position', '2.95 ' + (height * 0.5 + 0.17) + ' 0.04');
     }
-    Object.keys(state.panelViews).forEach(function (viewId, index) {
-      var view = state.panelViews[viewId];
+    Object.keys(state.panelViews).map(function (viewId) {
+      return state.panelViews[viewId];
+    }).filter(function (view) {
+      return !!view.button;
+    }).forEach(function (view, index) {
       view.button?.setAttribute(
         'position',
         (2.53 - (index * 0.42)) + ' ' + (height * 0.5 + 0.17) + ' 0.04'
@@ -920,7 +923,7 @@
         transparent: true
       });
       view.button?.setAttribute('text', {
-        value: active ? 'M' : view.buttonLabel,
+        value: view.buttonLabel,
         align: 'center',
         color: '#ffffff',
         width: 1,
@@ -974,7 +977,10 @@
   }
 
   function registerPanelView(options) {
-    if (!options || !options.id || !options.content || !refs.panel || !refs.panelContent) {
+    if (!refs.panel || !refs.panelContent) {
+      return null;
+    }
+    if (!options || !options.id || !options.content) {
       return function () {};
     }
     var viewId = String(options.id);
@@ -988,14 +994,17 @@
     content.setAttribute('visible', false);
     setEntityInteractionEnabled(content, false);
     refs.panelContent.appendChild(content);
-    var button = createEntity('a-plane', {
-      id: 'codexrMappingUiView-' + viewId,
-      class: 'babiaxraycasterclass codexr-mapping-ui-view-toggle',
-      'data-codexr-interactive': 'true',
-      width: 0.34,
-      height: 0.34
-    });
-    refs.panel.appendChild(button);
+    var button = null;
+    if (options.headerButton === true) {
+      button = createEntity('a-plane', {
+        id: 'codexrMappingUiView-' + viewId,
+        class: 'babiaxraycasterclass codexr-mapping-ui-view-toggle',
+        'data-codexr-interactive': 'true',
+        width: 0.34,
+        height: 0.34
+      });
+      refs.panel.appendChild(button);
+    }
 
     state.panelViews[viewId] = {
       id: viewId,
@@ -1005,10 +1014,17 @@
       content: content,
       button: button,
       onShow: typeof options.onShow === 'function' ? options.onShow : null,
-      onHide: typeof options.onHide === 'function' ? options.onHide : null
+      onHide: typeof options.onHide === 'function' ? options.onHide : null,
+      onToggleActive: typeof options.onToggleActive === 'function'
+        ? options.onToggleActive
+        : null
     };
-    button.addEventListener('click', function () {
-      showPanelView(state.activePanelView === viewId ? 'mapping' : viewId);
+    button?.addEventListener('click', function () {
+      if (state.activePanelView === viewId && state.panelViews[viewId]?.onToggleActive) {
+        state.panelViews[viewId].onToggleActive();
+        return;
+      }
+      showPanelView(viewId);
     });
     applyPanelHeight(state.activePanelView === 'mapping'
       ? state.mappingPanelHeight
@@ -1379,6 +1395,9 @@
     setPanelViewHeight: setPanelViewHeight,
     getActivePanelView: function () {
       return state.activePanelView;
+    },
+    isPanelReady: function () {
+      return !!(refs.panel && refs.panelContent);
     },
     setChartEntityIds: function (chartEntityIds) {
       state.chartEntityIdsOverride = Array.isArray(chartEntityIds)

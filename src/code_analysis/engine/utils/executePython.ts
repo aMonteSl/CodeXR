@@ -31,6 +31,34 @@ export class ExecutePython {
         ]);
     }
 
+      public async executeDependencyAnalysis(
+          targetPath: string,
+          targetType: 'file' | 'directory',
+          deep: boolean,
+          cachePath?: string,
+          refreshRequestPath?: string,
+          projectRoot?: string,
+      ): Promise<any> {
+        const args = [
+            '--mode', 'dependencies',
+            '--type', targetType,
+            '--target', targetPath,
+        ];
+        if (deep) {
+            args.push('--deep');
+        }
+          if (cachePath) {
+              args.push('--cache', cachePath);
+          }
+          if (refreshRequestPath) {
+              args.push('--dependency-refresh', refreshRequestPath);
+          }
+          if (projectRoot) {
+              args.push('--project-root', projectRoot);
+          }
+          return this.executePythonScript('main.py', args);
+      }
+
     /**
      * Ejecuta análisis Python según el tipo de análisis
      * 

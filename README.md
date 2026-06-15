@@ -3,6 +3,9 @@
 > La colaboración entre redes usa Cloudflare Quick Tunnel como servicio temporal
 > sin SLA. Consulta [cómo funciona, sus límites y consideraciones de
 > privacidad](docs/CLOUDFLARE_REMOTE_ACCESS.md).
+>
+> La arquitectura y el funcionamiento del comparador entre revisiones se
+> documentan en [Comparador histórico XR](docs/HISTORICAL_COMPARISON_XR.md).
 
 A revolutionary Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code panels and breathtaking XR/VR environments powered by BabiaXR and A-Frame. Dive deep into your codebase with comprehensive file analysis, directory scanning, and interactive DOM visualization.
 
@@ -546,7 +549,15 @@ Customize your immersive experience:
 CodeXR automatically manages the following dependencies:
 - **Python Virtual Environment**: Created in `globalStorage` directory from VS Code
 - **Lizard**: Code complexity analysis tool
+- **tree-sitter-language-pack**: Structured parsers for the XR dependency graph
 - **Required Python Packages**: Automatically installed as needed
+
+### Technical Documentation
+
+- [Cloudflare remote access](docs/CLOUDFLARE_REMOTE_ACCESS.md)
+- [Historical comparison XR](docs/HISTORICAL_COMPARISON_XR.md)
+- [Dependency graph XR](docs/DEPENDENCY_GRAPH_XR.md)
+- [XR browser diagnostics](docs/XR_DEBUG_COMMANDS.md)
 
 ### Optional Dependencies
 - **WebXR Browser**: For full VR/AR experience

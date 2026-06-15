@@ -13,7 +13,6 @@
     activeCategory: 'branch',
     availability: 'loading',
     unavailableReason: 'Checking Git history availability...',
-    panelScreen: 'mode',
     selected: { left: 'working-copy', right: '' },
     result: null,
     payloads: { left: [], right: [] },
@@ -21,7 +20,10 @@
     status: '',
     statusLevel: 'info',
     disposables: [],
-    unregisterPanelView: null
+    unregisterPanelView: null,
+    unregisterLifecycle: null,
+    unregisterModeOption: null,
+    loadGeneration: 0
   };
   var refs = {};
   var RAYCAST_CLASS = 'babiaxraycasterclass';
@@ -47,6 +49,12 @@
     return root.CodeXRCollaborationRuntime?.getClient?.(root) || null;
   }
 
+  function isHistoricalModeActiveOrActivating() {
+    var modeState = root.CodeXRAnalysisModeRuntime?.getState?.();
+    return modeState?.mode === 'historical-compare'
+      || (modeState?.transitioning && modeState?.requestedMode === 'historical-compare');
+  }
+
   async function configureAvailability() {
     var client = getClient();
     var sessionInfo = null;
@@ -63,10 +71,6 @@
     );
     state.availability = enabled ? 'enabled' : 'disabled';
     state.unavailableReason = enabled ? '' : reason;
-    updateAvailabilityUi();
-    if (!enabled) {
-      restoreSingleMode();
-    }
   }
 
   function createEntity(tagName, attributes) {
@@ -143,32 +147,20 @@
       return;
     }
     refs.originalChart = original;
-    refs.originalChartParent = original.parentNode || null;
-    refs.originalChartNextSibling = original.nextSibling || null;
     suspendRaycastInteraction(original);
     original.setAttribute('visible', false);
-    refs.originalChartParent?.removeChild?.(original);
   }
 
   function restoreOriginalChart() {
     var original = refs.originalChart;
-    var parent = refs.originalChartParent;
-    var nextSibling = refs.originalChartNextSibling;
     if (!original) {
       return null;
     }
-    if (parent && original.parentNode !== parent) {
-      if (nextSibling && nextSibling.parentNode === parent) {
-        parent.insertBefore(original, nextSibling);
-      } else {
-        parent.appendChild(original);
-      }
+    if (root.CodeXRAnalysisModeRuntime?.getState?.().mode === 'single') {
+      original.setAttribute('visible', true);
     }
-    original.setAttribute('visible', true);
     restoreRaycastInteraction(original);
     refs.originalChart = null;
-    refs.originalChartParent = null;
-    refs.originalChartNextSibling = null;
     return original;
   }
 
@@ -247,30 +239,13 @@
     return button;
   }
 
-  function updateAvailabilityUi() {
-    if (!refs.historicalModeButton) {
-      return;
-    }
-    var enabled = state.availability === 'enabled';
-    refs.historicalModeButton.setAttribute(
-      'material',
-      'color: ' + (enabled ? '#be123c' : '#475569') + '; opacity: '
-        + (enabled ? '0.96' : '0.72') + '; shader: flat'
-    );
-    setText(
-      refs.historicalModeButton,
-      enabled ? 'Historical comparison' : 'Historical comparison unavailable',
-      8.3,
-      enabled ? '#ffffff' : '#cbd5e1'
-    );
-    if (state.panelScreen === 'mode') {
-      setStatus(enabled ? '' : state.unavailableReason, enabled ? 'info' : 'error');
-    }
-  }
-
   function buildPanel() {
     var mappingRuntime = root.CodeXRMappingUiRuntime;
-    if (!mappingRuntime?.registerPanelView || refs.panel) {
+    if (
+      !mappingRuntime?.registerPanelView
+      || !mappingRuntime.isPanelReady?.()
+      || refs.panel
+    ) {
       return !!refs.panel;
     }
     refs.panel = createEntity('a-entity', {
@@ -279,33 +254,7 @@
       visible: false
     });
 
-    refs.modeRoot = createEntity('a-entity', { position: '0 0.2 0.02' });
-    refs.modeRoot.appendChild(createText(
-      'Choose how the analysis table represents the data.',
-      '0 1.05 0.02',
-      5.5,
-      '#cde7ff',
-      'center',
-      38
-    ));
-    refs.modeRoot.appendChild(buildButton('Normal analysis', '0 0.35 0.02', 4.5, 0.48, function () {
-      resetComparison();
-      root.CodeXRMappingUiRuntime?.showPanelView?.('mapping');
-    }, '#0e7490'));
-    refs.historicalModeButton = buildButton('Historical comparison', '0 -0.35 0.02', 4.5, 0.48, function () {
-      showSourceSelection();
-    }, '#be123c');
-    refs.modeRoot.appendChild(refs.historicalModeButton);
-    refs.modeRoot.appendChild(createText(
-      'The same metric mapping is applied to both sides.',
-      '0 -1.05 0.02',
-      5,
-      '#94a3b8',
-      'center',
-      38
-    ));
-
-    refs.sourceRoot = createEntity('a-entity', { position: '0 0 0.02', visible: false });
+    refs.sourceRoot = createEntity('a-entity', { position: '0 0 0.02', visible: true });
     refs.leftSelection = buildButton('LEFT', '-1.48 2.18 0.02', 2.75, 0.48, function () {
       state.activeSide = 'left';
       renderReferences();
@@ -337,31 +286,31 @@
       state.page = Math.min(maxPage, state.page + 1);
       renderReferences();
     }, '#334155'));
-    refs.sourceRoot.appendChild(buildButton('Back', '-1.7 -2.72 0.02', 1.1, 0.38, showModeSelection, '#475569'));
+    refs.sourceRoot.appendChild(buildButton('Back', '-1.7 -2.72 0.02', 1.1, 0.38, function () {
+      root.CodeXRAnalysisModeRuntime?.openSelector?.();
+    }, '#475569'));
     refs.sourceRoot.appendChild(buildButton('Compare', '0 -2.72 0.02', 1.55, 0.38, startComparison, '#be123c'));
     refs.sourceRoot.appendChild(buildButton('Axes', '1.7 -2.72 0.02', 1.1, 0.38, function () {
       root.CodeXRMappingUiRuntime?.showPanelView?.('mapping');
     }, '#0e7490'));
 
-    refs.panel.appendChild(refs.modeRoot);
     refs.panel.appendChild(refs.sourceRoot);
     refs.panel.appendChild(refs.status);
     renderCategoryTabs();
     state.unregisterPanelView = mappingRuntime.registerPanelView({
-      id: 'historical-comparison',
-      title: 'Visualization mode',
-      buttonLabel: 'V',
-      panelHeight: 3.35,
+      id: 'historical-selection',
+      title: 'History comparison',
+      headerButton: false,
+      panelHeight: 6.45,
       content: refs.panel,
       onShow: function () {
         state.panelVisible = true;
-        showModeSelection();
+        showSourceSelection();
       },
       onHide: function () {
         state.panelVisible = false;
       }
     });
-    updateAvailabilityUi();
     return true;
   }
 
@@ -370,7 +319,7 @@
       setTimeout(openPanel, 100);
       return;
     }
-    root.CodeXRMappingUiRuntime?.showPanelView?.('historical-comparison');
+    root.CodeXRMappingUiRuntime?.showPanelView?.('historical-selection');
   }
 
   function closePanel() {
@@ -378,30 +327,15 @@
     root.CodeXRMappingUiRuntime?.showPanelView?.('mapping');
   }
 
-  function showModeSelection() {
-    state.panelScreen = 'mode';
-    refs.modeRoot?.setAttribute('visible', true);
-    refs.sourceRoot?.setAttribute('visible', false);
-    setStatus(
-      state.availability === 'enabled' ? '' : state.unavailableReason,
-      state.availability === 'enabled' ? 'info' : 'error'
-    );
-    refs.status?.setAttribute('position', '-2.82 -1.28 0.02');
-    root.CodeXRMappingUiRuntime?.setPanelViewTitle?.('historical-comparison', 'Visualization mode');
-    root.CodeXRMappingUiRuntime?.setPanelViewHeight?.('historical-comparison', 3.35);
-  }
-
   function showSourceSelection() {
     if (state.availability !== 'enabled') {
       setStatus(state.unavailableReason, 'error');
       return;
     }
-    state.panelScreen = 'sources';
-    refs.modeRoot?.setAttribute('visible', false);
     refs.sourceRoot?.setAttribute('visible', true);
     refs.status?.setAttribute('position', '-2.82 -2.17 0.02');
-    root.CodeXRMappingUiRuntime?.setPanelViewTitle?.('historical-comparison', 'History comparison');
-    root.CodeXRMappingUiRuntime?.setPanelViewHeight?.('historical-comparison', 6.45);
+    root.CodeXRMappingUiRuntime?.setPanelViewTitle?.('historical-selection', 'History comparison');
+    root.CodeXRMappingUiRuntime?.setPanelViewHeight?.('historical-selection', 6.45);
     setStatus('Loading local Git references...', 'info');
     var client = getClient();
     if (!client?.sendMessage?.('historical-comparison-references-request', {})) {
@@ -589,12 +523,36 @@
     });
   }
 
-  function resetComparison() {
-    getClient()?.sendMessage?.('historical-comparison-reset', {});
+  async function enterHistoricalSelection() {
+    root.CodeXRAnalysisModeRuntime?.setSelectionPanel?.('historical-selection');
+    await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
+      reason: 'historical-selection',
+      panelViewId: 'historical-selection'
+    });
+    root.CodeXRMappingUiRuntime?.showPanelView?.('historical-selection');
+    getClient()?.sendMessage?.('analysis-mode-selection', {});
+    showSourceSelection();
+  }
+
+  function selectHistoricalMode() {
+    if (state.result) {
+      getClient()?.sendMessage?.('analysis-mode-activate', {
+        mode: 'historical-compare'
+      });
+      return;
+    }
+    void enterHistoricalSelection();
   }
 
   function handleReferences(message) {
     state.references = message?.payload || null;
+    var activeRequest = state.references?.activeRequest;
+    if (activeRequest?.leftSourceId && activeRequest?.rightSourceId) {
+      state.selected = {
+        left: activeRequest.leftSourceId,
+        right: activeRequest.rightSourceId
+      };
+    }
     state.pageSize = Math.min(5, Number(state.references?.pageSize || 5));
     state.page = 0;
     if (!getCategorySources().length) {
@@ -623,11 +581,15 @@
   }
 
   async function applySharedState(snapshot) {
-    if (!snapshot || snapshot.mode === 'single' || !snapshot.result) {
-      restoreSingleMode();
+    if (!snapshot || !snapshot.result) {
+      return;
+    }
+    if (!isHistoricalModeActiveOrActivating()) {
+      state.result = snapshot.result;
       return;
     }
     try {
+      var loadGeneration = ++state.loadGeneration;
       setStatus('Loading comparison datasets...', 'info');
       var result = snapshot.result;
       var responses = await Promise.all([
@@ -638,13 +600,19 @@
         throw new Error('Comparison datasets could not be loaded.');
       }
       var datasets = await Promise.all(responses.map(function (response) { return response.json(); }));
+      if (
+        loadGeneration !== state.loadGeneration
+        || !isHistoricalModeActiveOrActivating()
+      ) {
+        return;
+      }
       var previousResult = state.result;
+      state.result = result;
       if (canRefreshLiveSide(result, previousResult)) {
         await refreshLiveSide(result, datasets);
       } else {
         await renderComparison(result, datasets[0], datasets[1]);
       }
-      state.result = result;
       closePanel();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), 'error');
@@ -770,7 +738,7 @@
   }
 
   async function renderComparison(result, leftPayload, rightPayload) {
-    restoreSingleMode(false);
+    disposeComparisonGeometry(false);
     var config = getConfig();
     var scene = getDocument()?.querySelector('a-scene');
     var original = config?.chartEntityId ? getDocument().getElementById(config.chartEntityId) : null;
@@ -781,9 +749,11 @@
       left: normalizePayload(leftPayload),
       right: normalizePayload(rightPayload)
     };
-    getDocument().getElementById('codexrAnalysisTable')?.setAttribute('codexr-analysis-table', 'mode', 'historical-compare');
-
-    refs.comparisonRoot = createEntity('a-entity', { id: 'codexrHistoricalComparisonRoot' });
+    refs.comparisonRoot = createEntity('a-entity', {
+      id: 'codexrHistoricalComparisonRoot',
+      'data-codexr-analysis-root': 'true',
+      'data-codexr-analysis-mode': 'historical-compare'
+    });
     scene.appendChild(refs.comparisonRoot);
     var chartComponent = getChartComponentName(original);
     var leftFrom = 'codexrComparisonDataLeft';
@@ -993,7 +963,7 @@
     }
   }
 
-  function restoreSingleMode(clearResult) {
+  function disposeComparisonGeometry(clearResult) {
     if (refs.comparisonRoot?.parentNode) {
       refs.comparisonRoot.parentNode.removeChild(refs.comparisonRoot);
     }
@@ -1002,10 +972,7 @@
     var original = restoreOriginalChart()
       || (config?.chartEntityId ? getDocument()?.getElementById(config.chartEntityId) : null);
     restoreRaycastInteraction(original);
-    original?.setAttribute('visible', true);
-    getDocument()?.getElementById('codexrAnalysisTable')?.setAttribute('codexr-analysis-table', 'mode', 'single');
     restoreOriginalChartMapping(config);
-    root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('historical-comparison-reset');
     if (clearResult !== false) {
       state.result = null;
       state.payloads = { left: [], right: [] };
@@ -1046,6 +1013,41 @@
       return;
     }
     state.initialized = true;
+    state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime?.register?.('historical-compare', {
+      activate: function () {
+        if (state.result) {
+          if (state.payloads.left.length || state.payloads.right.length) {
+            return renderComparison(
+              state.result,
+              state.payloads.left,
+              state.payloads.right
+            ).then(function () {
+              closePanel();
+            });
+          }
+          return applySharedState({
+            entityKind: ENTITY_KIND,
+            entityId: ENTITY_ID,
+            mode: 'historical-compare',
+            result: state.result
+          });
+        }
+      },
+      deactivate: function () {
+        state.loadGeneration += 1;
+        disposeComparisonGeometry(false);
+      },
+      disposeView: function () {
+        state.loadGeneration += 1;
+        disposeComparisonGeometry(false);
+      }
+    }) || null;
+    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime?.registerModeOption?.({
+      id: 'historical-compare',
+      label: 'Historical comparison',
+      color: '#be123c',
+      onSelect: selectHistoricalMode
+    }) || null;
     mountPanelView(0);
     state.selectedMapping = Object.assign(
       {},
@@ -1063,12 +1065,18 @@
     autoInit: autoInit,
     open: openPanel,
     close: closePanel,
-    reset: resetComparison,
+    activate: enterHistoricalSelection,
+    deactivate: function () {
+      return root.CodeXRAnalysisModeRuntime?.deactivate?.('historical-compare');
+    },
+    disposeView: function () {
+      state.loadGeneration += 1;
+      disposeComparisonGeometry(false);
+    },
     applySharedState: applySharedState,
     getState: function () {
       return {
         panelVisible: state.panelVisible,
-        panelScreen: state.panelScreen,
         selected: Object.assign({}, state.selected),
         result: state.result,
         status: state.status
@@ -1077,14 +1085,19 @@
     destroy: function () {
       state.disposables.forEach(function (dispose) { dispose?.(); });
       state.disposables = [];
-      restoreSingleMode();
+      disposeComparisonGeometry();
+      state.unregisterModeOption?.();
+      state.unregisterModeOption = null;
+      state.unregisterLifecycle?.();
+      state.unregisterLifecycle = null;
       state.unregisterPanelView?.();
       state.unregisterPanelView = null;
       refs.panel = null;
       state.initialized = false;
     },
     __testing: {
-      buildComparisonBoatsTree: buildComparisonBoatsTree
+      buildComparisonBoatsTree: buildComparisonBoatsTree,
+      selectHistoricalMode: selectHistoricalMode
     }
   };
 

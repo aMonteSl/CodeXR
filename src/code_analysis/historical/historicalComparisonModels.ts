@@ -1,4 +1,8 @@
-export type AnalysisTableMode = 'single' | 'historical-compare';
+export type AnalysisTableMode =
+    | 'selection'
+    | 'single'
+    | 'historical-compare'
+    | 'dependency-graph';
 
 export type GitReferenceType = 'branch' | 'tag' | 'commit';
 
@@ -66,6 +70,7 @@ export interface HistoricalComparisonReferences {
     activeBranch: string | null;
     sources: ComparisonSource[];
     pageSize: number;
+    activeRequest?: HistoricalComparisonRequest | null;
 }
 
 export interface HistoricalComparisonProgress {

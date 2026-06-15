@@ -11,9 +11,11 @@ import { ExecutePython } from '../utils/executePython';
 import { XRFieldSchemaService } from '../../services/xrFieldSchemaService';
 import {
     ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
+    ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
     CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     copyAnalysisTableRuntimeToOutput,
+    copyAnalysisModeRuntimeToOutput,
     copyHistoricalComparisonRuntimeToOutput,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     copyCodeXrRoomAssetsToOutput,
@@ -28,6 +30,14 @@ import {
     XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME,
     copyXrChartMappingUiRuntimeToOutput,
     XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
+    copyCodeXrDebugRuntimeToOutput,
+    CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
+    copyRenderBudgetRuntimeToOutput,
+    RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
+    copyDependencyVisualBudgetRuntimeToOutput,
+    DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
+    copyDependencyGraphRuntimeToOutput,
+    DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 interface FileXRSharedBootstrap {
@@ -100,7 +110,12 @@ export class FileXRParser {
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyRenderBudgetRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyDependencyVisualBudgetRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyDependencyGraphRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeXrDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyAnalysisTableRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyAnalysisModeRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyHistoricalComparisonRuntimeToOutput(this.context.extensionPath, session.outputPath);
 
             const title = `XR Analysis: ${session.targetName || 'analysis'}`;
@@ -140,7 +155,12 @@ export class FileXRParser {
                 || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(RENDER_BUDGET_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(ANALYSIS_MODE_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME)
             ) {
                 throw new Error('XR file bootstrap did not generate the required files.');

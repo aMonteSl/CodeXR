@@ -13,9 +13,15 @@ import { AnalysisConfigurationStorage } from '../../configuration/analysisConfig
 import { ConfigurationConverter } from './configurationConverter';
 import { FileHashTracker } from './fileHashTracker';
 import { DirectoryReAnalyzer } from './directoryReAnalyzer';
+import { ReAnalysisManager } from './reAnalysisManager';
 import { handleError, ErrorDomain, ErrorSeverity } from '../../../utils/errorHandler';
+import { SHA256Generator } from '../../../utils/sha256Generator';
 import { isRelevantDirectoryEvent, shouldIgnoreDirectoryName } from './analysisFilePolicy';
 import { scanDirectoryScope } from './directorySnapshot';
+import {
+    AnalysisSourceChangeBatch,
+    analysisRefreshCoordinator,
+} from '../../refresh';
 
 export class DirectoryWatcherOrchestrator {
     private watchers: Map<string, fs.FSWatcher> = new Map();
@@ -24,16 +30,26 @@ export class DirectoryWatcherOrchestrator {
     private isWatching = false;
 
     private configurationStorage: AnalysisConfigurationStorage;
-    private hashTracker: FileHashTracker;
+    private sourceHashTracker: FileHashTracker;
+    private normalHashTracker: FileHashTracker;
     private reAnalyzer: DirectoryReAnalyzer;
+    private fullReAnalysisManager: ReAnalysisManager;
+    private refreshDisposables: Array<() => void> = [];
 
     constructor(
         private session: UnifiedAnalysisSession,
         private context: vscode.ExtensionContext,
     ) {
         this.configurationStorage = AnalysisConfigurationStorage.getInstance(context);
-        this.hashTracker = new FileHashTracker(session.filesToHash);
+        this.sourceHashTracker = new FileHashTracker(session.filesToHash);
+        this.normalHashTracker = new FileHashTracker(session.filesToHash);
         this.reAnalyzer = new DirectoryReAnalyzer(context);
+        this.fullReAnalysisManager = new ReAnalysisManager(context);
+        const runNormalRefresh = this.applyNormalRefresh.bind(this);
+        this.refreshDisposables.push(
+            analysisRefreshCoordinator.registerHandler(session.id, 'single', runNormalRefresh),
+            analysisRefreshCoordinator.registerHandler(session.id, 'historical-compare', runNormalRefresh),
+        );
     }
 
     public async startWatching(): Promise<string | null> {
@@ -83,7 +99,7 @@ export class DirectoryWatcherOrchestrator {
 
     public getWatcherId(): string | null { return this.watcherId; }
     public isActive(): boolean { return this.isWatching; }
-    public getWatchedFilesCount(): number { return this.hashTracker.getTrackedFiles().length; }
+    public getWatchedFilesCount(): number { return this.sourceHashTracker.getTrackedFiles().length; }
 
     private async handleDirectoryChange(dirPath: string, eventType: string, filename?: string): Promise<void> {
         const registry = UnifiedSessionRegistry.getInstance(this.context);
@@ -109,7 +125,7 @@ export class DirectoryWatcherOrchestrator {
 
         const entryName = filename.toString();
         const fullPath = path.join(dirPath, entryName);
-        if (this.hashTracker.shouldSkipEvent(entryName) || shouldIgnoreDirectoryName(entryName)) {
+        if (this.sourceHashTracker.shouldSkipEvent(entryName) || shouldIgnoreDirectoryName(entryName)) {
             return;
         }
 
@@ -132,7 +148,7 @@ export class DirectoryWatcherOrchestrator {
             }
         }
 
-        if (!isRelevantDirectoryEvent(fullPath, this.hashTracker.getTrackedPaths())) {
+        if (!isRelevantDirectoryEvent(fullPath, this.sourceHashTracker.getTrackedPaths())) {
             return;
         }
 
@@ -148,52 +164,113 @@ export class DirectoryWatcherOrchestrator {
         this.debounceManager.start();
     }
 
+    public async reconcileNow(): Promise<boolean> {
+        return this.reconcileSource(false);
+    }
+
     private async handleDebounceCallback(): Promise<void> {
         try {
             const autoEnabled = await this.configurationStorage.getAutoAnalysisEnabled();
             if (!autoEnabled) {
                 return;
             }
+            await this.reconcileSource(true);
+        } catch (error) {
+            handleError(ErrorDomain.Watcher, 'Error in debounce callback', error, ErrorSeverity.Log);
+        }
+    }
 
+    private async reconcileSource(stopWhenSessionMissing: boolean): Promise<boolean> {
+        try {
             const registry = UnifiedSessionRegistry.getInstance(this.context);
             if (!registry.getSession(this.session.id)) {
-                await this.stopWatching();
-                return;
+                if (stopWhenSessionMissing) {
+                    await this.stopWatching();
+                }
+                return false;
             }
 
             const snapshot = await scanDirectoryScope(this.session.targetPath, this.session.isDeep);
             await this.syncDirectoryWatchers(snapshot.watchedDirectories);
 
             const currentByPath = new Map(snapshot.files.map((entry) => [entry.filePath, entry]));
-            const diff = this.hashTracker.diffAgainst(snapshot.files);
-            const actuallyChanged = await this.hashTracker.resolveActuallyChanged(diff.suspectedChanged, currentByPath);
-            const updatedResults = actuallyChanged.length > 0
-                ? await this.reAnalyzer.reAnalyzeFiles(actuallyChanged) ?? []
-                : [];
+            const diff = this.sourceHashTracker.diffAgainst(snapshot.files);
+            const actuallyChanged = await this.sourceHashTracker.resolveActuallyChanged(diff.suspectedChanged, currentByPath);
+            for (const filePath of diff.added) {
+                try {
+                    const hash = await SHA256Generator.generateFileHash(filePath);
+                    await this.sourceHashTracker.trackNewFile(filePath, hash);
+                } catch {
+                    await this.sourceHashTracker.trackNewFile(filePath, '');
+                }
+            }
+            for (const filePath of diff.removed) {
+                this.sourceHashTracker.untrackFile(filePath);
+            }
+            for (const [filePath, entry] of currentByPath) {
+                if (!actuallyChanged.includes(filePath) && !diff.added.includes(filePath)) {
+                    this.sourceHashTracker.syncUnchangedFile(filePath, entry);
+                }
+            }
+            this.session.filesToHash = this.sourceHashTracker.getTrackedFiles();
 
-            const hasChanges = await this.reAnalyzer.applyIncrementalChanges(
-                this.session,
-                {
-                    removedFiles: diff.removed,
-                    updatedResults,
-                    addedFiles: diff.added,
-                },
-                this.hashTracker,
-            );
-
-            this.session.filesToHash = this.hashTracker.getTrackedFiles();
-
-            if (!hasChanges) {
+            if (actuallyChanged.length === 0 && diff.added.length === 0 && diff.removed.length === 0) {
                 console.log(`DIRECTORY_WATCHER_ORCHESTRATOR: No actual changes detected for ${this.session.targetPath}`);
-                return;
+                return false;
             }
 
+            const sourceRevision = analysisRefreshCoordinator.publishChanges(this.session.id, {
+                changedFiles: actuallyChanged,
+                addedFiles: diff.added,
+                removedFiles: diff.removed,
+            });
             console.log(
-                `DIRECTORY_WATCHER_ORCHESTRATOR: Re-analysis applied (${actuallyChanged.length} changed, ${diff.added.length} added, ${diff.removed.length} removed)`,
+                `DIRECTORY_WATCHER_ORCHESTRATOR: Source revision ${sourceRevision} queued `
+                + `(${actuallyChanged.length} changed, ${diff.added.length} added, ${diff.removed.length} removed)`,
             );
+            return true;
         } catch (error) {
-            handleError(ErrorDomain.Watcher, 'Error in debounce callback', error, ErrorSeverity.Log);
+            handleError(ErrorDomain.Watcher, 'Error reconciling directory source', error, ErrorSeverity.Log);
+            return false;
         }
+    }
+
+    private async applyNormalRefresh(batch: AnalysisSourceChangeBatch): Promise<void> {
+        if (
+            batch.forceRefresh
+            && batch.changedFiles.length === 0
+            && batch.addedFiles.length === 0
+            && batch.removedFiles.length === 0
+        ) {
+            const success = await this.fullReAnalysisManager.executeDataJsonRegeneration(
+                this.session,
+                { notifyClients: this.session.analysisMode !== 'XR' },
+            );
+            if (!success) {
+                throw new Error('Normal full analysis refresh failed.');
+            }
+            this.normalHashTracker.replaceAll(this.sourceHashTracker.getTrackedFiles());
+            return;
+        }
+        const filesToAnalyze = batch.changedFiles.filter((filePath) => fs.existsSync(filePath));
+        const reanalysisResult = filesToAnalyze.length > 0
+            ? await this.reAnalyzer.reAnalyzeFiles(filesToAnalyze)
+            : [];
+        if (reanalysisResult === null) {
+            throw new Error('Normal incremental analysis failed.');
+        }
+        const updatedResults = reanalysisResult;
+        await this.reAnalyzer.applyIncrementalChanges(
+            this.session,
+            {
+                removedFiles: batch.removedFiles,
+                updatedResults,
+                addedFiles: batch.addedFiles.filter((filePath) => fs.existsSync(filePath)),
+            },
+            this.normalHashTracker,
+            { notifyClients: this.session.analysisMode !== 'XR' },
+        );
+        this.normalHashTracker.replaceAll(this.sourceHashTracker.getTrackedFiles());
     }
 
     private async loadDebounceConfiguration(): Promise<number> {
@@ -256,6 +333,9 @@ export class DirectoryWatcherOrchestrator {
 
         this.debounceManager?.dispose();
         this.debounceManager = null;
+        for (const dispose of this.refreshDisposables.splice(0)) {
+            dispose();
+        }
         this.isWatching = false;
         this.watcherId = null;
     }

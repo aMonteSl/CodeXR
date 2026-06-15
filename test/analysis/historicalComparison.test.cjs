@@ -93,6 +93,9 @@ test('historical Git service materializes repository roots, branches, tags, comm
     const initialSha = runGit(repositoryPath, ['rev-parse', 'HEAD']);
     runGit(repositoryPath, ['branch', 'historical-branch']);
     runGit(repositoryPath, ['tag', 'historical-tag']);
+    runGit(repositoryPath, ['update-ref', 'refs/remotes/github/main', initialSha]);
+    runGit(repositoryPath, ['update-ref', 'refs/remotes/gitlab/develop', initialSha]);
+    runGit(repositoryPath, ['update-ref', 'refs/remotes/company/release', initialSha]);
 
     fs.writeFileSync(path.join(repositoryPath, 'README.md'), 'current\n');
     fs.writeFileSync(path.join(repositoryPath, 'src', 'newer.js'), 'export const newer = true;\n');
@@ -104,6 +107,15 @@ test('historical Git service materializes repository roots, branches, tags, comm
     assert.equal(references.targetRelativePath, '.');
     assert.ok(references.sources.some((source) => source.kind === 'gitRef' && source.refType === 'branch'));
     assert.ok(references.sources.some((source) => source.kind === 'gitRef' && source.refType === 'tag'));
+    assert.ok(references.sources.some(
+        (source) => source.kind === 'gitRef' && source.label === 'github/main',
+    ));
+    assert.ok(references.sources.some(
+        (source) => source.kind === 'gitRef' && source.label === 'gitlab/develop',
+    ));
+    assert.ok(references.sources.some(
+        (source) => source.kind === 'gitRef' && source.label === 'company/release',
+    ));
     const initialCommit = references.sources.find(
         (source) => source.kind === 'gitRef'
             && source.refType === 'commit'
@@ -187,6 +199,12 @@ test('historical snapshots use private extension storage and publish only immuta
 
 test('historical comparison is authoritative, shared per room, and rejects concurrent work', () => {
     const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const service = readProjectFile(
+        'src',
+        'code_analysis',
+        'historical',
+        'historicalComparisonService.ts',
+    );
     const room = readProjectFile(
         'src',
         'servers',
@@ -197,12 +215,13 @@ test('historical comparison is authoritative, shared per room, and rejects concu
 
     assert.match(server, /message\.type === 'historical-comparison-references-request'/);
     assert.match(server, /message\.type === 'historical-comparison-start'/);
-    assert.match(server, /message\.type === 'historical-comparison-reset'/);
+    assert.doesNotMatch(server, /message\.type === 'historical-comparison-reset'/);
     assert.match(server, /historicalComparisonService\.isBusy\(\)/);
     assert.match(server, /await this\.historicalComparisonService\.getAvailability\(\)/);
     assert.match(server, /historicalComparisonReason: historicalComparison\.reason/);
     assert.match(server, /entityKind: 'historical-comparison'/);
     assert.match(server, /messageContext\.upsertSharedEntity/);
+    assert.match(service, /activeRequest: this\.activeRequest \? \{ \.\.\.this\.activeRequest \} : null/);
     assert.match(room, /handleApplicationMessage\?:/);
     assert.match(room, /upsertSharedEntity: \(entity\) => this\.upsertAuthoritativeEntity/);
 });
@@ -228,16 +247,17 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.doesNotMatch(runtime, /cloneNode\(true\)/);
     assert.match(runtime, /activeCategory: 'branch'/);
     assert.match(runtime, /registerPanelView\(\{/);
-    assert.match(runtime, /title: 'Visualization mode'/);
-    assert.match(runtime, /buttonLabel: 'V'/);
-    assert.match(runtime, /Normal analysis/);
-    assert.match(runtime, /Historical comparison/);
-    assert.match(runtime, /setPanelViewHeight\?\.\('historical-comparison', 3\.35\)/);
-    assert.match(runtime, /setPanelViewHeight\?\.\('historical-comparison', 6\.45\)/);
+    assert.match(runtime, /id: 'historical-selection'/);
+    assert.match(runtime, /headerButton: false/);
+    assert.match(runtime, /title: 'History comparison'/);
+    assert.match(runtime, /setPanelViewHeight\?\.\('historical-selection', 6\.45\)/);
     assert.doesNotMatch(runtime, /scene\.appendChild\(refs\.panel\)/);
     assert.match(runtime, /capabilities\.historicalComparison === true/);
     assert.match(runtime, /getSessionInfoAsync/);
-    assert.match(runtime, /Historical comparison unavailable/);
+    assert.match(runtime, /Historical comparison requires a local Git repository/);
+    assert.match(runtime, /state\.references\?\.activeRequest/);
+    assert.match(runtime, /left: activeRequest\.leftSourceId/);
+    assert.match(runtime, /right: activeRequest\.rightSourceId/);
     assert.match(runtime, /requires an analysis inside a local Git repository/);
     assert.match(runtime, /codexr-chart-containment/);
     assert.match(runtime, /getAnalysisTableZones\?\.\('historical-compare'\)/);
@@ -257,13 +277,25 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.match(runtime, /new root\.MutationObserver/);
     assert.match(runtime, /function restoreRaycastInteraction\(rootEntity\)/);
     assert.match(runtime, /function parkOriginalChart\(original\)/);
-    assert.match(runtime, /refs\.originalChartParent\?\.removeChild\?\.\(original\)/);
+    assert.doesNotMatch(runtime, /originalChartParent|originalChartNextSibling/);
+    assert.match(runtime, /original\.setAttribute\('visible', false\)/);
     assert.match(runtime, /function restoreOriginalChart\(\)/);
-    assert.match(runtime, /parent\.insertBefore\(original, nextSibling\)/);
+    assert.match(runtime, /getState\?\.\(\)\.mode === 'single'/);
     assert.match(runtime, /function restoreOriginalChartMapping\(config\)/);
     assert.match(runtime, /mappingRuntime\.restoreState\(mappingState\)/);
     assert.match(runtime, /parkOriginalChart\(original\)/);
     assert.match(runtime, /restoreOriginalChart\(\)/);
+    assert.match(runtime, /CodeXRAnalysisModeRuntime/);
+    assert.match(runtime, /\|\| !isHistoricalModeActiveOrActivating\(\)/);
+    assert.doesNotMatch(runtime, /getState\?\.\(\)\.mode !== 'historical-compare'/);
+    assert.match(runtime, /enterHistoricalSelection/);
+    assert.match(runtime, /registerModeOption/);
+    assert.doesNotMatch(runtime, /activateNormalAnalysis/);
+    assert.match(runtime, /analysis-mode-selection/);
+    assert.match(runtime, /function disposeComparisonGeometry/);
+    assert.doesNotMatch(runtime, /setAttribute\('codexr-analysis-table', 'mode', 'single'\)/);
+    assert.doesNotMatch(runtime, /sendMessage\?\.\('historical-comparison-reset'/);
+    assert.match(runtime, /loadGeneration/);
     assert.match(runtime, /mappingRuntime\.setChartEntityIds\(\[config\.chartEntityId\]\)/);
     assert.match(runtime, /'historical-compare'/);
     assert.match(runtime, /'single'/);
@@ -309,4 +341,19 @@ test('Cloudflare remote access documentation states the official Quick Tunnel op
     assert.match(docs, /Named Tunnels/i);
     assert.match(docs, /relay propio de CodeXR/i);
     assert.match(docs, /trycloudflare/i);
+});
+
+test('historical comparison documentation explains provider-neutral Git behavior and XR architecture', () => {
+    const docs = readProjectFile('docs', 'HISTORICAL_COMPARISON_XR.md');
+
+    assert.match(docs, /depende de \*\*Git\*\*, no de la API de un proveedor concreto/i);
+    assert.match(docs, /\| GitHub \| Sí \|/);
+    assert.match(docs, /\| GitLab \| Sí \|/);
+    assert.match(docs, /CodeXR no ejecuta `git fetch` automáticamente/i);
+    assert.match(docs, /`codexr-analysis-table`/);
+    assert.match(docs, /`codexr-chart-containment`/);
+    assert.match(docs, /CodeXRMappingUiRuntime/);
+    assert.match(docs, /`codexr-left:` o `codexr-right:`/);
+    assert.match(docs, /working-copy/);
+    assert.match(docs, /Cloudflare Quick Tunnel/);
 });

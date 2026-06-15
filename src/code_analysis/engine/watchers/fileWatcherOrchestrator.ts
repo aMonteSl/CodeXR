@@ -14,6 +14,10 @@ import { AnalysisConfigurationStorage } from '../../configuration/analysisConfig
 import { ConfigurationConverter } from './configurationConverter';
 import { getFileStatSnapshot } from './directorySnapshot';
 import { SHA256Generator } from '../../../utils/sha256Generator';
+import {
+    AnalysisSourceChangeBatch,
+    analysisRefreshCoordinator,
+} from '../../refresh';
 
 export class FileWatcherOrchestrator {
     private watcher: fs.FSWatcher | null = null;
@@ -24,6 +28,8 @@ export class FileWatcherOrchestrator {
     private configurationStorage: AnalysisConfigurationStorage;
     private lastKnownMtimeMs?: number;
     private lastKnownSize?: number;
+    private lastDetectedHash: string;
+    private refreshDisposables: Array<() => void> = [];
 
     constructor(
         private session: UnifiedAnalysisSession,
@@ -31,6 +37,12 @@ export class FileWatcherOrchestrator {
     ) {
         this.reAnalysisManager = new ReAnalysisManager(context);
         this.configurationStorage = AnalysisConfigurationStorage.getInstance(context);
+        this.lastDetectedHash = session.hash256;
+        const refresh = this.applyRefresh.bind(this);
+        this.refreshDisposables.push(
+            analysisRefreshCoordinator.registerHandler(session.id, 'single', refresh),
+            analysisRefreshCoordinator.registerHandler(session.id, 'historical-compare', refresh),
+        );
     }
 
     private async loadDebounceConfiguration(): Promise<number> {
@@ -114,30 +126,36 @@ export class FileWatcherOrchestrator {
 
         this.debounceManager = new DebounceManager(
             delayMs,
-            () => this.executeReAnalysisIfNeeded(),
+            async () => {
+                await this.executeReAnalysisIfNeeded();
+            },
             path.basename(this.session.targetPath),
         );
         this.debounceManager.start();
         console.log(`FILE_WATCHER_ORCHESTRATOR: Debounce restarted after ${eventType} for ${this.session.targetPath}`);
     }
 
-    private async executeReAnalysisIfNeeded(): Promise<void> {
+    public async reconcileNow(): Promise<boolean> {
+        return this.executeReAnalysisIfNeeded();
+    }
+
+    private async executeReAnalysisIfNeeded(): Promise<boolean> {
         const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
         const currentSession = sessionRegistry.getSession(this.session.id);
         if (!currentSession) {
             this.stopWatching();
-            return;
+            return false;
         }
 
         const statSnapshot = await getFileStatSnapshot(this.session.targetPath);
         if (!statSnapshot) {
             console.warn(`FILE_WATCHER_ORCHESTRATOR: Target file is not accessible yet: ${this.session.targetPath}`);
-            return;
+            return false;
         }
 
         if (this.lastKnownMtimeMs === statSnapshot.mtimeMs && this.lastKnownSize === statSnapshot.size) {
             console.log(`FILE_WATCHER_ORCHESTRATOR: Ignoring duplicate event for ${this.session.targetPath}`);
-            return;
+            return false;
         }
 
         let currentHash: string;
@@ -145,40 +163,48 @@ export class FileWatcherOrchestrator {
             currentHash = await SHA256Generator.generateFileHash(this.session.targetPath);
         } catch (error) {
             console.error('FILE_WATCHER_ORCHESTRATOR: Failed to calculate file hash:', error);
-            return;
+            return false;
         }
 
-        if (currentHash === this.session.hash256) {
+        if (currentHash === this.lastDetectedHash) {
             this.lastKnownMtimeMs = statSnapshot.mtimeMs;
             this.lastKnownSize = statSnapshot.size;
             this.session.metadata.lastModified = new Date(statSnapshot.mtimeMs);
             this.session.metadata.targetSize = statSnapshot.size;
             console.log(`FILE_WATCHER_ORCHESTRATOR: Skipping re-analysis because hash did not change for ${this.session.targetPath}`);
-            return;
+            return false;
         }
 
-        sessionRegistry.updateSessionStatus(this.session.id, 'analyzing', 50);
-
-        let success = false;
-        if (this.session.analysisMode === 'VisualizeDOM') {
-            success = await this.reAnalysisManager.executeVisualizeDOMRegeneration(this.session);
-        } else {
-            success = await this.reAnalysisManager.executeDataJsonRegeneration(this.session);
-        }
-
-        if (!success) {
-            vscode.window.showErrorMessage(`Failed to update analysis for ${path.basename(this.session.targetPath)}`);
-            sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
-            return;
-        }
-
-        this.session.hash256 = currentHash;
+        this.lastDetectedHash = currentHash;
         this.lastKnownMtimeMs = statSnapshot.mtimeMs;
         this.lastKnownSize = statSnapshot.size;
         this.session.metadata.lastModified = new Date(statSnapshot.mtimeMs);
         this.session.metadata.targetSize = statSnapshot.size;
-        sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
+        analysisRefreshCoordinator.publishChanges(this.session.id, {
+            changedFiles: [this.session.targetPath],
+            addedFiles: [],
+            removedFiles: [],
+        });
+        return true;
+    }
 
+    private async applyRefresh(_batch: AnalysisSourceChangeBatch): Promise<void> {
+        const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
+        sessionRegistry.updateSessionStatus(this.session.id, 'analyzing', 50);
+        const success = this.session.analysisMode === 'VisualizeDOM'
+            ? await this.reAnalysisManager.executeVisualizeDOMRegeneration(this.session)
+            : await this.reAnalysisManager.executeDataJsonRegeneration(
+                this.session,
+                { notifyClients: this.session.analysisMode !== 'XR' },
+            );
+        if (!success) {
+            vscode.window.showErrorMessage(`Failed to update analysis for ${path.basename(this.session.targetPath)}`);
+            sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
+            throw new Error('File re-analysis failed.');
+        }
+
+        this.session.hash256 = this.lastDetectedHash;
+        sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
         const targetName = path.basename(this.session.targetPath);
         const noun = this.session.analysisMode === 'VisualizeDOM' ? 'HTML visualization' : 'analysis';
         vscode.window.setStatusBarMessage(`$(check) Updated ${noun} for ${targetName}`, 2000);
@@ -194,6 +220,9 @@ export class FileWatcherOrchestrator {
         if (this.debounceManager) {
             this.debounceManager.dispose();
             this.debounceManager = null;
+        }
+        for (const dispose of this.refreshDisposables.splice(0)) {
+            dispose();
         }
 
         this.isWatching = false;

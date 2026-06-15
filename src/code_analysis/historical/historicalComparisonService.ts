@@ -49,7 +49,11 @@ export class HistoricalComparisonService {
     }
 
     public async getReferences(): Promise<HistoricalComparisonReferences> {
-        this.references = await this.gitService.listReferences();
+        const references = await this.gitService.listReferences();
+        this.references = {
+            ...references,
+            activeRequest: this.activeRequest ? { ...this.activeRequest } : null,
+        };
         return this.references;
     }
 

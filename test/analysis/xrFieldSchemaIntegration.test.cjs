@@ -12,7 +12,7 @@ function readProjectFile(...segments) {
 test('Python entry point exposes schema mode for XR file and directory mappings', () => {
     const source = readProjectFile('src', 'code_analysis', 'python', 'main.py');
 
-    assert.match(source, /choices=\['livePanel', 'xr', 'schema'\]/);
+    assert.match(source, /choices=\['livePanel', 'xr', 'schema', 'dependencies'\]/);
     assert.match(source, /if args\.mode == 'schema':/);
     assert.match(source, /def execute_schema_request\(target_type\):/);
 });
