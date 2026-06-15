@@ -26,7 +26,10 @@
   "main": "./dist/extension.js",
   "files": [
     "dist/**/*",
-    "resources/**/*",
+    "resources/favicon.ico",
+    "resources/icon.png",
+    "resources/icon.svg",
+    "resources/languages_icons/**/*",
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",

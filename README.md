@@ -61,7 +61,7 @@ From a simple A-Frame scenario to a complete immersive room with custom componen
 
 | v1.0.0 | v1.1.0 |
 |:---:|:---:|
-| ![v1.0.0 Scene](resources/comparison/scene-v1.0.0.png) | ![v1.1.0 Scene](resources/comparison/scene-v1.1.0.png) |
+| ![v1.0.0 Scene](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/comparison/scene-v1.0.0.png) | ![v1.1.0 Scene](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/comparison/scene-v1.1.0.png) |
 | *Simple A-Frame scene* | *Immersive room with custom assets and textures* |
 
 ### Analysis Speed & Performance
@@ -70,7 +70,7 @@ This means **18x faster execution** and a **94.44% reduction in analysis time**.
 
 | v1.0.0 | v1.1.0 |
 |:---:|:---:|
-| ![v1.0.0 Speed](resources/comparison/performance-v1.0.0.gif) | ![v1.1.0 Speed](resources/comparison/performance-v1.1.0.gif) |
+| ![v1.0.0 Speed](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/comparison/performance-v1.0.0.gif) | ![v1.1.0 Speed](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/comparison/performance-v1.1.0.gif) |
 | *54s runtime for the same analysis* | *3s runtime with optimized pipeline* |
 
 ### New Virtual Screen Component & Controler
@@ -78,7 +78,7 @@ Project any screen, tab, or window from any connected device and broadcast it in
 
 <div align="center">
 
-![Virtual Screen and Controler](resources/screen/virtualScreenAndControler-v.1.1.0.png)
+![Virtual Screen and Controler](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/screen/virtualScreenAndControler-v.1.1.0.png)
 
 </div>
 
@@ -87,7 +87,7 @@ Includes an analysis table that rescales charts to maintain a stable approximate
 
 <div align="center">
 
-![Analysis table and Mapping UI](resources/analysis-table/analysisTableAndMappingUI.png)
+![Analysis table and Mapping UI](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/analysis-table/analysisTableAndMappingUI.png)
 
 </div>
 
@@ -96,7 +96,7 @@ The collaborative server is interactive: users are identified and assigned rando
 
 <div align="center">
 
-![Collaborative Workspace](resources/collaborative/collaborativeWorkspace.png)
+![Collaborative Workspace](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/collaborative/collaborativeWorkspace.png)
 
 </div>
 
@@ -111,12 +111,12 @@ Experience CodeXR's powerful analysis capabilities through these real-world demo
 
 | **BabiaXR Project Analysis** | **Express.js Project Analysis** |
 |:---:|:---:|
-| ![BabiaXR Analysis](resources/gifts/analysis_babiaXR.gif) | ![Express Analysis](resources/gifts/analysis_express.gif) |
+| ![BabiaXR Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/gifts/analysis_babiaXR.gif) | ![Express Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/gifts/analysis_express.gif) |
 | *Directory analysis of BabiaXR project (77 files)* | *Directory analysis of Express.js project (142 files)* |
 
 | **JetUML Project Analysis** | **Single File Analysis** |
 |:---:|:---:|
-| ![JetUML Analysis](resources/gifts/analysis_jetuml.gif) | ![File Analysis](resources/gifts/analysis_file.gif) |
+| ![JetUML Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/gifts/analysis_jetuml.gif) | ![File Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/resources/gifts/analysis_file.gif) |
 | *Directory analysis of JetUML project (338 files)* | *Simple file analysis demonstration* |
 
 </div>
