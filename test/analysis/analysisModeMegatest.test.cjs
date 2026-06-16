@@ -11,11 +11,11 @@ function read(relativePath) {
 }
 
 test('XR mode panel exposes one neutral V button and no dependency header button', () => {
-  const modeRuntime = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
-  const tableRuntime = read('templates/components/codexr/analysis-table/analysisTableRuntime.js');
-  const dependencyRuntime = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
-  const historyRuntime = read('templates/components/codexr/historical-comparison/historicalComparisonRuntime.js');
-  const mappingRuntime = read('templates/components/codexr/xr-chart-mapping-ui/xrChartMappingUiRuntime.js');
+  const modeRuntime = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
+  const tableRuntime = read('src/codexr-components/others/analysis-table/analysisTableRuntime.js');
+  const dependencyRuntime = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const historyRuntime = read('src/codexr-components/others/historical-comparison/historicalComparisonRuntime.js');
+  const mappingRuntime = read('src/codexr-components/others/xr-chart-mapping-ui/xrChartMappingUiRuntime.js');
 
   assert.match(modeRuntime, /id: 'visualization-mode'/);
   assert.match(modeRuntime, /buttonLabel: 'V'/);
@@ -44,7 +44,7 @@ test('XR mode panel exposes one neutral V button and no dependency header button
 });
 
 test('Visualization mode is orange and removes every analysis root before showing options', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const roots = new Map();
   const removed = [];
   const tableModes = [];
@@ -119,7 +119,7 @@ test('Visualization mode is orange and removes every analysis root before showin
 });
 
 test('first Visualization mode click from initial normal analysis hides all normal visualization roots', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const tableModes = [];
   const chartIds = [];
   let registeredView = null;
@@ -217,7 +217,7 @@ test('first Visualization mode click from initial normal analysis hides all norm
 });
 
 test('mounting a non-normal surface root does not reveal the parked normal chart', () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const elements = new Map();
   function object3D() {
     return {
@@ -314,7 +314,7 @@ test('mounting a non-normal surface root does not reveal the parked normal chart
 });
 
 test('XR mode megatest keeps one visual root and preserves mode-owned state', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRAnalysisModeRuntime;
@@ -378,7 +378,7 @@ test('XR mode megatest keeps one visual root and preserves mode-owned state', as
 });
 
 test('opening Visualization mode clears locally before publishing shared selection', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const events = [];
   const context = {
     setTimeout,
@@ -415,7 +415,7 @@ test('opening Visualization mode clears locally before publishing shared selecti
 });
 
 test('a superseded dependency activation cannot recreate its visual root', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRAnalysisModeRuntime;
@@ -449,7 +449,7 @@ test('a superseded dependency activation cannot recreate its visual root', async
 });
 
 test('Visualization mode waits for a long historical activation and then clears it', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRAnalysisModeRuntime;
@@ -487,7 +487,7 @@ test('Visualization mode waits for a long historical activation and then clears 
 });
 
 test('late dependency activation is disposed after user returns to normal', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRAnalysisModeRuntime;
@@ -521,7 +521,7 @@ test('late dependency activation is disposed after user returns to normal', asyn
 });
 
 test('a failed mode activation returns to an empty selection state', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
   const context = {
     setTimeout,
     clearTimeout,

@@ -18,7 +18,8 @@
     donut: 'babia-doughnut',
     pie: 'babia-pie',
     bubbles: 'babia-bubbles',
-    boats: 'babia-boats'
+    boats: 'babia-boats',
+    'code-city': 'codexr-code-city'
   };
 
   var refs = {
@@ -171,7 +172,7 @@
     }
 
     if (includeRestoreLine === false) {
-      lines.push('CodeXR blocked this option because Babia failed the last time it was used.');
+      lines.push('CodeXR blocked this option because the visualization failed the last time it was used.');
     } else {
       lines.push('CodeXR restored the last valid mapping to keep the visualization stable.');
     }
@@ -421,7 +422,9 @@
   }
 
   function getChartComponentName(config) {
-    return COMPONENT_BY_CHART[(config && config.chartId) || ''] || null;
+    return (config && config.chartComponentName)
+      || COMPONENT_BY_CHART[(config && config.chartId) || '']
+      || null;
   }
 
   function buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot) {

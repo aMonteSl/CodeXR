@@ -103,9 +103,14 @@ test('XR launcher validates mappings with schema-provided field types before exe
     assert.match(source, /DimensionValidator\.validateMappings\(chartMetadata, mappingsArray, fieldTypes\)/);
 });
 
-test('boats chart metadata keeps numeric-only area and height with any-valued color', () => {
+test('city-style chart metadata keeps numeric-only area and height with any-valued color', () => {
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
+
+    assert.match(templateCharts, /id: 'code-city'[\s\S]*componentName: 'codexr-code-city'/);
+    assert.match(templateCharts, /id: 'code-city'[\s\S]*name: 'area'[\s\S]*dataType: 'numeric'/);
+    assert.match(templateCharts, /id: 'code-city'[\s\S]*name: 'height'[\s\S]*dataType: 'numeric'/);
+    assert.match(templateCharts, /id: 'code-city'[\s\S]*name: 'color'[\s\S]*dataType: 'any'/);
 
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'area'[\s\S]*dataType: 'numeric'/);
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'height'[\s\S]*dataType: 'numeric'/);

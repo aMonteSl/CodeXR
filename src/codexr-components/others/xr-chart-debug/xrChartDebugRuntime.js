@@ -15,7 +15,8 @@
     'babia-pie',
     'babia-doughnut',
     'babia-bubbles',
-    'babia-boats'
+    'babia-boats',
+    'codexr-code-city'
   ];
 
   var CHART_ALIASES = {
@@ -28,7 +29,9 @@
     donut: 'babia-doughnut',
     doughnut: 'babia-doughnut',
     bubbles: 'babia-bubbles',
-    boats: 'babia-boats'
+    boats: 'babia-boats',
+    'code-city': 'codexr-code-city',
+    codecity: 'codexr-code-city'
   };
 
   var AXIS_COLORS = {
@@ -1065,7 +1068,7 @@
     console.log('');
     console.log('Target formats accepted by enable(target) and select(target):');
     console.log('  - Chart ID: "my-chart" or "#my-chart"');
-    console.log('  - Aliases: "bars", "barsmap", "cyls", "cylinders", "cylsmap", "pie", "donut", "doughnut", "bubbles", "boats"');
+    console.log('  - Aliases: "bars", "barsmap", "cyls", "cylinders", "cylsmap", "pie", "donut", "doughnut", "bubbles", "boats", "code-city"');
     console.log('  - CSS selector: "[babia-bars]", ".my-class", etc.');
     console.log('');
     console.log('Examples:');

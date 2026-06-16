@@ -385,6 +385,55 @@ export const chartTemplates: ChartMetadata[] = [
                 </a-entity>`
     },
 
+    // CodeXR Code City Chart Template
+    {
+        id: 'code-city',
+        engine: 'codexr',
+        componentName: 'codexr-code-city',
+        name: 'CodeXR Code City',
+        description: 'CodeXR-owned city visualization with buildings, districts, smooth mapping updates, and shared tooltips',
+        category: 'geometric',
+        dimensions: [
+            {
+                name: 'area',
+                label: 'Area',
+                dataType: 'numeric',
+                valueRule: 'numeric-finite',
+                required: true,
+                description: 'Numeric field used to size each building footprint'
+            },
+            {
+                name: 'height',
+                label: 'Height',
+                dataType: 'numeric',
+                valueRule: 'numeric-finite',
+                required: true,
+                description: 'Numeric field used to control building height'
+            },
+            {
+                name: 'color',
+                label: 'Color',
+                dataType: 'any',
+                required: true,
+                description: 'Field used for building color grouping or numeric gradients'
+            }
+        ],
+        htmlTemplate: `<!-- CodeXR Code City -->
+                <a-entity id="chart"
+                    codexr-code-city="from: data;
+                                      title: {{TITLE}};
+                                      palette: {{PALETTE}};
+                                      area: {{AREA_FIELD}};
+                                      height: {{HEIGHT_FIELD}};
+                                      color: {{COLOR_FIELD}}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    position="0 1 -18"
+                    rotation="0 0 0"
+                    scale="1 1 1"
+                    class="babiaxraycasterclass">
+                </a-entity>`
+    },
+
     // Boats Chart Template
     {
         id: 'boats',

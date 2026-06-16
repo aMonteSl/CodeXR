@@ -7,9 +7,9 @@ const vm = require('node:vm');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const runtimePath = path.join(
     projectRoot,
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'analysis-table',
     'analysisTableRuntime.js',
 );

@@ -66,6 +66,11 @@ test('BabiaXR chart templates keep the audited dimension type contract', () => {
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
         { name: 'radius', type: 'numeric', valueRule: 'numeric-positive' },
     ]);
+    assertChartContract(templateCharts, 'code-city', [
+        { name: 'area', type: 'numeric', valueRule: 'numeric-finite' },
+        { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },
+        { name: 'color', type: 'any' },
+    ]);
     assertChartContract(templateCharts, 'boats', [
         { name: 'area', type: 'numeric', valueRule: 'numeric-finite' },
         { name: 'height', type: 'numeric', valueRule: 'numeric-finite' },

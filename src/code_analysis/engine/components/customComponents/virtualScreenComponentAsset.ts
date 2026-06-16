@@ -5,17 +5,17 @@ export const VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME = 'virtualScreenRuntime.js';
 export const VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME = 'codexrMultiScreenManagerRuntime.js';
 
 const VIRTUAL_SCREEN_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'virtual-screen',
     VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
 ] as const;
 
 const VIRTUAL_SCREEN_MANAGER_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'virtual-screen',
     VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME,
 ] as const;

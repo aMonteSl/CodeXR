@@ -5,9 +5,9 @@ const path = require('node:path');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const runtimePath = path.join(
     projectRoot,
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'xr-chart-debug',
     'xrChartDebugRuntime.js',
 );

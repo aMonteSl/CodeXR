@@ -4,9 +4,9 @@ import * as path from 'path';
 export const RENDER_BUDGET_RUNTIME_OUTPUT_NAME = 'renderBudgetRuntime.js';
 
 const SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'render-budget',
     RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
 ] as const;

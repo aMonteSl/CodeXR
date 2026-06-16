@@ -4,9 +4,9 @@ import * as path from 'path';
 export const DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME = 'dependencyVisualBudgetRuntime.js';
 
 const SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'dependency-visual-budget',
     DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
 ] as const;

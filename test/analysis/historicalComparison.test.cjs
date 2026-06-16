@@ -228,9 +228,9 @@ test('historical comparison is authoritative, shared per room, and rejects concu
 
 test('XR historical runtime renders two contained charts and restores the single view cleanly', () => {
     const runtime = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
+        'src',
+        'codexr-components',
+        'others',
         'historical-comparison',
         'historicalComparisonRuntime.js',
     );
@@ -270,6 +270,8 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.match(runtime, /async function refreshLiveSide\(result, datasets\)/);
     assert.match(runtime, /state\.payloads\[liveSide\] = normalizePayload/);
     assert.match(runtime, /componentName === 'babia-boats'/);
+    assert.match(runtime, /name === 'codexr-code-city'/);
+    assert.match(runtime, /componentName === 'codexr-code-city' \? '1 1 1' : '0\.01 0\.05 0\.01'/);
     assert.match(runtime, /buildComparisonBoatsTree\(\s*state\.payloads\[liveSide\]/);
     assert.match(runtime, /codexr-mapping-confirmed/);
     assert.match(runtime, /function getMappedMetricDeltas/);
@@ -310,9 +312,9 @@ test('XR historical runtime renders two contained charts and restores the single
 
 test('historical source selector keeps commit cards compact and identifies live and immutable refs', () => {
     const runtime = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
+        'src',
+        'codexr-components',
+        'others',
         'historical-comparison',
         'historicalComparisonRuntime.js',
     );

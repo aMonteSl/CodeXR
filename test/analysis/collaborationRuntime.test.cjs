@@ -5,17 +5,17 @@ const path = require('node:path');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const collaborationRuntime = require(path.join(
     projectRoot,
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'collaboration',
     'codexrCollaborationRuntime.js',
 ));
 const avatarRuntime = require(path.join(
     projectRoot,
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'avatar',
     'codexrAvatarRuntime.js',
 ));

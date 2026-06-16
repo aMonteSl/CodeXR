@@ -4,9 +4,9 @@ import * as fs from 'fs';
 export const CODEXR_AVATAR_RUNTIME_OUTPUT_NAME = 'codexrAvatarRuntime.js';
 
 const CODEXR_AVATAR_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'avatar',
     CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
 ] as const;

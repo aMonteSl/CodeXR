@@ -1168,15 +1168,28 @@
         });
         nodeEl.object3D.position.copy(startPosition);
         nodeEl.object3D.scale.setScalar(0);
-        nodeEl.addEventListener('mouseenter', function () {
+        var enterHandler = function () {
           self.showTransientSelection({ type: 'node', id: node.id });
-        });
-        nodeEl.addEventListener('mouseleave', function () {
+        };
+        var leaveHandler = function () {
           self.hideTransientSelection({ type: 'node', id: node.id });
-        });
-        nodeEl.addEventListener('click', function (clickEvent) {
+        };
+        var clickHandler = function (clickEvent) {
           clickEvent.stopPropagation?.();
           self.togglePinnedSelection({ type: 'node', id: node.id });
+        };
+        nodeEl.addEventListener('mouseenter', enterHandler);
+        nodeEl.addEventListener('mouseleave', leaveHandler);
+        nodeEl.addEventListener('click', clickHandler);
+        root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(nodeEl, {
+          shape: visual.shape,
+          radius: visual.radius,
+          className: RAYCAST_CLASS,
+          handlers: {
+            enter: enterHandler,
+            leave: leaveHandler,
+            click: clickHandler
+          }
         });
         this.el.appendChild(nodeEl);
         return {
@@ -1934,6 +1947,11 @@
       },
       ensureTooltip: function () {
         if (this.tooltip?.root?.parentNode) { return this.tooltip; }
+        if (root.CodeXRGraphCommonRuntime?.createTooltip) {
+          this.tooltip = root.CodeXRGraphCommonRuntime.createTooltip();
+          this.el.appendChild(this.tooltip.root);
+          return this.tooltip;
+        }
         var tooltipRoot = entity('a-entity', { visible: false });
         var background = entity('a-plane', {
           width: 3.25, height: 1.42,

@@ -118,8 +118,8 @@ export class ProfileConfigurationSetting {
             analysisFileMode: 'XR',
             analysisDirectoryMode: 'XR', 
             viewTheme: 'Dark', // Default theme
-            chartTypeFile: 'boats',
-            chartTypeDirectory: 'boats',
+            chartTypeFile: 'code-city',
+            chartTypeDirectory: 'code-city',
             dimensionMappingFile: {
                 area: 'parameters',
                 height: 'lineCount',

@@ -8,9 +8,9 @@ const scanRoots = ['src', 'templates', 'resources'];
 const audioExtensions = new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac']);
 const allowedBroadcastAudioFile = path.join(
     projectRoot,
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'virtual-screen',
     'virtualScreenRuntime.js',
 );
@@ -95,9 +95,9 @@ test('plugin-owned audio APIs stay scoped to screen sharing broadcast only', () 
     );
 
     const runtimeSource = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
+        'src',
+        'codexr-components',
+        'others',
         'virtual-screen',
         'virtualScreenRuntime.js',
     );

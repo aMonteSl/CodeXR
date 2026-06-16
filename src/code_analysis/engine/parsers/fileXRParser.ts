@@ -36,6 +36,10 @@ import {
     RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
     copyDependencyVisualBudgetRuntimeToOutput,
     DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
+    copyGraphCommonRuntimeToOutput,
+    GRAPH_COMMON_RUNTIME_OUTPUT_NAME,
+    copyCodeCityRuntimeToOutput,
+    CODE_CITY_RUNTIME_OUTPUT_NAME,
     copyDependencyGraphRuntimeToOutput,
     DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
@@ -112,6 +116,8 @@ export class FileXRParser {
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyRenderBudgetRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyDependencyVisualBudgetRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyGraphCommonRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeCityRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyDependencyGraphRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyAnalysisTableRuntimeToOutput(this.context.extensionPath, session.outputPath);
@@ -158,6 +164,8 @@ export class FileXRParser {
                 || !loadedFiles.has(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(RENDER_BUDGET_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(GRAPH_COMMON_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(CODE_CITY_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(ANALYSIS_MODE_RUNTIME_OUTPUT_NAME)

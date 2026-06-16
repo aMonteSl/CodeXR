@@ -107,6 +107,8 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
     assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/historicalComparisonRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/graphCommonRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/codeCityRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /id="codexrAnalysisTable"/);
     assert.match(template, /codexr-analysis-table=/);
 });
@@ -129,13 +131,19 @@ test('XR parsers include CodeXR room runtime in generated assets', () => {
     assert.match(fileParser, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /copyAnalysisTableRuntimeToOutput/);
     assert.match(fileParser, /ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME/);
+    assert.match(fileParser, /copyGraphCommonRuntimeToOutput/);
+    assert.match(fileParser, /copyCodeCityRuntimeToOutput/);
     assert.match(directoryParser, /readCodeXrRoomRuntimeContent/);
     assert.match(directoryParser, /readCodeXrRoomTextureContents/);
     assert.match(directoryParser, /readVirtualScreenManagerRuntimeContent/);
     assert.match(directoryParser, /readAnalysisTableRuntimeContent/);
+    assert.match(directoryParser, /readGraphCommonRuntimeContent/);
+    assert.match(directoryParser, /readCodeCityRuntimeContent/);
     assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(GRAPH_COMMON_RUNTIME_OUTPUT_NAME, graphCommonRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(CODE_CITY_RUNTIME_OUTPUT_NAME, codeCityRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(asset\.relativeOutputPath, asset\.content\)/);
 });
@@ -150,7 +158,7 @@ test('all XR charts share the containment preset and the programmatic boats fall
     assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*bootstrapPlanarMaxRatio: \$\{XR_TABLE_BOOTSTRAP_PLANAR_MAX\};[\s\S]*minPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MIN\};[\s\S]*maxPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MAX\};[\s\S]*minHeightOccupancyRatio: 0\.45;[\s\S]*heightBandMinRatio: \$\{XR_TABLE_HEIGHT_BAND_MIN\};[\s\S]*heightBandMaxRatio: \$\{XR_TABLE_HEIGHT_BAND_MAX\};[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*periodicContainmentEnabled: true;[\s\S]*stabilizationStablePasses: 3`;/);
 
     const matches = templateCharts.match(/codexr-chart-containment="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
-    assert.equal(matches.length, 8);
+    assert.equal(matches.length, 9);
     assert.match(createChart, /UNIVERSAL_XR_TABLE_SETTINGS/);
     assert.match(createChart, /codexr-chart-containment="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/);
     assert.match(createChart, /babia-boats="from: tree;/);
@@ -161,6 +169,7 @@ test('XR live SSE refresh lets Babia rebuild boats from refreshed sources instea
 
     assert.match(source, /const CHART_COMPONENT_TYPES = \[/);
     assert.match(source, /'babia-boats'/);
+    assert.match(source, /'codexr-code-city'/);
     assert.match(source, /function getChartEntities\(\)/);
     assert.match(source, /function hasBoatsChart\(chartEntities\)/);
     assert.match(source, /renormalizeChartContainment\('analysis-updated'/);
@@ -171,7 +180,7 @@ test('XR live SSE refresh lets Babia rebuild boats from refreshed sources instea
 });
 
 test('mapping UI renormalizes all active comparison charts transactionally', () => {
-    const mappingUiRuntime = readProjectFile('templates', 'components', 'codexr', 'xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
+    const mappingUiRuntime = readProjectFile('src', 'codexr-components', 'others', 'xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
 
     assert.match(mappingUiRuntime, /function requestChartContainmentRenormalize\(reason\)/);
     assert.match(mappingUiRuntime, /analysisTableRuntime\.renormalizeAll\(reason \|\| 'mapping-ui-change'\)/);
@@ -193,7 +202,7 @@ test('mapping UI renormalizes all active comparison charts transactionally', () 
 });
 
 test('analysis table exposes stable geometry states and symmetric historical zones', () => {
-    const runtime = readProjectFile('templates', 'components', 'codexr', 'analysis-table', 'analysisTableRuntime.js');
+    const runtime = readProjectFile('src', 'codexr-components', 'others', 'analysis-table', 'analysisTableRuntime.js');
 
     assert.match(runtime, /geometryState: 'rebuilding'/);
     assert.match(runtime, /geometryState: stabilized \? 'stabilized' : 'valid'/);

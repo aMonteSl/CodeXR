@@ -718,9 +718,10 @@
       return '';
     }
     return chart.getAttributeNames().find(function (name) {
-      return name.indexOf('babia-') === 0
-        && name !== 'babia-queryjson'
-        && name !== 'babia-treebuilder';
+      return (name.indexOf('babia-') === 0
+          && name !== 'babia-queryjson'
+          && name !== 'babia-treebuilder')
+        || name === 'codexr-code-city';
     }) || '';
   }
 
@@ -761,7 +762,7 @@
       clone.setAttribute(componentName, chartData);
     }
     clone.setAttribute('position', zone.anchorX + ' 1 ' + zone.anchorZ);
-    clone.setAttribute('scale', '0.01 0.05 0.01');
+    clone.setAttribute('scale', componentName === 'codexr-code-city' ? '1 1 1' : '0.01 0.05 0.01');
     clone.setAttribute(
       'codexr-chart-containment',
       'enabled: true; anchorX: ' + zone.anchorX + '; anchorY: 1; anchorZ: ' + zone.anchorZ + '; '

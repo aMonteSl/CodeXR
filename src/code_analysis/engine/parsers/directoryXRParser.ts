@@ -30,6 +30,10 @@ import {
     readAnalysisModeRuntimeContent,
     readHistoricalComparisonRuntimeContent,
     readDependencyGraphRuntimeContent,
+    readGraphCommonRuntimeContent,
+    GRAPH_COMMON_RUNTIME_OUTPUT_NAME,
+    readCodeCityRuntimeContent,
+    CODE_CITY_RUNTIME_OUTPUT_NAME,
     readRenderBudgetRuntimeContent,
     readDependencyVisualBudgetRuntimeContent,
     readCodeXrDebugRuntimeContent,
@@ -139,6 +143,8 @@ export class DirectoryXRParser {
             const analysisTableRuntimeContent = await readAnalysisTableRuntimeContent(context.extensionPath);
             const analysisModeRuntimeContent = await readAnalysisModeRuntimeContent(context.extensionPath);
             const historicalComparisonRuntimeContent = await readHistoricalComparisonRuntimeContent(context.extensionPath);
+            const graphCommonRuntimeContent = await readGraphCommonRuntimeContent(context.extensionPath);
+            const codeCityRuntimeContent = await readCodeCityRuntimeContent(context.extensionPath);
             const dependencyGraphRuntimeContent = await readDependencyGraphRuntimeContent(context.extensionPath);
             const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
             const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
@@ -161,6 +167,8 @@ export class DirectoryXRParser {
             generatedFiles.set(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent);
             generatedFiles.set(RENDER_BUDGET_RUNTIME_OUTPUT_NAME, renderBudgetRuntimeContent);
             generatedFiles.set(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME, dependencyVisualBudgetRuntimeContent);
+            generatedFiles.set(GRAPH_COMMON_RUNTIME_OUTPUT_NAME, graphCommonRuntimeContent);
+            generatedFiles.set(CODE_CITY_RUNTIME_OUTPUT_NAME, codeCityRuntimeContent);
             generatedFiles.set(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, dependencyGraphRuntimeContent);
             generatedFiles.set(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME, codexrDebugRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);

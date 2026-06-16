@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..', '..');
 const source = fs.readFileSync(
-  path.join(root, 'templates', 'components', 'codexr', 'debug', 'codexrDebugRuntime.js'),
+  path.join(root, 'src', 'codexr-components', 'others', 'debug', 'codexrDebugRuntime.js'),
   'utf8',
 );
 

@@ -4,9 +4,9 @@ import * as path from 'path';
 export const ANALYSIS_MODE_RUNTIME_OUTPUT_NAME = 'analysisModeRuntime.js';
 
 const SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'analysis-mode',
     ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
 ] as const;

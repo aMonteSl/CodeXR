@@ -4,9 +4,9 @@ import * as path from 'path';
 export const DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME = 'dependencyGraphRuntime.js';
 
 const SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'graphs',
     'dependency-graph',
     DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
 ] as const;

@@ -4,9 +4,9 @@ import * as fs from 'fs';
 export const XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME = 'xrChartDebugRuntime.js';
 
 const XR_CHART_DEBUG_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'xr-chart-debug',
     XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME,
 ] as const;

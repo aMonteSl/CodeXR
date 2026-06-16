@@ -5,17 +5,17 @@ export const CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME = 'codexrCollaborationRunt
 export const CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME = 'codexrDomSceneCollaborationRuntime.js';
 
 const CODEXR_COLLAB_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'collaboration',
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
 ] as const;
 
 const CODEXR_DOM_SCENE_COLLAB_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
+    'src',
+    'codexr-components',
+    'others',
     'dom-scene',
     CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME,
 ] as const;
