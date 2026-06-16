@@ -50,6 +50,16 @@
     }
     return Object.assign({ active: true }, component.getDebugSnapshot());
   }
+  function surfaceStats() {
+    return root.CodeXRAnalysisSurfaceRuntime?.getSnapshot?.() || {
+      surfaceId: null,
+      surfaceVisible: false,
+      childCount: 0,
+      visualRootCount: 0,
+      roots: [],
+      registeredRootCount: 0
+    };
+  }
   function collectStatus() {
     var performance = root.CodeXRRenderBudgetRuntime?.getSnapshot?.() || {};
     var density = root.CodeXRDependencyVisualBudgetRuntime?.getSnapshot?.() || {};
@@ -77,6 +87,7 @@
           : []
       },
       graph: graphStats(),
+      surface: surfaceStats(),
       renderer: rendererStats()
     };
   }
@@ -87,6 +98,7 @@
       root.console.table?.([value.performance]);
       root.console.table?.([value.density]);
       root.console.table?.([value.graph]);
+      root.console.table?.([value.surface]);
       root.console.table?.([value.renderer]);
       root.console.log(value);
       root.console.groupEnd();
@@ -301,7 +313,12 @@
       { command: 'CodeXRDebug.stopWatch()', description: 'Stop the periodic status monitor.' },
       { command: 'CodeXRDebug.hud(true)', description: 'Show or hide the desktop diagnostics HUD.' },
       { command: 'CodeXRDebug.toggleHud()', description: 'Toggle the desktop diagnostics HUD.' },
-      { command: 'CodeXRDebug.help()', description: 'List the diagnostics-only commands.' }
+      { command: 'CodeXRDebug.help()', description: 'List the diagnostics-only commands.' },
+      {
+        command: 'CodeXRAnalysisSurfaceRuntime.getSnapshot()',
+        description: 'Inspect the owned analysis surface and its active visual roots.',
+        resolve: function () { return root.CodeXRAnalysisSurfaceRuntime?.getSnapshot; }
+      }
     ]);
     register('Dependency graph', [
       {

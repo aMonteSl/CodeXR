@@ -46,7 +46,7 @@
     dataset: null,
     projectDataset: null,
     fileDatasets: {},
-    original: null,
+    originalRoots: [],
     unregisterMode: null,
     unregisterPanel: null,
     unregisterLifecycle: null,
@@ -140,22 +140,75 @@
     refs.status.setAttribute('color', error ? '#fca5a5' : '#fde68a');
     refs.status.setAttribute('visible', !!message);
   }
-  function getOriginalChart() {
-    var id = config().chartEntityId;
-    return id ? doc()?.getElementById(id) : null;
+  function collectConfiguredIds(cfg, keys) {
+    var ids = [];
+    keys.forEach(function (key) {
+      var value = cfg?.[key];
+      if (Array.isArray(value)) {
+        value.forEach(function (id) { if (id) { ids.push(String(id)); } });
+      } else if (value) {
+        ids.push(String(value));
+      }
+    });
+    return ids;
+  }
+  function uniqueElements(elements) {
+    return elements.filter(function (element, index) {
+      return !!element && elements.indexOf(element) === index;
+    });
+  }
+  function getNormalVisualizationRoots() {
+    var document = doc();
+    if (!document) { return []; }
+    var cfg = config();
+    var roots = [];
+    collectConfiguredIds(cfg, [
+      'normalEntityIds',
+      'visualizationEntityIds',
+      'chartEntityIds',
+      'chartEntityId',
+      'chartId'
+    ]).forEach(function (id) {
+      var element = document.getElementById?.(id);
+      if (element) { roots.push(element); }
+    });
+    if (cfg?.chartSelector && typeof document.querySelector === 'function') {
+      var selected = document.querySelector(cfg.chartSelector);
+      if (selected) { roots.push(selected); }
+    }
+    document.querySelectorAll?.('[data-codexr-normal-root="true"], [data-codexr-normal-visualization="true"]')
+      .forEach(function (element) { roots.push(element); });
+    return uniqueElements(roots);
   }
   function parkOriginal() {
-    var original = getOriginalChart();
-    if (!original || state.original) { return; }
-    state.original = original;
-    original.setAttribute('visible', false);
+    var surface = root.CodeXRAnalysisSurfaceRuntime;
+    if (surface?.setNormalVisible) {
+      surface.setNormalVisible(false);
+      state.originalRoots = [];
+      return;
+    }
+    var roots = getNormalVisualizationRoots();
+    if (!roots.length) { return; }
+    state.originalRoots = roots;
+    roots.forEach(function (element) {
+      element.setAttribute?.('visible', false);
+      if (element.object3D) { element.object3D.visible = false; }
+    });
   }
   function restoreOriginal() {
-    if (!state.original) { return; }
-    if (root.CodeXRAnalysisModeRuntime?.getState?.().mode === 'single') {
-      state.original.setAttribute('visible', true);
+    var surface = root.CodeXRAnalysisSurfaceRuntime;
+    if (surface?.setNormalVisible && root.CodeXRAnalysisModeRuntime?.getState?.().mode === 'single') {
+      surface.setNormalVisible(true);
+      return;
     }
-    state.original = null;
+    if (!state.originalRoots.length) { return; }
+    if (root.CodeXRAnalysisModeRuntime?.getState?.().mode === 'single') {
+      state.originalRoots.forEach(function (element) {
+        element.setAttribute?.('visible', true);
+        if (element.object3D) { element.object3D.visible = true; }
+      });
+    }
+    state.originalRoots = [];
   }
   function removeGraph() {
     refs.graph?.components?.[COMPONENT]?.disposeView?.();
@@ -680,10 +733,7 @@
         '0 0.45 0.02', 5.2, state.availability === 'disabled' ? '#fca5a5' : '#fde68a'
       ));
       refs.controls.appendChild(button(
-        'Visualization modes', '-0.9 -1.85 0.02', 1.7, reset, '#0e7490'
-      ));
-      refs.controls.appendChild(button(
-        'Re-analyze', '0.9 -1.85 0.02', 1.7, reanalyze, '#b45309'
+        'Re-analyze', '0 -1.85 0.02', 1.7, reanalyze, '#b45309'
       ));
       return;
     }
@@ -846,9 +896,8 @@
       'Shapes: sphere function | cylinder method | pyramid class | diamond interface | box folder',
       '0 -1.58 0.02', 5.25, '#ddd6fe'
     ));
-    refs.controls.appendChild(button('Visualization modes', '-1.8 -1.86 0.02', 1.75, openModeSelector, '#0e7490'));
-    refs.controls.appendChild(button('Reset view', '0 -1.86 0.02', 1.55, resetView, '#475569'));
-    refs.controls.appendChild(button('Re-analyze', '1.8 -1.86 0.02', 1.55, reanalyze, '#b45309'));
+    refs.controls.appendChild(button('Reset view', '-0.9 -1.86 0.02', 1.55, resetView, '#475569'));
+    refs.controls.appendChild(button('Re-analyze', '0.9 -1.86 0.02', 1.55, reanalyze, '#b45309'));
     refs.controls.appendChild(text(
       'Hover nodes or edges for details. Click once to pin and again to release.',
       '0 -2.18 0.02', 5.3, '#cbd5e1'
@@ -2131,7 +2180,13 @@
         if (event?.detail?.name !== COMPONENT) { return; }
         renderCurrentGraphIfReady();
       });
-      doc()?.querySelector('a-scene')?.appendChild(refs.graph);
+      if (root.CodeXRAnalysisSurfaceRuntime?.mountRoot) {
+        root.CodeXRAnalysisSurfaceRuntime.mountRoot('dependency-graph', refs.graph);
+      } else {
+        doc()?.querySelector('a-scene')?.appendChild(refs.graph);
+      }
+    } else {
+      root.CodeXRAnalysisSurfaceRuntime?.mountRoot?.('dependency-graph', refs.graph);
     }
     var graph = filteredDataset();
     renderGraphWhenReady(graph, state.snapshot, state.viewGeneration, 0);
@@ -2268,18 +2323,27 @@
   }
   function selectDependencyMode() {
     if (state.dataset && state.snapshot?.datasetUrl) {
+      root.console?.log?.('[CodeXR.Debug]: Dependency graph mode selected from visualization panel', {
+        hasDataset: true,
+        datasetUrl: state.snapshot.datasetUrl
+      });
       client()?.sendMessage?.('analysis-mode-activate', {
         mode: 'dependency-graph'
       });
+      void root.CodeXRAnalysisModeRuntime?.transitionTo?.('dependency-graph', {
+        reason: 'local-dependency-mode-option',
+        panelViewId: 'dependency-graph'
+      });
       return;
     }
+    root.console?.log?.('[CodeXR.Debug]: Dependency graph mode selected; starting dependency analysis', {
+      hasDataset: !!state.dataset,
+      availability: state.availability
+    });
     void start();
   }
   async function openModeSelector() {
-    if (state.transitionLocked) { return; }
-    setTransitionLocked(true, 'Closing dependencies...');
-    root.CodeXRAnalysisModeRuntime?.openSelector?.();
-    setTransitionLocked(false);
+    return root.CodeXRAnalysisModeRuntime?.openSelector?.();
   }
   async function configureAvailability() {
     try {

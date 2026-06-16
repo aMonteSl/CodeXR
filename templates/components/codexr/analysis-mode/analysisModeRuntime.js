@@ -4,8 +4,8 @@
   var VALID_MODES = new Set(['selection', 'single', 'historical-compare', 'dependency-graph']);
   var lifecycles = {};
   var state = {
-    mode: 'selection',
-    activeLifecycleMode: 'selection',
+    mode: 'single',
+    activeLifecycleMode: 'single',
     requestedMode: 'single',
     transitioning: false,
     generation: 0,
@@ -16,8 +16,289 @@
     modeOptions: [],
     unregisterPanelView: null,
     selectionPanelView: 'visualization-mode',
-    panelRoot: null
+    panelRoot: null,
+    openingSelectorFromPanel: false
   };
+
+  function debugLog() {
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[CodeXR.Debug]:');
+    root.console?.log?.apply?.(root.console, args);
+  }
+
+  function setElementTreeVisible(element, visible) {
+    if (!element) { return; }
+    element.setAttribute?.('visible', !!visible);
+    if (element.object3D) {
+      element.object3D.visible = !!visible;
+      element.object3D.traverse?.(function (object) {
+        object.visible = !!visible;
+      });
+    }
+  }
+
+  function setElementSelfVisible(element, visible) {
+    if (!element) { return; }
+    element.setAttribute?.('visible', !!visible);
+    if (element.object3D) {
+      element.object3D.visible = !!visible;
+    }
+  }
+
+  function removeElement(element) {
+    if (!element) { return; }
+    element.components?.['codexr-dependency-graph']?.disposeView?.();
+    if (element.parentNode) {
+      element.parentNode.removeChild(element);
+      return;
+    }
+    element.remove?.();
+  }
+
+  function ensureAnalysisSurfaceRuntime() {
+    if (root.CodeXRAnalysisSurfaceRuntime) {
+      return root.CodeXRAnalysisSurfaceRuntime;
+    }
+    var SURFACE_ID = 'codexrAnalysisSurface';
+    var NORMAL_ROOT_ID = 'codexrNormalAnalysisRoot';
+    var registeredRoots = new Map();
+    var localGeneration = 0;
+
+    function documentRef() {
+      return root.document;
+    }
+
+    function sceneRef() {
+      return documentRef()?.querySelector?.('a-scene') || null;
+    }
+
+    function getSurface(createIfMissing) {
+      var document = documentRef();
+      if (!document) { return null; }
+      var cfg = getConfig();
+      var surfaceId = String(cfg?.normalSurfaceId || SURFACE_ID);
+      var surface = document.getElementById?.(surfaceId);
+      if (!surface && createIfMissing !== false && document.createElement) {
+        surface = document.createElement('a-entity');
+        surface.setAttribute('id', surfaceId);
+        surface.setAttribute('data-codexr-analysis-surface', 'true');
+        sceneRef()?.appendChild?.(surface);
+        debugLog('Analysis surface created', { surfaceId: surfaceId });
+      }
+      return surface || null;
+    }
+
+    function getNormalRoot() {
+      var document = documentRef();
+      if (!document) { return null; }
+      var cfg = getConfig();
+      return document.getElementById?.(String(cfg?.normalRootId || NORMAL_ROOT_ID))
+        || document.querySelector?.('[data-codexr-normal-root="true"]')
+        || null;
+    }
+
+    function getModeRoots(mode) {
+      var document = documentRef();
+      if (!document) { return []; }
+      var roots = [];
+      var surface = getSurface(false);
+      registeredRoots.forEach(function (entry) {
+        if (entry.mode === mode && entry.element?.isConnected !== false) {
+          roots.push(entry.element);
+        }
+      });
+      document.querySelectorAll?.('[data-codexr-analysis-root="true"]').forEach(function (element) {
+        if (element.getAttribute?.('data-codexr-analysis-mode') === mode) {
+          roots.push(element);
+        }
+      });
+      surface?.querySelectorAll?.('[data-codexr-analysis-mode="' + mode + '"]').forEach(function (element) {
+        roots.push(element);
+      });
+      return uniqueElements(roots);
+    }
+
+    function mountRoot(mode, element) {
+      if (!element) { return null; }
+      var surface = getSurface(true);
+      if (!surface) { return element; }
+      element.setAttribute?.('data-codexr-analysis-root', 'true');
+      element.setAttribute?.('data-codexr-analysis-mode', mode);
+      if (element.parentNode !== surface) {
+        surface.appendChild(element);
+      }
+      setElementSelfVisible(surface, true);
+      setElementTreeVisible(element, true);
+      registeredRoots.set(element.id || mode + ':' + registeredRoots.size, {
+        mode: mode,
+        element: element
+      });
+      debugLog('Surface root mounted', {
+        mode: mode,
+        id: element.id || '',
+        surfaceChildren: surface.children?.length || 0
+      });
+      return element;
+    }
+
+    function removeMode(mode) {
+      if (mode === 'single') {
+        setNormalVisible(false);
+        return 0;
+      }
+      var removed = 0;
+      getModeRoots(mode).forEach(function (element) {
+        removeElement(element);
+        removed += 1;
+      });
+      registeredRoots.forEach(function (entry, key) {
+        if (entry.mode === mode) {
+          registeredRoots.delete(key);
+        }
+      });
+      return removed;
+    }
+
+    function removeTransientRoots() {
+      var document = documentRef();
+      if (!document) { return []; }
+      var removed = [];
+      var normalRoot = getNormalRoot();
+      var surface = getSurface(false);
+      document.querySelectorAll?.('[data-codexr-analysis-root="true"]').forEach(function (element) {
+        if (element === normalRoot || element.getAttribute?.('data-codexr-analysis-mode') === 'single') {
+          return;
+        }
+        removed.push(element.id || element.getAttribute?.('data-codexr-analysis-mode') || 'anonymous-root');
+        removeElement(element);
+      });
+      surface?.children && Array.from(surface.children).forEach(function (child) {
+        if (child === normalRoot || child.getAttribute?.('data-codexr-analysis-mode') === 'single') {
+          return;
+        }
+        removed.push(child.id || child.getAttribute?.('data-codexr-analysis-mode') || 'anonymous-child');
+        removeElement(child);
+      });
+      registeredRoots.forEach(function (entry, key) {
+        if (entry.mode !== 'single') {
+          registeredRoots.delete(key);
+        }
+      });
+      return removed;
+    }
+
+    function setNormalVisible(visible) {
+      var surface = getSurface(visible);
+      var roots = getNormalVisualizationRoots();
+      var normalRoot = getNormalRoot();
+      if (normalRoot && !roots.includes(normalRoot)) {
+        roots.unshift(normalRoot);
+      }
+      if (!roots.length && surface) {
+        var surfaceNormal = surface.querySelector?.('[data-codexr-analysis-mode="single"]');
+        if (surfaceNormal) { roots.push(surfaceNormal); }
+      }
+      if (surface && visible) {
+        setElementSelfVisible(surface, true);
+      }
+      roots.forEach(function (element) {
+        setElementTreeVisible(element, visible);
+      });
+      if (surface && !visible && !surface.querySelector?.('[data-codexr-analysis-mode]:not([data-codexr-analysis-mode="single"])')) {
+        setElementTreeVisible(surface, false);
+      }
+      debugLog('Surface normal visibility changed', {
+        visible: !!visible,
+        rootCount: roots.length,
+        ids: roots.map(function (element) { return element.id || element.tagName || 'anonymous'; })
+      });
+      return roots.length;
+    }
+
+    function clearForSelection(reason) {
+      localGeneration += 1;
+      var generation = localGeneration;
+      var surface = getSurface(false);
+      debugLog('Surface clear requested', {
+        reason: reason || '',
+        generation: generation,
+        surfaceFound: !!surface,
+        childCount: surface?.children?.length || 0
+      });
+      var removed = removeTransientRoots();
+      var hiddenNormalCount = setNormalVisible(false);
+      surface = getSurface(false);
+      if (surface) {
+        setElementTreeVisible(surface, false);
+      }
+      var remaining = surface?.querySelectorAll?.('[data-codexr-analysis-root="true"]')?.length || 0;
+      debugLog('Surface cleared', {
+        generation: generation,
+        removed: removed,
+        hiddenNormalCount: hiddenNormalCount,
+        remainingRoots: remaining
+      });
+      return {
+        generation: generation,
+        removed: removed,
+        hiddenNormalCount: hiddenNormalCount,
+        remainingRoots: remaining
+      };
+    }
+
+    function activateMode(mode) {
+      var surface = getSurface(true);
+      if (surface) {
+        setElementSelfVisible(surface, true);
+      }
+      if (mode === 'single') {
+        removeTransientRoots();
+        setNormalVisible(true);
+      } else {
+        setNormalVisible(false);
+      }
+      debugLog('Mode activated on surface', {
+        mode: mode,
+        childCount: surface?.children?.length || 0
+      });
+    }
+
+    function getSnapshot() {
+      var surface = getSurface(false);
+      var roots = surface?.querySelectorAll?.('[data-codexr-analysis-root="true"]') || [];
+      return {
+        surfaceId: surface?.id || null,
+        surfaceVisible: surface?.getAttribute?.('visible') !== false,
+        childCount: surface?.children?.length || 0,
+        visualRootCount: roots.length || 0,
+        roots: Array.from(roots).map(function (element) {
+          return {
+            id: element.id || '',
+            mode: element.getAttribute?.('data-codexr-analysis-mode') || '',
+            visible: element.getAttribute?.('visible') !== false
+          };
+        }),
+        registeredRootCount: registeredRoots.size,
+        generation: localGeneration
+      };
+    }
+
+    root.CodeXRAnalysisSurfaceRuntime = {
+      getSurface: function () { return getSurface(true); },
+      mountRoot: mountRoot,
+      removeMode: removeMode,
+      clearForSelection: clearForSelection,
+      setNormalVisible: setNormalVisible,
+      activateMode: activateMode,
+      getSnapshot: getSnapshot,
+      __testing: {
+        setElementTreeVisible: setElementTreeVisible,
+        clearForSelection: clearForSelection,
+        removeTransientRoots: removeTransientRoots
+      }
+    };
+    return root.CodeXRAnalysisSurfaceRuntime;
+  }
 
   function getNormalRefreshRuntime() {
     if (root.CodeXRNormalAnalysisRefreshRuntime) {
@@ -153,9 +434,31 @@
     });
     button?.appendChild?.(label);
     button?.addEventListener?.('click', function () {
+      debugLog('Visualization mode option clicked', option.id);
       option.onSelect?.();
     });
     return button;
+  }
+
+  function requestModeActivation(mode) {
+    if (!VALID_MODES.has(mode) || mode === 'selection') {
+      return Promise.resolve(false);
+    }
+    debugLog('Requesting analysis mode activation', mode, {
+      currentMode: state.mode,
+      activeLifecycleMode: state.activeLifecycleMode,
+      transitioning: state.transitioning
+    });
+    var client = root.CodeXRCollaborationRuntime?.getClient?.(root);
+    client?.sendMessage?.('analysis-mode-activate', { mode: mode });
+    return transitionTo(mode, {
+      reason: 'local-analysis-mode-option',
+      panelViewId: mode === 'single'
+        ? 'mapping'
+        : mode === 'dependency-graph'
+          ? 'dependency-graph'
+          : 'mapping'
+    });
   }
 
   function renderModeOptions() {
@@ -176,8 +479,7 @@
       label: 'Normal analysis',
       color: '#0e7490',
       onSelect: function () {
-        root.CodeXRCollaborationRuntime?.getClient?.(root)
-          ?.sendMessage?.('analysis-mode-activate', { mode: 'single' });
+        void requestModeActivation('single');
       }
     }].concat(state.modeOptions);
     options.forEach(function (option, index) {
@@ -203,11 +505,20 @@
   }
 
   function resumeRequestedMode() {
+    debugLog('Resuming requested analysis mode', state.requestedMode || 'single');
     root.CodeXRCollaborationRuntime?.getClient?.(root)
       ?.sendMessage?.('analysis-mode-activate', { mode: state.requestedMode || 'single' });
+    void transitionTo(state.requestedMode || 'single', {
+      reason: 'local-visualization-mode-toggle'
+    });
   }
 
   function openSelector() {
+    debugLog('Opening visualization mode selector', {
+      currentMode: state.mode,
+      activeLifecycleMode: state.activeLifecycleMode,
+      transitioning: state.transitioning
+    });
     state.selectionPanelView = 'visualization-mode';
     return transitionTo('selection', {
       reason: 'local-mode-selection',
@@ -241,6 +552,17 @@
       content: state.panelRoot,
       onShow: function () {
         state.selectionPanelView = 'visualization-mode';
+        if (state.mode !== 'selection' && !state.openingSelectorFromPanel) {
+          state.openingSelectorFromPanel = true;
+          debugLog('Visualization mode panel shown directly; forcing selection mode', {
+            currentMode: state.mode,
+            activeLifecycleMode: state.activeLifecycleMode,
+            transitioning: state.transitioning
+          });
+          void openSelector().finally(function () {
+            state.openingSelectorFromPanel = false;
+          });
+        }
       },
       onToggleActive: resumeRequestedMode
     });
@@ -256,6 +578,12 @@
 
   async function performTransition(mode, context, generation) {
     var previousMode = state.activeLifecycleMode;
+    debugLog('Analysis mode transition started', {
+      from: previousMode,
+      to: mode,
+      generation: generation,
+      reason: context?.reason || ''
+    });
     if (previousMode !== mode) {
       await invoke(lifecycles[previousMode], 'deactivate', {
         from: previousMode,
@@ -304,17 +632,22 @@
       return false;
     }
     if (generation !== state.generation) {
+      await invoke(lifecycles[mode], 'deactivate', {
+        from: mode,
+        to: null,
+        generation: generation,
+        context: { reason: 'superseded-activation' }
+      });
       if (state.activeLifecycleMode === mode) {
-        await invoke(lifecycles[mode], 'deactivate', {
-          from: mode,
-          to: null,
-          generation: generation,
-          context: { reason: 'superseded-activation' }
-        });
         state.activeLifecycleMode = null;
       }
       return false;
     }
+    debugLog('Analysis mode transition completed', {
+      mode: mode,
+      activeLifecycleMode: state.activeLifecycleMode,
+      generation: generation
+    });
     return true;
   }
 
@@ -324,9 +657,7 @@
     }
     var generation = ++state.generation;
     state.transitioning = true;
-    var previousTransition = mode === 'selection'
-      ? Promise.resolve()
-      : state.transition.catch(function () {});
+    var previousTransition = state.transition.catch(function () {});
     var nextTransition = previousTransition.then(function () {
       return performTransition(mode, context, generation);
     }).finally(function () {
@@ -350,9 +681,71 @@
     try { return JSON.parse(script?.textContent || '{}'); } catch { return {}; }
   }
 
-  function getOriginalChart() {
-    var chartEntityId = getConfig().chartEntityId;
-    return chartEntityId ? root.document?.getElementById?.(chartEntityId) : null;
+  function collectConfiguredIds(config, keys) {
+    var ids = [];
+    keys.forEach(function (key) {
+      var value = config?.[key];
+      if (Array.isArray(value)) {
+        value.forEach(function (id) { if (id) { ids.push(String(id)); } });
+      } else if (value) {
+        ids.push(String(value));
+      }
+    });
+    return ids;
+  }
+
+  function uniqueElements(elements) {
+    return elements.filter(function (element, index) {
+      return !!element && elements.indexOf(element) === index;
+    });
+  }
+
+  function getNormalVisualizationRoots() {
+    var document = root.document;
+    if (!document) {
+      return [];
+    }
+    var config = getConfig();
+    var roots = [];
+    collectConfiguredIds(config, [
+      'normalRootId',
+      'normalEntityIds',
+      'visualizationEntityIds',
+      'chartEntityIds',
+      'chartEntityId',
+      'chartId'
+    ]).forEach(function (id) {
+      var element = document.getElementById?.(id);
+      if (element) {
+        roots.push(element);
+      }
+    });
+    if (config?.chartSelector && typeof document.querySelector === 'function') {
+      var selected = document.querySelector(config.chartSelector);
+      if (selected) {
+        roots.push(selected);
+      }
+    }
+    document.querySelectorAll?.('[data-codexr-normal-root="true"], [data-codexr-normal-visualization="true"]')
+      .forEach(function (element) {
+        roots.push(element);
+      });
+    return uniqueElements(roots);
+  }
+
+  function getNormalMappingTargetIds(config) {
+    var ids = collectConfiguredIds(config, ['chartEntityIds', 'chartEntityId', 'chartId']);
+    if (!ids.length) {
+      ids = getNormalVisualizationRoots()
+        .map(function (element) { return element.id; })
+        .filter(Boolean);
+    }
+    return Array.from(new Set(ids));
+  }
+
+  function setNormalVisualizationVisible(visible) {
+    var surfaceRuntime = ensureAnalysisSurfaceRuntime();
+    surfaceRuntime.setNormalVisible(visible);
   }
 
   function setTableMode(mode) {
@@ -363,6 +756,7 @@
   function removeResidualVisualRoots() {
     var document = root.document;
     if (!document) {
+      debugLog('Residual visual root cleanup skipped: document unavailable');
       return;
     }
     var roots = [];
@@ -373,17 +767,24 @@
       }
     });
     document.querySelectorAll?.('[data-codexr-analysis-root="true"]').forEach(function (element) {
+      if (
+        element.getAttribute?.('data-codexr-analysis-mode') === 'single'
+        || element.getAttribute?.('data-codexr-normal-root') === 'true'
+      ) {
+        return;
+      }
       if (!roots.includes(element)) {
         roots.push(element);
       }
     });
+    debugLog('Residual visual root cleanup', {
+      count: roots.length,
+      ids: roots.map(function (element) {
+        return element.id || element.getAttribute?.('data-codexr-analysis-mode') || element.tagName || 'unknown';
+      })
+    });
     roots.forEach(function (element) {
-      element?.components?.['codexr-dependency-graph']?.disposeView?.();
-      if (element?.parentNode) {
-        element.parentNode.removeChild(element);
-      } else {
-        element?.remove?.();
-      }
+      removeElement(element);
     });
   }
 
@@ -392,6 +793,11 @@
       reason: 'visualization-mode-selection',
       generation: activation?.generation
     };
+    debugLog('Clearing active visualizations for visualization selector', {
+      generation: activation?.generation,
+      activeLifecycleMode: state.activeLifecycleMode,
+      mode: state.mode
+    });
     await Promise.allSettled(
       ['single', 'historical-compare', 'dependency-graph'].map(function (mode) {
         var lifecycle = lifecycles[mode];
@@ -400,9 +806,12 @@
           : invoke(lifecycle, 'deactivate', context);
       })
     );
+    ensureAnalysisSurfaceRuntime().clearForSelection(context.reason);
     removeResidualVisualRoots();
-    getOriginalChart()?.setAttribute?.('visible', false);
     root.CodeXRMappingUiRuntime?.setChartEntityIds?.([]);
+    debugLog('Visualization selector cleanup completed', {
+      generation: activation?.generation
+    });
   }
 
   function getSnapshotModeRevision(snapshot, mode) {
@@ -436,10 +845,8 @@
         dataEntity.setAttribute('babia-queryjson', Object.assign({}, current, { url: nextUrl }));
       }
     });
-    var original = getOriginalChart();
-    var rebuildDelay = original?.hasAttribute?.('babia-boats') ? 900 : 300;
     await new Promise(function (resolve) {
-      root.setTimeout?.(resolve, rebuildDelay);
+      root.setTimeout?.(resolve, 450);
     });
     if (mappingState && mappingRuntime?.restoreState) {
       mappingRuntime.restoreState(mappingState);
@@ -456,9 +863,9 @@
     if (pending && !refreshedFromRevision) {
       await getNormalRefreshRuntime().waitForCompletionAfter(pending.baseline, 5000);
     }
-    var chartId = config.chartEntityId;
-    if (chartId && root.CodeXRAnalysisTableRuntime?.waitForChartsStable) {
-      await root.CodeXRAnalysisTableRuntime.waitForChartsStable([chartId], {
+    var chartIds = getNormalMappingTargetIds(config);
+    if (chartIds.length && root.CodeXRAnalysisTableRuntime?.waitForChartsStable) {
+      await root.CodeXRAnalysisTableRuntime.waitForChartsStable(chartIds, {
         timeoutMs: 8000,
         pollMs: 100,
         stablePasses: 2
@@ -476,21 +883,21 @@
     register('single', {
       activate: function (activation) {
         var config = getConfig();
-        var original = getOriginalChart();
-        original?.setAttribute?.('visible', true);
-        if (config.chartEntityId) {
-          root.CodeXRMappingUiRuntime?.setChartEntityIds?.([config.chartEntityId]);
+        ensureAnalysisSurfaceRuntime().activateMode('single');
+        var chartIds = getNormalMappingTargetIds(config);
+        if (chartIds.length) {
+          root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds);
         }
         void waitForNormalChartReady(config, activation).then(function () {
           if (state.mode !== 'single' && state.activeLifecycleMode !== 'single') {
             return;
           }
-          original?.setAttribute?.('visible', true);
+          setNormalVisualizationVisible(true);
           root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('normal-analysis-restored');
         });
       },
       deactivate: function () {
-        getOriginalChart()?.setAttribute?.('visible', false);
+        setNormalVisualizationVisible(false);
       }
     });
   }
@@ -558,8 +965,8 @@
       removeResidualVisualRoots: removeResidualVisualRoots,
       reset: function () {
         Object.keys(lifecycles).forEach(function (key) { delete lifecycles[key]; });
-        state.mode = 'selection';
-        state.activeLifecycleMode = 'selection';
+        state.mode = 'single';
+        state.activeLifecycleMode = 'single';
         state.requestedMode = 'single';
         state.transitioning = false;
         state.generation = 0;
@@ -574,6 +981,7 @@
   };
   if (root.document) {
     getNormalRefreshRuntime();
+    ensureAnalysisSurfaceRuntime();
     registerBuiltInLifecycles();
     mountModePanel(0);
     registerCollaboration(0);

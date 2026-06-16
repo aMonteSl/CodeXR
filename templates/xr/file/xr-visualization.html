@@ -64,15 +64,26 @@
         <!-- Data -->
         <a-entity id="data" babia-queryjson="url: ${DATA_SOURCE}"></a-entity>
         
-        <!-- Tree Structure (Only for boats charts) -->
-        ${TREE_BUILDER}
-
-        <!-- Chart Component (Dynamic) -->
+        <!-- Analysis table and owned visualization surface -->
         <a-entity
             id="codexrAnalysisTable"
             codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
         </a-entity>
-        ${CHART_COMPONENT}
+        <a-entity
+            id="codexrAnalysisSurface"
+            data-codexr-analysis-surface="true">
+            <a-entity
+                id="codexrNormalAnalysisRoot"
+                data-codexr-analysis-root="true"
+                data-codexr-analysis-mode="single"
+                data-codexr-normal-root="true">
+                <!-- Tree Structure (Only for boats charts) -->
+                ${TREE_BUILDER}
+
+                <!-- Chart Component (Dynamic) -->
+                ${CHART_COMPONENT}
+            </a-entity>
+        </a-entity>
 
         <!-- Babia UI panel and toggle (optional) -->
         ${BABIA_UI_COMPONENT}
@@ -126,20 +137,20 @@
     </a-scene>
     <script id="codexr-tooling-config-collaboration" type="application/json">{"enabled":true,"collaborationEnabled":true,"presenceEnabled":true,"cursorPresenceEnabled":false,"sceneSelector":"#scene","roomSignalingPath":"/codexr-room","sessionEndpoint":"/api/collaboration/session","broadcastSocketPath":"/codexr-broadcast","followAnchorSelector":"#rig"}</script>
     <script id="codexr-tooling-config-virtual-screen" type="application/json">{"enabled":true,"broadcastEnabled":true,"signalingPath":"/codexr-broadcast","sceneSelector":"#scene","followAnchorSelector":"#rig","anchoredPosition":{"x":0,"y":5,"z":-22},"anchoredRotation":{"x":-12,"y":0,"z":0},"followOffset":{"x":0,"y":0.8,"z":-2.4},"followRotation":{"x":0,"y":0,"z":0}}</script>
-<script nonce="${nonce}" src="./codexrAvatarRuntime.js"></script>
-<script nonce="${nonce}" src="./codexrCollaborationRuntime.js"></script>
-<script nonce="${nonce}" src="./virtualScreenRuntime.js"></script>
-<script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js"></script>
-<script nonce="${nonce}" src="./codexrRoomRuntime.js"></script>
-<script nonce="${nonce}" src="./xrChartMappingUiRuntime.js"></script>
-<script nonce="${nonce}" src="./xrChartDebugRuntime.js"></script>
-<script nonce="${nonce}" src="./analysisTableRuntime.js"></script>
-<script nonce="${nonce}" src="./analysisModeRuntime.js"></script>
-<script nonce="${nonce}" src="./historicalComparisonRuntime.js"></script>
-<script nonce="${nonce}" src="./renderBudgetRuntime.js"></script>
-<script nonce="${nonce}" src="./dependencyVisualBudgetRuntime.js"></script>
-<script nonce="${nonce}" src="./dependencyGraphRuntime.js"></script>
-<script nonce="${nonce}" src="./codexrDebugRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrAvatarRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrCollaborationRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./virtualScreenRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrRoomRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./xrChartMappingUiRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./xrChartDebugRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./analysisTableRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./analysisModeRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./historicalComparisonRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./renderBudgetRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./dependencyVisualBudgetRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./dependencyGraphRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrDebugRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 ${BABIA_UI_SCRIPT}
 </body>

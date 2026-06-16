@@ -276,11 +276,15 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.match(runtime, /function suspendRaycastInteraction\(rootEntity\)/);
     assert.match(runtime, /new root\.MutationObserver/);
     assert.match(runtime, /function restoreRaycastInteraction\(rootEntity\)/);
+    assert.match(runtime, /function getNormalVisualizationRoots\(config\)/);
+    assert.match(runtime, /function getNormalMappingTargetIds\(config\)/);
     assert.match(runtime, /function parkOriginalChart\(original\)/);
     assert.doesNotMatch(runtime, /originalChartParent|originalChartNextSibling/);
-    assert.match(runtime, /original\.setAttribute\('visible', false\)/);
+    assert.match(runtime, /refs\.originalCharts = uniqueElements\(roots\)/);
+    assert.match(runtime, /element\.setAttribute\?\.\('visible', false\)/);
     assert.match(runtime, /function restoreOriginalChart\(\)/);
     assert.match(runtime, /getState\?\.\(\)\.mode === 'single'/);
+    assert.match(runtime, /element\.setAttribute\?\.\('visible', true\)/);
     assert.match(runtime, /function restoreOriginalChartMapping\(config\)/);
     assert.match(runtime, /mappingRuntime\.restoreState\(mappingState\)/);
     assert.match(runtime, /parkOriginalChart\(original\)/);
@@ -296,7 +300,7 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.doesNotMatch(runtime, /setAttribute\('codexr-analysis-table', 'mode', 'single'\)/);
     assert.doesNotMatch(runtime, /sendMessage\?\.\('historical-comparison-reset'/);
     assert.match(runtime, /loadGeneration/);
-    assert.match(runtime, /mappingRuntime\.setChartEntityIds\(\[config\.chartEntityId\]\)/);
+    assert.match(runtime, /mappingRuntime\.setChartEntityIds\(ids\)/);
     assert.match(runtime, /'historical-compare'/);
     assert.match(runtime, /'single'/);
     assert.match(runtime, /refs\.comparisonRoot\.parentNode\.removeChild/);

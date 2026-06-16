@@ -142,34 +142,119 @@
     });
   }
 
+  function collectConfiguredIds(config, keys) {
+    var ids = [];
+    keys.forEach(function (key) {
+      var value = config?.[key];
+      if (Array.isArray(value)) {
+        value.forEach(function (id) { if (id) { ids.push(String(id)); } });
+      } else if (value) {
+        ids.push(String(value));
+      }
+    });
+    return ids;
+  }
+
+  function uniqueElements(elements) {
+    return elements.filter(function (element, index) {
+      return !!element && elements.indexOf(element) === index;
+    });
+  }
+
+  function getNormalVisualizationRoots(config) {
+    var document = getDocument();
+    if (!document) { return []; }
+    var roots = [];
+    collectConfiguredIds(config || getConfig(), [
+      'normalEntityIds',
+      'visualizationEntityIds',
+      'chartEntityIds',
+      'chartEntityId',
+      'chartId'
+    ]).forEach(function (id) {
+      var element = document.getElementById?.(id);
+      if (element) { roots.push(element); }
+    });
+    if (config?.chartSelector && typeof document.querySelector === 'function') {
+      var selected = document.querySelector(config.chartSelector);
+      if (selected) { roots.push(selected); }
+    }
+    document.querySelectorAll?.('[data-codexr-normal-root="true"], [data-codexr-normal-visualization="true"]')
+      .forEach(function (element) { roots.push(element); });
+    return uniqueElements(roots);
+  }
+
+  function getTemplateChart(config) {
+    var document = getDocument();
+    if (!document) { return null; }
+    if (config?.chartEntityId) {
+      return document.getElementById(config.chartEntityId);
+    }
+    if (Array.isArray(config?.chartEntityIds) && config.chartEntityIds.length) {
+      return document.getElementById(config.chartEntityIds[0]);
+    }
+    return getNormalVisualizationRoots(config)[0] || null;
+  }
+
+  function getNormalMappingTargetIds(config) {
+    var ids = collectConfiguredIds(config, ['chartEntityIds', 'chartEntityId', 'chartId']);
+    if (!ids.length) {
+      ids = getNormalVisualizationRoots(config)
+        .map(function (element) { return element.id; })
+        .filter(Boolean);
+    }
+    return Array.from(new Set(ids));
+  }
+
   function parkOriginalChart(original) {
-    if (!original || refs.originalChart === original) {
+    if (root.CodeXRAnalysisSurfaceRuntime?.setNormalVisible) {
+      root.CodeXRAnalysisSurfaceRuntime.setNormalVisible(false);
+      refs.originalCharts = [];
+      if (original) { suspendRaycastInteraction(original); }
       return;
     }
-    refs.originalChart = original;
-    suspendRaycastInteraction(original);
-    original.setAttribute('visible', false);
+    var roots = getNormalVisualizationRoots(getConfig());
+    if (original && !roots.includes(original)) {
+      roots.push(original);
+    }
+    refs.originalCharts = uniqueElements(roots);
+    refs.originalCharts.forEach(function (element) {
+      suspendRaycastInteraction(element);
+      element.setAttribute?.('visible', false);
+    });
   }
 
   function restoreOriginalChart() {
-    var original = refs.originalChart;
-    if (!original) {
+    if (root.CodeXRAnalysisSurfaceRuntime?.setNormalVisible) {
+      if (root.CodeXRAnalysisModeRuntime?.getState?.().mode === 'single') {
+        root.CodeXRAnalysisSurfaceRuntime.setNormalVisible(true);
+      }
+      var original = getTemplateChart(getConfig());
+      restoreRaycastInteraction(original);
+      refs.originalCharts = null;
+      return original;
+    }
+    var originals = Array.isArray(refs.originalCharts) ? refs.originalCharts : [];
+    if (!originals.length) {
       return null;
     }
     if (root.CodeXRAnalysisModeRuntime?.getState?.().mode === 'single') {
-      original.setAttribute('visible', true);
+      originals.forEach(function (element) {
+        element.setAttribute?.('visible', true);
+      });
     }
-    restoreRaycastInteraction(original);
-    refs.originalChart = null;
-    return original;
+    originals.forEach(restoreRaycastInteraction);
+    refs.originalCharts = null;
+    return originals[0] || null;
   }
 
   function restoreOriginalChartMapping(config) {
     var mappingRuntime = root.CodeXRMappingUiRuntime;
-    if (!config?.chartEntityId || !mappingRuntime?.setChartEntityIds) {
+    var ids = getNormalMappingTargetIds(config);
+    if (!ids.length || !mappingRuntime?.setChartEntityIds) {
       return;
     }
-    mappingRuntime.setChartEntityIds([config.chartEntityId]);
+    mappingRuntime.setChartEntityIds(ids);
     var mappingState = mappingRuntime.getState?.();
     if (mappingState && mappingRuntime.restoreState) {
       mappingRuntime.restoreState(mappingState);
@@ -536,11 +621,20 @@
 
   function selectHistoricalMode() {
     if (state.result) {
+      root.console?.log?.('[CodeXR.Debug]: Historical comparison mode selected from visualization panel', {
+        hasResult: true,
+        revision: state.result.revision
+      });
       getClient()?.sendMessage?.('analysis-mode-activate', {
         mode: 'historical-compare'
       });
+      void root.CodeXRAnalysisModeRuntime?.transitionTo?.('historical-compare', {
+        reason: 'local-historical-mode-option',
+        panelViewId: 'mapping'
+      });
       return;
     }
+    root.console?.log?.('[CodeXR.Debug]: Historical comparison selected; opening source selector');
     void enterHistoricalSelection();
   }
 
@@ -741,7 +835,7 @@
     disposeComparisonGeometry(false);
     var config = getConfig();
     var scene = getDocument()?.querySelector('a-scene');
-    var original = config?.chartEntityId ? getDocument().getElementById(config.chartEntityId) : null;
+    var original = getTemplateChart(config);
     if (!scene || !original) {
       throw new Error('The original XR chart is not available.');
     }
@@ -754,7 +848,11 @@
       'data-codexr-analysis-root': 'true',
       'data-codexr-analysis-mode': 'historical-compare'
     });
-    scene.appendChild(refs.comparisonRoot);
+    if (root.CodeXRAnalysisSurfaceRuntime?.mountRoot) {
+      root.CodeXRAnalysisSurfaceRuntime.mountRoot('historical-compare', refs.comparisonRoot);
+    } else {
+      scene.appendChild(refs.comparisonRoot);
+    }
     var chartComponent = getChartComponentName(original);
     var leftFrom = 'codexrComparisonDataLeft';
     var rightFrom = 'codexrComparisonDataRight';
@@ -969,8 +1067,7 @@
     }
     refs.comparisonRoot = null;
     var config = getConfig();
-    var original = restoreOriginalChart()
-      || (config?.chartEntityId ? getDocument()?.getElementById(config.chartEntityId) : null);
+    var original = restoreOriginalChart() || getTemplateChart(config);
     restoreRaycastInteraction(original);
     restoreOriginalChartMapping(config);
     if (clearResult !== false) {

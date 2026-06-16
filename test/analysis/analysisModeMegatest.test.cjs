@@ -118,6 +118,201 @@ test('Visualization mode is orange and removes every analysis root before showin
   assert.equal(runtime.getState().mode, 'selection');
 });
 
+test('first Visualization mode click from initial normal analysis hides all normal visualization roots', async () => {
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const tableModes = [];
+  const chartIds = [];
+  let registeredView = null;
+  const elements = new Map();
+  function element(id) {
+    const el = {
+      id,
+      children: [],
+      attributes: {},
+      visible: true,
+      appendChild(child) {
+        this.children.push(child);
+        child.parentNode = this;
+      },
+      removeChild(child) {
+        this.children = this.children.filter(candidate => candidate !== child);
+        child.parentNode = null;
+      },
+      setAttribute(name, property, value) {
+        if (id === 'codexrAnalysisTable' && name === 'codexr-analysis-table' && property === 'mode') {
+          tableModes.push(value);
+        }
+        if (name === 'visible') {
+          this.visible = property;
+        }
+        this.attributes[name] = value === undefined ? property : { property, value };
+      },
+      getAttribute(name) {
+        return this.attributes[name];
+      },
+      addEventListener() {},
+      remove() {
+        this.removed = true;
+      },
+    };
+    elements.set(id, el);
+    return el;
+  }
+  const primaryVisual = element('primaryVisual');
+  const secondaryVisual = element('secondaryVisual');
+  const table = element('codexrAnalysisTable');
+  const config = element('codexr-tooling-config-xr-mapping-ui');
+  config.textContent = JSON.stringify({
+    chartEntityIds: ['primaryVisual', 'secondaryVisual'],
+  });
+  const document = {
+    createElement(tagName) {
+      return element(tagName + '-' + elements.size);
+    },
+    getElementById(id) {
+      if (id === 'primaryVisual') { return primaryVisual; }
+      if (id === 'secondaryVisual') { return secondaryVisual; }
+      if (id === 'codexrAnalysisTable') { return table; }
+      if (id === 'codexr-tooling-config-xr-mapping-ui') { return config; }
+      return elements.get(id) || null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+  };
+  const context = {
+    setTimeout,
+    clearTimeout,
+    console,
+    document,
+    CodeXRMappingUiRuntime: {
+      isPanelReady() { return true; },
+      registerPanelView(view) {
+        registeredView = view;
+        return () => {};
+      },
+      showPanelView() {},
+      setChartEntityIds(ids) {
+        chartIds.push(ids);
+      },
+    },
+    CodeXRAnalysisTableRuntime: {
+      waitForChartsStable() { return Promise.resolve({ valid: true }); },
+      renormalizeAll() {},
+    },
+  };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRAnalysisModeRuntime;
+
+  assert.equal(runtime.getState().mode, 'single');
+  assert.equal(registeredView?.id, 'visualization-mode');
+  registeredView.onShow();
+  await new Promise(resolve => setTimeout(resolve, 10));
+
+  assert.equal(runtime.getState().mode, 'selection');
+  assert.equal(tableModes.at(-1), 'selection');
+  assert.equal(primaryVisual.visible, false);
+  assert.equal(secondaryVisual.visible, false);
+  assert.deepEqual(Array.from(chartIds.at(-1)), []);
+});
+
+test('mounting a non-normal surface root does not reveal the parked normal chart', () => {
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const elements = new Map();
+  function object3D() {
+    return {
+      visible: true,
+      traverse(callback) {
+        callback(this);
+      },
+    };
+  }
+  function element(id) {
+    const el = {
+      id,
+      children: [],
+      attributes: {},
+      object3D: object3D(),
+      appendChild(child) {
+        this.children.push(child);
+        child.parentNode = this;
+      },
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+        if (name === 'visible') {
+          this.visible = value;
+        }
+      },
+      getAttribute(name) {
+        return this.attributes[name];
+      },
+      querySelector(selector) {
+        if (selector === '[data-codexr-analysis-mode]:not([data-codexr-analysis-mode="single"])') {
+          return this.children.find(child => child.attributes['data-codexr-analysis-mode'] !== 'single') || null;
+        }
+        if (selector === '[data-codexr-analysis-mode="single"]') {
+          return this.children.find(child => child.attributes['data-codexr-analysis-mode'] === 'single') || null;
+        }
+        return null;
+      },
+      querySelectorAll(selector) {
+        if (selector === '[data-codexr-analysis-mode="dependency-graph"]') {
+          return this.children.filter(child => child.attributes['data-codexr-analysis-mode'] === 'dependency-graph');
+        }
+        if (selector === '[data-codexr-analysis-root="true"]') {
+          return this.children.filter(child => child.attributes['data-codexr-analysis-root'] === 'true');
+        }
+        return [];
+      },
+    };
+    elements.set(id, el);
+    return el;
+  }
+  const scene = element('scene');
+  const surface = element('codexrAnalysisSurface');
+  const normal = element('codexrNormalAnalysisRoot');
+  normal.setAttribute('data-codexr-analysis-root', 'true');
+  normal.setAttribute('data-codexr-analysis-mode', 'single');
+  normal.setAttribute('data-codexr-normal-root', 'true');
+  surface.appendChild(normal);
+  const dependency = element('codexrDependencyGraph');
+  const config = { textContent: JSON.stringify({
+    normalSurfaceId: 'codexrAnalysisSurface',
+    normalRootId: 'codexrNormalAnalysisRoot',
+  }) };
+  const document = {
+    createElement(tagName) {
+      return element(tagName + '-' + elements.size);
+    },
+    getElementById(id) {
+      if (id === 'codexr-tooling-config-xr-mapping-ui') return config;
+      return elements.get(id) || null;
+    },
+    querySelector(selector) {
+      return selector === 'a-scene' ? scene : null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '[data-codexr-normal-root="true"], [data-codexr-normal-visualization="true"]') {
+        return [normal];
+      }
+      if (selector === '[data-codexr-analysis-root="true"]') {
+        return [normal, dependency].filter(candidate => candidate.attributes['data-codexr-analysis-root'] === 'true');
+      }
+      return [];
+    },
+  };
+  const context = { setTimeout, clearTimeout, console, document };
+  vm.runInNewContext(source, context);
+  const surfaceRuntime = context.CodeXRAnalysisSurfaceRuntime;
+
+  surfaceRuntime.setNormalVisible(false);
+  surfaceRuntime.mountRoot('dependency-graph', dependency);
+
+  assert.equal(surface.object3D.visible, true);
+  assert.equal(normal.object3D.visible, false);
+  assert.equal(dependency.object3D.visible, true);
+});
+
 test('XR mode megatest keeps one visual root and preserves mode-owned state', async () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
@@ -253,7 +448,7 @@ test('a superseded dependency activation cannot recreate its visual root', async
   assert.deepEqual(Array.from(roots), ['single']);
 });
 
-test('Visualization mode interrupts a long historical activation immediately', async () => {
+test('Visualization mode waits for a long historical activation and then clears it', async () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
   vm.runInNewContext(source, context);
@@ -262,12 +457,14 @@ test('Visualization mode interrupts a long historical activation immediately', a
   let releaseHistory;
 
   runtime.register('historical-compare', {
-    activate() {
+    async activate() {
       roots.add('historical-compare');
-      return new Promise(resolve => { releaseHistory = resolve; });
+      await new Promise(resolve => { releaseHistory = resolve; });
+      roots.add('historical-compare-late-root');
     },
     deactivate() {
       roots.delete('historical-compare');
+      roots.delete('historical-compare-late-root');
     },
   });
   runtime.register('selection', {
@@ -280,15 +477,47 @@ test('Visualization mode interrupts a long historical activation immediately', a
   await new Promise(resolve => setTimeout(resolve, 0));
   const selection = runtime.transitionTo('selection');
 
+  assert.equal(runtime.getState().transitioning, true);
+  releaseHistory();
+  assert.equal(await history, false);
   assert.equal(await selection, true);
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(runtime.getState().transitioning, false);
   assert.equal(roots.size, 0);
+});
 
-  releaseHistory();
-  assert.equal(await history, false);
-  assert.equal(runtime.getState().mode, 'selection');
-  assert.equal(roots.size, 0);
+test('late dependency activation is disposed after user returns to normal', async () => {
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const context = { setTimeout, clearTimeout, console };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRAnalysisModeRuntime;
+  const roots = new Set();
+  let releaseDependency;
+
+  runtime.register('dependency-graph', {
+    async activate() {
+      roots.add('dependency-graph');
+      await new Promise(resolve => { releaseDependency = resolve; });
+      roots.add('dependency-graph-late-root');
+    },
+    deactivate() {
+      roots.delete('dependency-graph');
+      roots.delete('dependency-graph-late-root');
+    },
+  });
+  runtime.register('single', {
+    activate() { roots.add('single'); },
+    deactivate() { roots.delete('single'); },
+  });
+
+  const dependency = runtime.transitionTo('dependency-graph');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const normal = runtime.transitionTo('single');
+  releaseDependency();
+
+  assert.equal(await dependency, false);
+  assert.equal(await normal, true);
+  assert.deepEqual(Array.from(roots), ['single']);
 });
 
 test('a failed mode activation returns to an empty selection state', async () => {

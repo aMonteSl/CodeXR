@@ -408,6 +408,7 @@ test('analysis mode coordinator disposes an activation superseded while it is lo
   runtime.register('single', {
     activate: () => events.push('single:activate'),
   });
+  events.length = 0;
 
   const dependencyTransition = runtime.transitionTo('dependency-graph');
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -511,7 +512,7 @@ test('normal analysis restores its cached chart immediately and refreshes its re
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(attributes.get('visible'), true);
 
-  await new Promise(resolve => setTimeout(resolve, 350));
+  await new Promise(resolve => setTimeout(resolve, 520));
   assert.equal(attributes.get('visible'), true);
   assert.equal(context.CodeXRAnalysisModeRuntime.getState().mode, 'single');
   assert.match(dataSource.url, /codexrModeRevision=1/);

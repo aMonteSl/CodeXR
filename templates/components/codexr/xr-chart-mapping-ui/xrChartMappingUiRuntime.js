@@ -936,6 +936,11 @@
   function showPanelView(viewId) {
     var targetView = viewId && viewId !== 'mapping' ? state.panelViews[viewId] : null;
     var nextViewId = targetView ? viewId : 'mapping';
+    root.console?.log?.('[CodeXR.Debug]: Mapping panel view requested', {
+      requested: viewId || 'mapping',
+      resolved: nextViewId,
+      previous: state.activePanelView
+    });
     var previousView = state.panelViews[state.activePanelView];
     if (previousView && previousView.id !== nextViewId) {
       previousView.content.setAttribute('visible', false);
@@ -1020,6 +1025,10 @@
         : null
     };
     button?.addEventListener('click', function () {
+      root.console?.log?.('[CodeXR.Debug]: Mapping panel header button clicked', {
+        viewId: viewId,
+        activePanelView: state.activePanelView
+      });
       if (state.activePanelView === viewId && state.panelViews[viewId]?.onToggleActive) {
         state.panelViews[viewId].onToggleActive();
         return;

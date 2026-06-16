@@ -74,12 +74,26 @@ test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeh
     );
 });
 
+test('XR template owns the initial chart through a CodeXR analysis surface', () => {
+    const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
+    const processor = readProjectFile('src', 'babia_templates', 'processing', 'templateProcessor.ts');
+
+    assert.match(template, /id="codexrAnalysisSurface"[\s\S]*data-codexr-analysis-surface="true"/);
+    assert.match(template, /id="codexrNormalAnalysisRoot"[\s\S]*data-codexr-analysis-mode="single"/);
+    assert.ok(template.indexOf('${TREE_BUILDER}') > template.indexOf('id="codexrNormalAnalysisRoot"'));
+    assert.ok(template.indexOf('${CHART_COMPONENT}') > template.indexOf('id="codexrNormalAnalysisRoot"'));
+    assert.match(processor, /normalSurfaceId: 'codexrAnalysisSurface'/);
+    assert.match(processor, /normalRootId: 'codexrNormalAnalysisRoot'/);
+    assert.match(processor, /normalEntityIds: \['codexrNormalAnalysisRoot'\]/);
+    assert.match(processor, /chartEntityIds: chartEntityId \? \[chartEntityId\] : \[\]/);
+});
+
 test('XR template includes local CodeXR room component while preserving configurable environment', () => {
     const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 
     assert.doesNotMatch(template, /aframe-lounge-component\.min\.js/);
-    assert.match(template, /src="\.\/codexrRoomRuntime\.js"/);
-    assert.match(template, /src="\.\/codexrMultiScreenManagerRuntime\.js"/);
+    assert.match(template, /src="\.\/codexrRoomRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/codexrMultiScreenManagerRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(
         template,
         /<a-entity id="env" environment="preset: \$\{ENVIRONMENT_PRESET\}; groundColor: \$\{GROUND_COLOR\}" hide-on-enter-ar><\/a-entity>/,
@@ -91,8 +105,8 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
     assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
-    assert.match(template, /src="\.\/analysisTableRuntime\.js"/);
-    assert.match(template, /src="\.\/historicalComparisonRuntime\.js"/);
+    assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/historicalComparisonRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /id="codexrAnalysisTable"/);
     assert.match(template, /codexr-analysis-table=/);
 });

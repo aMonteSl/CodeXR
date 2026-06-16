@@ -334,6 +334,10 @@ export class TemplateProcessor {
         const model = {
             chartId,
             chartEntityId,
+            chartEntityIds: chartEntityId ? [chartEntityId] : [],
+            normalSurfaceId: 'codexrAnalysisSurface',
+            normalRootId: 'codexrNormalAnalysisRoot',
+            normalEntityIds: ['codexrNormalAnalysisRoot'],
             targetType,
             panelId,
             toggleId,

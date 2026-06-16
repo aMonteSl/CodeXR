@@ -19,15 +19,15 @@ test('XR and DOM templates expose the shared virtual screen runtime with broadca
     assert.match(xrTemplate, /<script id="codexr-tooling-config-collaboration" type="application\/json">/);
     assert.match(xrTemplate, /"roomSignalingPath":"\/codexr-room"/);
     assert.match(xrTemplate, /"sessionEndpoint":"\/api\/collaboration\/session"/);
-    assert.match(xrTemplate, /src="\.\/codexrCollaborationRuntime\.js"/);
-    assert.match(xrTemplate, /src="\.\/codexrAvatarRuntime\.js"/);
+    assert.match(xrTemplate, /src="\.\/codexrCollaborationRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(xrTemplate, /src="\.\/codexrAvatarRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.doesNotMatch(xrTemplate, /codexrCollaborationUiRuntime/);
     assert.match(xrTemplate, /<script id="codexr-tooling-config-virtual-screen" type="application\/json">/);
     assert.match(xrTemplate, /"broadcastEnabled":true/);
     assert.match(xrTemplate, /"signalingPath":"\/codexr-broadcast"/);
     assert.match(xrTemplate, /"followAnchorSelector":"#rig"/);
-    assert.match(xrTemplate, /src="\.\/virtualScreenRuntime\.js"/);
-    assert.match(xrTemplate, /src="\.\/codexrMultiScreenManagerRuntime\.js"/);
+    assert.match(xrTemplate, /src="\.\/virtualScreenRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(xrTemplate, /src="\.\/codexrMultiScreenManagerRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(xrTemplate, /codexr-multi-screen-manager="maxScreens: 5; wall: west"/);
 
     assert.match(domTemplate, /<script id="codexr-tooling-config-collaboration" type="application\/json">/);
