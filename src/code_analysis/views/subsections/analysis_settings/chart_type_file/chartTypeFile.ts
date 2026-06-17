@@ -6,9 +6,9 @@
 import * as vscode from 'vscode';
 import { CodeAnalysisTreeItem } from '../../../items/analysisItems';
 import { AnalysisConfigurationStorage } from '../../../../configuration';
+import { DEFAULT_ANALYSIS_CONFIGURATION } from '../../../../configuration/models/analysisConfiguration';
 import { BabiaChartRegistry } from '../../../../../babia_templates/registry/chartRegistry';
 import { ChartMetadata } from '../../../../../babia_templates/models/chartModels';
-import { DimensionMappingCleaner } from './dimensionMappingCleaner';
 
 export type AnalysisMode = 'XR' | 'LivePanel';
 export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats' | 'code-city';
@@ -163,9 +163,14 @@ export class ChartTypeFileSetting {
         await this.storage.setChartTypeFile(validChartType);
         console.log(`CHART_TYPE_FILE: Chart type saved successfully: ${chartType}`);
         
-        // Clear all dimension mappings when chart type changes
-        await this.storage.setDimensionMappingFile({});
-        console.log(`CHART_TYPE_FILE: Dimension mappings cleared for new chart type: ${chartType}`);
+        if (chartType === 'code-city') {
+            await this.storage.setDimensionMappingFile({ ...DEFAULT_ANALYSIS_CONFIGURATION.dimensionMappingFile });
+            console.log('CHART_TYPE_FILE: Code City defaults restored for file analysis');
+        } else {
+            // Clear all dimension mappings when chart type changes
+            await this.storage.setDimensionMappingFile({});
+            console.log(`CHART_TYPE_FILE: Dimension mappings cleared for new chart type: ${chartType}`);
+        }
     }
 
     /**

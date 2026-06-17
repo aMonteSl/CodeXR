@@ -20,6 +20,31 @@ import {
     DEFAULT_ANALYSIS_CONFIGURATION
 } from './models/analysisConfiguration';
 
+function cloneDimensionMapping(mapping: DimensionMapping): DimensionMapping {
+    return { ...mapping };
+}
+
+function hasCompleteCodeCityMapping(mapping: DimensionMapping | undefined): boolean {
+    return !!mapping
+        && typeof mapping.area === 'string'
+        && mapping.area.trim().length > 0
+        && typeof mapping.height === 'string'
+        && mapping.height.trim().length > 0
+        && typeof mapping.color === 'string'
+        && mapping.color.trim().length > 0;
+}
+
+function normalizeCodeCityMappings(configuration: AnalysisConfiguration): AnalysisConfiguration {
+    const normalized: AnalysisConfiguration = { ...configuration };
+    if (normalized.chartTypeFile === 'code-city' && !hasCompleteCodeCityMapping(normalized.dimensionMappingFile)) {
+        normalized.dimensionMappingFile = cloneDimensionMapping(DEFAULT_ANALYSIS_CONFIGURATION.dimensionMappingFile);
+    }
+    if (normalized.chartTypeDirectory === 'code-city' && !hasCompleteCodeCityMapping(normalized.dimensionMappingDirectory)) {
+        normalized.dimensionMappingDirectory = cloneDimensionMapping(DEFAULT_ANALYSIS_CONFIGURATION.dimensionMappingDirectory);
+    }
+    return normalized;
+}
+
 export class AnalysisConfigurationStorage {
     private static instance: AnalysisConfigurationStorage;
     private readonly STORAGE_FOLDER = 'codexr_analysis';
@@ -89,10 +114,10 @@ export class AnalysisConfigurationStorage {
                 const configFile: AnalysisConfigurationFile = JSON.parse(configString);
                 
                 // Validate and merge with defaults (in case new settings were added)
-                const configuration = {
+                const configuration = normalizeCodeCityMappings({
                     ...DEFAULT_ANALYSIS_CONFIGURATION,
                     ...configFile.configuration
-                };
+                });
                 
                 this.cachedConfiguration = configuration;
                 console.log('ANALYSIS: Configuration loaded from storage:', configuration);
@@ -264,10 +289,10 @@ export class AnalysisConfigurationStorage {
      */
     public async updateConfiguration(updates: Partial<AnalysisConfiguration>): Promise<void> {
         const currentConfig = await this.loadConfiguration();
-        const updatedConfig = {
+        const updatedConfig = normalizeCodeCityMappings({
             ...currentConfig,
             ...updates
-        };
+        });
         await this.saveConfiguration(updatedConfig);
         console.log(`ANALYSIS: Configuration updated with: ${JSON.stringify(updates)}`);
     }

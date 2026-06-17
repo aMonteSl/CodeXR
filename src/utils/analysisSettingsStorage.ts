@@ -66,6 +66,21 @@ const DEFAULT_CONFIG: AnalysisConfiguration = {
     ]
 };
 
+function cloneDefaultFileMappings(): DimensionMapping[] {
+    return DEFAULT_CONFIG.dimensionMappingFile.map(mapping => ({ ...mapping }));
+}
+
+function hasCompleteCodeCityFileMappings(mappings: DimensionMapping[] | undefined): boolean {
+    if (!Array.isArray(mappings)) {
+        return false;
+    }
+    const byDimension = new Map(mappings.map(mapping => [mapping.dimension, mapping.dataField]));
+    return ['area', 'height', 'color'].every(dimension => {
+        const value = byDimension.get(dimension);
+        return typeof value === 'string' && value.trim().length > 0;
+    });
+}
+
 /**
  * Utility class for managing analysis settings storage
  * Stores configuration in globalStorage/codexr_analysis/configuration.json
@@ -103,8 +118,11 @@ export class AnalysisSettingsStorage {
                 theme: loadedConfig.theme || DEFAULT_CONFIG.theme,
                 autoAnalysisDelay: loadedConfig.autoAnalysisDelay !== undefined ? loadedConfig.autoAnalysisDelay : DEFAULT_CONFIG.autoAnalysisDelay,
                 chartTypeFile: loadedConfig.chartTypeFile || DEFAULT_CONFIG.chartTypeFile,
-                dimensionMappingFile: loadedConfig.dimensionMappingFile || DEFAULT_CONFIG.dimensionMappingFile
+                dimensionMappingFile: loadedConfig.dimensionMappingFile || cloneDefaultFileMappings()
             };
+            if (config.chartTypeFile === 'code-city' && !hasCompleteCodeCityFileMappings(config.dimensionMappingFile)) {
+                config.dimensionMappingFile = cloneDefaultFileMappings();
+            }
             
             console.log(`ANALYSIS: Loaded configuration:`, config);
             return config;
@@ -340,7 +358,7 @@ export class AnalysisSettingsStorage {
         const config = await this.loadConfiguration(context);
         config.chartTypeFile = chartType;
         // Reset dimension mappings when chart type changes
-        config.dimensionMappingFile = [];
+        config.dimensionMappingFile = chartType === 'code-city' ? cloneDefaultFileMappings() : [];
         await this.saveConfiguration(context, config);
         
         vscode.window.showInformationMessage(`Chart type set to ${chartType}`);
