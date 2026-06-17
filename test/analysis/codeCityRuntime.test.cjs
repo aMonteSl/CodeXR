@@ -104,10 +104,47 @@ test('CodeXR Code City produces a balanced 3D view model with title and tooltips
     assert.equal(view.buildings.length, 2);
     assert.ok(view.districts.length >= 1);
     assert.ok(view.maxY > 1);
-    assert.ok(view.titleY > view.maxY);
-    assert.ok(view.tooltipY > view.maxY);
-    assert.ok(view.buildings.every((building) => building.buildingHeight >= 0.12 && building.buildingHeight <= 1.31));
-    assert.ok(view.buildings.every((building) => building.footprint >= 0.052));
+    assert.ok(view.titleY >= view.maxY + 0.5);
+    assert.ok(view.tooltipY >= view.maxY + 0.6);
+    assert.ok(view.base.width > 5.25);
+    assert.ok(view.base.depthSize > 3.05);
+    assert.ok(view.buildings.every((building) => building.buildingHeight >= 0.12 && building.buildingHeight <= 1.11));
+    assert.ok(view.buildings.every((building) => building.footprint >= 0.008));
+    assert.ok(view.buildings.every((building) => {
+        const halfRoof = (building.footprint * 1.12) / 2;
+        return building.x - halfRoof >= building.bounds.xMin - 0.0001
+            && building.x + halfRoof <= building.bounds.xMax + 0.0001
+            && building.z - halfRoof >= building.bounds.zMin - 0.0001
+            && building.z + halfRoof <= building.bounds.zMax + 0.0001;
+    }));
+});
+
+test('CodeXR Code City keeps dense buildings inside their assigned cells', () => {
+    const { city: helpers } = loadRuntime();
+    const records = Array.from({ length: 80 }, (_, index) => ({
+        relativePath: `src/feature-${index % 8}/component-${index}.ts`,
+        functionCount: 1 + (index % 5),
+        totalLines: 20 + index,
+        cyclomaticComplexityNumber: index % 9,
+    }));
+
+    const view = helpers.buildCityView(records, 'directory', {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber',
+    });
+
+    assert.equal(view.valid, true);
+    assert.equal(view.buildings.length, records.length);
+    assert.ok(view.buildings.every((building) => {
+        const halfRoof = (building.footprint * 1.12) / 2;
+        return building.x - halfRoof >= building.bounds.xMin - 0.0001
+            && building.x + halfRoof <= building.bounds.xMax + 0.0001
+            && building.z - halfRoof >= building.bounds.zMin - 0.0001
+            && building.z + halfRoof <= building.bounds.zMax + 0.0001;
+    }));
+    assert.ok(view.districts.every((district) => Math.abs(district.x) + district.width / 2 <= 2.565 + 0.0001));
+    assert.ok(view.districts.every((district) => Math.abs(district.z) + district.depthSize / 2 <= 1.465 + 0.0001));
 });
 
 test('CodeXR Code City rejects invalid numeric mappings without requiring a destructive rebuild', () => {

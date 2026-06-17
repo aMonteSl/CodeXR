@@ -6,13 +6,16 @@
   var CITY_WIDTH = 5.25;
   var CITY_DEPTH = 3.05;
   var CITY_MARGIN = 0.06;
+  var CITY_BASE_HEIGHT = 0.055;
+  var CITY_BASE_PADDING = 0.14;
   var DISTRICT_GAP = 0.055;
   var DISTRICT_INSET = 0.08;
   var DISTRICT_BASE_HEIGHT = 0.048;
   var DISTRICT_LEVEL_Y = 0.042;
-  var MIN_BUILDING_FOOTPRINT = 0.052;
+  var MIN_BUILDING_FOOTPRINT = 0.018;
   var MIN_BUILDING_HEIGHT = 0.12;
-  var MAX_BUILDING_HEIGHT = 1.18;
+  var MAX_BUILDING_HEIGHT = 0.98;
+  var BUILDING_ROOF_RATIO = 0.14;
   var GEOMETRY_EVENT = 'codexr-geometry-updated';
   var DEFAULT_PALETTE = [
     '#22d3ee', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185',
@@ -174,10 +177,12 @@
     var totalWeight = items.reduce(function (sum, item) { return sum + Math.max(1, item.weight || 1); }, 0);
     var horizontal = rect.width >= rect.depthSize;
     var cursor = horizontal ? rect.x - rect.width / 2 : rect.z - rect.depthSize / 2;
+    var available = Math.max(0.01, horizontal ? rect.width : rect.depthSize);
+    var gap = items.length > 1 ? Math.min(DISTRICT_GAP, available / Math.max(8, items.length * 3)) : 0;
+    var usable = Math.max(0.01, available - gap * Math.max(0, items.length - 1));
     items.forEach(function (item, index) {
       var ratio = Math.max(1, item.weight || 1) / totalWeight;
-      var available = horizontal ? rect.width : rect.depthSize;
-      var size = Math.max(0.16, available * ratio - (items.length > 1 ? DISTRICT_GAP : 0));
+      var size = Math.max(0.01, usable * ratio);
       var center = cursor + size / 2;
       var childRect = horizontal
         ? { x: center, z: rect.z, width: size, depthSize: rect.depthSize }
@@ -185,8 +190,15 @@
       if (item.type === 'leaf') {
         item.leaf.x = childRect.x;
         item.leaf.z = childRect.z;
-        item.leaf.cellWidth = Math.max(0.14, childRect.width);
-        item.leaf.cellDepth = Math.max(0.14, childRect.depthSize);
+        item.leaf.cellWidth = Math.max(0.01, childRect.width);
+        item.leaf.cellDepth = Math.max(0.01, childRect.depthSize);
+        item.leaf.containerPath = nodePathFromRectOwner(item.owner);
+        item.leaf.bounds = {
+          xMin: childRect.x - childRect.width / 2,
+          xMax: childRect.x + childRect.width / 2,
+          zMin: childRect.z - childRect.depthSize / 2,
+          zMax: childRect.z + childRect.depthSize / 2
+        };
         out.leaves.push(item.leaf);
       } else {
         out.districts.push({
@@ -196,19 +208,27 @@
           depth: depth,
           x: childRect.x,
           z: childRect.z,
-          width: Math.max(0.18, childRect.width),
-          depthSize: Math.max(0.18, childRect.depthSize),
+          width: Math.max(0.01, childRect.width),
+          depthSize: Math.max(0.01, childRect.depthSize),
+          bounds: {
+            xMin: childRect.x - childRect.width / 2,
+            xMax: childRect.x + childRect.width / 2,
+            zMin: childRect.z - childRect.depthSize / 2,
+            zMax: childRect.z + childRect.depthSize / 2
+          },
           weight: item.node.weight
         });
+        var insetX = Math.min(DISTRICT_INSET, Math.max(0, childRect.width * 0.18));
+        var insetZ = Math.min(DISTRICT_INSET, Math.max(0, childRect.depthSize * 0.18));
         var inner = {
           x: childRect.x,
           z: childRect.z,
-          width: Math.max(0.12, childRect.width - DISTRICT_INSET * 2),
-          depthSize: Math.max(0.12, childRect.depthSize - DISTRICT_INSET * 2)
+          width: Math.max(0.01, childRect.width - insetX * 2),
+          depthSize: Math.max(0.01, childRect.depthSize - insetZ * 2)
         };
         layoutNode(item.node, inner, depth + 1, out);
       }
-      cursor += size + (index < items.length - 1 ? DISTRICT_GAP : 0);
+      cursor += size + (index < items.length - 1 ? gap : 0);
     });
   }
 
@@ -217,9 +237,13 @@
       return { type: 'district', node: child, weight: child.weight };
     });
     var leafItems = node.leaves.map(function (leaf) {
-      return { type: 'leaf', leaf: leaf, weight: leaf.weight };
+      return { type: 'leaf', leaf: leaf, weight: leaf.weight, owner: node };
     });
     layoutItems(childItems.concat(leafItems), rect, depth, out);
+  }
+
+  function nodePathFromRectOwner(node) {
+    return node && typeof node.path === 'string' ? node.path : '';
   }
 
   function layoutLeaves(leaves, options) {
@@ -391,15 +415,18 @@
       var heightValue = numeric(safeField(record, heightField), 0);
       var areaRatio = Math.sqrt(areaScale.normalize(areaValue));
       var heightRatio = Math.sqrt(heightScale.normalize(heightValue));
-      var cellMin = Math.max(0.075, Math.min(leaf.cellWidth || 0.16, leaf.cellDepth || 0.16));
-      var maxFootprint = Math.max(MIN_BUILDING_FOOTPRINT, cellMin * 0.58);
-      var footprint = Math.max(MIN_BUILDING_FOOTPRINT, maxFootprint * (0.42 + areaRatio * 0.58));
+      var cellMin = Math.max(0.01, Math.min(leaf.cellWidth || 0.01, leaf.cellDepth || 0.01));
+      var maxFootprint = Math.max(0.008, cellMin * 0.58);
+      var minFootprint = Math.min(maxFootprint, Math.max(0.008, Math.min(MIN_BUILDING_FOOTPRINT, cellMin * 0.34)));
+      var footprint = minFootprint + Math.max(0, maxFootprint - minFootprint) * (0.28 + areaRatio * 0.72);
+      footprint = Math.min(maxFootprint, Math.max(0.008, footprint));
       var buildingHeight = MIN_BUILDING_HEIGHT + heightRatio * MAX_BUILDING_HEIGHT;
       var baseY = 0.09 + Math.max(0, leaf.directoryParts.length - 1) * DISTRICT_LEVEL_Y;
       var color = colorForValue(record[colorField] ?? leaf.label, safeRecords, colorField);
       var changeState = resolveChangeState(record);
       var roofColor = roofColorForState(changeState);
-      var topY = baseY + buildingHeight + Math.max(0.026, footprint * 0.18);
+      var roofHeight = Math.max(0.018, footprint * BUILDING_ROOF_RATIO);
+      var topY = baseY + buildingHeight + roofHeight;
       maxY = Math.max(maxY, topY + 0.18);
       return Object.assign({}, leaf, {
         areaField: areaField,
@@ -408,6 +435,7 @@
         areaValue: areaValue,
         heightValue: heightValue,
         footprint: footprint,
+        roofHeight: roofHeight,
         buildingHeight: buildingHeight,
         baseY: baseY,
         color: color,
@@ -425,17 +453,25 @@
       });
     });
     districts.forEach(function (district) {
-      district.tooltipY = Math.max(0.95, maxY + 0.18, district.baseY + 0.42);
+      district.tooltipY = Math.max(1.3, maxY + 0.66, district.baseY + 0.64);
     });
 
     return {
       valid: true,
       records: safeRecords,
+      base: {
+        x: 0,
+        z: 0,
+        y: -CITY_BASE_HEIGHT / 2,
+        width: CITY_WIDTH + CITY_BASE_PADDING * 2,
+        depthSize: CITY_DEPTH + CITY_BASE_PADDING * 2,
+        height: CITY_BASE_HEIGHT
+      },
       districts: districts,
       buildings: buildings,
       maxY: maxY,
-      titleY: Math.max(1.05, maxY + 0.32),
-      tooltipY: Math.max(0.95, maxY + 0.22),
+      titleY: Math.max(1.42, maxY + 0.56),
+      tooltipY: Math.max(1.3, maxY + 0.66),
       areaField: areaField,
       heightField: heightField,
       colorField: colorField
@@ -463,6 +499,7 @@
         this.sourceListener = this.refreshData.bind(this);
         this.generation = 0;
         this.cityRoot = null;
+        this.cityBase = null;
         this.titleEntity = null;
         this.emptyNotice = null;
         this.visuals = {
@@ -556,6 +593,7 @@
         }
         this.tooltip = null;
         this.cityRoot = null;
+        this.cityBase = null;
         this.titleEntity = null;
         this.emptyNotice = null;
         this.visuals = {
@@ -610,6 +648,7 @@
         this.ensureCityRoot();
         this.setGeometryState('rebuilding', { reason: opts.reason || 'render' });
         if (!records.length) {
+          this.updateCityBase(view);
           this.reconcileDistricts([]);
           this.reconcileBuildings([]);
           this.renderEmptyNotice('No CodeXR city data available', '#fca5a5');
@@ -620,6 +659,7 @@
           return true;
         }
         this.removeEmptyNotice();
+        this.updateCityBase(view);
         this.reconcileDistricts(view.districts);
         this.reconcileBuildings(view.buildings);
         this.updateTitle(view);
@@ -628,6 +668,54 @@
         this.setGeometryState('valid');
         this.scheduleStabilized();
         return true;
+      },
+      updateCityBase: function (view) {
+        var model = view?.base || {
+          x: 0,
+          z: 0,
+          y: -CITY_BASE_HEIGHT / 2,
+          width: CITY_WIDTH + CITY_BASE_PADDING * 2,
+          depthSize: CITY_DEPTH + CITY_BASE_PADDING * 2,
+          height: CITY_BASE_HEIGHT
+        };
+        if (!this.cityBase?.group?.parentNode) {
+          var group = entity('a-entity', { 'data-codexr-role': 'code-city-base' });
+          var slab = entity('a-box', {});
+          var glow = entity('a-box', {});
+          var rails = [entity('a-box', {}), entity('a-box', {}), entity('a-box', {}), entity('a-box', {})];
+          group.appendChild(slab);
+          group.appendChild(glow);
+          rails.forEach(function (rail) { group.appendChild(rail); });
+          this.cityRoot?.appendChild?.(group);
+          this.cityBase = { group: group, slab: slab, glow: glow, rails: rails };
+        }
+        var base = this.cityBase;
+        base.group.setAttribute('position', model.x + ' ' + model.y + ' ' + model.z);
+        base.slab.setAttribute('geometry',
+          'primitive: box; width: ' + model.width
+          + '; height: ' + model.height
+          + '; depth: ' + model.depthSize);
+        base.slab.setAttribute('material', material('#08111f', { opacity: 1 }));
+        base.glow.setAttribute('geometry',
+          'primitive: box; width: ' + (model.width + 0.025)
+          + '; height: 0.01'
+          + '; depth: ' + (model.depthSize + 0.025));
+        base.glow.setAttribute('position', '0 ' + (model.height / 2 + 0.008) + ' 0');
+        base.glow.setAttribute('material', material('#67e8f9', { opacity: 0.16, transparent: true, depthWrite: false }));
+        var railHeight = 0.026;
+        var railThickness = 0.028;
+        var railY = model.height / 2 + railHeight / 2 + 0.01;
+        base.rails[0].setAttribute('geometry', 'primitive: box; width: ' + model.width + '; height: ' + railHeight + '; depth: ' + railThickness);
+        base.rails[0].setAttribute('position', '0 ' + railY + ' ' + (-model.depthSize / 2));
+        base.rails[1].setAttribute('geometry', 'primitive: box; width: ' + model.width + '; height: ' + railHeight + '; depth: ' + railThickness);
+        base.rails[1].setAttribute('position', '0 ' + railY + ' ' + (model.depthSize / 2));
+        base.rails[2].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + model.depthSize);
+        base.rails[2].setAttribute('position', (-model.width / 2) + ' ' + railY + ' 0');
+        base.rails[3].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + model.depthSize);
+        base.rails[3].setAttribute('position', (model.width / 2) + ' ' + railY + ' 0');
+        base.rails.forEach(function (rail) {
+          rail.setAttribute('material', material('#facc15', { opacity: 0.92, transparent: true }));
+        });
       },
       renderEmptyNotice: function (message, color) {
         this.removeEmptyNotice();
@@ -669,7 +757,7 @@
         var building = view.buildings.find(function (item) { return item.id === this.pinned.id; }, this);
         if (building) {
           this.pinned.detail = building.detail;
-          this.pinned.anchor = { x: building.x, y: building.topY + 0.3, z: building.z };
+          this.pinned.anchor = { x: building.x, y: Math.max(view.tooltipY, building.topY + 0.72), z: building.z };
           this.showTooltip(building.detail, this.pinned.anchor, building.id);
           return;
         }
@@ -737,10 +825,10 @@
           scale: '1 1 1'
         }, duration);
         entry.platform.setAttribute('geometry',
-          'primitive: box; width: ' + Math.max(0.08, district.width)
+          'primitive: box; width: ' + Math.max(0.01, district.width)
           + '; height: ' + DISTRICT_BASE_HEIGHT
-          + '; depth: ' + Math.max(0.08, district.depthSize));
-        entry.platform.setAttribute('material', material(topTint, { opacity: 0.88, transparent: true }));
+          + '; depth: ' + Math.max(0.01, district.depthSize));
+        entry.platform.setAttribute('material', material(topTint, { opacity: 1 }));
         var railHeight = 0.032;
         var railThickness = 0.018;
         entry.rails[0].setAttribute('geometry', 'primitive: box; width: ' + district.width + '; height: ' + railHeight + '; depth: ' + railThickness);
@@ -752,7 +840,7 @@
         entry.rails[3].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + district.depthSize);
         entry.rails[3].setAttribute('position', (district.width / 2) + ' ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' 0');
         entry.rails.forEach(function (rail) {
-          rail.setAttribute('material', material(railColor, { opacity: 0.95, transparent: true }));
+          rail.setAttribute('material', material(railColor, { opacity: 1 }));
         });
         entry.label.setAttribute('value', district.width > 0.42 && district.depthSize > 0.26 ? compact(district.label, 20) : '');
         entry.label.setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT + 0.035) + ' ' + (-district.depthSize / 2 + 0.075));
@@ -766,9 +854,10 @@
         function click() { self.togglePin(district.id, district.detail, anchor()); }
         root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(entry.group, {
           shape: 'district',
-          width: Math.max(0.16, district.width),
+          radius: 0.018,
+          width: Math.max(0.04, district.width),
           height: 0.22,
-          depth: Math.max(0.16, district.depthSize),
+          depth: Math.max(0.04, district.depthSize),
           position: '0 ' + (DISTRICT_BASE_HEIGHT + 0.08) + ' 0',
           className: RAYCAST_CLASS,
           handlers: { enter: enter, leave: leave, click: click }
@@ -833,7 +922,7 @@
         var duration = isNew ? 0 : Number(this.data.animationDuration || 520);
         var footprint = leaf.footprint;
         var buildingHeight = leaf.buildingHeight;
-        var roofHeight = Math.max(0.026, footprint * 0.18);
+        var roofHeight = leaf.roofHeight || Math.max(0.018, footprint * BUILDING_ROOF_RATIO);
         animateOrSet(entry.group, {
           position: leaf.x + ' ' + leaf.baseY + ' ' + leaf.z,
           scale: '1 1 1'
@@ -849,7 +938,7 @@
           + '; height: ' + roofHeight
           + '; depth: ' + (footprint * 1.12));
         entry.roof.setAttribute('position', '0 ' + (buildingHeight + roofHeight / 2) + ' 0');
-        entry.roof.setAttribute('material', material(leaf.roofColor, { opacity: 0.96, transparent: true }));
+        entry.roof.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
         entry.halo.setAttribute('geometry',
           'primitive: ring; radiusInner: ' + (footprint * 0.68)
           + '; radiusOuter: ' + (footprint * 0.86)
@@ -861,23 +950,24 @@
           side: 'double',
           depthWrite: false
         }));
-        var windowOpacity = buildingHeight > 0.24 ? 0.42 : 0.12;
+        var showFacade = buildingHeight > 0.22 && footprint > 0.026;
+        var windowOpacity = showFacade ? 0.5 : 0;
         entry.frontWindows.setAttribute('geometry',
-          'primitive: box; width: ' + (footprint * 0.7)
-          + '; height: ' + Math.min(0.16, buildingHeight * 0.42)
+          'primitive: box; width: ' + (footprint * 0.58)
+          + '; height: ' + Math.min(0.18, buildingHeight * 0.46)
           + '; depth: 0.006');
         entry.frontWindows.setAttribute('position', '0 ' + Math.max(0.08, buildingHeight * 0.55) + ' ' + (-footprint / 2 - 0.004));
         entry.frontWindows.setAttribute('material', material('#dbeafe', { opacity: windowOpacity, transparent: true }));
         entry.sideWindows.setAttribute('geometry',
           'primitive: box; width: 0.006'
           + '; height: ' + Math.min(0.16, buildingHeight * 0.42)
-          + '; depth: ' + (footprint * 0.7));
+          + '; depth: ' + (footprint * 0.58));
         entry.sideWindows.setAttribute('position', (footprint / 2 + 0.004) + ' ' + Math.max(0.08, buildingHeight * 0.55) + ' 0');
         entry.sideWindows.setAttribute('material', material('#dbeafe', { opacity: windowOpacity, transparent: true }));
         removeHitboxes(entry.group);
         var self = this;
         function anchor() {
-          return { x: leaf.x, y: leaf.topY + 0.3, z: leaf.z };
+          return { x: leaf.x, y: Math.max(self.currentView?.tooltipY || 1.55, leaf.topY + 0.72), z: leaf.z };
         }
         function enter() {
           entry.body.setAttribute('material', material('#fef08a', { opacity: 1 }));
@@ -894,6 +984,7 @@
         }
         root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(entry.group, {
           shape: 'box',
+          radius: 0.018,
           width: footprint * 1.55,
           height: buildingHeight + 0.26,
           depth: footprint * 1.55,
