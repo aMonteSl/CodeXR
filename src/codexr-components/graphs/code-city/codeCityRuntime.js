@@ -172,21 +172,124 @@
     return rootNode;
   }
 
-  function layoutItems(items, rect, depth, out) {
+  function insetRect(rect, inset) {
+    var safeInset = Math.max(0, Math.min(
+      Number(inset) || 0,
+      Math.max(0, rect.width / 2 - 0.005),
+      Math.max(0, rect.depthSize / 2 - 0.005)
+    ));
+    return {
+      x: rect.x,
+      z: rect.z,
+      width: Math.max(0.01, rect.width - safeInset * 2),
+      depthSize: Math.max(0.01, rect.depthSize - safeInset * 2)
+    };
+  }
+
+  function layoutTreemap(items, rect) {
     if (!items.length) { return; }
     var totalWeight = items.reduce(function (sum, item) { return sum + Math.max(1, item.weight || 1); }, 0);
-    var horizontal = rect.width >= rect.depthSize;
-    var cursor = horizontal ? rect.x - rect.width / 2 : rect.z - rect.depthSize / 2;
-    var available = Math.max(0.01, horizontal ? rect.width : rect.depthSize);
-    var gap = items.length > 1 ? Math.min(DISTRICT_GAP, available / Math.max(8, items.length * 3)) : 0;
-    var usable = Math.max(0.01, available - gap * Math.max(0, items.length - 1));
-    items.forEach(function (item, index) {
-      var ratio = Math.max(1, item.weight || 1) / totalWeight;
-      var size = Math.max(0.01, usable * ratio);
-      var center = cursor + size / 2;
-      var childRect = horizontal
-        ? { x: center, z: rect.z, width: size, depthSize: rect.depthSize }
-        : { x: rect.x, z: center, width: rect.width, depthSize: size };
+    var totalArea = Math.max(0.0001, rect.width * rect.depthSize);
+    var queue = items.map(function (item, index) {
+      return {
+        item: item,
+        area: totalArea * Math.max(1, item.weight || 1) / totalWeight,
+        order: index
+      };
+    }).sort(function (a, b) {
+      var weightDiff = Math.max(1, b.item.weight || 1) - Math.max(1, a.item.weight || 1);
+      return weightDiff || a.order - b.order;
+    });
+    var results = [];
+
+    function worst(row, side) {
+      if (!row.length) { return Infinity; }
+      var sum = row.reduce(function (value, entry) { return value + entry.area; }, 0);
+      var max = Math.max.apply(Math, row.map(function (entry) { return entry.area; }));
+      var min = Math.min.apply(Math, row.map(function (entry) { return entry.area; }));
+      var sideSquared = Math.max(0.0001, side * side);
+      var sumSquared = Math.max(0.0001, sum * sum);
+      return Math.max((sideSquared * max) / sumSquared, sumSquared / (sideSquared * Math.max(0.0001, min)));
+    }
+
+    function consumeRow(row, remaining) {
+      var sum = row.reduce(function (value, entry) { return value + entry.area; }, 0);
+      if (remaining.width >= remaining.depthSize) {
+        var rowWidth = Math.min(remaining.width, Math.max(0.01, sum / Math.max(0.01, remaining.depthSize)));
+        var zCursor = remaining.z - remaining.depthSize / 2;
+        var xMin = remaining.x - remaining.width / 2;
+        row.forEach(function (entry) {
+          var depthSize = Math.min(remaining.depthSize, Math.max(0.01, entry.area / rowWidth));
+          results.push({
+            item: entry.item,
+            rect: {
+              x: xMin + rowWidth / 2,
+              z: zCursor + depthSize / 2,
+              width: rowWidth,
+              depthSize: depthSize
+            }
+          });
+          zCursor += depthSize;
+        });
+        var nextWidth = Math.max(0.01, remaining.width - rowWidth);
+        return {
+          x: xMin + rowWidth + nextWidth / 2,
+          z: remaining.z,
+          width: nextWidth,
+          depthSize: remaining.depthSize
+        };
+      }
+      var rowDepth = Math.min(remaining.depthSize, Math.max(0.01, sum / Math.max(0.01, remaining.width)));
+      var xCursor = remaining.x - remaining.width / 2;
+      var zMin = remaining.z - remaining.depthSize / 2;
+      row.forEach(function (entry) {
+        var width = Math.min(remaining.width, Math.max(0.01, entry.area / rowDepth));
+        results.push({
+          item: entry.item,
+          rect: {
+            x: xCursor + width / 2,
+            z: zMin + rowDepth / 2,
+            width: width,
+            depthSize: rowDepth
+          }
+        });
+        xCursor += width;
+      });
+      var nextDepth = Math.max(0.01, remaining.depthSize - rowDepth);
+      return {
+        x: remaining.x,
+        z: zMin + rowDepth + nextDepth / 2,
+        width: remaining.width,
+        depthSize: nextDepth
+      };
+    }
+
+    var row = [];
+    var remaining = Object.assign({}, rect);
+    while (queue.length) {
+      var candidate = queue[0];
+      var side = Math.min(remaining.width, remaining.depthSize);
+      if (!row.length || worst(row.concat([candidate]), side) <= worst(row, side)) {
+        row.push(queue.shift());
+      } else {
+        remaining = consumeRow(row, remaining);
+        row = [];
+      }
+    }
+    if (row.length) { consumeRow(row, remaining); }
+    results.sort(function (a, b) { return a.item.__order - b.item.__order; });
+    return results;
+  }
+
+  function layoutItems(items, rect, depth, out) {
+    if (!items.length) { return; }
+    var gap = items.length > 1 ? Math.min(DISTRICT_GAP, Math.min(rect.width, rect.depthSize) / Math.max(8, Math.sqrt(items.length) * 5)) : 0;
+    var orderedItems = items.map(function (item, index) {
+      return Object.assign({ __order: index }, item);
+    });
+    layoutTreemap(orderedItems, rect).forEach(function (slot) {
+      var item = slot.item;
+      var childRect = insetRect(slot.rect, gap / 2);
       if (item.type === 'leaf') {
         item.leaf.x = childRect.x;
         item.leaf.z = childRect.z;
@@ -228,7 +331,6 @@
         };
         layoutNode(item.node, inner, depth + 1, out);
       }
-      cursor += size + (index < items.length - 1 ? gap : 0);
     });
   }
 
@@ -553,7 +655,8 @@
         if (this.tooltip?.root?.parentNode) { return this.tooltip; }
         if (typeof common().createTooltip !== 'function') { return null; }
         this.tooltip = common().createTooltip({ accentColor: '#22d3ee' });
-        this.el.appendChild(this.tooltip.root);
+        this.tooltip.root.setAttribute('data-codexr-code-city-tooltip', 'true');
+        (this.el.sceneEl || this.el).appendChild(this.tooltip.root);
         return this.tooltip;
       },
       refreshData: function () {
@@ -591,6 +694,7 @@
         while (this.el.firstChild) {
           this.el.removeChild(this.el.firstChild);
         }
+        this.tooltip?.root?.parentNode?.removeChild?.(this.tooltip.root);
         this.tooltip = null;
         this.cityRoot = null;
         this.cityBase = null;
@@ -775,6 +879,9 @@
         var tooltip = this.ensureTooltip();
         if (!tooltip || !root.THREE) { return; }
         var position = new root.THREE.Vector3(anchor.x, anchor.y, anchor.z);
+        if (tooltip.root?.parentNode !== this.el && this.el.object3D?.localToWorld) {
+          this.el.object3D.localToWorld(position);
+        }
         tooltip.show(detail, position);
         this.pinned = pinnedId ? { id: pinnedId, detail: detail, anchor: position } : this.pinned;
       },
