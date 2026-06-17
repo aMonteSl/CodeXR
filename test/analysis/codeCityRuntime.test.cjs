@@ -197,3 +197,9 @@ test('CodeXR Code City keeps hover tooltips in scene space above scaled charts',
     assert.match(runtimeSource, /localToWorld\(position\)/);
     assert.match(runtimeSource, /data-codexr-code-city-tooltip/);
 });
+
+test('CodeXR Code City avoids transparent ring halos that cause visual shimmer', () => {
+    assert.doesNotMatch(runtimeSource, /a-ring/);
+    assert.match(runtimeSource, /data-codexr-role': 'building-plot'/);
+    assert.match(runtimeSource, /data-codexr-role': 'building-plot-accent'/);
+});

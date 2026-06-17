@@ -529,6 +529,10 @@
       var roofColor = roofColorForState(changeState);
       var roofHeight = Math.max(0.018, footprint * BUILDING_ROOF_RATIO);
       var topY = baseY + buildingHeight + roofHeight;
+      var plotWidth = Math.max(footprint * 1.28, Math.min(leaf.cellWidth || footprint, Math.max(0.012, (leaf.cellWidth || footprint) * 0.82)));
+      var plotDepth = Math.max(footprint * 1.28, Math.min(leaf.cellDepth || footprint, Math.max(0.012, (leaf.cellDepth || footprint) * 0.82)));
+      plotWidth = Math.min(Math.max(0.012, leaf.cellWidth || plotWidth), plotWidth);
+      plotDepth = Math.min(Math.max(0.012, leaf.cellDepth || plotDepth), plotDepth);
       maxY = Math.max(maxY, topY + 0.18);
       return Object.assign({}, leaf, {
         areaField: areaField,
@@ -537,6 +541,8 @@
         areaValue: areaValue,
         heightValue: heightValue,
         footprint: footprint,
+        plotWidth: plotWidth,
+        plotDepth: plotDepth,
         roofHeight: roofHeight,
         buildingHeight: buildingHeight,
         baseY: baseY,
@@ -1003,14 +1009,14 @@
           'data-codexr-code-city-node': leaf.id,
           class: RAYCAST_CLASS
         });
-        var halo = entity('a-ring', {
-          rotation: '-90 0 0'
-        });
+        var plot = entity('a-box', { 'data-codexr-role': 'building-plot' });
+        var plotAccent = entity('a-box', { 'data-codexr-role': 'building-plot-accent' });
         var body = entity('a-box', {});
         var roof = entity('a-box', {});
         var frontWindows = entity('a-box', {});
         var sideWindows = entity('a-box', {});
-        building.appendChild(halo);
+        building.appendChild(plot);
+        building.appendChild(plotAccent);
         building.appendChild(body);
         building.appendChild(roof);
         building.appendChild(frontWindows);
@@ -1018,9 +1024,10 @@
         this.cityRoot.appendChild(building);
         return {
           group: building,
+          plot: plot,
+          plotAccent: plotAccent,
           body: body,
           roof: roof,
-          halo: halo,
           frontWindows: frontWindows,
           sideWindows: sideWindows
         };
@@ -1030,10 +1037,24 @@
         var footprint = leaf.footprint;
         var buildingHeight = leaf.buildingHeight;
         var roofHeight = leaf.roofHeight || Math.max(0.018, footprint * BUILDING_ROOF_RATIO);
+        var plotWidth = Math.max(footprint * 1.2, Math.min(leaf.cellWidth || footprint, leaf.plotWidth || footprint * 1.5));
+        var plotDepth = Math.max(footprint * 1.2, Math.min(leaf.cellDepth || footprint, leaf.plotDepth || footprint * 1.5));
         animateOrSet(entry.group, {
           position: leaf.x + ' ' + leaf.baseY + ' ' + leaf.z,
           scale: '1 1 1'
         }, duration);
+        entry.plot.setAttribute('geometry',
+          'primitive: box; width: ' + plotWidth
+          + '; height: 0.018'
+          + '; depth: ' + plotDepth);
+        entry.plot.setAttribute('position', '0 -0.006 0');
+        entry.plot.setAttribute('material', material('#0b1220', { opacity: 1 }));
+        entry.plotAccent.setAttribute('geometry',
+          'primitive: box; width: ' + Math.max(0.008, plotWidth * 0.72)
+          + '; height: 0.012'
+          + '; depth: ' + Math.max(0.006, Math.min(0.018, plotDepth * 0.16)));
+        entry.plotAccent.setAttribute('position', '0 0.009 ' + (-plotDepth / 2 + Math.max(0.006, Math.min(0.018, plotDepth * 0.16)) / 2));
+        entry.plotAccent.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
         entry.body.setAttribute('geometry',
           'primitive: box; width: ' + footprint
           + '; height: ' + buildingHeight
@@ -1046,31 +1067,21 @@
           + '; depth: ' + (footprint * 1.12));
         entry.roof.setAttribute('position', '0 ' + (buildingHeight + roofHeight / 2) + ' 0');
         entry.roof.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
-        entry.halo.setAttribute('geometry',
-          'primitive: ring; radiusInner: ' + (footprint * 0.68)
-          + '; radiusOuter: ' + (footprint * 0.86)
-          + '; segmentsTheta: 24');
-        entry.halo.setAttribute('position', '0 0.014 0');
-        entry.halo.setAttribute('material', material(leaf.roofColor, {
-          opacity: leaf.changeState === 'neutral' ? 0.2 : 0.58,
-          transparent: true,
-          side: 'double',
-          depthWrite: false
-        }));
         var showFacade = buildingHeight > 0.22 && footprint > 0.026;
-        var windowOpacity = showFacade ? 0.5 : 0;
         entry.frontWindows.setAttribute('geometry',
           'primitive: box; width: ' + (footprint * 0.58)
           + '; height: ' + Math.min(0.18, buildingHeight * 0.46)
           + '; depth: 0.006');
         entry.frontWindows.setAttribute('position', '0 ' + Math.max(0.08, buildingHeight * 0.55) + ' ' + (-footprint / 2 - 0.004));
-        entry.frontWindows.setAttribute('material', material('#dbeafe', { opacity: windowOpacity, transparent: true }));
+        entry.frontWindows.setAttribute('material', material('#dbeafe', { opacity: 1 }));
+        entry.frontWindows.setAttribute('visible', showFacade);
         entry.sideWindows.setAttribute('geometry',
           'primitive: box; width: 0.006'
           + '; height: ' + Math.min(0.16, buildingHeight * 0.42)
           + '; depth: ' + (footprint * 0.58));
         entry.sideWindows.setAttribute('position', (footprint / 2 + 0.004) + ' ' + Math.max(0.08, buildingHeight * 0.55) + ' 0');
-        entry.sideWindows.setAttribute('material', material('#dbeafe', { opacity: windowOpacity, transparent: true }));
+        entry.sideWindows.setAttribute('material', material('#dbeafe', { opacity: 1 }));
+        entry.sideWindows.setAttribute('visible', showFacade);
         removeHitboxes(entry.group);
         var self = this;
         function anchor() {
@@ -1078,11 +1089,13 @@
         }
         function enter() {
           entry.body.setAttribute('material', material('#fef08a', { opacity: 1 }));
+          entry.plotAccent.setAttribute('material', material('#facc15', { opacity: 1 }));
           self.showTooltip(leaf.detail, anchor(), null);
         }
         function leave() {
           if (!self.pinned || self.pinned.id !== leaf.id) {
             entry.body.setAttribute('material', material(leaf.color, { opacity: 1 }));
+            entry.plotAccent.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
           }
           if (!self.pinned) { self.tooltip?.hide?.(); }
         }
