@@ -117,6 +117,37 @@ test('CodeXR Code City produces a balanced 3D view model with title and tooltips
             && building.z - halfRoof >= building.bounds.zMin - 0.0001
             && building.z + halfRoof <= building.bounds.zMax + 0.0001;
     }));
+    assert.ok(view.bounds.maxY >= view.maxY);
+    assert.ok(view.titleY >= view.bounds.maxY + 0.5);
+    assert.ok(view.tooltipY >= view.bounds.maxY + 0.7);
+});
+
+test('CodeXR Code City uses stepped district terraces and places buildings on their final district', () => {
+    const { city: helpers } = loadRuntime();
+    const records = [
+        { relativePath: 'src/index.ts', functionCount: 2, totalLines: 40, cyclomaticComplexityNumber: 1 },
+        { relativePath: 'src/tools/render.ts', functionCount: 3, totalLines: 55, cyclomaticComplexityNumber: 2 },
+        { relativePath: 'src/tools/deep/trace.ts', functionCount: 4, totalLines: 80, cyclomaticComplexityNumber: 3 },
+    ];
+
+    const view = helpers.buildCityView(records, 'directory', {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber',
+    });
+
+    const src = view.districts.find((district) => district.path === 'src');
+    const tools = view.districts.find((district) => district.path === 'src/tools');
+    const deep = view.districts.find((district) => district.path === 'src/tools/deep');
+    assert.ok(src && tools && deep);
+    assert.ok(src.terraceTopY < tools.terraceTopY);
+    assert.ok(tools.terraceTopY < deep.terraceTopY);
+    for (const building of view.buildings) {
+        const district = view.districts.find((candidate) => candidate.path === building.containerPath);
+        assert.ok(district, `Missing final district for ${building.path}`);
+        assert.ok(building.baseY > district.terraceTopY);
+        assert.equal(building.terraceTopY, district.terraceTopY);
+    }
 });
 
 test('CodeXR Code City keeps dense buildings inside their assigned cells', () => {
@@ -202,4 +233,14 @@ test('CodeXR Code City avoids transparent ring halos that cause visual shimmer',
     assert.doesNotMatch(runtimeSource, /a-ring/);
     assert.match(runtimeSource, /data-codexr-role': 'building-plot'/);
     assert.match(runtimeSource, /data-codexr-role': 'building-plot-accent'/);
+});
+
+test('CodeXR Code City renders procedural building texture without external assets', () => {
+    assert.match(runtimeSource, /data-codexr-role': 'building-base-trim'/);
+    assert.match(runtimeSource, /data-codexr-role': 'building-front-band'/);
+    assert.match(runtimeSource, /data-codexr-role': 'building-side-band'/);
+    assert.match(runtimeSource, /data-codexr-role': 'building-age-mark'/);
+    assert.match(runtimeSource, /mixColor\(leaf\.color, '#ffffff', 0\.07\)/);
+    assert.match(runtimeSource, /setBoxGeometry\(entry\.body/);
+    assert.doesNotMatch(runtimeSource, /texture|src:\s*url/i);
 });
