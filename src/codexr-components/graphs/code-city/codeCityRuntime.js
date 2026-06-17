@@ -17,6 +17,11 @@
   var MIN_BUILDING_HEIGHT = 0.12;
   var MAX_BUILDING_HEIGHT = 0.98;
   var BUILDING_ROOF_RATIO = 0.14;
+  var CITY_ANIMATION_DURATION = 900;
+  var CITY_ANIMATION_EASING = 'easeInOutCubic';
+  var FACADE_ROWS = 5;
+  var FACADE_COLUMNS = 3;
+  var DISTRICT_TEXTURE_LINES = 4;
   var GEOMETRY_EVENT = 'codexr-geometry-updated';
   var DEFAULT_PALETTE = [
     '#22d3ee', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185',
@@ -552,6 +557,10 @@
       + (opts.depthWrite === false ? '; depthWrite: false' : '');
   }
 
+  function animationDuration(data) {
+    return Math.max(650, Number(data && data.animationDuration) || CITY_ANIMATION_DURATION);
+  }
+
   function removeHitboxes(parent) {
     if (!parent || !parent.querySelectorAll) { return; }
     Array.from(parent.querySelectorAll('[data-codexr-role="hitbox"]')).forEach(function (hitbox) {
@@ -562,7 +571,7 @@
   function animateOrSet(element, properties, duration) {
     if (!element || !properties) { return; }
     if (typeof common().animateTransform === 'function' && duration > 0) {
-      common().animateTransform(element, properties, { duration: duration, easing: 'easeOutCubic' });
+      common().animateTransform(element, properties, { duration: duration, easing: CITY_ANIMATION_EASING });
       return;
     }
     Object.keys(properties).forEach(function (key) {
@@ -580,7 +589,7 @@
         'geometry.width': safeWidth,
         'geometry.height': safeHeight,
         'geometry.depth': safeDepth
-      }, { duration: duration, easing: 'easeOutCubic' });
+      }, { duration: duration, easing: CITY_ANIMATION_EASING });
       return;
     }
     element.setAttribute('geometry',
@@ -731,7 +740,7 @@
         area: { default: 'parameters' },
         height: { default: 'lineCount' },
         color: { default: 'complexity' },
-        animationDuration: { default: 520 }
+        animationDuration: { default: CITY_ANIMATION_DURATION }
       },
       init: function () {
         this.records = [];
@@ -875,7 +884,7 @@
           if (self.geometryState !== 'invalid') {
             self.setGeometryState('stabilized');
           }
-        }, Math.max(120, Number(this.data.animationDuration || 520) + 90));
+        }, Math.max(120, animationDuration(this.data) + 140));
       },
       renderCity: function (options) {
         var opts = options || {};
@@ -995,7 +1004,7 @@
         this.titleEntity.__codexrLabel?.setAttribute?.('value', titleValue);
         animateOrSet(this.titleEntity, {
           position: '0 ' + Number(view.titleY || 1.2).toFixed(3) + ' ' + (-CITY_DEPTH / 2 - 0.24).toFixed(3)
-        }, Number(this.data.animationDuration || 520));
+        }, animationDuration(this.data));
       },
       updatePinnedTooltip: function (view) {
         if (!this.pinned || !view) { return; }
@@ -1049,6 +1058,11 @@
         var south = entity('a-box', {});
         var west = entity('a-box', {});
         var east = entity('a-box', {});
+        var streets = Array.from({ length: DISTRICT_TEXTURE_LINES }, function (_, index) {
+          return entity('a-box', {
+            'data-codexr-role': index % 2 === 0 ? 'district-street-x' : 'district-street-z'
+          });
+        });
         var label = text('', '0 0 0', 2.2, '#cffafe');
         label.setAttribute('scale', '0.18 0.18 0.18');
         group.appendChild(platform);
@@ -1057,6 +1071,7 @@
         group.appendChild(south);
         group.appendChild(west);
         group.appendChild(east);
+        streets.forEach(function (street) { group.appendChild(street); });
         group.appendChild(label);
         this.cityRoot.appendChild(group);
         return {
@@ -1064,11 +1079,12 @@
           platform: platform,
           surface: surface,
           rails: [north, south, west, east],
+          streets: streets,
           label: label
         };
       },
       updateDistrictEntry: function (entry, district, isNew) {
-        var duration = isNew ? 0 : Number(this.data.animationDuration || 520);
+        var duration = isNew ? 0 : animationDuration(this.data);
         var railColor = district.edgeColor;
         var topTint = district.depth === 0 ? '#123b4a' : district.color;
         var sideTint = mixColor(topTint, '#020617', 0.55);
@@ -1093,6 +1109,24 @@
         entry.rails[3].setAttribute('position', (district.width / 2) + ' ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' 0');
         entry.rails.forEach(function (rail) {
           rail.setAttribute('material', material(railColor, { opacity: 1 }));
+        });
+        var streetColor = mixColor(railColor, '#ffffff', 0.18);
+        var streetY = DISTRICT_BASE_HEIGHT / 2 + 0.017;
+        var innerWidth = Math.max(0.01, district.width - 0.16);
+        var innerDepth = Math.max(0.01, district.depthSize - 0.16);
+        entry.streets.forEach(function (street, index) {
+          var isHorizontal = index % 2 === 0;
+          var offsetRatio = index < 2 ? -0.22 : 0.22;
+          var visible = district.width > 0.45 && district.depthSize > 0.28;
+          if (isHorizontal) {
+            setBoxGeometry(street, innerWidth, 0.006, Math.max(0.008, Math.min(0.018, district.depthSize * 0.045)), duration);
+            street.setAttribute('position', '0 ' + streetY + ' ' + (offsetRatio * innerDepth));
+          } else {
+            setBoxGeometry(street, Math.max(0.008, Math.min(0.018, district.width * 0.045)), 0.006, innerDepth, duration);
+            street.setAttribute('position', (offsetRatio * innerWidth) + ' ' + streetY + ' 0');
+          }
+          street.setAttribute('material', material(streetColor, { opacity: 0.72, transparent: true }));
+          street.setAttribute('visible', visible);
         });
         entry.label.setAttribute('value', district.width > 0.42 && district.depthSize > 0.26 ? compact(district.label, 20) : '');
         entry.label.setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT + 0.035) + ' ' + (-district.depthSize / 2 + 0.075));
@@ -1129,7 +1163,7 @@
           }
           self.updateDistrictEntry(entry, district, isNew);
           if (isNew) {
-            animateOrSet(entry.group, { scale: '1 1 1' }, Number(self.data.animationDuration || 520));
+            animateOrSet(entry.group, { scale: '1 1 1' }, animationDuration(self.data));
           }
         });
         Array.from(this.visuals.districts.entries()).forEach(function (entryPair) {
@@ -1137,10 +1171,10 @@
           var entry = entryPair[1];
           if (nextIds.has(id)) { return; }
           self.visuals.districts.delete(id);
-          animateOrSet(entry.group, { scale: '0.01 0.01 0.01' }, Number(self.data.animationDuration || 520));
+          animateOrSet(entry.group, { scale: '0.01 0.01 0.01' }, animationDuration(self.data));
           setTimeout(function () {
             entry.group.parentNode?.removeChild?.(entry.group);
-          }, Number(self.data.animationDuration || 520) + 40);
+          }, animationDuration(self.data) + 60);
         });
       },
       createBuildingEntry: function (leaf) {
@@ -1158,6 +1192,19 @@
         var frontBand = entity('a-box', { 'data-codexr-role': 'building-front-band' });
         var sideBand = entity('a-box', { 'data-codexr-role': 'building-side-band' });
         var ageMark = entity('a-box', { 'data-codexr-role': 'building-age-mark' });
+        var frontWindowRows = Array.from({ length: FACADE_ROWS }, function () {
+          return entity('a-box', { 'data-codexr-role': 'building-window-row-front' });
+        });
+        var sideWindowRows = Array.from({ length: FACADE_ROWS }, function () {
+          return entity('a-box', { 'data-codexr-role': 'building-window-row-side' });
+        });
+        var frontRibs = Array.from({ length: FACADE_COLUMNS }, function () {
+          return entity('a-box', { 'data-codexr-role': 'building-facade-rib-front' });
+        });
+        var sideRibs = Array.from({ length: FACADE_COLUMNS }, function () {
+          return entity('a-box', { 'data-codexr-role': 'building-facade-rib-side' });
+        });
+        var roofRidge = entity('a-box', { 'data-codexr-role': 'building-roof-ridge' });
         building.appendChild(plot);
         building.appendChild(plotAccent);
         building.appendChild(baseTrim);
@@ -1168,6 +1215,11 @@
         building.appendChild(frontBand);
         building.appendChild(sideBand);
         building.appendChild(ageMark);
+        frontWindowRows.forEach(function (row) { building.appendChild(row); });
+        sideWindowRows.forEach(function (row) { building.appendChild(row); });
+        frontRibs.forEach(function (rib) { building.appendChild(rib); });
+        sideRibs.forEach(function (rib) { building.appendChild(rib); });
+        building.appendChild(roofRidge);
         this.cityRoot.appendChild(building);
         return {
           group: building,
@@ -1180,11 +1232,16 @@
           sideWindows: sideWindows,
           frontBand: frontBand,
           sideBand: sideBand,
-          ageMark: ageMark
+          ageMark: ageMark,
+          frontWindowRows: frontWindowRows,
+          sideWindowRows: sideWindowRows,
+          frontRibs: frontRibs,
+          sideRibs: sideRibs,
+          roofRidge: roofRidge
         };
       },
       updateBuildingEntry: function (entry, leaf, isNew) {
-        var duration = isNew ? 0 : Number(this.data.animationDuration || 520);
+        var duration = isNew ? 0 : animationDuration(this.data);
         var footprint = leaf.footprint;
         var buildingHeight = leaf.buildingHeight;
         var roofHeight = leaf.roofHeight || Math.max(0.018, footprint * BUILDING_ROOF_RATIO);
@@ -1220,6 +1277,41 @@
         entry.sideWindows.setAttribute('position', (footprint / 2 + 0.004) + ' ' + Math.max(0.08, buildingHeight * 0.55) + ' 0');
         entry.sideWindows.setAttribute('material', material(facadeColor, { opacity: 1 }));
         entry.sideWindows.setAttribute('visible', showFacade);
+        var windowRowCount = clamp(Math.floor(buildingHeight / 0.14), 2, FACADE_ROWS);
+        var rowHeight = Math.max(0.006, Math.min(0.018, buildingHeight * 0.026));
+        var ribWidth = Math.max(0.004, Math.min(0.01, footprint * 0.055));
+        var textureColor = mixColor(leaf.color, '#f8fafc', 0.68);
+        var ribColor = mixColor(leaf.color, '#020617', 0.22);
+        entry.frontWindowRows.forEach(function (row, index) {
+          var visible = showFacade && index < windowRowCount;
+          var y = buildingHeight * (0.2 + ((index + 1) / (windowRowCount + 1)) * 0.62);
+          setBoxGeometry(row, footprint * 0.72, rowHeight, 0.007, duration);
+          row.setAttribute('position', '0 ' + y + ' ' + (-footprint / 2 - 0.008));
+          row.setAttribute('material', material(textureColor, { opacity: 1 }));
+          row.setAttribute('visible', visible);
+        });
+        entry.sideWindowRows.forEach(function (row, index) {
+          var visible = showFacade && index < windowRowCount;
+          var y = buildingHeight * (0.24 + ((index + 1) / (windowRowCount + 1)) * 0.58);
+          setBoxGeometry(row, 0.007, rowHeight, footprint * 0.72, duration);
+          row.setAttribute('position', (footprint / 2 + 0.008) + ' ' + y + ' 0');
+          row.setAttribute('material', material(textureColor, { opacity: 1 }));
+          row.setAttribute('visible', visible);
+        });
+        entry.frontRibs.forEach(function (rib, index) {
+          var offset = ((index + 1) / (FACADE_COLUMNS + 1) - 0.5) * footprint * 0.74;
+          setBoxGeometry(rib, ribWidth, Math.max(0.035, buildingHeight * 0.68), 0.008, duration);
+          rib.setAttribute('position', offset + ' ' + Math.max(0.08, buildingHeight * 0.52) + ' ' + (-footprint / 2 - 0.009));
+          rib.setAttribute('material', material(ribColor, { opacity: 1 }));
+          rib.setAttribute('visible', showFacade && footprint > 0.04);
+        });
+        entry.sideRibs.forEach(function (rib, index) {
+          var offset = ((index + 1) / (FACADE_COLUMNS + 1) - 0.5) * footprint * 0.74;
+          setBoxGeometry(rib, 0.008, Math.max(0.035, buildingHeight * 0.68), ribWidth, duration);
+          rib.setAttribute('position', (footprint / 2 + 0.009) + ' ' + Math.max(0.08, buildingHeight * 0.52) + ' ' + offset);
+          rib.setAttribute('material', material(ribColor, { opacity: 1 }));
+          rib.setAttribute('visible', showFacade && footprint > 0.04);
+        });
         setBoxGeometry(entry.frontBand, footprint * 0.82, Math.max(0.01, Math.min(0.028, buildingHeight * 0.08)), 0.007, duration);
         entry.frontBand.setAttribute('position', '0 ' + Math.max(0.055, buildingHeight * 0.27) + ' ' + (-footprint / 2 - 0.006));
         entry.frontBand.setAttribute('material', material(shadowColor, { opacity: 1 }));
@@ -1232,6 +1324,10 @@
         entry.ageMark.setAttribute('position', (-footprint / 2 - 0.005) + ' ' + Math.max(0.08, buildingHeight * 0.7) + ' 0');
         entry.ageMark.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
         entry.ageMark.setAttribute('visible', leaf.changeState !== 'neutral' && showFacade);
+        setBoxGeometry(entry.roofRidge, footprint * 0.72, Math.max(0.006, roofHeight * 0.28), Math.max(0.006, footprint * 0.12), duration);
+        entry.roofRidge.setAttribute('position', '0 ' + (buildingHeight + roofHeight + Math.max(0.006, roofHeight * 0.14)) + ' 0');
+        entry.roofRidge.setAttribute('material', material(mixColor(leaf.roofColor, '#ffffff', 0.22), { opacity: 1 }));
+        entry.roofRidge.setAttribute('visible', footprint > 0.028);
         removeHitboxes(entry.group);
         var self = this;
         function anchor() {
@@ -1277,7 +1373,7 @@
           }
           self.updateBuildingEntry(entry, leaf, isNew);
           if (isNew) {
-            animateOrSet(entry.group, { scale: '1 1 1' }, Number(self.data.animationDuration || 520));
+            animateOrSet(entry.group, { scale: '1 1 1' }, animationDuration(self.data));
           }
         });
         Array.from(this.visuals.buildings.entries()).forEach(function (entryPair) {
@@ -1285,10 +1381,10 @@
           var entry = entryPair[1];
           if (nextIds.has(id)) { return; }
           self.visuals.buildings.delete(id);
-          animateOrSet(entry.group, { scale: '0.01 0.01 0.01' }, Number(self.data.animationDuration || 520));
+          animateOrSet(entry.group, { scale: '0.01 0.01 0.01' }, animationDuration(self.data));
           setTimeout(function () {
             entry.group.parentNode?.removeChild?.(entry.group);
-          }, Number(self.data.animationDuration || 520) + 40);
+          }, animationDuration(self.data) + 60);
         });
       },
       getDebugSnapshot: function () {

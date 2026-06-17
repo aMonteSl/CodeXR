@@ -32,6 +32,10 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(tableRuntime, /selection[\s\S]*#b45309/);
   assert.match(modeRuntime, /setTableMode\(mode\)/);
   assert.doesNotMatch(modeRuntime, /mode === 'selection' \? 'single' : mode/);
+  assert.match(modeRuntime, /class: 'codexr-analysis-mode-option'/);
+  assert.doesNotMatch(modeRuntime, /class: 'babiaxraycasterclass codexr-analysis-mode-option'/);
+  assert.match(modeRuntime, /Ignored hidden visualization mode option click/);
+  assert.match(modeRuntime, /getActivePanelView\?\.\(\)/);
   assert.match(modeRuntime, /clearVisualizationsForSelection/);
   assert.match(modeRuntime, /data-codexr-analysis-root/);
   assert.match(historyRuntime, /function selectHistoricalMode\(\)[\s\S]*if \(state\.result\)[\s\S]*analysis-mode-activate/);

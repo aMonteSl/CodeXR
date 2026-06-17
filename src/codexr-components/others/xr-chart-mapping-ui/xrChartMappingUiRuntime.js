@@ -1002,6 +1002,13 @@
     content.setAttribute('visible', false);
     setEntityInteractionEnabled(content, false);
     refs.panelContent.appendChild(content);
+    var interactionObserver = null;
+    if (typeof root.MutationObserver === 'function') {
+      interactionObserver = new root.MutationObserver(function () {
+        setEntityInteractionEnabled(content, state.activePanelView === viewId);
+      });
+      interactionObserver.observe(content, { childList: true, subtree: true });
+    }
     var button = null;
     if (options.headerButton === true) {
       button = createEntity('a-plane', {
@@ -1021,6 +1028,7 @@
       panelHeight: Math.max(2.45, Number(options.panelHeight) || 2.45),
       content: content,
       button: button,
+      interactionObserver: interactionObserver,
       onShow: typeof options.onShow === 'function' ? options.onShow : null,
       onHide: typeof options.onHide === 'function' ? options.onHide : null,
       onToggleActive: typeof options.onToggleActive === 'function'
@@ -1051,6 +1059,7 @@
       if (state.activePanelView === viewId) {
         showPanelView('mapping');
       }
+      view.interactionObserver?.disconnect?.();
       view.button?.remove();
       view.content?.remove();
       delete state.panelViews[viewId];
@@ -1171,6 +1180,8 @@
     if (refs.statusText) {
       updateStatusText();
     }
+    refs.rowsRoot.setAttribute('visible', state.activePanelView === 'mapping');
+    setEntityInteractionEnabled(refs.rowsRoot, state.activePanelView === 'mapping');
   }
 
   function buildUi(config) {
