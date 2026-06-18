@@ -62,6 +62,7 @@
     var SURFACE_ID = 'codexrAnalysisSurface';
     var NORMAL_ROOT_ID = 'codexrNormalAnalysisRoot';
     var registeredRoots = new Map();
+    var normalRootsMemory = [];
     var localGeneration = 0;
 
     function documentRef() {
@@ -95,6 +96,34 @@
       return document.getElementById?.(String(cfg?.normalRootId || NORMAL_ROOT_ID))
         || document.querySelector?.('[data-codexr-normal-root="true"]')
         || null;
+    }
+
+    function rememberNormalRoots(roots) {
+      roots.forEach(function (element) {
+        if (element && !normalRootsMemory.includes(element)) {
+          normalRootsMemory.push(element);
+        }
+      });
+    }
+
+    function getNormalSurfaceRoots() {
+      var document = documentRef();
+      var surface = getSurface(false);
+      var roots = normalRootsMemory.filter(Boolean);
+      var normalRoot = getNormalRoot();
+      if (normalRoot) {
+        roots.push(normalRoot);
+      }
+      surface?.querySelectorAll?.('[data-codexr-normal-root="true"], [data-codexr-analysis-mode="single"]')
+        .forEach(function (element) { roots.push(element); });
+      document?.querySelectorAll?.('[data-codexr-normal-root="true"]')
+        .forEach(function (element) { roots.push(element); });
+      if (!roots.length) {
+        getNormalVisualizationRoots().forEach(function (element) { roots.push(element); });
+      }
+      roots = uniqueElements(roots);
+      rememberNormalRoots(roots);
+      return roots;
     }
 
     function getModeRoots(mode) {
@@ -143,8 +172,7 @@
 
     function removeMode(mode) {
       if (mode === 'single') {
-        setNormalVisible(false);
-        return 0;
+        return detachNormalRoots('remove-single-mode');
       }
       var removed = 0;
       getModeRoots(mode).forEach(function (element) {
@@ -187,32 +215,58 @@
       return removed;
     }
 
-    function setNormalVisible(visible) {
-      var surface = getSurface(visible);
-      var roots = getNormalVisualizationRoots();
-      var normalRoot = getNormalRoot();
-      if (normalRoot && !roots.includes(normalRoot)) {
-        roots.unshift(normalRoot);
-      }
-      if (!roots.length && surface) {
-        var surfaceNormal = surface.querySelector?.('[data-codexr-analysis-mode="single"]');
-        if (surfaceNormal) { roots.push(surfaceNormal); }
-      }
-      if (surface && visible) {
-        setElementSelfVisible(surface, true);
-      }
+    function detachNormalRoots(reason) {
+      var surface = getSurface(false);
+      var roots = getNormalSurfaceRoots();
+      rememberNormalRoots(roots);
       roots.forEach(function (element) {
-        setElementTreeVisible(element, visible);
+        setElementTreeVisible(element, false);
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
       });
-      if (surface && !visible && !surface.querySelector?.('[data-codexr-analysis-mode]:not([data-codexr-analysis-mode="single"])')) {
+      if (surface && !surface.querySelector?.('[data-codexr-analysis-root="true"]')) {
         setElementTreeVisible(surface, false);
       }
-      debugLog('Surface normal visibility changed', {
-        visible: !!visible,
+      debugLog('Surface normal roots detached', {
+        reason: reason || '',
         rootCount: roots.length,
         ids: roots.map(function (element) { return element.id || element.tagName || 'anonymous'; })
       });
       return roots.length;
+    }
+
+    function mountNormalRoots() {
+      var surface = getSurface(true);
+      if (!surface) { return 0; }
+      var roots = getNormalSurfaceRoots();
+      rememberNormalRoots(roots);
+      setElementSelfVisible(surface, true);
+      roots.forEach(function (element) {
+        element.setAttribute?.('data-codexr-analysis-root', 'true');
+        element.setAttribute?.('data-codexr-analysis-mode', 'single');
+        if (!element.getAttribute?.('data-codexr-normal-root')) {
+          element.setAttribute?.('data-codexr-normal-root', 'true');
+        }
+        if (element.parentNode !== surface) {
+          surface.appendChild(element);
+        }
+        setElementTreeVisible(element, true);
+      });
+      debugLog('Surface normal roots mounted', {
+        rootCount: roots.length,
+        ids: roots.map(function (element) { return element.id || element.tagName || 'anonymous'; })
+      });
+      return roots.length;
+    }
+
+    function setNormalVisible(visible) {
+      var rootCount = visible ? mountNormalRoots() : detachNormalRoots('set-normal-hidden');
+      debugLog('Surface normal visibility changed', {
+        visible: !!visible,
+        rootCount: rootCount
+      });
+      return rootCount;
     }
 
     function clearForSelection(reason) {
@@ -226,7 +280,7 @@
         childCount: surface?.children?.length || 0
       });
       var removed = removeTransientRoots();
-      var hiddenNormalCount = setNormalVisible(false);
+      var detachedNormalCount = detachNormalRoots(reason || 'selection-clear');
       surface = getSurface(false);
       if (surface) {
         setElementTreeVisible(surface, false);
@@ -235,13 +289,13 @@
       debugLog('Surface cleared', {
         generation: generation,
         removed: removed,
-        hiddenNormalCount: hiddenNormalCount,
+        detachedNormalCount: detachedNormalCount,
         remainingRoots: remaining
       });
       return {
         generation: generation,
         removed: removed,
-        hiddenNormalCount: hiddenNormalCount,
+        detachedNormalCount: detachedNormalCount,
         remainingRoots: remaining
       };
     }
@@ -294,7 +348,9 @@
       __testing: {
         setElementTreeVisible: setElementTreeVisible,
         clearForSelection: clearForSelection,
-        removeTransientRoots: removeTransientRoots
+        removeTransientRoots: removeTransientRoots,
+        detachNormalRoots: detachNormalRoots,
+        mountNormalRoots: mountNormalRoots
       }
     };
     return root.CodeXRAnalysisSurfaceRuntime;

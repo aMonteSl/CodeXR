@@ -1472,6 +1472,79 @@
       return clamp(resolvedMs / 1000, PID_PROFILE.dtMin, PID_PROFILE.dtMax);
     },
 
+    applyEmergencyContainment: function (measurements, xTarget, yTarget, zTarget, source) {
+      var object3D = this.el && this.el.object3D;
+      if (!object3D || !measurements || !xTarget || !yTarget || !zTarget) {
+        return false;
+      }
+
+      var heightTargets = resolveHeightBandTargets(this.data);
+      var heightOverflowing = Number.isFinite(measurements.peakHeight)
+        && measurements.peakHeight > heightTargets.maxHeight;
+      var needsPlanarGuard = xTarget.overflowing || zTarget.overflowing;
+      if (!needsPlanarGuard && !heightOverflowing) {
+        return false;
+      }
+
+      var nextX = needsPlanarGuard && xTarget.overflowing
+        ? Math.min(object3D.scale.x, xTarget.maxAllowedScale)
+        : object3D.scale.x;
+      var nextZ = needsPlanarGuard && zTarget.overflowing
+        ? Math.min(object3D.scale.z, zTarget.maxAllowedScale)
+        : object3D.scale.z;
+      var heightClamp = heightOverflowing
+        ? computeHeightBandScale(
+          measurements.peakHeight,
+          object3D.scale.y,
+          heightTargets,
+          Math.max(0.001, this.data.yScaleMin),
+          Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax)
+        )
+        : null;
+      var nextY = heightClamp && heightClamp.changed ? heightClamp.targetY : object3D.scale.y;
+
+      if (!Number.isFinite(nextX) || !Number.isFinite(nextY) || !Number.isFinite(nextZ) || nextX <= 0 || nextY <= 0 || nextZ <= 0) {
+        this.warnInvalidTransform('emergency-containment-invalid-target', {
+          source: source || 'steady-fit',
+          nextX: nextX,
+          nextY: nextY,
+          nextZ: nextZ
+        });
+        return false;
+      }
+
+      var changed = Math.abs(nextX - object3D.scale.x) > 0.0001
+        || Math.abs(nextY - object3D.scale.y) > 0.0001
+        || Math.abs(nextZ - object3D.scale.z) > 0.0001;
+      if (!changed) {
+        return false;
+      }
+
+      object3D.scale.set(nextX, nextY, nextZ);
+      object3D.updateMatrixWorld(true);
+      var nextMeasurements = this.measureBounds();
+      if (nextMeasurements) {
+        this.applyAnchorPlacement(nextMeasurements);
+      }
+      this.syncTransformAttributes();
+      if (this.pidController) {
+        this.pidController.stableTicks = 0;
+        resetPidAxisState(this.pidController.axes.x);
+        resetPidAxisState(this.pidController.axes.y);
+        resetPidAxisState(this.pidController.axes.z);
+      }
+      debugLog('emergency-containment-applied', {
+        source: source || 'steady-fit',
+        xOverflowing: !!xTarget.overflowing,
+        zOverflowing: !!zTarget.overflowing,
+        heightOverflowing: !!heightOverflowing,
+        xScale: toFixedNumber(object3D.scale.x),
+        yScale: toFixedNumber(object3D.scale.y),
+        zScale: toFixedNumber(object3D.scale.z)
+      });
+      return true;
+    },
+
     runSteadyControllerStep: function (source, dtMs) {
       var object3D = this.el && this.el.object3D;
       if (!object3D) {
@@ -1516,6 +1589,10 @@
 
       if (!xTarget || !zTarget || !yTarget) {
         return false;
+      }
+
+      if (this.applyEmergencyContainment(measurements, xTarget, yTarget, zTarget, source || 'steady-fit')) {
+        return true;
       }
 
       if (xTarget.compromised || zTarget.compromised) {

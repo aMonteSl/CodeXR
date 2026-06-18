@@ -162,6 +162,14 @@ test('maintenance pass enforces the height band outside steady PID mode', () => 
     assert.doesNotMatch(runtimeSource, /var changedHeight = false;/);
 });
 
+test('steady controller applies emergency containment before smooth PID adjustment', () => {
+    assert.match(runtimeSource, /applyEmergencyContainment: function \(measurements, xTarget, yTarget, zTarget, source\)/);
+    assert.match(runtimeSource, /var needsPlanarGuard = xTarget\.overflowing \|\| zTarget\.overflowing;/);
+    assert.match(runtimeSource, /heightOverflowing/);
+    assert.match(runtimeSource, /if \(this\.applyEmergencyContainment\(measurements, xTarget, yTarget, zTarget, source \|\| 'steady-fit'\)\) \{/);
+    assert.match(runtimeSource, /debugLog\('emergency-containment-applied'/);
+});
+
 test('steady target helpers aim for the midpoint of each band instead of the edges', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;

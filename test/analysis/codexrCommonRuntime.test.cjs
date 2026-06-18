@@ -13,6 +13,8 @@ const runtimePath = path.join(
     'codexrCommonRuntime.js',
 );
 const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const componentsInventoryPath = path.join(projectRoot, 'templates', 'components', 'COMPONENTS.md');
+const manualHarnessPath = path.join(projectRoot, 'test', 'manual', 'xr-mode-cycle-harness.html');
 
 function createElement(tagName) {
     const attributes = {};
@@ -156,4 +158,23 @@ test('common faceCamera and hitbox helpers tolerate missing scene state', () => 
     assert.ok(hitbox);
     assert.ok(entity.classList.values.has('babiaxraycasterclass'));
     assert.equal(entity.getAttribute('data-codexr-interactive'), 'true');
+});
+
+test('components inventory documents common runtime and load-order rules', () => {
+    const inventory = fs.readFileSync(componentsInventoryPath, 'utf8');
+
+    assert.match(inventory, /common\/codexrCommonRuntime\.js/);
+    assert.match(inventory, /CodeXRCommonRuntime/);
+    assert.match(inventory, /dependency-graph\/dependencyGraphRuntime\.js/);
+    assert.match(inventory, /Recommended Load Order/);
+    assert.ok(inventory.indexOf('common/codexrCommonRuntime.js') < inventory.indexOf('codexr/dependency-graph/dependencyGraphRuntime.js'));
+    assert.match(inventory, /logic that is useful to more than one component/);
+});
+
+test('manual XR mode harness loads common runtime before component runtimes that consume it', () => {
+    const harness = fs.readFileSync(manualHarnessPath, 'utf8');
+
+    assert.ok(harness.indexOf('templates/components/common/codexrCommonRuntime.js') < harness.indexOf('xrChartMappingUiRuntime.js'));
+    assert.ok(harness.indexOf('templates/components/common/codexrCommonRuntime.js') < harness.indexOf('historicalComparisonRuntime.js'));
+    assert.ok(harness.indexOf('templates/components/common/codexrCommonRuntime.js') < harness.indexOf('dependencyGraphRuntime.js'));
 });

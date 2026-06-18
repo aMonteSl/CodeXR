@@ -120,7 +120,7 @@ test('Visualization mode is orange and removes every analysis root before showin
   assert.equal(runtime.getState().mode, 'selection');
 });
 
-test('first Visualization mode click from initial normal analysis hides all normal visualization roots', async () => {
+test('first Visualization mode click from initial normal analysis detaches all normal visualization roots', async () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const tableModes = [];
   const chartIds = [];
@@ -152,6 +152,23 @@ test('first Visualization mode click from initial normal analysis hides all norm
       getAttribute(name) {
         return this.attributes[name];
       },
+      querySelector(selector) {
+        if (selector === '[data-codexr-analysis-root="true"]') {
+          return this.children.find(child => child.attributes['data-codexr-analysis-root'] === 'true') || null;
+        }
+        return null;
+      },
+      querySelectorAll(selector) {
+        if (selector === '[data-codexr-normal-root="true"], [data-codexr-analysis-mode="single"]') {
+          return this.children.filter(child =>
+            child.attributes['data-codexr-normal-root'] === 'true'
+            || child.attributes['data-codexr-analysis-mode'] === 'single');
+        }
+        if (selector === '[data-codexr-analysis-root="true"]') {
+          return this.children.filter(child => child.attributes['data-codexr-analysis-root'] === 'true');
+        }
+        return [];
+      },
       addEventListener() {},
       remove() {
         this.removed = true;
@@ -162,9 +179,21 @@ test('first Visualization mode click from initial normal analysis hides all norm
   }
   const primaryVisual = element('primaryVisual');
   const secondaryVisual = element('secondaryVisual');
+  const scene = element('scene');
+  const surface = element('codexrAnalysisSurface');
+  const normalRoot = element('codexrNormalAnalysisRoot');
+  normalRoot.setAttribute('data-codexr-analysis-root', 'true');
+  normalRoot.setAttribute('data-codexr-analysis-mode', 'single');
+  normalRoot.setAttribute('data-codexr-normal-root', 'true');
+  normalRoot.appendChild(primaryVisual);
+  normalRoot.appendChild(secondaryVisual);
+  surface.appendChild(normalRoot);
+  scene.appendChild(surface);
   const table = element('codexrAnalysisTable');
   const config = element('codexr-tooling-config-xr-mapping-ui');
   config.textContent = JSON.stringify({
+    normalSurfaceId: 'codexrAnalysisSurface',
+    normalRootId: 'codexrNormalAnalysisRoot',
     chartEntityIds: ['primaryVisual', 'secondaryVisual'],
   });
   const document = {
@@ -174,11 +203,20 @@ test('first Visualization mode click from initial normal analysis hides all norm
     getElementById(id) {
       if (id === 'primaryVisual') { return primaryVisual; }
       if (id === 'secondaryVisual') { return secondaryVisual; }
+      if (id === 'codexrAnalysisSurface') { return surface; }
+      if (id === 'codexrNormalAnalysisRoot') { return normalRoot; }
       if (id === 'codexrAnalysisTable') { return table; }
       if (id === 'codexr-tooling-config-xr-mapping-ui') { return config; }
       return elements.get(id) || null;
     },
-    querySelectorAll() {
+    querySelector(selector) {
+      if (selector === 'a-scene') { return scene; }
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '[data-codexr-normal-root="true"]') {
+        return normalRoot.parentNode ? [normalRoot] : [];
+      }
       return [];
     },
   };
@@ -213,12 +251,12 @@ test('first Visualization mode click from initial normal analysis hides all norm
 
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(tableModes.at(-1), 'selection');
-  assert.equal(primaryVisual.visible, false);
-  assert.equal(secondaryVisual.visible, false);
+  assert.equal(normalRoot.parentNode, null);
+  assert.equal(surface.children.includes(normalRoot), false);
   assert.deepEqual(Array.from(chartIds.at(-1)), []);
 });
 
-test('mounting a non-normal surface root does not reveal the parked normal chart', () => {
+test('mounting a non-normal surface root does not reattach the detached normal chart', () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const elements = new Map();
   function object3D() {
@@ -238,6 +276,10 @@ test('mounting a non-normal surface root does not reveal the parked normal chart
       appendChild(child) {
         this.children.push(child);
         child.parentNode = this;
+      },
+      removeChild(child) {
+        this.children = this.children.filter(candidate => candidate !== child);
+        child.parentNode = null;
       },
       setAttribute(name, value) {
         this.attributes[name] = value;
@@ -311,8 +353,9 @@ test('mounting a non-normal surface root does not reveal the parked normal chart
   surfaceRuntime.mountRoot('dependency-graph', dependency);
 
   assert.equal(surface.object3D.visible, true);
-  assert.equal(normal.object3D.visible, false);
+  assert.equal(normal.parentNode, null);
   assert.equal(dependency.object3D.visible, true);
+  assert.equal(dependency.parentNode, surface);
 });
 
 test('XR mode megatest keeps one visual root and preserves mode-owned state', async () => {
