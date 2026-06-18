@@ -4,11 +4,16 @@
     {
       "type": "npm",
       "script": "compile",
-      "problemMatcher": [
-        "$ts-webpack-watch"
-      ],
+      "problemMatcher": [],
       "label": "npm: compile",
       "detail": "Compile CodeXR before launching the Extension Host"
+    },
+    {
+      "type": "npm",
+      "script": "compile:dev-host",
+      "problemMatcher": [],
+      "label": "npm: compile:dev-host",
+      "detail": "Compile CodeXR and prepare an isolated Extension Host copy"
     }
   ]
 }
