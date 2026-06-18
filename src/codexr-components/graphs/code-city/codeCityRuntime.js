@@ -8,11 +8,10 @@
   var CITY_MARGIN = 0.06;
   var CITY_BASE_HEIGHT = 0.055;
   var CITY_BASE_PADDING = 0.14;
-  var DISTRICT_GAP = 0.07;
-  var DISTRICT_INSET = 0.095;
-  var DISTRICT_BASE_HEIGHT = 0.055;
-  var DISTRICT_LEVEL_RISE = 0.078;
-  var DISTRICT_TOP_PADDING = 0.014;
+  var DISTRICT_GAP = 0.055;
+  var DISTRICT_INSET = 0.08;
+  var DISTRICT_BASE_HEIGHT = 0.048;
+  var DISTRICT_LEVEL_Y = 0.042;
   var MIN_BUILDING_FOOTPRINT = 0.018;
   var MIN_BUILDING_HEIGHT = 0.12;
   var MAX_BUILDING_HEIGHT = 0.98;
@@ -61,43 +60,6 @@
   function numeric(value, fallback) {
     var parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : (fallback || 0);
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
-
-  function hexToRgb(color) {
-    var normalized = String(color || '').replace('#', '').trim();
-    if (normalized.length === 3) {
-      normalized = normalized.split('').map(function (part) { return part + part; }).join('');
-    }
-    var value = parseInt(normalized, 16);
-    if (!Number.isFinite(value)) { return [255, 255, 255]; }
-    return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
-  }
-
-  function rgbToHex(rgb) {
-    return '#' + rgb.map(function (part) {
-      return clamp(Math.round(part), 0, 255).toString(16).padStart(2, '0');
-    }).join('');
-  }
-
-  function mixColor(color, target, ratio) {
-    var source = hexToRgb(color);
-    var destination = hexToRgb(target);
-    var amount = clamp(Number(ratio) || 0, 0, 1);
-    return rgbToHex(source.map(function (part, index) {
-      return part + (destination[index] - part) * amount;
-    }));
-  }
-
-  function districtCenterY(depth) {
-    return CITY_BASE_HEIGHT / 2 + 0.01 + Math.max(0, depth || 0) * DISTRICT_LEVEL_RISE;
-  }
-
-  function districtTopY(depth) {
-    return districtCenterY(depth) + DISTRICT_BASE_HEIGHT / 2;
   }
 
   function safeField(record, field) {
@@ -183,8 +145,6 @@
       depth: depth || 0,
       children: new Map(),
       leaves: [],
-      leafCount: 0,
-      childCount: 0,
       weight: 0
     };
   }
@@ -205,10 +165,6 @@
     function compute(node) {
       var leafWeight = node.leaves.reduce(function (sum, leaf) { return sum + Math.max(1, leaf.weight || 1); }, 0);
       var childWeight = Array.from(node.children.values()).reduce(function (sum, child) { return sum + compute(child); }, 0);
-      node.leafCount = node.leaves.length + Array.from(node.children.values()).reduce(function (sum, child) {
-        return sum + (child.leafCount || 0);
-      }, 0);
-      node.childCount = node.children.size;
       node.weight = Math.max(1, leafWeight + childWeight);
       return node.weight;
     }
@@ -325,39 +281,13 @@
     return results;
   }
 
-  function layoutGrid(items, rect) {
-    if (!items.length) { return []; }
-    var count = items.length;
-    var aspect = Math.max(0.2, rect.width / Math.max(0.01, rect.depthSize));
-    var columns = Math.max(1, Math.ceil(Math.sqrt(count * aspect)));
-    var rows = Math.max(1, Math.ceil(count / columns));
-    var cellWidth = rect.width / columns;
-    var cellDepth = rect.depthSize / rows;
-    return items.map(function (item, index) {
-      var column = index % columns;
-      var row = Math.floor(index / columns);
-      return {
-        item: item,
-        rect: {
-          x: rect.x - rect.width / 2 + cellWidth * column + cellWidth / 2,
-          z: rect.z - rect.depthSize / 2 + cellDepth * row + cellDepth / 2,
-          width: cellWidth,
-          depthSize: cellDepth
-        }
-      };
-    });
-  }
-
   function layoutItems(items, rect, depth, out) {
     if (!items.length) { return; }
     var gap = items.length > 1 ? Math.min(DISTRICT_GAP, Math.min(rect.width, rect.depthSize) / Math.max(8, Math.sqrt(items.length) * 5)) : 0;
     var orderedItems = items.map(function (item, index) {
       return Object.assign({ __order: index }, item);
     });
-    var slots = orderedItems.every(function (item) { return item.type === 'leaf'; }) && orderedItems.length > 2
-      ? layoutGrid(orderedItems, rect)
-      : layoutTreemap(orderedItems, rect);
-    slots.forEach(function (slot) {
+    layoutTreemap(orderedItems, rect).forEach(function (slot) {
       var item = slot.item;
       var childRect = insetRect(slot.rect, gap / 2);
       if (item.type === 'leaf') {
@@ -389,9 +319,7 @@
             zMin: childRect.z - childRect.depthSize / 2,
             zMax: childRect.z + childRect.depthSize / 2
           },
-          weight: item.node.weight,
-          leafCount: item.node.leafCount || item.node.leaves.length,
-          childCount: item.node.childCount || item.node.children.size
+          weight: item.node.weight
         });
         var insetX = Math.min(DISTRICT_INSET, Math.max(0, childRect.width * 0.18));
         var insetZ = Math.min(DISTRICT_INSET, Math.max(0, childRect.depthSize * 0.18));
@@ -509,37 +437,6 @@
     });
   }
 
-  function computeCityBounds(base, districts, buildings) {
-    var bounds = {
-      minX: base.x - base.width / 2,
-      maxX: base.x + base.width / 2,
-      minZ: base.z - base.depthSize / 2,
-      maxZ: base.z + base.depthSize / 2,
-      minY: base.y - base.height / 2,
-      maxY: base.y + base.height / 2
-    };
-    (districts || []).forEach(function (district) {
-      bounds.minX = Math.min(bounds.minX, district.x - district.width / 2);
-      bounds.maxX = Math.max(bounds.maxX, district.x + district.width / 2);
-      bounds.minZ = Math.min(bounds.minZ, district.z - district.depthSize / 2);
-      bounds.maxZ = Math.max(bounds.maxZ, district.z + district.depthSize / 2);
-      bounds.maxY = Math.max(bounds.maxY, district.topY || (district.baseY + DISTRICT_BASE_HEIGHT / 2));
-    });
-    (buildings || []).forEach(function (building) {
-      var halfFootprint = Math.max(building.footprint || 0, building.plotWidth || 0) / 2;
-      var halfDepth = Math.max(building.footprint || 0, building.plotDepth || 0) / 2;
-      bounds.minX = Math.min(bounds.minX, building.x - halfFootprint);
-      bounds.maxX = Math.max(bounds.maxX, building.x + halfFootprint);
-      bounds.minZ = Math.min(bounds.minZ, building.z - halfDepth);
-      bounds.maxZ = Math.max(bounds.maxZ, building.z + halfDepth);
-      bounds.maxY = Math.max(bounds.maxY, building.topY || 0);
-    });
-    bounds.width = bounds.maxX - bounds.minX;
-    bounds.depthSize = bounds.maxZ - bounds.minZ;
-    bounds.height = bounds.maxY - bounds.minY;
-    return bounds;
-  }
-
   function material(color, options) {
     var opts = options || {};
     var opacity = Number.isFinite(Number(opts.opacity)) ? Number(opts.opacity) : 1;
@@ -570,25 +467,6 @@
     });
   }
 
-  function setBoxGeometry(element, width, height, depth, duration) {
-    if (!element) { return; }
-    var safeWidth = Math.max(0.001, Number(width) || 0.001);
-    var safeHeight = Math.max(0.001, Number(height) || 0.001);
-    var safeDepth = Math.max(0.001, Number(depth) || 0.001);
-    if (typeof common().animateTransform === 'function' && duration > 0) {
-      common().animateTransform(element, {
-        'geometry.width': safeWidth,
-        'geometry.height': safeHeight,
-        'geometry.depth': safeDepth
-      }, { duration: duration, easing: 'easeOutCubic' });
-      return;
-    }
-    element.setAttribute('geometry',
-      'primitive: box; width: ' + safeWidth
-      + '; height: ' + safeHeight
-      + '; depth: ' + safeDepth);
-  }
-
   function buildCityView(records, mode, data) {
     var safeRecords = Array.isArray(records) ? records : [];
     var areaField = data?.area || 'parameters';
@@ -612,29 +490,25 @@
     });
     var areaScale = metricScale(safeRecords, areaField);
     var heightScale = metricScale(safeRecords, heightField);
-    var districtByPath = new Map();
+    var maxY = 0.48;
     var districts = layout.districts.map(function (district) {
       var level = district.depth || 0;
-      var baseY = districtCenterY(level);
-      var topY = districtTopY(level);
+      var baseY = DISTRICT_BASE_HEIGHT / 2 + level * DISTRICT_LEVEL_Y;
       var color = DISTRICT_PALETTE[Math.min(DISTRICT_PALETTE.length - 1, level)];
       var edgeColor = level === 0 ? '#67e8f9' : '#bef264';
-      var model = Object.assign({}, district, {
+      maxY = Math.max(maxY, baseY + DISTRICT_BASE_HEIGHT + 0.12);
+      return Object.assign({}, district, {
         baseY: baseY,
-        topY: topY,
-        terraceTopY: topY,
         color: color,
         edgeColor: edgeColor,
         detail: {
           title: district.label,
           subtitle: district.path || '(project root)',
-          primary: 'District | ' + Math.round(district.leafCount || 0) + ' items | weight ' + Math.round(district.weight || 0),
-          secondary: 'Depth ' + level + ' | ' + Math.round(district.childCount || 0) + ' subdistricts | click to pin',
+          primary: 'District | weight ' + Math.round(district.weight || 0),
+          secondary: 'Depth ' + level + ' | click to pin',
           accentColor: edgeColor
         }
       });
-      districtByPath.set(model.path || model.label, model);
-      return model;
     });
 
     var buildings = layout.leaves.map(function (leaf) {
@@ -649,13 +523,7 @@
       var footprint = minFootprint + Math.max(0, maxFootprint - minFootprint) * (0.28 + areaRatio * 0.72);
       footprint = Math.min(maxFootprint, Math.max(0.008, footprint));
       var buildingHeight = MIN_BUILDING_HEIGHT + heightRatio * MAX_BUILDING_HEIGHT;
-      var containerDistrict = districtByPath.get(leaf.containerPath || '')
-        || districtByPath.get(leaf.directoryParts.join('/'))
-        || null;
-      var terraceTopY = containerDistrict
-        ? containerDistrict.terraceTopY
-        : districtTopY(Math.max(0, leaf.directoryParts.length - 1));
-      var baseY = terraceTopY + DISTRICT_TOP_PADDING;
+      var baseY = 0.09 + Math.max(0, leaf.directoryParts.length - 1) * DISTRICT_LEVEL_Y;
       var color = colorForValue(record[colorField] ?? leaf.label, safeRecords, colorField);
       var changeState = resolveChangeState(record);
       var roofColor = roofColorForState(changeState);
@@ -665,6 +533,7 @@
       var plotDepth = Math.max(footprint * 1.28, Math.min(leaf.cellDepth || footprint, Math.max(0.012, (leaf.cellDepth || footprint) * 0.82)));
       plotWidth = Math.min(Math.max(0.012, leaf.cellWidth || plotWidth), plotWidth);
       plotDepth = Math.min(Math.max(0.012, leaf.cellDepth || plotDepth), plotDepth);
+      maxY = Math.max(maxY, topY + 0.18);
       return Object.assign({}, leaf, {
         areaField: areaField,
         heightField: heightField,
@@ -677,7 +546,6 @@
         roofHeight: roofHeight,
         buildingHeight: buildingHeight,
         baseY: baseY,
-        terraceTopY: terraceTopY,
         color: color,
         changeState: changeState,
         roofColor: roofColor,
@@ -692,29 +560,26 @@
         }
       });
     });
-    var base = {
-      x: 0,
-      z: 0,
-      y: -CITY_BASE_HEIGHT / 2,
-      width: CITY_WIDTH + CITY_BASE_PADDING * 2,
-      depthSize: CITY_DEPTH + CITY_BASE_PADDING * 2,
-      height: CITY_BASE_HEIGHT
-    };
-    var bounds = computeCityBounds(base, districts, buildings);
     districts.forEach(function (district) {
-      district.tooltipY = Math.max(bounds.maxY + 0.72, district.topY + 0.72);
+      district.tooltipY = Math.max(1.3, maxY + 0.66, district.baseY + 0.64);
     });
 
     return {
       valid: true,
       records: safeRecords,
-      base: base,
+      base: {
+        x: 0,
+        z: 0,
+        y: -CITY_BASE_HEIGHT / 2,
+        width: CITY_WIDTH + CITY_BASE_PADDING * 2,
+        depthSize: CITY_DEPTH + CITY_BASE_PADDING * 2,
+        height: CITY_BASE_HEIGHT
+      },
       districts: districts,
       buildings: buildings,
-      bounds: bounds,
-      maxY: bounds.maxY,
-      titleY: Math.max(1.42, bounds.maxY + 0.58),
-      tooltipY: Math.max(1.3, bounds.maxY + 0.72),
+      maxY: maxY,
+      titleY: Math.max(1.42, maxY + 0.56),
+      tooltipY: Math.max(1.3, maxY + 0.66),
       areaField: areaField,
       heightField: heightField,
       colorField: colorField
@@ -1044,7 +909,6 @@
           'data-codexr-code-city-district': district.id
         });
         var platform = entity('a-box', { 'data-codexr-role': 'district-platform' });
-        var surface = entity('a-box', { 'data-codexr-role': 'district-surface' });
         var north = entity('a-box', {});
         var south = entity('a-box', {});
         var west = entity('a-box', {});
@@ -1052,7 +916,6 @@
         var label = text('', '0 0 0', 2.2, '#cffafe');
         label.setAttribute('scale', '0.18 0.18 0.18');
         group.appendChild(platform);
-        group.appendChild(surface);
         group.appendChild(north);
         group.appendChild(south);
         group.appendChild(west);
@@ -1062,7 +925,6 @@
         return {
           group: group,
           platform: platform,
-          surface: surface,
           rails: [north, south, west, east],
           label: label
         };
@@ -1071,25 +933,24 @@
         var duration = isNew ? 0 : Number(this.data.animationDuration || 520);
         var railColor = district.edgeColor;
         var topTint = district.depth === 0 ? '#123b4a' : district.color;
-        var sideTint = mixColor(topTint, '#020617', 0.55);
         animateOrSet(entry.group, {
           position: district.x + ' ' + district.baseY + ' ' + district.z,
           scale: '1 1 1'
         }, duration);
-        setBoxGeometry(entry.platform, Math.max(0.01, district.width), DISTRICT_BASE_HEIGHT, Math.max(0.01, district.depthSize), duration);
-        entry.platform.setAttribute('material', material(sideTint, { opacity: 1 }));
-        setBoxGeometry(entry.surface, Math.max(0.01, district.width - 0.035), 0.01, Math.max(0.01, district.depthSize - 0.035), duration);
-        entry.surface.setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT / 2 + 0.007) + ' 0');
-        entry.surface.setAttribute('material', material(topTint, { opacity: 1 }));
+        entry.platform.setAttribute('geometry',
+          'primitive: box; width: ' + Math.max(0.01, district.width)
+          + '; height: ' + DISTRICT_BASE_HEIGHT
+          + '; depth: ' + Math.max(0.01, district.depthSize));
+        entry.platform.setAttribute('material', material(topTint, { opacity: 1 }));
         var railHeight = 0.032;
         var railThickness = 0.018;
-        setBoxGeometry(entry.rails[0], district.width, railHeight, railThickness, duration);
+        entry.rails[0].setAttribute('geometry', 'primitive: box; width: ' + district.width + '; height: ' + railHeight + '; depth: ' + railThickness);
         entry.rails[0].setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' ' + (-district.depthSize / 2));
-        setBoxGeometry(entry.rails[1], district.width, railHeight, railThickness, duration);
+        entry.rails[1].setAttribute('geometry', 'primitive: box; width: ' + district.width + '; height: ' + railHeight + '; depth: ' + railThickness);
         entry.rails[1].setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' ' + (district.depthSize / 2));
-        setBoxGeometry(entry.rails[2], railThickness, railHeight, district.depthSize, duration);
+        entry.rails[2].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + district.depthSize);
         entry.rails[2].setAttribute('position', (-district.width / 2) + ' ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' 0');
-        setBoxGeometry(entry.rails[3], railThickness, railHeight, district.depthSize, duration);
+        entry.rails[3].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + district.depthSize);
         entry.rails[3].setAttribute('position', (district.width / 2) + ' ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' 0');
         entry.rails.forEach(function (rail) {
           rail.setAttribute('material', material(railColor, { opacity: 1 }));
@@ -1150,37 +1011,25 @@
         });
         var plot = entity('a-box', { 'data-codexr-role': 'building-plot' });
         var plotAccent = entity('a-box', { 'data-codexr-role': 'building-plot-accent' });
-        var baseTrim = entity('a-box', { 'data-codexr-role': 'building-base-trim' });
         var body = entity('a-box', {});
         var roof = entity('a-box', {});
         var frontWindows = entity('a-box', {});
         var sideWindows = entity('a-box', {});
-        var frontBand = entity('a-box', { 'data-codexr-role': 'building-front-band' });
-        var sideBand = entity('a-box', { 'data-codexr-role': 'building-side-band' });
-        var ageMark = entity('a-box', { 'data-codexr-role': 'building-age-mark' });
         building.appendChild(plot);
         building.appendChild(plotAccent);
-        building.appendChild(baseTrim);
         building.appendChild(body);
         building.appendChild(roof);
         building.appendChild(frontWindows);
         building.appendChild(sideWindows);
-        building.appendChild(frontBand);
-        building.appendChild(sideBand);
-        building.appendChild(ageMark);
         this.cityRoot.appendChild(building);
         return {
           group: building,
           plot: plot,
           plotAccent: plotAccent,
-          baseTrim: baseTrim,
           body: body,
           roof: roof,
           frontWindows: frontWindows,
-          sideWindows: sideWindows,
-          frontBand: frontBand,
-          sideBand: sideBand,
-          ageMark: ageMark
+          sideWindows: sideWindows
         };
       },
       updateBuildingEntry: function (entry, leaf, isNew) {
@@ -1194,44 +1043,45 @@
           position: leaf.x + ' ' + leaf.baseY + ' ' + leaf.z,
           scale: '1 1 1'
         }, duration);
-        setBoxGeometry(entry.plot, plotWidth, 0.018, plotDepth, duration);
+        entry.plot.setAttribute('geometry',
+          'primitive: box; width: ' + plotWidth
+          + '; height: 0.018'
+          + '; depth: ' + plotDepth);
         entry.plot.setAttribute('position', '0 -0.006 0');
         entry.plot.setAttribute('material', material('#0b1220', { opacity: 1 }));
-        setBoxGeometry(entry.plotAccent, Math.max(0.008, plotWidth * 0.72), 0.012, Math.max(0.006, Math.min(0.018, plotDepth * 0.16)), duration);
+        entry.plotAccent.setAttribute('geometry',
+          'primitive: box; width: ' + Math.max(0.008, plotWidth * 0.72)
+          + '; height: 0.012'
+          + '; depth: ' + Math.max(0.006, Math.min(0.018, plotDepth * 0.16)));
         entry.plotAccent.setAttribute('position', '0 0.009 ' + (-plotDepth / 2 + Math.max(0.006, Math.min(0.018, plotDepth * 0.16)) / 2));
         entry.plotAccent.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
-        setBoxGeometry(entry.baseTrim, footprint * 1.18, Math.max(0.018, footprint * 0.18), footprint * 1.18, duration);
-        entry.baseTrim.setAttribute('position', '0 ' + Math.max(0.011, footprint * 0.09) + ' 0');
-        entry.baseTrim.setAttribute('material', material(mixColor(leaf.color, '#020617', 0.44), { opacity: 1 }));
-        setBoxGeometry(entry.body, footprint, buildingHeight, footprint, duration);
+        entry.body.setAttribute('geometry',
+          'primitive: box; width: ' + footprint
+          + '; height: ' + buildingHeight
+          + '; depth: ' + footprint);
         entry.body.setAttribute('position', '0 ' + (buildingHeight / 2) + ' 0');
-        entry.body.setAttribute('material', material(mixColor(leaf.color, '#ffffff', 0.07), { opacity: 1 }));
-        setBoxGeometry(entry.roof, footprint * 1.12, roofHeight, footprint * 1.12, duration);
+        entry.body.setAttribute('material', material(leaf.color, { opacity: 1 }));
+        entry.roof.setAttribute('geometry',
+          'primitive: box; width: ' + (footprint * 1.12)
+          + '; height: ' + roofHeight
+          + '; depth: ' + (footprint * 1.12));
         entry.roof.setAttribute('position', '0 ' + (buildingHeight + roofHeight / 2) + ' 0');
         entry.roof.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
         var showFacade = buildingHeight > 0.22 && footprint > 0.026;
-        var facadeColor = mixColor(leaf.color, '#dbeafe', 0.56);
-        var shadowColor = mixColor(leaf.color, '#020617', 0.32);
-        setBoxGeometry(entry.frontWindows, footprint * 0.58, Math.min(0.18, buildingHeight * 0.46), 0.006, duration);
+        entry.frontWindows.setAttribute('geometry',
+          'primitive: box; width: ' + (footprint * 0.58)
+          + '; height: ' + Math.min(0.18, buildingHeight * 0.46)
+          + '; depth: 0.006');
         entry.frontWindows.setAttribute('position', '0 ' + Math.max(0.08, buildingHeight * 0.55) + ' ' + (-footprint / 2 - 0.004));
-        entry.frontWindows.setAttribute('material', material(facadeColor, { opacity: 1 }));
+        entry.frontWindows.setAttribute('material', material('#dbeafe', { opacity: 1 }));
         entry.frontWindows.setAttribute('visible', showFacade);
-        setBoxGeometry(entry.sideWindows, 0.006, Math.min(0.16, buildingHeight * 0.42), footprint * 0.58, duration);
+        entry.sideWindows.setAttribute('geometry',
+          'primitive: box; width: 0.006'
+          + '; height: ' + Math.min(0.16, buildingHeight * 0.42)
+          + '; depth: ' + (footprint * 0.58));
         entry.sideWindows.setAttribute('position', (footprint / 2 + 0.004) + ' ' + Math.max(0.08, buildingHeight * 0.55) + ' 0');
-        entry.sideWindows.setAttribute('material', material(facadeColor, { opacity: 1 }));
+        entry.sideWindows.setAttribute('material', material('#dbeafe', { opacity: 1 }));
         entry.sideWindows.setAttribute('visible', showFacade);
-        setBoxGeometry(entry.frontBand, footprint * 0.82, Math.max(0.01, Math.min(0.028, buildingHeight * 0.08)), 0.007, duration);
-        entry.frontBand.setAttribute('position', '0 ' + Math.max(0.055, buildingHeight * 0.27) + ' ' + (-footprint / 2 - 0.006));
-        entry.frontBand.setAttribute('material', material(shadowColor, { opacity: 1 }));
-        entry.frontBand.setAttribute('visible', showFacade);
-        setBoxGeometry(entry.sideBand, 0.007, Math.max(0.01, Math.min(0.028, buildingHeight * 0.08)), footprint * 0.82, duration);
-        entry.sideBand.setAttribute('position', (footprint / 2 + 0.006) + ' ' + Math.max(0.055, buildingHeight * 0.31) + ' 0');
-        entry.sideBand.setAttribute('material', material(shadowColor, { opacity: 1 }));
-        entry.sideBand.setAttribute('visible', showFacade);
-        setBoxGeometry(entry.ageMark, Math.max(0.006, footprint * 0.2), Math.max(0.02, buildingHeight * 0.18), 0.008, duration);
-        entry.ageMark.setAttribute('position', (-footprint / 2 - 0.005) + ' ' + Math.max(0.08, buildingHeight * 0.7) + ' 0');
-        entry.ageMark.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
-        entry.ageMark.setAttribute('visible', leaf.changeState !== 'neutral' && showFacade);
         removeHitboxes(entry.group);
         var self = this;
         function anchor() {
@@ -1244,7 +1094,7 @@
         }
         function leave() {
           if (!self.pinned || self.pinned.id !== leaf.id) {
-            entry.body.setAttribute('material', material(mixColor(leaf.color, '#ffffff', 0.07), { opacity: 1 }));
+            entry.body.setAttribute('material', material(leaf.color, { opacity: 1 }));
             entry.plotAccent.setAttribute('material', material(leaf.roofColor, { opacity: 1 }));
           }
           if (!self.pinned) { self.tooltip?.hide?.(); }
@@ -1320,8 +1170,6 @@
       buildDistrictTree: buildDistrictTree,
       layoutLeaves: layoutLeaves,
       buildCityView: buildCityView,
-      computeCityBounds: computeCityBounds,
-      districtTopY: districtTopY,
       colorForValue: colorForValue,
       resolveChangeState: resolveChangeState,
       withCacheBust: withCacheBust
