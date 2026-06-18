@@ -24,6 +24,8 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(historyRuntime, /id: 'historical-selection'[\s\S]*headerButton: false/);
   assert.doesNotMatch(dependencyRuntime, /buttonLabel: 'D'/);
   assert.match(mappingRuntime, /if \(options\.headerButton === true\)/);
+  assert.doesNotMatch(modeRuntime, /class: 'babiaxraycasterclass codexr-analysis-mode-option'/);
+  assert.match(modeRuntime, /class: 'codexr-analysis-mode-option'/);
   assert.match(mappingRuntime, /isPanelReady: function \(\)/);
   assert.match(modeRuntime, /!mappingRuntime\.isPanelReady\?\.\(\)/);
   assert.match(historyRuntime, /!mappingRuntime\.isPanelReady\?\.\(\)/);

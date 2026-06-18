@@ -54,7 +54,8 @@
     chartEntityIdsOverride: null,
     activePanelView: 'mapping',
     mappingPanelHeight: 2.45,
-    panelViews: {}
+    panelViews: {},
+    panelViewObservers: {}
   };
 
   var ADAPTIVE_DEFAULTS = {
@@ -877,6 +878,7 @@
     if (refs.panelContent) {
       refs.panelContent.setAttribute('visible', state.visible);
     }
+    syncPanelInteractions();
     syncToggleLabel(config);
   }
 
@@ -899,6 +901,21 @@
         control.classList.remove('babiaxraycasterclass');
       }
     });
+  }
+
+  function syncPanelViewInteraction(viewId) {
+    var view = state.panelViews[viewId];
+    if (!view || !view.content) {
+      return;
+    }
+    setEntityInteractionEnabled(view.content, state.visible && state.activePanelView === viewId);
+  }
+
+  function syncPanelInteractions() {
+    if (refs.rowsRoot) {
+      setEntityInteractionEnabled(refs.rowsRoot, state.visible && state.activePanelView === 'mapping');
+    }
+    Object.keys(state.panelViews).forEach(syncPanelViewInteraction);
   }
 
   function applyPanelHeight(panelHeight) {
@@ -968,14 +985,12 @@
     var previousView = state.panelViews[state.activePanelView];
     if (previousView && previousView.id !== nextViewId) {
       previousView.content.setAttribute('visible', false);
-      setEntityInteractionEnabled(previousView.content, false);
       previousView.onHide?.();
     }
 
     state.activePanelView = nextViewId;
     if (refs.rowsRoot) {
       refs.rowsRoot.setAttribute('visible', nextViewId === 'mapping');
-      setEntityInteractionEnabled(refs.rowsRoot, nextViewId === 'mapping');
     }
     if (refs.statusText) {
       refs.statusText.setAttribute('visible', nextViewId === 'mapping' && !!state.statusMessage);
@@ -987,12 +1002,10 @@
       }
       Object.keys(state.panelViews).forEach(function (registeredViewId) {
         state.panelViews[registeredViewId].content.setAttribute('visible', false);
-        setEntityInteractionEnabled(state.panelViews[registeredViewId].content, false);
       });
       applyPanelHeight(state.mappingPanelHeight);
     } else {
       targetView.content.setAttribute('visible', true);
-      setEntityInteractionEnabled(targetView.content, true);
       if (refs.panelTitle) {
         refs.panelTitle.setAttribute('value', targetView.title);
       }
@@ -1000,6 +1013,7 @@
       targetView.onShow?.();
     }
 
+    syncPanelInteractions();
     setVisible(getConfig() || {}, true);
     syncPanelViewButtons();
     return nextViewId;
@@ -1015,6 +1029,8 @@
     var viewId = String(options.id);
     var existing = state.panelViews[viewId];
     if (existing) {
+      state.panelViewObservers[viewId]?.disconnect?.();
+      delete state.panelViewObservers[viewId];
       existing.button?.remove();
       existing.content?.remove();
     }
@@ -1023,6 +1039,14 @@
     content.setAttribute('visible', false);
     setEntityInteractionEnabled(content, false);
     refs.panelContent.appendChild(content);
+    var observer = null;
+    if (typeof root.MutationObserver === 'function') {
+      observer = new root.MutationObserver(function () {
+        syncPanelViewInteraction(viewId);
+      });
+      observer.observe(content, { childList: true, subtree: true });
+      state.panelViewObservers[viewId] = observer;
+    }
     var button = null;
     if (options.headerButton === true) {
       button = createEntity('a-plane', {
@@ -1072,6 +1096,8 @@
       if (state.activePanelView === viewId) {
         showPanelView('mapping');
       }
+      state.panelViewObservers[viewId]?.disconnect?.();
+      delete state.panelViewObservers[viewId];
       view.button?.remove();
       view.content?.remove();
       delete state.panelViews[viewId];

@@ -420,7 +420,7 @@
       width: 4.5,
       height: 0.48,
       material: 'color: ' + (option.color || '#0e7490') + '; opacity: 0.96; shader: flat',
-      class: 'babiaxraycasterclass codexr-analysis-mode-option',
+      class: 'codexr-analysis-mode-option',
       'data-codexr-interactive': 'true',
       'data-codexr-mode-option': option.id
     });

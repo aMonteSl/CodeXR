@@ -20,7 +20,7 @@
   function truncateText(value, maxLength) {
     var text = String(value == null ? '' : value);
     var limit = Math.max(1, Number(maxLength) || 80);
-    return text.length > limit ? text.slice(0, Math.max(0, limit - 1)) + '…' : text;
+    return text.length > limit ? text.slice(0, Math.max(0, limit - 3)) + '...' : text;
   }
 
   function tooltipText(value, position, width, color, align) {

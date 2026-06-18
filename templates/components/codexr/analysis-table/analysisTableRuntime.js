@@ -1782,7 +1782,7 @@
         return this.runSteadyControllerStep(source || 'steady-fit', this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
       }
       var changedEnvelope = this.enforceEnvelope(source);
-      var changedHeight = false;
+      var changedHeight = this.enforceHeightBand(source || 'maintenance-height-band');
       var measurements = this.measureBounds();
       var moved = measurements ? this.applyAnchorPlacement(measurements) : false;
       if (measurements && this.el && this.el.object3D) {

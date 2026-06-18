@@ -157,6 +157,11 @@ test('height band scale remains independent from the planar scale policy', () =>
     assert.equal(downscale.targetY, 0.75);
 });
 
+test('maintenance pass enforces the height band outside steady PID mode', () => {
+    assert.match(runtimeSource, /var changedHeight = this\.enforceHeightBand\(source \|\| 'maintenance-height-band'\);/);
+    assert.doesNotMatch(runtimeSource, /var changedHeight = false;/);
+});
+
 test('steady target helpers aim for the midpoint of each band instead of the edges', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;

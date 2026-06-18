@@ -35,6 +35,147 @@ function loadRuntime() {
     return sandbox.module.exports;
 }
 
+function createFakeElement(tagName, notifyMutation) {
+    const element = {
+        tagName,
+        children: [],
+        parentNode: null,
+        attributes: {},
+        textContent: '',
+        classList: {
+            values: new Set(),
+            add(value) {
+                this.values.add(value);
+            },
+            remove(value) {
+                this.values.delete(value);
+            },
+            contains(value) {
+                return this.values.has(value);
+            },
+        },
+        appendChild(child) {
+            this.children.push(child);
+            child.parentNode = this;
+            notifyMutation(this);
+        },
+        removeChild(child) {
+            this.children = this.children.filter((candidate) => candidate !== child);
+            child.parentNode = null;
+            notifyMutation(this);
+        },
+        remove() {
+            if (this.parentNode) {
+                this.parentNode.removeChild(this);
+            }
+        },
+        setAttribute(name, value) {
+            this.attributes[name] = value;
+            if (name === 'class') {
+                this.classList.values = new Set(String(value).split(/\s+/).filter(Boolean));
+            }
+        },
+        getAttribute(name) {
+            return this.attributes[name];
+        },
+        removeAttribute(name) {
+            delete this.attributes[name];
+        },
+        addEventListener() {},
+        querySelectorAll(selector) {
+            const results = [];
+            function visit(node) {
+                node.children.forEach((child) => {
+                    if (selector === '[data-codexr-interactive="true"]' && child.attributes['data-codexr-interactive'] === 'true') {
+                        results.push(child);
+                    }
+                    visit(child);
+                });
+            }
+            visit(this);
+            return results;
+        },
+    };
+    Object.defineProperty(element, 'firstChild', {
+        get() {
+            return this.children[0] || null;
+        },
+    });
+    return element;
+}
+
+function loadRuntimeWithFakeDom() {
+    const observers = new Map();
+    const elements = new Map();
+    function notifyMutation(target) {
+        let current = target;
+        while (current) {
+            (observers.get(current) || []).forEach((observer) => observer.callback());
+            current = current.parentNode;
+        }
+    }
+    function element(tagName, id) {
+        const node = createFakeElement(tagName, notifyMutation);
+        if (id) {
+            node.setAttribute('id', id);
+            elements.set(id, node);
+        }
+        return node;
+    }
+    const scene = element('a-scene', 'scene');
+    const configScript = element('script', 'codexr-tooling-config-xr-mapping-ui');
+    configScript.textContent = JSON.stringify({
+        sceneSelector: '#scene',
+        chartId: 'boats',
+        chartEntityId: 'chart',
+        dimensions: [],
+    });
+    const document = {
+        readyState: 'complete',
+        createElement(tagName) {
+            return element(tagName);
+        },
+        getElementById(id) {
+            return elements.get(id) || null;
+        },
+        querySelector(selector) {
+            if (selector === '#scene') {
+                return scene;
+            }
+            return null;
+        },
+    };
+    const sandbox = {
+        console: {
+            log() {},
+            warn() {},
+            error() {},
+        },
+        document,
+        module: { exports: {} },
+        exports: {},
+        setTimeout() {
+            return 1;
+        },
+        clearTimeout() {},
+        MutationObserver: class MutationObserver {
+            constructor(callback) {
+                this.callback = callback;
+            }
+            observe(target) {
+                if (!observers.has(target)) {
+                    observers.set(target, []);
+                }
+                observers.get(target).push(this);
+            }
+            disconnect() {}
+        },
+    };
+    sandbox.globalThis = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+    return { runtime: sandbox.module.exports, document };
+}
+
 test('mapping UI runtime only exposes session invalid-option helpers for chart rollback handling', () => {
     const runtime = loadRuntime();
 
@@ -133,13 +274,41 @@ test('mapping updates preserve each comparison chart datasource and chart-specif
 
 test('mapping UI disables raycast interaction for hidden views and keeps a stable shared entity id', () => {
     assert.match(runtimeSource, /function setEntityInteractionEnabled\(entity, enabled\)/);
+    assert.match(runtimeSource, /function syncPanelViewInteraction\(viewId\)/);
+    assert.match(runtimeSource, /state\.visible && state\.activePanelView === viewId/);
+    assert.match(runtimeSource, /new root\.MutationObserver/);
+    assert.match(runtimeSource, /observer\.observe\(content, \{ childList: true, subtree: true \}\)/);
     assert.match(runtimeSource, /querySelectorAll\('\[data-codexr-interactive="true"\]'\)/);
     assert.match(runtimeSource, /control\.classList\.remove\('babiaxraycasterclass'\)/);
-    assert.match(runtimeSource, /setEntityInteractionEnabled\(previousView\.content, false\)/);
-    assert.match(runtimeSource, /setEntityInteractionEnabled\(refs\.rowsRoot, nextViewId === 'mapping'\)/);
-    assert.match(runtimeSource, /setEntityInteractionEnabled\(targetView\.content, true\)/);
+    assert.match(runtimeSource, /syncPanelInteractions\(\)/);
     assert.match(runtimeSource, /data-codexr-interactive/);
     assert.match(runtimeSource, /config\.chartEntityId \|\| config\.chartSelector \|\| config\.chartId/);
+});
+
+test('mapping UI disables interactive controls added to hidden panel views after registration', () => {
+    const { runtime, document } = loadRuntimeWithFakeDom();
+    const content = document.createElement('a-entity');
+
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        content,
+        headerButton: true,
+    });
+
+    const lateButton = document.createElement('a-plane');
+    lateButton.setAttribute('class', 'babiaxraycasterclass codexr-analysis-mode-option');
+    lateButton.setAttribute('data-codexr-interactive', 'true');
+    content.appendChild(lateButton);
+
+    assert.equal(runtime.getActivePanelView(), 'mapping');
+    assert.equal(lateButton.classList.contains('babiaxraycasterclass'), false);
+
+    runtime.showPanelView('visualization-mode');
+    assert.equal(lateButton.classList.contains('babiaxraycasterclass'), true);
+
+    runtime.showPanelView('mapping');
+    assert.equal(lateButton.classList.contains('babiaxraycasterclass'), false);
 });
 
 test('mapping UI emits confirmed mappings for local and collaborative updates', () => {
