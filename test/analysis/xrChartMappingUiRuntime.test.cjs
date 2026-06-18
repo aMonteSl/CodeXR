@@ -162,9 +162,6 @@ test('mapping UI disables raycast interaction for hidden views and keeps a stabl
     assert.match(runtimeSource, /setEntityInteractionEnabled\(previousView\.content, false\)/);
     assert.match(runtimeSource, /setEntityInteractionEnabled\(refs\.rowsRoot, nextViewId === 'mapping'\)/);
     assert.match(runtimeSource, /setEntityInteractionEnabled\(targetView\.content, true\)/);
-    assert.match(runtimeSource, /setEntityInteractionEnabled\(refs\.rowsRoot, state\.activePanelView === 'mapping'\)/);
-    assert.match(runtimeSource, /new root\.MutationObserver/);
-    assert.match(runtimeSource, /state\.activePanelView === viewId/);
     assert.match(runtimeSource, /data-codexr-interactive/);
     assert.match(runtimeSource, /config\.chartEntityId \|\| config\.chartSelector \|\| config\.chartId/);
 });

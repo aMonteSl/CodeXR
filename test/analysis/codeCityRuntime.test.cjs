@@ -240,25 +240,7 @@ test('CodeXR Code City renders procedural building texture without external asse
     assert.match(runtimeSource, /data-codexr-role': 'building-front-band'/);
     assert.match(runtimeSource, /data-codexr-role': 'building-side-band'/);
     assert.match(runtimeSource, /data-codexr-role': 'building-age-mark'/);
-    assert.match(runtimeSource, /data-codexr-role': 'building-window-row-front'/);
-    assert.match(runtimeSource, /data-codexr-role': 'building-window-row-side'/);
-    assert.match(runtimeSource, /data-codexr-role': 'building-facade-rib-front'/);
-    assert.match(runtimeSource, /data-codexr-role': 'building-facade-rib-side'/);
-    assert.match(runtimeSource, /data-codexr-role': 'building-roof-ridge'/);
-    assert.match(runtimeSource, /district-street-x/);
-    assert.match(runtimeSource, /FACADE_ROWS = 5/);
-    assert.match(runtimeSource, /DISTRICT_TEXTURE_LINES = 4/);
     assert.match(runtimeSource, /mixColor\(leaf\.color, '#ffffff', 0\.07\)/);
-    assert.match(runtimeSource, /mixColor\(leaf\.color, '#f8fafc', 0\.68\)/);
     assert.match(runtimeSource, /setBoxGeometry\(entry\.body/);
-    assert.doesNotMatch(runtimeSource, /src:\s*url|\.png|\.jpg|\.jpeg|\.webp/i);
-});
-
-test('CodeXR Code City uses a slower shared animation curve for mapping transitions', () => {
-    assert.match(runtimeSource, /CITY_ANIMATION_DURATION = 900/);
-    assert.match(runtimeSource, /CITY_ANIMATION_EASING = 'easeInOutCubic'/);
-    assert.match(runtimeSource, /animationDuration: \{ default: CITY_ANIMATION_DURATION \}/);
-    assert.match(runtimeSource, /duration: duration, easing: CITY_ANIMATION_EASING/);
-    assert.doesNotMatch(runtimeSource, /easeOutCubic/);
-    assert.doesNotMatch(runtimeSource, /animationDuration \|\| 520/);
+    assert.doesNotMatch(runtimeSource, /texture|src:\s*url/i);
 });

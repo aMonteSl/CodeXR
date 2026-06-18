@@ -16,7 +16,6 @@ CodeXR 1.2.0 evoluciona la visualizacion de codigo hacia un espacio de trabajo X
 | 6. Conexion entre redes | Implementado; prueba real pendiente | Quick Tunnel, emparejamiento, sesiones y revocacion |
 | 7. Asistencia con IA | En estudio | IA local o gratuita, privada y opcional |
 | 8. Calidad y publicacion | En progreso | Pruebas, rendimiento XR, documentacion y release |
-| 9. Graficos propios CodeXR | En progreso | Code City como reemplazo propio inicial de Boats y base comun para nuevos graficos |
 
 ## 1. Fundamentos y arquitectura
 
@@ -26,8 +25,6 @@ CodeXR 1.2.0 evoluciona la visualizacion de codigo hacia un espacio de trabajo X
 - Evitar incluir recursos grandes cuando puedan obtenerse de forma opcional y consentida.
 - Mantener el identificador tecnico compatible `code-xr`, usando `CodeXR` como nombre visible.
 - Definir APIs publicas pequenas para que graficos, pantallas y futuros componentes puedan colaborar sin conocer WebSocket.
-- Consolidar los componentes propios bajo `src/codexr-components`, separando graficos, comunes reutilizables y componentes XR no graficos.
-- Renderizar los modos de analisis dentro de una superficie unica para que `Visualization mode` pueda limpiar la mesa de forma determinista.
 
 ## 2. Workspace multiestacion
 
@@ -234,31 +231,6 @@ Este diseno sustituye la copia de binarios propuesta inicialmente. No se anade u
 - Preparar notas de migracion desde 1.1.0 y avisos de privacidad.
 
 Estado automatizado actual: TypeScript y ESLint limpios, 160 pruebas Node y 22 pruebas Python superadas.
-
-## 9. Graficos propios CodeXR
-
-### Code City
-
-`codexr-code-city` es el primer grafico propio pensado para sustituir el flujo
-principal de `babia-boats` sin eliminar todavia la opcion heredada.
-
-- Chart id visible: `code-city`.
-- Componente A-Frame: `codexr-code-city`.
-- Default para analisis de archivo y directorio.
-- Consume el `data.json` actual; no cambia el formato del analizador.
-- Directorios como distritos escalonados y archivos/funciones como edificios.
-- Mapping compatible con Boats: Area, Height y Color.
-- Defaults equivalentes a Boats:
-  - Archivo: `parameters`, `lineCount`, `complexity`.
-  - Directorio/proyecto: `functionCount`, `totalLines`, `cyclomaticComplexityNumber`.
-- Textura procedural sin assets externos: calles, ventanas, nervios de fachada,
-  azoteas, zocalos y marcas de cambio.
-- Tooltips compartidos con el grafo de dependencias.
-- Animacion reconciliada por ids estables para cambios de mapping, altas y bajas.
-- Integracion con la superficie unica de mesa, Field Mapping e Historical Comparison.
-
-El detalle tecnico, decisiones de layout, ciclo de vida, solucion al bug de
-clicks ocultos y pruebas se documentan en [CodeXR Code City XR](CODE_CITY_XR.md).
 
 ## Secuencia de entrega
 
