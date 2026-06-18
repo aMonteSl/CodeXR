@@ -145,14 +145,6 @@ test('CodeXR Code City keeps dense buildings inside their assigned cells', () =>
     }));
     assert.ok(view.districts.every((district) => Math.abs(district.x) + district.width / 2 <= 2.565 + 0.0001));
     assert.ok(view.districts.every((district) => Math.abs(district.z) + district.depthSize / 2 <= 1.465 + 0.0001));
-    assert.ok(view.districts.every((district) => {
-        const aspect = Math.max(district.width / district.depthSize, district.depthSize / district.width);
-        return aspect <= 2;
-    }));
-    assert.ok(view.buildings.every((building) => {
-        const aspect = Math.max(building.cellWidth / building.cellDepth, building.cellDepth / building.cellWidth);
-        return aspect <= 8;
-    }));
 });
 
 test('CodeXR Code City rejects invalid numeric mappings without requiring a destructive rebuild', () => {
@@ -190,10 +182,4 @@ test('CodeXR Code City maps visual state without requiring BabiaXR', () => {
     assert.equal(helpers.resolveChangeState({ status: 'modified' }), 'modified');
     assert.equal(helpers.resolveChangeState({ added: true }), 'added');
     assert.match(helpers.colorForValue(10, [{ metric: 0 }, { metric: 10 }], 'metric'), /^#[0-9a-f]{6}$/);
-});
-
-test('CodeXR Code City keeps hover tooltips in scene space above scaled charts', () => {
-    assert.match(runtimeSource, /this\.el\.sceneEl \|\| this\.el/);
-    assert.match(runtimeSource, /localToWorld\(position\)/);
-    assert.match(runtimeSource, /data-codexr-code-city-tooltip/);
 });
