@@ -51,7 +51,9 @@ test('mapping UI runtime relies on post-Babia validation and rollback instead of
     assert.match(runtimeSource, /function inspectChartStatus\(config\)/);
     assert.match(runtimeSource, /function evaluatePendingMapping\(config, token, result\)/);
     assert.match(runtimeSource, /runtime\.waitForChartsStable\(chartIds/);
-    assert.match(runtimeSource, /if \(result && result\.valid\) \{/);
+    assert.match(runtimeSource, /if \(result && result\.valid && result\.stabilized\) \{/);
+    assert.match(runtimeSource, /mapping-ui-unstable-revert/);
+    assert.match(runtimeSource, /mapping-reverted-unstable-containment/);
     assert.match(runtimeSource, /if \(result && result\.state === 'invalid'\) \{/);
     assert.match(runtimeSource, /invalidStatus\?\.message \|\| 'The selected mapping produced invalid chart geometry\.'/);
     assert.match(runtimeSource, /markInvalidOption\(state\.pendingMapping\.dimensionId, state\.pendingMapping\.fieldName, friendlyMessage\);/);
@@ -59,10 +61,18 @@ test('mapping UI runtime relies on post-Babia validation and rollback instead of
     assert.match(runtimeSource, /state\.lastKnownGoodMapping = cloneMapping\(state\.pendingMapping\.nextMapping\);/);
     assert.match(runtimeSource, /resizeTrace\('mapping-confirmed'/);
     assert.match(runtimeSource, /resizeTrace\('mapping-selection-blocked'/);
+    assert.doesNotMatch(runtimeSource, /keep stabilizing the chart in the background/);
     assert.doesNotMatch(runtimeSource, /precheckDimensionSelection/);
     assert.doesNotMatch(runtimeSource, /validateValueRule/);
     assert.doesNotMatch(runtimeSource, /validateCylsGeometry/);
     assert.doesNotMatch(runtimeSource, /validateCylsMapGeometry/);
+});
+
+test('mapping UI schedules containment bursts while waiting for a stable table fit', () => {
+    assert.match(runtimeSource, /function scheduleContainmentValidationBursts\(reason\)/);
+    assert.match(runtimeSource, /scheduleContainmentValidationBursts\('mapping-ui-validation'\)/);
+    assert.match(runtimeSource, /\[650, 1300, 2200, 3600, 5200\]/);
+    assert.match(runtimeSource, /renormalizeAll\(\(reason \|\| 'mapping-ui-validation'\) \+ '-burst-'/);
 });
 
 test('mapping updates preserve each comparison chart datasource and chart-specific options', () => {

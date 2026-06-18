@@ -677,15 +677,25 @@
       return;
     }
 
-    if (result && result.valid) {
+    if (result && result.valid && result.stabilized) {
       confirmPendingMapping(config, token);
-      if (!result.stabilized) {
-        setStatusMessage(
-          'The mapping is valid; CodeXR will keep stabilizing the chart in the background.',
-          'info',
-          2600
-        );
-      }
+      renderRows(config);
+      return;
+    }
+
+    if (result && result.valid && !result.stabilized) {
+      applyMappingSnapshot(config, state.pendingMapping.previousMapping, 'mapping-ui-unstable-revert');
+      state.pendingMapping = null;
+      clearPendingValidationTimers();
+      setStatusMessage(
+        'The chart did not stabilize inside the table after changing this metric. CodeXR restored the previous mapping.',
+        'error',
+        4800
+      );
+      resizeTrace('mapping-reverted-unstable-containment', {
+        token: token,
+        reason: result.reason || result.state || 'not-stabilized'
+      });
       renderRows(config);
       return;
     }
@@ -717,13 +727,14 @@
     var runtime = root.CodeXRAnalysisTableRuntime;
     var chartIds = getChartEntities(config).map(function (entity) { return entity.id; }).filter(Boolean);
     requestChartContainmentRenormalize('mapping-ui-validation-start');
+    scheduleContainmentValidationBursts('mapping-ui-validation');
     if (!runtime || typeof runtime.waitForChartsStable !== 'function') {
       var timer = setTimeout(function () {
         var status = inspectChartStatus(config);
         evaluatePendingMapping(config, token, {
-          state: status && status.valid ? 'valid-timeout' : 'invalid',
+          state: status && status.valid ? 'stabilized' : 'invalid',
           valid: !!(status && status.valid),
-          stabilized: false,
+          stabilized: !!(status && status.valid),
           statuses: status ? [status] : []
         });
       }, 1200);
@@ -737,6 +748,19 @@
       stablePasses: 2
     }).then(function (result) {
       evaluatePendingMapping(config, token, result);
+    });
+  }
+
+  function scheduleContainmentValidationBursts(reason) {
+    var analysisTableRuntime = root.CodeXRAnalysisTableRuntime;
+    if (!analysisTableRuntime || typeof analysisTableRuntime.renormalizeAll !== 'function') {
+      return;
+    }
+    [650, 1300, 2200, 3600, 5200].forEach(function (delayMs, index) {
+      var timer = setTimeout(function () {
+        analysisTableRuntime.renormalizeAll((reason || 'mapping-ui-validation') + '-burst-' + (index + 1));
+      }, delayMs);
+      state.pendingValidationTimers.push(timer);
     });
   }
 
