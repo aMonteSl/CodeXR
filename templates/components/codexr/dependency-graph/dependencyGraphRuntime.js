@@ -975,7 +975,6 @@
         this.pinnedSelection = null;
         this.hoveredSelection = null;
         this.graphTopY = GRAPH_BASE_Y;
-        this.tooltipCameraPosition = root.THREE ? new root.THREE.Vector3() : null;
         this.layoutGeneration = 0;
         this.pendingGraph = null;
         this.transition = null;
@@ -992,11 +991,7 @@
       },
       tick: function (time) {
         if (this.tooltip?.root?.getAttribute('visible') && root.THREE) {
-          var camera = this.el.sceneEl?.camera;
-          if (camera) {
-            camera.getWorldPosition(this.tooltipCameraPosition);
-            this.tooltip.root.object3D.lookAt(this.tooltipCameraPosition);
-          }
+          root.CodeXRCommonRuntime?.faceCamera?.(this.tooltip.root, this.el.sceneEl);
         }
         this.updateHighlightTransition();
         this.updateSelectionHalo(time || 0);
@@ -1934,33 +1929,25 @@
       },
       ensureTooltip: function () {
         if (this.tooltip?.root?.parentNode) { return this.tooltip; }
+        if (root.CodeXRCommonRuntime?.createTooltip) {
+          this.tooltip = root.CodeXRCommonRuntime.createTooltip({ accentColor: '#f59e0b' });
+          this.el.appendChild(this.tooltip.root);
+          return this.tooltip;
+        }
         var tooltipRoot = entity('a-entity', { visible: false });
         var background = entity('a-plane', {
           width: 3.25, height: 1.42,
           material: 'color: #0f172a; opacity: .94; shader: flat; side: double'
         });
-        var accent = entity('a-plane', {
-          position: '0 .66 .014', width: 3.25, height: .08,
-          material: 'color: #f59e0b; shader: flat'
-        });
-        var title = text('', '0 .43 .018', 3, '#fcd34d', 'center');
-        var subtitle = text('', '0 .15 .018', 2.95, '#cbd5e1', 'center');
-        var primary = text('', '0 -.14 .018', 2.95, '#f8fafc', 'center');
-        var secondary = text('', '0 -.41 .018', 2.95, '#94a3b8', 'center');
-        title.setAttribute('wrap-count', 34);
-        subtitle.setAttribute('wrap-count', 46);
-        primary.setAttribute('wrap-count', 46);
-        secondary.setAttribute('wrap-count', 46);
+        var title = text('', '0 .2 .018', 3, '#fcd34d', 'center');
+        var primary = text('', '0 -.18 .018', 2.95, '#f8fafc', 'center');
         tooltipRoot.appendChild(background);
-        tooltipRoot.appendChild(accent);
         tooltipRoot.appendChild(title);
-        tooltipRoot.appendChild(subtitle);
         tooltipRoot.appendChild(primary);
-        tooltipRoot.appendChild(secondary);
         this.el.appendChild(tooltipRoot);
         this.tooltip = {
           root: tooltipRoot, background: background, title: title,
-          subtitle: subtitle, primary: primary, secondary: secondary, action: null
+          subtitle: primary, primary: primary, secondary: primary, action: null
         };
         return this.tooltip;
       },
@@ -1998,21 +1985,27 @@
           this.graphTopY + 1.08,
           .18
         );
-        tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
         var detail = selection.type === 'node'
           ? nodeDetailModel(record.data)
           : edgeDetailModel(record.data, this.nodes);
-        tooltip.title.setAttribute('value', truncateText(detail.title, 42));
-        tooltip.subtitle.setAttribute('value', truncateText(detail.subtitle, 60));
-        tooltip.primary.setAttribute('value', truncateText(detail.primary, 68));
-        tooltip.secondary.setAttribute('value', truncateText(detail.secondary, 68));
-        tooltip.root.setAttribute('visible', true);
         if (tooltip.action?.parentNode) { tooltip.action.parentNode.removeChild(tooltip.action); }
         tooltip.action = null;
         var canNavigate = selection.type === 'node'
           && (record.data.kind === 'group' || record.data.kind === 'file' || record.data.syntheticExternal);
+        if (root.CodeXRCommonRuntime?.updateTooltip) {
+          root.CodeXRCommonRuntime.updateTooltip(tooltip, detail, position, {
+            height: canNavigate ? 1.78 : 1.42
+          });
+        } else {
+          tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
+          tooltip.title.setAttribute('value', truncateText(detail.title, 42));
+          tooltip.subtitle.setAttribute('value', truncateText(detail.subtitle, 60));
+          tooltip.primary.setAttribute('value', truncateText(detail.primary, 68));
+          tooltip.secondary.setAttribute('value', truncateText(detail.secondary, 68));
+          tooltip.root.setAttribute('visible', true);
+          tooltip.background.setAttribute('height', canNavigate ? 1.78 : 1.42);
+        }
         if (canNavigate) {
-          tooltip.background.setAttribute('height', 1.78);
           var actionLabel = record.data.syntheticExternal
             ? 'Show external details'
             : record.data.syntheticKind === 'parent'
@@ -2039,13 +2032,15 @@
             record.data.syntheticExternal ? '#c2410c' : '#7c3aed'
           );
           tooltip.root.appendChild(tooltip.action);
-        } else {
-          tooltip.background.setAttribute('height', 1.42);
         }
         this.applyHighlight(selection);
       },
       hideTooltip: function () {
-        if (this.tooltip?.root) { this.tooltip.root.setAttribute('visible', false); }
+        if (root.CodeXRCommonRuntime?.hideTooltip) {
+          root.CodeXRCommonRuntime.hideTooltip(this.tooltip);
+        } else if (this.tooltip?.root) {
+          this.tooltip.root.setAttribute('visible', false);
+        }
         this.clearHighlight();
       },
       showTransientSelection: function (selection) {

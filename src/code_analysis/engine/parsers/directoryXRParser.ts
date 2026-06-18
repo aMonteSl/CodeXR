@@ -23,6 +23,7 @@ import {
     RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
     DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
     CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
+    CODEXR_COMMON_RUNTIME_OUTPUT_NAME,
     CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     CODEXR_ROOM_RUNTIME_OUTPUT_NAME,
@@ -33,6 +34,7 @@ import {
     readRenderBudgetRuntimeContent,
     readDependencyVisualBudgetRuntimeContent,
     readCodeXrDebugRuntimeContent,
+    readCodeXrCommonRuntimeContent,
     readCodeXrAvatarRuntimeContent,
     readCodeXrCollaborationRuntimeContent,
     readCodeXrRoomRuntimeContent,
@@ -129,6 +131,7 @@ export class DirectoryXRParser {
             }
 
             const jsContent = await fs.promises.readFile(jsFilePath, 'utf8');
+            const codexrCommonRuntimeContent = await readCodeXrCommonRuntimeContent(context.extensionPath);
             const virtualScreenRuntimeContent = await readVirtualScreenRuntimeContent(context.extensionPath);
             const virtualScreenManagerRuntimeContent = await readVirtualScreenManagerRuntimeContent(context.extensionPath);
             const avatarRuntimeContent = await readCodeXrAvatarRuntimeContent(context.extensionPath);
@@ -149,6 +152,7 @@ export class DirectoryXRParser {
             const generatedFiles = new Map<string, string>();
             generatedFiles.set('index.html', htmlContent);
             generatedFiles.set('main.js', jsContent);
+            generatedFiles.set(CODEXR_COMMON_RUNTIME_OUTPUT_NAME, codexrCommonRuntimeContent);
             generatedFiles.set(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME, avatarRuntimeContent);
             generatedFiles.set(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME, collaborationRuntimeContent);
             generatedFiles.set(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME, virtualScreenRuntimeContent);

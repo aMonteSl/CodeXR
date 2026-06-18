@@ -35,8 +35,8 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /RELATION_HELP/);
   assert.match(runtime, /drawAxes/);
   assert.match(runtime, /graphTopY \+ 1\.08/);
-  assert.match(runtime, /camera\.getWorldPosition\(this\.tooltipCameraPosition\)/);
-  assert.match(runtime, /tooltip\.root\.object3D\.lookAt\(this\.tooltipCameraPosition\)/);
+  assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
+  assert.doesNotMatch(runtime, /tooltipCameraPosition/);
   assert.match(runtime, /transitionDuration.*600/);
   assert.match(runtime, /beginTransition/);
   assert.match(runtime, /reconcileEdges/);
@@ -182,6 +182,7 @@ test('render budget runtime is packaged before dependency rendering', () => {
   const template = read('templates/xr/file/xr-visualization.html');
   const budget = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
   assert.match(parser, /RENDER_BUDGET_RUNTIME_OUTPUT_NAME/);
+  assert.ok(template.indexOf('codexrCommonRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
   assert.ok(template.indexOf('renderBudgetRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
   assert.ok(template.indexOf('dependencyVisualBudgetRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
   assert.ok(template.indexOf('analysisModeRuntime.js') < template.indexOf('historicalComparisonRuntime.js'));
@@ -252,6 +253,9 @@ test('dependency graph keeps density control local and packages diagnostics', ()
   const parser = read('src/code_analysis/engine/parsers/directoryXRParser.ts');
   assert.match(runtime, /Detail: /);
   assert.match(runtime, /setDetailOverride/);
+  assert.match(runtime, /CodeXRCommonRuntime\?\.createTooltip/);
+  assert.match(runtime, /CodeXRCommonRuntime\?\.updateTooltip/);
+  assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
   assert.doesNotMatch(runtime, /detailOverride: state\.snapshot/);
   assert.match(parser, /DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME/);
   assert.match(parser, /CODEXR_DEBUG_RUNTIME_OUTPUT_NAME/);
@@ -344,12 +348,17 @@ test('dependency metric axes use readable shared scales', () => {
 test('directory XR parser packages the dependency runtime', () => {
   const parser = read('src/code_analysis/engine/parsers/directoryXRParser.ts');
   const template = read('templates/xr/file/xr-visualization.html');
+  assert.match(parser, /CODEXR_COMMON_RUNTIME_OUTPUT_NAME/);
+  assert.match(parser, /readCodeXrCommonRuntimeContent/);
   assert.match(parser, /DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME/);
+  assert.match(template, /codexrCommonRuntime\.js/);
   assert.match(template, /dependencyGraphRuntime\.js/);
 });
 
 test('file XR parser packages the dependency runtime', () => {
   const parser = read('src/code_analysis/engine/parsers/fileXRParser.ts');
+  assert.match(parser, /copyCodeXrCommonRuntimeToOutput/);
+  assert.match(parser, /CODEXR_COMMON_RUNTIME_OUTPUT_NAME/);
   assert.match(parser, /copyDependencyGraphRuntimeToOutput/);
   assert.match(parser, /DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME/);
   assert.match(parser, /copyAnalysisModeRuntimeToOutput/);

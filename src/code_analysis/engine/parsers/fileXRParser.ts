@@ -13,10 +13,12 @@ import {
     ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
     ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    CODEXR_COMMON_RUNTIME_OUTPUT_NAME,
     CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     copyAnalysisTableRuntimeToOutput,
     copyAnalysisModeRuntimeToOutput,
     copyHistoricalComparisonRuntimeToOutput,
+    copyCodeXrCommonRuntimeToOutput,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     copyCodeXrRoomAssetsToOutput,
     copyCodeXrAvatarRuntimeToOutput,
@@ -105,6 +107,7 @@ export class FileXRParser {
 
             await copyVirtualScreenRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyVirtualScreenManagerRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeXrCommonRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrAvatarRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrCollaborationRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
@@ -148,6 +151,7 @@ export class FileXRParser {
             if (
                 !loadedFiles.has('index.html')
                 || !loadedFiles.has('data.json')
+                || !loadedFiles.has(CODEXR_COMMON_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_AVATAR_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME)

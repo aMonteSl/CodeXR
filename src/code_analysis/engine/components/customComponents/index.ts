@@ -1,4 +1,5 @@
 export * from './virtualScreenComponentAsset';
+export * from './commonComponentAsset';
 export * from './collaborationComponentAsset';
 export * from './avatarComponentAsset';
 export * from './codexrRoomComponentAsset';

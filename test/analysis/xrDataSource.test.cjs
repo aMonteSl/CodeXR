@@ -106,7 +106,9 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
     assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
     assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/codexrCommonRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/historicalComparisonRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.ok(template.indexOf('codexrCommonRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
     assert.match(template, /id="codexrAnalysisTable"/);
     assert.match(template, /codexr-analysis-table=/);
 });
@@ -124,16 +126,21 @@ test('XR parsers include CodeXR room runtime in generated assets', () => {
     const directoryParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'directoryXRParser.ts');
 
     assert.match(fileParser, /copyCodeXrRoomAssetsToOutput/);
+    assert.match(fileParser, /copyCodeXrCommonRuntimeToOutput/);
+    assert.match(fileParser, /CODEXR_COMMON_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /CODEXR_ROOM_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /copyVirtualScreenManagerRuntimeToOutput/);
     assert.match(fileParser, /VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME/);
     assert.match(fileParser, /copyAnalysisTableRuntimeToOutput/);
     assert.match(fileParser, /ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME/);
     assert.match(directoryParser, /readCodeXrRoomRuntimeContent/);
+    assert.match(directoryParser, /readCodeXrCommonRuntimeContent/);
+    assert.match(directoryParser, /CODEXR_COMMON_RUNTIME_OUTPUT_NAME/);
     assert.match(directoryParser, /readCodeXrRoomTextureContents/);
     assert.match(directoryParser, /readVirtualScreenManagerRuntimeContent/);
     assert.match(directoryParser, /readAnalysisTableRuntimeContent/);
     assert.match(directoryParser, /generatedFiles\.set\(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent\)/);
+    assert.match(directoryParser, /generatedFiles\.set\(CODEXR_COMMON_RUNTIME_OUTPUT_NAME, codexrCommonRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent\)/);
     assert.match(directoryParser, /generatedFiles\.set\(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent\)/);
