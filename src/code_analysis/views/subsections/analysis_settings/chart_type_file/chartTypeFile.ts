@@ -11,7 +11,7 @@ import { ChartMetadata } from '../../../../../babia_templates/models/chartModels
 import { DimensionMappingCleaner } from './dimensionMappingCleaner';
 
 export type AnalysisMode = 'XR' | 'LivePanel';
-export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats' | 'code-city';
+export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats';
 
 export interface ChartTypeInfo {
     id: string;

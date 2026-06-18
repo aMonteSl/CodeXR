@@ -5,9 +5,9 @@ export const CODEXR_ROOM_RUNTIME_OUTPUT_NAME = 'codexrRoomRuntime.js';
 export const CODEXR_ROOM_TEXTURE_OUTPUT_DIRECTORY = 'assets/codexr/xr-room/textures';
 
 const CODEXR_ROOM_SOURCE_SEGMENTS = [
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'xr-room',
 ] as const;
 

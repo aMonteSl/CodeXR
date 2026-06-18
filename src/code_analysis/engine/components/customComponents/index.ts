@@ -8,8 +8,6 @@ export * from './analysisTableComponentAsset';
 export * from './analysisModeComponentAsset';
 export * from './historicalComparisonComponentAsset';
 export * from './dependencyGraphComponentAsset';
-export * from './graphCommonComponentAsset';
-export * from './codeCityComponentAsset';
 export * from './renderBudgetComponentAsset';
 export * from './dependencyVisualBudgetComponentAsset';
 export * from './codexrDebugComponentAsset';

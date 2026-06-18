@@ -7,9 +7,9 @@ const vm = require('node:vm');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const runtimePath = path.join(
     projectRoot,
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'xr-chart-mapping-ui',
     'xrChartMappingUiRuntime.js',
 );
@@ -121,40 +121,6 @@ test('mapping updates preserve each comparison chart datasource and chart-specif
     );
 });
 
-test('mapping UI resolves CodeXR Code City through the shared chart contract', () => {
-    const runtime = loadRuntime();
-    const chart = {
-        getAttribute(componentName) {
-            assert.equal(componentName, 'codexr-code-city');
-            return {
-                from: 'data',
-                area: 'parameters',
-                height: 'lineCount',
-                color: 'complexity',
-            };
-        },
-    };
-
-    const update = runtime.__testing.buildChartComponentUpdate(chart, 'codexr-code-city', {
-        area: 'functionCount',
-        height: 'totalLines',
-        color: 'language',
-    });
-
-    assert.deepEqual(
-        JSON.parse(JSON.stringify(update)),
-        {
-            from: 'data',
-            area: 'functionCount',
-            height: 'totalLines',
-            color: 'language',
-        },
-    );
-    assert.match(runtimeSource, /'code-city': 'codexr-code-city'/);
-    assert.match(runtimeSource, /config && config\.chartComponentName/);
-});
-
-
 test('mapping UI disables raycast interaction for hidden views and keeps a stable shared entity id', () => {
     assert.match(runtimeSource, /function setEntityInteractionEnabled\(entity, enabled\)/);
     assert.match(runtimeSource, /querySelectorAll\('\[data-codexr-interactive="true"\]'\)/);
@@ -172,11 +138,11 @@ test('mapping UI emits confirmed mappings for local and collaborative updates', 
     assert.match(runtimeSource, /notifyMappingConfirmed\(state\.lastKnownGoodMapping\)/);
 });
 
-test('mapping UI runtime keeps the user-facing rollback message centered on visualization failures', () => {
+test('mapping UI runtime keeps the user-facing rollback message centered on Babia chart failures', () => {
     assert.match(runtimeSource, /function buildFriendlyInvalidMappingMessage\(config, dimensionId, fieldName, reason, includeRestoreLine\)/);
     assert.match(runtimeSource, /caused an invalid chart for/);
     assert.match(runtimeSource, /CodeXR restored the last valid mapping to keep the visualization stable\./);
-    assert.match(runtimeSource, /CodeXR blocked this option because the visualization failed the last time it was used\./);
+    assert.match(runtimeSource, /CodeXR blocked this option because Babia failed the last time it was used\./);
     assert.match(runtimeSource, /Try another field for this axis\./);
     assert.match(runtimeSource, /setStatusMessage\(friendlyMessage, 'error', 4800\);/);
     assert.match(runtimeSource, /setStatusMessage\(invalidOptionReason, 'error', 3600\);/);

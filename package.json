@@ -35,7 +35,6 @@
     "THIRD_PARTY_NOTICES.md",
     "CHANGELOG.md",
     "docs/**/*",
-    "src/codexr-components/**/*",
     "templates/**/*",
     "examples/**/*"
   ],

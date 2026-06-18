@@ -4,9 +4,9 @@ import * as fs from 'fs';
 export const XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME = 'xrChartMappingUiRuntime.js';
 
 const XR_CHART_MAPPING_UI_RUNTIME_SOURCE_SEGMENTS = [
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'xr-chart-mapping-ui',
     XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
 ] as const;

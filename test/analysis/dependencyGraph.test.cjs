@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..', '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 test('dependency graph is a first-class analysis table mode', () => {
-  const table = read('src/codexr-components/others/analysis-table/analysisTableRuntime.js');
+  const table = read('templates/components/codexr/analysis-table/analysisTableRuntime.js');
   const models = read('src/code_analysis/historical/historicalComparisonModels.ts');
   assert.match(table, /dependency-graph/);
   assert.match(models, /'dependency-graph'/);
@@ -16,7 +16,7 @@ test('dependency graph is a first-class analysis table mode', () => {
 });
 
 test('dependency runtime uses a worker and owns three layouts', () => {
-  const runtime = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const runtime = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   assert.match(runtime, /new root\.Worker/);
   assert.match(runtime, /force-3d/);
   assert.match(runtime, /hierarchical/);
@@ -78,7 +78,7 @@ test('dependency runtime uses a worker and owns three layouts', () => {
 });
 
 test('dependency edge styles use fixed occurrence buckets', () => {
-  const source = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -105,7 +105,7 @@ test('dependency edge styles use fixed occurrence buckets', () => {
 });
 
 test('hidden external dependencies become one directional summary portal', () => {
-  const source = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -130,7 +130,7 @@ test('hidden external dependencies become one directional summary portal', () =>
 });
 
 test('directory scope projection exposes direct files, child folders, and parent navigation', () => {
-  const source = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -155,7 +155,7 @@ test('directory scope projection exposes direct files, child folders, and parent
 });
 
 test('file scope projection keeps symbols and aggregates other project files', () => {
-  const source = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -180,7 +180,7 @@ test('file scope projection keeps symbols and aggregates other project files', (
 test('render budget runtime is packaged before dependency rendering', () => {
   const parser = read('src/code_analysis/engine/parsers/directoryXRParser.ts');
   const template = read('templates/xr/file/xr-visualization.html');
-  const budget = read('src/codexr-components/others/render-budget/renderBudgetRuntime.js');
+  const budget = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
   assert.match(parser, /RENDER_BUDGET_RUNTIME_OUTPUT_NAME/);
   assert.ok(template.indexOf('renderBudgetRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
   assert.ok(template.indexOf('dependencyVisualBudgetRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
@@ -194,7 +194,7 @@ test('render budget runtime is packaged before dependency rendering', () => {
 });
 
 test('dependency visual budget classifies density and preserves fixed width ranges', () => {
-  const source = read('src/codexr-components/others/dependency-visual-budget/dependencyVisualBudgetRuntime.js');
+  const source = read('templates/components/codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRDependencyVisualBudgetRuntime;
@@ -218,7 +218,7 @@ test('dependency visual budget classifies density and preserves fixed width rang
 });
 
 test('dependency detail override combines with performance conservatively', () => {
-  const source = read('src/codexr-components/others/dependency-visual-budget/dependencyVisualBudgetRuntime.js');
+  const source = read('templates/components/codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyVisualBudgetRuntime.__testing;
@@ -248,7 +248,7 @@ test('dependency detail override combines with performance conservatively', () =
 });
 
 test('dependency graph keeps density control local and packages diagnostics', () => {
-  const runtime = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const runtime = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const parser = read('src/code_analysis/engine/parsers/directoryXRParser.ts');
   assert.match(runtime, /Detail: /);
   assert.match(runtime, /setDetailOverride/);
@@ -258,7 +258,7 @@ test('dependency graph keeps density control local and packages diagnostics', ()
 });
 
 test('render budget degrades and recovers with hysteresis', () => {
-  const source = read('src/codexr-components/others/render-budget/renderBudgetRuntime.js');
+  const source = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRRenderBudgetRuntime;
@@ -279,7 +279,7 @@ test('render budget degrades and recovers with hysteresis', () => {
 });
 
 test('render budget tolerates browsers that reject WebXR session inspection', () => {
-  const source = read('src/codexr-components/others/render-budget/renderBudgetRuntime.js');
+  const source = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
   const callbacks = [];
   const context = {
     document: {
@@ -310,7 +310,7 @@ test('render budget tolerates browsers that reject WebXR session inspection', ()
 });
 
 test('dependency metric axes use readable shared scales', () => {
-  const source = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
+  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -356,7 +356,7 @@ test('file XR parser packages the dependency runtime', () => {
 });
 
 test('analysis mode coordinator deactivates the previous view before activating the next one', async () => {
-  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const context = {
     setTimeout,
     console,
@@ -388,7 +388,7 @@ test('analysis mode coordinator deactivates the previous view before activating 
 });
 
 test('analysis mode coordinator disposes an activation superseded while it is loading', async () => {
-  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const context = {
     setTimeout,
     console,
@@ -426,7 +426,7 @@ test('analysis mode coordinator disposes an activation superseded while it is lo
 });
 
 test('normal analysis restores its cached chart immediately and refreshes its revision in place', async () => {
-  const source = read('src/codexr-components/others/analysis-mode/analysisModeRuntime.js');
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const attributes = new Map([['visible', true]]);
   const chart = {
     setAttribute(name, value) { attributes.set(name, value); },
@@ -527,15 +527,6 @@ test('XR SSE signals normal analysis readiness after Babia stabilization', () =>
   assert.match(source, /codexr-normal-analysis-refreshed/);
   assert.match(source, /dataRefresh-boats-settled/);
   assert.match(source, /analysis-updated-boats-settled/);
-});
-
-test('dependency graph nodes use the shared CodeXR hitbox helper for reliable hover on every shape', () => {
-  const runtime = read('src/codexr-components/graphs/dependency-graph/dependencyGraphRuntime.js');
-  const template = read('templates/xr/file/xr-visualization.html');
-  assert.match(runtime, /CodeXRGraphCommonRuntime\?\.attachPickHitbox/);
-  assert.match(runtime, /shape: visual\.shape/);
-  assert.match(runtime, /handlers: \{\s*enter: enterHandler,\s*leave: leaveHandler,\s*click: clickHandler\s*\}/);
-  assert.ok(template.indexOf('graphCommonRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
 });
 
 test('dependency server preserves cached datasets and no longer accepts granularity', () => {

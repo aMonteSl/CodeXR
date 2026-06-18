@@ -4,9 +4,9 @@ import * as fs from 'fs';
 export const ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME = 'analysisTableRuntime.js';
 
 const ANALYSIS_TABLE_RUNTIME_SOURCE_SEGMENTS = [
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'analysis-table',
     ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
 ] as const;

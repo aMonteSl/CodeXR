@@ -11,8 +11,7 @@
       'babia-cylsmap',
       'babia-pie',
       'babia-doughnut',
-      'babia-bubbles',
-      'codexr-code-city'
+      'babia-bubbles'
     ];
 
     function getNormalRefreshRuntime() {

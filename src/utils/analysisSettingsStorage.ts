@@ -48,8 +48,8 @@ const DEFAULT_CONFIG: AnalysisConfiguration = {
     analysisModeFile: 'XR',
     theme: 'light',
     autoAnalysisDelay: AUTO_ANALYSIS_DELAYS.REAL_TIME,
-    // Default chart and dimension mapping for file analysis - using CodeXR Code City with XR field names
-    chartTypeFile: 'code-city',
+    // Default chart and dimension mapping for file analysis - using boats chart with XR field names
+    chartTypeFile: 'boats', // Default to boats chart for file analysis
     dimensionMappingFile: [
         {
             dimension: 'area',

@@ -4,9 +4,9 @@ import * as path from 'path';
 export const CODEXR_DEBUG_RUNTIME_OUTPUT_NAME = 'codexrDebugRuntime.js';
 
 const SOURCE_SEGMENTS = [
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'debug',
     CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
 ] as const;

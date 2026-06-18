@@ -7,9 +7,9 @@ const vm = require('node:vm');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const runtimePath = path.join(
     projectRoot,
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'historical-comparison',
     'historicalComparisonRuntime.js',
 );

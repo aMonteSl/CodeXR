@@ -38,12 +38,6 @@ export interface ChartDimension {
 export interface ChartMetadata {
     /** Unique identifier for the chart type */
     id: string;
-
-    /** Runtime engine that renders this chart */
-    engine?: 'babia' | 'codexr';
-
-    /** A-Frame component used by the mapping/runtime layer */
-    componentName?: string;
     
     /** Display name of the chart */
     name: string;

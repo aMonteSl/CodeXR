@@ -7,7 +7,7 @@ export type AnalysisFileMode = 'XR' | 'LivePanel';
 export type AnalysisDirectoryMode = 'XR' | 'XRDeep' | 'LivePanel' | 'LivePanelDeep';
 export type ViewTheme = 'Dark' | 'Light';
 export type AutoAnalysisDelay = 'RealTime' | '1s' | '3s' | '5s' | '10s' | 'Custom';
-export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats' | 'code-city';
+export type ChartType = 'bars' | 'barsmap' | 'cyls' | 'cylsmap' | 'donut' | 'pie' | 'bubbles' | 'boats';
 
 // Files by Language sorting configuration types
 export type LanguageGroupSortBy = 'alphabetical' | 'fileCount';
@@ -131,8 +131,8 @@ export const DEFAULT_ANALYSIS_CONFIGURATION: AnalysisConfiguration = {
         customMs: undefined,
         autoAnalysisEnabled: true // Default to enabled
     },
-    chartTypeFile: 'code-city',
-    chartTypeDirectory: 'code-city',
+    chartTypeFile: 'boats', // Default chart type changed to boats
+    chartTypeDirectory: 'boats', // Default chart type for directories changed to boats
     dimensionMappingFile: {
         area: 'parameters',
         height: 'lineCount',

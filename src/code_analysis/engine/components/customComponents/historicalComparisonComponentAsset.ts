@@ -4,9 +4,9 @@ import * as path from 'path';
 export const HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME = 'historicalComparisonRuntime.js';
 
 const SOURCE_SEGMENTS = [
-    'src',
-    'codexr-components',
-    'others',
+    'templates',
+    'components',
+    'codexr',
     'historical-comparison',
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
 ] as const;
