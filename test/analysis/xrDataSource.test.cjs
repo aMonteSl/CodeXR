@@ -204,9 +204,6 @@ test('mapping UI renormalizes all active comparison charts transactionally', () 
 test('analysis table exposes stable geometry states and symmetric historical zones', () => {
     const runtime = readProjectFile('src', 'codexr-components', 'others', 'analysis-table', 'analysisTableRuntime.js');
 
-    assert.match(runtime, /codexr-geometry-updated/);
-    assert.match(runtime, /data-codexr-geometry-state/);
-    assert.match(runtime, /reason: 'codexr-geometry-invalid'/);
     assert.match(runtime, /geometryState: 'rebuilding'/);
     assert.match(runtime, /geometryState: stabilized \? 'stabilized' : 'valid'/);
     assert.match(runtime, /waitForChartsStable = function \(targets, options\)/);

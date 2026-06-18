@@ -75,57 +75,6 @@ test('CodeXR Code City lays out districts for nested directories and preserves U
     assert.match(helpers.withCacheBust('left.json?revision=4'), /^left\.json\?revision=4&t=\d+$/);
 });
 
-test('CodeXR Code City produces a balanced 3D view model with title and tooltips above the city', () => {
-    const { city: helpers } = loadRuntime();
-    const records = [
-        {
-            relativePath: 'src/index.ts',
-            functionCount: 8,
-            totalLines: 220,
-            cyclomaticComplexityNumber: 12,
-            language: 'TypeScript',
-        },
-        {
-            relativePath: 'src/tools/render.ts',
-            functionCount: 2,
-            totalLines: 40,
-            cyclomaticComplexityNumber: 3,
-            language: 'TypeScript',
-        },
-    ];
-
-    const view = helpers.buildCityView(records, 'directory', {
-        area: 'functionCount',
-        height: 'totalLines',
-        color: 'cyclomaticComplexityNumber',
-    });
-
-    assert.equal(view.valid, true);
-    assert.equal(view.buildings.length, 2);
-    assert.ok(view.districts.length >= 1);
-    assert.ok(view.maxY > 1);
-    assert.ok(view.titleY > view.maxY);
-    assert.ok(view.tooltipY > view.maxY);
-    assert.ok(view.buildings.every((building) => building.buildingHeight >= 0.12 && building.buildingHeight <= 1.31));
-    assert.ok(view.buildings.every((building) => building.footprint >= 0.052));
-});
-
-test('CodeXR Code City rejects invalid numeric mappings without requiring a destructive rebuild', () => {
-    const { city: helpers } = loadRuntime();
-    const invalidView = helpers.buildCityView([
-        { relativePath: 'src/index.ts', fileName: 'index.ts', totalLines: 100, functionCount: 4 },
-    ], 'directory', {
-        area: 'fileName',
-        height: 'totalLines',
-        color: 'language',
-    });
-
-    assert.equal(invalidView.valid, false);
-    assert.equal(invalidView.reason, 'invalid-numeric-mapping');
-    assert.match(runtimeSource, /renderCity\(\{ reason: 'mapping-update', preserveOnInvalid: true \}\)/);
-    assert.doesNotMatch(runtimeSource, /renderCity: function \(mappingOnly\)[\s\S]*this\.clearCity\(\)/);
-});
-
 test('CodeXR graph common exposes shared tooltip, hitbox, scale and animation helpers', () => {
     const { common } = loadRuntime();
 

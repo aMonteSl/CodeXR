@@ -120,34 +120,3 @@ test('city-style chart metadata keeps numeric-only area and height with any-valu
     assert.match(createChart, /name: 'height'[\s\S]*dataType: 'numeric'/);
     assert.match(createChart, /name: 'color'[\s\S]*dataType: 'any'/);
 });
-
-test('Code City remains the default chart with Boats-equivalent initial mappings', () => {
-    const configuration = readProjectFile('src', 'code_analysis', 'configuration', 'models', 'analysisConfiguration.ts');
-    const storage = readProjectFile('src', 'code_analysis', 'configuration', 'analysisConfigurationStorage.ts');
-    const fileChartSetting = readProjectFile(
-        'src',
-        'code_analysis',
-        'views',
-        'subsections',
-        'analysis_settings',
-        'chart_type_file',
-        'chartTypeFile.ts',
-    );
-    const directoryChartSetting = readProjectFile(
-        'src',
-        'code_analysis',
-        'views',
-        'subsections',
-        'analysis_settings',
-        'chart_type_directory',
-        'chartTypeDirectory.ts',
-    );
-
-    assert.match(configuration, /chartTypeFile: 'code-city'/);
-    assert.match(configuration, /chartTypeDirectory: 'code-city'/);
-    assert.match(configuration, /dimensionMappingFile: \{[\s\S]*area: 'parameters'[\s\S]*height: 'lineCount'[\s\S]*color: 'complexity'/);
-    assert.match(configuration, /dimensionMappingDirectory: \{[\s\S]*area: 'functionCount'[\s\S]*height: 'totalLines'[\s\S]*color: 'cyclomaticComplexityNumber'/);
-    assert.match(storage, /normalizeCodeCityMappings/);
-    assert.match(fileChartSetting, /chartType === 'code-city'[\s\S]*DEFAULT_ANALYSIS_CONFIGURATION\.dimensionMappingFile/);
-    assert.match(directoryChartSetting, /chartType === 'code-city'[\s\S]*DEFAULT_ANALYSIS_CONFIGURATION\.dimensionMappingDirectory/);
-});

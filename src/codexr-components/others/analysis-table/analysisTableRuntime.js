@@ -1059,7 +1059,6 @@
       this.el.addEventListener('componentchanged', this.onComponentChangedBound);
       this.el.addEventListener('child-attached', this.onGeometryReadyBound);
       this.el.addEventListener('object3dset', this.onGeometryReadyBound);
-      this.el.addEventListener('codexr-geometry-updated', this.onGeometryReadyBound);
 
       this.tryNormalize('init', this.bumpNormalizationGeneration());
     },
@@ -1137,33 +1136,6 @@
           reason: axisIssue.reason || 'invalid-axis-length',
           message: 'The selected mapping generated invalid axis values.',
           details: axisIssue
-        };
-      }
-
-      var explicitGeometryState = this.el && this.el.getAttribute
-        ? this.el.getAttribute('data-codexr-geometry-state')
-        : '';
-      if (explicitGeometryState === 'invalid') {
-        return {
-          ready: true,
-          valid: false,
-          stabilized: false,
-          geometryState: 'invalid',
-          reason: 'codexr-geometry-invalid',
-          message: 'The selected mapping generated invalid CodeXR geometry.'
-        };
-      }
-      if (explicitGeometryState === 'rebuilding') {
-        return {
-          ready: false,
-          valid: false,
-          stabilized: false,
-          geometryState: 'rebuilding',
-          reason: 'codexr-geometry-rebuilding',
-          message: 'The CodeXR chart is rebuilding its geometry.',
-          details: {
-            phase: this.renderPhase
-          }
         };
       }
 
@@ -1304,7 +1276,6 @@
       if (this.onGeometryReadyBound && this.el && this.el.removeEventListener) {
         this.el.removeEventListener('child-attached', this.onGeometryReadyBound);
         this.el.removeEventListener('object3dset', this.onGeometryReadyBound);
-        this.el.removeEventListener('codexr-geometry-updated', this.onGeometryReadyBound);
       }
 
       if (this.retryTimer) {

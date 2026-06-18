@@ -6,7 +6,6 @@
 import * as vscode from 'vscode';
 import { CodeAnalysisTreeItem } from '../../../items/analysisItems';
 import { AnalysisConfigurationStorage } from '../../../../configuration';
-import { DEFAULT_ANALYSIS_CONFIGURATION } from '../../../../configuration/models/analysisConfiguration';
 import { BabiaChartRegistry } from '../../../../../babia_templates/registry/chartRegistry';
 import { ChartMetadata } from '../../../../../babia_templates/models/chartModels';
 
@@ -78,14 +77,9 @@ export class ChartTypeDirectorySetting {
         await this.storage.setDirectoryChartType(chartType);
         console.log(`CHART_TYPE_DIRECTORY: Set chart type: ${chartType}`);
         
-        if (chartType === 'code-city') {
-            await this.storage.setDimensionMappingDirectory({ ...DEFAULT_ANALYSIS_CONFIGURATION.dimensionMappingDirectory });
-            console.log('CHART_TYPE_DIRECTORY: Code City defaults restored for directory analysis');
-        } else {
-            // Clear all dimension mappings when chart type changes
-            await this.storage.setDimensionMappingDirectory({});
-            console.log(`CHART_TYPE_DIRECTORY: Dimension mappings cleared for new chart type: ${chartType}`);
-        }
+        // Clear all dimension mappings when chart type changes
+        await this.storage.setDimensionMappingDirectory({});
+        console.log(`CHART_TYPE_DIRECTORY: Dimension mappings cleared for new chart type: ${chartType}`);
     }
 
     /**

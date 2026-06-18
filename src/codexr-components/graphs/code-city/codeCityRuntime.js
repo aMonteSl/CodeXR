@@ -8,12 +8,6 @@
   var CITY_MARGIN = 0.06;
   var DISTRICT_GAP = 0.055;
   var DISTRICT_INSET = 0.08;
-  var DISTRICT_BASE_HEIGHT = 0.048;
-  var DISTRICT_LEVEL_Y = 0.042;
-  var MIN_BUILDING_FOOTPRINT = 0.052;
-  var MIN_BUILDING_HEIGHT = 0.12;
-  var MAX_BUILDING_HEIGHT = 1.18;
-  var GEOMETRY_EVENT = 'codexr-geometry-updated';
   var DEFAULT_PALETTE = [
     '#22d3ee', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185',
     '#f97316', '#facc15', '#34d399', '#2dd4bf', '#c084fc'
@@ -119,12 +113,8 @@
         directories = [mode === 'file' ? '(module)' : '(project root)'];
       }
       var stablePath = parts.join('/');
-      var explicitId = record.uid || record.id || record.stableId || record.symbolId || record.key;
-      var rawId = explicitId || stablePath || label || ('item-' + index);
-      var needsOrdinal = !explicitId && !stablePath;
-      var stableId = 'leaf:' + normalizePath(rawId || '').replace(/[^a-zA-Z0-9_./:-]+/g, '-');
       return {
-        id: stableId + (needsOrdinal ? ':' + index : ''),
+        id: String(record.uid || record.id || stablePath || label) + ':' + index,
         record: record || {},
         label: label,
         pathParts: parts,
@@ -304,144 +294,6 @@
     return '#e0f2fe';
   }
 
-  function hasNumericValues(records, field) {
-    if (!field) { return false; }
-    return (Array.isArray(records) ? records : []).some(function (record) {
-      return Number.isFinite(Number(record && record[field]));
-    });
-  }
-
-  function material(color, options) {
-    var opts = options || {};
-    var opacity = Number.isFinite(Number(opts.opacity)) ? Number(opts.opacity) : 1;
-    var transparent = opacity < 1 || opts.transparent === true;
-    return 'color: ' + color
-      + '; opacity: ' + opacity
-      + '; transparent: ' + transparent
-      + '; shader: flat'
-      + (opts.side ? '; side: ' + opts.side : '')
-      + (opts.depthWrite === false ? '; depthWrite: false' : '');
-  }
-
-  function removeHitboxes(parent) {
-    if (!parent || !parent.querySelectorAll) { return; }
-    Array.from(parent.querySelectorAll('[data-codexr-role="hitbox"]')).forEach(function (hitbox) {
-      hitbox.parentNode?.removeChild?.(hitbox);
-    });
-  }
-
-  function animateOrSet(element, properties, duration) {
-    if (!element || !properties) { return; }
-    if (typeof common().animateTransform === 'function' && duration > 0) {
-      common().animateTransform(element, properties, { duration: duration, easing: 'easeOutCubic' });
-      return;
-    }
-    Object.keys(properties).forEach(function (key) {
-      element.setAttribute(key, properties[key]);
-    });
-  }
-
-  function buildCityView(records, mode, data) {
-    var safeRecords = Array.isArray(records) ? records : [];
-    var areaField = data?.area || 'parameters';
-    var heightField = data?.height || 'lineCount';
-    var colorField = data?.color || 'complexity';
-    if (safeRecords.length && (!hasNumericValues(safeRecords, areaField) || !hasNumericValues(safeRecords, heightField))) {
-      return {
-        valid: false,
-        reason: 'invalid-numeric-mapping',
-        message: 'Area and Height must use numeric fields.',
-        areaField: areaField,
-        heightField: heightField,
-        colorField: colorField
-      };
-    }
-
-    var leaves = buildLeaves(safeRecords, mode);
-    var layout = layoutLeaves(leaves, {
-      width: CITY_WIDTH - CITY_MARGIN * 2,
-      depth: CITY_DEPTH - CITY_MARGIN * 2
-    });
-    var areaScale = metricScale(safeRecords, areaField);
-    var heightScale = metricScale(safeRecords, heightField);
-    var maxY = 0.48;
-    var districts = layout.districts.map(function (district) {
-      var level = district.depth || 0;
-      var baseY = DISTRICT_BASE_HEIGHT / 2 + level * DISTRICT_LEVEL_Y;
-      var color = DISTRICT_PALETTE[Math.min(DISTRICT_PALETTE.length - 1, level)];
-      var edgeColor = level === 0 ? '#67e8f9' : '#bef264';
-      maxY = Math.max(maxY, baseY + DISTRICT_BASE_HEIGHT + 0.12);
-      return Object.assign({}, district, {
-        baseY: baseY,
-        color: color,
-        edgeColor: edgeColor,
-        detail: {
-          title: district.label,
-          subtitle: district.path || '(project root)',
-          primary: 'District | weight ' + Math.round(district.weight || 0),
-          secondary: 'Depth ' + level + ' | click to pin',
-          accentColor: edgeColor
-        }
-      });
-    });
-
-    var buildings = layout.leaves.map(function (leaf) {
-      var record = leaf.record || {};
-      var areaValue = numeric(safeField(record, areaField), 0);
-      var heightValue = numeric(safeField(record, heightField), 0);
-      var areaRatio = Math.sqrt(areaScale.normalize(areaValue));
-      var heightRatio = Math.sqrt(heightScale.normalize(heightValue));
-      var cellMin = Math.max(0.075, Math.min(leaf.cellWidth || 0.16, leaf.cellDepth || 0.16));
-      var maxFootprint = Math.max(MIN_BUILDING_FOOTPRINT, cellMin * 0.58);
-      var footprint = Math.max(MIN_BUILDING_FOOTPRINT, maxFootprint * (0.42 + areaRatio * 0.58));
-      var buildingHeight = MIN_BUILDING_HEIGHT + heightRatio * MAX_BUILDING_HEIGHT;
-      var baseY = 0.09 + Math.max(0, leaf.directoryParts.length - 1) * DISTRICT_LEVEL_Y;
-      var color = colorForValue(record[colorField] ?? leaf.label, safeRecords, colorField);
-      var changeState = resolveChangeState(record);
-      var roofColor = roofColorForState(changeState);
-      var topY = baseY + buildingHeight + Math.max(0.026, footprint * 0.18);
-      maxY = Math.max(maxY, topY + 0.18);
-      return Object.assign({}, leaf, {
-        areaField: areaField,
-        heightField: heightField,
-        colorField: colorField,
-        areaValue: areaValue,
-        heightValue: heightValue,
-        footprint: footprint,
-        buildingHeight: buildingHeight,
-        baseY: baseY,
-        color: color,
-        changeState: changeState,
-        roofColor: roofColor,
-        topY: topY,
-        detail: {
-          title: leaf.label,
-          subtitle: leaf.path,
-          primary: areaField + ' ' + areaValue + ' | ' + heightField + ' ' + heightValue,
-          secondary: colorField + ' ' + String(record[colorField] ?? '') + ' | '
-            + (record.language || record.type || mode) + ' | ' + changeState,
-          accentColor: roofColor
-        }
-      });
-    });
-    districts.forEach(function (district) {
-      district.tooltipY = Math.max(0.95, maxY + 0.18, district.baseY + 0.42);
-    });
-
-    return {
-      valid: true,
-      records: safeRecords,
-      districts: districts,
-      buildings: buildings,
-      maxY: maxY,
-      titleY: Math.max(1.05, maxY + 0.32),
-      tooltipY: Math.max(0.95, maxY + 0.22),
-      areaField: areaField,
-      heightField: heightField,
-      colorField: colorField
-    };
-  }
-
   function registerComponent() {
     if (!root.AFRAME?.registerComponent || root.AFRAME.components[COMPONENT]) { return; }
     root.AFRAME.registerComponent(COMPONENT, {
@@ -463,18 +315,8 @@
         this.sourceListener = this.refreshData.bind(this);
         this.generation = 0;
         this.cityRoot = null;
-        this.titleEntity = null;
-        this.emptyNotice = null;
-        this.visuals = {
-          districts: new Map(),
-          buildings: new Map()
-        };
-        this.currentView = null;
-        this.geometryState = 'rebuilding';
-        this.stabilizeTimer = null;
         this.el.setAttribute('data-codexr-code-city-root', 'true');
         this.el.setAttribute('data-codexr-normal-visualization', 'true');
-        this.el.setAttribute('data-codexr-geometry-state', this.geometryState);
         this.el.classList?.add(RAYCAST_CLASS);
         this.ensureTooltip();
         this.bindSource();
@@ -488,16 +330,12 @@
           return;
         }
         if (oldData.area !== this.data.area || oldData.height !== this.data.height || oldData.color !== this.data.color) {
-          this.renderCity({ reason: 'mapping-update', preserveOnInvalid: true });
+          this.renderCity(true);
         }
       },
       remove: function () {
         this.unbindSource();
         this.clearCity();
-        if (this.stabilizeTimer) {
-          clearTimeout(this.stabilizeTimer);
-          this.stabilizeTimer = null;
-        }
       },
       tick: function () {
         this.tooltip?.faceCamera?.(this.el.sceneEl?.camera);
@@ -543,145 +381,35 @@
       setData: function (records) {
         this.records = Array.isArray(records) ? records.slice() : [];
         this.mode = inferMode(this.records);
-        this.renderCity({ reason: 'data-update', preserveOnInvalid: false });
+        this.renderCity(false);
       },
       clearCity: function () {
         this.pinned = null;
-        if (this.stabilizeTimer) {
-          clearTimeout(this.stabilizeTimer);
-          this.stabilizeTimer = null;
-        }
         while (this.el.firstChild) {
           this.el.removeChild(this.el.firstChild);
         }
         this.tooltip = null;
         this.cityRoot = null;
-        this.titleEntity = null;
-        this.emptyNotice = null;
-        this.visuals = {
-          districts: new Map(),
-          buildings: new Map()
-        };
-        this.currentView = null;
       },
-      ensureCityRoot: function () {
-        if (this.cityRoot?.parentNode === this.el) { return this.cityRoot; }
+      renderCity: function (mappingOnly) {
+        this.clearCity();
         this.ensureTooltip();
+        var records = this.records || [];
         this.cityRoot = entity('a-entity', {
           'data-codexr-code-city-content': 'true'
         });
         this.el.appendChild(this.cityRoot);
-        return this.cityRoot;
-      },
-      setGeometryState: function (state, details) {
-        this.geometryState = state;
-        this.el.setAttribute('data-codexr-geometry-state', state);
-        this.el.emit?.(GEOMETRY_EVENT, {
-          component: COMPONENT,
-          state: state,
-          details: details || null
-        }, false);
-      },
-      scheduleStabilized: function () {
-        var self = this;
-        if (this.stabilizeTimer) {
-          clearTimeout(this.stabilizeTimer);
-        }
-        this.stabilizeTimer = setTimeout(function () {
-          self.stabilizeTimer = null;
-          if (self.geometryState !== 'invalid') {
-            self.setGeometryState('stabilized');
-          }
-        }, Math.max(120, Number(this.data.animationDuration || 520) + 90));
-      },
-      renderCity: function (options) {
-        var opts = options || {};
-        var records = this.records || [];
-        var view = buildCityView(records, this.mode, this.data);
-        if (!view.valid) {
-          this.setGeometryState('invalid', view);
-          console.warn('[CodeXR.CodeCity] Invalid mapping, keeping last valid city:', view);
-          if (!opts.preserveOnInvalid || !this.currentView) {
-            this.ensureCityRoot();
-            this.renderEmptyNotice(view.message || 'Invalid CodeXR city mapping', '#fca5a5');
-          }
-          return false;
-        }
-        this.ensureCityRoot();
-        this.setGeometryState('rebuilding', { reason: opts.reason || 'render' });
         if (!records.length) {
-          this.reconcileDistricts([]);
-          this.reconcileBuildings([]);
-          this.renderEmptyNotice('No CodeXR city data available', '#fca5a5');
-          this.updateTitle({ titleY: 1.1, maxY: 0.75 });
-          this.currentView = view;
-          this.setGeometryState('valid');
-          this.scheduleStabilized();
-          return true;
-        }
-        this.removeEmptyNotice();
-        this.reconcileDistricts(view.districts);
-        this.reconcileBuildings(view.buildings);
-        this.updateTitle(view);
-        this.currentView = view;
-        this.updatePinnedTooltip(view);
-        this.setGeometryState('valid');
-        this.scheduleStabilized();
-        return true;
-      },
-      renderEmptyNotice: function (message, color) {
-        this.removeEmptyNotice();
-        this.emptyNotice = text(message, '0 0.82 0', 4.5, color || '#fca5a5');
-        this.emptyNotice.setAttribute('scale', '0.32 0.32 0.32');
-        this.cityRoot?.appendChild?.(this.emptyNotice);
-      },
-      removeEmptyNotice: function () {
-        if (this.emptyNotice?.parentNode) {
-          this.emptyNotice.parentNode.removeChild(this.emptyNotice);
-        }
-        this.emptyNotice = null;
-      },
-      updateTitle: function (view) {
-        var titleValue = this.data.title || 'CodeXR Code City';
-        if (!this.titleEntity?.parentNode) {
-          this.titleEntity = entity('a-entity', {
-            'data-codexr-role': 'code-city-title'
-          });
-          var back = entity('a-plane', {
-            width: 4.2,
-            height: 0.34,
-            material: material('#0f172a', { opacity: 0.9, transparent: true, side: 'double' })
-          });
-          var label = text(titleValue, '0 0 .018', 4, '#bae6fd');
-          label.setAttribute('scale', '0.42 0.42 0.42');
-          this.titleEntity.appendChild(back);
-          this.titleEntity.appendChild(label);
-          this.titleEntity.__codexrLabel = label;
-          this.cityRoot?.appendChild?.(this.titleEntity);
-        }
-        this.titleEntity.__codexrLabel?.setAttribute?.('value', titleValue);
-        animateOrSet(this.titleEntity, {
-          position: '0 ' + Number(view.titleY || 1.2).toFixed(3) + ' ' + (-CITY_DEPTH / 2 - 0.24).toFixed(3)
-        }, Number(this.data.animationDuration || 520));
-      },
-      updatePinnedTooltip: function (view) {
-        if (!this.pinned || !view) { return; }
-        var building = view.buildings.find(function (item) { return item.id === this.pinned.id; }, this);
-        if (building) {
-          this.pinned.detail = building.detail;
-          this.pinned.anchor = { x: building.x, y: building.topY + 0.3, z: building.z };
-          this.showTooltip(building.detail, this.pinned.anchor, building.id);
+          this.cityRoot.appendChild(text('No CodeXR city data available', '0 0.55 0', 4.5, '#fca5a5'));
           return;
         }
-        var district = view.districts.find(function (item) { return item.id === this.pinned.id; }, this);
-        if (district) {
-          this.pinned.detail = district.detail;
-          this.pinned.anchor = { x: district.x, y: Math.max(view.tooltipY, district.baseY + 0.42), z: district.z };
-          this.showTooltip(district.detail, this.pinned.anchor, district.id);
-          return;
-        }
-        this.pinned = null;
-        this.tooltip?.hide?.();
+        var leaves = buildLeaves(records, this.mode);
+        var layout = layoutLeaves(leaves, { width: CITY_WIDTH, depth: CITY_DEPTH });
+        this.renderDistricts(layout.districts);
+        this.renderBuildings(layout.leaves, records, mappingOnly);
+        var title = text(this.data.title || 'CodeXR Code City', '0 1.78 ' + (-CITY_DEPTH / 2 - 0.22), 5.2, '#bae6fd');
+        title.setAttribute('scale', '0.42 0.42 0.42');
+        this.cityRoot.appendChild(title);
       },
       showTooltip: function (detail, anchor, pinnedId) {
         var tooltip = this.ensureTooltip();
@@ -703,231 +431,174 @@
         this.pinned = { id: id, detail: detail, anchor: anchor };
         this.showTooltip(detail, anchor, id);
       },
-      createDistrictEntry: function (district) {
-        var group = entity('a-entity', {
-          'data-codexr-code-city-district': district.id
-        });
-        var platform = entity('a-box', { 'data-codexr-role': 'district-platform' });
-        var north = entity('a-box', {});
-        var south = entity('a-box', {});
-        var west = entity('a-box', {});
-        var east = entity('a-box', {});
-        var label = text('', '0 0 0', 2.2, '#cffafe');
-        label.setAttribute('scale', '0.18 0.18 0.18');
-        group.appendChild(platform);
-        group.appendChild(north);
-        group.appendChild(south);
-        group.appendChild(west);
-        group.appendChild(east);
-        group.appendChild(label);
-        this.cityRoot.appendChild(group);
-        return {
-          group: group,
-          platform: platform,
-          rails: [north, south, west, east],
-          label: label
-        };
-      },
-      updateDistrictEntry: function (entry, district, isNew) {
-        var duration = isNew ? 0 : Number(this.data.animationDuration || 520);
-        var railColor = district.edgeColor;
-        var topTint = district.depth === 0 ? '#123b4a' : district.color;
-        animateOrSet(entry.group, {
-          position: district.x + ' ' + district.baseY + ' ' + district.z,
-          scale: '1 1 1'
-        }, duration);
-        entry.platform.setAttribute('geometry',
-          'primitive: box; width: ' + Math.max(0.08, district.width)
-          + '; height: ' + DISTRICT_BASE_HEIGHT
-          + '; depth: ' + Math.max(0.08, district.depthSize));
-        entry.platform.setAttribute('material', material(topTint, { opacity: 0.88, transparent: true }));
-        var railHeight = 0.032;
-        var railThickness = 0.018;
-        entry.rails[0].setAttribute('geometry', 'primitive: box; width: ' + district.width + '; height: ' + railHeight + '; depth: ' + railThickness);
-        entry.rails[0].setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' ' + (-district.depthSize / 2));
-        entry.rails[1].setAttribute('geometry', 'primitive: box; width: ' + district.width + '; height: ' + railHeight + '; depth: ' + railThickness);
-        entry.rails[1].setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' ' + (district.depthSize / 2));
-        entry.rails[2].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + district.depthSize);
-        entry.rails[2].setAttribute('position', (-district.width / 2) + ' ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' 0');
-        entry.rails[3].setAttribute('geometry', 'primitive: box; width: ' + railThickness + '; height: ' + railHeight + '; depth: ' + district.depthSize);
-        entry.rails[3].setAttribute('position', (district.width / 2) + ' ' + (DISTRICT_BASE_HEIGHT / 2 + railHeight / 2) + ' 0');
-        entry.rails.forEach(function (rail) {
-          rail.setAttribute('material', material(railColor, { opacity: 0.95, transparent: true }));
-        });
-        entry.label.setAttribute('value', district.width > 0.42 && district.depthSize > 0.26 ? compact(district.label, 20) : '');
-        entry.label.setAttribute('position', '0 ' + (DISTRICT_BASE_HEIGHT + 0.035) + ' ' + (-district.depthSize / 2 + 0.075));
-        removeHitboxes(entry.group);
+      renderDistricts: function (districts) {
         var self = this;
-        function anchor() {
-          return { x: district.x, y: district.tooltipY || Math.max(self.currentView?.tooltipY || 0.9, district.baseY + 0.42), z: district.z };
-        }
-        function enter() { self.showTooltip(district.detail, anchor(), null); }
-        function leave() { if (!self.pinned) { self.tooltip?.hide?.(); } }
-        function click() { self.togglePin(district.id, district.detail, anchor()); }
-        root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(entry.group, {
-          shape: 'district',
-          width: Math.max(0.16, district.width),
-          height: 0.22,
-          depth: Math.max(0.16, district.depthSize),
-          position: '0 ' + (DISTRICT_BASE_HEIGHT + 0.08) + ' 0',
-          className: RAYCAST_CLASS,
-          handlers: { enter: enter, leave: leave, click: click }
-        });
-      },
-      reconcileDistricts: function (districts) {
-        var self = this;
-        var nextIds = new Set();
         districts.sort(function (a, b) { return a.depth - b.depth; }).forEach(function (district) {
-          nextIds.add(district.id);
-          var entry = self.visuals.districts.get(district.id);
-          var isNew = !entry;
-          if (!entry) {
-            entry = self.createDistrictEntry(district);
-            self.visuals.districts.set(district.id, entry);
-            entry.group.setAttribute('scale', '0.01 0.01 0.01');
+          var level = district.depth || 0;
+          var baseY = 0.018 + level * 0.032;
+          var color = DISTRICT_PALETTE[Math.min(DISTRICT_PALETTE.length - 1, level)];
+          var group = entity('a-entity', {
+            position: district.x + ' ' + baseY + ' ' + district.z,
+            'data-codexr-code-city-district': district.id
+          });
+          var platform = entity('a-box', {
+            width: Math.max(0.08, district.width),
+            height: 0.036,
+            depth: Math.max(0.08, district.depthSize),
+            material: 'color: ' + color + '; opacity: 0.28; transparent: true; shader: flat',
+            'data-codexr-role': 'district-platform'
+          });
+          var edgeColor = level === 0 ? '#67e8f9' : '#bef264';
+          var north = entity('a-box', {
+            width: district.width,
+            height: 0.028,
+            depth: 0.018,
+            position: '0 0.028 ' + (-district.depthSize / 2),
+            material: 'color: ' + edgeColor + '; opacity: 0.8; transparent: true; shader: flat'
+          });
+          var south = entity('a-box', {
+            width: district.width,
+            height: 0.028,
+            depth: 0.018,
+            position: '0 0.028 ' + (district.depthSize / 2),
+            material: 'color: ' + edgeColor + '; opacity: 0.8; transparent: true; shader: flat'
+          });
+          var west = entity('a-box', {
+            width: 0.018,
+            height: 0.028,
+            depth: district.depthSize,
+            position: (-district.width / 2) + ' 0.028 0',
+            material: 'color: ' + edgeColor + '; opacity: 0.8; transparent: true; shader: flat'
+          });
+          var east = entity('a-box', {
+            width: 0.018,
+            height: 0.028,
+            depth: district.depthSize,
+            position: (district.width / 2) + ' 0.028 0',
+            material: 'color: ' + edgeColor + '; opacity: 0.8; transparent: true; shader: flat'
+          });
+          group.appendChild(platform);
+          group.appendChild(north);
+          group.appendChild(south);
+          group.appendChild(west);
+          group.appendChild(east);
+          if (district.width > 0.42 && district.depthSize > 0.26) {
+            var label = text(compact(district.label, 20), '0 0.065 ' + (-district.depthSize / 2 + 0.075), 2.2, '#cffafe');
+            label.setAttribute('scale', '0.18 0.18 0.18');
+            group.appendChild(label);
           }
-          self.updateDistrictEntry(entry, district, isNew);
-          if (isNew) {
-            animateOrSet(entry.group, { scale: '1 1 1' }, Number(self.data.animationDuration || 520));
+          var detail = {
+            title: district.label,
+            subtitle: district.path || '(project root)',
+            primary: 'District | weight ' + Math.round(district.weight || 0),
+            secondary: 'Depth ' + level + ' | click to pin',
+            accentColor: edgeColor
+          };
+          function anchor() {
+            return { x: district.x, y: 0.52 + level * 0.05, z: district.z };
           }
-        });
-        Array.from(this.visuals.districts.entries()).forEach(function (entryPair) {
-          var id = entryPair[0];
-          var entry = entryPair[1];
-          if (nextIds.has(id)) { return; }
-          self.visuals.districts.delete(id);
-          animateOrSet(entry.group, { scale: '0.01 0.01 0.01' }, Number(self.data.animationDuration || 520));
-          setTimeout(function () {
-            entry.group.parentNode?.removeChild?.(entry.group);
-          }, Number(self.data.animationDuration || 520) + 40);
+          function enter() { self.showTooltip(detail, anchor(), null); }
+          function leave() { if (!self.pinned) { self.tooltip?.hide?.(); } }
+          function click() { self.togglePin(district.id, detail, anchor()); }
+          root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(group, {
+            shape: 'district',
+            width: Math.max(0.16, district.width),
+            height: 0.18,
+            depth: Math.max(0.16, district.depthSize),
+            position: '0 0.08 0',
+            className: RAYCAST_CLASS,
+            handlers: { enter: enter, leave: leave, click: click }
+          });
+          self.cityRoot.appendChild(group);
         });
       },
-      createBuildingEntry: function (leaf) {
-        var building = entity('a-entity', {
-          'data-codexr-code-city-node': leaf.id,
-          class: RAYCAST_CLASS
-        });
-        var halo = entity('a-ring', {
-          rotation: '-90 0 0'
-        });
-        var body = entity('a-box', {});
-        var roof = entity('a-box', {});
-        var frontWindows = entity('a-box', {});
-        var sideWindows = entity('a-box', {});
-        building.appendChild(halo);
-        building.appendChild(body);
-        building.appendChild(roof);
-        building.appendChild(frontWindows);
-        building.appendChild(sideWindows);
-        this.cityRoot.appendChild(building);
-        return {
-          group: building,
-          body: body,
-          roof: roof,
-          halo: halo,
-          frontWindows: frontWindows,
-          sideWindows: sideWindows
-        };
-      },
-      updateBuildingEntry: function (entry, leaf, isNew) {
-        var duration = isNew ? 0 : Number(this.data.animationDuration || 520);
-        var footprint = leaf.footprint;
-        var buildingHeight = leaf.buildingHeight;
-        var roofHeight = Math.max(0.026, footprint * 0.18);
-        animateOrSet(entry.group, {
-          position: leaf.x + ' ' + leaf.baseY + ' ' + leaf.z,
-          scale: '1 1 1'
-        }, duration);
-        entry.body.setAttribute('geometry',
-          'primitive: box; width: ' + footprint
-          + '; height: ' + buildingHeight
-          + '; depth: ' + footprint);
-        entry.body.setAttribute('position', '0 ' + (buildingHeight / 2) + ' 0');
-        entry.body.setAttribute('material', material(leaf.color, { opacity: 1 }));
-        entry.roof.setAttribute('geometry',
-          'primitive: box; width: ' + (footprint * 1.12)
-          + '; height: ' + roofHeight
-          + '; depth: ' + (footprint * 1.12));
-        entry.roof.setAttribute('position', '0 ' + (buildingHeight + roofHeight / 2) + ' 0');
-        entry.roof.setAttribute('material', material(leaf.roofColor, { opacity: 0.96, transparent: true }));
-        entry.halo.setAttribute('geometry',
-          'primitive: ring; radiusInner: ' + (footprint * 0.68)
-          + '; radiusOuter: ' + (footprint * 0.86)
-          + '; segmentsTheta: 24');
-        entry.halo.setAttribute('position', '0 0.014 0');
-        entry.halo.setAttribute('material', material(leaf.roofColor, {
-          opacity: leaf.changeState === 'neutral' ? 0.2 : 0.58,
-          transparent: true,
-          side: 'double',
-          depthWrite: false
-        }));
-        var windowOpacity = buildingHeight > 0.24 ? 0.42 : 0.12;
-        entry.frontWindows.setAttribute('geometry',
-          'primitive: box; width: ' + (footprint * 0.7)
-          + '; height: ' + Math.min(0.16, buildingHeight * 0.42)
-          + '; depth: 0.006');
-        entry.frontWindows.setAttribute('position', '0 ' + Math.max(0.08, buildingHeight * 0.55) + ' ' + (-footprint / 2 - 0.004));
-        entry.frontWindows.setAttribute('material', material('#dbeafe', { opacity: windowOpacity, transparent: true }));
-        entry.sideWindows.setAttribute('geometry',
-          'primitive: box; width: 0.006'
-          + '; height: ' + Math.min(0.16, buildingHeight * 0.42)
-          + '; depth: ' + (footprint * 0.7));
-        entry.sideWindows.setAttribute('position', (footprint / 2 + 0.004) + ' ' + Math.max(0.08, buildingHeight * 0.55) + ' 0');
-        entry.sideWindows.setAttribute('material', material('#dbeafe', { opacity: windowOpacity, transparent: true }));
-        removeHitboxes(entry.group);
+      renderBuildings: function (leaves, records, mappingOnly) {
         var self = this;
-        function anchor() {
-          return { x: leaf.x, y: leaf.topY + 0.3, z: leaf.z };
-        }
-        function enter() {
-          entry.body.setAttribute('material', material('#fef08a', { opacity: 1 }));
-          self.showTooltip(leaf.detail, anchor(), null);
-        }
-        function leave() {
-          if (!self.pinned || self.pinned.id !== leaf.id) {
-            entry.body.setAttribute('material', material(leaf.color, { opacity: 1 }));
-          }
-          if (!self.pinned) { self.tooltip?.hide?.(); }
-        }
-        function click() {
-          self.togglePin(leaf.id, leaf.detail, anchor());
-        }
-        root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(entry.group, {
-          shape: 'box',
-          width: footprint * 1.55,
-          height: buildingHeight + 0.26,
-          depth: footprint * 1.55,
-          position: '0 ' + (buildingHeight / 2) + ' 0',
-          className: RAYCAST_CLASS,
-          handlers: { enter: enter, leave: leave, click: click }
-        });
-      },
-      reconcileBuildings: function (leaves) {
-        var self = this;
-        var nextIds = new Set();
+        var areaField = this.data.area || 'parameters';
+        var heightField = this.data.height || 'lineCount';
+        var colorField = this.data.color || 'complexity';
+        var areaScale = metricScale(records, areaField);
+        var heightScale = metricScale(records, heightField);
         leaves.forEach(function (leaf) {
-          nextIds.add(leaf.id);
-          var entry = self.visuals.buildings.get(leaf.id);
-          var isNew = !entry;
-          if (!entry) {
-            entry = self.createBuildingEntry(leaf);
-            self.visuals.buildings.set(leaf.id, entry);
-            entry.group.setAttribute('scale', '0.01 0.01 0.01');
+          var record = leaf.record || {};
+          var areaValue = numeric(safeField(record, areaField), 0);
+          var heightValue = numeric(safeField(record, heightField), 0);
+          var maxFootprint = Math.max(0.08, Math.min(leaf.cellWidth || 0.18, leaf.cellDepth || 0.18) * 0.62);
+          var footprint = Math.max(0.055, maxFootprint * (0.45 + areaScale.normalize(areaValue) * 0.55));
+          var buildingHeight = 0.09 + heightScale.normalize(heightValue) * 1.42;
+          var baseY = 0.07 + Math.max(0, leaf.directoryParts.length - 1) * 0.032;
+          var color = colorForValue(record[colorField], records, colorField);
+          var changeState = resolveChangeState(record);
+          var roofColor = roofColorForState(changeState);
+          var building = entity('a-entity', {
+            position: leaf.x + ' ' + baseY + ' ' + leaf.z,
+            'data-codexr-code-city-node': leaf.id,
+            class: RAYCAST_CLASS
+          });
+          var body = entity('a-box', {
+            width: footprint,
+            height: buildingHeight,
+            depth: footprint,
+            position: '0 ' + (buildingHeight / 2) + ' 0',
+            material: 'color: ' + color + '; shader: flat; roughness: 0.72; metalness: 0.02'
+          });
+          var roof = entity('a-box', {
+            width: footprint * 1.12,
+            height: Math.max(0.026, footprint * 0.2),
+            depth: footprint * 1.12,
+            position: '0 ' + (buildingHeight + Math.max(0.018, footprint * 0.1)) + ' 0',
+            material: 'color: ' + roofColor + '; opacity: 0.92; transparent: true; shader: flat'
+          });
+          var halo = entity('a-ring', {
+            radiusInner: footprint * 0.68,
+            radiusOuter: footprint * 0.82,
+            rotation: '-90 0 0',
+            position: '0 0.012 0',
+            material: 'color: ' + roofColor + '; opacity: ' + (changeState === 'neutral' ? 0.18 : 0.5)
+              + '; transparent: true; shader: flat; side: double'
+          });
+          building.appendChild(halo);
+          building.appendChild(body);
+          building.appendChild(roof);
+          building.setAttribute('scale', mappingOnly ? '0.92 0.92 0.92' : '0.01 0.01 0.01');
+          building.setAttribute(
+            'animation__appear',
+            'property: scale; to: 1 1 1; dur: ' + Number(self.data.animationDuration || 520) + '; easing: easeOutCubic'
+          );
+          var detail = {
+            title: leaf.label,
+            subtitle: leaf.path,
+            primary: areaField + ' ' + areaValue + ' | ' + heightField + ' ' + heightValue,
+            secondary: colorField + ' ' + String(record[colorField] ?? '') + ' | '
+              + (record.language || record.type || self.mode) + ' | ' + changeState,
+            accentColor: roofColor
+          };
+          function anchor() {
+            return { x: leaf.x, y: baseY + buildingHeight + 0.36, z: leaf.z };
           }
-          self.updateBuildingEntry(entry, leaf, isNew);
-          if (isNew) {
-            animateOrSet(entry.group, { scale: '1 1 1' }, Number(self.data.animationDuration || 520));
+          function enter() {
+            body.setAttribute('material', 'color: #fef08a; shader: flat; roughness: 0.58');
+            self.showTooltip(detail, anchor(), null);
           }
-        });
-        Array.from(this.visuals.buildings.entries()).forEach(function (entryPair) {
-          var id = entryPair[0];
-          var entry = entryPair[1];
-          if (nextIds.has(id)) { return; }
-          self.visuals.buildings.delete(id);
-          animateOrSet(entry.group, { scale: '0.01 0.01 0.01' }, Number(self.data.animationDuration || 520));
-          setTimeout(function () {
-            entry.group.parentNode?.removeChild?.(entry.group);
-          }, Number(self.data.animationDuration || 520) + 40);
+          function leave() {
+            if (!self.pinned || self.pinned.id !== leaf.id) {
+              body.setAttribute('material', 'color: ' + color + '; shader: flat; roughness: 0.72; metalness: 0.02');
+            }
+            if (!self.pinned) { self.tooltip?.hide?.(); }
+          }
+          function click() {
+            self.togglePin(leaf.id, detail, anchor());
+          }
+          root.CodeXRGraphCommonRuntime?.attachPickHitbox?.(building, {
+            shape: 'box',
+            width: footprint * 1.5,
+            height: buildingHeight + 0.22,
+            depth: footprint * 1.5,
+            position: '0 ' + (buildingHeight / 2) + ' 0',
+            className: RAYCAST_CLASS,
+            handlers: { enter: enter, leave: leave, click: click }
+          });
+          self.cityRoot.appendChild(building);
         });
       },
       getDebugSnapshot: function () {
@@ -958,7 +629,6 @@
       buildLeaves: buildLeaves,
       buildDistrictTree: buildDistrictTree,
       layoutLeaves: layoutLeaves,
-      buildCityView: buildCityView,
       colorForValue: colorForValue,
       resolveChangeState: resolveChangeState,
       withCacheBust: withCacheBust
