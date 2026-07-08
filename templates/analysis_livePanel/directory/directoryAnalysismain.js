@@ -43,7 +43,7 @@ function applyTheme(theme) {
   document.body.setAttribute('data-theme', theme);
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
-    themeToggle.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+    themeToggle.innerHTML = theme === 'dark' ? 'Light' : 'Dark';
     themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`);
   }
   
@@ -86,7 +86,7 @@ function debugLog(...args) {
 
 // Initialize the view (legacy function for compatibility)
 function init() {
-  console.log('🔍 Legacy init function called - now handled by DOMContentLoaded');
+  console.log(' Legacy init function called - now handled by DOMContentLoaded');
 }
 
 // Load and display analysis data
@@ -228,76 +228,76 @@ function formatFileSize(bytes) {
 }
 
 function loadAnalysisData(data) {
-  console.log('📊 loadAnalysisData called with:', data);
+  console.log(' loadAnalysisData called with:', data);
   debugLog('Loading analysis data:', data);
   
-  // ✅ NEW: Preserve scroll position during updates
+  //  NEW: Preserve scroll position during updates
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
   const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
   
   analysisData = normalizeIncomingDirectoryAnalysisData(data);
   fileData = analysisData.files || [];
   
-  console.log('📊 File data loaded:', fileData.length, 'files');
+  console.log(' File data loaded:', fileData.length, 'files');
   debugLog('File data loaded:', fileData.length, 'files');
   
   const noDataEl = document.getElementById('no-data');
   const resultsEl = document.getElementById('results');
   
-  console.log('📊 Elements found - noData:', !!noDataEl, 'results:', !!resultsEl);
+  console.log(' Elements found - noData:', !!noDataEl, 'results:', !!resultsEl);
   
   if (noDataEl) {
-    console.log('🔄 Hiding no-data element');
+    console.log(' Hiding no-data element');
     noDataEl.classList.add('hidden');
   }
   if (resultsEl) {
-    console.log('🔄 Showing results element');
+    console.log(' Showing results element');
     resultsEl.classList.remove('hidden');
   }
   
   try {
-    console.log('🔄 Updating header information...');
+    console.log(' Updating header information...');
     updateHeaderInfo();
     debugLog('Header info updated');
     
-    console.log('🔄 Updating summary...');
+    console.log(' Updating summary...');
     updateSummary();
     debugLog('Summary updated');
     
-    console.log('🔄 Updating complexity distribution...');
+    console.log(' Updating complexity distribution...');
     updateComplexityDistribution();
     debugLog('Complexity distribution updated');
     
-    console.log('🔄 Updating language distribution...');
+    console.log(' Updating language distribution...');
     updateLanguageDistribution();
     debugLog('Language distribution updated');
     
-    console.log('🔄 Updating file size distribution...');
+    console.log(' Updating file size distribution...');
     updateFileSizeDistribution();
     debugLog('File size distribution updated');
     
-    console.log('🔄 Updating complexity overview...');
+    console.log(' Updating complexity overview...');
     updateComplexityOverview();
     debugLog('Complexity overview updated');
     
-    console.log('🔄 Updating top complex files...');
+    console.log(' Updating top complex files...');
     updateTopComplexFiles();
     debugLog('Top complex files updated');
     
-    console.log('🔄 Updating file table...');
+    console.log(' Updating file table...');
     updateFileTable();
     debugLog('File table updated');
     
-    // ✅ NEW: Restore scroll position after updates
+    //  NEW: Restore scroll position after updates
     setTimeout(() => {
       window.scrollTo(scrollLeft, scrollTop);
-      console.log(`🔄 Restored scroll position: ${scrollLeft}, ${scrollTop}`);
+      console.log(` Restored scroll position: ${scrollLeft}, ${scrollTop}`);
     }, 10);
     
-    console.log('✅ All sections updated successfully');
+    console.log(' All sections updated successfully');
     
   } catch (error) {
-    console.error('❌ Error updating sections:', error);
+    console.error(' Error updating sections:', error);
   }
 }
 
@@ -452,12 +452,12 @@ function showSSEStatus(status) {
   
   switch (status) {
     case 'connected':
-      statusElement.textContent = '🟢 Live Updates';
+      statusElement.textContent = ' Live Updates';
       statusElement.style.backgroundColor = '#10b981';
       statusElement.style.color = 'white';
       break;
     case 'error':
-      statusElement.textContent = '🔴 Disconnected';
+      statusElement.textContent = ' Disconnected';
       statusElement.style.backgroundColor = '#ef4444';
       statusElement.style.color = 'white';
       break;
@@ -964,7 +964,7 @@ function handleFileClick(event) {
   }
 }
 
-// ✅ SHARED: Get complexity classification based on file's average CCN
+//  SHARED: Get complexity classification based on file's average CCN
 function getFileComplexityClassification(avgCCN) {
   if (avgCCN <= 5) {
     return {
@@ -1198,54 +1198,54 @@ function generateColors(count) {
 // Handle messages from the extension
 window.addEventListener('message', event => {
   const message = event.data;
-  console.log('📨 Received message from extension:', message);
+  console.log(' Received message from extension:', message);
   switch (message.command) {
     case 'updateData':
-      console.log('🔄 Processing updateData message with:', message.data);
+      console.log(' Processing updateData message with:', message.data);
       // Store the new data
       window.analysisData = message.data;
       // Reload the analysis with new data
       loadAnalysisData(message.data);
-      console.log('✅ Data updated successfully');
+      console.log(' Data updated successfully');
       break;
     case 'refresh':
-      console.log('🔄 Processing refresh command');
+      console.log(' Processing refresh command');
       // Try to reload from window.analysisData if available
       if (window.analysisData) {
-        console.log('🔄 Refreshing with existing window.analysisData');
+        console.log(' Refreshing with existing window.analysisData');
         loadAnalysisData(window.analysisData);
       } else {
-        console.log('🔄 No analysisData available, attempting to fetch from data.json');
+        console.log(' No analysisData available, attempting to fetch from data.json');
         // Attempt to fetch data.json directly
         fetch('./data.json')
           .then(response => response.json())
           .then(data => {
-            console.log('✅ Fetched data from data.json:', data);
+            console.log(' Fetched data from data.json:', data);
             window.analysisData = data;
             loadAnalysisData(data);
           })
           .catch(error => {
-            console.error('❌ Failed to fetch data.json:', error);
+            console.error(' Failed to fetch data.json:', error);
           });
       }
       break;
     default:
-      console.log('❓ Unknown message command:', message.command);
+      console.log(' Unknown message command:', message.command);
   }
 });
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('🔄 DOMContentLoaded event fired');
+  console.log(' DOMContentLoaded event fired');
   
   // Initialize theme from window.initialTheme (set by server) or localStorage fallback
   let initialTheme = 'light';
   if (window.initialTheme) {
     initialTheme = window.initialTheme;
-    console.log('🎨 Using server-provided theme:', initialTheme);
+    console.log(' Using server-provided theme:', initialTheme);
   } else {
     initialTheme = getStoredTheme();
-    console.log('🎨 Using stored theme:', initialTheme);
+    console.log(' Using stored theme:', initialTheme);
   }
   applyTheme(initialTheme);
   
@@ -1257,22 +1257,22 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Listen for the analysisDataLoaded event from the template
   window.addEventListener('analysisDataLoaded', function(event) {
-    console.log('✅ Received analysisDataLoaded event, initializing...');
+    console.log(' Received analysisDataLoaded event, initializing...');
     loadAnalysisData(event.detail);
   });
   
   // Check if we have analysis data available immediately (fallback)
   if (window.analysisData) {
-    console.log('✅ Found window.analysisData immediately, initializing...');
+    console.log(' Found window.analysisData immediately, initializing...');
     loadAnalysisData(window.analysisData);
   } else {
     console.log('⏳ Waiting for analysisDataLoaded event...');
   }
   
-  // ✅ NEW: Initialize Server-Sent Events for live updates
+  //  NEW: Initialize Server-Sent Events for live updates
   initializeSSE();
   
-  // ✅ DIRECTORY ANALYSIS: Use SSE for live updates, NO polling needed
+  //  DIRECTORY ANALYSIS: Use SSE for live updates, NO polling needed
   // Directory analysis uses SSE events for real-time updates
   let lastDataHash = null;
   
@@ -1286,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentHash = dataString.length + '_' + data.summary.analyzedAt;
         
         if (lastDataHash && lastDataHash !== currentHash) {
-          console.log('🔄 Detected data.json change via manual check, updating...');
+          console.log(' Detected data.json change via manual check, updating...');
           window.analysisData = data;
           loadAnalysisData(data);
         }
@@ -1294,11 +1294,11 @@ document.addEventListener('DOMContentLoaded', function() {
         lastDataHash = currentHash;
       })
       .catch(error => {
-        console.warn('⚠️ Failed to check data.json:', error);
+        console.warn(' Failed to check data.json:', error);
       });
   }
   
-  // ❌ REMOVED: No automatic polling for directory analysis
+  //  REMOVED: No automatic polling for directory analysis
   // Directory analysis uses SSE events for live updates
   // setInterval(checkForDataUpdates, 2000);
   
@@ -1328,7 +1328,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Legacy support for the old init function
 function init() {
-  console.log('🔍 Legacy init function called');
+  console.log(' Legacy init function called');
   // This is now handled by DOMContentLoaded
 }
-

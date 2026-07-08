@@ -8,6 +8,7 @@ export * from './xrChartDebugComponentAsset';
 export * from './analysisTableComponentAsset';
 export * from './analysisModeComponentAsset';
 export * from './historicalComparisonComponentAsset';
+export * from './projectEvolutionComponentAsset';
 export * from './dependencyGraphComponentAsset';
 export * from './renderBudgetComponentAsset';
 export * from './dependencyVisualBudgetComponentAsset';

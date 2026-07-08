@@ -19,6 +19,7 @@ import {
     ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
     ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME,
     DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
     RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
     DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
@@ -30,6 +31,7 @@ import {
     readAnalysisTableRuntimeContent,
     readAnalysisModeRuntimeContent,
     readHistoricalComparisonRuntimeContent,
+    readProjectEvolutionRuntimeContent,
     readDependencyGraphRuntimeContent,
     readRenderBudgetRuntimeContent,
     readDependencyVisualBudgetRuntimeContent,
@@ -75,7 +77,7 @@ export class DirectoryXRParser {
                 dataField,
             }));
 
-            const analysisData = bootstrap?.payload ?? await new ExecutePython(context).executeAnalysis({
+            const analysisData = bootstrap.payload ?? await new ExecutePython(context).executeAnalysis({
                 ...session,
                 analysisMode: 'XR',
                 targetType: 'directory',
@@ -92,9 +94,7 @@ export class DirectoryXRParser {
             await fs.promises.mkdir(tempOutputPath, { recursive: true });
             const tempHtmlPath = path.join(tempOutputPath, 'index.html');
             const babiaUiConfig = await storage.getXRBabiaUiConfig();
-            const fieldTypeMap = babiaUiConfig.enabled
-                ? await XRFieldSchemaService.getInstance(context).getFieldTypeMap('directory')
-                : undefined;
+            const fieldTypeMap = await XRFieldSchemaService.getInstance(context).getFieldTypeMap('directory');
 
             const htmlGenerationResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
@@ -105,7 +105,6 @@ export class DirectoryXRParser {
                 tempHtmlPath,
                 payload,
                 {
-                    babiaUiEnabled: babiaUiConfig.enabled,
                     babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
                     xrTargetType: 'directory',
                     fieldTypeMap,
@@ -142,6 +141,7 @@ export class DirectoryXRParser {
             const analysisTableRuntimeContent = await readAnalysisTableRuntimeContent(context.extensionPath);
             const analysisModeRuntimeContent = await readAnalysisModeRuntimeContent(context.extensionPath);
             const historicalComparisonRuntimeContent = await readHistoricalComparisonRuntimeContent(context.extensionPath);
+            const projectEvolutionRuntimeContent = await readProjectEvolutionRuntimeContent(context.extensionPath);
             const dependencyGraphRuntimeContent = await readDependencyGraphRuntimeContent(context.extensionPath);
             const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
             const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
@@ -163,6 +163,7 @@ export class DirectoryXRParser {
             generatedFiles.set(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent);
             generatedFiles.set(ANALYSIS_MODE_RUNTIME_OUTPUT_NAME, analysisModeRuntimeContent);
             generatedFiles.set(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME, historicalComparisonRuntimeContent);
+            generatedFiles.set(PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME, projectEvolutionRuntimeContent);
             generatedFiles.set(RENDER_BUDGET_RUNTIME_OUTPUT_NAME, renderBudgetRuntimeContent);
             generatedFiles.set(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME, dependencyVisualBudgetRuntimeContent);
             generatedFiles.set(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, dependencyGraphRuntimeContent);
@@ -171,7 +172,6 @@ export class DirectoryXRParser {
             codexrRoomTextures.forEach((asset) => {
                 generatedFiles.set(asset.relativeOutputPath, asset.content);
             });
-
             session.metadata.mainHtmlFileName = 'index.html';
 
             return {
@@ -218,4 +218,3 @@ export class DirectoryXRParser {
 }
 
 export const directoryXRParser = new DirectoryXRParser();
-

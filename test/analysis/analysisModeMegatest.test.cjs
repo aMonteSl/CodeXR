@@ -15,13 +15,33 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   const tableRuntime = read('templates/components/codexr/analysis-table/analysisTableRuntime.js');
   const dependencyRuntime = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
   const historyRuntime = read('templates/components/codexr/historical-comparison/historicalComparisonRuntime.js');
+  const evolutionRuntime = read('templates/components/codexr/project-evolution/projectEvolutionRuntime.js');
   const mappingRuntime = read('templates/components/codexr/xr-chart-mapping-ui/xrChartMappingUiRuntime.js');
 
   assert.match(modeRuntime, /id: 'visualization-mode'/);
   assert.match(modeRuntime, /buttonLabel: 'V'/);
   assert.match(modeRuntime, /headerButton: true/);
+  assert.match(modeRuntime, /data-codexr-disabled/);
+  assert.match(modeRuntime, /data-codexr-mode-disabled-tooltip/);
+  assert.match(modeRuntime, /raycaster-intersected/);
+  assert.match(modeRuntime, /raycaster-intersected-cleared/);
+  assert.match(modeRuntime, /if \(disabled\) \{[\s\S]*return;[\s\S]*debugLog\('Visualization mode option clicked'/);
   assert.match(dependencyRuntime, /id: 'dependency-graph'[\s\S]*headerButton: false/);
   assert.match(historyRuntime, /id: 'historical-selection'[\s\S]*headerButton: false/);
+  assert.match(historyRuntime, /function registerHistoricalModeOption\(\)/);
+  assert.match(historyRuntime, /disabled: state\.availability !== 'enabled'/);
+  assert.match(historyRuntime, /disabledReason: state\.unavailableReason \|\| 'Historical comparison requires a local Git repository\.'/);
+  assert.match(historyRuntime, /state\.unregisterModeOption\\.\(\);/);
+  assert.match(evolutionRuntime, /id: MODE/);
+  assert.match(evolutionRuntime, /label: 'Project evolution'/);
+  assert.match(evolutionRuntime, /disabled: state\.availability !== 'enabled'/);
+  assert.match(evolutionRuntime, /Project evolution requires a local Git repository/);
+  assert.match(evolutionRuntime, /if \(!state\.result\) \{[\s\S]*clearChartVisualization\(\);[\s\S]*return true;[\s\S]*\}/);
+  assert.match(evolutionRuntime, /registerPanelView\(\{/);
+  assert.match(evolutionRuntime, /id: MODE/);
+  assert.match(evolutionRuntime, /headerButton: false/);
+  assert.match(evolutionRuntime, /onShow: handlePanelShown/);
+  assert.match(evolutionRuntime, /reason: 'project-evolution-panel-shown'/);
   assert.doesNotMatch(dependencyRuntime, /buttonLabel: 'D'/);
   assert.match(mappingRuntime, /if \(options\.headerButton === true\)/);
   assert.doesNotMatch(modeRuntime, /class: 'babiaxraycasterclass codexr-analysis-mode-option'/);
@@ -30,13 +50,35 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(modeRuntime, /!mappingRuntime\.isPanelReady\?\.\(\)/);
   assert.match(historyRuntime, /!mappingRuntime\.isPanelReady\?\.\(\)/);
   assert.match(dependencyRuntime, /!root\.CodeXRMappingUiRuntime\?\.isPanelReady\?\.\(\)/);
-  assert.match(tableRuntime, /oneOf: \['selection', 'single', 'historical-compare', 'dependency-graph'\]/);
-  assert.match(tableRuntime, /selection[\s\S]*#b45309/);
+  assert.match(tableRuntime, /oneOf: \['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'\]/);
+  assert.match(tableRuntime, /selection[\s\S]*#f8fafc/);
+  assert.match(tableRuntime, /MODE_THEME_BY_ID = \{/);
+  assert.match(tableRuntime, /single: \{[\s\S]*top: 'color: #0e7490/);
+  assert.match(tableRuntime, /'historical-compare': \{[\s\S]*top: 'color: #be123c/);
+  assert.match(tableRuntime, /'project-evolution': \{[\s\S]*top: 'color: #f59e0b/);
+  assert.match(tableRuntime, /setMode = function \(mode\)/);
+  assert.match(mappingRuntime, /root\.CodeXRAnalysisControllerRuntime = runtime/);
+  assert.match(mappingRuntime, /function showControllerView\(viewId, context\)/);
+  assert.match(mappingRuntime, /modeMemory: \{\}/);
+  assert.doesNotMatch(evolutionRuntime, /setProjectEvolutionTableMode/);
+  assert.match(evolutionRuntime, /transitionTo\\.\(MODE, \{[\s\S]*panelViewId: MODE/);
   assert.match(modeRuntime, /setTableMode\(mode\)/);
+  assert.match(modeRuntime, /MODE_CONTROLLER_VIEW_BY_ID = \{/);
+  assert.match(modeRuntime, /'historical-compare': 'historical.selection'/);
+  assert.match(modeRuntime, /MODE_PANEL_VIEW_BY_ID = \{[\s\S]*'project-evolution': 'project-evolution'/);
+  assert.match(modeRuntime, /function getDefaultPanelViewForMode\(mode\)/);
+  assert.match(modeRuntime, /function applyAnalysisMode\(mode, context\)/);
+  assert.match(modeRuntime, /element\.querySelectorAll\\.\('\[codexr-chart-containment\]'\)/);
+  assert.match(modeRuntime, /ids = containedChartIds\.length \ containedChartIds : getNormalVisualizationRoots\(\)/);
+  assert.match(modeRuntime, /function detachNormalRoots\(reason\)[\s\S]*setElementTreeVisible\(element, false\);/);
+  assert.doesNotMatch(modeRuntime, /function detachNormalRoots\(reason\)[\s\S]*element\.parentNode\.removeChild\(element\);[\s\S]*function mountNormalRoots/);
+  assert.match(modeRuntime, /switchMappingContext\\.\('normal-analysis'/);
   assert.doesNotMatch(modeRuntime, /mode === 'selection' \? 'single' : mode/);
   assert.match(modeRuntime, /clearVisualizationsForSelection/);
   assert.match(modeRuntime, /data-codexr-analysis-root/);
   assert.match(historyRuntime, /function selectHistoricalMode\(\)[\s\S]*if \(state\.result\)[\s\S]*analysis-mode-activate/);
+  assert.match(historyRuntime, /async function enterHistoricalSelection\(\)[\s\S]*transitionTo\\.\('historical-compare'/);
+  assert.doesNotMatch(historyRuntime, /transitionTo\\.\('selection', \{[\s\S]*historical-selection/);
   assert.match(dependencyRuntime, /function selectDependencyMode\(\)[\s\S]*if \(state\.dataset && state\.snapshot\?\.datasetUrl\)[\s\S]*analysis-mode-activate/);
   assert.ok(
     historyRuntime.indexOf('state.result = result;')
@@ -45,7 +87,7 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(historyRuntime, /async function renderComparison[\s\S]*disposeComparisonGeometry\(false\)/);
 });
 
-test('Visualization mode is orange and removes every analysis root before showing options', async () => {
+test('Visualization mode is neutral and removes every analysis root before showing options', async () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const roots = new Map();
   const removed = [];
@@ -120,7 +162,108 @@ test('Visualization mode is orange and removes every analysis root before showin
   assert.equal(runtime.getState().mode, 'selection');
 });
 
-test('first Visualization mode click from initial normal analysis detaches all normal visualization roots', async () => {
+test('Project evolution leaves the neutral selection table theme through the authoritative mode transition', async () => {
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const tableModes = [];
+  const shownPanels = [];
+  const shownControllerViews = [];
+  const context = {
+    setTimeout,
+    clearTimeout,
+    console,
+    CodeXRAnalysisTableRuntime: {
+      setMode(mode) {
+        tableModes.push(mode);
+        return mode;
+      },
+    },
+    CodeXRMappingUiRuntime: {
+      showPanelView(panelId) {
+        shownPanels.push(panelId);
+      },
+    },
+    CodeXRAnalysisControllerRuntime: {
+      showView(viewId, options) {
+        shownControllerViews.push({ viewId, options });
+        shownPanels.push(viewId === 'visualization-menu'  'visualization-mode' : 'project-evolution');
+      },
+    },
+  };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRAnalysisModeRuntime;
+
+  runtime.register('selection', { activate() {} });
+  runtime.register('project-evolution', {
+    activate() {
+      return true;
+    },
+  });
+
+  assert.equal(await runtime.transitionTo('selection', { panelViewId: 'visualization-mode' }), true);
+  assert.equal(tableModes.at(-1), 'selection');
+
+  assert.equal(await runtime.transitionTo('project-evolution', { panelViewId: 'project-evolution' }), true);
+
+  assert.equal(runtime.getState().mode, 'project-evolution');
+  assert.equal(runtime.getState().requestedMode, 'project-evolution');
+  assert.equal(runtime.getState().controllerView, 'project-evolution');
+  assert.equal(tableModes.at(-1), 'project-evolution');
+  assert.equal(shownControllerViews.at(-1).viewId, 'project-evolution');
+});
+
+test('Historical selection lives under the historical table theme', async () => {
+  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const tableModes = [];
+  const shownPanels = [];
+  const shownControllerViews = [];
+  const context = {
+    setTimeout,
+    clearTimeout,
+    console,
+    CodeXRAnalysisTableRuntime: {
+      setMode(mode) {
+        tableModes.push(mode);
+        return mode;
+      },
+    },
+    CodeXRMappingUiRuntime: {
+      showPanelView(panelId) {
+        shownPanels.push(panelId);
+      },
+    },
+    CodeXRAnalysisControllerRuntime: {
+      showView(viewId, options) {
+        shownControllerViews.push({ viewId, options });
+        shownPanels.push(viewId === 'historical.selection'  'historical-selection' : 'mapping');
+      },
+    },
+  };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRAnalysisModeRuntime;
+
+  runtime.register('selection', { activate() {} });
+  runtime.register('historical-compare', {
+    activate() {
+      return true;
+    },
+  });
+
+  assert.equal(await runtime.transitionTo('selection', { panelViewId: 'visualization-mode' }), true);
+  assert.equal(tableModes.at(-1), 'selection');
+
+  assert.equal(
+    await runtime.transitionTo('historical-compare', { panelViewId: 'historical-selection' }),
+    true,
+  );
+
+  assert.equal(runtime.getState().mode, 'historical-compare');
+  assert.equal(runtime.getState().requestedMode, 'historical-compare');
+  assert.equal(runtime.getState().controllerView, 'historical.selection');
+  assert.equal(tableModes.at(-1), 'historical-compare');
+  assert.equal(shownControllerViews.at(-1).viewId, 'historical.selection');
+});
+
+test('first Visualization mode click hides but preserves normal visualization roots', async () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const tableModes = [];
   const chartIds = [];
@@ -251,12 +394,13 @@ test('first Visualization mode click from initial normal analysis detaches all n
 
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(tableModes.at(-1), 'selection');
-  assert.equal(normalRoot.parentNode, null);
-  assert.equal(surface.children.includes(normalRoot), false);
+  assert.equal(normalRoot.parentNode, surface);
+  assert.equal(surface.children.includes(normalRoot), true);
+  assert.equal(normalRoot.visible, false);
   assert.deepEqual(Array.from(chartIds.at(-1)), []);
 });
 
-test('mounting a non-normal surface root does not reattach the detached normal chart', () => {
+test('mounting a non-normal surface root keeps the preserved normal chart hidden', () => {
   const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
   const elements = new Map();
   function object3D() {
@@ -286,6 +430,9 @@ test('mounting a non-normal surface root does not reattach the detached normal c
         if (name === 'visible') {
           this.visible = value;
         }
+      },
+      removeAttribute(name) {
+        delete this.attributes[name];
       },
       getAttribute(name) {
         return this.attributes[name];
@@ -318,6 +465,16 @@ test('mounting a non-normal surface root does not reattach the detached normal c
   normal.setAttribute('data-codexr-analysis-root', 'true');
   normal.setAttribute('data-codexr-analysis-mode', 'single');
   normal.setAttribute('data-codexr-normal-root', 'true');
+  const normalBuilding = element('normalBuilding');
+  let normalTooltipClears = 0;
+  normalBuilding.setAttribute('class', 'babiaxraycasterclass codexr-building');
+  normalBuilding.setAttribute('data-codexr-interactive', 'true');
+  normalBuilding.components = {
+    'codexr-test-tooltip-source': {
+      clearTooltips() { normalTooltipClears += 1; },
+    },
+  };
+  normal.appendChild(normalBuilding);
   surface.appendChild(normal);
   const dependency = element('codexrDependencyGraph');
   const config = { textContent: JSON.stringify({
@@ -353,9 +510,18 @@ test('mounting a non-normal surface root does not reattach the detached normal c
   surfaceRuntime.mountRoot('dependency-graph', dependency);
 
   assert.equal(surface.object3D.visible, true);
-  assert.equal(normal.parentNode, null);
+  assert.equal(normal.parentNode, surface);
+  assert.equal(normal.object3D.visible, false);
+  assert.equal(normalBuilding.attributes.class, 'codexr-building');
+  assert.equal(normalBuilding.attributes['data-codexr-interactive'], 'false');
+  assert.ok(normalTooltipClears >= 1);
   assert.equal(dependency.object3D.visible, true);
   assert.equal(dependency.parentNode, surface);
+
+  surfaceRuntime.setNormalVisible(true);
+
+  assert.match(normalBuilding.attributes.class, /babiaxraycasterclass/);
+  assert.equal(normalBuilding.attributes['data-codexr-interactive'], 'true');
 });
 
 test('XR mode megatest keeps one visual root and preserves mode-owned state', async () => {

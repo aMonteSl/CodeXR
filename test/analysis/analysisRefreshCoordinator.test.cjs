@@ -121,6 +121,7 @@ test('selection keeps every analysis renderer idle', async () => {
 
   assert.equal(calls.length, 0);
   assert.equal(coordinator.getViewState('session').status, 'selecting');
+  assert.equal(coordinator.getViewState('session').controllerView, 'visualization-menu');
 });
 
 test('activating a mode resumes its snapshot without forcing a refresh', async () => {
@@ -135,6 +136,29 @@ test('activating a mode resumes its snapshot without forcing a refresh', async (
   const readyState = coordinator.getViewState('session');
   assert.equal(readyState.status, 'ready');
   assert.equal(readyState.hasUsableSnapshot, true);
+  assert.equal(readyState.controllerView, 'single.mapping');
+});
+
+test('refresh coordinator publishes controller views for mode shells and ready mapping views', () => {
+  const coordinator = new AnalysisRefreshCoordinator();
+
+  coordinator.setActiveMode('session', 'historical-compare');
+  let state = coordinator.getViewState('session');
+  assert.equal(state.mode, 'historical-compare');
+  assert.equal(state.controllerView, 'historical.selection');
+  assert.equal(state.hasUsableSnapshot, false);
+
+  coordinator.setSnapshotAvailable('session', 'historical-compare', true);
+  coordinator.setActiveMode('session', 'historical-compare', 'historical.mapping');
+  state = coordinator.getViewState('session');
+  assert.equal(state.mode, 'historical-compare');
+  assert.equal(state.controllerView, 'historical.mapping');
+  assert.equal(state.hasUsableSnapshot, true);
+
+  coordinator.setActiveMode('session', 'project-evolution');
+  state = coordinator.getViewState('session');
+  assert.equal(state.mode, 'project-evolution');
+  assert.equal(state.controllerView, 'project-evolution');
 });
 
 test('an explicit refresh remains the only path that forces a full refresh', async () => {

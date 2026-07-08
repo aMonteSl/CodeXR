@@ -53,7 +53,7 @@ export class CreateStructure {
             placeholders.set('scriptUri', './main.js');
             placeholders.set('SCRIPT_URI', './main.js');
 
-            // Tree builder - only for boats chart in XR analysis
+            // Tree builder - only for hierarchical boats charts in XR analysis
             const treeBuilder = this.getTreeBuilder(analysisType, chartType, isDirectoryAnalysis);
             placeholders.set('TREE_BUILDER', treeBuilder);
 
@@ -76,7 +76,7 @@ export class CreateStructure {
             console.error(`CREATE_STRUCTURE: Error creating structural placeholders:`, error);
             return { 
                 success: false, 
-                error: error instanceof Error ? error.message : String(error) 
+                error: error instanceof Error ? error.message : String(error)
             };
         }
     }
@@ -130,13 +130,14 @@ export class CreateStructure {
     private static getTreeBuilder(analysisType: 'xr' | 'dom' | 'none', chartType?: string, isDirectoryAnalysis?: boolean): string {
         console.log(`CREATE_STRUCTURE: Getting tree builder for analysis type: ${analysisType}, chart type: ${chartType}, directory analysis: ${isDirectoryAnalysis}`);
 
-        // Tree builder is only needed for boats chart in XR analysis
-        if (analysisType === 'xr' && chartType === 'boats') {
+        // When the XR mapping UI is enabled users can switch between flat and hierarchical charts live.
+        // Keep the tree source available so boats variants can be selected without relaunching analysis.
+        if (analysisType === 'xr') {
             if (isDirectoryAnalysis) {
-                console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (directory analysis)`);
+                console.log(`CREATE_STRUCTURE: Adding tree builder for XR hierarchical boats chart (directory analysis)`);
                 return '<a-entity id="tree" babia-treebuilder="field: filePath; split_by: /; from: data"></a-entity>';
             } else {
-                console.log(`CREATE_STRUCTURE: Adding tree builder for XR boats chart (file analysis)`);
+                console.log(`CREATE_STRUCTURE: Adding tree builder for XR hierarchical boats chart (file analysis)`);
                 return '<a-entity id="tree" babia-treebuilder="field: treePath; split_by: /; from: data"></a-entity>';
             }
         }

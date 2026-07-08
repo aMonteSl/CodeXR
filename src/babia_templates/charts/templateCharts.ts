@@ -31,12 +31,14 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            heightBandMaxRatio: ${XR_TABLE_HEIGHT_BAND_MAX};
                                            tableEdgeMargin: 0.18;
                                            yScaleMin: 0.01;
-                                           yScaleMax: 4;
+                                           yScaleMax: 12;
                                            containmentToleranceRatio: 0.018;
                                            periodicContainmentEnabled: true;
                                            stabilizationCheckMs: 140;
                                            stabilizationMaxChecks: 14;
-                                           stabilizationStablePasses: 3`;
+                                           stabilizationStablePasses: 3;
+                                           transformTransitionMs: 650;
+                                           hardHeightGuardEnabled: true`;
 
 export const chartTemplates: ChartMetadata[] = [
     // Bar Chart Template
@@ -277,7 +279,7 @@ export const chartTemplates: ChartMetadata[] = [
                                  axis_name: true"
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
-                    rotation="90 0 0"
+                    rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
@@ -319,7 +321,7 @@ export const chartTemplates: ChartMetadata[] = [
                                axis_name: true"
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
-                    rotation="90 0 0"
+                    rotation="0 0 0"
                     scale="1.5 1.5 1.5"
                     class="babiaxraycasterclass">
                 </a-entity>`
@@ -385,11 +387,11 @@ export const chartTemplates: ChartMetadata[] = [
                 </a-entity>`
     },
 
-    // Boats Chart Template
+    // Babia Boats Chart Template
     {
         id: 'boats',
-        name: 'Boats Chart',
-        description: '3D boat-shaped visualizations representing data with area, height, and color mapping',
+        name: 'Babia Boats',
+        description: 'BabiaXR boat-shaped hierarchical visualization for area, height, color, and path zones',
         category: 'geometric',
         dimensions: [
             {

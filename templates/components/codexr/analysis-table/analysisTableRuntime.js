@@ -23,6 +23,9 @@
     anchorY: 1,
     anchorZ: -18,
     revealOffsetY: 0.03,
+    tableTopSurfaceOffsetY: -0.08,
+    tabletopAnchorEpsilon: 0.004,
+    tabletopAnchorDeadbandY: 0.015,
     retries: 45,
     retryDelayMs: 90,
     tableTopPadding: 0.9,
@@ -35,7 +38,7 @@
     tableEdgeMargin: 0.18,
     buildingHeightBandEnabled: false,
     yScaleMin: 0.01,
-    yScaleMax: 4,
+    yScaleMax: 12,
     containmentToleranceRatio: 0.018,
     containmentDamping: 0.985,
     containmentMaxIterations: 8,
@@ -44,12 +47,183 @@
     renormalizeDebounceMs: 280,
     stabilizationCheckMs: 140,
     stabilizationMaxChecks: 14,
-    stabilizationStablePasses: 3
+    stabilizationStablePasses: 3,
+    transformTransitionMs: 650,
+    hardHeightGuardEnabled: true,
+    heightUnderflowCorrectionEnabled: true,
+    planarUnderflowCorrectionEnabled: true
+  };
+
+  var MODE_THEME_BY_ID = {
+    selection: {
+      top: 'color: #f8fafc; metalness: 0.04; roughness: 0.86',
+      trim: 'color: #cbd5e1; metalness: 0.16; roughness: 0.48',
+      base: 'color: #64748b; metalness: 0.2; roughness: 0.68'
+    },
+    single: {
+      top: 'color: #0e7490; metalness: 0.12; roughness: 0.72',
+      trim: 'color: #67e8f9; metalness: 0.28; roughness: 0.42',
+      base: 'color: #164e63; metalness: 0.24; roughness: 0.66'
+    },
+    'historical-compare': {
+      top: 'color: #be123c; metalness: 0.16; roughness: 0.7',
+      trim: 'color: #fb7185; metalness: 0.28; roughness: 0.42',
+      base: 'color: #881337; metalness: 0.26; roughness: 0.66'
+    },
+    'dependency-graph': {
+      top: 'color: #7c3aed; metalness: 0.18; roughness: 0.68',
+      trim: 'color: #c4b5fd; metalness: 0.3; roughness: 0.38',
+      base: 'color: #4c1d95; metalness: 0.3; roughness: 0.62'
+    },
+    'project-evolution': {
+      top: 'color: #f59e0b; metalness: 0.14; roughness: 0.72',
+      trim: 'color: #fde68a; metalness: 0.28; roughness: 0.42',
+      base: 'color: #92400e; metalness: 0.26; roughness: 0.64'
+    }
   };
 
   var DEBUG_STATE = {
     enabled: false
   };
+  var TABLE_DIAGNOSTIC_STATE = {
+    key: '',
+    firstSeenAt: 0
+  };
+  var TABLE_WARNING_PERSISTENCE_MS = 2600;
+
+  var FULL_TABLE_ZONE = {
+    id: 'single',
+    anchorX: DEFAULTS.anchorX,
+    anchorZ: DEFAULTS.anchorZ,
+    width: DEFAULTS.targetWidth,
+    depth: DEFAULTS.targetDepth
+  };
+
+  function getAnalysisTableZonesForMode(mode) {
+    var fullWidth = DEFAULTS.targetWidth;
+    var fullDepth = DEFAULTS.targetDepth;
+    if (mode !== 'historical-compare') {
+      return [Object.assign({}, FULL_TABLE_ZONE)];
+    }
+    var centerGap = 0.18;
+    var zoneWidth = (fullWidth - centerGap) / 2;
+    var centerOffset = (zoneWidth + centerGap) / 2;
+    return [
+      {
+        id: 'left',
+        anchorX: -centerOffset,
+        anchorZ: DEFAULTS.anchorZ,
+        width: zoneWidth,
+        depth: fullDepth
+      },
+      {
+        id: 'right',
+        anchorX: centerOffset,
+        anchorZ: DEFAULTS.anchorZ,
+        width: zoneWidth,
+        depth: fullDepth
+      }
+    ];
+  }
+
+  function baseContainmentProfileData(zone, overrides) {
+    var sourceZone = zone || FULL_TABLE_ZONE;
+    return Object.assign({
+      enabled: true,
+      anchorX: sourceZone.anchorX,
+      anchorY: DEFAULTS.anchorY,
+      anchorZ: sourceZone.anchorZ,
+      tableTopPadding: DEFAULTS.tableTopPadding,
+      targetWidth: sourceZone.width,
+      targetHeight: DEFAULTS.targetHeight,
+      targetDepth: sourceZone.depth,
+      bootstrapPlanarMaxRatio: DEFAULTS.bootstrapPlanarMaxRatio,
+      minPlanarOccupancyRatio: DEFAULTS.minPlanarOccupancyRatio,
+      maxPlanarOccupancyRatio: DEFAULTS.maxPlanarOccupancyRatio,
+      minHeightOccupancyRatio: DEFAULTS.minHeightOccupancyRatio,
+      heightBandMinRatio: DEFAULTS.heightBandMinRatio,
+      heightBandMaxRatio: DEFAULTS.heightBandMaxRatio,
+      tableEdgeMargin: DEFAULTS.tableEdgeMargin,
+      yScaleMin: DEFAULTS.yScaleMin,
+      yScaleMax: DEFAULTS.yScaleMax,
+      containmentToleranceRatio: DEFAULTS.containmentToleranceRatio,
+      periodicContainmentEnabled: DEFAULTS.periodicContainmentEnabled,
+      stabilizationCheckMs: DEFAULTS.stabilizationCheckMs,
+      stabilizationMaxChecks: DEFAULTS.stabilizationMaxChecks,
+      stabilizationStablePasses: DEFAULTS.stabilizationStablePasses,
+      transformTransitionMs: DEFAULTS.transformTransitionMs,
+      hardHeightGuardEnabled: DEFAULTS.hardHeightGuardEnabled,
+      heightUnderflowCorrectionEnabled: DEFAULTS.heightUnderflowCorrectionEnabled,
+      planarUnderflowCorrectionEnabled: DEFAULTS.planarUnderflowCorrectionEnabled
+    }, overrides || {});
+  }
+
+  function profilePosition(data) {
+    return {
+      x: data.anchorX,
+      y: data.anchorY,
+      z: data.anchorZ
+    };
+  }
+
+  function vectorToAttribute(value) {
+    if (typeof value === 'string') {
+      return value;
+    }
+    var source = value || {};
+    return String(Number.isFinite(source.x)  source.x : 0)
+      + ' ' + String(Number.isFinite(source.y)  source.y : 0)
+      + ' ' + String(Number.isFinite(source.z)  source.z : 0);
+  }
+
+  function clonePlainObject(value) {
+    return Object.assign({}, value || {});
+  }
+
+  function createContainmentProfile(id, zone, overrides) {
+    var containment = baseContainmentProfileData(zone, overrides);
+    return {
+      id: id || 'default',
+      zone: Object.assign({}, zone || FULL_TABLE_ZONE),
+      position: profilePosition(containment),
+      containment: containment
+    };
+  }
+
+  function resolveContainmentProfile(profileOrMode, zone) {
+    if (profileOrMode && typeof profileOrMode === 'object') {
+      var objectContainment = clonePlainObject(profileOrMode.containment || profileOrMode);
+      return {
+        id: profileOrMode.id || 'custom',
+        zone: profileOrMode.zone  Object.assign({}, profileOrMode.zone) : null,
+        position: profileOrMode.position || profilePosition(objectContainment),
+        containment: objectContainment
+      };
+    }
+
+    var profileId = String(profileOrMode || 'default');
+    if (profileId === 'single' || profileId === 'dependency-graph' || profileId === 'project-evolution') {
+      return createContainmentProfile(profileId, FULL_TABLE_ZONE);
+    }
+
+    if (profileId === 'historical-left' || profileId === 'historical-right') {
+      var historicalZones = getAnalysisTableZonesForMode('historical-compare');
+      var historicalZone = profileId === 'historical-left'  historicalZones[0] : historicalZones[1];
+      return createContainmentProfile(profileId, historicalZone, {
+        tableTopPadding: 0.14,
+        tableEdgeMargin: 0.12,
+        heightBandMinRatio: 0.34,
+        heightBandMaxRatio: 0.68
+      });
+    }
+
+    if (profileId === 'historical-compare') {
+      var zoneId = typeof zone === 'string'  zone : (zone && zone.id);
+      return resolveContainmentProfile(zoneId === 'right'  'historical-right' : 'historical-left');
+    }
+
+    return createContainmentProfile('default', FULL_TABLE_ZONE);
+  }
 
   var PID_PROFILE = {
     planar: {
@@ -82,6 +256,13 @@
       return 0;
     }
     return Number(value.toFixed(3));
+  }
+
+  function toTransformNumber(value) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Number(value.toFixed(6));
   }
 
   function clamp(value, minValue, maxValue) {
@@ -128,6 +309,14 @@
       && hasPositiveSize(measurements.primary.size);
   }
 
+  function isChartAnimationActive(chartEl) {
+    if (!chartEl || !chartEl.components) {
+      return false;
+    }
+    var boats = chartEl.components['codexr-boats'];
+    return !!(boats && boats.animationState && boats.animationState.active);
+  }
+
   function cloneScale(object3D) {
     return {
       x: object3D.scale.x,
@@ -154,6 +343,22 @@
       },
       visible: object3D.visible !== false
     };
+  }
+
+  function formatVector3Like(value) {
+    return toTransformNumber(value.x) + ' ' + toTransformNumber(value.y) + ' ' + toTransformNumber(value.z);
+  }
+
+  function transformsDiffer(a, b) {
+    if (!a || !b || !isFiniteVector3Like(a.position) || !isFiniteVector3Like(a.scale) || !isFiniteVector3Like(b.position) || !isFiniteVector3Like(b.scale)) {
+      return false;
+    }
+    return Math.abs(a.position.x - b.position.x) > 0.0005
+      || Math.abs(a.position.y - b.position.y) > 0.0005
+      || Math.abs(a.position.z - b.position.z) > 0.0005
+      || Math.abs(a.scale.x - b.scale.x) > 0.0005
+      || Math.abs(a.scale.y - b.scale.y) > 0.0005
+      || Math.abs(a.scale.z - b.scale.z) > 0.0005;
   }
 
   function restoreTransform(object3D, snapshot) {
@@ -353,6 +558,10 @@
       return true;
     }
 
+    if (/\bcodexr-boats-primary\b/.test(String(meta.className || ''))) {
+      return false;
+    }
+
     var combined = [
       meta.id || '',
       meta.className || '',
@@ -540,7 +749,13 @@
   }
 
   function getTableTopY(data) {
-    return (data.anchorY || 0) + (data.revealOffsetY || 0);
+    var surfaceOffset = Number.isFinite(data.tableTopSurfaceOffsetY)
+       data.tableTopSurfaceOffsetY
+      : DEFAULTS.tableTopSurfaceOffsetY;
+    var epsilon = Number.isFinite(data.tabletopAnchorEpsilon)
+       data.tabletopAnchorEpsilon
+      : DEFAULTS.tabletopAnchorEpsilon;
+    return (data.anchorY || 0) + surfaceOffset + Math.max(0, epsilon);
   }
 
   function computeContainmentLimits(data) {
@@ -613,7 +828,7 @@
     };
   }
 
-  function computeAxisPlanarBandFactor(primarySize, containmentSize, containmentLimitSize, minRatio, maxRatio) {
+  function computeAxisPlanarBandFactor(primarySize, containmentSize, containmentLimitSize, minRatio, maxRatio, allowUnderflowCorrection) {
     if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || containmentLimitSize <= 0) {
       return null;
     }
@@ -626,11 +841,14 @@
       ? (maxRatio / Math.max(ratio, 0.00001))
       : Number.POSITIVE_INFINITY;
     var maxAllowedByContainment = containmentLimitSize / containmentSize;
+    var correctUnderflow = allowUnderflowCorrection !== false;
     var factor = 1;
     var compromised = false;
     var reason = 'within-range';
 
-    if (minRequiredFactor > 1.0005) {
+    if (minRequiredFactor > 1.0005 && !correctUnderflow) {
+      reason = 'underflow-accepted';
+    } else if (minRequiredFactor > 1.0005) {
       factor = Math.min(minRequiredFactor, maxAllowedByContainment);
       if (factor < minRequiredFactor) {
         compromised = true;
@@ -659,12 +877,13 @@
       reason: reason,
       ratio: ratio,
       minRequiredFactor: minRequiredFactor,
+      underflowAllowed: minRequiredFactor > 1.0005 && !correctUnderflow,
       maxAllowedByRange: maxAllowedByRange,
       maxAllowedByContainment: maxAllowedByContainment
     };
   }
 
-  function computePlanarAxisTargetScale(primarySize, containmentSize, currentScale, containmentLimitSize, range, toleranceRatio) {
+  function computePlanarAxisTargetScale(primarySize, containmentSize, currentScale, containmentLimitSize, range, toleranceRatio, allowUnderflowCorrection) {
     if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(currentScale) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || currentScale <= 0 || containmentLimitSize <= 0 || !range) {
       return null;
     }
@@ -681,8 +900,11 @@
       maxAllowedScale = currentScale;
     }
 
-    var withinBand = ratio >= range.min && ratio <= range.max;
+    var correctUnderflow = allowUnderflowCorrection !== false;
+    var underflowing = ratio < range.min;
     var overflowing = containmentSize > (containmentLimitSize + containmentTolerance);
+    var underflowAllowed = underflowing && !correctUnderflow && !overflowing;
+    var withinBand = (ratio >= range.min && ratio <= range.max) || underflowAllowed;
     var desiredScale = currentScale;
     var reason = 'within-band';
 
@@ -690,6 +912,8 @@
       desiredScale = Math.min(currentScale, maxAllowedScale);
       reason = 'containment-overflow';
       withinBand = false;
+    } else if (underflowAllowed) {
+      reason = 'underflow-accepted';
     } else if (!withinBand) {
       desiredScale = currentScale * (setpointRatio / Math.max(ratio, 0.00001));
       reason = ratio < range.min ? 'toward-midpoint-up' : 'toward-midpoint-down';
@@ -706,6 +930,8 @@
       targetScale: targetScale,
       maxAllowedScale: maxAllowedScale,
       withinBand: withinBand && !overflowing,
+      underflowing: underflowing && !overflowing,
+      underflowAllowed: underflowAllowed,
       overflowing: overflowing,
       compromised: targetScale + 0.0005 < desiredScale,
       reason: reason
@@ -785,14 +1011,16 @@
       containmentBounds.size.x,
       containmentWidthLimit,
       steadyRange.min,
-      steadyRange.max
+      steadyRange.max,
+      data.planarUnderflowCorrectionEnabled !== false
     );
     var zResult = computeAxisPlanarBandFactor(
       primaryBounds.size.z,
       containmentBounds.size.z,
       containmentDepthLimit,
       steadyRange.min,
-      steadyRange.max
+      steadyRange.max,
+      data.planarUnderflowCorrectionEnabled !== false
     );
 
     if (!xResult || !zResult) {
@@ -817,14 +1045,15 @@
     };
   }
 
-  function computeHeightBandScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax) {
+  function computeHeightBandScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, allowUnderflowCorrection) {
     if (!Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || !bandTargets) {
       return null;
     }
 
     var targetY = currentScaleY;
+    var correctUnderflow = allowUnderflowCorrection !== false;
 
-    if (currentHeight < bandTargets.minHeight) {
+    if (currentHeight < bandTargets.minHeight && correctUnderflow) {
       targetY = currentScaleY * (bandTargets.minHeight / currentHeight);
     } else if (currentHeight > bandTargets.maxHeight) {
       targetY = currentScaleY * (bandTargets.maxHeight / currentHeight);
@@ -838,19 +1067,27 @@
     };
   }
 
-  function computeHeightBandTargetScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax) {
+  function computeHeightBandTargetScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, allowUnderflowCorrection) {
     if (!Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || !bandTargets) {
       return null;
     }
 
     var setpointHeight = midpoint(bandTargets.minHeight, bandTargets.maxHeight);
-    var withinBand = currentHeight >= bandTargets.minHeight && currentHeight <= bandTargets.maxHeight;
+    var correctUnderflow = allowUnderflowCorrection !== false;
     var targetScale = currentScaleY;
+    var desiredScale = currentScaleY;
     var reason = 'within-band';
+    var underflowing = currentHeight < bandTargets.minHeight;
+    var overflowing = currentHeight > bandTargets.maxHeight;
+    var underflowAllowed = underflowing && !correctUnderflow;
+    var withinBand = (currentHeight >= bandTargets.minHeight && currentHeight <= bandTargets.maxHeight) || underflowAllowed;
 
-    if (!withinBand) {
-      targetScale = currentScaleY * (setpointHeight / currentHeight);
-      reason = currentHeight < bandTargets.minHeight ? 'toward-midpoint-up' : 'toward-midpoint-down';
+    if (underflowAllowed) {
+      reason = 'underflow-accepted';
+    } else if (!withinBand) {
+      desiredScale = currentScaleY * (setpointHeight / currentHeight);
+      targetScale = desiredScale;
+      reason = underflowing  'toward-midpoint-up' : 'toward-midpoint-down';
     }
 
     targetScale = clamp(targetScale, yScaleMin, yScaleMax);
@@ -859,7 +1096,200 @@
       targetScale: targetScale,
       setpointHeight: setpointHeight,
       withinBand: withinBand,
+      underflowing: underflowing,
+      underflowAllowed: underflowAllowed,
+      overflowing: overflowing,
+      compromised: Math.abs(targetScale - desiredScale) > 0.0005,
       reason: reason
+    };
+  }
+
+  function computeHardHeightGuardTarget(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, enabled) {
+    if (enabled === false || !Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || currentScaleY <= 0 || !bandTargets || !Number.isFinite(bandTargets.maxHeight) || bandTargets.maxHeight <= 0) {
+      return {
+        enabled: enabled !== false,
+        overflowing: false,
+        changed: false,
+        targetY: currentScaleY,
+        maxHeight: bandTargets && Number.isFinite(bandTargets.maxHeight)  bandTargets.maxHeight : null,
+        heightRatio: null,
+        compromised: false
+      };
+    }
+
+    var heightRatio = currentHeight / bandTargets.maxHeight;
+    var overflowing = heightRatio > 1.0005;
+    var desiredY = overflowing  currentScaleY * (bandTargets.maxHeight / currentHeight) : currentScaleY;
+    var targetY = clamp(desiredY, yScaleMin, yScaleMax);
+
+    return {
+      enabled: true,
+      overflowing: overflowing,
+      changed: overflowing && Math.abs(targetY - currentScaleY) > 0.0001,
+      targetY: targetY,
+      maxHeight: bandTargets.maxHeight,
+      heightRatio: heightRatio,
+      compromised: overflowing && Math.abs(targetY - desiredY) > 0.0005
+    };
+  }
+
+  function constrainPlanarTargetForHeightCompromise(target, currentScale, yTarget, currentHeight, maxHeight) {
+    if (!target || !target.underflowing || !Number.isFinite(currentScale) || currentScale <= 0 || !Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(maxHeight) || maxHeight <= 0) {
+      return target;
+    }
+
+    if (!yTarget || (!yTarget.compromised && !(currentHeight * (target.targetScale / currentScale) > maxHeight))) {
+      return target;
+    }
+
+    var maxHeightPreservingScale = currentScale * (maxHeight / currentHeight) * 0.985;
+    if (!Number.isFinite(maxHeightPreservingScale) || maxHeightPreservingScale <= 0 || target.targetScale <= maxHeightPreservingScale) {
+      return target;
+    }
+
+    var constrained = Object.assign({}, target);
+    constrained.targetScale = Math.max(0.000001, maxHeightPreservingScale);
+    constrained.compromised = true;
+    constrained.reason = 'height-overflow-compromise';
+    return constrained;
+  }
+
+  function createNeutralHeightBandTarget(currentScaleY, reason) {
+    var scale = Number.isFinite(currentScaleY) && currentScaleY > 0  currentScaleY : 1;
+    return {
+      targetScale: scale,
+      setpointHeight: null,
+      withinBand: true,
+      underflowing: false,
+      overflowing: false,
+      compromised: false,
+      reason: reason || 'height-unavailable'
+    };
+  }
+
+  function targetNeedsCorrection(target, currentScale) {
+    return !!target
+      && !target.withinBand
+      && !target.compromised
+      && Number.isFinite(target.targetScale)
+      && Number.isFinite(currentScale)
+      && Math.abs(target.targetScale - currentScale) > 0.0005;
+  }
+
+  function buildAxisDiagnostics(target) {
+    if (!target) {
+      return null;
+    }
+    return {
+      ratio: Number.isFinite(target.ratio)  toFixedNumber(target.ratio) : null,
+      height: Number.isFinite(target.currentHeight)  toFixedNumber(target.currentHeight) : null,
+      targetScale: Number.isFinite(target.targetScale)  toFixedNumber(target.targetScale) : null,
+      setpoint: Number.isFinite(target.setpointRatio)
+         toFixedNumber(target.setpointRatio)
+        : (Number.isFinite(target.setpointHeight)  toFixedNumber(target.setpointHeight) : null),
+      withinBand: !!target.withinBand,
+      underflowing: !!target.underflowing,
+      underflowAllowed: !!target.underflowAllowed,
+      overflowing: !!target.overflowing,
+      compromised: !!target.compromised,
+      reason: target.reason || ''
+    };
+  }
+
+  function shouldAnimateContainmentTransform(reason, previousTransform, nextTransform, data) {
+    if (!previousTransform || !nextTransform || !transformsDiffer(previousTransform, nextTransform)) {
+      return false;
+    }
+    if (!data || !(data.transformTransitionMs > 0)) {
+      return false;
+    }
+    var text = String(reason || '');
+    if (!text || text === 'init' || text === 'bootstrap-visible' || text.indexOf('hard-height-guard') !== -1) {
+      return false;
+    }
+    return text.indexOf('mapping') !== -1
+      || text.indexOf('componentchanged') !== -1
+      || text.indexOf('chart-rendered') !== -1
+      || text.indexOf('analysis-updated') !== -1
+      || text.indexOf('dataRefresh') !== -1
+      || text.indexOf('manual-renormalize') !== -1
+      || text.indexOf('update') !== -1;
+  }
+
+  function buildContainmentCorrectionState(measurements, object3D, data) {
+    if (!hasUsableMeasurements(measurements) || !object3D || !object3D.scale || !data) {
+      return null;
+    }
+
+    var steadyRange = resolveSteadyPlanarRange(data);
+    var containmentLimits = computeContainmentLimits(data);
+    var xTarget = computePlanarAxisTargetScale(
+      measurements.primary.size.x,
+      measurements.containment.size.x,
+      object3D.scale.x,
+      containmentLimits.containmentWidthLimit,
+      steadyRange,
+      data.containmentToleranceRatio,
+      data.planarUnderflowCorrectionEnabled !== false
+    );
+    var zTarget = computePlanarAxisTargetScale(
+      measurements.primary.size.z,
+      measurements.containment.size.z,
+      object3D.scale.z,
+      containmentLimits.containmentDepthLimit,
+      steadyRange,
+      data.containmentToleranceRatio,
+      data.planarUnderflowCorrectionEnabled !== false
+    );
+    var heightTargets = resolveHeightBandTargets(data);
+    var hardHeightGuard = computeHardHeightGuardTarget(
+      measurements.peakHeight,
+      object3D.scale.y,
+      heightTargets,
+      Math.max(0.001, data.yScaleMin),
+      Math.max(data.yScaleMin + 0.001, data.yScaleMax),
+      data.hardHeightGuardEnabled !== false
+    );
+    var yTarget = computeHeightBandTargetScale(
+      measurements.peakHeight,
+      object3D.scale.y,
+      heightTargets,
+      Math.max(0.001, data.yScaleMin),
+      Math.max(data.yScaleMin + 0.001, data.yScaleMax),
+      data.heightUnderflowCorrectionEnabled !== false
+    ) || createNeutralHeightBandTarget(object3D.scale.y, 'height-unavailable');
+
+    if (!xTarget || !zTarget) {
+      return null;
+    }
+
+    xTarget = constrainPlanarTargetForHeightCompromise(xTarget, object3D.scale.x, yTarget, measurements.peakHeight, heightTargets.maxHeight);
+    zTarget = constrainPlanarTargetForHeightCompromise(zTarget, object3D.scale.z, yTarget, measurements.peakHeight, heightTargets.maxHeight);
+
+    var xNeedsCorrection = targetNeedsCorrection(xTarget, object3D.scale.x);
+    var yNeedsCorrection = targetNeedsCorrection(yTarget, object3D.scale.y) || !!hardHeightGuard.overflowing;
+    var zNeedsCorrection = targetNeedsCorrection(zTarget, object3D.scale.z);
+
+    return {
+      x: xTarget,
+      y: yTarget,
+      z: zTarget,
+      axes: {
+        x: buildAxisDiagnostics(xTarget),
+        y: buildAxisDiagnostics(Object.assign({ currentHeight: measurements.peakHeight }, yTarget)),
+        z: buildAxisDiagnostics(zTarget)
+      },
+      needsCorrection: xNeedsCorrection || yNeedsCorrection || zNeedsCorrection,
+      compromised: xTarget.compromised || yTarget.compromised || zTarget.compromised,
+      outOfBand: !xTarget.withinBand || !yTarget.withinBand || !zTarget.withinBand,
+      containmentWidthLimit: containmentLimits.containmentWidthLimit,
+      containmentDepthLimit: containmentLimits.containmentDepthLimit,
+      minHeight: heightTargets.minHeight,
+      maxHeight: heightTargets.maxHeight,
+      heightOverflow: !!hardHeightGuard.overflowing,
+      heightRatio: hardHeightGuard.heightRatio,
+      hardHeightGuardTargetY: hardHeightGuard.targetY,
+      hardHeightGuardCompromised: !!hardHeightGuard.compromised
     };
   }
 
@@ -987,11 +1417,28 @@
     if (!measurements || !isFiniteBoundsInfo(measurements.full) || !isFiniteBoundsInfo(measurements.primary) || !data) {
       return null;
     }
+    var tableTopY = getTableTopY(data);
 
     return {
       deltaX: data.anchorX - measurements.primary.center.x,
-      deltaY: (data.anchorY + data.revealOffsetY) - measurements.full.bounds.min.y,
+      deltaY: tableTopY - measurements.primary.bounds.min.y,
       deltaZ: data.anchorZ - measurements.primary.center.z
+    };
+  }
+
+  function buildTabletopAnchorDiagnostics(measurements, data) {
+    if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !data) {
+      return null;
+    }
+    var tableTopY = getTableTopY(data);
+    var primaryMinY = measurements.primary.bounds.min.y;
+    return {
+      tableTopY: toFixedNumber(tableTopY),
+      primaryMinY: toFixedNumber(primaryMinY),
+      deltaY: toFixedNumber(tableTopY - primaryMinY),
+      epsilon: toFixedNumber(Number.isFinite(data.tabletopAnchorEpsilon)  data.tabletopAnchorEpsilon : DEFAULTS.tabletopAnchorEpsilon),
+      deadbandY: toFixedNumber(Number.isFinite(data.tabletopAnchorDeadbandY)  data.tabletopAnchorDeadbandY : DEFAULTS.tabletopAnchorDeadbandY),
+      surfaceOffsetY: toFixedNumber(Number.isFinite(data.tableTopSurfaceOffsetY)  data.tableTopSurfaceOffsetY : DEFAULTS.tableTopSurfaceOffsetY)
     };
   }
 
@@ -1005,6 +1452,9 @@
       anchorY: { type: 'number', default: DEFAULTS.anchorY },
       anchorZ: { type: 'number', default: DEFAULTS.anchorZ },
       revealOffsetY: { type: 'number', default: DEFAULTS.revealOffsetY },
+      tableTopSurfaceOffsetY: { type: 'number', default: DEFAULTS.tableTopSurfaceOffsetY },
+      tabletopAnchorEpsilon: { type: 'number', default: DEFAULTS.tabletopAnchorEpsilon },
+      tabletopAnchorDeadbandY: { type: 'number', default: DEFAULTS.tabletopAnchorDeadbandY },
       retries: { type: 'int', default: DEFAULTS.retries },
       retryDelayMs: { type: 'int', default: DEFAULTS.retryDelayMs },
       tableTopPadding: { type: 'number', default: DEFAULTS.tableTopPadding },
@@ -1026,7 +1476,11 @@
       renormalizeDebounceMs: { type: 'int', default: DEFAULTS.renormalizeDebounceMs },
       stabilizationCheckMs: { type: 'int', default: DEFAULTS.stabilizationCheckMs },
       stabilizationMaxChecks: { type: 'int', default: DEFAULTS.stabilizationMaxChecks },
-      stabilizationStablePasses: { type: 'int', default: DEFAULTS.stabilizationStablePasses }
+      stabilizationStablePasses: { type: 'int', default: DEFAULTS.stabilizationStablePasses },
+      transformTransitionMs: { type: 'int', default: DEFAULTS.transformTransitionMs },
+      hardHeightGuardEnabled: { default: DEFAULTS.hardHeightGuardEnabled },
+      heightUnderflowCorrectionEnabled: { default: DEFAULTS.heightUnderflowCorrectionEnabled },
+      planarUnderflowCorrectionEnabled: { default: DEFAULTS.planarUnderflowCorrectionEnabled }
     },
 
     init: function () {
@@ -1035,6 +1489,7 @@
       this.stabilizationTimer = null;
       this.stabilizationChecksRemaining = 0;
       this.stabilizationStableCount = 0;
+      this.steadyControllerTimer = null;
       this.lastMeasurementSignature = null;
       this.lastRenormalizeRequestAt = 0;
       this.nextContainmentCheckAt = 0;
@@ -1046,10 +1501,15 @@
       this.lastStableTransform = null;
       this.lastNormalizationIssue = null;
       this.lastSuccessfulNormalizeAt = 0;
+      this.pendingRenormalizeReason = null;
+      this.containmentTransition = { active: false, reason: '', startedAt: 0, duration: 0 };
+      this.containmentTransitionTimer = null;
+      this.lastHardHeightGuardAt = 0;
       this.renderPhase = 'waiting-geometry';
       this.pidController = createPidControllerState();
       this.onComponentChangedBound = this.onComponentChanged.bind(this);
       this.onGeometryReadyBound = this.onGeometryReady.bind(this);
+      this.onChartRenderedBound = this.onChartRendered.bind(this);
 
       if (!this.data.enabled) {
         return;
@@ -1059,6 +1519,7 @@
       this.el.addEventListener('componentchanged', this.onComponentChangedBound);
       this.el.addEventListener('child-attached', this.onGeometryReadyBound);
       this.el.addEventListener('object3dset', this.onGeometryReadyBound);
+      this.el.addEventListener('codexr-boats-rendered', this.onChartRenderedBound);
 
       this.tryNormalize('init', this.bumpNormalizationGeneration());
     },
@@ -1089,6 +1550,63 @@
       this.lastStableTransform = cloneTransform(this.el.object3D) || this.lastStableTransform;
     },
 
+    cancelContainmentTransition: function () {
+      if (this.containmentTransitionTimer) {
+        clearTimeout(this.containmentTransitionTimer);
+        this.containmentTransitionTimer = null;
+      }
+      if (this.el && this.el.removeAttribute) {
+        this.el.removeAttribute('animation__codexr_containment_position');
+        this.el.removeAttribute('animation__codexr_containment_scale');
+      }
+      if (this.containmentTransition) {
+        this.containmentTransition.active = false;
+      }
+    },
+
+    startContainmentTransition: function (fromTransform, toTransform, reason) {
+      var duration = Math.max(0, Number.isFinite(this.data.transformTransitionMs)  this.data.transformTransitionMs : DEFAULTS.transformTransitionMs);
+      if (!this.el || !this.el.setAttribute || duration <= 0 || !transformsDiffer(fromTransform, toTransform)) {
+        return false;
+      }
+
+      this.cancelContainmentTransition();
+      this.containmentTransition = {
+        active: true,
+        reason: reason || 'containment-transition',
+        startedAt: Date.now(),
+        duration: duration
+      };
+      this.el.setAttribute('animation__codexr_containment_position', {
+        property: 'position',
+        from: formatVector3Like(fromTransform.position),
+        to: formatVector3Like(toTransform.position),
+        dur: duration,
+        easing: 'easeInOutCubic'
+      });
+      this.el.setAttribute('animation__codexr_containment_scale', {
+        property: 'scale',
+        from: formatVector3Like(fromTransform.scale),
+        to: formatVector3Like(toTransform.scale),
+        dur: duration,
+        easing: 'easeInOutCubic'
+      });
+
+      var self = this;
+      this.containmentTransitionTimer = setTimeout(function () {
+        self.containmentTransitionTimer = null;
+        if (self.containmentTransition) {
+          self.containmentTransition.active = false;
+        }
+        if (self.el && self.el.object3D && toTransform) {
+          restoreTransform(self.el.object3D, toTransform);
+          self.syncTransformAttributes();
+          self.captureStableTransform();
+        }
+      }, duration);
+      return true;
+    },
+
     warnInvalidTransform: function (reason, details) {
       var now = Date.now();
       if (now < this.nextInvalidTransformWarnAt) {
@@ -1112,6 +1630,10 @@
     },
 
     requestRenormalize: function (reason) {
+      if (isChartAnimationActive(this.el)) {
+        this.pendingRenormalizeReason = reason || 'chart-animation-active';
+        return;
+      }
       var now = Date.now();
       var debounceMs = Math.max(80, this.data.renormalizeDebounceMs || DEFAULTS.renormalizeDebounceMs);
       if ((now - this.lastRenormalizeRequestAt) < debounceMs) {
@@ -1154,20 +1676,52 @@
         };
       }
 
+      var correctionState = buildContainmentCorrectionState(measurements, this.el && this.el.object3D, this.data);
+      var needsCorrection = !!(correctionState && correctionState.needsCorrection);
+      var animationActive = isChartAnimationActive(this.el);
+      var transitionActive = !!(this.containmentTransition && this.containmentTransition.active);
+      var heightOverflow = !!(correctionState && correctionState.heightOverflow);
       var stabilized = this.renderPhase === 'steady-fit'
-        && (!this.pidController || !this.pidController.active);
+        && (!this.pidController || !this.pidController.active)
+        && !needsCorrection
+        && !animationActive
+        && !transitionActive
+        && !heightOverflow;
       return {
         ready: true,
         valid: true,
         stabilized: stabilized,
         geometryState: stabilized ? 'stabilized' : 'valid',
-        reason: this.renderPhase === 'steady-fit' ? 'ok' : this.renderPhase,
+        reason: animationActive
+           'chart-animation-active'
+          : transitionActive
+           'containment-transition-active'
+          : heightOverflow
+           'height-overflow'
+          : needsCorrection
+           'containment-correcting'
+          : (this.renderPhase === 'steady-fit'  'ok' : this.renderPhase),
         details: {
           phase: this.renderPhase,
+          animationActive: animationActive,
+          transitionActive: transitionActive,
           primaryWidth: toFixedNumber(measurements.primary.size.x),
           primaryHeight: toFixedNumber(measurements.primary.size.y),
           primaryDepth: toFixedNumber(measurements.primary.size.z),
-          peakHeight: toFixedNumber(measurements.peakHeight)
+          peakHeight: toFixedNumber(measurements.peakHeight),
+          xRatio: correctionState  toFixedNumber(correctionState.x.ratio) : null,
+          yHeight: toFixedNumber(measurements.peakHeight),
+          zRatio: correctionState  toFixedNumber(correctionState.z.ratio) : null,
+          needsCorrection: needsCorrection,
+          compromised: correctionState  !!correctionState.compromised : false,
+          tabletopAnchor: buildTabletopAnchorDiagnostics(measurements, this.data),
+          minPlanar: correctionState  toFixedNumber(resolveSteadyPlanarRange(this.data).min) : null,
+          maxPlanar: correctionState  toFixedNumber(resolveSteadyPlanarRange(this.data).max) : null,
+          minHeight: correctionState  toFixedNumber(correctionState.minHeight) : null,
+          maxHeight: correctionState  toFixedNumber(correctionState.maxHeight) : null,
+          heightOverflow: heightOverflow,
+          heightGuardApplied: !!(this.lastHardHeightGuardAt && Date.now() - this.lastHardHeightGuardAt < 1500),
+          heightRatio: correctionState  toFixedNumber(correctionState.heightRatio) : null
         }
       };
     },
@@ -1189,16 +1743,28 @@
       if (typeof name !== 'string') {
         return;
       }
-      if (name.indexOf('babia-') === 0 && name !== 'babia-queryjson') {
+      if ((name.indexOf('babia-') === 0 && name !== 'babia-queryjson') || name === 'codexr-boats') {
         this.requestRenormalize('chart-componentchanged:' + name);
       }
     },
 
     onGeometryReady: function (event) {
-      if (!this.data.enabled || !this.el || !event || event.target !== this.el) {
+      if (!this.data.enabled || !this.el || !event) {
+        return;
+      }
+      if (event.target !== this.el && !(this.el.contains && this.el.contains(event.target))) {
         return;
       }
       this.requestRenormalize(event.type || 'geometry-ready');
+    },
+
+    onChartRendered: function (event) {
+      if (!this.data.enabled || !this.el || !event || event.target !== this.el) {
+        return;
+      }
+      var pendingReason = this.pendingRenormalizeReason;
+      this.pendingRenormalizeReason = null;
+      this.renormalize(pendingReason || event.type || 'chart-rendered');
     },
 
     update: function (oldData) {
@@ -1218,6 +1784,8 @@
         || oldData.anchorX !== this.data.anchorX
         || oldData.anchorY !== this.data.anchorY
         || oldData.anchorZ !== this.data.anchorZ
+        || oldData.tableTopSurfaceOffsetY !== this.data.tableTopSurfaceOffsetY
+        || oldData.tabletopAnchorEpsilon !== this.data.tabletopAnchorEpsilon
         || oldData.bootstrapPlanarMaxRatio !== this.data.bootstrapPlanarMaxRatio
         || oldData.minPlanarOccupancyRatio !== this.data.minPlanarOccupancyRatio
         || oldData.maxPlanarOccupancyRatio !== this.data.maxPlanarOccupancyRatio
@@ -1231,6 +1799,8 @@
         || oldData.stabilizationCheckMs !== this.data.stabilizationCheckMs
         || oldData.stabilizationMaxChecks !== this.data.stabilizationMaxChecks
         || oldData.stabilizationStablePasses !== this.data.stabilizationStablePasses
+        || oldData.heightUnderflowCorrectionEnabled !== this.data.heightUnderflowCorrectionEnabled
+        || oldData.planarUnderflowCorrectionEnabled !== this.data.planarUnderflowCorrectionEnabled
       ) {
         this.ensureInitialPlacement();
         this.renormalize('update');
@@ -1248,6 +1818,15 @@
           scale: this.el.object3D.scale
         });
         this.renormalize('tick-non-finite-object3d');
+        return;
+      }
+
+      var tickMeasurements = this.measureBounds();
+      if (tickMeasurements && this.applyHardHeightGuard(tickMeasurements, 'tick-hard-height-guard')) {
+        return;
+      }
+
+      if ((this.containmentTransition && this.containmentTransition.active) || isChartAnimationActive(this.el)) {
         return;
       }
 
@@ -1277,6 +1856,9 @@
         this.el.removeEventListener('child-attached', this.onGeometryReadyBound);
         this.el.removeEventListener('object3dset', this.onGeometryReadyBound);
       }
+      if (this.onChartRenderedBound && this.el && this.el.removeEventListener) {
+        this.el.removeEventListener('codexr-boats-rendered', this.onChartRenderedBound);
+      }
 
       if (this.retryTimer) {
         clearTimeout(this.retryTimer);
@@ -1285,6 +1867,7 @@
 
       this.deactivateSteadyController();
       this.stopStabilizationLoop();
+      this.cancelContainmentTransition();
 
     },
 
@@ -1364,6 +1947,11 @@
         return false;
       }
 
+      var anchorDeadbandY = Math.max(0, Number.isFinite(this.data.tabletopAnchorDeadbandY)  this.data.tabletopAnchorDeadbandY : DEFAULTS.tabletopAnchorDeadbandY);
+      if (Math.abs(offset.deltaY) <= anchorDeadbandY) {
+        offset.deltaY = 0;
+      }
+
       var moved = Math.abs(offset.deltaX) > 0.0005
         || Math.abs(offset.deltaY) > 0.0005
         || Math.abs(offset.deltaZ) > 0.0005;
@@ -1397,16 +1985,77 @@
 
       this.el.setAttribute(
         'position',
-        toFixedNumber(object3D.position.x) + ' '
-          + toFixedNumber(object3D.position.y) + ' '
-          + toFixedNumber(object3D.position.z)
+        toTransformNumber(object3D.position.x) + ' '
+          + toTransformNumber(object3D.position.y) + ' '
+          + toTransformNumber(object3D.position.z)
       );
       this.el.setAttribute(
         'scale',
-        toFixedNumber(object3D.scale.x) + ' '
-          + toFixedNumber(object3D.scale.y) + ' '
-          + toFixedNumber(object3D.scale.z)
+        toTransformNumber(object3D.scale.x) + ' '
+          + toTransformNumber(object3D.scale.y) + ' '
+          + toTransformNumber(object3D.scale.z)
       );
+    },
+
+    applyHardHeightGuard: function (measurements, source) {
+      var object3D = this.el && this.el.object3D;
+      if (!object3D || !this.data.hardHeightGuardEnabled || !hasUsableMeasurements(measurements)) {
+        return false;
+      }
+
+      var bandTargets = resolveHeightBandTargets(this.data);
+      var guard = computeHardHeightGuardTarget(
+        measurements.peakHeight,
+        object3D.scale.y,
+        bandTargets,
+        Math.max(0.001, this.data.yScaleMin),
+        Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax),
+        this.data.hardHeightGuardEnabled !== false
+      );
+
+      if (!guard || !guard.overflowing) {
+        return false;
+      }
+
+      if (this.containmentTransition && this.containmentTransition.active) {
+        this.cancelContainmentTransition();
+      }
+
+      if (!guard.changed) {
+        this.lastHardHeightGuardAt = Date.now();
+        debugLog('hard-height-guard-compromised', {
+          source: source || 'height-guard',
+          peakHeight: toFixedNumber(measurements.peakHeight),
+          maxHeight: toFixedNumber(guard.maxHeight),
+          heightRatio: toFixedNumber(guard.heightRatio),
+          yScale: toFixedNumber(object3D.scale.y)
+        });
+        return false;
+      }
+
+      object3D.scale.y = guard.targetY;
+      object3D.updateMatrixWorld(true);
+
+      var nextMeasurements = this.measureBounds();
+      if (nextMeasurements) {
+        this.applyAnchorPlacement(nextMeasurements);
+      }
+      this.syncTransformAttributes();
+      this.lastHardHeightGuardAt = Date.now();
+      if (this.pidController) {
+        this.pidController.stableTicks = 0;
+        resetPidAxisState(this.pidController.axes.y);
+      }
+
+      debugLog('hard-height-guard-applied', {
+        source: source || 'height-guard',
+        peakHeight: toFixedNumber(measurements.peakHeight),
+        maxHeight: toFixedNumber(guard.maxHeight),
+        heightRatio: toFixedNumber(guard.heightRatio),
+        targetY: toFixedNumber(guard.targetY),
+        yScale: toFixedNumber(object3D.scale.y)
+      });
+      return true;
     },
 
     applyScaleFactors: function (xFactor, yFactor, zFactor) {
@@ -1444,6 +2093,39 @@
       return true;
     },
 
+    axisContributesToPeakHeight: function (axis, currentHeight) {
+      var object3D = this.el && this.el.object3D;
+      if (!object3D || !object3D.scale || !Number.isFinite(object3D.scale[axis]) || object3D.scale[axis] <= 0 || !Number.isFinite(currentHeight)) {
+        return false;
+      }
+
+      var originalScale = object3D.scale[axis];
+      object3D.scale[axis] = originalScale * 1.08;
+      object3D.updateMatrixWorld(true);
+      var probeMeasurements = this.measureBounds();
+      object3D.scale[axis] = originalScale;
+      object3D.updateMatrixWorld(true);
+
+      if (!probeMeasurements || !Number.isFinite(probeMeasurements.peakHeight)) {
+        return false;
+      }
+      var minimumDelta = Math.max(0.01, Math.abs(currentHeight) * 0.02);
+      return probeMeasurements.peakHeight > currentHeight + minimumDelta;
+    },
+
+    constrainPlanarTargetForMeasuredHeight: function (axis, target, currentScale, yTarget, measurements, heightTargets) {
+      if (!target || !measurements || !heightTargets || !this.axisContributesToPeakHeight(axis, measurements.peakHeight)) {
+        return target;
+      }
+      return constrainPlanarTargetForHeightCompromise(
+        target,
+        currentScale,
+        yTarget,
+        measurements.peakHeight,
+        heightTargets.maxHeight
+      );
+    },
+
     activateSteadyController: function () {
       if (!this.pidController) {
         this.pidController = createPidControllerState();
@@ -1453,9 +2135,14 @@
       resetPidAxisState(this.pidController.axes.x);
       resetPidAxisState(this.pidController.axes.y);
       resetPidAxisState(this.pidController.axes.z);
+      this.scheduleSteadyControllerStep('steady-controller');
     },
 
     deactivateSteadyController: function () {
+      if (this.steadyControllerTimer) {
+        clearTimeout(this.steadyControllerTimer);
+        this.steadyControllerTimer = null;
+      }
       if (!this.pidController) {
         this.pidController = createPidControllerState();
       }
@@ -1464,6 +2151,21 @@
       resetPidAxisState(this.pidController.axes.x);
       resetPidAxisState(this.pidController.axes.y);
       resetPidAxisState(this.pidController.axes.z);
+    },
+
+    scheduleSteadyControllerStep: function (source) {
+      var self = this;
+      if (!this.pidController || !this.pidController.active || this.steadyControllerTimer) {
+        return;
+      }
+      this.steadyControllerTimer = setTimeout(function () {
+        self.steadyControllerTimer = null;
+        if (!self.pidController || !self.pidController.active || self.renderPhase !== 'steady-fit') {
+          return;
+        }
+        self.runSteadyControllerStep(source || 'steady-controller', self.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
+        self.scheduleSteadyControllerStep(source || 'steady-controller');
+      }, Math.max(50, this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs));
     },
 
     resolveControllerDtSeconds: function (dtMs) {
@@ -1478,30 +2180,35 @@
         return false;
       }
 
-      var heightTargets = resolveHeightBandTargets(this.data);
-      var heightOverflowing = Number.isFinite(measurements.peakHeight)
-        && measurements.peakHeight > heightTargets.maxHeight;
-      var needsPlanarGuard = xTarget.overflowing || zTarget.overflowing;
-      if (!needsPlanarGuard && !heightOverflowing) {
+      var needsXGuard = xTarget.overflowing || xTarget.underflowing;
+      var needsZGuard = zTarget.overflowing || zTarget.underflowing;
+      var needsPlanarGuard = needsXGuard || needsZGuard;
+      var needsHeightGuard = !yTarget.withinBand;
+      if (!needsPlanarGuard && !needsHeightGuard) {
         return false;
       }
 
-      var nextX = needsPlanarGuard && xTarget.overflowing
-        ? Math.min(object3D.scale.x, xTarget.maxAllowedScale)
+      var nextX = needsXGuard
+         xTarget.targetScale
         : object3D.scale.x;
-      var nextZ = needsPlanarGuard && zTarget.overflowing
-        ? Math.min(object3D.scale.z, zTarget.maxAllowedScale)
+      var nextZ = needsZGuard
+         zTarget.targetScale
         : object3D.scale.z;
-      var heightClamp = heightOverflowing
-        ? computeHeightBandScale(
-          measurements.peakHeight,
-          object3D.scale.y,
-          heightTargets,
-          Math.max(0.001, this.data.yScaleMin),
-          Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax)
-        )
-        : null;
-      var nextY = heightClamp && heightClamp.changed ? heightClamp.targetY : object3D.scale.y;
+      var nextY = needsHeightGuard  yTarget.targetScale : object3D.scale.y;
+
+      if (yTarget.overflowing && yTarget.compromised && Number.isFinite(measurements.peakHeight) && measurements.peakHeight > 0) {
+        var heightFactor = (Number.isFinite(yTarget.setpointHeight)  yTarget.setpointHeight : measurements.peakHeight)
+          / measurements.peakHeight;
+        if (Number.isFinite(heightFactor) && heightFactor > 0 && heightFactor < 1) {
+          var dampedHeightFactor = Math.max(0.000001, heightFactor * 0.985);
+          if (this.axisContributesToPeakHeight('x', measurements.peakHeight)) {
+            nextX = Math.min(nextX, object3D.scale.x * dampedHeightFactor);
+          }
+          if (this.axisContributesToPeakHeight('z', measurements.peakHeight)) {
+            nextZ = Math.min(nextZ, object3D.scale.z * dampedHeightFactor);
+          }
+        }
+      }
 
       if (!Number.isFinite(nextX) || !Number.isFinite(nextY) || !Number.isFinite(nextZ) || nextX <= 0 || nextY <= 0 || nextZ <= 0) {
         this.warnInvalidTransform('emergency-containment-invalid-target', {
@@ -1535,9 +2242,12 @@
       }
       debugLog('emergency-containment-applied', {
         source: source || 'steady-fit',
+        xUnderflowing: !!xTarget.underflowing,
         xOverflowing: !!xTarget.overflowing,
+        yUnderflowing: !!yTarget.underflowing,
+        yOverflowing: !!yTarget.overflowing,
+        zUnderflowing: !!zTarget.underflowing,
         zOverflowing: !!zTarget.overflowing,
-        heightOverflowing: !!heightOverflowing,
         xScale: toFixedNumber(object3D.scale.x),
         yScale: toFixedNumber(object3D.scale.y),
         zScale: toFixedNumber(object3D.scale.z)
@@ -1560,6 +2270,11 @@
         return false;
       }
 
+      if (this.applyHardHeightGuard(measurements, (source || 'steady-fit') + '-hard-height-guard')) {
+        this.scheduleSteadyControllerStep(source || 'steady-fit');
+        return true;
+      }
+
       var steadyRange = resolveSteadyPlanarRange(this.data);
       var containmentLimits = computeContainmentLimits(this.data);
       var xTarget = computePlanarAxisTargetScale(
@@ -1568,7 +2283,8 @@
         object3D.scale.x,
         containmentLimits.containmentWidthLimit,
         steadyRange,
-        this.data.containmentToleranceRatio
+        this.data.containmentToleranceRatio,
+        this.data.planarUnderflowCorrectionEnabled !== false
       );
       var zTarget = computePlanarAxisTargetScale(
         measurements.primary.size.z,
@@ -1576,7 +2292,8 @@
         object3D.scale.z,
         containmentLimits.containmentDepthLimit,
         steadyRange,
-        this.data.containmentToleranceRatio
+        this.data.containmentToleranceRatio,
+        this.data.planarUnderflowCorrectionEnabled !== false
       );
       var heightTargets = resolveHeightBandTargets(this.data);
       var yTarget = computeHeightBandTargetScale(
@@ -1584,14 +2301,19 @@
         object3D.scale.y,
         heightTargets,
         Math.max(0.001, this.data.yScaleMin),
-        Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax)
-      );
+        Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax),
+        this.data.heightUnderflowCorrectionEnabled !== false
+      ) || createNeutralHeightBandTarget(object3D.scale.y, 'height-unavailable');
 
-      if (!xTarget || !zTarget || !yTarget) {
+      if (!xTarget || !zTarget) {
         return false;
       }
 
+      xTarget = this.constrainPlanarTargetForMeasuredHeight('x', xTarget, object3D.scale.x, yTarget, measurements, heightTargets);
+      zTarget = this.constrainPlanarTargetForMeasuredHeight('z', zTarget, object3D.scale.z, yTarget, measurements, heightTargets);
+
       if (this.applyEmergencyContainment(measurements, xTarget, yTarget, zTarget, source || 'steady-fit')) {
+        this.scheduleSteadyControllerStep(source || 'steady-fit');
         return true;
       }
 
@@ -1650,6 +2372,8 @@
 
       if (this.pidController.stableTicks >= PID_PROFILE.stableTicks) {
         this.deactivateSteadyController();
+      } else {
+        this.scheduleSteadyControllerStep(source || 'steady-fit');
       }
 
       debugLog('steady-controller-step', {
@@ -1767,7 +2491,8 @@
         object3D.scale.y,
         bandTargets,
         Math.max(0.001, this.data.yScaleMin),
-        Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax)
+        Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax),
+        this.data.heightUnderflowCorrectionEnabled !== false
       );
 
       if (!result || !result.changed) {
@@ -1853,6 +2578,13 @@
           source: source || 'maintenance',
           issue: axisIssue
         });
+        return false;
+      }
+      var guardMeasurements = this.measureBounds();
+      if (guardMeasurements && this.applyHardHeightGuard(guardMeasurements, (source || 'maintenance') + '-hard-height-guard')) {
+        return true;
+      }
+      if ((this.containmentTransition && this.containmentTransition.active) || isChartAnimationActive(this.el)) {
         return false;
       }
       if (this.renderPhase === 'steady-fit') {
@@ -1965,6 +2697,9 @@
 
     renormalize: function (reason) {
       var generation = this.bumpNormalizationGeneration();
+      if (this.containmentTransition && this.containmentTransition.active) {
+        this.cancelContainmentTransition();
+      }
       this.captureStableTransform();
       this.normalized = false;
       this.renderPhase = 'waiting-geometry';
@@ -2054,6 +2789,10 @@
 
       this.applyAnchorPlacement(fittedMeasurements);
       this.runMaintenancePass('bootstrap-visible');
+      var guardedMeasurements = this.measureBounds();
+      if (guardedMeasurements) {
+        this.applyHardHeightGuard(guardedMeasurements, (reason || 'normalize') + '-hard-height-guard');
+      }
 
       if (!isFiniteVector3Like(el.object3D.position) || !isFiniteVector3Like(el.object3D.scale)) {
         resizeTrace('invalid-final-transform', {
@@ -2075,7 +2814,14 @@
       this.lastSuccessfulNormalizeAt = Date.now();
       this.nextContainmentCheckAt = 0;
       this.lastMeasurementSignature = buildMeasurementSignature(this.measureBounds(), el.object3D);
-      this.captureStableTransform();
+      var finalTransform = cloneTransform(el.object3D);
+      if (finalTransform && shouldAnimateContainmentTransform(reason, previousTransform, finalTransform, this.data)) {
+        restoreTransform(el.object3D, previousTransform);
+        this.syncTransformAttributes();
+        this.startContainmentTransition(previousTransform, finalTransform, reason || 'normalize');
+      } else {
+        this.captureStableTransform();
+      }
       this.deactivateSteadyController();
       el.object3D.visible = true;
 
@@ -2166,7 +2912,7 @@
 
   var analysisTableDefinition = {
     schema: {
-      mode: { default: 'single', oneOf: ['selection', 'single', 'historical-compare', 'dependency-graph'] },
+      mode: { default: 'single', oneOf: ['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'] },
       width: { type: 'number', default: 6.514 },
       depth: { type: 'number', default: 4.118 },
       anchorX: { type: 'number', default: DEFAULTS.anchorX },
@@ -2185,10 +2931,29 @@
       this.leftZoneEl = root.document.createElement('a-box');
       this.rightZoneEl = root.document.createElement('a-box');
       this.dividerEl = root.document.createElement('a-box');
+      this.anchorPlaneEl = root.document.createElement('a-plane');
+      this.warningGroupEl = root.document.createElement('a-entity');
+      this.warningTextEls = ['front', 'back', 'left', 'right'].map(function (edge) {
+        var textEl = root.document.createElement('a-text');
+        textEl.setAttribute('data-codexr-role', 'analysis-table-warning auxiliary');
+        textEl.setAttribute('data-codexr-warning-edge', edge);
+        textEl.setAttribute('align', 'center');
+        textEl.setAttribute('baseline', 'center');
+        textEl.setAttribute('width', 2.6);
+        textEl.setAttribute('wrap-count', 28);
+        return textEl;
+      });
 
       this.groupEl.setAttribute('id', 'codexr-analysis-table-geometry');
       this.topEl.setAttribute('class', 'babiaxraycasterclass');
       this.baseEl.setAttribute('class', 'babiaxraycasterclass');
+      this.anchorPlaneEl.setAttribute('id', 'codexr-analysis-table-anchor-plane');
+      this.anchorPlaneEl.setAttribute('class', 'codexr-tabletop-anchor-plane codexr-analysis-table-debug');
+      this.anchorPlaneEl.setAttribute('data-codexr-role', 'tabletop-anchor debug');
+      this.anchorPlaneEl.setAttribute('visible', false);
+      this.warningGroupEl.setAttribute('id', 'codexr-analysis-table-warning');
+      this.warningGroupEl.setAttribute('data-codexr-role', 'analysis-table-warning auxiliary');
+      this.warningGroupEl.setAttribute('visible', false);
 
       this.groupEl.appendChild(this.baseEl);
       this.groupEl.appendChild(this.trimEl);
@@ -2196,6 +2961,11 @@
       this.groupEl.appendChild(this.leftZoneEl);
       this.groupEl.appendChild(this.rightZoneEl);
       this.groupEl.appendChild(this.dividerEl);
+      this.groupEl.appendChild(this.anchorPlaneEl);
+      this.warningTextEls.forEach(function (textEl) {
+        this.warningGroupEl.appendChild(textEl);
+      }, this);
+      this.groupEl.appendChild(this.warningGroupEl);
       this.el.appendChild(this.groupEl);
 
       this.refreshGeometry();
@@ -2216,8 +2986,7 @@
         return;
       }
       var comparison = this.data.mode === 'historical-compare';
-      var dependencyGraph = this.data.mode === 'dependency-graph';
-      var selection = this.data.mode === 'selection';
+      var theme = MODE_THEME_BY_ID[this.data.mode] || MODE_THEME_BY_ID.single;
       var topY = this.data.anchorY - 0.15;
       var halfWidth = (this.data.width - 0.18) / 2;
       this.groupEl.setAttribute('position', this.data.anchorX + ' ' + topY + ' ' + this.data.anchorZ);
@@ -2227,13 +2996,7 @@
       this.topEl.setAttribute('depth', this.data.depth);
       this.topEl.setAttribute(
         'material',
-        comparison
-          ? 'color: #123b52; metalness: 0.18; roughness: 0.72'
-          : dependencyGraph
-            ? 'color: #2d174f; metalness: 0.2; roughness: 0.68'
-            : selection
-              ? 'color: #b45309; metalness: 0.14; roughness: 0.72'
-              : 'color: #eadfc9; metalness: 0.05; roughness: 0.88'
+        theme.top
       );
 
       this.trimEl.setAttribute('width', this.data.width + 0.08);
@@ -2242,13 +3005,7 @@
       this.trimEl.setAttribute('position', '0 -0.085 0');
       this.trimEl.setAttribute(
         'material',
-        comparison
-          ? 'color: #2f9db2; metalness: 0.3; roughness: 0.4'
-          : dependencyGraph
-            ? 'color: #f59e0b; metalness: 0.32; roughness: 0.38'
-            : selection
-              ? 'color: #fbbf24; metalness: 0.28; roughness: 0.42'
-              : 'color: #cdbb9a; metalness: 0.22; roughness: 0.45'
+        theme.trim
       );
 
       this.baseEl.setAttribute('radius', this.data.baseRadius);
@@ -2256,13 +3013,7 @@
       this.baseEl.setAttribute('position', '0 ' + (-(this.data.baseHeight / 2) - 0.07) + ' 0');
       this.baseEl.setAttribute(
         'material',
-        comparison
-          ? 'color: #14344a; metalness: 0.28; roughness: 0.66'
-          : dependencyGraph
-            ? 'color: #21113b; metalness: 0.3; roughness: 0.62'
-            : selection
-              ? 'color: #78350f; metalness: 0.26; roughness: 0.66'
-              : 'color: #5f5243; metalness: 0.28; roughness: 0.7'
+        theme.base
       );
 
       [
@@ -2283,6 +3034,57 @@
       this.dividerEl.setAttribute('depth', this.data.depth - 0.18);
       this.dividerEl.setAttribute('position', '0 0.09 0');
       this.dividerEl.setAttribute('material', 'color: #b8f3ff; emissive: #246d7a; emissiveIntensity: 0.25');
+
+      var anchorPlaneLocalY = getTableTopY({
+        anchorY: this.data.anchorY,
+        tableTopSurfaceOffsetY: DEFAULTS.tableTopSurfaceOffsetY,
+        tabletopAnchorEpsilon: DEFAULTS.tabletopAnchorEpsilon
+      }) - topY;
+      this.anchorPlaneEl.setAttribute('position', '0 ' + anchorPlaneLocalY + ' 0');
+      this.anchorPlaneEl.setAttribute('rotation', '-90 0 0');
+      this.anchorPlaneEl.setAttribute('width', Math.max(0.01, this.data.width - 0.18));
+      this.anchorPlaneEl.setAttribute('height', Math.max(0.01, this.data.depth - 0.18));
+      this.anchorPlaneEl.setAttribute('material', 'color: #22d3ee; opacity: 0.26; transparent: true; side: double; shader: flat');
+
+      var warningY = anchorPlaneLocalY + 0.085;
+      var halfDepth = this.data.depth / 2;
+      var halfWidth = this.data.width / 2;
+      var warningPositions = {
+        front: '0 ' + warningY + ' ' + (halfDepth - 0.18),
+        back: '0 ' + warningY + ' ' + (-(halfDepth - 0.18)),
+        left: (-(halfWidth - 0.18)) + ' ' + warningY + ' 0',
+        right: (halfWidth - 0.18) + ' ' + warningY + ' 0'
+      };
+      var warningRotations = {
+        front: '-35 0 0',
+        back: '-35 180 0',
+        left: '-35 90 0',
+        right: '-35 -90 0'
+      };
+      this.warningTextEls.forEach(function (textEl) {
+        var edge = textEl.getAttribute('data-codexr-warning-edge');
+        textEl.setAttribute('position', warningPositions[edge] || warningPositions.front);
+        textEl.setAttribute('rotation', warningRotations[edge] || warningRotations.front);
+      });
+    },
+
+    setContainmentWarning: function (diagnostic) {
+      if (!this.warningGroupEl || !this.warningTextEls) {
+        return false;
+      }
+      var active = !!(diagnostic && diagnostic.level && diagnostic.level !== 'ok' && diagnostic.message);
+      this.warningGroupEl.setAttribute('visible', active);
+      if (!active) {
+        return true;
+      }
+      var color = diagnostic.level === 'error'  '#fecaca' : '#fde68a';
+      var materialColor = diagnostic.level === 'error'  '#dc2626' : '#d97706';
+      this.warningTextEls.forEach(function (textEl) {
+        textEl.setAttribute('value', diagnostic.message);
+        textEl.setAttribute('color', color);
+        textEl.setAttribute('material', 'color: ' + materialColor + '; opacity: 0.76; transparent: true; shader: flat');
+      });
+      return true;
     }
   };
 
@@ -2317,6 +3119,269 @@
       attrName: COMPONENT_NAME,
       data: component.data || DEFAULTS
     };
+  }
+
+  function getAnalysisTableElement() {
+    var doc = root.document;
+    return doc && doc.getElementById  doc.getElementById('codexrAnalysisTable') : null;
+  }
+
+  function getAnalysisTableComponent() {
+    var table = getAnalysisTableElement();
+    return table && table.components  table.components[TABLE_COMPONENT_NAME] : null;
+  }
+
+  function getCurrentTableMode() {
+    var component = getAnalysisTableComponent();
+    if (component && component.data && component.data.mode) {
+      return component.data.mode;
+    }
+    var table = getAnalysisTableElement();
+    var attr = table && table.getAttribute  table.getAttribute(TABLE_COMPONENT_NAME) : null;
+    if (attr && typeof attr === 'object' && attr.mode) {
+      return attr.mode;
+    }
+    if (typeof attr === 'string') {
+      var match = attr.match(/(:^|;\s*)mode:\s*([^;]+)/);
+      if (match) {
+        return match[1].trim();
+      }
+    }
+    return 'single';
+  }
+
+  function applyTableWarning(diagnostic) {
+    var component = getAnalysisTableComponent();
+    if (!component || typeof component.setContainmentWarning !== 'function') {
+      return false;
+    }
+    return component.setContainmentWarning(diagnostic || { level: 'ok' });
+  }
+
+  function isEntityVisible(el) {
+    var current = el;
+    while (current && current !== root.document) {
+      if (current.getAttribute) {
+        var visibleAttr = current.getAttribute('visible');
+        if (visibleAttr === false || visibleAttr === 'false') {
+          return false;
+        }
+      }
+      if (current.object3D && current.object3D.visible === false) {
+        return false;
+      }
+      current = current.parentNode;
+    }
+    return true;
+  }
+
+  function getVisibleContainmentCharts(doc) {
+    return getContainmentCharts(doc).filter(isEntityVisible);
+  }
+
+  function getVisibleDependencyGraphRoots(doc) {
+    if (!doc || !doc.querySelectorAll) {
+      return [];
+    }
+    var roots = doc.querySelectorAll(
+      '#codexrDependencyGraph, [codexr-dependency-graph], [data-codexr-analysis-mode="dependency-graph"], [data-codexr-dependency-axes]'
+    );
+    return Array.prototype.slice.call(roots || []).filter(isEntityVisible);
+  }
+
+  function resolveWaitTarget(target, doc) {
+    if (typeof target === 'function') {
+      try {
+        return resolveWaitTarget(target(), doc);
+      } catch (error) {
+        debugLog('wait-target-resolution-failed', {
+          error: error && error.message  error.message : String(error)
+        });
+        return null;
+      }
+    }
+
+    if (typeof target === 'string') {
+      var rawTarget = target.trim();
+      if (!rawTarget || !doc) {
+        return null;
+      }
+
+      var idCandidate = rawTarget.charAt(0) === '#'  rawTarget.slice(1) : rawTarget;
+      if (idCandidate && doc.getElementById) {
+        var byId = doc.getElementById(idCandidate);
+        if (byId) {
+          return byId;
+        }
+      }
+
+      if (doc.querySelector) {
+        try {
+          return doc.querySelector(rawTarget);
+        } catch (error) {
+          debugLog('wait-target-selector-failed', {
+            target: rawTarget,
+            error: error && error.message  error.message : String(error)
+          });
+        }
+      }
+      return null;
+    }
+
+    return target || null;
+  }
+
+  function resolveDiagnosticTargets(targets, doc) {
+    if (Array.isArray(targets) && targets.length) {
+      return targets.map(function (target) {
+        return resolveWaitTarget(target, doc);
+      }).filter(function (chart) {
+        return !!chart && isEntityVisible(chart);
+      });
+    }
+    if (targets) {
+      var chart = resolveWaitTarget(targets, doc);
+      return chart && isEntityVisible(chart)  [chart] : [];
+    }
+    return getVisibleContainmentCharts(doc);
+  }
+
+  function summarizeChartDiagnostic(status) {
+    if (!status) {
+      return {
+        level: 'warning',
+        reason: 'chart-status-unavailable',
+        message: 'No chart detected'
+      };
+    }
+    if (status.valid === false) {
+      return {
+        level: 'error',
+        reason: status.reason || 'invalid-chart',
+        message: status.message || 'Chart exceeds table limits'
+      };
+    }
+    var details = status.details || {};
+    if (details.heightOverflow || status.reason === 'height-overflow') {
+      return {
+        level: 'error',
+        reason: 'height-overflow',
+        message: 'Chart exceeds table limits',
+        details: details
+      };
+    }
+    if (details.compromised) {
+      return {
+        level: 'warning',
+        reason: 'compromised',
+        message: 'Chart is constrained by table limits',
+        details: details
+      };
+    }
+    if (details.needsCorrection) {
+      return {
+        level: 'ok',
+        reason: status.reason === 'containment-correcting' || details.phase !== 'steady-fit'
+           'containment-correcting'
+          : 'normalizing',
+        message: '',
+        details: details
+      };
+    }
+    return {
+      level: 'ok',
+      reason: 'ok',
+      message: ''
+    };
+  }
+
+  function stabilizeTableDiagnostic(diagnostic) {
+    if (!diagnostic || diagnostic.level === 'ok') {
+      TABLE_DIAGNOSTIC_STATE.key = '';
+      TABLE_DIAGNOSTIC_STATE.firstSeenAt = 0;
+      return diagnostic || { level: 'ok' };
+    }
+    if (diagnostic.level === 'error') {
+      TABLE_DIAGNOSTIC_STATE.key = '';
+      TABLE_DIAGNOSTIC_STATE.firstSeenAt = 0;
+      return diagnostic;
+    }
+
+    var reason = diagnostic.reason || diagnostic.message || 'warning';
+    if (reason !== 'underflow' && reason !== 'normalizing') {
+      TABLE_DIAGNOSTIC_STATE.key = '';
+      TABLE_DIAGNOSTIC_STATE.firstSeenAt = 0;
+      return diagnostic;
+    }
+
+    var key = (diagnostic.mode || '') + ':' + reason + ':' + (diagnostic.chartCount || 0);
+    var now = Date.now();
+    if (TABLE_DIAGNOSTIC_STATE.key !== key) {
+      TABLE_DIAGNOSTIC_STATE.key = key;
+      TABLE_DIAGNOSTIC_STATE.firstSeenAt = now;
+      return Object.assign({}, diagnostic, {
+        level: 'ok',
+        reason: reason + '-pending',
+        message: ''
+      });
+    }
+    if ((now - TABLE_DIAGNOSTIC_STATE.firstSeenAt) < TABLE_WARNING_PERSISTENCE_MS) {
+      return Object.assign({}, diagnostic, {
+        level: 'ok',
+        reason: reason + '-pending',
+        message: ''
+      });
+    }
+    return diagnostic;
+  }
+
+  function buildActiveContainmentDiagnostics(targets) {
+    var doc = root.document;
+    var mode = getCurrentTableMode();
+    if (mode === 'selection') {
+      return {
+        level: 'ok',
+        mode: mode,
+        chartCount: 0,
+        statuses: [],
+        reason: 'selection-mode'
+      };
+    }
+    var charts = resolveDiagnosticTargets(targets, doc);
+    if (!charts.length) {
+      if (mode === 'dependency-graph' && getVisibleDependencyGraphRoots(doc).length) {
+        return {
+          level: 'ok',
+          mode: mode,
+          chartCount: 0,
+          visualCount: getVisibleDependencyGraphRoots(doc).length,
+          statuses: [],
+          reason: 'dependency-graph-visible'
+        };
+      }
+      return stabilizeTableDiagnostic({
+        level: 'warning',
+        mode: mode,
+        chartCount: 0,
+        statuses: [],
+        reason: 'chart-not-found',
+        message: 'No chart detected'
+      });
+    }
+    var statuses = charts.map(function (chart) {
+      return root[RUNTIME_GLOBAL_NAME].getChartStatus(chart);
+    });
+    var summaries = statuses.map(summarizeChartDiagnostic);
+    var worst = summaries.find(function (diagnostic) {
+      return diagnostic.level === 'error';
+    }) || summaries.find(function (diagnostic) {
+      return diagnostic.level === 'warning';
+    }) || { level: 'ok', reason: 'ok', message: '' };
+    return stabilizeTableDiagnostic(Object.assign({}, worst, {
+      mode: mode,
+      chartCount: charts.length,
+      statuses: statuses
+    }));
   }
 
   function buildScaleRangeSnapshot(data, chartCount) {
@@ -2360,7 +3425,7 @@
       ? (doc && doc.querySelector ? doc.querySelector(target) : null)
       : target;
     if (!chartEl && doc) {
-      var charts = getContainmentCharts(doc);
+      var charts = getVisibleContainmentCharts(doc);
       chartEl = charts.length ? charts[0] : null;
     }
     if (!chartEl) {
@@ -2396,11 +3461,10 @@
     return new Promise(function (resolve) {
       function inspect() {
         var statuses = targetList.map(function (target) {
-          var chart = typeof target === 'string'
-            ? (doc && doc.getElementById ? doc.getElementById(target) : null)
-            : target;
+          var chart = resolveWaitTarget(target, doc);
           return root[RUNTIME_GLOBAL_NAME].getChartStatus(chart);
         });
+        applyTableWarning(buildActiveContainmentDiagnostics(targetList));
         var invalid = statuses.find(function (status) {
           return status && status.ready === true && status.valid === false;
         });
@@ -2447,37 +3511,66 @@
       inspect();
     });
   };
-  root[RUNTIME_GLOBAL_NAME].getAnalysisTableZones = function (mode) {
-    var fullWidth = 5.614;
-    var fullDepth = 3.218;
-    if (mode !== 'historical-compare') {
-      return [{
-        id: 'single',
-        anchorX: 0,
-        anchorZ: DEFAULTS.anchorZ,
-        width: fullWidth,
-        depth: fullDepth
-      }];
+  root[RUNTIME_GLOBAL_NAME].setMode = function (mode) {
+    var nextMode = String(mode || 'single');
+    var validModes = ['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'];
+    if (validModes.indexOf(nextMode) === -1) {
+      nextMode = 'single';
     }
-    var centerGap = 0.18;
-    var zoneWidth = (fullWidth - centerGap) / 2;
-    var centerOffset = (zoneWidth + centerGap) / 2;
-    return [
-      {
-        id: 'left',
-        anchorX: -centerOffset,
-        anchorZ: DEFAULTS.anchorZ,
-        width: zoneWidth,
-        depth: fullDepth
-      },
-      {
-        id: 'right',
-        anchorX: centerOffset,
-        anchorZ: DEFAULTS.anchorZ,
-        width: zoneWidth,
-        depth: fullDepth
-      }
-    ];
+    var table = root.document.getElementById.('codexrAnalysisTable');
+    table.setAttribute.(TABLE_COMPONENT_NAME, 'mode', nextMode);
+    var component = table.components.[TABLE_COMPONENT_NAME];
+    if (component.data) {
+      component.data.mode = nextMode;
+      component.refreshGeometry.();
+    }
+    applyTableWarning(nextMode === 'selection'  { level: 'ok' } : buildActiveContainmentDiagnostics());
+    return nextMode;
+  };
+  root[RUNTIME_GLOBAL_NAME].getAnalysisTableZones = function (mode) {
+    return getAnalysisTableZonesForMode(mode).map(function (zone) {
+      return Object.assign({}, zone);
+    });
+  };
+  root[RUNTIME_GLOBAL_NAME].getContainmentProfile = function (mode, zone) {
+    var profile = resolveContainmentProfile(mode, zone);
+    return {
+      id: profile.id,
+      zone: profile.zone  Object.assign({}, profile.zone) : null,
+      position: Object.assign({}, profile.position),
+      containment: Object.assign({}, profile.containment)
+    };
+  };
+  root[RUNTIME_GLOBAL_NAME].applyContainmentProfile = function (chart, profileIdOrObject) {
+    var doc = root.document;
+    var chartEl = typeof chart === 'string'  resolveWaitTarget(chart, doc) : chart;
+    if (!chartEl || !chartEl.setAttribute) {
+      return null;
+    }
+    var profile = resolveContainmentProfile(profileIdOrObject || 'default');
+    var currentAttr = chartEl.getAttribute  chartEl.getAttribute(COMPONENT_NAME) : null;
+    var nextAttr = {};
+    if (currentAttr && typeof currentAttr === 'object') {
+      Object.keys(currentAttr).forEach(function (key) {
+        nextAttr[key] = currentAttr[key];
+      });
+    }
+    Object.keys(profile.containment || {}).forEach(function (key) {
+      nextAttr[key] = profile.containment[key];
+    });
+    chartEl.setAttribute('position', vectorToAttribute(profile.position || profilePosition(nextAttr)));
+    chartEl.setAttribute(COMPONENT_NAME, nextAttr);
+    return {
+      id: profile.id,
+      zone: profile.zone  Object.assign({}, profile.zone) : null,
+      position: Object.assign({}, profile.position),
+      containment: Object.assign({}, nextAttr)
+    };
+  };
+  root[RUNTIME_GLOBAL_NAME].getActiveContainmentDiagnostics = function (targets) {
+    var diagnostic = buildActiveContainmentDiagnostics(targets);
+    applyTableWarning(diagnostic);
+    return diagnostic;
   };
   root[RUNTIME_GLOBAL_NAME].getScaleRange = function () {
     var doc = root.document;
@@ -2600,6 +3693,7 @@
         count += 1;
       }
     });
+    applyTableWarning(buildActiveContainmentDiagnostics());
     return count;
   };
   root[RUNTIME_GLOBAL_NAME].enableDebug = function () {
@@ -2617,6 +3711,18 @@
   root[RUNTIME_GLOBAL_NAME].isDebugEnabled = function () {
     return !!DEBUG_STATE.enabled;
   };
+  root[RUNTIME_GLOBAL_NAME].showTabletopAnchorPlane = function (visible) {
+    var doc = root.document;
+    var plane = doc && doc.querySelector  doc.querySelector('#codexr-analysis-table-anchor-plane') : null;
+    if (!plane || !plane.setAttribute) {
+      return false;
+    }
+    plane.setAttribute('visible', visible !== false);
+    return true;
+  };
+  root[RUNTIME_GLOBAL_NAME].hideTabletopAnchorPlane = function () {
+    return root[RUNTIME_GLOBAL_NAME].showTabletopAnchorPlane(false);
+  };
   root[RUNTIME_GLOBAL_NAME].__testing = {
     PID_PROFILE: PID_PROFILE,
     matchesIgnoredBoundsMeta: matchesIgnoredBoundsMeta,
@@ -2630,10 +3736,21 @@
     resolveHeightBandTargets: resolveHeightBandTargets,
     computeHeightBandScale: computeHeightBandScale,
     computeHeightBandTargetScale: computeHeightBandTargetScale,
+    computeHardHeightGuardTarget: computeHardHeightGuardTarget,
+    targetNeedsCorrection: targetNeedsCorrection,
+    shouldAnimateContainmentTransform: shouldAnimateContainmentTransform,
+    constrainPlanarTargetForHeightCompromise: constrainPlanarTargetForHeightCompromise,
+    buildContainmentCorrectionState: buildContainmentCorrectionState,
     createPidAxisState: createPidAxisState,
     stepPidAxis: stepPidAxis,
     buildMeasurementSignature: buildMeasurementSignature,
     computeAnchorOffset: computeAnchorOffset,
+    getTableTopY: getTableTopY,
+    buildTabletopAnchorDiagnostics: buildTabletopAnchorDiagnostics,
+    getAnalysisTableZonesForMode: getAnalysisTableZonesForMode,
+    getVisibleDependencyGraphRoots: getVisibleDependencyGraphRoots,
+    resolveContainmentProfile: resolveContainmentProfile,
+    buildActiveContainmentDiagnostics: buildActiveContainmentDiagnostics,
     collectNonFiniteValueIssues: collectNonFiniteValueIssues,
     inspectInvalidAxisState: inspectInvalidAxisState
   };
@@ -2688,7 +3805,7 @@
         return null;
       }
 
-      var tableBottomY = d.anchorY + d.revealOffsetY;
+      var tableBottomY = getTableTopY(d);
       var bandTargets = resolveHeightBandTargets(d);
 
       this._mk(scene, 'a-box', {

@@ -98,25 +98,25 @@ export class AnalysisDirectorySetting {
     async selectMode(): Promise<AnalysisDirectoryMode | undefined> {
         const options: Array<{ label: string; description: string; mode: AnalysisDirectoryMode; detail: string }> = [
             {
-                label: '📁 LivePanel',
+                label: ' LivePanel',
                 description: 'Standard Experience',
                 mode: 'LivePanel',
                 detail: 'Quick directory analysis with standard UI panel'
             },
             {
-                label: '📁 LivePanel Deep',
+                label: ' LivePanel Deep',
                 description: 'Standard Experience (Recursive)',
                 mode: 'LivePanelDeep',
                 detail: 'Deep recursive directory analysis with standard UI panel'
             },
             {
-                label: '🥽 XR',
+                label: ' XR',
                 description: 'Immersive VR/AR',
                 mode: 'XR',
                 detail: 'Immersive VR/AR experience for directory analysis'
             },
             {
-                label: '🥽 XR Deep',
+                label: ' XR Deep',
                 description: 'Immersive VR/AR (Recursive)',
                 mode: 'XRDeep',
                 detail: 'Deep recursive directory analysis with immersive VR/AR experience'

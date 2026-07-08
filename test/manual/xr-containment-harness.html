@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CodeXR containment harness</title>
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <script src="../../templates/components/codexr/analysis-table/analysisTableRuntime.js"></script>
+  <style>
+    body { margin: 0; background: #0f172a; color: #dff7ff; font: 13px/1.35 monospace; }
+    #controls {
+      position: fixed;
+      z-index: 10;
+      left: 12px;
+      top: 12px;
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(5, 15, 30, .84);
+      border: 1px solid #38bdf8;
+      max-width: 360px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; }
+    button {
+      border: 1px solid #67e8f9;
+      color: #e0f2fe;
+      background: #123c5c;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #0e7490; }
+    #status {
+      white-space: pre-wrap;
+      max-height: 260px;
+      overflow: auto;
+      color: #fde68a;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <strong>CodeXR XR containment harness</strong>
+    <div class="row" data-testid="mode-controls">
+      <button onclick="CodeXRContainmentHarness.setMode('single')">normal</button>
+      <button onclick="CodeXRContainmentHarness.setMode('historical-compare','left')">history L</button>
+      <button onclick="CodeXRContainmentHarness.setMode('historical-compare','right')">history R</button>
+      <button onclick="CodeXRContainmentHarness.setMode('dependency-graph')">dependencies</button>
+      <button onclick="CodeXRContainmentHarness.setMode('project-evolution')">evolution</button>
+      <button onclick="CodeXRContainmentHarness.setMode('selection')">selection</button>
+    </div>
+    <div class="row" data-testid="chart-controls">
+      <button onclick="CodeXRContainmentHarness.render('boats','tiny')">boats tiny</button>
+      <button onclick="CodeXRContainmentHarness.render('bars','medium')">bars</button>
+      <button onclick="CodeXRContainmentHarness.render('bubbles','large')">bubbles</button>
+      <button onclick="CodeXRContainmentHarness.render('pie','extreme')">pie huge</button>
+      <button onclick="CodeXRContainmentHarness.hideChart()">no chart</button>
+    </div>
+    <div class="row" data-testid="debug-controls">
+      <button onclick="CodeXRContainmentHarness.stepEvolution()">evolution frame</button>
+      <button onclick="CodeXRContainmentHarness.renormalize()">renormalize</button>
+      <button onclick="CodeXRChartDebugBands.show('#harnessChart')">bands</button>
+      <button onclick="CodeXRChartDebugBands.hide()">hide bands</button>
+    </div>
+    <div id="status" data-testid="containment-status">booting...</div>
+  </div>
+
+  <a-scene id="scene" background="color: #cbd5e1">
+    <a-entity light="type: ambient; intensity: 1.0"></a-entity>
+    <a-entity light="type: directional; intensity: .85" position="-4 8 6"></a-entity>
+    <a-plane position="0 0 -18" rotation="-90 0 0" width="18" height="12" color="#334155"></a-plane>
+    <a-entity
+      id="codexrAnalysisTable"
+      codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
+    </a-entity>
+    <a-entity
+      id="codexrDependencyGraph"
+      visible="false"
+      data-codexr-analysis-root="true"
+      data-codexr-analysis-mode="dependency-graph"
+      position="0 1.04 -18">
+      <a-box position="-0.6 0.25 0" width="0.36" height="0.36" depth="0.36" color="#22d3ee"></a-box>
+      <a-box position="0.1 0.38 -0.25" width="0.44" height="0.44" depth="0.44" color="#22d3ee"></a-box>
+      <a-sphere position="0.85 0.55 0.2" radius="0.24" color="#fb923c"></a-sphere>
+      <a-cylinder position="0.12 0.42 0.04" rotation="0 0 68" radius="0.025" height="1.35" color="#111827"></a-cylinder>
+    </a-entity>
+    <a-entity id="harnessChart"></a-entity>
+    <a-entity id="rig" position="0 3.1 -9">
+      <a-camera id="camera" look-controls wasd-controls></a-camera>
+      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .babiaxraycasterclass"></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    (function () {
+      var state = { mode: 'single', zone: 'single', chartType: 'bars', size: 'medium', frame: 0 };
+      var profileByMode = {
+        single: 'default',
+        'dependency-graph': 'dependency-graph',
+        'project-evolution': 'project-evolution'
+      };
+      var sizeFactor = { tiny: 0.08, medium: 1, large: 2.2, extreme: 8 };
+
+      function chart() {
+        return document.getElementById('harnessChart');
+      }
+
+      function dependencyGraph() {
+        return document.getElementById('codexrDependencyGraph');
+      }
+
+      function status() {
+        var diagnostics = state.mode === 'dependency-graph'
+           window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics()
+          : window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics('#harnessChart');
+        document.getElementById('status').textContent = JSON.stringify({
+          mode: state.mode,
+          zone: state.zone,
+          chartType: state.chartType,
+          size: state.size,
+          frame: state.frame,
+          profile: window.CodeXRAnalysisTableRuntime.getContainmentProfile(profileId()).id,
+          scale: state.mode === 'dependency-graph'
+             null
+            : (window.CodeXRAnalysisTableRuntime.getChartStatus('#harnessChart').details || null),
+          diagnostics: diagnostics
+        }, null, 2);
+        return diagnostics;
+      }
+
+      function profileId() {
+        if (state.mode === 'historical-compare') {
+          return state.zone === 'right'  'historical-right' : 'historical-left';
+        }
+        return profileByMode[state.mode] || 'default';
+      }
+
+      function applyProfile() {
+        var target = chart();
+        dependencyGraph().setAttribute('visible', state.mode === 'dependency-graph');
+        target.setAttribute('visible', state.mode !== 'selection');
+        if (state.mode === 'selection') {
+          window.CodeXRAnalysisTableRuntime.setMode('selection');
+          status();
+          return;
+        }
+        if (state.mode === 'dependency-graph') {
+          target.setAttribute('visible', false);
+          window.CodeXRAnalysisTableRuntime.setMode(state.mode);
+          status();
+          return;
+        }
+        window.CodeXRAnalysisTableRuntime.setMode(state.mode);
+        window.CodeXRAnalysisTableRuntime.applyContainmentProfile(target, profileId());
+        window.CodeXRAnalysisTableRuntime.renormalizeAll('harness-apply-profile');
+        setTimeout(status, 180);
+      }
+
+      function clearChart() {
+        var target = chart();
+        target.removeAttribute('codexr-chart-containment');
+        target.object3D.scale.set(1, 1, 1);
+        target.replaceChildren();
+      }
+
+      function box(x, y, z, width, height, depth, color) {
+        var el = document.createElement('a-box');
+        el.setAttribute('position', x + ' ' + (y + height / 2) + ' ' + z);
+        el.setAttribute('width', width);
+        el.setAttribute('height', height);
+        el.setAttribute('depth', depth);
+        el.setAttribute('material', 'color: ' + color + '; roughness: 0.62');
+        el.setAttribute('class', 'babiaxraycasterclass');
+        return el;
+      }
+
+      function render(type, size) {
+        state.chartType = type || state.chartType;
+        state.size = size || state.size;
+        var target = chart();
+        clearChart();
+        target.setAttribute('visible', true);
+        var factor = sizeFactor[state.size] || 1;
+        var colors = ['#06b6d4', '#be123c', '#f97316', '#7c3aed', '#22c55e'];
+        var count = state.size === 'tiny'  2 : 14;
+        if (type === 'bubbles') {
+          count = 8;
+        }
+        for (var i = 0; i < count; i += 1) {
+          var col = i % 5;
+          var row = Math.floor(i / 5);
+          var width = (type === 'pie'  0.42 : 0.22 + (i % 3) * 0.06) * factor;
+          var depth = (type === 'pie'  0.42 : 0.22 + (i % 2) * 0.06) * factor;
+          var height = (0.18 + ((i % 6) + 1) * 0.16) * factor;
+          target.appendChild(box((col - 2) * 0.44 * factor, 0, (row - 1) * 0.44 * factor, width, height, depth, colors[i % colors.length]));
+        }
+        target.setAttribute('scale', type === 'boats'  '0.01 0.05 0.01' : '1 1 1');
+        applyProfile();
+      }
+
+      window.CodeXRContainmentHarness = {
+        setMode: function (mode, zone) {
+          state.mode = mode;
+          state.zone = zone || 'single';
+          applyProfile();
+        },
+        render: render,
+        hideChart: function () {
+          chart().setAttribute('visible', false);
+          window.CodeXRAnalysisTableRuntime.renormalizeAll('harness-no-chart');
+          status();
+        },
+        renormalize: function () {
+          window.CodeXRAnalysisTableRuntime.renormalizeAll('harness-manual');
+          setTimeout(status, 180);
+        },
+        stepEvolution: function () {
+          state.mode = 'project-evolution';
+          state.frame += 1;
+          render(state.frame % 2  'boats' : 'bars', ['tiny', 'medium', 'large'][state.frame % 3]);
+        },
+        status: status
+      };
+
+      window.addEventListener('load', function () {
+        render('bars', 'medium');
+      });
+    }());
+  </script>
+</body>
+</html>

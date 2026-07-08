@@ -12,7 +12,7 @@ test('dependency graph is a first-class analysis table mode', () => {
   const models = read('src/code_analysis/historical/historicalComparisonModels.ts');
   assert.match(table, /dependency-graph/);
   assert.match(models, /'dependency-graph'/);
-  assert.match(table, /#2d174f/);
+  assert.match(table, /#7c3aed/);
 });
 
 test('dependency runtime uses a worker and owns three layouts', () => {
@@ -34,7 +34,7 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /cycleButton/);
   assert.match(runtime, /RELATION_HELP/);
   assert.match(runtime, /drawAxes/);
-  assert.match(runtime, /graphTopY \+ 1\.08/);
+  assert.match(runtime, /graphTopY \+ \.92/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
   assert.doesNotMatch(runtime, /tooltipCameraPosition/);
   assert.match(runtime, /transitionDuration.*600/);
@@ -62,6 +62,8 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /Open folder/);
   assert.match(runtime, /Go to parent/);
   assert.match(runtime, /Open file/);
+  assert.match(runtime, /footerReserve: canNavigate \ \.28 : 0/);
+  assert.match(runtime, /'0 -0\.62 0\.02'/);
   assert.match(runtime, /Project root/);
   assert.match(runtime, /Back to:/);
   assert.match(runtime, /Reset view/);
@@ -255,7 +257,10 @@ test('dependency graph keeps density control local and packages diagnostics', ()
   assert.match(runtime, /setDetailOverride/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.createTooltip/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.updateTooltip/);
+  assert.match(runtime, /CodeXRCommonRuntime\\.updateTooltipConnector/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
+  assert.match(runtime, /'data-codexr-interactive': 'true'/);
+  assert.match(runtime, /connectorTarget/);
   assert.doesNotMatch(runtime, /detailOverride: state\.snapshot/);
   assert.match(parser, /DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME/);
   assert.match(parser, /CODEXR_DEBUG_RUNTIME_OUTPUT_NAME/);
@@ -549,7 +554,7 @@ test('dependency server preserves cached datasets and no longer accepts granular
   assert.match(server, /existingDependencyState\?\.scope/);
   assert.match(server, /message\.type === 'analysis-mode-selection'/);
   assert.match(server, /message\.type === 'analysis-mode-activate'/);
-  assert.match(server, /activateAnalysisViewMode\('dependency-graph'\)/);
+  assert.match(server, /activateAnalysisViewMode\('dependency-graph', 'dependency\.settings'\)/);
   assert.doesNotMatch(server, /message\.type === 'dependency-graph-reset'/);
   assert.doesNotMatch(server, /allowedGranularity/);
   assert.doesNotMatch(models, /DependencyGraphGranularity/);

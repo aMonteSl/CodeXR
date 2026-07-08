@@ -1159,7 +1159,8 @@
           geometry: nodeGeometry(visual.shape, visual.radius),
           material: 'color: ' + visual.color + '; shader: flat; transparent: true; opacity: 0',
           class: RAYCAST_CLASS,
-          'data-node-id': node.id
+          'data-node-id': node.id,
+          'data-codexr-interactive': 'true'
         });
         nodeEl.object3D.position.copy(startPosition);
         nodeEl.object3D.scale.setScalar(0);
@@ -1930,7 +1931,7 @@
       ensureTooltip: function () {
         if (this.tooltip?.root?.parentNode) { return this.tooltip; }
         if (root.CodeXRCommonRuntime?.createTooltip) {
-          this.tooltip = root.CodeXRCommonRuntime.createTooltip({ accentColor: '#f59e0b' });
+          this.tooltip = root.CodeXRCommonRuntime.createTooltip({ accentColor: '#f59e0b', width: 3.55, height: .96 });
           this.el.appendChild(this.tooltip.root);
           return this.tooltip;
         }
@@ -1960,10 +1961,17 @@
         var anchor = this.pinnedSelection.type === 'node'
           ? record.el.object3D.position
           : record.midpoint;
-        this.tooltip.root.setAttribute('position',
-          Math.max(-1.55, Math.min(1.55, Number(anchor.x || 0)))
-          + ' ' + (this.graphTopY + 1.08) + ' .18'
+        var position = new root.THREE.Vector3(
+          Math.max(-1.55, Math.min(1.55, Number(anchor.x || 0))),
+          this.graphTopY + .92,
+          .18
         );
+        this.tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
+        root.CodeXRCommonRuntime.updateTooltipConnector.(this.tooltip, position, {
+          x: Number(anchor.x || 0),
+          y: Number(anchor.y || 0),
+          z: Number(anchor.z || 0)
+        }, { connectorColor: '#f59e0b' });
       },
       showSelection: function (selection) {
         var tooltip = this.ensureTooltip();
@@ -1982,7 +1990,7 @@
         var anchor = selection.type === 'node' ? record.el.object3D.position : record.midpoint;
         var position = new root.THREE.Vector3(
           Math.max(-1.55, Math.min(1.55, Number(anchor.x || 0))),
-          this.graphTopY + 1.08,
+          this.graphTopY + .92,
           .18
         );
         var detail = selection.type === 'node'
@@ -1994,7 +2002,23 @@
           && (record.data.kind === 'group' || record.data.kind === 'file' || record.data.syntheticExternal);
         if (root.CodeXRCommonRuntime?.updateTooltip) {
           root.CodeXRCommonRuntime.updateTooltip(tooltip, detail, position, {
-            height: canNavigate ? 1.78 : 1.42
+            width: 3.55,
+            height: canNavigate  1.52 : 1.04,
+            titleLength: 30,
+            subtitleLength: 42,
+            primaryLength: 48,
+            secondaryLength: 48,
+            footerReserve: canNavigate  .28 : 0,
+            connectorTarget: this.pinnedSelection
+              && this.pinnedSelection.type === selection.type
+              && this.pinnedSelection.id === selection.id
+               {
+                x: Number(anchor.x || 0),
+                y: Number(anchor.y || 0),
+                z: Number(anchor.z || 0)
+              }
+              : null,
+            connectorColor: '#f59e0b'
           });
         } else {
           tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
@@ -2017,7 +2041,7 @@
                   : 'Open';
           tooltip.action = button(
             actionLabel,
-            '0 -0.7 0.02',
+            '0 -0.62 0.02',
             record.data.syntheticExternal ? 2.15 : 1.55,
             function (event) {
               event.stopPropagation?.();

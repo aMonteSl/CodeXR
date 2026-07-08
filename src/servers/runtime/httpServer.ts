@@ -20,6 +20,8 @@ import { RemoteSessionAuthority } from '../../remote_access';
 import {
     HistoricalComparisonRequest,
     HistoricalComparisonService,
+    ProjectEvolutionRequest,
+    ProjectEvolutionService,
     analysisUpdateEvents,
 } from '../../code_analysis/historical';
 import { DependencyGraphService } from '../../code_analysis/dependencies';
@@ -59,6 +61,7 @@ export class HttpServer {
     private readonly remoteSessionAuthority = new RemoteSessionAuthority();
     private remotePublicUrl: string | null = null;
     private historicalComparisonService: HistoricalComparisonService | null = null;
+    private projectEvolutionService: ProjectEvolutionService | null = null;
     private dependencyGraphService: DependencyGraphService | null = null;
     private analysisUpdateSubscription: (() => void) | null = null;
     private historicalRefreshTimer: NodeJS.Timeout | null = null;
@@ -73,7 +76,7 @@ export class HttpServer {
         };
         
         this.config = {
-            host: '0.0.0.0',  // ✅ Listen on all network interfaces for VR/mobile access
+            host: '0.0.0.0',  //  Listen on all network interfaces for VR/mobile access
             staticRoot: path.join(__dirname, '../../../templates'),
             enableCors: true,
             allowedOrigins: ['*'],
@@ -82,6 +85,11 @@ export class HttpServer {
 
         if (this.config.extensionContext && this.config.analysisSessionId && this.config.staticRoot) {
             this.historicalComparisonService = new HistoricalComparisonService(
+                this.config.extensionContext,
+                this.config.analysisSessionId,
+                this.config.staticRoot,
+            );
+            this.projectEvolutionService = new ProjectEvolutionService(
                 this.config.extensionContext,
                 this.config.analysisSessionId,
                 this.config.staticRoot,
@@ -290,6 +298,8 @@ export class HttpServer {
         }
         void this.historicalComparisonService?.dispose();
         this.historicalComparisonService = null;
+        void this.projectEvolutionService.dispose();
+        this.projectEvolutionService = null;
         void this.dependencyGraphService?.dispose();
         this.dependencyGraphService = null;
     }
@@ -890,8 +900,14 @@ prepareIdentity();
         try {
             const content = await fs.promises.readFile(filePath);
             const detectedContentType = contentType || this.getContentType(filePath);
-            
-            res.writeHead(200, { 'Content-Type': detectedContentType });
+            const headers: Record<string, string> = { 'Content-Type': detectedContentType };
+            if (/\.(:html|js|mjs|json|map)$/i.test(filePath)) {
+                headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+                headers.Pragma = 'no-cache';
+                headers.Expires = '0';
+            }
+
+            res.writeHead(200, headers);
             res.end(content);
         } catch (error) {
             console.error('SERVER: Error serving file:', error);
@@ -1049,7 +1065,7 @@ prepareIdentity();
             resolveSession: (request) => this.remoteSessionAuthority.resolveCookie(request.headers.cookie),
             handleApplicationMessage: async (messageContext, message) => {
                 if (message.type === 'analysis-mode-selection') {
-                    this.setAnalysisViewMode('selection');
+                    this.setAnalysisViewMode('selection', 'visualization-menu');
                     return true;
                 }
                 if (message.type === 'analysis-mode-activate') {
@@ -1057,32 +1073,47 @@ prepareIdentity();
                     if (
                         requestedMode === 'single'
                         || requestedMode === 'historical-compare'
+                        || requestedMode === 'project-evolution'
                         || requestedMode === 'dependency-graph'
                     ) {
                         const mode = requestedMode as Exclude<AnalysisViewMode, 'selection'>;
+                        let controllerView: string | undefined;
                         if (mode !== 'single') {
                             const entityKind = mode === 'historical-compare'
                                 ? 'historical-comparison'
-                                : 'dependency-graph';
+                                : mode === 'project-evolution'
+                                    ? 'project-evolution'
+                                    : 'dependency-graph';
                             const snapshot = this.collaborationRoomServer?.getServerEntity(
                                 this.getCollaborationRoomId(),
                                 entityKind,
                                 'main',
                             );
-                            const available = mode === 'historical-compare'
-                                ? !!snapshot?.result
+                            const available = mode === 'historical-compare' || mode === 'project-evolution'
+                                ? !!snapshot.result
                                 : typeof snapshot?.datasetUrl === 'string';
                             analysisRefreshCoordinator.setSnapshotAvailable(
                                 this.config.analysisSessionId!,
                                 mode,
                                 available,
                             );
-                            if (!available) {
-                                this.setAnalysisViewMode('selection');
+                            const allowsEmptyShell = mode === 'historical-compare'
+                                || mode === 'project-evolution';
+                            if (!available && !allowsEmptyShell) {
+                                this.setAnalysisViewMode('selection', 'visualization-menu');
                                 return true;
                             }
+                            controllerView = mode === 'historical-compare' && available
+                                ? 'historical.mapping'
+                                : mode === 'historical-compare'
+                                    ? 'historical.selection'
+                                    : mode === 'dependency-graph'
+                                        ? 'dependency.settings'
+                                        : 'project-evolution';
+                        } else {
+                            controllerView = 'single.mapping';
                         }
-                        await this.activateAnalysisViewMode(mode);
+                        await this.activateAnalysisViewMode(mode, controllerView);
                     }
                     return true;
                 }
@@ -1204,7 +1235,7 @@ prepareIdentity();
                         'dependency-graph',
                         hasCachedDataset,
                     );
-                    await this.activateAnalysisViewMode('dependency-graph');
+                    await this.activateAnalysisViewMode('dependency-graph', 'dependency.settings');
                     messageContext.upsertSharedEntity({
                         entityKind: 'dependency-graph',
                         entityId: 'main',
@@ -1287,7 +1318,7 @@ prepareIdentity();
                         'historical-compare',
                         request.leftSourceId === 'working-copy' || request.rightSourceId === 'working-copy',
                     );
-                    this.setAnalysisViewMode('selection');
+                    this.setAnalysisViewMode('historical-compare', 'historical.selection');
                     void (async () => {
                         try {
                             await SessionWatcherManager.reconcileSession(
@@ -1314,12 +1345,159 @@ prepareIdentity();
                                 'historical-compare',
                                 true,
                             );
-                            this.setAnalysisViewMode('historical-compare');
+                            this.setAnalysisViewMode('historical-compare', 'historical.mapping');
                         } catch (error) {
                             messageContext.broadcast({
                                 type: 'historical-comparison-error',
                                 payload: {
                                     code: error instanceof Error ? error.message : 'comparison-failed',
+                                    message: error instanceof Error ? error.message : String(error),
+                                },
+                            });
+                        }
+                    })();
+                    return true;
+                }
+                if (this.projectEvolutionService && message.type === 'project-evolution-references-request') {
+                    try {
+                        const references = await this.projectEvolutionService.getReferences();
+                        messageContext.send({
+                            type: 'project-evolution-references',
+                            payload: references,
+                        });
+                    } catch (error) {
+                        messageContext.send({
+                            type: 'project-evolution-error',
+                            payload: {
+                                code: 'references-unavailable',
+                                message: error instanceof Error ? error.message : String(error),
+                            },
+                        });
+                    }
+                    return true;
+                }
+                if (this.projectEvolutionService && message.type === 'project-evolution-clear') {
+                    try {
+                        await this.projectEvolutionService.clearGeneratedMovie();
+                        messageContext.removeSharedEntity('project-evolution', 'main');
+                        if (this.config.analysisSessionId) {
+                            analysisRefreshCoordinator.setSnapshotAvailable(
+                                this.config.analysisSessionId,
+                                'project-evolution',
+                                false,
+                            );
+                            this.setAnalysisViewMode('project-evolution', 'project-evolution');
+                        }
+                        messageContext.broadcast({
+                            type: 'project-evolution-cleared',
+                            payload: {
+                                message: 'Project evolution movie cleared.',
+                            },
+                        });
+                    } catch (error) {
+                        messageContext.broadcast({
+                            type: 'project-evolution-error',
+                            payload: {
+                                code: error instanceof Error ? error.message : 'project-evolution-clear-failed',
+                                message: error instanceof Error ? error.message : String(error),
+                            },
+                        });
+                    }
+                    return true;
+                }
+                if (this.projectEvolutionService && message.type === 'project-evolution-apply-frame') {
+                    try {
+                        const payload = message.payload || {};
+                        const revision = Number(payload.revision);
+                        const frameIndex = Number(payload.frameIndex);
+                        const requestId = typeof payload.requestId === 'string'
+                            ? payload.requestId
+                            : undefined;
+                        const result = await this.projectEvolutionService.applyFrameToBridge(revision, frameIndex);
+                        messageContext.broadcast({
+                            type: 'project-evolution-frame-applied',
+                            payload: {
+                                ...result,
+                                requestId,
+                            },
+                        });
+                    } catch (error) {
+                        messageContext.broadcast({
+                            type: 'project-evolution-error',
+                            payload: {
+                                code: error instanceof Error ? error.message : 'project-evolution-apply-frame-failed',
+                                message: error instanceof Error ? error.message : String(error),
+                            },
+                        });
+                    }
+                    return true;
+                }
+                if (this.projectEvolutionService && message.type === 'project-evolution-start') {
+                    if (this.projectEvolutionService.isBusy()) {
+                        messageContext.send({
+                            type: 'project-evolution-error',
+                            payload: {
+                                code: 'project-evolution-busy',
+                                message: 'Another project evolution analysis is already running.',
+                            },
+                        });
+                        return true;
+                    }
+                    const payload = message.payload || {};
+                    const request: ProjectEvolutionRequest = {
+                        mode: payload.mode === 'range' || payload.mode === 'manual'
+                            ? payload.mode
+                            : 'auto',
+                        startSourceId: typeof payload.startSourceId === 'string'
+                            ? payload.startSourceId
+                            : undefined,
+                        endSourceId: typeof payload.endSourceId === 'string'
+                            ? payload.endSourceId
+                            : undefined,
+                        sourceIds: Array.isArray(payload.sourceIds)
+                            ? payload.sourceIds.map((value: unknown) => String(value)).filter(Boolean)
+                            : undefined,
+                        maxFrames: Number.isFinite(Number(payload.maxFrames))
+                            ? Number(payload.maxFrames)
+                            : undefined,
+                    };
+                    analysisRefreshCoordinator.setRefreshEnabled(
+                        this.config.analysisSessionId!,
+                        'project-evolution',
+                        false,
+                    );
+                    this.setAnalysisViewMode('project-evolution', 'project-evolution');
+                    void (async () => {
+                        try {
+                            await SessionWatcherManager.reconcileSession(
+                                this.config.analysisSessionId!,
+                            );
+                            const result = await this.projectEvolutionService!.generate(request, (progress) => {
+                                messageContext.broadcast({
+                                    type: 'project-evolution-progress',
+                                    payload: progress,
+                                });
+                            });
+                            messageContext.upsertSharedEntity({
+                                entityKind: 'project-evolution',
+                                entityId: 'main',
+                                mode: 'project-evolution',
+                                result,
+                            });
+                            analysisRefreshCoordinator.setSnapshotAvailable(
+                                this.config.analysisSessionId!,
+                                'project-evolution',
+                                true,
+                            );
+                            this.setAnalysisViewMode('project-evolution', 'project-evolution');
+                        } catch (error) {
+                            if (error instanceof Error && error.message === 'project-evolution-cleared') {
+                                return;
+                            }
+                            messageContext.broadcast({
+                                type: 'project-evolution-error',
+                                payload: {
+                                    code: error instanceof Error ? error.message : 'project-evolution-failed',
                                     message: error instanceof Error ? error.message : String(error),
                                 },
                             });
@@ -1366,6 +1544,12 @@ prepareIdentity();
                 enabled: false,
                 reason: 'Historical comparison is not available for this server.',
             };
+        const projectEvolution = this.projectEvolutionService
+            ? await this.projectEvolutionService.getAvailability()
+            : {
+                enabled: false,
+                reason: 'Project evolution is not available for this server.',
+            };
         const dependencyGraph = this.dependencyGraphService?.getAvailability() || {
             enabled: false,
             reason: 'Dependency analysis is not available for this server.',
@@ -1381,6 +1565,8 @@ prepareIdentity();
                 media: true,
                 historicalComparison: historicalComparison.enabled,
                 historicalComparisonReason: historicalComparison.reason,
+                projectEvolution: projectEvolution.enabled,
+                projectEvolutionReason: projectEvolution.reason,
                 dependencyGraph: dependencyGraph.enabled,
                 dependencyGraphReason: dependencyGraph.reason,
             },
@@ -1495,20 +1681,21 @@ prepareIdentity();
         }
     }
 
-    private setAnalysisViewMode(mode: AnalysisViewMode): void {
+    private setAnalysisViewMode(mode: AnalysisViewMode, controllerView: string): void {
         if (!this.config.analysisSessionId) {
             return;
         }
-        analysisRefreshCoordinator.setActiveMode(this.config.analysisSessionId, mode);
+        analysisRefreshCoordinator.setActiveMode(this.config.analysisSessionId, mode, controllerView);
     }
 
     private async activateAnalysisViewMode(
         mode: Exclude<AnalysisViewMode, 'selection'>,
+        controllerView: string,
     ): Promise<void> {
         if (!this.config.analysisSessionId) {
             return;
         }
-        analysisRefreshCoordinator.activateMode(this.config.analysisSessionId, mode);
+        analysisRefreshCoordinator.activateMode(this.config.analysisSessionId, mode, controllerView);
         await SessionWatcherManager.reconcileSession(this.config.analysisSessionId);
     }
 

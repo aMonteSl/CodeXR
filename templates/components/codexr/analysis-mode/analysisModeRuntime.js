@@ -1,7 +1,34 @@
 (function registerCodeXRAnalysisModeRuntime(root) {
   'use strict';
 
-  var VALID_MODES = new Set(['selection', 'single', 'historical-compare', 'dependency-graph']);
+  var VALID_MODES = new Set(['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph']);
+  var MODE_PANEL_VIEW_BY_ID = {
+    selection: 'visualization-mode',
+    single: 'mapping',
+    'historical-compare': 'mapping',
+    'dependency-graph': 'dependency-graph',
+    'project-evolution': 'project-evolution'
+  };
+  var MODE_CONTROLLER_VIEW_BY_ID = {
+    selection: 'visualization-menu',
+    single: 'single.mapping',
+    'historical-compare': 'historical.selection',
+    'dependency-graph': 'dependency.settings',
+    'project-evolution': 'project-evolution'
+  };
+  var PANEL_VIEW_BY_CONTROLLER_VIEW = {
+    'visualization-menu': 'visualization-mode',
+    'single.mapping': 'mapping',
+    'dependency.settings': 'dependency-graph',
+    'historical.selection': 'historical-selection',
+    'historical.mapping': 'mapping',
+    'project-evolution': 'project-evolution',
+    'project-evolution.selection': 'project-evolution',
+    'project-evolution.playback': 'project-evolution'
+  };
+  var RAYCAST_CLASS = 'babiaxraycasterclass';
+  var SUSPENDED_INTERACTIVE_ATTR = 'data-codexr-suspended-interactive';
+  var SUSPENDED_RAYCAST_ATTR = 'data-codexr-suspended-raycast-class';
   var lifecycles = {};
   var state = {
     mode: 'single',
@@ -16,6 +43,7 @@
     modeOptions: [],
     unregisterPanelView: null,
     selectionPanelView: 'visualization-mode',
+    controllerView: 'single.mapping',
     panelRoot: null,
     openingSelectorFromPanel: false
   };
@@ -26,14 +54,108 @@
     root.console?.log?.apply?.(root.console, args);
   }
 
+  function removeAttribute(element, name) {
+    if (!element || !name) { return; }
+    if (typeof element.removeAttribute === 'function') {
+      element.removeAttribute(name);
+    } else if (element.attributes && Object.prototype.hasOwnProperty.call(element.attributes, name)) {
+      delete element.attributes[name];
+    }
+  }
+
+  function getClassTokens(element) {
+    var value = String(element.getAttribute.('class') || element.className || '').trim();
+    return value  value.split(/\s+/).filter(Boolean) : [];
+  }
+
+  function setClassTokens(element, tokens) {
+    if (!element.setAttribute) { return; }
+    var value = Array.from(new Set(tokens || [])).filter(Boolean).join(' ');
+    element.setAttribute('class', value);
+  }
+
+  function setRaycastClass(element, enabled) {
+    if (!element) { return; }
+    var tokens = getClassTokens(element);
+    var hasToken = tokens.includes(RAYCAST_CLASS);
+    if (enabled && !hasToken) {
+      tokens.push(RAYCAST_CLASS);
+      setClassTokens(element, tokens);
+      element.classList.add.(RAYCAST_CLASS);
+    } else if (!enabled && hasToken) {
+      setClassTokens(element, tokens.filter(function (token) { return token !== RAYCAST_CLASS; }));
+      element.classList.remove.(RAYCAST_CLASS);
+    } else if (!enabled) {
+      element.classList.remove.(RAYCAST_CLASS);
+    }
+  }
+
+  function walkElementTree(element, callback) {
+    if (!element || typeof callback !== 'function') { return; }
+    callback(element);
+    Array.from(element.children || []).forEach(function (child) {
+      walkElementTree(child, callback);
+    });
+  }
+
+  function clearElementRuntimeOverlays(element) {
+    var components = element.components || {};
+    Object.keys(components).forEach(function (key) {
+      var component = components[key];
+      if (typeof component.clearTooltips === 'function') {
+        component.clearTooltips({ reason: 'analysis-mode-hidden' });
+      } else if (typeof component.hideTooltip === 'function') {
+        component.hideTooltip({ reason: 'analysis-mode-hidden' });
+      }
+    });
+  }
+
+  function setElementTreeInteractive(element, enabled) {
+    walkElementTree(element, function (node) {
+      if (!enabled) {
+        clearElementRuntimeOverlays(node);
+      }
+      var interactive = node.getAttribute.('data-codexr-interactive');
+      var raycastTokens = getClassTokens(node);
+      var hasRaycastClass = raycastTokens.includes(RAYCAST_CLASS)
+        || !!node.classList.contains.(RAYCAST_CLASS);
+      if (!enabled) {
+        if (interactive != null && node.getAttribute.(SUSPENDED_INTERACTIVE_ATTR) == null) {
+          node.setAttribute.(SUSPENDED_INTERACTIVE_ATTR, String(interactive));
+          node.setAttribute.('data-codexr-interactive', 'false');
+        }
+        if (hasRaycastClass && node.getAttribute.(SUSPENDED_RAYCAST_ATTR) == null) {
+          node.setAttribute.(SUSPENDED_RAYCAST_ATTR, 'true');
+          setRaycastClass(node, false);
+        }
+        return;
+      }
+      var storedInteractive = node.getAttribute.(SUSPENDED_INTERACTIVE_ATTR);
+      if (storedInteractive != null) {
+        node.setAttribute.('data-codexr-interactive', storedInteractive);
+        removeAttribute(node, SUSPENDED_INTERACTIVE_ATTR);
+      }
+      if (node.getAttribute.(SUSPENDED_RAYCAST_ATTR) === 'true') {
+        setRaycastClass(node, true);
+        removeAttribute(node, SUSPENDED_RAYCAST_ATTR);
+      }
+    });
+  }
+
   function setElementTreeVisible(element, visible) {
     if (!element) { return; }
+    if (!visible) {
+      setElementTreeInteractive(element, false);
+    }
     element.setAttribute?.('visible', !!visible);
     if (element.object3D) {
       element.object3D.visible = !!visible;
       element.object3D.traverse?.(function (object) {
         object.visible = !!visible;
       });
+    }
+    if (visible) {
+      setElementTreeInteractive(element, true);
     }
   }
 
@@ -221,11 +343,15 @@
       rememberNormalRoots(roots);
       roots.forEach(function (element) {
         setElementTreeVisible(element, false);
-        if (element.parentNode) {
-          element.parentNode.removeChild(element);
+      });
+      var activeNonNormalRootCount = 0;
+      surface.querySelectorAll.('[data-codexr-analysis-root="true"]').forEach(function (element) {
+        if (element.getAttribute.('data-codexr-analysis-mode') !== 'single'
+          && element.getAttribute.('visible') !== false) {
+          activeNonNormalRootCount += 1;
         }
       });
-      if (surface && !surface.querySelector?.('[data-codexr-analysis-root="true"]')) {
+      if (surface && activeNonNormalRootCount === 0) {
         setElementTreeVisible(surface, false);
       }
       debugLog('Surface normal roots detached', {
@@ -471,25 +597,61 @@
   }
 
   function createModeButton(option, y) {
+    var disabled = option.disabled === true;
+    var disabledReason = String(option.disabledReason || 'This visualization mode is not available right now.');
     var button = createEntity('a-plane', {
       position: '0 ' + y + ' 0.02',
       width: 4.5,
       height: 0.48,
-      material: 'color: ' + (option.color || '#0e7490') + '; opacity: 0.96; shader: flat',
+      material: 'color: ' + (disabled  '#475569' : (option.color || '#0e7490')) + '; opacity: ' + (disabled  '0.62' : '0.96') + '; shader: flat',
       class: 'codexr-analysis-mode-option',
       'data-codexr-interactive': 'true',
-      'data-codexr-mode-option': option.id
+      'data-codexr-mode-option': option.id,
+      'data-codexr-disabled': disabled  'true' : 'false'
     });
     var label = createEntity('a-text', {
       value: option.label,
       position: '0 0 0.02',
       width: 6.8,
-      color: '#ffffff',
+      color: disabled  '#cbd5e1' : '#ffffff',
       align: 'center',
       baseline: 'center'
     });
     button?.appendChild?.(label);
+    if (disabled) {
+      var tooltip = createEntity('a-entity', {
+        visible: false,
+        position: '0 -0.46 0.08',
+        'data-codexr-mode-disabled-tooltip': option.id
+      });
+      tooltip.appendChild.(createEntity('a-plane', {
+        width: 4.7,
+        height: 0.5,
+        material: 'color: #111827; opacity: 0.96; shader: flat'
+      }));
+      tooltip.appendChild.(createEntity('a-text', {
+        value: disabledReason,
+        position: '0 0 0.03',
+        width: 5.8,
+        color: '#fde68a',
+        align: 'center',
+        baseline: 'center',
+        'wrap-count': 44
+      }));
+      var setTooltipVisible = function (visible) {
+        tooltip.setAttribute.('visible', !!visible);
+      };
+      button.appendChild.(tooltip);
+      button.addEventListener.('mouseenter', function () { setTooltipVisible(true); });
+      button.addEventListener.('mouseleave', function () { setTooltipVisible(false); });
+      button.addEventListener.('raycaster-intersected', function () { setTooltipVisible(true); });
+      button.addEventListener.('raycaster-intersected-cleared', function () { setTooltipVisible(false); });
+    }
     button?.addEventListener?.('click', function () {
+      if (disabled) {
+        debugLog('Visualization mode option disabled', option.id, disabledReason);
+        return;
+      }
       debugLog('Visualization mode option clicked', option.id);
       option.onSelect?.();
     });
@@ -509,11 +671,8 @@
     client?.sendMessage?.('analysis-mode-activate', { mode: mode });
     return transitionTo(mode, {
       reason: 'local-analysis-mode-option',
-      panelViewId: mode === 'single'
-        ? 'mapping'
-        : mode === 'dependency-graph'
-          ? 'dependency-graph'
-          : 'mapping'
+      controllerView: getDefaultControllerViewForMode(mode),
+      panelViewId: getPanelViewForControllerView(getDefaultControllerViewForMode(mode))
     });
   }
 
@@ -565,7 +724,8 @@
     root.CodeXRCollaborationRuntime?.getClient?.(root)
       ?.sendMessage?.('analysis-mode-activate', { mode: state.requestedMode || 'single' });
     void transitionTo(state.requestedMode || 'single', {
-      reason: 'local-visualization-mode-toggle'
+      reason: 'local-visualization-mode-toggle',
+      controllerView: getDefaultControllerViewForMode(state.requestedMode || 'single')
     });
   }
 
@@ -578,6 +738,7 @@
     state.selectionPanelView = 'visualization-mode';
     return transitionTo('selection', {
       reason: 'local-mode-selection',
+      controllerView: 'visualization-menu',
       panelViewId: 'visualization-mode'
     }).then(function () {
       root.CodeXRCollaborationRuntime?.getClient?.(root)
@@ -651,18 +812,7 @@
       }
     }
     if (generation !== state.generation) { return false; }
-    if (mode !== 'selection') {
-      state.requestedMode = mode;
-    }
-    setTableMode(mode);
-    state.activeLifecycleMode = mode;
-    state.mode = mode;
-    var panelViewId = context?.panelViewId
-      || (mode === 'selection' ? state.selectionPanelView : null)
-      || (mode === 'single' ? 'mapping' : null);
-    if (panelViewId) {
-      root.CodeXRMappingUiRuntime?.showPanelView?.(panelViewId);
-    }
+    applyAnalysisMode(mode, context || null);
     try {
       await invoke(lifecycles[mode], 'activate', {
         from: previousMode,
@@ -678,11 +828,8 @@
           generation: generation,
           context: { reason: 'activation-error', error: error }
         });
-        state.activeLifecycleMode = 'selection';
-        state.mode = 'selection';
-        setTableMode('selection');
+        applyAnalysisMode('selection', { panelViewId: state.selectionPanelView });
         await clearVisualizationsForSelection({ generation: generation });
-        root.CodeXRMappingUiRuntime?.showPanelView?.(state.selectionPanelView);
       }
       console.error('[CodeXR][AnalysisMode] Could not activate mode:', mode, error);
       return false;
@@ -699,6 +846,7 @@
       }
       return false;
     }
+    applyAnalysisMode(mode, context || null);
     debugLog('Analysis mode transition completed', {
       mode: mode,
       activeLifecycleMode: state.activeLifecycleMode,
@@ -792,7 +940,16 @@
   function getNormalMappingTargetIds(config) {
     var ids = collectConfiguredIds(config, ['chartEntityIds', 'chartEntityId', 'chartId']);
     if (!ids.length) {
-      ids = getNormalVisualizationRoots()
+      var containedChartIds = [];
+      getNormalVisualizationRoots().forEach(function (element) {
+        element.querySelectorAll.('[codexr-chart-containment]')
+          .forEach(function (chart) {
+            if (chart.id) {
+              containedChartIds.push(chart.id);
+            }
+          });
+      });
+      ids = containedChartIds.length  containedChartIds : getNormalVisualizationRoots()
         .map(function (element) { return element.id; })
         .filter(Boolean);
     }
@@ -805,8 +962,73 @@
   }
 
   function setTableMode(mode) {
+    var appliedMode = root.CodeXRAnalysisTableRuntime.setMode.(mode);
+    if (appliedMode) {
+      return appliedMode;
+    }
     root.document?.getElementById?.('codexrAnalysisTable')
       ?.setAttribute?.('codexr-analysis-table', 'mode', mode);
+    return mode;
+  }
+
+  function getDefaultPanelViewForMode(mode) {
+    return MODE_PANEL_VIEW_BY_ID[mode] || 'mapping';
+  }
+
+  function getDefaultControllerViewForMode(mode) {
+    return MODE_CONTROLLER_VIEW_BY_ID[mode] || 'single.mapping';
+  }
+
+  function getPanelViewForControllerView(controllerView) {
+    return PANEL_VIEW_BY_CONTROLLER_VIEW[controllerView] || 'mapping';
+  }
+
+  function resolveControllerView(mode, context) {
+    var snapshotView = context.snapshot.controllerView;
+    return context.controllerView
+      || snapshotView
+      || getDefaultControllerViewForMode(mode);
+  }
+
+  function resolveModePanelView(mode, context) {
+    var controllerView = resolveControllerView(mode, context || null);
+    return context.panelViewId
+      || getPanelViewForControllerView(controllerView)
+      || (mode === 'selection'  state.selectionPanelView : null)
+      || getDefaultPanelViewForMode(mode);
+  }
+
+  function applyControllerView(mode, controllerView, panelViewId, context) {
+    var controller = root.CodeXRAnalysisControllerRuntime || root.CodeXRMappingUiRuntime;
+    if (controller.showView) {
+      return controller.showView(controllerView, {
+        mode: mode,
+        panelViewId: panelViewId,
+        reason: context.reason || 'analysis-mode',
+        mappingContextId: context.mappingContextId || null
+      });
+    }
+    root.CodeXRMappingUiRuntime.showPanelView.(panelViewId);
+    return {
+      mode: mode,
+      controllerView: controllerView,
+      panelView: panelViewId
+    };
+  }
+
+  function applyAnalysisMode(mode, context) {
+    var nextMode = VALID_MODES.has(mode)  mode : 'single';
+    var controllerView = resolveControllerView(nextMode, context || null);
+    if (nextMode !== 'selection') {
+      state.requestedMode = nextMode;
+    }
+    state.activeLifecycleMode = nextMode;
+    state.mode = nextMode;
+    state.controllerView = controllerView;
+    setTableMode(nextMode);
+    var panelViewId = resolveModePanelView(nextMode, context || null);
+    applyControllerView(nextMode, controllerView, panelViewId, context || null);
+    return nextMode;
   }
 
   function removeResidualVisualRoots() {
@@ -855,7 +1077,7 @@
       mode: state.mode
     });
     await Promise.allSettled(
-      ['single', 'historical-compare', 'dependency-graph'].map(function (mode) {
+      ['single', 'historical-compare', 'project-evolution', 'dependency-graph'].map(function (mode) {
         var lifecycle = lifecycles[mode];
         return typeof lifecycle?.disposeView === 'function'
           ? invoke(lifecycle, 'disposeView', context)
@@ -944,6 +1166,9 @@
         if (chartIds.length) {
           root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds);
         }
+        root.CodeXRMappingUiRuntime.switchMappingContext.('normal-analysis', {
+          reason: 'normal-analysis-activate'
+        });
         void waitForNormalChartReady(config, activation).then(function () {
           if (state.mode !== 'single' && state.activeLifecycleMode !== 'single') {
             return;
@@ -984,13 +1209,10 @@
           void transitionTo(visibleMode, {
             reason: 'authoritative-analysis-view',
             snapshot: snapshot,
+            controllerView: snapshot.controllerView || getDefaultControllerViewForMode(visibleMode),
             panelViewId: visibleMode === 'selection'
               ? state.selectionPanelView
-              : visibleMode === 'single'
-                ? 'mapping'
-                : visibleMode === 'dependency-graph'
-                  ? 'dependency-graph'
-                  : 'mapping'
+              : getPanelViewForControllerView(snapshot.controllerView || getDefaultControllerViewForMode(visibleMode))
           });
         }
       },
@@ -1012,6 +1234,8 @@
       return {
         mode: state.mode,
         requestedMode: state.requestedMode,
+        controllerView: state.controllerView,
+        activeLifecycleMode: state.activeLifecycleMode,
         transitioning: state.transitioning,
         generation: state.generation
       };
@@ -1024,6 +1248,7 @@
         state.mode = 'single';
         state.activeLifecycleMode = 'single';
         state.requestedMode = 'single';
+        state.controllerView = 'single.mapping';
         state.transitioning = false;
         state.generation = 0;
         state.transition = Promise.resolve();

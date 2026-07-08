@@ -24,18 +24,18 @@ export type CollaborationRole = 'host' | 'guest';
 export type IdentityMode = 'anonymous' | 'custom';
 
 export interface ParticipantState {
-    peerId: string;
-    displayName: string;
-    identityMode: IdentityMode;
-    avatarId: string;
-    role: CollaborationRole;
-    isPresenter: boolean;
+    peerId?: string;
+    displayName?: string;
+    identityMode?: IdentityMode;
+    avatarId?: string;
+    role?: CollaborationRole;
+    isPresenter?: boolean;
     connectedAt: string;
 }
 
 export interface SharedEntityState extends Record<string, unknown> {
-    entityKind: string;
-    entityId: string;
+    entityKind?: string;
+    entityId?: string;
     gestureOwnerPeerId?: string | null;
     transform?: TransformState | null;
     updatedAt?: string;
@@ -43,11 +43,11 @@ export interface SharedEntityState extends Record<string, unknown> {
 
 export interface SharedPresenceState extends Record<string, unknown> {
     peerId: string;
-    displayName?: string;
-    identityMode?: IdentityMode;
-    avatarId?: string;
-    role?: CollaborationRole;
-    isPresenter?: boolean;
+    displayName: string;
+    identityMode: IdentityMode;
+    avatarId: string;
+    role: CollaborationRole;
+    isPresenter: boolean;
     head?: unknown;
     body?: unknown;
     leftHand?: unknown;
@@ -80,9 +80,9 @@ interface CollaborationRoomState {
 export interface CollaborationMessage {
     type: string;
     roomId?: string;
-    peerId?: string;
-    entityKind?: string;
-    entityId?: string;
+    peerId: string;
+    entityKind: string;
+    entityId: string;
     payload?: Record<string, unknown>;
 }
 
@@ -101,6 +101,7 @@ export interface CollaborationApplicationMessageContext {
     send: (payload: Record<string, unknown>) => void;
     broadcast: (payload: Record<string, unknown>) => void;
     upsertSharedEntity: (entity: SharedEntityState) => void;
+    removeSharedEntity: (entityKind: string, entityId: string) => void;
 }
 
 const DEFAULT_ROOM_ID = 'codexr-session:default';
@@ -329,6 +330,7 @@ export class CollaborationRoomServer {
                     roomId: room.id,
                 }),
                 upsertSharedEntity: (entity) => this.upsertAuthoritativeEntity(room, entity, peer.id),
+                removeSharedEntity: (entityKind, entityId) => this.removeAuthoritativeEntity(room, entityKind, entityId, peer.id),
             }, message);
             if (!handled) {
                 this.sendError(
@@ -643,8 +645,22 @@ export class CollaborationRoomServer {
             return;
         }
 
-        const entityKind = this.normalizeId(message.entityKind || message.payload?.entityKind);
-        const entityId = this.normalizeId(message.entityId || message.payload?.entityId);
+        this.removeAuthoritativeEntity(
+            room,
+            String(message.entityKind || message.payload.entityKind || ''),
+            String(message.entityId || message.payload.entityId || ''),
+            peer.id,
+        );
+    }
+
+    private removeAuthoritativeEntity(
+        room: CollaborationRoomState,
+        rawEntityKind: string,
+        rawEntityId: string,
+        peerId: string,
+    ): void {
+        const entityKind = this.normalizeId(rawEntityKind);
+        const entityId = this.normalizeId(rawEntityId);
         if (!entityKind || !entityId || !room.entities.delete(this.getEntityKey(entityKind, entityId))) {
             return;
         }
@@ -652,11 +668,11 @@ export class CollaborationRoomServer {
         room.revision += 1;
         this.broadcast(room, {
             type: 'entity-removed',
-            peerId: peer.id,
+            peerId,
             roomId: room.id,
             revision: room.revision,
             payload: { entityKind, entityId },
-        }, peer.id);
+        }, peerId);
     }
 
     private updateEntityLock(peer: CollaborationPeer, message: CollaborationMessage, isLock: boolean): void {
@@ -1046,7 +1062,7 @@ export class CollaborationRoomServer {
             displayName: participant.displayName,
             avatarId: participant.avatarId,
             clientKind: peer?.session?.clientKind || 'browser',
-            connectionScope: peer?.session?.remote ? 'remote' : 'local',
+            connectionScope: peer.session.remote ? 'remote' : 'local',
             connectedAt: participant.connectedAt,
         };
     }

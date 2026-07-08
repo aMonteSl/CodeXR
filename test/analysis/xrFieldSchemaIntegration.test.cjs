@@ -107,6 +107,8 @@ test('boats chart metadata keeps numeric-only area and height with any-valued co
     const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
+    assert.doesNotMatch(templateCharts, /id: 'codexr-boats'/);
+
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'area'[\s\S]*dataType: 'numeric'/);
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'height'[\s\S]*dataType: 'numeric'/);
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'color'[\s\S]*dataType: 'any'/);

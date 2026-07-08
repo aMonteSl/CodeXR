@@ -216,7 +216,7 @@ export class PreviewRenderer {
     </div>
     
     <div class="error-container" id="errorContainer">
-        <h3>⚠️ Connection Error</h3>
+        <h3>Connection Error</h3>
         <p>Could not load content from the local server.</p>
         <p style="font-size: 12px; opacity: 0.8;">URL: ${escapedServerUrl}</p>
         <button class="retry-button" onclick="reloadFrame()">Retry</button>

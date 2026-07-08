@@ -79,7 +79,7 @@ export class BrowseVisualizationItemFactory {
                 ? `Launch visualization: ${visualization.name}\nPath: ${visualization.folderPath}`
                 : `Invalid visualization: ${visualization.name}\nMissing required files in: ${visualization.folderPath}`;
             
-            const description = isValid ? undefined : '⚠️ Invalid';
+            const description = isValid ? undefined : 'Invalid';
 
             return new BrowseVisualizationTreeItem(
                 visualization.name,

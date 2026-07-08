@@ -195,7 +195,7 @@ export class FileWatcherOrchestrator {
             ? await this.reAnalysisManager.executeVisualizeDOMRegeneration(this.session)
             : await this.reAnalysisManager.executeDataJsonRegeneration(
                 this.session,
-                { notifyClients: this.session.analysisMode !== 'XR' },
+                { notifyClients: this.session.analysisMode !== 'XR', silent: true },
             );
         if (!success) {
             vscode.window.showErrorMessage(`Failed to update analysis for ${path.basename(this.session.targetPath)}`);
@@ -207,7 +207,7 @@ export class FileWatcherOrchestrator {
         sessionRegistry.updateSessionStatus(this.session.id, 'monitoring', 100);
         const targetName = path.basename(this.session.targetPath);
         const noun = this.session.analysisMode === 'VisualizeDOM' ? 'HTML visualization' : 'analysis';
-        vscode.window.setStatusBarMessage(`$(check) Updated ${noun} for ${targetName}`, 2000);
+        vscode.window.setStatusBarMessage(`$(check) CodeXR re-analysis updated ${noun} for ${targetName}`, 2000);
         console.log(`FILE_WATCHER_ORCHESTRATOR: Re-analysis completed for ${targetName}`);
     }
 

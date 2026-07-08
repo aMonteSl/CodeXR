@@ -21,6 +21,30 @@
     boats: 'babia-boats'
   };
 
+  var DEFAULT_ROTATION_BY_CHART = {
+    donut: '0 0 0',
+    pie: '0 0 0'
+  };
+
+  var CONTROLLER_PANEL_BY_VIEW = {
+    'visualization-menu': 'visualization-mode',
+    'single.mapping': 'mapping',
+    'dependency.settings': 'dependency-graph',
+    'historical.selection': 'historical-selection',
+    'historical.mapping': 'mapping',
+    'project-evolution': 'project-evolution',
+    'project-evolution.selection': 'project-evolution',
+    'project-evolution.playback': 'project-evolution'
+  };
+
+  var CONTROLLER_VIEW_BY_PANEL = {
+    'visualization-mode': 'visualization-menu',
+    mapping: 'single.mapping',
+    'dependency-graph': 'dependency.settings',
+    'historical-selection': 'historical.selection',
+    'project-evolution': 'project-evolution'
+  };
+
   var refs = {
     panel: null,
     panelContent: null,
@@ -28,6 +52,7 @@
     panelTitleBackdrop: null,
     toggle: null,
     rowsRoot: null,
+    chartRoot: null,
     panelBackground: null,
     panelBorder: null,
     statusText: null
@@ -52,10 +77,17 @@
     statusClearTimer: null,
     suppressSharedPublish: false,
     chartEntityIdsOverride: null,
+    activeMappingContextId: 'normal-analysis',
+    mappingProfiles: {},
     activePanelView: 'mapping',
     mappingPanelHeight: 2.45,
     panelViews: {},
-    panelViewObservers: {}
+    panelViewObservers: {},
+    runtimeConfig: null,
+    activeChartId: null,
+    mode: 'single',
+    activeControllerView: 'single.mapping',
+    modeMemory: {}
   };
 
   var ADAPTIVE_DEFAULTS = {
@@ -65,21 +97,55 @@
     panelForwardOffset: 0.12
   };
 
+  var PANEL_LAYOUT = {
+    left: -2.85,
+    right: 2.55,
+    labelWidth: 7.4,
+    buttonGap: 0.08,
+    rowGap: 0.28,
+    sectionGap: 0.32,
+    labelToButtonsGap: 0.3,
+    maxChartRows: 3,
+    chartRootHeightOffset: 0.34,
+    rowsRootHeightOffset: 1.72,
+    panelHeightPadding: 2.95
+  };
+
+  function getPanelContentWidth() {
+    return PANEL_LAYOUT.right - PANEL_LAYOUT.left;
+  }
+
+  function getGridButtonWidth(cols) {
+    var safeCols = Math.max(1, Number(cols) || 1);
+    return (getPanelContentWidth() - PANEL_LAYOUT.buttonGap * (safeCols - 1)) / safeCols;
+  }
+
+  function getGridButtonX(colIndex, buttonWidth) {
+    return PANEL_LAYOUT.left + colIndex * (buttonWidth + PANEL_LAYOUT.buttonGap) + buttonWidth * 0.5;
+  }
+
   function getDoc() {
     return root.document;
   }
 
   function getConfig() {
+    if (state.runtimeConfig) {
+      return state.runtimeConfig;
+    }
     var document = getDoc();
     var configScript = document ? document.getElementById(CONFIG_SCRIPT_ID) : null;
     if (configScript && typeof configScript.textContent === 'string') {
       try {
-        return JSON.parse(configScript.textContent);
+        state.runtimeConfig = JSON.parse(configScript.textContent);
+        state.activeChartId = state.runtimeConfig.chartId || null;
+        return state.runtimeConfig;
       } catch (error) {
         console.warn('CODEXR_MAPPING_UI: invalid JSON config script', error);
       }
     }
-    return root[CONFIG_KEY] || null;
+    state.runtimeConfig = root[CONFIG_KEY] || null;
+    state.activeChartId = state.runtimeConfig.chartId || null;
+    return state.runtimeConfig;
   }
 
   function createEntity(tagName, attributes) {
@@ -390,24 +456,262 @@
     return entities.length ? entities[0] : null;
   }
 
+  function getConfiguredChartEntityIds(config) {
+    return Array.isArray(state.chartEntityIdsOverride) && state.chartEntityIdsOverride.length
+       state.chartEntityIdsOverride
+      : (Array.isArray(config && config.chartEntityIds) && config.chartEntityIds.length
+         config.chartEntityIds
+        : [config && config.chartEntityId]);
+  }
+
+  function hasEntityAttribute(entity, attributeName) {
+    if (!entity || !attributeName) {
+      return false;
+    }
+    if (typeof entity.hasAttribute === 'function') {
+      return entity.hasAttribute(attributeName);
+    }
+    return typeof entity.getAttribute === 'function' && entity.getAttribute(attributeName) !== undefined;
+  }
+
+  function isAnalysisRootEntity(entity) {
+    return !!(entity && (
+      hasEntityAttribute(entity, 'data-codexr-analysis-root')
+      || hasEntityAttribute(entity, 'data-codexr-normal-root')
+      || hasEntityAttribute(entity, 'data-codexr-analysis-surface')
+    ));
+  }
+
+  function isChartMappingEntity(entity, componentName) {
+    if (!entity) {
+      return false;
+    }
+    if (hasEntityAttribute(entity, 'codexr-chart-containment')) {
+      return true;
+    }
+    if (isAnalysisRootEntity(entity)) {
+      return false;
+    }
+    return !!(componentName && hasEntityAttribute(entity, componentName));
+  }
+
+  function queryEntities(scope, selector) {
+    if (!scope || typeof scope.querySelectorAll !== 'function') {
+      return [];
+    }
+    try {
+      return Array.prototype.slice.call(scope.querySelectorAll(selector) || []);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function getChartSearchScopes(config) {
+    var document = getDoc();
+    if (!document) {
+      return [];
+    }
+
+    var scopeIds = [
+      config && config.normalRootId,
+      config && config.normalSurfaceId,
+      'codexrNormalAnalysisRoot',
+      'codexrAnalysisSurface'
+    ].filter(Boolean);
+    var scopes = [];
+    scopeIds.forEach(function (id) {
+      if (!document.getElementById) {
+        return;
+      }
+      var scope = document.getElementById(id);
+      if (scope && scopes.indexOf(scope) === -1) {
+        scopes.push(scope);
+      }
+    });
+    scopes.push(document);
+    return scopes;
+  }
+
+  function findFallbackChartEntity(config, preferredId) {
+    var document = getDoc();
+    if (!document) {
+      return null;
+    }
+    var componentName = getChartComponentName(config);
+
+    if (preferredId && document.getElementById) {
+      var preferred = document.getElementById(preferredId);
+      if (isChartMappingEntity(preferred, componentName)) {
+        return preferred;
+      }
+      var contained = queryEntities(preferred, '[codexr-chart-containment]');
+      if (contained.length) {
+        var containedMatch = componentName
+           contained.find(function (entity) { return hasEntityAttribute(entity, componentName); })
+          : null;
+        return containedMatch || contained[0];
+      }
+    }
+
+    var scopes = getChartSearchScopes(config);
+    for (var i = 0; i < scopes.length; i += 1) {
+      var charts = queryEntities(scopes[i], '[codexr-chart-containment]');
+      if (!charts.length) {
+        continue;
+      }
+      if (componentName) {
+        var componentMatch = charts.find(function (entity) {
+          return hasEntityAttribute(entity, componentName);
+        });
+        if (componentMatch) {
+          return componentMatch;
+        }
+      }
+      return charts[0];
+    }
+    return null;
+  }
+
+  function buildChartValidationTargets(config) {
+    var ids = getConfiguredChartEntityIds(config).filter(Boolean).map(String);
+    if (!ids.length) {
+      return [function resolveChartTarget() {
+        return findFallbackChartEntity(config);
+      }];
+    }
+    return ids.map(function (id) {
+      return function resolveChartTarget() {
+        return findFallbackChartEntity(config, id);
+      };
+    });
+  }
+
   function getChartEntities(config) {
     var document = getDoc();
     if (!document || !config) {
       return [];
     }
-    var ids = Array.isArray(state.chartEntityIdsOverride) && state.chartEntityIdsOverride.length
-      ? state.chartEntityIdsOverride
-      : (Array.isArray(config.chartEntityIds) && config.chartEntityIds.length
-        ? config.chartEntityIds
-        : [config.chartEntityId]);
-    return ids
+    var ids = getConfiguredChartEntityIds(config);
+    var componentName = getChartComponentName(config);
+    var directMatches = ids
       .filter(Boolean)
       .map(function (id) { return document.getElementById(id); })
-      .filter(Boolean);
+      .filter(function (entity) { return isChartMappingEntity(entity, componentName); });
+    if (directMatches.length) {
+      return directMatches;
+    }
+
+    var fallback = findFallbackChartEntity(config);
+    return fallback  [fallback] : [];
   }
 
   function cloneMapping(mapping) {
     return Object.assign({}, mapping || {});
+  }
+
+  function cloneInvalidOptions(invalidOptionsByDimension) {
+    return JSON.parse(JSON.stringify(invalidOptionsByDimension || {}));
+  }
+
+  function getActiveChartId(config) {
+    return state.activeChartId || (config && config.chartId) || '';
+  }
+
+  function getMappingProfileKey(contextId, chartId) {
+    return String(contextId || 'default') + '::' + String(chartId || 'default-chart');
+  }
+
+  function getDimensionsForChart(config, chartId) {
+    var byChart = config && config.dimensionsByChart;
+    var dimensions = byChart && Array.isArray(byChart[chartId])
+       byChart[chartId]
+      : (Array.isArray(config && config.dimensions)  config.dimensions : []);
+    return dimensions;
+  }
+
+  function getDefaultMappingForChart(config, chartId) {
+    var defaultsByChart = config && config.defaultMappingsByChart;
+    if (defaultsByChart && defaultsByChart[chartId]) {
+      return cloneMapping(defaultsByChart[chartId]);
+    }
+    var selectedByDimension = {};
+    getDimensionsForChart(config, chartId).forEach(function (dimension) {
+      if (!dimension || !dimension.id) {
+        return;
+      }
+      var fields = Array.isArray(dimension.fields) ? dimension.fields : [];
+      selectedByDimension[dimension.id] = dimension.currentField || fields[0] || '';
+    });
+    return selectedByDimension;
+  }
+
+  function buildDefaultMappingSnapshot(config) {
+    var selectedByDimension = getDefaultMappingForChart(config, getActiveChartId(config));
+    return {
+      visible: config && config.panelVisible !== false,
+      selectedByDimension: cloneMapping(selectedByDimension),
+      lastKnownGoodMapping: cloneMapping(selectedByDimension),
+      invalidOptionsByDimension: {}
+    };
+  }
+
+  function normalizeMappingSnapshot(snapshot, config) {
+    var fallback = buildDefaultMappingSnapshot(config);
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      return fallback;
+    }
+    var selected = snapshot.selectedByDimension && typeof snapshot.selectedByDimension === 'object' && !Array.isArray(snapshot.selectedByDimension)
+       snapshot.selectedByDimension
+      : fallback.selectedByDimension;
+    var lastKnownGood = snapshot.lastKnownGoodMapping && typeof snapshot.lastKnownGoodMapping === 'object' && !Array.isArray(snapshot.lastKnownGoodMapping)
+       snapshot.lastKnownGoodMapping
+      : selected;
+    return {
+      visible: typeof snapshot.visible === 'boolean'  snapshot.visible : fallback.visible,
+      selectedByDimension: cloneMapping(selected),
+      lastKnownGoodMapping: cloneMapping(lastKnownGood),
+      invalidOptionsByDimension: cloneInvalidOptions(snapshot.invalidOptionsByDimension)
+    };
+  }
+
+  function captureMappingProfile() {
+    var confirmedMapping = Object.keys(state.lastKnownGoodMapping || {}).length
+       state.lastKnownGoodMapping
+      : state.selectedByDimension;
+    return {
+      visible: state.visible,
+      selectedByDimension: cloneMapping(confirmedMapping),
+      lastKnownGoodMapping: cloneMapping(confirmedMapping),
+      invalidOptionsByDimension: cloneInvalidOptions(state.invalidOptionsByDimension)
+    };
+  }
+
+  function saveActiveMappingProfile() {
+    var contextId = state.activeMappingContextId || 'default';
+    var chartId = getActiveChartId(getConfig());
+    var profileKey = getMappingProfileKey(contextId, chartId);
+    state.mappingProfiles[profileKey] = captureMappingProfile();
+    return state.mappingProfiles[profileKey];
+  }
+
+  function applyMappingRuntimeState(config, runtimeState, reason) {
+    var snapshot = normalizeMappingSnapshot(runtimeState, config);
+    clearPendingValidationTimers();
+    clearStatusTimer();
+    state.pendingMapping = null;
+    state.statusMessage = '';
+    state.statusLevel = 'info';
+    state.visible = snapshot.visible;
+    state.selectedByDimension = cloneMapping(snapshot.selectedByDimension);
+    state.lastKnownGoodMapping = cloneMapping(snapshot.lastKnownGoodMapping || snapshot.selectedByDimension);
+    state.invalidOptionsByDimension = cloneInvalidOptions(snapshot.invalidOptionsByDimension);
+    applyMappingSnapshot(config, state.lastKnownGoodMapping, reason || 'mapping-ui-restore');
+    state.selectedByDimension = cloneMapping(state.lastKnownGoodMapping);
+    setVisible(config, state.visible);
+    renderRows(config);
+    requestChartContainmentRenormalize(reason || 'mapping-ui-restore');
+    saveActiveMappingProfile();
+    return true;
   }
 
   function mappingsEqual(left, right) {
@@ -422,7 +726,7 @@
   }
 
   function getChartComponentName(config) {
-    return COMPONENT_BY_CHART[(config && config.chartId) || ''] || null;
+    return COMPONENT_BY_CHART[(state.activeChartId || (config && config.chartId)) || ''] || null;
   }
 
   function buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot) {
@@ -442,6 +746,122 @@
         buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot)
       );
     });
+  }
+
+  function isHierarchicalChart(chartId) {
+    return chartId === 'boats';
+  }
+
+  function getChartFromSource(chartId, existingData) {
+    if (existingData && existingData.from) {
+      var fromValue = String(existingData.from);
+      if (isHierarchicalChart(chartId)) {
+        if (/Tree/i.test(fromValue) || fromValue === 'tree') {
+          return fromValue;
+        }
+        return 'tree';
+      }
+      if (/Comparison/i.test(fromValue) && !/Tree/i.test(fromValue)) {
+        return fromValue;
+      }
+    }
+    return isHierarchicalChart(chartId)  'tree' : 'data';
+  }
+
+  function buildRuntimeChartData(chartId, existingData, mappingSnapshot) {
+    var data = Object.assign({}, mappingSnapshot || {});
+    var source = getChartFromSource(chartId, existingData);
+    data.from = source;
+    data.legend = true;
+    data.palette = existingData.palette || 'ubuntu';
+    data.title = existingData.title || 'CodeXR Analysis';
+    data.axis_name = true;
+
+    if (chartId === 'boats') {
+      return Object.assign({
+        legend_text: '{name}\\n{path}',
+        height_building_legend: -0.5,
+        legend_scale: 0.25,
+        legend_lookat: '[laser-controls]',
+        extra: 1,
+        separation: 0.5,
+        zone_elevation: 0.01,
+        height_quarter_legend_box: 0.01,
+        height_quarter_legend_title: 2.5
+      }, data);
+    }
+
+    return data;
+  }
+
+  function readCurrentChartData(chartEntity) {
+    if (!chartEntity || typeof chartEntity.getAttribute !== 'function') {
+      return {};
+    }
+    var componentNames = Object.keys(COMPONENT_BY_CHART).map(function (chartId) {
+      return COMPONENT_BY_CHART[chartId];
+    }).filter(function (componentName, index, list) {
+      return componentName && list.indexOf(componentName) === index;
+    });
+    for (var i = 0; i < componentNames.length; i += 1) {
+      var value = chartEntity.getAttribute(componentNames[i]);
+      if (value && typeof value === 'object') {
+        return value;
+      }
+    }
+    return {};
+  }
+
+  function clearChartComponents(chartEntity) {
+    Object.keys(COMPONENT_BY_CHART).forEach(function (chartId) {
+      var componentName = COMPONENT_BY_CHART[chartId];
+      if (componentName && chartEntity.removeAttribute) {
+        chartEntity.removeAttribute(componentName);
+      }
+    });
+  }
+
+  function clearChartGeneratedChildren(chartEntity) {
+    if (!chartEntity || typeof chartEntity.removeChild !== 'function') {
+      return;
+    }
+    while (chartEntity.firstChild) {
+      chartEntity.removeChild(chartEntity.firstChild);
+    }
+  }
+
+  function applyChartDefaultTransform(chartEntity, chartId) {
+    if (!chartEntity || typeof chartEntity.setAttribute !== 'function') {
+      return;
+    }
+    var rotation = DEFAULT_ROTATION_BY_CHART[chartId] || '0 0 0';
+    chartEntity.setAttribute('rotation', rotation);
+  }
+
+  function applyChartTypeToEntity(chartEntity, chartId, mappingSnapshot) {
+    var componentName = COMPONENT_BY_CHART[chartId];
+    if (!chartEntity || !componentName || typeof chartEntity.setAttribute !== 'function') {
+      return false;
+    }
+    var existingData = readCurrentChartData(chartEntity);
+    clearChartComponents(chartEntity);
+    clearChartGeneratedChildren(chartEntity);
+    applyChartDefaultTransform(chartEntity, chartId);
+    chartEntity.setAttribute(componentName, buildRuntimeChartData(chartId, existingData, mappingSnapshot));
+    chartEntity.setAttribute('data-codexr-active-chart-id', chartId);
+    return true;
+  }
+
+  function applyChartTypeToEntities(config, chartId, mappingSnapshot) {
+    var chartEntities = getChartEntities(config);
+    var componentName = COMPONENT_BY_CHART[chartId];
+    if (!chartEntities.length || !componentName) {
+      return false;
+    }
+    chartEntities.forEach(function (chartEntity) {
+      applyChartTypeToEntity(chartEntity, chartId, mappingSnapshot);
+    });
+    return true;
   }
 
   function getDimensionConfig(config, dimensionId) {
@@ -527,16 +947,13 @@
   }
 
   function inspectChartStatus(config) {
-    var chartEntities = getChartEntities(config);
+    var chartTargets = buildChartValidationTargets(config);
     var analysisTableRuntime = root.CodeXRAnalysisTableRuntime;
-    if (!chartEntities.length) {
-      return { ready: false, valid: false, reason: 'chart-not-found' };
-    }
     if (!analysisTableRuntime || typeof analysisTableRuntime.getChartStatus !== 'function') {
       return { ready: true, valid: true, reason: 'containment-runtime-unavailable' };
     }
-    var statuses = chartEntities.map(function (chartEntity) {
-      return analysisTableRuntime.getChartStatus(chartEntity);
+    var statuses = chartTargets.map(function (resolveChartTarget) {
+      return analysisTableRuntime.getChartStatus(resolveChartTarget());
     });
     var pending = statuses.find(function (status) { return !status || status.ready === false; });
     if (pending) {
@@ -557,7 +974,7 @@
     return {
       entityKind: SHARED_ENTITY_KIND,
       entityId: getSharedMappingEntityId(config),
-      chartId: config && config.chartId ? config.chartId : '',
+      chartId: getActiveChartId(config),
       componentName: getChartComponentName(config) || '',
       selectedByDimension: cloneMapping(state.lastKnownGoodMapping || state.selectedByDimension)
     };
@@ -583,9 +1000,13 @@
     try {
       clearPendingValidationTimers();
       state.pendingMapping = null;
+      if (snapshot.chartId && snapshot.chartId !== getActiveChartId(config)) {
+        selectChart(snapshot.chartId);
+      }
       state.selectedByDimension = cloneMapping(snapshot.selectedByDimension);
       state.lastKnownGoodMapping = cloneMapping(snapshot.selectedByDimension);
       applyMappingSnapshot(config, snapshot.selectedByDimension, 'mapping-ui-room-sync');
+      saveActiveMappingProfile();
       renderRows(config);
       notifyMappingConfirmed(state.lastKnownGoodMapping);
       return true;
@@ -622,7 +1043,9 @@
       return;
     }
     var detail = {
-      selectedByDimension: cloneMapping(mapping || {})
+      selectedByDimension: cloneMapping(mapping || {}),
+      chartId: getActiveChartId(getConfig()),
+      mappingContextId: state.activeMappingContextId
     };
     if (typeof root.CustomEvent === 'function') {
       document.dispatchEvent(new root.CustomEvent('codexr-mapping-confirmed', { detail: detail }));
@@ -642,6 +1065,7 @@
     state.lastKnownGoodMapping = cloneMapping(state.pendingMapping.nextMapping);
     state.pendingMapping = null;
     clearPendingValidationTimers();
+    saveActiveMappingProfile();
     resizeTrace('mapping-confirmed', {
       token: token,
       selectedByDimension: state.lastKnownGoodMapping
@@ -688,6 +1112,7 @@
       applyMappingSnapshot(config, state.pendingMapping.previousMapping, 'mapping-ui-unstable-revert');
       state.pendingMapping = null;
       clearPendingValidationTimers();
+      scheduleContainmentValidationBursts('mapping-ui-revert');
       setStatusMessage(
         'The chart did not stabilize inside the table after changing this metric. CodeXR restored the previous mapping.',
         'error',
@@ -715,6 +1140,8 @@
 
     applyMappingSnapshot(config, state.pendingMapping.previousMapping, 'mapping-ui-timeout-revert');
     state.pendingMapping = null;
+    clearPendingValidationTimers();
+    scheduleContainmentValidationBursts('mapping-ui-timeout-revert');
     setStatusMessage(
       'The chart did not finish rebuilding. CodeXR restored the previous mapping; you can try this field again.',
       'error',
@@ -726,7 +1153,7 @@
   function schedulePendingMappingValidation(config, token) {
     clearPendingValidationTimers();
     var runtime = root.CodeXRAnalysisTableRuntime;
-    var chartIds = getChartEntities(config).map(function (entity) { return entity.id; }).filter(Boolean);
+    var chartTargets = buildChartValidationTargets(config);
     requestChartContainmentRenormalize('mapping-ui-validation-start');
     scheduleContainmentValidationBursts('mapping-ui-validation');
     if (!runtime || typeof runtime.waitForChartsStable !== 'function') {
@@ -743,8 +1170,8 @@
       return;
     }
 
-    runtime.waitForChartsStable(chartIds, {
-      timeoutMs: 10000,
+    runtime.waitForChartsStable(chartTargets, {
+      timeoutMs: 26000,
       pollMs: 120,
       stablePasses: 2
     }).then(function (result) {
@@ -757,7 +1184,7 @@
     if (!analysisTableRuntime || typeof analysisTableRuntime.renormalizeAll !== 'function') {
       return;
     }
-    [650, 1300, 2200, 3600, 5200].forEach(function (delayMs, index) {
+    [650, 1300, 2200, 3600, 5200, 7600, 10500, 14000, 18000].forEach(function (delayMs, index) {
       var timer = setTimeout(function () {
         analysisTableRuntime.renormalizeAll((reason || 'mapping-ui-validation') + '-burst-' + (index + 1));
       }, delayMs);
@@ -843,6 +1270,7 @@
     } else {
       clearInvalidOption(dimensionId, fieldName);
       state.lastKnownGoodMapping = cloneMapping(nextMapping);
+      saveActiveMappingProfile();
       state.pendingMapping = null;
     }
 
@@ -915,6 +1343,9 @@
     if (refs.rowsRoot) {
       setEntityInteractionEnabled(refs.rowsRoot, state.visible && state.activePanelView === 'mapping');
     }
+    if (refs.chartRoot) {
+      setEntityInteractionEnabled(refs.chartRoot, state.visible && state.activePanelView === 'mapping');
+    }
     Object.keys(state.panelViews).forEach(syncPanelViewInteraction);
   }
 
@@ -933,7 +1364,10 @@
       refs.panelTitle.setAttribute('position', '0 ' + (height * 0.5 + 0.23) + ' 0.03');
     }
     if (refs.rowsRoot) {
-      refs.rowsRoot.setAttribute('position', '-0.05 ' + (height * 0.45 - 0.4) + ' 0.02');
+      refs.rowsRoot.setAttribute('position', '-0.05 ' + (height * 0.45 - PANEL_LAYOUT.rowsRootHeightOffset) + ' 0.02');
+    }
+    if (refs.chartRoot) {
+      refs.chartRoot.setAttribute('position', '-0.05 ' + (height * 0.45 - PANEL_LAYOUT.chartRootHeightOffset) + ' 0.03');
     }
     if (refs.statusText) {
       refs.statusText.setAttribute('position', '-2.85 ' + (-height * 0.5 + 0.36) + ' 0.03');
@@ -977,6 +1411,9 @@
   function showPanelView(viewId) {
     var targetView = viewId && viewId !== 'mapping' ? state.panelViews[viewId] : null;
     var nextViewId = targetView ? viewId : 'mapping';
+    if (CONTROLLER_VIEW_BY_PANEL[nextViewId]) {
+      state.activeControllerView = CONTROLLER_VIEW_BY_PANEL[nextViewId];
+    }
     root.console?.log?.('[CodeXR.Debug]: Mapping panel view requested', {
       requested: viewId || 'mapping',
       resolved: nextViewId,
@@ -991,6 +1428,9 @@
     state.activePanelView = nextViewId;
     if (refs.rowsRoot) {
       refs.rowsRoot.setAttribute('visible', nextViewId === 'mapping');
+    }
+    if (refs.chartRoot) {
+      refs.chartRoot.setAttribute('visible', nextViewId === 'mapping');
     }
     if (refs.statusText) {
       refs.statusText.setAttribute('visible', nextViewId === 'mapping' && !!state.statusMessage);
@@ -1017,6 +1457,59 @@
     setVisible(getConfig() || {}, true);
     syncPanelViewButtons();
     return nextViewId;
+  }
+
+  function normalizeControllerView(viewId) {
+    var requested = String(viewId || 'single.mapping');
+    return CONTROLLER_PANEL_BY_VIEW[requested]  requested : 'single.mapping';
+  }
+
+  function inferModeFromControllerView(viewId) {
+    if (viewId === 'visualization-menu') {
+      return 'selection';
+    }
+    if (viewId.indexOf('dependency.') === 0) {
+      return 'dependency-graph';
+    }
+    if (viewId.indexOf('historical.') === 0) {
+      return 'historical-compare';
+    }
+    if (viewId.indexOf('project-evolution') === 0) {
+      return 'project-evolution';
+    }
+    return 'single';
+  }
+
+  function showControllerView(viewId, context) {
+    var nextViewId = normalizeControllerView(viewId);
+    state.activeControllerView = nextViewId;
+    state.mode = String(context.mode || inferModeFromControllerView(nextViewId));
+    var panelId = CONTROLLER_PANEL_BY_VIEW[nextViewId] || 'mapping';
+    if (context.mappingContextId) {
+      switchMappingContext(context.mappingContextId, {
+        reason: context.reason || ('controller-view-' + nextViewId)
+      });
+    }
+    var resolvedPanel = showPanelView(panelId);
+    state.activeControllerView = nextViewId;
+    state.mode = String(context.mode || inferModeFromControllerView(nextViewId));
+    return {
+      mode: state.mode,
+      controllerView: nextViewId,
+      panelView: resolvedPanel
+    };
+  }
+
+  function getModeMemory(mode) {
+    var key = String(mode || state.mode || 'single');
+    return Object.assign({}, state.modeMemory[key] || {});
+  }
+
+  function saveModeMemory(mode, patch) {
+    var key = String(mode || state.mode || 'single');
+    var previous = state.modeMemory[key] || {};
+    state.modeMemory[key] = Object.assign({}, previous, patch || {});
+    return getModeMemory(key);
   }
 
   function registerPanelView(options) {
@@ -1144,7 +1637,7 @@
         return;
       }
 
-      var fields = Array.isArray(dimension.fields) ? dimension.fields : [];
+      var fields = Array.isArray(dimension.fields)  dimension.fields : [];
       if (fields.length === 0) {
         return;
       }
@@ -1153,16 +1646,14 @@
         value: (dimension.label || dimension.id) + (dimension.dataType === 'numeric' ? ' [N]' : ''),
         align: 'left',
         color: '#cde7ff',
-        width: 7.8,
-        position: '-2.85 ' + (cursorY - 0.05) + ' 0.02'
+        width: PANEL_LAYOUT.labelWidth,
+        position: PANEL_LAYOUT.left + ' ' + (cursorY - 0.05) + ' 0.02'
       });
       refs.rowsRoot.appendChild(label);
-      cursorY -= 0.3;
+      cursorY -= PANEL_LAYOUT.labelToButtonsGap;
 
       var cols = pickColumns(fields.length);
-      var buttonWidth = 5.8 / cols;
-      var spacing = 0.08;
-      var colWidth = buttonWidth + spacing;
+      var buttonWidth = getGridButtonWidth(cols);
 
       fields.forEach(function (fieldName, fieldIndex) {
         var rowIndex = Math.floor(fieldIndex / cols);
@@ -1171,8 +1662,8 @@
         var invalidReason = getInvalidOptionReason(dimension.id, fieldName);
         var isDisabled = !!invalidReason && !isActive;
 
-        var x = -2.85 + colIndex * colWidth + buttonWidth * 0.5;
-        var y = cursorY - rowIndex * 0.28;
+        var x = getGridButtonX(colIndex, buttonWidth);
+        var y = cursorY - rowIndex * PANEL_LAYOUT.rowGap;
 
         var button = createEntity('a-plane', {
           class: 'babiaxraycasterclass codexr-mapping-ui-option',
@@ -1207,10 +1698,10 @@
         refs.rowsRoot.appendChild(button);
       });
 
-      cursorY -= Math.ceil(fields.length / cols) * 0.28 + 0.2;
+      cursorY -= Math.ceil(fields.length / cols) * PANEL_LAYOUT.rowGap + PANEL_LAYOUT.sectionGap;
     });
 
-    var panelHeight = Math.max(2.45, Math.abs(cursorY) + 0.92);
+    var panelHeight = Math.max(2.9, Math.abs(cursorY) + PANEL_LAYOUT.panelHeightPadding);
     state.mappingPanelHeight = panelHeight;
     if (state.activePanelView === 'mapping') {
       applyPanelHeight(panelHeight);
@@ -1218,6 +1709,106 @@
     if (refs.statusText) {
       updateStatusText();
     }
+  }
+
+  function renderChartSelector(config) {
+    if (!refs.chartRoot) {
+      return;
+    }
+    clearEntity(refs.chartRoot);
+    var charts = Array.isArray(config && config.availableCharts)  config.availableCharts : [];
+    if (!charts.length) {
+      return;
+    }
+    refs.chartRoot.appendChild(createEntity('a-text', {
+      value: 'Chart',
+      align: 'left',
+      color: '#cde7ff',
+      width: PANEL_LAYOUT.labelWidth,
+      position: PANEL_LAYOUT.left + ' 0.02 0.02'
+    }));
+    var visibleCharts = charts.slice(0, 9);
+    var cols = Math.min(3, Math.max(1, visibleCharts.length));
+    var buttonWidth = getGridButtonWidth(cols);
+    visibleCharts.forEach(function (chart, index) {
+      var rowIndex = Math.floor(index / cols);
+      var colIndex = index % cols;
+      var active = chart.id === getActiveChartId(config);
+      var x = getGridButtonX(colIndex, buttonWidth);
+      var y = -PANEL_LAYOUT.labelToButtonsGap - rowIndex * PANEL_LAYOUT.rowGap;
+      var button = createEntity('a-plane', {
+        class: 'babiaxraycasterclass codexr-mapping-ui-chart-option',
+        'data-codexr-interactive': 'true',
+        'data-codexr-chart-id': chart.id,
+        color: active  '#be123c' : '#0f3a5f',
+        width: buttonWidth,
+        height: 0.22,
+        opacity: active  0.98 : 0.9,
+        position: x + ' ' + y + ' 0.01'
+      });
+      button.appendChild(createEntity('a-text', {
+        value: compactLabel(chart.name || chart.id),
+        align: 'center',
+        color: '#ffffff',
+        width: buttonWidth * 1.8,
+        position: '0 0 0.01'
+      }));
+      button.addEventListener('click', function () {
+        selectChart(chart.id);
+      });
+      refs.chartRoot.appendChild(button);
+    });
+  }
+
+  function selectChart(chartId) {
+    var config = getConfig();
+    if (!config || !chartId || chartId === getActiveChartId(config)) {
+      return false;
+    }
+    var chart = (config.availableCharts || []).find(function (candidate) {
+      return candidate && candidate.id === chartId;
+    });
+    if (!chart || !COMPONENT_BY_CHART[chartId]) {
+      setStatusMessage('This chart is not available in the current XR scene.', 'error', 4200);
+      return false;
+    }
+
+    saveActiveMappingProfile();
+    var previousChartId = getActiveChartId(config);
+    var previousDimensions = config.dimensions;
+    var nextDimensions = getDimensionsForChart(config, chartId);
+    var profileKey = getMappingProfileKey(state.activeMappingContextId, chartId);
+    var nextSnapshot = state.mappingProfiles[profileKey] || {
+      visible: state.visible,
+      selectedByDimension: getDefaultMappingForChart(config, chartId),
+      lastKnownGoodMapping: getDefaultMappingForChart(config, chartId),
+      invalidOptionsByDimension: {}
+    };
+
+    if (!nextDimensions.length) {
+      setStatusMessage('This chart has no compatible fields for the current analysis data.', 'error', 4200);
+      return false;
+    }
+
+    if (!applyChartTypeToEntities(config, chartId, nextSnapshot.lastKnownGoodMapping || nextSnapshot.selectedByDimension)) {
+      config.dimensions = previousDimensions;
+      state.activeChartId = previousChartId;
+      setStatusMessage('CodeXR could not switch chart; the previous chart was kept.', 'error', 4800);
+      return false;
+    }
+
+    state.activeChartId = chartId;
+    config.chartId = chartId;
+    config.dimensions = nextDimensions;
+    applyMappingRuntimeState(config, nextSnapshot, 'mapping-ui-chart-switch-' + chartId);
+    renderChartSelector(config);
+    renderRows(config);
+    requestChartContainmentRenormalize('mapping-ui-chart-switch');
+    scheduleContainmentValidationBursts('mapping-ui-chart-switch');
+    setStatusMessage('Chart changed to ' + (chart.name || chartId) + '.', 'info', 2600);
+    publishSharedMappingState(config);
+    notifyMappingConfirmed(state.lastKnownGoodMapping);
+    return true;
   }
 
   function buildUi(config) {
@@ -1252,7 +1843,7 @@
 
     refs.panelContent = createEntity('a-entity', {
       position: '0 0 0',
-      visible: config.panelVisible !== false
+      visible: state.visible !== false
     });
 
     refs.panelBackground = createEntity('a-plane', {
@@ -1289,7 +1880,11 @@
     });
 
     refs.rowsRoot = createEntity('a-entity', {
-      position: '-0.05 0.55 0.02'
+      position: '-0.05 -0.18 0.02'
+    });
+
+    refs.chartRoot = createEntity('a-entity', {
+      position: '-0.05 0.9 0.03'
     });
 
     refs.statusText = createEntity('a-text', {
@@ -1307,6 +1902,7 @@
     refs.panelContent.appendChild(refs.panelBorder);
     refs.panelContent.appendChild(refs.panelTitleBackdrop);
     refs.panelContent.appendChild(refs.panelTitle);
+    refs.panelContent.appendChild(refs.chartRoot);
     refs.panelContent.appendChild(refs.rowsRoot);
     refs.panelContent.appendChild(refs.statusText);
     refs.panel.appendChild(refs.panelContent);
@@ -1325,11 +1921,11 @@
 
     refs.panel.appendChild(refs.toggle);
     scene.appendChild(refs.panel);
-    state.visible = config.panelVisible !== false;
     state.activeCornerId = null;
     syncToggleLabel(config);
     setVisible(config, state.visible);
     updateStatusText();
+    renderChartSelector(config);
     renderRows(config);
 
     if (config.adaptiveCorner) {
@@ -1339,32 +1935,37 @@
   }
 
   function hydrateStateFromConfig(config) {
-    clearPendingValidationTimers();
-    clearStatusTimer();
-    state.selectedByDimension = {};
-    state.invalidOptionsByDimension = {};
-    state.pendingMapping = null;
-    state.statusMessage = '';
-    state.statusLevel = 'info';
-    var dimensions = Array.isArray(config.dimensions) ? config.dimensions : [];
-    dimensions.forEach(function (dimension) {
-      if (!dimension || !dimension.id) {
-        return;
-      }
-      var fields = Array.isArray(dimension.fields) ? dimension.fields : [];
-      var fallback = fields.length > 0 ? fields[0] : '';
-      state.selectedByDimension[dimension.id] = dimension.currentField || fallback;
-    });
-    state.lastKnownGoodMapping = cloneMapping(state.selectedByDimension);
-    state.visible = config.panelVisible !== false;
+    state.activeMappingContextId = state.activeMappingContextId || 'normal-analysis';
+    state.activeChartId = state.activeChartId || (config && config.chartId) || null;
+    var profileKey = getMappingProfileKey(state.activeMappingContextId, getActiveChartId(config));
+    var snapshot = state.mappingProfiles[profileKey] || buildDefaultMappingSnapshot(config);
+    applyMappingRuntimeState(config, snapshot, 'mapping-ui-hydrate');
+  }
+
+  function switchMappingContext(contextId, options) {
+    var config = getConfig();
+    if (!config) {
+      return false;
+    }
+    var nextContextId = String(contextId || 'default');
+    saveActiveMappingProfile();
+    state.activeMappingContextId = nextContextId;
+    var profileKey = getMappingProfileKey(nextContextId, getActiveChartId(config));
+    var profile = state.mappingProfiles[profileKey] || buildDefaultMappingSnapshot(config);
+    applyMappingRuntimeState(config, profile, (options && options.reason) || ('mapping-ui-context-' + nextContextId));
+    return getState();
   }
 
   function getState() {
     return {
       visible: state.visible,
+      mode: state.mode,
+      controllerView: state.activeControllerView,
+      mappingContextId: state.activeMappingContextId,
+      chartId: getActiveChartId(getConfig()),
       selectedByDimension: Object.assign({}, state.selectedByDimension),
       lastKnownGoodMapping: Object.assign({}, state.lastKnownGoodMapping),
-      invalidOptionsByDimension: JSON.parse(JSON.stringify(state.invalidOptionsByDimension || {}))
+      invalidOptionsByDimension: cloneInvalidOptions(state.invalidOptionsByDimension || {})
     };
   }
 
@@ -1375,45 +1976,7 @@
       return false;
     }
 
-    state.visible = typeof runtimeState.visible === 'boolean' ? runtimeState.visible : state.visible;
-    state.selectedByDimension = Object.assign(
-      {},
-      state.selectedByDimension,
-      runtimeState.selectedByDimension && typeof runtimeState.selectedByDimension === 'object' && !Array.isArray(runtimeState.selectedByDimension)
-        ? runtimeState.selectedByDimension
-        : {}
-    );
-    state.lastKnownGoodMapping = Object.assign(
-      {},
-      state.selectedByDimension,
-      runtimeState.lastKnownGoodMapping && typeof runtimeState.lastKnownGoodMapping === 'object' && !Array.isArray(runtimeState.lastKnownGoodMapping)
-        ? runtimeState.lastKnownGoodMapping
-        : {}
-    );
-    state.invalidOptionsByDimension = runtimeState.invalidOptionsByDimension && typeof runtimeState.invalidOptionsByDimension === 'object' && !Array.isArray(runtimeState.invalidOptionsByDimension)
-      ? JSON.parse(JSON.stringify(runtimeState.invalidOptionsByDimension))
-      : {};
-    clearPendingValidationTimers();
-    state.pendingMapping = null;
-    clearStatusTimer();
-    state.statusMessage = '';
-    state.statusLevel = 'info';
-
-    var dimensions = Array.isArray(config.dimensions) ? config.dimensions : [];
-    dimensions.forEach(function (dimension) {
-      if (!dimension || !dimension.id) {
-        return;
-      }
-      var selectedField = state.selectedByDimension[dimension.id];
-      if (selectedField) {
-        applyDimensionSelection(config, dimension.id, selectedField, { renormalize: false, force: true, trackPending: false });
-      }
-    });
-
-    requestChartContainmentRenormalize('mapping-ui-restore');
-    setVisible(config, state.visible);
-    renderRows(config);
-    return true;
+    return applyMappingRuntimeState(config, runtimeState, 'mapping-ui-restore');
   }
 
   function autoInit() {
@@ -1433,6 +1996,21 @@
     autoInit: autoInit,
     getState: getState,
     restoreState: restoreState,
+    selectChart: selectChart,
+    switchMappingContext: switchMappingContext,
+    showView: showControllerView,
+    getModeMemory: getModeMemory,
+    saveModeMemory: saveModeMemory,
+    getControllerState: function () {
+      return {
+        mode: state.mode,
+        controllerView: state.activeControllerView,
+        panelView: state.activePanelView
+      };
+    },
+    getMappingContext: function () {
+      return state.activeMappingContextId;
+    },
     refreshAdaptivePlacement: function () {
       var config = getConfig();
       if (!config || !config.adaptiveCorner) {
@@ -1467,7 +2045,17 @@
     },
     __testing: {
       getInvalidOptionReason: getInvalidOptionReason,
-      buildChartComponentUpdate: buildChartComponentUpdate
+      buildChartComponentUpdate: buildChartComponentUpdate,
+      buildRuntimeChartData: buildRuntimeChartData,
+      applyChartTypeToEntity: applyChartTypeToEntity,
+      applyChartTypeToEntities: applyChartTypeToEntities,
+      isHierarchicalChart: isHierarchicalChart,
+      clearChartGeneratedChildren: clearChartGeneratedChildren,
+      applyChartDefaultTransform: applyChartDefaultTransform,
+      getMappingProfileKey: getMappingProfileKey,
+      PANEL_LAYOUT: PANEL_LAYOUT,
+      getGridButtonWidth: getGridButtonWidth,
+      getGridButtonX: getGridButtonX
     }
   };
 
@@ -1482,5 +2070,6 @@
   }
 
   root.CodeXRMappingUiRuntime = runtime;
+  root.CodeXRAnalysisControllerRuntime = runtime;
   return runtime;
 });

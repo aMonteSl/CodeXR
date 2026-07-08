@@ -59,7 +59,7 @@ def example_file_analysis_with_progress(files_to_analyze):
             }
             
             results.append(file_result)
-            log_debug(f"✅ Completed analysis of {file_name}")
+            log_debug(f" Completed analysis of {file_name}")
             
         except Exception as e:
             log_error(f"Failed to analyze {file_name}: {str(e)}")

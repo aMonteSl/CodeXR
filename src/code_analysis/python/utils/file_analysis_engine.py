@@ -6,6 +6,7 @@ Shared code-analysis engine used by XR and LivePanel file/directory analysis.
 import os
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -51,6 +52,18 @@ def _get_file_timestamp(file_path: str) -> str:
         return time.strftime('%Y-%m-%d %H:%M:%S')
 
 
+def _get_file_modified_metadata(file_path: str) -> Dict[str, Any]:
+    try:
+        modified_at = os.path.getmtime(file_path)
+    except OSError:
+        modified_at = time.time()
+
+    return {
+        'modifiedAtMs': int(round(modified_at * 1000)),
+        'modifiedAtIso': datetime.fromtimestamp(modified_at).astimezone().isoformat(timespec='seconds'),
+    }
+
+
 def _normalize_function_metrics(raw_functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     normalized: List[Dict[str, Any]] = []
 
@@ -90,6 +103,7 @@ def _normalize_function_metrics(raw_functions: List[Dict[str, Any]]) -> List[Dic
 
 def build_file_snapshot(file_path: str) -> Dict[str, Any]:
     timestamp = _get_file_timestamp(file_path)
+    modified_metadata = _get_file_modified_metadata(file_path)
     language = get_metric_language(file_path)
     file_name = os.path.basename(file_path)
 
@@ -111,6 +125,8 @@ def build_file_snapshot(file_path: str) -> Dict[str, Any]:
         'filePath': file_path,
         'language': language,
         'timestamp': timestamp,
+        'modifiedAtMs': modified_metadata['modifiedAtMs'],
+        'modifiedAtIso': modified_metadata['modifiedAtIso'],
         'status': status,
         'totalLines': line_metrics['totalLines'],
         'codeLines': line_metrics['codeLines'],
@@ -183,6 +199,8 @@ def build_file_payload(file_path: str, snapshot: Optional[Dict[str, Any]] = None
                 'treePath': build_tree_path(file_name, function.get('functionName')),
                 'language': file_snapshot.get('language', 'Unknown'),
                 'timestamp': file_snapshot.get('timestamp'),
+                'modifiedAtMs': file_snapshot.get('modifiedAtMs'),
+                'modifiedAtIso': file_snapshot.get('modifiedAtIso'),
                 'status': file_snapshot.get('status', 'success'),
                 'totalLines': file_snapshot.get('totalLines', 0),
                 'codeLines': file_snapshot.get('codeLines', 0),

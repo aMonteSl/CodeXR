@@ -1,5 +1,5 @@
 
-    console.log('🔄 Setting up EventSource for unified live reload...');
+    console.log(' Setting up EventSource for unified live reload...');
 
     const eventSource = new EventSource('/events');
     let isXRMode = false;
@@ -41,7 +41,7 @@
     // Check if we're in an A-Frame scene
     function checkXRMode() {
       isXRMode = !!document.querySelector('a-scene');
-      console.log(isXRMode ? '🥽 XR mode detected' : '🖥️ Standard mode detected');
+      console.log(isXRMode  ' XR mode detected' : ' Standard mode detected');
       return isXRMode;
     }
 
@@ -56,7 +56,9 @@
     }
 
     function hasBoatsChart(chartEntities) {
-      return chartEntities.some(chartEntity => chartEntity && chartEntity.hasAttribute && chartEntity.hasAttribute('babia-boats'));
+      return chartEntities.some(chartEntity => chartEntity && chartEntity.hasAttribute && (
+        chartEntity.hasAttribute('babia-boats')
+      ));
     }
 
     function restoreXrUiState(mappingUiRuntime, mappingUiState, chartDebugRuntime, chartDebugState) {
@@ -83,14 +85,14 @@
     }
 
     eventSource.onopen = function() {
-      console.log('🟢 EventSource connection established');
+      console.log(' EventSource connection established');
     };
 
     eventSource.onerror = function(err) {
-      console.error('🔴 EventSource error:', err);
+      console.error(' EventSource error:', err);
       // Try to reconnect after a delay
       setTimeout(() => {
-        console.log('🔄 Attempting to reconnect...');
+        console.log(' Attempting to reconnect...');
         eventSource.close();
         new EventSource('/events');
       }, 3000);
@@ -99,7 +101,7 @@
 
     // Handle analysis-updated events
     eventSource.addEventListener('analysis-updated', function(event) {
-      console.log('🔄 Received analysis-updated event:', event);
+      console.log(' Received analysis-updated event:', event);
 
       // Find data entities using all provided selectors
       let dataEntities = [];
@@ -123,7 +125,7 @@
 
       if (dataEntities.length > 0) {
         const timestamp = Date.now();
-        console.log('🔄 Refreshing ' + dataEntities.length + ' data entities');
+        console.log(' Refreshing ' + dataEntities.length + ' data entities');
         
         // Update each data entity
         dataEntities.forEach(dataEntity => {
@@ -150,7 +152,7 @@
             // Trigger data refresh event after a short delay
             setTimeout(() => {
               dataEntity.emit('data-loaded', {});
-              console.log('📊 Data entity refreshed');
+              console.log(' Data entity refreshed');
             }, 100);
           }
         });
@@ -177,7 +179,7 @@
           }, 300);
         }
       } else {
-        console.warn('⚠️ No data entities found for refresh');
+        console.warn(' No data entities found for refresh');
       }
       if (dataEntities.length === 0) {
         void completeNormalRefresh(refreshGeneration, 'analysis-updated-no-data', chartEntities);
@@ -187,8 +189,8 @@
 
     // Handle dataRefresh events
     eventSource.addEventListener('dataRefresh', function(event) {
-      console.log('🔄 Received dataRefresh event:', event);
-      console.log('📊 Reloading data.json for XR chart refresh...');
+      console.log(' Received dataRefresh event:', event);
+      console.log(' Reloading data.json for XR chart refresh...');
       
       // Simple approach: just reload the data entities with cache busting
       // A-Frame will automatically re-render charts with fresh data
@@ -197,7 +199,7 @@
       
       if (dataEntities.length > 0) {
         const timestamp = Date.now();
-        console.log('🔄 Refreshing ' + dataEntities.length + ' data entities with cache busting');
+        console.log(' Refreshing ' + dataEntities.length + ' data entities with cache busting');
         
         dataEntities.forEach(dataEntity => {
           const queryjson = dataEntity.getAttribute('babia-queryjson');
@@ -219,7 +221,7 @@
               dataEntity.setAttribute('babia-queryjson', newAttr);
             }
             
-            console.log('📊 Data entity refreshed with cache busting');
+            console.log(' Data entity refreshed with cache busting');
           }
         });
 
@@ -245,9 +247,9 @@
           }, 300);
         }
         
-        console.log('✅ XR data refresh completed - A-Frame will handle chart updates');
+        console.log(' XR data refresh completed - A-Frame will handle chart updates');
       } else {
-        console.warn('⚠️ No babia-queryjson data entities found for refresh');
+        console.warn(' No babia-queryjson data entities found for refresh');
       }
       if (dataEntities.length === 0) {
         void completeNormalRefresh(refreshGeneration, 'dataRefresh-no-data', []);
@@ -261,12 +263,12 @@
       
       // Skip reload if in XR mode
       if (checkXRMode()) {
-        console.log('⛔ Blocking page reload in XR mode');
+        console.log(' Blocking page reload in XR mode');
         return false;
       }
       
       if (event.data === 'reload') {
-        console.log('💫 Live reload triggered, refreshing page...');
+        console.log(' Live reload triggered, refreshing page...');
         window.location.reload();
       }
     };

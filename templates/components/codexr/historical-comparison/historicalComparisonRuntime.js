@@ -28,6 +28,16 @@
   var refs = {};
   var RAYCAST_CLASS = 'babiaxraycasterclass';
   var RAYCAST_SUSPENDED_ATTRIBUTE = 'data-codexr-raycast-suspended';
+  var CHART_COMPONENT_NAMES = [
+    'babia-bars',
+    'babia-barsmap',
+    'babia-cyls',
+    'babia-cylsmap',
+    'babia-pie',
+    'babia-doughnut',
+    'babia-bubbles',
+    'babia-boats'
+  ];
 
   function getDocument() {
     return root.document;
@@ -71,6 +81,19 @@
     );
     state.availability = enabled ? 'enabled' : 'disabled';
     state.unavailableReason = enabled ? '' : reason;
+    registerHistoricalModeOption();
+  }
+
+  function registerHistoricalModeOption() {
+    state.unregisterModeOption.();
+    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption.({
+      id: 'historical-compare',
+      label: 'Historical comparison',
+      color: '#be123c',
+      disabled: state.availability !== 'enabled',
+      disabledReason: state.unavailableReason || 'Historical comparison requires a local Git repository.',
+      onSelect: selectHistoricalMode
+    }) || null;
   }
 
   function createEntity(tagName, attributes) {
@@ -255,10 +278,9 @@
       return;
     }
     mappingRuntime.setChartEntityIds(ids);
-    var mappingState = mappingRuntime.getState?.();
-    if (mappingState && mappingRuntime.restoreState) {
-      mappingRuntime.restoreState(mappingState);
-    }
+    mappingRuntime.switchMappingContext.('normal-analysis', {
+      reason: 'historical-restore-normal-targets'
+    });
   }
 
   function setText(entity, value, width, color) {
@@ -409,6 +431,14 @@
 
   function closePanel() {
     state.panelVisible = false;
+    if (root.CodeXRAnalysisControllerRuntime.showView) {
+      root.CodeXRAnalysisControllerRuntime.showView('historical.mapping', {
+        mode: 'historical-compare',
+        mappingContextId: 'historical-comparison',
+        reason: 'historical-comparison-ready'
+      });
+      return;
+    }
     root.CodeXRMappingUiRuntime?.showPanelView?.('mapping');
   }
 
@@ -510,6 +540,28 @@
     return value.length > 26 ? value.slice(0, 23) + '...' : value;
   }
 
+  function splitSourceDescription(source) {
+    var label = String(source.label || source.refName || source.id || 'unknown');
+    var description = String(source.description || '').trim();
+    var match = description.match(/^(\d{4}-\d{2}-\d{2})\s*(.*)$/);
+    var date = match  match[1] : '';
+    var subject = match  match[2] : description;
+    if (source.kind === 'workingCopy') {
+      date = 'Working copy';
+    }
+    return {
+      label: truncate(label, 28),
+      date: date || 'No commit date',
+      subject: truncate(subject, 58)
+    };
+  }
+
+  function buildSourceLabel(source) {
+    var parts = splitSourceDescription(source);
+    var subject = parts.subject  '\n' + parts.subject : '';
+    return parts.label + '\n' + parts.date + subject;
+  }
+
   function compactLabel(source) {
     var prefix = source.kind === 'workingCopy'
       ? 'LIVE'
@@ -537,12 +589,9 @@
       : String(source.refType || 'ref').toUpperCase();
     row.appendChild(createText(badge, '-2.38 0 0.02', 1.35, source.kind === 'workingCopy' ? '#6ee7b7' : '#67e8f9', 'center', 10));
     if (isCommit) {
-      var dateAndSubject = String(source.description || '');
-      var firstSpace = dateAndSubject.indexOf(' ');
-      var date = firstSpace > 0 ? dateAndSubject.slice(0, firstSpace) : '';
-      var subject = firstSpace > 0 ? dateAndSubject.slice(firstSpace + 1) : dateAndSubject;
+      var parts = splitSourceDescription(source);
       row.appendChild(createText(
-        String(source.label || '').slice(0, 8) + (date ? '  ' + date : ''),
+        String(source.label || '').slice(0, 8) + '  ' + parts.date,
         '-1.72 0.1 0.02',
         4.3,
         '#ffffff',
@@ -550,7 +599,7 @@
         32
       ));
       row.appendChild(createText(
-        truncate(subject, 54),
+        truncate(parts.subject, 54),
         '-1.72 -0.1 0.02',
         4.3,
         '#cbd5e1',
@@ -579,12 +628,9 @@
       return 'No source selected';
     }
     if (source.kind === 'workingCopy') {
-      return source.label;
+      return source.label + '\nWorking copy';
     }
-    var detail = source.description
-      ? source.label + '\n' + source.description
-      : source.label;
-    return truncate(detail, 112);
+    return truncate(buildSourceLabel(source), 112);
   }
 
   function truncate(value, limit) {
@@ -601,22 +647,28 @@
       setStatus('Choose two different comparison sources.', 'error');
       return;
     }
-    setStatus('Starting historical analysis...', 'info');
+    setStatus('Analyzing historical comparison. Please wait...', 'info');
     getClient()?.sendMessage?.('historical-comparison-start', {
       leftSourceId: state.selected.left,
       rightSourceId: state.selected.right
     });
   }
 
+  function showHistoricalSelectionPanel() {
+    root.CodeXRAnalysisModeRuntime.setSelectionPanel.('historical-selection');
+    root.CodeXRMappingUiRuntime.showPanelView.('historical-selection');
+    showSourceSelection();
+  }
+
   async function enterHistoricalSelection() {
-    root.CodeXRAnalysisModeRuntime?.setSelectionPanel?.('historical-selection');
-    await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
+    getClient().sendMessage.('analysis-mode-activate', {
+      mode: 'historical-compare'
+    });
+    await root.CodeXRAnalysisModeRuntime.transitionTo.('historical-compare', {
       reason: 'historical-selection',
+      controllerView: 'historical.selection',
       panelViewId: 'historical-selection'
     });
-    root.CodeXRMappingUiRuntime?.showPanelView?.('historical-selection');
-    getClient()?.sendMessage?.('analysis-mode-selection', {});
-    showSourceSelection();
   }
 
   function selectHistoricalMode() {
@@ -630,6 +682,7 @@
       });
       void root.CodeXRAnalysisModeRuntime?.transitionTo?.('historical-compare', {
         reason: 'local-historical-mode-option',
+        controllerView: 'historical.mapping',
         panelViewId: 'mapping'
       });
       return;
@@ -717,11 +770,17 @@
     if (!chart) {
       return '';
     }
-    return chart.getAttributeNames().find(function (name) {
+    return CHART_COMPONENT_NAMES.find(function (name) {
+      return chart.hasAttribute.(name);
+    }) || chart.getAttributeNames().find(function (name) {
       return name.indexOf('babia-') === 0
         && name !== 'babia-queryjson'
         && name !== 'babia-treebuilder';
     }) || '';
+  }
+
+  function isHierarchicalBoatsComponent(componentName) {
+    return componentName === 'babia-boats';
   }
 
   function createDataSource(id, url) {
@@ -729,6 +788,49 @@
       id: id,
       'babia-queryjson': 'url: ' + url
     });
+  }
+
+  function vectorToPositionAttribute(position) {
+    var source = position || {};
+    return [
+      Number.isFinite(source.x)  source.x : 0,
+      Number.isFinite(source.y)  source.y : 1,
+      Number.isFinite(source.z)  source.z : -18
+    ].join(' ');
+  }
+
+  function getHistoricalContainmentProfile(zone) {
+    var profileId = zone && zone.id === 'right'  'historical-right' : 'historical-left';
+    var profile = root.CodeXRAnalysisTableRuntime.getContainmentProfile.(profileId);
+    if (!profile) {
+      profile = {
+        id: profileId,
+        position: { x: zone.anchorX, y: 1, z: zone.anchorZ },
+        containment: {
+          enabled: true,
+          anchorX: zone.anchorX,
+          anchorY: 1,
+          anchorZ: zone.anchorZ,
+          targetWidth: zone.width,
+          targetHeight: 1.8,
+          targetDepth: zone.depth,
+          bootstrapPlanarMaxRatio: 0.84,
+          minPlanarOccupancyRatio: 0.78,
+          maxPlanarOccupancyRatio: 0.92,
+          heightBandMinRatio: 0.34,
+          heightBandMaxRatio: 0.68,
+          tableTopPadding: 0.14,
+          tableEdgeMargin: 0.12,
+          yScaleMin: 0.01,
+          yScaleMax: 12,
+          containmentToleranceRatio: 0.018,
+          periodicContainmentEnabled: true,
+          transformTransitionMs: 650,
+          hardHeightGuardEnabled: true
+        }
+      };
+    }
+    return profile;
   }
 
   function createChartFromTemplate(original, id, sourceId, zone, targetType, options) {
@@ -760,17 +862,14 @@
       }
       clone.setAttribute(componentName, chartData);
     }
-    clone.setAttribute('position', zone.anchorX + ' 1 ' + zone.anchorZ);
+    var containmentProfile = getHistoricalContainmentProfile(zone);
     clone.setAttribute('scale', '0.01 0.05 0.01');
-    clone.setAttribute(
-      'codexr-chart-containment',
-      'enabled: true; anchorX: ' + zone.anchorX + '; anchorY: 1; anchorZ: ' + zone.anchorZ + '; '
-        + 'targetWidth: ' + zone.width + '; targetHeight: 1.8; targetDepth: ' + zone.depth + '; '
-        + 'bootstrapPlanarMaxRatio: 0.84; minPlanarOccupancyRatio: 0.78; '
-        + 'maxPlanarOccupancyRatio: 0.92; heightBandMinRatio: 0.34; heightBandMaxRatio: 0.68; '
-        + 'tableTopPadding: 0.14; tableEdgeMargin: 0.12; yScaleMin: 0.01; yScaleMax: 4; '
-        + 'containmentToleranceRatio: 0.018; periodicContainmentEnabled: true'
-    );
+    if (root.CodeXRAnalysisTableRuntime.applyContainmentProfile) {
+      root.CodeXRAnalysisTableRuntime.applyContainmentProfile(clone, containmentProfile);
+    } else {
+      clone.setAttribute('position', vectorToPositionAttribute(containmentProfile.position));
+      clone.setAttribute('codexr-chart-containment', containmentProfile.containment);
+    }
     clone.dataset.codexrComparisonTargetType = targetType || '';
     return clone;
   }
@@ -859,7 +958,7 @@
     var boatsPathField = config?.targetType === 'directory' ? 'filePath' : 'treePath';
     var leftChartOptions = null;
     var rightChartOptions = null;
-    if (chartComponent === 'babia-boats') {
+    if (isHierarchicalBoatsComponent(chartComponent)) {
       leftFrom = '';
       rightFrom = '';
       leftChartOptions = {
@@ -909,8 +1008,8 @@
     } else {
       refs.comparisonRoot.appendChild(createEmptyState(result.right, zones[1], '#6ee7b7'));
     }
-    refs.leftLabel = createLabel(result.left.source.label, zones[0].anchorX + ' 3.05 ' + zones[0].anchorZ, '#67e8f9');
-    refs.rightLabel = createLabel(result.right.source.label, zones[1].anchorX + ' 3.05 ' + zones[1].anchorZ, '#6ee7b7');
+    refs.leftLabel = createLabel(buildSourceLabel(result.left.source), zones[0].anchorX + ' 3.05 ' + zones[0].anchorZ, '#67e8f9');
+    refs.rightLabel = createLabel(buildSourceLabel(result.right.source), zones[1].anchorX + ' 3.05 ' + zones[1].anchorZ, '#6ee7b7');
     refs.deltaLabel = createLabel(buildDeltaText(result.delta, state.selectedMapping, state.payloads), '0 3.48 -18', '#ffffff');
     refs.comparisonRoot.appendChild(refs.leftLabel);
     refs.comparisonRoot.appendChild(refs.rightLabel);
@@ -918,6 +1017,9 @@
 
     await nextFrame();
     root.CodeXRMappingUiRuntime?.setChartEntityIds?.(activeChartIds);
+    root.CodeXRMappingUiRuntime.switchMappingContext.('historical-comparison', {
+      reason: 'historical-comparison-ready'
+    });
     parkOriginalChart(original);
     root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('historical-comparison-ready');
     if (activeChartIds.length) {
@@ -981,7 +1083,7 @@
       liveSide === 'left' ? 'codexrComparisonChartLeft' : 'codexrComparisonChartRight'
     );
     var componentName = getChartComponentName(chart);
-    if (componentName === 'babia-boats') {
+    if (isHierarchicalBoatsComponent(componentName)) {
       var config = getConfig();
       var pathField = config?.targetType === 'directory' ? 'filePath' : 'treePath';
       var chartData = Object.assign({}, chart.getAttribute(componentName) || {});
@@ -1002,7 +1104,7 @@
       }
       dataEntity.setAttribute('babia-queryjson', 'url: ' + dataset.url + '?revision=' + result.revision);
     }
-    setText(liveSide === 'left' ? refs.leftLabel : refs.rightLabel, dataset.source.label, 4.2, liveSide === 'left' ? '#67e8f9' : '#6ee7b7');
+    setText(liveSide === 'left'  refs.leftLabel : refs.rightLabel, buildSourceLabel(dataset.source), 4.2, liveSide === 'left'  '#67e8f9' : '#6ee7b7');
     setText(refs.deltaLabel, buildDeltaText(result.delta, state.selectedMapping, state.payloads), 4.2, '#ffffff');
     state.result = result;
     await nextFrame();
@@ -1129,6 +1231,8 @@
             result: state.result
           });
         }
+        showHistoricalSelectionPanel();
+        return true;
       },
       deactivate: function () {
         state.loadGeneration += 1;
@@ -1139,12 +1243,7 @@
         disposeComparisonGeometry(false);
       }
     }) || null;
-    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime?.registerModeOption?.({
-      id: 'historical-compare',
-      label: 'Historical comparison',
-      color: '#be123c',
-      onSelect: selectHistoricalMode
-    }) || null;
+    registerHistoricalModeOption();
     mountPanelView(0);
     state.selectedMapping = Object.assign(
       {},

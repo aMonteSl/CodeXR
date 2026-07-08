@@ -1,4 +1,4 @@
-export type AnalysisRefreshMode = 'single' | 'historical-compare' | 'dependency-graph';
+export type AnalysisRefreshMode = 'single' | 'historical-compare' | 'project-evolution' | 'dependency-graph';
 export type AnalysisViewMode = AnalysisRefreshMode | 'selection';
 
 export interface AnalysisSourceChangeBatch {
@@ -15,6 +15,7 @@ export interface AnalysisViewState {
     entityKind: 'analysis-view';
     entityId: 'main';
     mode: AnalysisViewMode;
+    controllerView: string;
     status: 'selecting' | 'loading' | 'updating' | 'ready' | 'error';
     hasUsableSnapshot: boolean;
     sourceRevision: number;
@@ -27,6 +28,7 @@ type PathChangeKind = 'changed' | 'added' | 'removed';
 
 interface SessionRefreshState {
     activeMode: AnalysisViewMode;
+    controllerView: string;
     sourceRevision: number;
     appliedRevision: Record<AnalysisRefreshMode, number>;
     modeRevision: Record<AnalysisRefreshMode, number>;
@@ -40,14 +42,32 @@ interface SessionRefreshState {
     refreshEnabled: Record<AnalysisRefreshMode, boolean>;
 }
 
-const MODES: AnalysisRefreshMode[] = ['single', 'historical-compare', 'dependency-graph'];
+const MODES: AnalysisRefreshMode[] = ['single', 'historical-compare', 'project-evolution', 'dependency-graph'];
+
+function defaultControllerView(mode: AnalysisViewMode): string {
+    switch (mode) {
+        case 'selection':
+            return 'visualization-menu';
+        case 'single':
+            return 'single.mapping';
+        case 'dependency-graph':
+            return 'dependency.settings';
+        case 'historical-compare':
+            return 'historical.selection';
+        case 'project-evolution':
+            return 'project-evolution';
+        default:
+            return 'single.mapping';
+    }
+}
 
 function emptyPending(): Record<AnalysisRefreshMode, Map<string, PathChangeKind>> {
-    return {
-        single: new Map(),
-        'historical-compare': new Map(),
-        'dependency-graph': new Map(),
-    };
+        return {
+            single: new Map(),
+            'historical-compare': new Map(),
+            'project-evolution': new Map(),
+            'dependency-graph': new Map(),
+        };
 }
 
 export class AnalysisRefreshCoordinator {
@@ -99,9 +119,14 @@ export class AnalysisRefreshCoordinator {
         return state.sourceRevision;
     }
 
-    public setActiveMode(sessionId: string, mode: AnalysisViewMode): AnalysisViewState {
+    public setActiveMode(
+        sessionId: string,
+        mode: AnalysisViewMode,
+        controllerView: string,
+    ): AnalysisViewState {
         const state = this.getOrCreateState(sessionId);
         state.activeMode = mode;
+        state.controllerView = controllerView || defaultControllerView(mode);
         this.emitState(sessionId, state);
         if (mode !== 'selection') {
             void this.runIfNeeded(sessionId, mode);
@@ -109,8 +134,12 @@ export class AnalysisRefreshCoordinator {
         return this.getViewState(sessionId);
     }
 
-    public activateMode(sessionId: string, mode: AnalysisRefreshMode): AnalysisViewState {
-        return this.setActiveMode(sessionId, mode);
+    public activateMode(
+        sessionId: string,
+        mode: AnalysisRefreshMode,
+        controllerView: string,
+    ): AnalysisViewState {
+        return this.setActiveMode(sessionId, mode, controllerView);
     }
 
     public requestRefresh(sessionId: string, mode?: AnalysisRefreshMode): void {
@@ -182,6 +211,7 @@ export class AnalysisRefreshCoordinator {
             entityKind: 'analysis-view',
             entityId: 'main',
             mode: state.activeMode,
+            controllerView: state.controllerView || defaultControllerView(state.activeMode),
             status,
             hasUsableSnapshot,
             sourceRevision: state.sourceRevision,
@@ -199,20 +229,24 @@ export class AnalysisRefreshCoordinator {
         if (!state) {
             state = {
                 activeMode: 'single',
+                controllerView: 'single.mapping',
                 sourceRevision: 0,
                 appliedRevision: {
                     single: 0,
                     'historical-compare': 0,
+                    'project-evolution': 0,
                     'dependency-graph': 0,
                 },
                 modeRevision: {
                     single: 0,
                     'historical-compare': 0,
+                    'project-evolution': 0,
                     'dependency-graph': 0,
                 },
                 snapshotAvailable: {
                     single: true,
                     'historical-compare': false,
+                    'project-evolution': false,
                     'dependency-graph': false,
                 },
                 errors: {},
@@ -224,6 +258,7 @@ export class AnalysisRefreshCoordinator {
                 refreshEnabled: {
                     single: true,
                     'historical-compare': true,
+                    'project-evolution': true,
                     'dependency-graph': true,
                 },
             };

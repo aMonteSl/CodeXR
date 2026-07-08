@@ -230,7 +230,7 @@ export class VisualizeDataItemFactory {
             
             if (isDuplicateField) {
                 description += ' (duplicate)';
-                tooltip += '\n⚠️ Warning: This field is used in multiple mappings';
+                tooltip += '\nWarning: This field is used in multiple mappings';
                 console.log(`DIMENSION-MAPPING: Duplicate field usage detected - '${currentMapping.dataField}' is used for multiple dimensions`);
             }
         } else {

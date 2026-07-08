@@ -15,7 +15,9 @@ This folder contains the browser-side runtimes copied into generated CodeXR anal
 - `codexr/analysis-table/analysisTableRuntime.js`
   - Owns the XR table, visual surface, table modes and chart containment.
 - `codexr/xr-chart-mapping-ui/xrChartMappingUiRuntime.js`
-  - Owns Field Mapping, contextual panel views and transactional metric mapping.
+  - Owns Field Mapping, live chart switching, contextual panel views and transactional metric mapping.
+- `codexr/code-xr-boats/codeXrBoatsRuntime.js`
+  - Experimental CodeXR hierarchical boats chart. Paused for 1.2.0, kept only as a preserved prototype, and not part of the public chart selector or generated scene runtime by default.
 - `codexr/analysis-mode/analysisModeRuntime.js`
   - Owns mode switching between normal analysis, historical comparison and dependency graph.
 - `codexr/dependency-graph/dependencyGraphRuntime.js`
@@ -48,7 +50,7 @@ This folder contains the browser-side runtimes copied into generated CodeXR anal
 
 1. Room, collaboration, avatars and virtual screens.
 2. `common/codexrCommonRuntime.js`.
-3. Mapping UI, chart debug and analysis table.
+3. CodeXR charts, mapping UI, chart debug and analysis table.
 4. Analysis mode and mode-specific runtimes.
 5. Render budgets before visualizations that consume them.
 6. Dependency graph and other CodeXR graphs.

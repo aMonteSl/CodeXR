@@ -24,7 +24,7 @@ export class ReAnalysisManager {
 
     async executeDataJsonRegeneration(
         session: UnifiedAnalysisSession,
-        options: { notifyClients?: boolean } = {},
+        options: { notifyClients: boolean; silent: boolean } = {},
     ): Promise<boolean> {
         try {
             if (!session.savedFilesPath) {
@@ -35,7 +35,7 @@ export class ReAnalysisManager {
                 throw new Error(`Target file does not exist: ${session.targetPath}`);
             }
 
-            const analysisData = await this.executePython.executeAnalysis(session);
+            const analysisData = await this.executePython.executeAnalysis(session, { silent: options.silent === true });
             const newDataJsonContent = JSON.stringify(analysisData, null, 2);
             const dataJsonPath = path.join(session.savedFilesPath, 'data.json');
 

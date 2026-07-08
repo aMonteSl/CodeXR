@@ -1,6 +1,9 @@
 artifacts/
 backups/
 out/
+output/
+.codex/
+.codexr/
 **/__pycache__/
 **/*.pyc
 **/*.pyo

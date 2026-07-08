@@ -15,6 +15,10 @@ const runtimePath = path.join(
 );
 const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
 
+function plain(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
 function loadRuntime() {
     const sandbox = {
         console: {
@@ -104,7 +108,7 @@ function createFakeElement(tagName, notifyMutation) {
     return element;
 }
 
-function loadRuntimeWithFakeDom() {
+function loadRuntimeWithFakeDom(configOverride = {}) {
     const observers = new Map();
     const elements = new Map();
     function notifyMutation(target) {
@@ -129,6 +133,7 @@ function loadRuntimeWithFakeDom() {
         chartId: 'boats',
         chartEntityId: 'chart',
         dimensions: [],
+        ...configOverride,
     });
     const document = {
         readyState: 'complete',
@@ -143,6 +148,9 @@ function loadRuntimeWithFakeDom() {
                 return scene;
             }
             return null;
+        },
+        querySelectorAll() {
+            return [];
         },
     };
     const sandbox = {
@@ -176,6 +184,14 @@ function loadRuntimeWithFakeDom() {
     return { runtime: sandbox.module.exports, document };
 }
 
+function createChartEntityForSwitchTest(initialAttributes = {}) {
+    const chart = createFakeElement('a-entity', () => {});
+    Object.entries(initialAttributes).forEach(([name, value]) => {
+        chart.setAttribute(name, value);
+    });
+    return chart;
+}
+
 test('mapping UI runtime only exposes session invalid-option helpers for chart rollback handling', () => {
     const runtime = loadRuntime();
 
@@ -191,7 +207,7 @@ test('mapping UI runtime only exposes session invalid-option helpers for chart r
 test('mapping UI runtime relies on post-Babia validation and rollback instead of prechecking field values', () => {
     assert.match(runtimeSource, /function inspectChartStatus\(config\)/);
     assert.match(runtimeSource, /function evaluatePendingMapping\(config, token, result\)/);
-    assert.match(runtimeSource, /runtime\.waitForChartsStable\(chartIds/);
+    assert.match(runtimeSource, /runtime\.waitForChartsStable\(chartTargets/);
     assert.match(runtimeSource, /if \(result && result\.valid && result\.stabilized\) \{/);
     assert.match(runtimeSource, /mapping-ui-unstable-revert/);
     assert.match(runtimeSource, /mapping-reverted-unstable-containment/);
@@ -209,11 +225,262 @@ test('mapping UI runtime relies on post-Babia validation and rollback instead of
     assert.doesNotMatch(runtimeSource, /validateCylsMapGeometry/);
 });
 
+test('mapping UI validates against dynamically resolved containment targets during Babia rebuilds', () => {
+    assert.match(runtimeSource, /function isChartMappingEntity\(entity, componentName\)/);
+    assert.match(runtimeSource, /hasEntityAttribute\(entity, 'codexr-chart-containment'\)/);
+    assert.match(runtimeSource, /function isAnalysisRootEntity\(entity\)/);
+    assert.match(runtimeSource, /return false;\s*\}\s*return !!\(componentName && hasEntityAttribute\(entity, componentName\)\);/);
+    assert.match(runtimeSource, /function findFallbackChartEntity\(config, preferredId\)/);
+    assert.match(runtimeSource, /function buildChartValidationTargets\(config\)/);
+    assert.match(runtimeSource, /return function resolveChartTarget\(\) \{/);
+    assert.match(runtimeSource, /return findFallbackChartEntity\(config, id\);/);
+    assert.match(runtimeSource, /queryEntities\(scopes\[i\], '\[codexr-chart-containment\]'\)/);
+    assert.match(runtimeSource, /hasEntityAttribute\(entity, componentName\)/);
+    assert.match(runtimeSource, /var chartTargets = buildChartValidationTargets\(config\);/);
+    assert.match(runtimeSource, /analysisTableRuntime\.getChartStatus\(resolveChartTarget\(\)\)/);
+    assert.doesNotMatch(runtimeSource, /var chartIds = getChartEntities\(config\)\.map/);
+});
+
 test('mapping UI schedules containment bursts while waiting for a stable table fit', () => {
     assert.match(runtimeSource, /function scheduleContainmentValidationBursts\(reason\)/);
     assert.match(runtimeSource, /scheduleContainmentValidationBursts\('mapping-ui-validation'\)/);
-    assert.match(runtimeSource, /\[650, 1300, 2200, 3600, 5200\]/);
+    assert.match(runtimeSource, /\[650, 1300, 2200, 3600, 5200, 7600, 10500, 14000, 18000\]/);
+    assert.match(runtimeSource, /timeoutMs: 26000/);
+    assert.match(runtimeSource, /scheduleContainmentValidationBursts\('mapping-ui-revert'\)/);
+    assert.match(runtimeSource, /scheduleContainmentValidationBursts\('mapping-ui-timeout-revert'\)/);
     assert.match(runtimeSource, /renormalizeAll\(\(reason \|\| 'mapping-ui-validation'\) \+ '-burst-'/);
+});
+
+test('mapping UI stores confirmed mappings per analysis context', () => {
+    assert.doesNotMatch(runtimeSource, /'codexr-boats': 'codexr-boats'/);
+    assert.match(runtimeSource, /boats: 'babia-boats'/);
+    assert.match(runtimeSource, /activeMappingContextId: 'normal-analysis'/);
+    assert.match(runtimeSource, /mappingProfiles: \{\}/);
+    assert.match(runtimeSource, /function switchMappingContext\(contextId, options\)/);
+    assert.match(runtimeSource, /saveActiveMappingProfile\(\);/);
+    assert.match(runtimeSource, /state\.activeMappingContextId = nextContextId;/);
+    assert.match(runtimeSource, /getMappingProfileKey\(nextContextId, getActiveChartId\(config\)\)/);
+    assert.match(runtimeSource, /state\.mappingProfiles\[profileKey\] \|\| buildDefaultMappingSnapshot\(config\)/);
+    assert.match(runtimeSource, /mappingContextId: state\.activeMappingContextId/);
+    assert.match(runtimeSource, /switchMappingContext: switchMappingContext/);
+    assert.match(runtimeSource, /getMappingContext: function \(\)/);
+});
+
+test('mapping UI exposes the Analysis Controller facade while preserving legacy mapping API', () => {
+    assert.match(runtimeSource, /root\.CodeXRAnalysisControllerRuntime = runtime/);
+    assert.match(runtimeSource, /CONTROLLER_PANEL_BY_VIEW = \{/);
+    assert.match(runtimeSource, /'visualization-menu': 'visualization-mode'/);
+    assert.match(runtimeSource, /'historical.mapping': 'mapping'/);
+    assert.match(runtimeSource, /function showControllerView\(viewId, context\)/);
+    assert.match(runtimeSource, /state\.activeControllerView = nextViewId;/);
+    assert.match(runtimeSource, /getModeMemory: getModeMemory/);
+    assert.match(runtimeSource, /saveModeMemory: saveModeMemory/);
+    assert.match(runtimeSource, /controllerView: state\.activeControllerView/);
+});
+
+test('mapping UI exposes live chart switching with chart-specific defaults', () => {
+    const runtime = loadRuntime();
+    const chartData = runtime.__testing.buildRuntimeChartData('boats', { from: 'data', palette: 'ubuntu' }, {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'language',
+    });
+    const barsData = runtime.__testing.buildRuntimeChartData('bars', { from: 'codexrComparisonLeft' }, {
+        x_axis: 'fileName',
+        height: 'totalLines',
+    });
+
+    assert.equal(typeof runtime.selectChart, 'function');
+    assert.equal(chartData.from, 'tree');
+    assert.equal(chartData.area, 'functionCount');
+    assert.equal(barsData.from, 'codexrComparisonLeft');
+    assert.equal(barsData.x_axis, 'fileName');
+    assert.match(runtimeSource, /function renderChartSelector\(config\)/);
+    assert.match(runtimeSource, /data-codexr-chart-id/);
+    assert.match(runtimeSource, /function selectChart\(chartId\)/);
+    assert.match(runtimeSource, /chartId: getActiveChartId\(getConfig\(\)\)/);
+    assert.match(runtimeSource, /chartId: getActiveChartId\(config\)/);
+});
+
+test('mapping UI chart switch removes stale Babia-rendered children before creating the next chart', () => {
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-bars': {
+            from: 'data',
+            x_axis: 'fileName',
+            height: 'totalLines',
+            color: 'cyclomaticComplexityNumber',
+        },
+    });
+    const oldBar = createFakeElement('a-box', () => {});
+    oldBar.setAttribute('data-babia-rendered-child', 'old-bar');
+    const oldAxis = createFakeElement('a-entity', () => {});
+    oldAxis.setAttribute('data-babia-rendered-child', 'old-axis');
+    chart.appendChild(oldBar);
+    chart.appendChild(oldAxis);
+
+    const applied = runtime.__testing.applyChartTypeToEntity(
+        chart,
+        'bubbles',
+        {
+            x_axis: 'fileName',
+            height: 'totalLines',
+            radius: 'functionCount',
+        },
+    );
+
+    assert.equal(applied, true);
+    assert.equal(chart.children.length, 0);
+    assert.equal(chart.getAttribute('babia-bars'), undefined);
+    assert.equal(chart.getAttribute('babia-bubbles').x_axis, 'fileName');
+    assert.equal(chart.getAttribute('babia-bubbles').radius, 'functionCount');
+    assert.equal(chart.getAttribute('data-codexr-active-chart-id'), 'bubbles');
+    assert.equal(chart.getAttribute('codexr-chart-containment'), 'preset: table');
+});
+
+test('mapping UI chart switch keeps pie and donut upright instead of inheriting a flat rotation', () => {
+    const runtime = loadRuntime();
+    const donutChart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-bars': {
+            from: 'data',
+            x_axis: 'fileName',
+            height: 'totalLines',
+        },
+        rotation: '90 0 0',
+    });
+    const pieChart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-bubbles': {
+            from: 'data',
+            x_axis: 'fileName',
+            height: 'totalLines',
+            radius: 'functionCount',
+        },
+        rotation: '90 0 0',
+    });
+
+    assert.equal(runtime.__testing.applyChartTypeToEntity(donutChart, 'donut', {
+        key: 'language',
+        size: 'totalLines',
+    }), true);
+    assert.equal(runtime.__testing.applyChartTypeToEntity(pieChart, 'pie', {
+        key: 'language',
+        size: 'totalLines',
+    }), true);
+
+    assert.equal(donutChart.getAttribute('rotation'), '0 0 0');
+    assert.equal(donutChart.getAttribute('babia-bars'), undefined);
+    assert.equal(donutChart.getAttribute('babia-doughnut').key, 'language');
+    assert.equal(pieChart.getAttribute('rotation'), '0 0 0');
+    assert.equal(pieChart.getAttribute('babia-bubbles'), undefined);
+    assert.equal(pieChart.getAttribute('babia-pie').size, 'totalLines');
+});
+
+test('mapping UI chart selector and dimension grids share safe panel margins', () => {
+    const runtime = loadRuntime();
+    const layout = runtime.__testing.PANEL_LAYOUT;
+    const chartCols = 3;
+    const chartButtonWidth = runtime.__testing.getGridButtonWidth(chartCols);
+    const firstX = runtime.__testing.getGridButtonX(0, chartButtonWidth);
+    const lastX = runtime.__testing.getGridButtonX(chartCols - 1, chartButtonWidth);
+
+    assert.ok(chartButtonWidth > 0);
+    assert.ok(firstX - chartButtonWidth * 0.5 >= layout.left - 0.000001);
+    assert.ok(lastX + chartButtonWidth * 0.5 <= layout.right + 0.000001);
+    assert.ok(layout.sectionGap >= 0.3);
+    const panelHeight = 5.8;
+    const chartRootY = panelHeight * 0.45 - layout.chartRootHeightOffset;
+    const rowsRootY = panelHeight * 0.45 - layout.rowsRootHeightOffset;
+    const lastChartButtonBottomY = chartRootY - layout.labelToButtonsGap - (layout.maxChartRows - 1) * layout.rowGap - 0.11;
+    const areaLabelTopY = rowsRootY - 0.05 + 0.11;
+    assert.ok(lastChartButtonBottomY - areaLabelTopY >= 0.34);
+    assert.match(runtimeSource, /position: '-0\.05 -0\.18 0\.02'/);
+    assert.match(runtimeSource, /position: '-0\.05 0\.9 0\.03'/);
+    assert.match(runtimeSource, /rowsRootHeightOffset: 1\.72/);
+    assert.match(runtimeSource, /chartRootHeightOffset: 0\.34/);
+    assert.match(runtimeSource, /var panelHeight = Math\.max\(2\.9, Math\.abs\(cursorY\) \+ PANEL_LAYOUT\.panelHeightPadding\)/);
+});
+
+test('mapping UI restores independent normal and historical mappings', () => {
+    const { runtime } = loadRuntimeWithFakeDom({
+        dimensions: [
+            {
+                id: 'area',
+                label: 'Area',
+                currentField: 'functionCount',
+                fields: ['functionCount', 'fileSizeBytes', 'codeRatio'],
+            },
+            {
+                id: 'height',
+                label: 'Height',
+                currentField: 'totalLines',
+                fields: ['totalLines', 'commentLines'],
+            },
+            {
+                id: 'color',
+                label: 'Color',
+                currentField: 'language',
+                fields: ['language', 'cyclomaticComplexityNumber'],
+            },
+        ],
+    });
+
+    assert.equal(runtime.getMappingContext(), 'normal-analysis');
+    assert.deepEqual(plain(runtime.getState().lastKnownGoodMapping), {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'language',
+    });
+
+    runtime.restoreState({
+        selectedByDimension: {
+            area: 'fileSizeBytes',
+            height: 'totalLines',
+            color: 'language',
+        },
+        lastKnownGoodMapping: {
+            area: 'fileSizeBytes',
+            height: 'totalLines',
+            color: 'language',
+        },
+    });
+
+    runtime.switchMappingContext('historical-comparison');
+    assert.equal(runtime.getMappingContext(), 'historical-comparison');
+    assert.deepEqual(plain(runtime.getState().lastKnownGoodMapping), {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'language',
+    });
+
+    runtime.restoreState({
+        selectedByDimension: {
+            area: 'codeRatio',
+            height: 'commentLines',
+            color: 'cyclomaticComplexityNumber',
+        },
+        lastKnownGoodMapping: {
+            area: 'codeRatio',
+            height: 'commentLines',
+            color: 'cyclomaticComplexityNumber',
+        },
+    });
+
+    runtime.switchMappingContext('normal-analysis');
+    assert.deepEqual(plain(runtime.getState().lastKnownGoodMapping), {
+        area: 'fileSizeBytes',
+        height: 'totalLines',
+        color: 'language',
+    });
+
+    runtime.switchMappingContext('historical-comparison');
+    assert.deepEqual(plain(runtime.getState().lastKnownGoodMapping), {
+        area: 'codeRatio',
+        height: 'commentLines',
+        color: 'cyclomaticComplexityNumber',
+    });
 });
 
 test('mapping updates preserve each comparison chart datasource and chart-specific options', () => {
@@ -270,12 +537,18 @@ test('mapping updates preserve each comparison chart datasource and chart-specif
             legend: false,
         },
     );
+
+    assert.equal(runtime.__testing.isHierarchicalChart('codexr-boats'), false);
 });
 
 test('mapping UI disables raycast interaction for hidden views and keeps a stable shared entity id', () => {
     assert.match(runtimeSource, /function setEntityInteractionEnabled\(entity, enabled\)/);
     assert.match(runtimeSource, /function syncPanelViewInteraction\(viewId\)/);
     assert.match(runtimeSource, /state\.visible && state\.activePanelView === viewId/);
+    assert.match(runtimeSource, /setEntityInteractionEnabled\(refs\.rowsRoot, state\.visible && state\.activePanelView === 'mapping'\)/);
+    assert.match(runtimeSource, /setEntityInteractionEnabled\(refs\.chartRoot, state\.visible && state\.activePanelView === 'mapping'\)/);
+    assert.match(runtimeSource, /refs\.rowsRoot\.setAttribute\('visible', nextViewId === 'mapping'\)/);
+    assert.match(runtimeSource, /refs\.chartRoot\.setAttribute\('visible', nextViewId === 'mapping'\)/);
     assert.match(runtimeSource, /new root\.MutationObserver/);
     assert.match(runtimeSource, /observer\.observe\(content, \{ childList: true, subtree: true \}\)/);
     assert.match(runtimeSource, /querySelectorAll\('\[data-codexr-interactive="true"\]'\)/);

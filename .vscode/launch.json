@@ -13,7 +13,7 @@
       "outFiles": [
         "${workspaceFolder}/.vscode-test/dev-extension/dist/**/*.js"
       ],
-      "preLaunchTask": "npm: compile:dev-host"
+      "preLaunchTask": "CodeXR: compile:dev-host"
     },
     {
       "name": "Run CodeXR Extension (workspace direct)",
@@ -25,7 +25,7 @@
       "outFiles": [
         "${workspaceFolder}/dist/**/*.js"
       ],
-      "preLaunchTask": "npm: compile"
+      "preLaunchTask": "CodeXR: compile"
     }
   ]
 }

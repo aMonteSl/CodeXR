@@ -10,6 +10,7 @@ import {
 import type {
     ComparisonSource,
     GitReferenceType,
+    GitRevisionType,
     HistoricalComparisonReferences,
 } from './historicalComparisonModels';
 
@@ -63,6 +64,7 @@ export class GitRepositoryService {
             activeBranch: headName,
             dirty: workingTreeDirty,
             live: true,
+            revisionType: 'working-copy',
         }];
 
         const branchLines = (await this.runGit(repositoryRoot, [
@@ -101,19 +103,22 @@ export class GitRepositoryService {
             '--all',
             '--max-count=50',
             '--date=short',
-            '--format=%H%x00%ad%x00%s',
+            '--format=%H%x00%ad%x00%P%x00%s',
         ])).stdout.split(/\r?\n/).filter(Boolean);
         for (const line of commitLines) {
-            const [commitSha, date, subject] = line.split('\0');
+            const [commitSha, date, parents, subject] = line.split('\0');
             if (!this.isCommitSha(commitSha)) {
                 continue;
             }
+            const parentCount = this.countParents(parents);
             sources.push(this.createGitSource(
                 'commit',
                 commitSha,
                 commitSha.slice(0, 8),
                 commitSha,
                 `${date || ''} ${subject || ''}`.trim(),
+                parentCount > 1 ? 'merge' : 'commit',
+                parentCount,
             ));
         }
 
@@ -154,6 +159,47 @@ export class GitRepositoryService {
             throw new Error('comparison-reference-not-found');
         }
         return { ...source, commitSha: resolved };
+    }
+
+    public async listTimelineSources(maxCount = 200): Promise<ComparisonSource[]> {
+        const repositoryRoot = await this.resolveRepositoryRoot();
+        const safeMaxCount = Math.max(1, Math.min(1000, Math.floor(maxCount)));
+        const commitLines = (await this.runGit(repositoryRoot, [
+            'log',
+            '--all',
+            '--reverse',
+            `--max-count=${safeMaxCount}`,
+            '--date=short',
+            '--format=%H%x00%ad%x00%P%x00%s',
+        ])).stdout.split(/\r\n/).filter(Boolean);
+        const sources: ComparisonSource[] = [];
+        for (const line of commitLines) {
+            const [commitSha, date, parents, subject] = line.split('\0');
+            if (!this.isCommitSha(commitSha)) {
+                continue;
+            }
+            const parentCount = this.countParents(parents);
+            sources.push(this.createGitSource(
+                'commit',
+                commitSha,
+                commitSha.slice(0, 8),
+                commitSha,
+                `${date || ''} ${subject || ''}`.trim(),
+                parentCount > 1 ? 'merge' : 'commit',
+                parentCount,
+            ));
+        }
+        for (const source of sources) {
+            this.sourceById.set(source.id, source);
+        }
+        return sources;
+    }
+
+    public async resolveSourcesInChronologicalOrder(sourceIds: string[]): Promise<ComparisonSource[]> {
+        if (!Array.isArray(sourceIds) || sourceIds.length === 0) {
+            return [];
+        }
+        return Promise.all(sourceIds.map((sourceId) => this.resolveSource(sourceId)));
     }
 
     public async materialize(source: ComparisonSource): Promise<MaterializedGitTarget> {
@@ -326,6 +372,8 @@ export class GitRepositoryService {
         label: string,
         commitSha: string,
         description?: string,
+        revisionType: GitRevisionType,
+        parentCount: number,
     ): ComparisonSource {
         const id = `${refType}-${crypto.createHash('sha256').update(refName).digest('hex').slice(0, 16)}`;
         return {
@@ -337,7 +385,13 @@ export class GitRepositoryService {
             label,
             description,
             live: false,
+            revisionType: revisionType || refType,
+            parentCount,
         };
+    }
+
+    private countParents(value: string | undefined): number {
+        return String(value || '').split(/\s+/).filter(Boolean).length;
     }
 
     private resolveTargetRelativePath(repositoryRoot: string): string {
@@ -423,4 +477,5 @@ export class GitRepositoryService {
     private isCommitSha(value: string): boolean {
         return /^[0-9a-f]{40}$/i.test(value || '');
     }
+
 }

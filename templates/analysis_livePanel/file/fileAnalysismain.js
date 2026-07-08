@@ -63,7 +63,7 @@
     
     // Update theme icon
     if (elements.themeIcon) {
-      elements.themeIcon.textContent = theme === 'light' ? '🌙' : '☀️';
+      elements.themeIcon.textContent = theme === 'light' ? 'Dark' : 'Light';
     }
     
     console.log('ANALYSIS_VIEWER: Theme applied:', theme);
@@ -359,12 +359,12 @@
     
     switch (status) {
       case 'connected':
-        statusElement.textContent = '🟢 Live Updates';
+        statusElement.textContent = ' Live Updates';
         statusElement.style.backgroundColor = '#10b981';
         statusElement.style.color = 'white';
         break;
       case 'error':
-        statusElement.textContent = '🔴 Disconnected';
+        statusElement.textContent = ' Disconnected';
         statusElement.style.backgroundColor = '#ef4444';
         statusElement.style.color = 'white';
         break;
@@ -931,5 +931,4 @@
   };
   
 })();
-
 

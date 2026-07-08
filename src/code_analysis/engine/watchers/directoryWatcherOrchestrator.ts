@@ -244,7 +244,7 @@ export class DirectoryWatcherOrchestrator {
         ) {
             const success = await this.fullReAnalysisManager.executeDataJsonRegeneration(
                 this.session,
-                { notifyClients: this.session.analysisMode !== 'XR' },
+                { notifyClients: this.session.analysisMode !== 'XR', silent: true },
             );
             if (!success) {
                 throw new Error('Normal full analysis refresh failed.');

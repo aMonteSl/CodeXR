@@ -12,10 +12,13 @@ CodeXR 1.2.0 evoluciona la visualizacion de codigo hacia un espacio de trabajo X
 | 2. Workspace multiestacion | Planificado | Estaciones XR y organizacion espacial persistente |
 | 3. Grafo de dependencias | Implementado; validacion multiusuario pendiente | Analisis bajo demanda, 23 lenguajes, tres layouts y colaboracion |
 | 4. Comparador temporal | Implementado; validación multiusuario pendiente | Mesa dual, Git local independiente del proveedor, selector transaccional y fuente Live |
-| 5. Colaboracion 2.0 | Implementado; validacion XR pendiente | Perfil por instalacion, avatares, presencia y puntero |
-| 6. Conexion entre redes | Implementado; prueba real pendiente | Quick Tunnel, emparejamiento, sesiones y revocacion |
-| 7. Asistencia con IA | En estudio | IA local o gratuita, privada y opcional |
-| 8. Calidad y publicacion | En progreso | Pruebas, rendimiento XR, documentacion y release |
+| 5. Project Evolution | En implementacion | Pelicula cronologica del proyecto con commits Git locales y player XR |
+| 6. Colaboracion 2.0 | Implementado; validacion XR pendiente | Perfil por instalacion, avatares, presencia y puntero |
+| 7. Conexion entre redes | Implementado; prueba real pendiente | Quick Tunnel, emparejamiento, sesiones y revocacion |
+| 8. Asistencia con IA | En estudio | IA local o gratuita, privada y opcional |
+| 9. Calidad y publicacion | En progreso | Pruebas, rendimiento XR, documentacion y release |
+
+Nota de alcance: el prototipo `codexr-boats` queda pausado fuera de 1.2.0. La version vuelve a usar `Babia Boats` como grafico XR jerarquico por defecto, mientras conserva el selector de grafico en `CodeXR Field Mapping` para cambiar entre las opciones BabiaXR disponibles en la escena.
 
 ## 1. Fundamentos y arquitectura
 
@@ -25,6 +28,8 @@ CodeXR 1.2.0 evoluciona la visualizacion de codigo hacia un espacio de trabajo X
 - Evitar incluir recursos grandes cuando puedan obtenerse de forma opcional y consentida.
 - Mantener el identificador tecnico compatible `code-xr`, usando `CodeXR` como nombre visible.
 - Definir APIs publicas pequenas para que graficos, pantallas y futuros componentes puedan colaborar sin conocer WebSocket.
+- Mantener `Babia Boats` como grafico XR por defecto en 1.2.0 y pausar el grafico propio `codexr-boats` hasta una version posterior.
+- Permitir cambio vivo de grafico desde `CodeXR Field Mapping`, aplicando los mappings por defecto del grafico elegido.
 
 ## 2. Workspace multiestacion
 
@@ -78,7 +83,25 @@ reactividad Live, Field Mapping y estrategia de pruebas se describen en
 - Incorporar filtros por archivo, lenguaje, autor y magnitud del cambio.
 - Preparar integracion con Git sin bloquear el analisis local normal.
 
-## 5. Colaboracion 2.0
+## 5. Project Evolution
+
+`Project Evolution` anade un modo XR cronologico para ver el proyecto como una
+pelicula. A diferencia del comparador temporal, no divide la mesa en dos: usa un
+grafico unico a tamano completo y va cambiando su datasource desde commits
+antiguos hacia commits recientes.
+
+- Nuevo modo `project-evolution` dentro de `Visualization mode`.
+- Timeline automatica por defecto usando commits Git locales de antiguo a
+  reciente, con muestreo para repositorios grandes.
+- Panel XR con generacion de pelicula, play/pause, anterior/siguiente y
+  velocidad de reproduccion.
+- Reutilizacion de materializacion Git segura y analisis Python/Lizard actual.
+- Sin APIs remotas de GitHub/GitLab en la primera entrega.
+
+La arquitectura y limites iniciales se describen en
+[Project Evolution XR](PROJECT_EVOLUTION_XR.md).
+
+## 6. Colaboracion 2.0
 
 ### Implementado
 
@@ -182,7 +205,7 @@ Este diseno sustituye la copia de binarios propuesta inicialmente. No se anade u
 - Sincronizacion especifica de estaciones XR cuando exista el workspace multiestacion.
 - TURN autenticado para redes donde falle la conexion WebRTC directa.
 
-## 6. Conexion entre redes
+## 7. Conexion entre redes
 
 ### Implementado
 
@@ -212,16 +235,16 @@ Este diseno sustituye la copia de binarios propuesta inicialmente. No se anade u
 - TURN queda preparado como ampliacion posterior porque requiere credenciales y trafico de relay.
 - Falta validar el flujo completo con dos redes fisicas antes de considerar cerrada la aceptacion.
 
-## 7. Asistencia con IA
+## 8. Reanalisis silencioso
 
-- Disenar IA opcional, nunca necesaria para abrir una visualizacion.
-- Priorizar modelos locales mediante WebGPU o runtimes instalables.
-- Evaluar proveedores gratuitos unicamente como alternativa explicita.
-- Proponer resumenes de zonas complejas, agrupacion semantica y rutas de exploracion.
-- No enviar codigo a terceros sin consentimiento informado.
-- Mostrar modelo, proveedor, limites y datos transmitidos antes de activar la funcion.
+- Mantener el auto-analisis local de CodeXR sin dependencias externas.
+- Conservar el retardo configurable antes de reanalizar cambios.
+- Ejecutar el reanalisis automatico en segundo plano para no interrumpir la escritura.
+- Actualizar `data.json` y los visores abiertos solo cuando haya cambios reales.
+- Evitar notificaciones persistentes durante el flujo normal; usar mensajes discretos de estado para depuracion temporal.
+- Mantener fuera del alcance de 1.2.0 cualquier integracion de asistencia generativa externa.
 
-## 8. Calidad y publicacion
+## 9. Calidad y publicacion
 
 - Ejecutar pruebas TypeScript, ESLint, Node y Python antes de cada candidato.
 - Anadir validacion visual en escritorio y navegador movil.
@@ -229,15 +252,16 @@ Este diseno sustituye la copia de binarios propuesta inicialmente. No se anade u
 - Medir FPS, memoria, tiempo de carga y trafico de presencia.
 - Validar reconexion, restauracion de perfil y degradacion offline.
 - Preparar notas de migracion desde 1.1.0 y avisos de privacidad.
+- Mantener Lizard como unico motor metrico para 1.2.0.
 
-Estado automatizado actual: TypeScript y ESLint limpios, 160 pruebas Node y 22 pruebas Python superadas.
+Estado automatizado actual: TypeScript y ESLint limpios, pruebas Node y Python en validacion continua.
 
 ## Secuencia de entrega
 
 1. `1.2.0-alpha.1`: Colaboracion 2.0 en red local.
-2. `1.2.0-alpha.2`: workspace multiestacion y primer grafico propio.
+2. `1.2.0-alpha.2`: workspace multiestacion y selector vivo de graficos en Field Mapping.
 3. `1.2.0-beta.1`: conexion entre redes e invitaciones.
-4. `1.2.0-beta.2`: IA opcional y comparador temporal.
+4. `1.2.0-beta.2`: IA opcional, comparador temporal y Project Evolution.
 5. `1.2.0-rc.1`: rendimiento, accesibilidad, documentacion y pruebas de hardware.
 6. `1.2.0`: publicacion estable.
 

@@ -13,11 +13,13 @@ import {
     ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME,
     ANALYSIS_MODE_RUNTIME_OUTPUT_NAME,
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
+    PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME,
     CODEXR_COMMON_RUNTIME_OUTPUT_NAME,
     CODEXR_AVATAR_RUNTIME_OUTPUT_NAME,
     copyAnalysisTableRuntimeToOutput,
     copyAnalysisModeRuntimeToOutput,
     copyHistoricalComparisonRuntimeToOutput,
+    copyProjectEvolutionRuntimeToOutput,
     copyCodeXrCommonRuntimeToOutput,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     copyCodeXrRoomAssetsToOutput,
@@ -89,7 +91,7 @@ export class FileXRParser {
             const validationResult = DimensionValidator.validateMappings(chartMetadata, babiaFormatMappings);
             this.displayConfigurationInfo(chartType, chartMetadata, babiaFormatMappings, validationResult);
 
-            const analysisData = bootstrap?.payload ?? await new ExecutePython(this.context).executeAnalysis(session);
+            const analysisData = bootstrap.payload ?? await new ExecutePython(this.context).executeAnalysis(session);
             if (!Array.isArray(analysisData) || analysisData.length === 0) {
                 throw new Error('Python analysis returned no data. Cannot generate XR visualization.');
             }
@@ -120,13 +122,12 @@ export class FileXRParser {
             await copyAnalysisTableRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyAnalysisModeRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyHistoricalComparisonRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyProjectEvolutionRuntimeToOutput(this.context.extensionPath, session.outputPath);
 
             const title = `XR Analysis: ${session.targetName || 'analysis'}`;
             const outputPath = path.join(session.outputPath, 'index.html');
             const babiaUiConfig = await this.configStorage.getXRBabiaUiConfig();
-            const fieldTypeMap = babiaUiConfig.enabled
-                ? await XRFieldSchemaService.getInstance(this.context).getFieldTypeMap('file')
-                : undefined;
+            const fieldTypeMap = await XRFieldSchemaService.getInstance(this.context).getFieldTypeMap('file');
             const templateResult = await TemplateProcessor.generateXRVisualization(
                 chartType,
                 babiaFormatMappings,
@@ -136,7 +137,6 @@ export class FileXRParser {
                 outputPath,
                 analysisData,
                 {
-                    babiaUiEnabled: babiaUiConfig.enabled,
                     babiaUiVisibleByDefault: babiaUiConfig.visibleByDefault,
                     xrTargetType: 'file',
                     fieldTypeMap,
@@ -166,6 +166,7 @@ export class FileXRParser {
                 || !loadedFiles.has(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(ANALYSIS_MODE_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME)
             ) {
                 throw new Error('XR file bootstrap did not generate the required files.');
             }

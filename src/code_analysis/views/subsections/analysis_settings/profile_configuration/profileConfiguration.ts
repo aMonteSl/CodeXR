@@ -131,7 +131,7 @@ export class ProfileConfigurationSetting {
                 color: 'cyclomaticComplexityNumber'
             },
             autoAnalysisDelay: {
-                type: '3s',
+                type: 'RealTime',
                 customMs: undefined
             },
             autoAnalysisEnabled: true, // Default to enabled
@@ -142,7 +142,6 @@ export class ProfileConfigurationSetting {
                 filesSortDirection: 'ascending'
             },
             xrBabiaUi: {
-                enabled: true,
                 visibleByDefault: true,
             }
         };

@@ -327,7 +327,7 @@ export class AnalysisConfigurationStorage {
      */
     public async getChartTypeFile(): Promise<ChartType> {
         const config = await this.loadConfiguration();
-        return config.chartTypeFile;
+        return String(config.chartTypeFile) === 'codexr-boats' ? 'boats' : config.chartTypeFile;
     }
 
     /**
@@ -391,7 +391,7 @@ export class AnalysisConfigurationStorage {
      */
     public async getDirectoryChartType(): Promise<ChartType> {
         const config = await this.loadConfiguration();
-        return config.chartTypeDirectory;
+        return String(config.chartTypeDirectory) === 'codexr-boats' ? 'boats' : config.chartTypeDirectory;
     }
 
     /**
@@ -425,35 +425,21 @@ export class AnalysisConfigurationStorage {
      */
     public async getXRBabiaUiConfig(): Promise<XRBabiaUiConfig> {
         const config = await this.loadConfiguration();
-        return config.xrBabiaUi;
+        return {
+            visibleByDefault: config.xrBabiaUi.visibleByDefault !== false,
+        };
     }
 
     /**
      * Set XR Babia UI configuration.
      */
     public async setXRBabiaUiConfig(value: XRBabiaUiConfig): Promise<void> {
-        await this.updateConfiguration({ xrBabiaUi: value });
-    }
-
-    /**
-     * Get whether Babia UI is enabled for XR output injection.
-     */
-    public async getXRBabiaUiEnabled(): Promise<boolean> {
-        const config = await this.loadConfiguration();
-        return config.xrBabiaUi.enabled;
-    }
-
-    /**
-     * Set whether Babia UI is enabled for XR output injection.
-     */
-    public async setXRBabiaUiEnabled(enabled: boolean): Promise<void> {
-        const config = await this.loadConfiguration();
         await this.updateConfiguration({
             xrBabiaUi: {
-                ...config.xrBabiaUi,
-                enabled,
+                visibleByDefault: value.visibleByDefault !== false,
             },
         });
     }
+
 }
 

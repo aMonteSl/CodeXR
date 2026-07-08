@@ -72,7 +72,7 @@ export class VisualizeDOMParser {
                 this.context
             );
 
-            // 🔍 DEBUG: Log detailed information about what templateHTMLProcessor returned
+            // DEBUG: Log detailed information about what templateHTMLProcessor returned
             console.log(`VISUALIZE_DOM_PARSER:  TemplateHTMLProcessor returned:`, {
                 
                 success: processingResult.success,
@@ -127,7 +127,7 @@ export class VisualizeDOMParser {
             resultFiles.set(CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME, domSceneCollaborationRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME} (${domSceneCollaborationRuntime.length} chars)`);
 
-            // 🔍 FINAL DEBUG: Verify the result Map
+            // FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);
             console.log(`VISUALIZE_DOM_PARSER:  Map size: ${resultFiles.size}`);
             console.log(`VISUALIZE_DOM_PARSER:  Map keys: [${Array.from(resultFiles.keys()).join(', ')}]`);
@@ -177,7 +177,6 @@ export class VisualizeDOMParser {
         return canProcess;
     }
 }
-
 
 
 

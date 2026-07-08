@@ -390,6 +390,13 @@ export class HistoricalComparisonService {
         if (!candidate) {
             return 'unknown';
         }
+        if (!path.isAbsolute(candidate)) {
+            return candidate
+                .replace(/\\/g, '/')
+                .replace(/^\.\/+/, '')
+                .replace(/\/+/g, '/')
+                .replace(/^\/|\/$/g, '') || 'unknown';
+        }
         const normalizedCandidate = path.resolve(candidate);
         const normalizedRoot = path.resolve(root);
         const relativePath = path.relative(normalizedRoot, normalizedCandidate);

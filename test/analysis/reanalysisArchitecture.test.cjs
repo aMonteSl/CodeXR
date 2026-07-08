@@ -28,13 +28,13 @@ test('file and directory watchers use the hybrid stat-plus-hash reanalysis gate'
     const directoryWatcher = readProjectFile('src', 'code_analysis', 'engine', 'watchers', 'directoryWatcherOrchestrator.ts');
     const reAnalysisManager = readProjectFile('src', 'code_analysis', 'engine', 'watchers', 'reAnalysisManager.ts');
     const directoryReAnalyzer = readProjectFile('src', 'code_analysis', 'engine', 'watchers', 'directoryReAnalyzer.ts');
+    const executePython = readProjectFile('src', 'code_analysis', 'engine', 'utils', 'executePython.ts');
 
     assert.match(fileWatcher, /this\.lastKnownMtimeMs === statSnapshot\.mtimeMs && this\.lastKnownSize === statSnapshot\.size/);
     assert.match(fileWatcher, /currentHash === this\.lastDetectedHash/);
     assert.match(fileWatcher, /executeVisualizeDOMRegeneration/);
     assert.match(fileWatcher, /analysisRefreshCoordinator\.publishChanges/);
     assert.match(fileWatcher, /registerHandler\(session\.id, 'historical-compare'/);
-    assert.match(fileWatcher, /\{ notifyClients: this\.session\.analysisMode !== 'XR' \}/);
 
     assert.match(directoryWatcher, /scanDirectoryScope\(this\.session\.targetPath, this\.session\.isDeep\)/);
     assert.match(directoryWatcher, /diffAgainst\(snapshot\.files\)/);
@@ -43,15 +43,78 @@ test('file and directory watchers use the hybrid stat-plus-hash reanalysis gate'
     assert.match(directoryWatcher, /analysisRefreshCoordinator\.publishChanges/);
     assert.match(directoryWatcher, /registerHandler\(session\.id, 'single'/);
     assert.match(directoryWatcher, /registerHandler\(session\.id, 'historical-compare'/);
-    assert.equal(
-        (directoryWatcher.match(/\{ notifyClients: this\.session\.analysisMode !== 'XR' \}/g) || []).length,
-        2,
-    );
+    assert.match(fileWatcher, /\{ notifyClients: this\.session\.analysisMode !== 'XR', silent: true \}/);
+    assert.match(directoryWatcher, /\{ notifyClients: this\.session\.analysisMode !== 'XR', silent: true \}/);
+    assert.match(directoryWatcher, /\{ notifyClients: this\.session\.analysisMode !== 'XR' \}/);
 
-    assert.match(reAnalysisManager, /options: \{ notifyClients\?: boolean \} = \{\}/);
+    assert.match(executePython, /options: \{ silent\: boolean \} = \{\}/);
+    assert.match(executePython, /if \(options\.silent\) \{/);
+    assert.match(reAnalysisManager, /options: \{ notifyClients\: boolean; silent\: boolean \} = \{\}/);
+    assert.match(reAnalysisManager, /executeAnalysis\(session, \{ silent: options\.silent === true \}\)/);
     assert.match(reAnalysisManager, /if \(options\.notifyClients !== false\) \{/);
     assert.match(directoryReAnalyzer, /options: \{ notifyClients\?: boolean \} = \{\}/);
     assert.match(directoryReAnalyzer, /if \(options\.notifyClients !== false\) \{/);
+    assert.match(directoryReAnalyzer, /fs\.promises\.readFile\(dataJsonPath, 'utf8'\)/);
+    assert.match(directoryReAnalyzer, /writeJsonAtomically\(dataJsonPath, currentData\)/);
+    assert.match(directoryReAnalyzer, /executeFileReanalysis\(filesToAnalyze\)/);
+    assert.doesNotMatch(directoryReAnalyzer, /readFileSync|writeFileSync|executeFileReanalysis\(\[filePath\]\)/);
+});
+
+test('coding-agent integration surfaces are removed', () => {
+    const packageJson = JSON.parse(readProjectFile('package.json'));
+    const webpackConfig = readProjectFile('webpack.config.js');
+    const extension = readProjectFile('src', 'extension.ts');
+    const analysisCommands = readProjectFile('src', 'code_analysis', 'commands', 'analysisCommands.ts');
+    const analysisProvider = readProjectFile('src', 'code_analysis', 'views', 'AnalysisSectionProvider.ts');
+    const activeAnalysesCommands = readProjectFile(
+        'src',
+        'code_analysis',
+        'views',
+        'subsections',
+        'active_analyses',
+        'commands',
+        'activeAnalysesCommands.ts',
+    );
+    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const camelName = 'agent' + 'Context';
+    const titleName = 'Agent' + ' Context';
+    const commandPrefix = ['codeXR', camelName].join('.');
+    const underscoredFolder = ['agent', 'context'].join('_');
+    const dashedRoute = ['agent', 'context'].join('-');
+    const markerPattern = new RegExp(
+        [
+            camelName,
+            titleName,
+            underscoredFolder,
+            dashedRoute,
+            ['codexr', 'agent', 'context'].join('-'),
+            ['codexr', 'get'].join('_'),
+        ].join('|'),
+    );
+
+    const contributedCommands = packageJson.contributes.commands.map((command) => command.command);
+    assert.equal(contributedCommands.some((command) => command.startsWith(`${commandPrefix}.`)), false);
+    assert.equal(
+        Object.keys(packageJson.contributes.configuration.properties)
+            .some((key) => key.startsWith(`${commandPrefix}.`)),
+        false,
+    );
+    for (const menuItems of Object.values(packageJson.contributes.menus)) {
+        assert.equal(
+            menuItems.some((item) => item.command && item.command.startsWith(`${commandPrefix}.`)),
+            false,
+        );
+    }
+
+    assert.equal(fs.existsSync(path.join(projectRoot, 'src', 'code_analysis', underscoredFolder)), false);
+    assert.equal(fs.existsSync(path.join(projectRoot, 'src', 'code_analysis', 'commands', underscoredFolder)), false);
+    assert.equal(fs.existsSync(path.join(projectRoot, 'src', 'code_analysis', 'views', 'subsections', underscoredFolder)), false);
+    assert.equal(fs.existsSync(path.join(projectRoot, 'docs', `${underscoredFolder.toUpperCase()}.md`)), false);
+    assert.equal(fs.existsSync(path.join(projectRoot, 'docs', `${underscoredFolder.toUpperCase()}_AGENT_USAGE.md`)), false);
+
+    for (const source of [webpackConfig, extension, analysisCommands, analysisProvider, activeAnalysesCommands, httpServer]) {
+        assert.doesNotMatch(source, markerPattern);
+    }
 });
 
 test('watcher configuration changes propagate to active sessions and directory rename events trigger partial refresh', () => {
@@ -96,7 +159,7 @@ test('mode activation reconciles watcher hashes without forcing a full analysis'
     assert.match(fileWatcher, /public async reconcileNow\(\): Promise<boolean>/);
     assert.match(directoryWatcher, /public async reconcileNow\(\): Promise<boolean>/);
     assert.match(server, /await SessionWatcherManager\.reconcileSession/);
-    assert.match(coordinator, /return this\.setActiveMode\(sessionId, mode\)/);
+    assert.match(coordinator, /return this\.setActiveMode\(sessionId, mode, controllerView\)/);
     assert.doesNotMatch(
         coordinator.match(/public activateMode[\s\S]*?\n    \}/)?.[0] || '',
         /force|sourceRevision - 1/,

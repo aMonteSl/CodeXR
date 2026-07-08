@@ -9,7 +9,6 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 interface XRVisualizationGenerationOptions {
-    babiaUiEnabled?: boolean;
     babiaUiVisibleByDefault?: boolean;
     xrTargetType?: XRSchemaTargetType;
     fieldTypeMap?: XRFieldTypeMap;
@@ -133,7 +132,7 @@ export class TemplateProcessor {
             console.error('TEMPLATE_PROCESSOR: Error generating XR visualization:', error);
             return { 
                 success: false, 
-                error: error instanceof Error ? error.message : String(error) 
+                error: error instanceof Error ? error.message : String(error)
             };
         }
     }
@@ -244,11 +243,6 @@ export class TemplateProcessor {
         isDirectoryAnalysis: boolean,
         options?: XRVisualizationGenerationOptions,
     ): { componentHtml: string; scriptHtml: string } {
-        const enabled = options?.babiaUiEnabled !== false;
-        if (!enabled) {
-            return { componentHtml: '', scriptHtml: '' };
-        }
-
         const chartMetadata = chartTemplates.find((chart) => chart.id === chartId);
         if (!chartMetadata || !chartEntityId || !options?.fieldTypeMap) {
             return { componentHtml: '', scriptHtml: '' };
@@ -280,35 +274,126 @@ export class TemplateProcessor {
             hidden: boolean;
         }> = [];
 
-        for (const dimension of chartMetadata.dimensions) {
-            const candidateFields = dimension.dataType === 'numeric'
-                ? numericFields
-                : (dimension.dataType === 'text' ? textFields : anyFields);
-            if (candidateFields.length === 0) {
-                continue;
+        const buildDimensionsForChart = (chart: typeof chartMetadata, selectedFields: Map<string, string>) => {
+            const result: typeof dimensions = [];
+            for (const dimension of chart.dimensions) {
+                const candidateFields = dimension.dataType === 'numeric'
+                     numericFields
+                    : (dimension.dataType === 'text' ? textFields : anyFields);
+                if (candidateFields.length === 0) {
+                    continue;
+                }
+
+                const selectedField = selectedFields.get(dimension.name);
+                const orderedFields = selectedField && candidateFields.includes(selectedField)
+                    ? [selectedField, ...candidateFields.filter((fieldName) => fieldName !== selectedField)]
+                    : candidateFields;
+
+                result.push({
+                    id: dimension.name,
+                    label: dimension.label,
+                    dataType: dimension.dataType,
+                    valueRule: dimension.valueRule,
+                    currentField: orderedFields[0],
+                    fields: orderedFields,
+                    hidden: false,
+                });
             }
+            return result;
+        };
 
-            const selectedField = selectedFieldByDimension.get(dimension.name);
-            const orderedFields = selectedField && candidateFields.includes(selectedField)
-                ? [selectedField, ...candidateFields.filter((fieldName) => fieldName !== selectedField)]
-                : candidateFields;
+        const pickDefaultField = (
+            dimensionName: string,
+            dimensionDataType: 'numeric' | 'text' | 'any',
+            preferredFields: string[],
+        ): string => {
+            const candidateFields = dimensionDataType === 'numeric'
+                 numericFields
+                : (dimensionDataType === 'text' ? textFields : anyFields);
+            for (const preferredField of preferredFields) {
+                if (candidateFields.includes(preferredField)) {
+                    return preferredField;
+                }
+            }
+            if (candidateFields.includes(dimensionName)) {
+                return dimensionName;
+            }
+            return candidateFields[0] ?? '';
+        };
 
-            dimensions.push({
-                id: dimension.name,
-                label: dimension.label,
-                dataType: dimension.dataType,
-                valueRule: dimension.valueRule,
-                currentField: orderedFields[0],
-                fields: orderedFields,
-                hidden: false,
-            });
-        }
+        const getDefaultMappingsForChart = (chart: typeof chartMetadata): Record<string, string> => {
+            const preferredByDimension: Record<string, string[]> = isDirectoryAnalysis
+                ? {
+                    area: ['functionCount', 'totalFunctions', 'fileCount', 'codeLines', 'totalLines'],
+                    height: ['totalLines', 'codeLines', 'functionCount', 'cyclomaticComplexityNumber'],
+                    color: ['cyclomaticComplexityNumber', 'language', 'fileName', 'relativePath'],
+                    x_axis: ['fileName', 'relativePath', 'language'],
+                    y_axis: ['totalLines', 'codeLines', 'functionCount'],
+                    z_axis: ['cyclomaticComplexityNumber', 'functionCount', 'totalLines'],
+                    radius: ['functionCount', 'totalLines', 'fileSizeBytes'],
+                    size: ['functionCount', 'totalLines', 'fileSizeBytes'],
+                    heightmap: ['totalLines', 'codeLines', 'functionCount'],
+                    key: ['fileName', 'relativePath', 'language'],
+                    value: ['totalLines', 'functionCount', 'codeLines'],
+                }
+                : {
+                    area: ['parameters', 'lineCount', 'complexity'],
+                    height: ['lineCount', 'codeLines', 'complexity'],
+                    color: ['complexity', 'name', 'longName'],
+                    x_axis: ['name', 'longName', 'parameters'],
+                    y_axis: ['lineCount', 'codeLines', 'complexity'],
+                    z_axis: ['complexity', 'parameters', 'lineCount'],
+                    radius: ['parameters', 'lineCount', 'complexity'],
+                    size: ['lineCount', 'parameters', 'complexity'],
+                    heightmap: ['lineCount', 'codeLines', 'complexity'],
+                    key: ['name', 'longName'],
+                    value: ['lineCount', 'complexity', 'parameters'],
+                };
+            const defaults: Record<string, string> = {};
+            for (const dimension of chart.dimensions) {
+                const field = pickDefaultField(
+                    dimension.name,
+                    dimension.dataType,
+                    preferredByDimension[dimension.name] ?? [dimension.name],
+                );
+                if (field) {
+                    defaults[dimension.name] = field;
+                }
+            }
+            return defaults;
+        };
+
+        const dimensionsByChart: Record<string, typeof dimensions> = {};
+        const defaultMappingsByChart: Record<string, Record<string, string>> = {};
+        const availableCharts = chartTemplates.map((chart) => {
+            const defaults = chart.id === chartId
+                ? Object.assign(getDefaultMappingsForChart(chart), Object.fromEntries(selectedFieldByDimension))
+                : getDefaultMappingsForChart(chart);
+            const selectedFields = new Map<string, string>(Object.entries(defaults));
+            const chartDimensions = buildDimensionsForChart(chart, selectedFields);
+            dimensionsByChart[chart.id] = chartDimensions;
+            defaultMappingsByChart[chart.id] = defaults;
+            return {
+                id: chart.id,
+                name: chart.name,
+                category: chart.category,
+                dimensions: chart.dimensions.map((dimension) => ({
+                    id: dimension.name,
+                    label: dimension.label,
+                    dataType: dimension.dataType,
+                    valueRule: dimension.valueRule,
+                    required: dimension.required,
+                })),
+            };
+        }).filter((chart) => (dimensionsByChart[chart.id] ?? []).length > 0);
+
+        dimensions.push(...buildDimensionsForChart(chartMetadata, selectedFieldByDimension));
 
         if (dimensions.length === 0) {
             return { componentHtml: '', scriptHtml: '' };
         }
 
-        const targetType: XRSchemaTargetType = options?.xrTargetType ?? (isDirectoryAnalysis ? 'directory' : 'file');
+        const targetType: XRSchemaTargetType = options.xrTargetType ?? (isDirectoryAnalysis ? 'directory' : 'file');
         const panelVisibleByDefault = options?.babiaUiVisibleByDefault !== false;
         const panelId = 'codexrMappingUiPanel';
         const toggleId = 'codexrMappingUiToggle';
@@ -350,6 +435,9 @@ export class TemplateProcessor {
             adaptiveCorner,
             togglePosition: targetType === 'directory' ? '6.8 1.1 -5.6' : '6.2 1 -7.5',
             dimensions,
+            availableCharts,
+            dimensionsByChart,
+            defaultMappingsByChart,
         };
         const serializedModel = JSON.stringify(model).replace(/<\//g, '<\\/');
 

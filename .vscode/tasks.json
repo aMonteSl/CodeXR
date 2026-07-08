@@ -5,14 +5,14 @@
       "type": "npm",
       "script": "compile",
       "problemMatcher": [],
-      "label": "npm: compile",
+      "label": "CodeXR: compile",
       "detail": "Compile CodeXR before launching the Extension Host"
     },
     {
       "type": "npm",
       "script": "compile:dev-host",
       "problemMatcher": [],
-      "label": "npm: compile:dev-host",
+      "label": "CodeXR: compile:dev-host",
       "detail": "Compile CodeXR and prepare an isolated Extension Host copy"
     }
   ]

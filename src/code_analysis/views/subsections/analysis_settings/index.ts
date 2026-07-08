@@ -9,5 +9,4 @@ export { AnalysisDirectorySetting, AnalysisDirectoryMode } from './analysis_dire
 export { ViewThemeSetting, ViewTheme } from './view_theme';
 export { AutoAnalysisDelaySetting, AutoAnalysisDelayConfig, AutoAnalysisDelay } from './auto_analysis_delay';
 export { AutoAnalysisEnabledSetting } from './auto_analysis_enabled';
-export { BabiaUiSetting } from './babia_ui';
 export { ProfileConfigurationSetting } from './profile_configuration';
