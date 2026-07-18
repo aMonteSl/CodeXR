@@ -1,0 +1,11 @@
+{
+  "output": "analysisModeRuntime.js",
+  "parts": [
+    "constantsAndDomUtils.js",
+    "surfaceAndRefresh.js",
+    "selectorAndPanel.js",
+    "transitionsAndViews.js",
+    "modeApplication.js",
+    "snapshotsAndLifecycles.js"
+  ]
+}

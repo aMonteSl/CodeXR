@@ -1,39 +1,18 @@
-import * as path from 'path';
-import * as fs from 'fs';
+import { assembleRuntimeContent, writeAssembledRuntimeToOutput } from './runtimeAssembly';
 
 export const XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME = 'xrChartMappingUiRuntime.js';
 
-const XR_CHART_MAPPING_UI_RUNTIME_SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
-    'xr-chart-mapping-ui',
-    XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
-] as const;
-
-export function resolveXrChartMappingUiRuntimeSourcePath(extensionPath: string): string {
-    return path.join(extensionPath, ...XR_CHART_MAPPING_UI_RUNTIME_SOURCE_SEGMENTS);
-}
-
-export function assertXrChartMappingUiRuntimeSourceExists(extensionPath: string): string {
-    const runtimePath = resolveXrChartMappingUiRuntimeSourcePath(extensionPath);
-    if (!fs.existsSync(runtimePath)) {
-        throw new Error(`XR chart mapping UI runtime not found at ${runtimePath}`);
-    }
-    return runtimePath;
-}
-
+// The XR chart mapping UI runtime is a multi-part runtime (see runtimeAssembly.ts): its source
+// lives as ordered parts under xr-chart-mapping-ui/xrChartMappingUiRuntime/.
 export async function copyXrChartMappingUiRuntimeToOutput(
     extensionPath: string,
     outputDirectory: string,
 ): Promise<string> {
-    const runtimePath = assertXrChartMappingUiRuntimeSourceExists(extensionPath);
-    const outputPath = path.join(outputDirectory, XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME);
-    await fs.promises.copyFile(runtimePath, outputPath);
-    return outputPath;
+    return writeAssembledRuntimeToOutput(
+        extensionPath, 'xr-chart-mapping-ui', XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, outputDirectory,
+    );
 }
 
 export async function readXrChartMappingUiRuntimeContent(extensionPath: string): Promise<string> {
-    const runtimePath = assertXrChartMappingUiRuntimeSourceExists(extensionPath);
-    return fs.promises.readFile(runtimePath, 'utf8');
+    return assembleRuntimeContent(extensionPath, 'xr-chart-mapping-ui', XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME);
 }

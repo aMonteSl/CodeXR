@@ -7,6 +7,7 @@ const childProcess = require('node:child_process');
 const ts = require('typescript');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
@@ -272,13 +273,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
         'historical',
         'gitRepositoryService.ts',
     );
-    const runtime = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
-        'project-evolution',
-        'projectEvolutionRuntime.js',
-    );
+    const runtime = readAssembledRuntime('project-evolution', 'projectEvolutionRuntime.js');
     const docs = readProjectFile('docs', 'PROJECT_EVOLUTION_XR.md');
 
     assert.match(models, /\| 'project-evolution'/);
@@ -401,7 +396,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(runtime, /function ensureEvolutionPlaybackRoot\(frame\)/);
     assert.match(runtime, /function ensureEvolutionDataSource\(playbackRoot, initialUrl\)/);
     assert.match(runtime, /function refreshEvolutionDataSource\(frameUrl\)/);
-    assert.match(runtime, /emit\?\.\('data-loaded', \{\}\)/);
+    assert.match(runtime, /refs\.evolutionDataSource\?\.emit\('data-loaded', \{\}\)/);
     assert.match(runtime, /function ensureEvolutionTreeBuilder\(playbackRoot, targetType\)/);
     assert.match(runtime, /function applyBridgeFrameToChart\(frame, appliedBridgeUrl\)/);
     assert.match(runtime, /function requestBridgeFrame\(frameIndex\)/);
@@ -426,13 +421,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
 });
 
 test('XR historical runtime renders two contained charts and restores the single view cleanly', () => {
-    const runtime = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
-        'historical-comparison',
-        'historicalComparisonRuntime.js',
-    );
+    const runtime = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
 
     assert.match(runtime, /codexrComparisonChartLeft/);
     assert.match(runtime, /codexrComparisonChartRight/);
@@ -525,13 +514,7 @@ test('XR historical runtime renders two contained charts and restores the single
 });
 
 test('historical source selector keeps commit cards compact and identifies live and immutable refs', () => {
-    const runtime = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
-        'historical-comparison',
-        'historicalComparisonRuntime.js',
-    );
+    const runtime = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
     const gitService = readProjectFile(
         'src',
         'code_analysis',

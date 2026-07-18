@@ -5,10 +5,11 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..', '..');
+const { readAssembledRuntime } = require(path.join(root, 'test', 'helpers', 'runtimeAssembly.cjs'));
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 test('dependency graph is a first-class analysis table mode', () => {
-  const table = read('templates/components/codexr/analysis-table/analysisTableRuntime.js');
+  const table = readAssembledRuntime('analysis-table', 'analysisTableRuntime.js');
   const models = read('src/code_analysis/historical/historicalComparisonModels.ts');
   assert.match(table, /dependency-graph/);
   assert.match(models, /'dependency-graph'/);
@@ -16,7 +17,7 @@ test('dependency graph is a first-class analysis table mode', () => {
 });
 
 test('dependency runtime uses a worker and owns three layouts', () => {
-  const runtime = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const runtime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   assert.match(runtime, /new root\.Worker/);
   assert.match(runtime, /force-3d/);
   assert.match(runtime, /hierarchical/);
@@ -80,7 +81,7 @@ test('dependency runtime uses a worker and owns three layouts', () => {
 });
 
 test('dependency edge styles use fixed occurrence buckets', () => {
-  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -107,7 +108,7 @@ test('dependency edge styles use fixed occurrence buckets', () => {
 });
 
 test('hidden external dependencies become one directional summary portal', () => {
-  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -132,7 +133,7 @@ test('hidden external dependencies become one directional summary portal', () =>
 });
 
 test('directory scope projection exposes direct files, child folders, and parent navigation', () => {
-  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -157,7 +158,7 @@ test('directory scope projection exposes direct files, child folders, and parent
 });
 
 test('file scope projection keeps symbols and aggregates other project files', () => {
-  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -182,7 +183,7 @@ test('file scope projection keeps symbols and aggregates other project files', (
 test('render budget runtime is packaged before dependency rendering', () => {
   const parser = read('src/code_analysis/engine/parsers/directoryXRParser.ts');
   const template = read('templates/xr/file/xr-visualization.html');
-  const budget = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
+  const budget = readAssembledRuntime('render-budget', 'renderBudgetRuntime.js');
   assert.match(parser, /RENDER_BUDGET_RUNTIME_OUTPUT_NAME/);
   assert.ok(template.indexOf('codexrCommonRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
   assert.ok(template.indexOf('renderBudgetRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
@@ -197,7 +198,7 @@ test('render budget runtime is packaged before dependency rendering', () => {
 });
 
 test('dependency visual budget classifies density and preserves fixed width ranges', () => {
-  const source = read('templates/components/codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js');
+  const source = readAssembledRuntime('dependency-visual-budget', 'dependencyVisualBudgetRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRDependencyVisualBudgetRuntime;
@@ -221,7 +222,7 @@ test('dependency visual budget classifies density and preserves fixed width rang
 });
 
 test('dependency detail override combines with performance conservatively', () => {
-  const source = read('templates/components/codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js');
+  const source = readAssembledRuntime('dependency-visual-budget', 'dependencyVisualBudgetRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyVisualBudgetRuntime.__testing;
@@ -251,7 +252,7 @@ test('dependency detail override combines with performance conservatively', () =
 });
 
 test('dependency graph keeps density control local and packages diagnostics', () => {
-  const runtime = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const runtime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   const parser = read('src/code_analysis/engine/parsers/directoryXRParser.ts');
   assert.match(runtime, /Detail: /);
   assert.match(runtime, /setDetailOverride/);
@@ -267,7 +268,7 @@ test('dependency graph keeps density control local and packages diagnostics', ()
 });
 
 test('render budget degrades and recovers with hysteresis', () => {
-  const source = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
+  const source = readAssembledRuntime('render-budget', 'renderBudgetRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const runtime = context.CodeXRRenderBudgetRuntime;
@@ -288,7 +289,7 @@ test('render budget degrades and recovers with hysteresis', () => {
 });
 
 test('render budget tolerates browsers that reject WebXR session inspection', () => {
-  const source = read('templates/components/codexr/render-budget/renderBudgetRuntime.js');
+  const source = readAssembledRuntime('render-budget', 'renderBudgetRuntime.js');
   const callbacks = [];
   const context = {
     document: {
@@ -319,7 +320,7 @@ test('render budget tolerates browsers that reject WebXR session inspection', ()
 });
 
 test('dependency metric axes use readable shared scales', () => {
-  const source = read('templates/components/codexr/dependency-graph/dependencyGraphRuntime.js');
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   const context = {};
   vm.runInNewContext(source, context);
   const helpers = context.CodeXRDependencyGraphRuntime.__testing;
@@ -370,7 +371,7 @@ test('file XR parser packages the dependency runtime', () => {
 });
 
 test('analysis mode coordinator deactivates the previous view before activating the next one', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
   const context = {
     setTimeout,
     console,
@@ -402,7 +403,7 @@ test('analysis mode coordinator deactivates the previous view before activating 
 });
 
 test('analysis mode coordinator disposes an activation superseded while it is loading', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
   const context = {
     setTimeout,
     console,
@@ -440,7 +441,7 @@ test('analysis mode coordinator disposes an activation superseded while it is lo
 });
 
 test('normal analysis restores its cached chart immediately and refreshes its revision in place', async () => {
-  const source = read('templates/components/codexr/analysis-mode/analysisModeRuntime.js');
+  const source = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
   const attributes = new Map([['visible', true]]);
   const chart = {
     setAttribute(name, value) { attributes.set(name, value); },

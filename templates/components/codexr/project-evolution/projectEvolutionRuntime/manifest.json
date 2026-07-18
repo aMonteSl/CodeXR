@@ -1,0 +1,13 @@
+{
+  "output": "projectEvolutionRuntime.js",
+  "parts": [
+    "stateAndUiAtoms.js",
+    "timelineAndSources.js",
+    "overlayAndPanel.js",
+    "playbackControlsAndMessages.js",
+    "frameApplication.js",
+    "evolutionCharts.js",
+    "bridgeAndPlayback.js",
+    "transportAndRegistration.js"
+  ]
+}

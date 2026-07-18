@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>CodeXR containment harness</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-  <script src="../../templates/components/codexr/analysis-table/analysisTableRuntime.js"></script>
+  <script src="assembled/analysisTableRuntime.js"></script>
   <style>
     body { margin: 0; background: #0f172a; color: #dff7ff; font: 13px/1.35 monospace; }
     #controls {
@@ -109,7 +109,7 @@
 
       function status() {
         var diagnostics = state.mode === 'dependency-graph'
-           window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics()
+          ? window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics()
           : window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics('#harnessChart');
         document.getElementById('status').textContent = JSON.stringify({
           mode: state.mode,
@@ -119,7 +119,7 @@
           frame: state.frame,
           profile: window.CodeXRAnalysisTableRuntime.getContainmentProfile(profileId()).id,
           scale: state.mode === 'dependency-graph'
-             null
+            ? null
             : (window.CodeXRAnalysisTableRuntime.getChartStatus('#harnessChart').details || null),
           diagnostics: diagnostics
         }, null, 2);
@@ -128,7 +128,7 @@
 
       function profileId() {
         if (state.mode === 'historical-compare') {
-          return state.zone === 'right'  'historical-right' : 'historical-left';
+          return state.zone === 'right' ? 'historical-right' : 'historical-left';
         }
         return profileByMode[state.mode] || 'default';
       }
@@ -180,19 +180,19 @@
         target.setAttribute('visible', true);
         var factor = sizeFactor[state.size] || 1;
         var colors = ['#06b6d4', '#be123c', '#f97316', '#7c3aed', '#22c55e'];
-        var count = state.size === 'tiny'  2 : 14;
+        var count = state.size === 'tiny' ? 2 : 14;
         if (type === 'bubbles') {
           count = 8;
         }
         for (var i = 0; i < count; i += 1) {
           var col = i % 5;
           var row = Math.floor(i / 5);
-          var width = (type === 'pie'  0.42 : 0.22 + (i % 3) * 0.06) * factor;
-          var depth = (type === 'pie'  0.42 : 0.22 + (i % 2) * 0.06) * factor;
+          var width = (type === 'pie' ? 0.42 : 0.22 + (i % 3) * 0.06) * factor;
+          var depth = (type === 'pie' ? 0.42 : 0.22 + (i % 2) * 0.06) * factor;
           var height = (0.18 + ((i % 6) + 1) * 0.16) * factor;
           target.appendChild(box((col - 2) * 0.44 * factor, 0, (row - 1) * 0.44 * factor, width, height, depth, colors[i % colors.length]));
         }
-        target.setAttribute('scale', type === 'boats'  '0.01 0.05 0.01' : '1 1 1');
+        target.setAttribute('scale', type === 'boats' ? '0.01 0.05 0.01' : '1 1 1');
         applyProfile();
       }
 
@@ -215,7 +215,7 @@
         stepEvolution: function () {
           state.mode = 'project-evolution';
           state.frame += 1;
-          render(state.frame % 2  'boats' : 'bars', ['tiny', 'medium', 'large'][state.frame % 3]);
+          render(state.frame % 2 ? 'boats' : 'bars', ['tiny', 'medium', 'large'][state.frame % 3]);
         },
         status: status
       };

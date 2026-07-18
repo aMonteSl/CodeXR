@@ -2,6 +2,18 @@
 
 ## [1.2.0] - Unreleased
 
+### Internal — templates refactor (no behavior change)
+
+- **Every oversized browser runtime split into ordered part files.** The ten 1,100–3,900-line runtime files under `templates/components/codexr/` (analysis table, virtual screen, dependency graph, mapping UI, analysis mode, historical comparison, project evolution, chart debug, collaboration, boats prototype) now live as cohesive 100–500-line module files under `codexr/<component>/<runtimeBase>/` (natural names — `geometryUtils.js`, `webrtcPeers.js`, `tooltips.js`, …), with the concatenation order declared in each directory's `manifest.json`. A shared assembler (`customComponents/runtimeAssembly.ts`, test mirror `test/helpers/runtimeAssembly.cjs`) validates the manifest (missing or orphan parts fail loudly) and concatenates each set back into the exact flat file generated scenes have always shipped — the split was verified byte-identical per runtime, so generated analysis output is unchanged. Component assets now delegate to the assembler; manual XR harnesses load assembled copies from `test/manual/assembled/` (built automatically by the harness runners, or via `node test/manual/buildAssembledRuntimes.cjs`).
+- **LivePanel templates deduplicated via a shared page shell** (`templates/components/livepanel/panelShell.{js,css}`): the theme toggle (both panels now share one stored preference, `codexrLivePanelTheme`), the SSE status indicator (now class-styled in both panels), notification toasts, the DataTable registry and shared formatters moved out of the two template scripts into one implementation. Both template mains are now well under 1,000 lines.
+- Convention documented in `templates/components/COMPONENTS.md` ("Multi-part runtimes"); no file under `templates/` exceeds 1,000 lines anymore.
+
+### Fixed — `?`-stripping corruption in the project-evolution runtime and XR harnesses
+
+- **Project evolution runtime (ships in XR scenes): ~60 misplaced or missing optional-chaining guards restored.** The historical `?`-stripping tooling incident had left the runtime guarding methods instead of objects (`refs.status.setAttribute?.(…)`, `state.pendingFrameApply.reject`, `client().sendMessage?.(…)`, `chart.isConnected` before the null check, `root.CodeXRAnalysisModeRuntime.transitionTo?.(…)`, …), which throws whenever the object itself is absent — crashing playback paths (`seek`, `requestBridgeFrame`, `clearMovie`, `applySharedState`) when the panel, collaboration client, or playback entities do not exist yet. All guards moved onto the objects (`refs.status?.setAttribute(…)` etc.), matching the pattern the historical-comparison runtime already used.
+- **Both Playwright harnesses repaired and green again.** 14 stripped `?` characters restored across `test/runners/run-project-evolution-harness.cjs` (bridge/query URLs lost their `?query` separators → the bridge validation hit a 404) and the containment/evolution harness HTMLs (ternaries collapsed into syntax errors, so the pages never booted). `npm run test:xr-harness` and `npm run test:project-evolution-harness` now pass end to end (Chromium launch, scene boot, frame stepping, movie playback, screenshots).
+- **Harness runners no longer hang on failure**: assertion failures used to leave the Playwright browser (and http server) open, so a red run looked like an endless hang; both runners now close the browser in a `finally` and exit non-zero.
+
 ### LivePanel
 
 - Added a Dependency Summary section to the directory/project LivePanel. It now runs automatically on page load alongside the classic analysis, so every dependency metric is present from the start; the button is now just a manual "Refresh".

@@ -5,15 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(
-    projectRoot,
-    'templates',
-    'components',
-    'codexr',
-    'historical-comparison',
-    'historicalComparisonRuntime.js',
-);
-const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const runtimeSource = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
 
 function loadRuntime() {
     const document = {
@@ -28,7 +21,7 @@ function loadRuntime() {
         clearTimeout,
     };
     sandbox.window = sandbox;
-    vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'historicalComparisonRuntime.js' });
     return sandbox.CodeXRHistoricalComparisonRuntime;
 }
 

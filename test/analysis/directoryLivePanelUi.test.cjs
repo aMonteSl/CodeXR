@@ -95,11 +95,12 @@ function loadDirectoryBundle() {
     // Exactly the order LivePanelParser bundles the shared components
     // (alphabetical directory read) ahead of the template's own script.
     // Deliberately NO Chart.js stub: the bundle must be fully self-contained.
+    const sharedJs = fs.readdirSync(sharedComponentDir)
+        .filter((name) => name.endsWith('.js'))
+        .sort()
+        .map((name) => readSharedComponent(name));
     const bundle = [
-        readSharedComponent('charts.js'),
-        readSharedComponent('dataTable.js'),
-        readSharedComponent('dependencySummaryPanel.js'),
-        readSharedComponent('historicalPanel.js'),
+        ...sharedJs,
         readTemplate('directoryAnalysismain.js'),
         // Epilogue: class/const declarations are lexically scoped in a vm script,
         // so re-export the ones the tests drive onto the context global.
@@ -433,8 +434,11 @@ test('HTML mounts every list as a shared DataTable container and drops the stati
 test('JS uses the shared DataTable for every list and keeps no legacy table code', () => {
     const js = readTemplate('directoryAnalysismain.js');
     const panel = readSharedComponent('dependencySummaryPanel.js');
+    const shell = readSharedComponent('panelShell.js');
 
-    assert.match(js, /new DataTable\(mountId/);
+    // The table registry moved into the shared page shell.
+    assert.match(shell, /new DataTable\(mountId/);
+    assert.match(js, /upsertDataTable\(/);
     assert.match(js, /function renderFileDetailsTable/);
     assert.match(js, /function renderComplexFilesTable/);
     // The dependency renderers moved into the shared panel component.
@@ -612,12 +616,15 @@ test('CodexrHistoricalPanel joins both payloads by comparisonKey and derives per
 
 test('The Live Updates indicator flashes "New data received" then reverts to the steady state', () => {
     const js = readTemplate('directoryAnalysismain.js');
+    const shell = readSharedComponent('panelShell.js');
 
-    assert.match(js, /function flashSSEStatus/);
+    // The indicator implementation lives in the shared page shell; the
+    // template drives it on every SSE data refresh.
+    assert.match(shell, /function flashSSEStatus/);
     assert.match(js, /flashSSEStatus\('New data received'\)/);
     // The flash schedules a revert back to the "connected" (Live Updates) state.
     assert.match(js, /showSSEStatus\('connected'\)/);
-    assert.match(js, /setTimeout\(\(\) => \{[\s\S]*showSSEStatus\('connected'\);/);
+    assert.match(shell, /setTimeout\(\(\) => \{[\s\S]*showSSEStatus\('connected'\);/);
 });
 
 test('The header renders the file-count and timestamp as icon chips, not solid blocks', () => {

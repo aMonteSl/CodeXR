@@ -6,13 +6,15 @@ const path = require('node:path');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const scanRoots = ['src', 'templates', 'resources'];
 const audioExtensions = new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac']);
-const allowedBroadcastAudioFile = path.join(
+// The virtual screen runtime is split into part files; every part under its
+// parts directory shares the broadcast-audio allowance.
+const allowedBroadcastAudioDir = path.join(
     projectRoot,
     'templates',
     'components',
     'codexr',
     'virtual-screen',
-    'virtualScreenRuntime.js',
+    'virtualScreenRuntime',
 );
 
 function walkFiles(directory) {
@@ -76,7 +78,7 @@ test('plugin-owned audio APIs stay scoped to screen sharing broadcast only', () 
     ));
 
     for (const filePath of codeFiles) {
-        if (filePath === allowedBroadcastAudioFile) {
+        if (filePath.startsWith(allowedBroadcastAudioDir + path.sep)) {
             continue;
         }
 
@@ -94,13 +96,8 @@ test('plugin-owned audio APIs stay scoped to screen sharing broadcast only', () 
         `Unexpected non-broadcast audio hooks were found: ${violations.join(', ')}`,
     );
 
-    const runtimeSource = readProjectFile(
-        'templates',
-        'components',
-        'codexr',
-        'virtual-screen',
-        'virtualScreenRuntime.js',
-    );
+    const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+    const runtimeSource = readAssembledRuntime('virtual-screen', 'virtualScreenRuntime.js');
 
     assert.match(runtimeSource, /createElement\s*\(\s*['"]audio['"]\s*\)/);
     assert.match(runtimeSource, /\baudio\.play\s*\(/);

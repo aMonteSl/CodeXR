@@ -3,14 +3,8 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const collaborationRuntime = require(path.join(
-    projectRoot,
-    'templates',
-    'components',
-    'codexr',
-    'collaboration',
-    'codexrCollaborationRuntime.js',
-));
+const { requireAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const collaborationRuntime = requireAssembledRuntime('collaboration', 'codexrCollaborationRuntime.js');
 const avatarRuntime = require(path.join(
     projectRoot,
     'templates',

@@ -2,6 +2,24 @@
 
 This folder contains the browser-side runtimes copied into generated CodeXR analysis scenes.
 
+## Multi-part runtimes
+
+Large runtimes are split into focused module files under
+`codexr/<component>/<runtimeBase>/` (for example
+`codexr/analysis-table/analysisTableRuntime/geometryUtils.js`), with the
+concatenation order declared in that directory's **`manifest.json`**
+(`{ "output": "<runtimeBase>.js", "parts": [...] }`). The first listed part
+opens the runtime's IIFE/UMD wrapper, the last one closes it, and the parts in
+between are plain declarations at wrapper scope. At injection time
+`src/.../customComponents/runtimeAssembly.ts` (tests:
+`test/helpers/runtimeAssembly.cjs`) joins them back into the single flat file
+listed below, so generated scenes are unchanged. The assembler refuses orphan
+`.js` files that are not listed in the manifest — when adding a part, add it to
+`manifest.json` at the right position. Never re-create the flat file next to
+its parts directory. Manual harnesses load assembled copies from
+`test/manual/assembled/` (regenerate with
+`node test/manual/buildAssembledRuntimes.cjs`).
+
 ## Shared Runtime
 
 - `common/codexrCommonRuntime.js`
@@ -56,4 +74,12 @@ This folder contains the browser-side runtimes copied into generated CodeXR anal
 6. Dependency graph and other CodeXR graphs.
 7. Debug runtimes last.
 
-Generated scene filenames are intentionally flat (`codexrCommonRuntime.js`, `dependencyGraphRuntime.js`, etc.) so existing analysis output remains simple and self-contained.
+Generated scene filenames are intentionally flat (`codexrCommonRuntime.js`, `dependencyGraphRuntime.js`, etc.) so existing analysis output remains simple and self-contained — multi-part runtimes are assembled back into these flat names at injection time.
+
+## Shared LivePanel components (`livepanel/`)
+
+Files under `livepanel/` are bundled by `LivePanelParser` (alphabetical order)
+ahead of each LivePanel template's own script/stylesheet: `charts.js|css`,
+`dataTable.js|css`, `dependencySummaryPanel.js`, `historicalPanel.js|css`, and
+`panelShell.js|css` (theme toggle, SSE status indicator, notifications, the
+DataTable registry and shared formatters).

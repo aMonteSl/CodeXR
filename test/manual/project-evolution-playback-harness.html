@@ -5,7 +5,7 @@
   <title>CodeXR Project Evolution playback harness</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script src="https://unpkg.com/aframe-babia-components@1.3.4/dist/aframe-babia-components.min.js"></script>
-  <script src="../../templates/components/codexr/analysis-table/analysisTableRuntime.js"></script>
+  <script src="assembled/analysisTableRuntime.js"></script>
   <style>
     body { margin: 0; background: #0f172a; color: #dff7ff; font: 13px/1.35 monospace; }
     #controls {
@@ -91,7 +91,7 @@
 
       function log(message, detail) {
         var entry = '[' + new Date().toISOString().slice(11, 19) + '] ' + message
-          + (detail  ' ' + JSON.stringify(detail) : '');
+          + (detail ? ' ' + JSON.stringify(detail) : '');
         console.log('[ProjectEvolutionHarness]', message, detail || '');
         var logs = document.getElementById('logs');
         logs.textContent = (entry + '\n' + logs.textContent).slice(0, 3500);
@@ -125,7 +125,7 @@
               if (type === 'project-evolution-apply-frame') {
                 var frameIndex = Math.max(0, Math.min(frames.length - 1, Number(payload.frameIndex) || 0));
                 fetch('/__project_evolution_apply_framerevision=' + revision + '&frameIndex=' + frameIndex)
-                  .then(function (response) { return response.ok  response.json() : Promise.reject(new Error('apply-frame failed')); })
+                  .then(function (response) { return response.ok ? response.json() : Promise.reject(new Error('apply-frame failed')); })
                   .catch(function () {
                     return { revision: revision, frameIndex: frameIndex, bridgeUrl: bridgeUrl };
                   })
@@ -217,9 +217,9 @@
             hasQueryComponent: !!(data && data.components && data.components['babia-queryjson']),
             hasTreeComponent: !!(tree && tree.components && tree.components['babia-treebuilder']),
             hasChartComponent: !!(chart && chart.components && chart.components['babia-boats']),
-            chartChildren: chart  chart.children.length : 0,
-            chartVisible: chart  chart.getAttribute('visible') : null,
-            chartScale: chart  chart.getAttribute('scale') : null,
+            chartChildren: chart ? chart.children.length : 0,
+            chartVisible: chart ? chart.getAttribute('visible') : null,
+            chartScale: chart ? chart.getAttribute('scale') : null,
             tableDiagnostics: window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics('#codexrProjectEvolutionChart')
           };
           document.getElementById('status').textContent = JSON.stringify(status, null, 2);
@@ -289,6 +289,6 @@
     </a-entity>
   </a-scene>
 
-  <script src="../../templates/components/codexr/project-evolution/projectEvolutionRuntime.js"></script>
+  <script src="assembled/projectEvolutionRuntime.js"></script>
 </body>
 </html>

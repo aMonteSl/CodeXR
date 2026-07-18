@@ -1,0 +1,10 @@
+{
+  "output": "codexrCollaborationRuntime.js",
+  "parts": [
+    "moduleAndConfig.js",
+    "clientCore.js",
+    "entitySync.js",
+    "presenceAvatars.js",
+    "publicApi.js"
+  ]
+}

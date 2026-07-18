@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(projectRoot, 'templates', 'components', 'codexr', 'virtual-screen', 'virtualScreenRuntime.js');
-const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
-const runtimeModule = require(runtimePath);
+const { readAssembledRuntime, requireAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const runtimeSource = readAssembledRuntime('virtual-screen', 'virtualScreenRuntime.js');
+const runtimeModule = requireAssembledRuntime('virtual-screen', 'virtualScreenRuntime.js');
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
@@ -49,7 +49,7 @@ test('XR and DOM templates expose the shared virtual screen runtime with broadca
 
 test('virtual screen runtime includes WebRTC broadcasting primitives and shared-room collaboration hooks', () => {
     const multiScreenManagerSource = readProjectFile('templates', 'components', 'codexr', 'virtual-screen', 'codexrMultiScreenManagerRuntime.js');
-    const collaborationRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'collaboration', 'codexrCollaborationRuntime.js');
+    const collaborationRuntimeSource = readAssembledRuntime('collaboration', 'codexrCollaborationRuntime.js');
     const avatarRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'avatar', 'codexrAvatarRuntime.js');
     const httpServerSource = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
     const broadcastServerSource = readProjectFile('src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts');

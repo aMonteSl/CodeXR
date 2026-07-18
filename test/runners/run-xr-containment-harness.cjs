@@ -3,8 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { buildAssembledRuntimes } = require('../manual/buildAssembledRuntimes.cjs');
+
 const projectRoot = path.resolve(__dirname, '..', '..');
 const harnessPath = path.join(projectRoot, 'test', 'manual', 'xr-containment-harness.html');
+buildAssembledRuntimes();
 const html = fs.readFileSync(harnessPath, 'utf8');
 
 assert.match(html, /analysisTableRuntime\.js/);
@@ -27,7 +30,18 @@ async function runPlaywrightIfAvailable() {
     return;
   }
 
+  // Close the browser even when an assertion fails: leaked pages keep the
+  // process alive forever, turning a red run into a silent hang.
   const browser = await chromium.launch();
+  try {
+    await runScenario(browser);
+  } finally {
+    await browser.close();
+  }
+  console.log('[xr-harness] Playwright harness validation passed.');
+}
+
+async function runScenario(browser) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const url = pathToFileURL(harnessPath).toString();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -54,8 +68,6 @@ async function runPlaywrightIfAvailable() {
   assert.match(dependencyStatus || '', /"mode":\s*"dependency-graph"/);
   assert.match(dependencyStatus || '', /"reason":\s*"dependency-graph-visible"/);
 
-  await browser.close();
-  console.log('[xr-harness] Playwright harness validation passed.');
 }
 
 runPlaywrightIfAvailable().catch((error) => {

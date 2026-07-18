@@ -5,15 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(
-    projectRoot,
-    'templates',
-    'components',
-    'codexr',
-    'project-evolution',
-    'projectEvolutionRuntime.js',
-);
-const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const runtimeSource = readAssembledRuntime('project-evolution', 'projectEvolutionRuntime.js');
 
 function loadRuntime(config = null) {
     const document = {
@@ -38,7 +31,7 @@ function loadRuntime(config = null) {
         encodeURIComponent,
     };
     sandbox.window = sandbox;
-    vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'projectEvolutionRuntime.js' });
     return sandbox.CodeXRProjectEvolutionRuntime;
 }
 
@@ -51,7 +44,7 @@ test('project evolution runtime keeps one bridge datasource and chart during pla
     assert.match(runtimeSource, /id: 'codexrProjectEvolutionData'/);
     assert.match(runtimeSource, /function refreshEvolutionDataSource\(frameUrl\)/);
     assert.match(runtimeSource, /setAttribute\('babia-queryjson', 'url: ' \+ frameUrl\)/);
-    assert.match(runtimeSource, /emit\?\.\('data-loaded', \{\}\)/);
+    assert.match(runtimeSource, /refs\.evolutionDataSource\?\.emit\('data-loaded', \{\}\)/);
     assert.match(runtimeSource, /function waitForComponent\(element, componentName, timeoutMs\)/);
     assert.match(runtimeSource, /await waitForComponent\(dataSource, 'babia-queryjson', 1200\)/);
     assert.match(runtimeSource, /await waitForComponent\(treeBuilder, 'babia-treebuilder', 1200\)/);

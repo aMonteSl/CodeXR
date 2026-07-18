@@ -5,15 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(
-  projectRoot,
-  'templates',
-  'components',
-  'codexr',
-  'code-xr-boats',
-  'codeXrBoatsRuntime.js',
-);
-const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const runtimeSource = readAssembledRuntime('code-xr-boats', 'codeXrBoatsRuntime.js');
 const visualStyleRuntimePath = path.join(projectRoot, 'templates', 'components', 'common', 'codexrVisualStyleRuntime.js');
 const visualStyleRuntimeSource = fs.readFileSync(visualStyleRuntimePath, 'utf8');
 
@@ -45,7 +38,7 @@ function loadRuntime(extra = {}) {
     ...extra,
   };
   sandbox.globalThis = sandbox;
-  vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+  vm.runInNewContext(runtimeSource, sandbox, { filename: 'codeXrBoatsRuntime.js' });
   return sandbox.module.exports;
 }
 

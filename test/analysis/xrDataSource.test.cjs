@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
@@ -254,7 +255,7 @@ test('XR live SSE refresh lets Babia rebuild boats from refreshed sources instea
 });
 
 test('mapping UI renormalizes all active comparison charts transactionally', () => {
-    const mappingUiRuntime = readProjectFile('templates', 'components', 'codexr', 'xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
+    const mappingUiRuntime = readAssembledRuntime('xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
 
     assert.match(mappingUiRuntime, /function requestChartContainmentRenormalize\(reason\)/);
     assert.match(mappingUiRuntime, /analysisTableRuntime\.renormalizeAll\(reason \|\| 'mapping-ui-change'\)/);
@@ -276,7 +277,7 @@ test('mapping UI renormalizes all active comparison charts transactionally', () 
 });
 
 test('analysis table exposes stable geometry states and symmetric historical zones', () => {
-    const runtime = readProjectFile('templates', 'components', 'codexr', 'analysis-table', 'analysisTableRuntime.js');
+    const runtime = readAssembledRuntime('analysis-table', 'analysisTableRuntime.js');
 
     assert.match(runtime, /geometryState: 'rebuilding'/);
     assert.match(runtime, /geometryState: stabilized \? 'stabilized' : 'valid'/);

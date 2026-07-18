@@ -807,19 +807,7 @@ body {
 
 
 /* == File-panel appendix ================================== */
-
-/* Fixed live-updates indicator (shown by main.js). */
-.sse-status {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  z-index: 1000;
-  transition: all 0.3s ease;
-  font-family: inherit;
-}
+/* (The live-updates indicator styles live in the shared panelShell.css.) */
 
 /* CCN value cell in the functions table, colored by severity band. */
 .complexity {

@@ -5,15 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(
-    projectRoot,
-    'templates',
-    'components',
-    'codexr',
-    'xr-chart-mapping-ui',
-    'xrChartMappingUiRuntime.js',
-);
-const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const runtimeSource = readAssembledRuntime('xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
 
 function plain(value) {
     return JSON.parse(JSON.stringify(value));
@@ -35,7 +28,7 @@ function loadRuntime() {
     };
 
     sandbox.globalThis = sandbox;
-    vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'xrChartMappingUiRuntime.js' });
     return sandbox.module.exports;
 }
 
@@ -180,7 +173,7 @@ function loadRuntimeWithFakeDom(configOverride = {}) {
         },
     };
     sandbox.globalThis = sandbox;
-    vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'xrChartMappingUiRuntime.js' });
     return { runtime: sandbox.module.exports, document };
 }
 
