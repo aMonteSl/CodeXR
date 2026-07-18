@@ -127,10 +127,14 @@
       reason: 'dependency-refresh'
     });
     // send() drops silently while the socket is still connecting — retry
-    // until it goes through (the transition lock's watchdog is the ceiling).
+    // until it goes through. Gated on a send generation of its own (the
+    // transition lock legitimately clears during the hop to selection).
+    var sendGeneration = state.startSendGeneration = (state.startSendGeneration || 0) + 1;
     var attemptSend = function () {
-      if (!state.transitionLocked) { return; }
-      if (client()?.sendMessage?.('dependency-graph-start', {})) { return; }
+      if (sendGeneration !== state.startSendGeneration) { return; }
+      // Only an explicit `false` means "socket not ready, dropped" — clients
+      // whose sendMessage returns nothing are treated as delivered.
+      if (client()?.sendMessage?.('dependency-graph-start', {}) !== false) { return; }
       root.console?.warn?.('[CodeXR][DependencyGraph] collaboration socket not ready; retrying dependency-graph-start...');
       setTimeout(attemptSend, 500);
     };
