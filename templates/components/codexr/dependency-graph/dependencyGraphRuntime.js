@@ -1967,7 +1967,7 @@
           .18
         );
         this.tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
-        root.CodeXRCommonRuntime.updateTooltipConnector.(this.tooltip, position, {
+        root.CodeXRCommonRuntime.updateTooltipConnector?.(this.tooltip, position, {
           x: Number(anchor.x || 0),
           y: Number(anchor.y || 0),
           z: Number(anchor.z || 0)
@@ -2003,16 +2003,16 @@
         if (root.CodeXRCommonRuntime?.updateTooltip) {
           root.CodeXRCommonRuntime.updateTooltip(tooltip, detail, position, {
             width: 3.55,
-            height: canNavigate  1.52 : 1.04,
+            height: canNavigate ? 1.52 : 1.04,
             titleLength: 30,
             subtitleLength: 42,
             primaryLength: 48,
             secondaryLength: 48,
-            footerReserve: canNavigate  .28 : 0,
+            footerReserve: canNavigate ? .28 : 0,
             connectorTarget: this.pinnedSelection
               && this.pinnedSelection.type === selection.type
               && this.pinnedSelection.id === selection.id
-               {
+              ? {
                 x: Number(anchor.x || 0),
                 y: Number(anchor.y || 0),
                 z: Number(anchor.z || 0)

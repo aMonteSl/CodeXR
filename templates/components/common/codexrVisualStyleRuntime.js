@@ -4,7 +4,7 @@
   } else {
     root.CodeXRVisualStyleRuntime = factory(root);
   }
-})(typeof globalThis !== 'undefined'  globalThis : typeof self !== 'undefined'  self : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
   var TEMPORAL_TIERS = ['legacy', 'aged', 'current', 'fresh'];
@@ -85,7 +85,7 @@
       return null;
     }
     if (typeof value === 'number' && Number.isFinite(value)) {
-      return value > 100000000000  value : value * 1000;
+      return value > 100000000000 ? value : value * 1000;
     }
     var text = String(value).trim();
     if (!text) {
@@ -93,13 +93,13 @@
     }
     if (/^\d+(\.\d+)$/.test(text)) {
       var numeric = Number(text);
-      return Number.isFinite(numeric)  (numeric > 100000000000  numeric : numeric * 1000) : null;
+      return Number.isFinite(numeric) ? (numeric > 100000000000 ? numeric : numeric * 1000) : null;
     }
     var normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(text)
-       text.replace(' ', 'T')
+      ? text.replace(' ', 'T')
       : text;
     var parsed = Date.parse(normalized);
-    return Number.isFinite(parsed)  parsed : null;
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   function readModifiedTime(record) {
@@ -107,14 +107,14 @@
       return null;
     }
     return parseModifiedTime(
-      record.modifiedAtMs != null  record.modifiedAtMs
-        : record.modifiedAtIso != null  record.modifiedAtIso
+      record.modifiedAtMs != null ? record.modifiedAtMs
+        : record.modifiedAtIso != null ? record.modifiedAtIso
           : record.timestamp
     );
   }
 
   function buildTemporalStats(records, reader) {
-    var read = typeof reader === 'function'  reader : readModifiedTime;
+    var read = typeof reader === 'function' ? reader : readModifiedTime;
     var values = (records || [])
       .map(read)
       .filter(function (value) { return Number.isFinite(value); })
@@ -153,9 +153,9 @@
       return { tier: 'current', recency: 0.5, modifiedAtMs: value };
     }
     var recency = clamp((value - stats.oldest) / stats.rangeMs, 0, 1);
-    var tier = recency < 0.25  'legacy'
-      : recency < 0.5  'aged'
-        : recency < 0.75  'current'
+    var tier = recency < 0.25 ? 'legacy'
+      : recency < 0.5 ? 'aged'
+        : recency < 0.75 ? 'current'
           : 'fresh';
     return { tier: tier, recency: recency, modifiedAtMs: value };
   }
@@ -201,8 +201,8 @@
   }
 
   function buildSkinMaterialString(profile, alphaOverride) {
-    var resolved = typeof profile === 'string'  getTemporalSkinProfile(profile) : (profile || TEMPORAL_STYLE_PROFILES.current);
-    var opacity = Number.isFinite(alphaOverride)  alphaOverride : resolved.opacity;
+    var resolved = typeof profile === 'string' ? getTemporalSkinProfile(profile) : (profile || TEMPORAL_STYLE_PROFILES.current);
+    var opacity = Number.isFinite(alphaOverride) ? alphaOverride : resolved.opacity;
     return [
       'color: ' + (resolved.accent || '#ffffff'),
       'opacity: ' + opacity,

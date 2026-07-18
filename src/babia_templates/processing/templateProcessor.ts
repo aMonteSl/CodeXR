@@ -278,7 +278,7 @@ export class TemplateProcessor {
             const result: typeof dimensions = [];
             for (const dimension of chart.dimensions) {
                 const candidateFields = dimension.dataType === 'numeric'
-                     numericFields
+                    ? numericFields
                     : (dimension.dataType === 'text' ? textFields : anyFields);
                 if (candidateFields.length === 0) {
                     continue;
@@ -308,7 +308,7 @@ export class TemplateProcessor {
             preferredFields: string[],
         ): string => {
             const candidateFields = dimensionDataType === 'numeric'
-                 numericFields
+                ? numericFields
                 : (dimensionDataType === 'text' ? textFields : anyFields);
             for (const preferredField of preferredFields) {
                 if (candidateFields.includes(preferredField)) {

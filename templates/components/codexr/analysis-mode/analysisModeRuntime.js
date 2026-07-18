@@ -64,8 +64,8 @@
   }
 
   function getClassTokens(element) {
-    var value = String(element.getAttribute.('class') || element.className || '').trim();
-    return value  value.split(/\s+/).filter(Boolean) : [];
+    var value = String(element.getAttribute?.('class') || element.className || '').trim();
+    return value ? value.split(/\s+/).filter(Boolean) : [];
   }
 
   function setClassTokens(element, tokens) {
@@ -81,12 +81,12 @@
     if (enabled && !hasToken) {
       tokens.push(RAYCAST_CLASS);
       setClassTokens(element, tokens);
-      element.classList.add.(RAYCAST_CLASS);
+      element.classList?.add?.(RAYCAST_CLASS);
     } else if (!enabled && hasToken) {
       setClassTokens(element, tokens.filter(function (token) { return token !== RAYCAST_CLASS; }));
-      element.classList.remove.(RAYCAST_CLASS);
+      element.classList?.remove?.(RAYCAST_CLASS);
     } else if (!enabled) {
-      element.classList.remove.(RAYCAST_CLASS);
+      element.classList?.remove?.(RAYCAST_CLASS);
     }
   }
 
@@ -115,27 +115,27 @@
       if (!enabled) {
         clearElementRuntimeOverlays(node);
       }
-      var interactive = node.getAttribute.('data-codexr-interactive');
+      var interactive = node.getAttribute?.('data-codexr-interactive');
       var raycastTokens = getClassTokens(node);
       var hasRaycastClass = raycastTokens.includes(RAYCAST_CLASS)
-        || !!node.classList.contains.(RAYCAST_CLASS);
+        || !!node.classList?.contains?.(RAYCAST_CLASS);
       if (!enabled) {
-        if (interactive != null && node.getAttribute.(SUSPENDED_INTERACTIVE_ATTR) == null) {
-          node.setAttribute.(SUSPENDED_INTERACTIVE_ATTR, String(interactive));
-          node.setAttribute.('data-codexr-interactive', 'false');
+        if (interactive != null && node.getAttribute?.(SUSPENDED_INTERACTIVE_ATTR) == null) {
+          node.setAttribute?.(SUSPENDED_INTERACTIVE_ATTR, String(interactive));
+          node.setAttribute?.('data-codexr-interactive', 'false');
         }
-        if (hasRaycastClass && node.getAttribute.(SUSPENDED_RAYCAST_ATTR) == null) {
-          node.setAttribute.(SUSPENDED_RAYCAST_ATTR, 'true');
+        if (hasRaycastClass && node.getAttribute?.(SUSPENDED_RAYCAST_ATTR) == null) {
+          node.setAttribute?.(SUSPENDED_RAYCAST_ATTR, 'true');
           setRaycastClass(node, false);
         }
         return;
       }
-      var storedInteractive = node.getAttribute.(SUSPENDED_INTERACTIVE_ATTR);
+      var storedInteractive = node.getAttribute?.(SUSPENDED_INTERACTIVE_ATTR);
       if (storedInteractive != null) {
-        node.setAttribute.('data-codexr-interactive', storedInteractive);
+        node.setAttribute?.('data-codexr-interactive', storedInteractive);
         removeAttribute(node, SUSPENDED_INTERACTIVE_ATTR);
       }
-      if (node.getAttribute.(SUSPENDED_RAYCAST_ATTR) === 'true') {
+      if (node.getAttribute?.(SUSPENDED_RAYCAST_ATTR) === 'true') {
         setRaycastClass(node, true);
         removeAttribute(node, SUSPENDED_RAYCAST_ATTR);
       }
@@ -237,9 +237,9 @@
         roots.push(normalRoot);
       }
       surface?.querySelectorAll?.('[data-codexr-normal-root="true"], [data-codexr-analysis-mode="single"]')
-        .forEach(function (element) { roots.push(element); });
+        ?.forEach(function (element) { roots.push(element); });
       document?.querySelectorAll?.('[data-codexr-normal-root="true"]')
-        .forEach(function (element) { roots.push(element); });
+        ?.forEach(function (element) { roots.push(element); });
       if (!roots.length) {
         getNormalVisualizationRoots().forEach(function (element) { roots.push(element); });
       }
@@ -263,7 +263,7 @@
           roots.push(element);
         }
       });
-      surface?.querySelectorAll?.('[data-codexr-analysis-mode="' + mode + '"]').forEach(function (element) {
+      surface?.querySelectorAll?.('[data-codexr-analysis-mode="' + mode + '"]')?.forEach(function (element) {
         roots.push(element);
       });
       return uniqueElements(roots);
@@ -345,9 +345,9 @@
         setElementTreeVisible(element, false);
       });
       var activeNonNormalRootCount = 0;
-      surface.querySelectorAll.('[data-codexr-analysis-root="true"]').forEach(function (element) {
-        if (element.getAttribute.('data-codexr-analysis-mode') !== 'single'
-          && element.getAttribute.('visible') !== false) {
+      surface?.querySelectorAll?.('[data-codexr-analysis-root="true"]')?.forEach(function (element) {
+        if (element.getAttribute?.('data-codexr-analysis-mode') !== 'single'
+          && element.getAttribute?.('visible') !== false) {
           activeNonNormalRootCount += 1;
         }
       });
@@ -603,17 +603,17 @@
       position: '0 ' + y + ' 0.02',
       width: 4.5,
       height: 0.48,
-      material: 'color: ' + (disabled  '#475569' : (option.color || '#0e7490')) + '; opacity: ' + (disabled  '0.62' : '0.96') + '; shader: flat',
+      material: 'color: ' + (disabled ? '#475569' : (option.color || '#0e7490')) + '; opacity: ' + (disabled ? '0.62' : '0.96') + '; shader: flat',
       class: 'codexr-analysis-mode-option',
       'data-codexr-interactive': 'true',
       'data-codexr-mode-option': option.id,
-      'data-codexr-disabled': disabled  'true' : 'false'
+      'data-codexr-disabled': disabled ? 'true' : 'false'
     });
     var label = createEntity('a-text', {
       value: option.label,
       position: '0 0 0.02',
       width: 6.8,
-      color: disabled  '#cbd5e1' : '#ffffff',
+      color: disabled ? '#cbd5e1' : '#ffffff',
       align: 'center',
       baseline: 'center'
     });
@@ -624,12 +624,12 @@
         position: '0 -0.46 0.08',
         'data-codexr-mode-disabled-tooltip': option.id
       });
-      tooltip.appendChild.(createEntity('a-plane', {
+      tooltip.appendChild?.(createEntity('a-plane', {
         width: 4.7,
         height: 0.5,
         material: 'color: #111827; opacity: 0.96; shader: flat'
       }));
-      tooltip.appendChild.(createEntity('a-text', {
+      tooltip.appendChild?.(createEntity('a-text', {
         value: disabledReason,
         position: '0 0 0.03',
         width: 5.8,
@@ -639,13 +639,13 @@
         'wrap-count': 44
       }));
       var setTooltipVisible = function (visible) {
-        tooltip.setAttribute.('visible', !!visible);
+        tooltip.setAttribute?.('visible', !!visible);
       };
-      button.appendChild.(tooltip);
-      button.addEventListener.('mouseenter', function () { setTooltipVisible(true); });
-      button.addEventListener.('mouseleave', function () { setTooltipVisible(false); });
-      button.addEventListener.('raycaster-intersected', function () { setTooltipVisible(true); });
-      button.addEventListener.('raycaster-intersected-cleared', function () { setTooltipVisible(false); });
+      button.appendChild?.(tooltip);
+      button.addEventListener?.('mouseenter', function () { setTooltipVisible(true); });
+      button.addEventListener?.('mouseleave', function () { setTooltipVisible(false); });
+      button.addEventListener?.('raycaster-intersected', function () { setTooltipVisible(true); });
+      button.addEventListener?.('raycaster-intersected-cleared', function () { setTooltipVisible(false); });
     }
     button?.addEventListener?.('click', function () {
       if (disabled) {
@@ -942,14 +942,14 @@
     if (!ids.length) {
       var containedChartIds = [];
       getNormalVisualizationRoots().forEach(function (element) {
-        element.querySelectorAll.('[codexr-chart-containment]')
+        element.querySelectorAll?.('[codexr-chart-containment]')
           .forEach(function (chart) {
             if (chart.id) {
               containedChartIds.push(chart.id);
             }
           });
       });
-      ids = containedChartIds.length  containedChartIds : getNormalVisualizationRoots()
+      ids = containedChartIds.length ? containedChartIds : getNormalVisualizationRoots()
         .map(function (element) { return element.id; })
         .filter(Boolean);
     }
@@ -962,7 +962,7 @@
   }
 
   function setTableMode(mode) {
-    var appliedMode = root.CodeXRAnalysisTableRuntime.setMode.(mode);
+    var appliedMode = root.CodeXRAnalysisTableRuntime?.setMode?.(mode);
     if (appliedMode) {
       return appliedMode;
     }
@@ -984,31 +984,31 @@
   }
 
   function resolveControllerView(mode, context) {
-    var snapshotView = context.snapshot.controllerView;
-    return context.controllerView
+    var snapshotView = context?.snapshot?.controllerView;
+    return context?.controllerView
       || snapshotView
       || getDefaultControllerViewForMode(mode);
   }
 
   function resolveModePanelView(mode, context) {
     var controllerView = resolveControllerView(mode, context || null);
-    return context.panelViewId
+    return context?.panelViewId
       || getPanelViewForControllerView(controllerView)
-      || (mode === 'selection'  state.selectionPanelView : null)
+      || (mode === 'selection' ? state.selectionPanelView : null)
       || getDefaultPanelViewForMode(mode);
   }
 
   function applyControllerView(mode, controllerView, panelViewId, context) {
     var controller = root.CodeXRAnalysisControllerRuntime || root.CodeXRMappingUiRuntime;
-    if (controller.showView) {
+    if (controller?.showView) {
       return controller.showView(controllerView, {
         mode: mode,
         panelViewId: panelViewId,
-        reason: context.reason || 'analysis-mode',
-        mappingContextId: context.mappingContextId || null
+        reason: context?.reason || 'analysis-mode',
+        mappingContextId: context?.mappingContextId || null
       });
     }
-    root.CodeXRMappingUiRuntime.showPanelView.(panelViewId);
+    root.CodeXRMappingUiRuntime?.showPanelView?.(panelViewId);
     return {
       mode: mode,
       controllerView: controllerView,
@@ -1017,7 +1017,7 @@
   }
 
   function applyAnalysisMode(mode, context) {
-    var nextMode = VALID_MODES.has(mode)  mode : 'single';
+    var nextMode = VALID_MODES.has(mode) ? mode : 'single';
     var controllerView = resolveControllerView(nextMode, context || null);
     if (nextMode !== 'selection') {
       state.requestedMode = nextMode;
@@ -1166,7 +1166,7 @@
         if (chartIds.length) {
           root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds);
         }
-        root.CodeXRMappingUiRuntime.switchMappingContext.('normal-analysis', {
+        root.CodeXRMappingUiRuntime?.switchMappingContext?.('normal-analysis', {
           reason: 'normal-analysis-activate'
         });
         void waitForNormalChartReady(config, activation).then(function () {

@@ -4,7 +4,7 @@
   } else {
     root.CodeXRBoatsRuntime = factory(root);
   }
-})(typeof globalThis !== 'undefined'  globalThis : typeof self !== 'undefined'  self : this, function (root) {
+})(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function (root) {
   'use strict';
 
   var COMPONENT = 'codexr-boats';
@@ -36,7 +36,7 @@
 
   function toFiniteNumber(value, fallback) {
     var parsed = Number(value);
-    return Number.isFinite(parsed)  parsed : fallback;
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
   function clamp(value, min, max) {
@@ -76,7 +76,7 @@
 
   function getPalette(name) {
     if (Array.isArray(name)) {
-      return name.length  name : DEFAULT_PALETTE;
+      return name.length ? name : DEFAULT_PALETTE;
     }
     if (typeof name === 'string') {
       var parsed = parseJson(name, null);
@@ -92,7 +92,7 @@
 
   function pickColor(value, paletteName, indexHint, categoryMap) {
     var palette = getPalette(paletteName);
-    var text = String(value === undefined || value === null  indexHint : value);
+    var text = String(value === undefined || value === null ? indexHint : value);
     var map = categoryMap || {};
     if (Object.prototype.hasOwnProperty.call(map, text)) {
       return map[text];
@@ -149,9 +149,9 @@
     var numericValues = values.map(Number).filter(Number.isFinite);
     var numeric = values.length > 0 && numericValues.length === values.length;
     return {
-      mode: numeric  'numeric' : 'categorical',
-      min: numericValues.length  Math.min.apply(Math, numericValues) : 0,
-      max: numericValues.length  Math.max.apply(Math, numericValues) : 0,
+      mode: numeric ? 'numeric' : 'categorical',
+      min: numericValues.length ? Math.min.apply(Math, numericValues) : 0,
+      max: numericValues.length ? Math.max.apply(Math, numericValues) : 0,
       count: values.length
     };
   }
@@ -191,11 +191,11 @@
       },
       buildSkinMaterialString: function (profile, alpha) {
         var resolved = profile || {};
-        var opacity = Number.isFinite(alpha)  alpha : (resolved.opacity || 0.3);
+        var opacity = Number.isFinite(alpha) ? alpha : (resolved.opacity || 0.3);
         return 'color: ' + (resolved.accent || '#ffffff') + '; opacity: ' + opacity + '; transparent: true; shader: flat; depthWrite: false';
       },
       formatRelativeAge: function (recency) {
-        return Number.isFinite(recency)  (Math.round(recency * 100) + '% recent') : 'Unknown';
+        return Number.isFinite(recency) ? (Math.round(recency * 100) + '% recent') : 'Unknown';
       }
     };
   }
@@ -273,7 +273,7 @@
 
   function readNodePath(node, name, parentPath) {
     var rawPath = node && (node.treePath || node.filePath || node.path || node.relativePath || node.uid || node.longName);
-    var path = rawPath  String(rawPath) : (parentPath  parentPath + '/' + name : name);
+    var path = rawPath ? String(rawPath) : (parentPath ? parentPath + '/' + name : name);
     return path.replace(/\\/g, '/');
   }
 
@@ -551,9 +551,9 @@
     var targetDepth = Math.max(0.1, options.fixedDepth - padding * 2);
     var targetHeight = Math.max(0.05, options.fixedHeight);
 
-    var scaleX = bounds.size.x > 0.0001  targetWidth / bounds.size.x : 1;
-    var scaleZ = bounds.size.z > 0.0001  targetDepth / bounds.size.z : 1;
-    var scaleY = bounds.size.y > 0.0001  targetHeight / bounds.size.y : 1;
+    var scaleX = bounds.size.x > 0.0001 ? targetWidth / bounds.size.x : 1;
+    var scaleZ = bounds.size.z > 0.0001 ? targetDepth / bounds.size.z : 1;
+    var scaleY = bounds.size.y > 0.0001 ? targetHeight / bounds.size.y : 1;
 
     nodes.forEach(function (figure) {
       scaleFigurePlanar(figure, scaleX, scaleZ);
@@ -582,8 +582,8 @@
       padding: padding,
       contentWidth: targetWidth,
       contentDepth: targetDepth,
-      rootWidth: rootSlabFixed  targetWidth : null,
-      rootDepth: rootSlabFixed  targetDepth : null,
+      rootWidth: rootSlabFixed ? targetWidth : null,
+      rootDepth: rootSlabFixed ? targetDepth : null,
       scaleX: scaleX,
       scaleY: scaleY,
       scaleZ: scaleZ,
@@ -593,14 +593,14 @@
   }
 
   function buildLayout(tree, options) {
-    var roots = Array.isArray(tree)  tree : [];
+    var roots = Array.isArray(tree) ? tree : [];
     var leaves = collectLeaves(roots, []);
     var heightValues = leaves.map(function (leaf) {
       return toFiniteNumber(leaf && leaf[options.heightField], 0);
     });
     var stats = {
-      heightMin: heightValues.length  Math.min.apply(Math, heightValues) : 0,
-      heightMax: heightValues.length  Math.max.apply(Math, heightValues) : 0,
+      heightMin: heightValues.length ? Math.min.apply(Math, heightValues) : 0,
+      heightMax: heightValues.length ? Math.max.apply(Math, heightValues) : 0,
       heightAvg: average(heightValues),
       heightP25: percentile(heightValues, 0.25),
       heightP50: percentile(heightValues, 0.5),
@@ -617,8 +617,8 @@
     var bounds = normalizeLayoutFixedBox(nodes, options);
     return {
       nodes: nodes,
-      width: options.fixedSize  options.fixedWidth : rootLayout.width,
-      depth: options.fixedSize  options.fixedDepth : rootLayout.depth,
+      width: options.fixedSize ? options.fixedWidth : rootLayout.width,
+      depth: options.fixedSize ? options.fixedDepth : rootLayout.depth,
       bounds: bounds,
       stats: stats
     };
@@ -649,7 +649,7 @@
     if (!rootEl) {
       return;
     }
-    rootEl.setAttribute.('visible', !!visible);
+    rootEl.setAttribute?.('visible', !!visible);
     if (rootEl.object3D) {
       rootEl.object3D.visible = !!visible;
     }
@@ -690,11 +690,11 @@
     return String(template || '{name}')
       .replace(/\{name\}/g, figure.name)
       .replace(/\{fheight\}/g, options.heightField)
-      .replace(/\{height\}/g, String(figure.heightValue  ''))
+      .replace(/\{height\}/g, String(figure.heightValue || ''))
       .replace(/\{farea\}/g, options.areaField)
-      .replace(/\{area\}/g, String(figure.areaValue  ''))
+      .replace(/\{area\}/g, String(figure.areaValue || ''))
       .replace(/\{fcolor\}/g, options.colorField)
-      .replace(/\{color\}/g, String(figure.colorValue  ''));
+      .replace(/\{color\}/g, String(figure.colorValue || ''));
   }
 
   function formatVector(value) {
@@ -707,9 +707,9 @@
     }
     var parts = value.trim().split(/\s+/).map(Number);
     return {
-      x: Number.isFinite(parts[0])  parts[0] : (fallback  fallback.x : 0),
-      y: Number.isFinite(parts[1])  parts[1] : (fallback  fallback.y : 0),
-      z: Number.isFinite(parts[2])  parts[2] : (fallback  fallback.z : 0)
+      x: Number.isFinite(parts[0]) ? parts[0] : (fallback ? fallback.x : 0),
+      y: Number.isFinite(parts[1]) ? parts[1] : (fallback ? fallback.y : 0),
+      z: Number.isFinite(parts[2]) ? parts[2] : (fallback ? fallback.z : 0)
     };
   }
 
@@ -911,8 +911,8 @@
     var previousDepth = toFiniteNumber(snapshot && snapshot.depth, targetDepth);
     var baseWidth = Math.max(targetWidth || 0, previousWidth || 0);
     var baseDepth = Math.max(targetDepth || 0, previousDepth || 0);
-    var widthGuard = baseWidth > 0  clamp(baseWidth * 0.14, 0.06, 0.85) : 0;
-    var depthGuard = baseDepth > 0  clamp(baseDepth * 0.14, 0.06, 0.85) : 0;
+    var widthGuard = baseWidth > 0 ? clamp(baseWidth * 0.14, 0.06, 0.85) : 0;
+    var depthGuard = baseDepth > 0 ? clamp(baseDepth * 0.14, 0.06, 0.85) : 0;
     var safeWidth = baseWidth + widthGuard;
     var safeDepth = baseDepth + depthGuard;
     return {
@@ -966,7 +966,7 @@
     }
     var text = String(material || '');
     var pattern = new RegExp('(^|;)\\s*' + property + '\\s*:\\s*[^;]*', 'i');
-    var replacement = (text.trim()  '; ' : '') + property + ': ' + value;
+    var replacement = (text.trim() ? '; ' : '') + property + ': ' + value;
     if (pattern.test(text)) {
       entity.setAttribute('material', text.replace(pattern, function (match, prefix) {
         return (prefix || '') + ' ' + property + ': ' + value;
@@ -985,8 +985,8 @@
       return Number(material.opacity);
     }
     var match = String(material).match(/opacity:\s*([^;]+)/i);
-    var value = match  Number(match[1]) : NaN;
-    return Number.isFinite(value)  value : fallback;
+    var value = match ? Number(match[1]) : NaN;
+    return Number.isFinite(value) ? value : fallback;
   }
 
   function animateHover(entity, active) {
@@ -1003,20 +1003,20 @@
     var baseColor = entity.getAttribute('data-codexr-base-color') || extractMaterialColor(entity.getAttribute('material')) || '#ffffff';
     entity.setAttribute('animation__codexr_hover_opacity', {
       property: 'material.opacity',
-      to: active  1 : baseOpacity,
-      dur: active  240 : 360,
+      to: active ? 1 : baseOpacity,
+      dur: active ? 240 : 360,
       easing: 'easeOutQuad'
     });
     entity.setAttribute('animation__codexr_hover_color', {
       property: 'material.color',
-      to: active  lightenHexColor(baseColor, 0.28) : baseColor,
-      dur: active  260 : 420,
+      to: active ? lightenHexColor(baseColor, 0.28) : baseColor,
+      dur: active ? 260 : 420,
       easing: 'easeOutQuad'
     });
     entity.setAttribute('animation__codexr_hover_emissive', {
       property: 'material.emissive',
-      to: active  '#d9fff2' : '#000000',
-      dur: active  260 : 420,
+      to: active ? '#d9fff2' : '#000000',
+      dur: active ? 260 : 420,
       easing: 'easeOutQuad'
     });
   }
@@ -1032,7 +1032,7 @@
     var snapshotEntry = snapshots && snapshots[figure.key];
     var snapshot = snapshotEntry && (
       target.snapshotRole === 'frame'
-         snapshotEntry.frame
+        ? snapshotEntry.frame
         : (snapshotEntry.visual || snapshotEntry)
     );
     if (snapshot) {
@@ -1088,14 +1088,14 @@
       scheduleFinalAttribute(entity, 'height', target.height, duration);
       scheduleFinalMaterialProperty(entity, 'color', target.color, duration);
       if (fromOpacity != null && Number.isFinite(fromOpacity)) {
-        setAnimation(entity, 'opacity', 'material.opacity', fromOpacity, target.opacity  1, duration);
-        scheduleFinalMaterialProperty(entity, 'opacity', target.opacity  1, duration);
+        setAnimation(entity, 'opacity', 'material.opacity', fromOpacity, target.opacity || 1, duration);
+        scheduleFinalMaterialProperty(entity, 'opacity', target.opacity || 1, duration);
       }
       return true;
     }
     setMaterialProperty(entity, 'opacity', 0);
-    setAnimation(entity, 'opacity', 'material.opacity', 0, target.opacity  1, duration);
-    scheduleFinalMaterialProperty(entity, 'opacity', target.opacity  1, duration);
+    setAnimation(entity, 'opacity', 'material.opacity', 0, target.opacity || 1, duration);
+    scheduleFinalMaterialProperty(entity, 'opacity', target.opacity || 1, duration);
     return true;
   }
 
@@ -1107,7 +1107,7 @@
       return material.color;
     }
     var match = String(material).match(/color:\s*([^;]+)/i);
-    return match  match[1].trim() : null;
+    return match ? match[1].trim() : null;
   }
 
   function lightenHexColor(color, amount) {
@@ -1187,9 +1187,9 @@
     }
     tooltip.root.setAttribute(
       'class',
-      AUX_CLASS + ' codexr-boats-tooltip' + (opts.pinned  ' codexr-boats-tooltip-pinned' : '')
+      AUX_CLASS + ' codexr-boats-tooltip' + (opts.pinned ? ' codexr-boats-tooltip-pinned' : '')
     );
-    tooltip.root.setAttribute('data-codexr-role', opts.pinned  'tooltip overlay pinned' : 'tooltip overlay');
+    tooltip.root.setAttribute('data-codexr-role', opts.pinned ? 'tooltip overlay pinned' : 'tooltip overlay');
     tooltip.root.setAttribute('data-codexr-owner', component.el.id || component.runtimeId);
     if (opts.key) {
       tooltip.root.setAttribute('data-codexr-boats-tooltip-key', opts.key);
@@ -1252,13 +1252,13 @@
     return {
       title: compactPath(figure.name, 30),
       subtitle: path,
-      primary: options.areaField + ': ' + String(figure.areaValue  '') + '  |  ' + options.heightField + ': ' + String(figure.heightValue  ''),
-      secondary: options.colorField + ': ' + String(figure.colorValue  '') + '  |  visual height: ' + toFiniteNumber(figure.height, 0).toFixed(3),
+      primary: options.areaField + ': ' + String(figure.areaValue || '') + '  |  ' + options.heightField + ': ' + String(figure.heightValue || ''),
+      secondary: options.colorField + ': ' + String(figure.colorValue || '') + '  |  visual height: ' + toFiniteNumber(figure.height, 0).toFixed(3),
       rows: [
         { label: 'Type', value: 'Building' },
-        { label: options.areaField, value: String(figure.areaValue  '') },
-        { label: options.heightField, value: String(figure.heightValue  '') },
-        { label: options.colorField, value: String(figure.colorValue  '') },
+        { label: options.areaField, value: String(figure.areaValue || '') },
+        { label: options.heightField, value: String(figure.heightValue || '') },
+        { label: options.colorField, value: String(figure.colorValue || '') },
         { label: 'Modified', value: formatModifiedAt(figure.modifiedAtMs) },
         { label: 'Age tier', value: figure.temporalLabel || figure.temporalTier || 'Current' },
         { label: 'Recency', value: getVisualStyleRuntime().formatRelativeAge(figure.temporalRecency) },
@@ -1283,22 +1283,22 @@
 
   function getTooltipAnchor(component, entity, figure, tooltipHeight) {
     var bounds = component && component.layout && component.layout.bounds;
-    var peakY = bounds && Number.isFinite(bounds.max.y)  bounds.max.y : null;
+    var peakY = bounds && Number.isFinite(bounds.max.y) ? bounds.max.y : null;
     var centerZ = bounds && Number.isFinite(bounds.min.z) && Number.isFinite(bounds.max.z)
-       (bounds.min.z + bounds.max.z) * 0.5
+      ? (bounds.min.z + bounds.max.z) * 0.5
       : null;
     var height = Math.max(0.1, Number(tooltipHeight) || 1.4);
-    var position = parseVectorAttribute(entity && entity.getAttribute  entity.getAttribute('position') : null, { x: 0, y: 0, z: 0 });
+    var position = parseVectorAttribute(entity && entity.getAttribute ? entity.getAttribute('position') : null, { x: 0, y: 0, z: 0 });
     var localAnchor = figure && figure.tooltipPosition
-       {
+      ? {
         x: figure.tooltipPosition.x,
-        y: Number.isFinite(peakY)  peakY : figure.tooltipPosition.y,
-        z: Number.isFinite(centerZ)  centerZ : figure.tooltipPosition.z
+        y: Number.isFinite(peakY) ? peakY : figure.tooltipPosition.y,
+        z: Number.isFinite(centerZ) ? centerZ : figure.tooltipPosition.z
       }
       : {
         x: position.x,
-        y: Number.isFinite(peakY)  peakY : position.y + Math.max(0.24, Number(figure && figure.height) || 0.24),
-        z: Number.isFinite(centerZ)  centerZ : position.z
+        y: Number.isFinite(peakY) ? peakY : position.y + Math.max(0.24, Number(figure && figure.height) || 0.24),
+        z: Number.isFinite(centerZ) ? centerZ : position.z
       };
     var worldAnchor = transformLocalChartPoint(component, localAnchor);
     if (worldAnchor) {
@@ -1319,7 +1319,7 @@
     var slot = Math.max(0, Number(index) || 0);
     var height = Math.max(1.1, Number(tooltipHeight) || 1.2);
     return {
-      x: position.x + ((slot % 2 === 0  -1 : 1) * Math.min(1.15, 0.34 + (height * 0.18))),
+      x: position.x + ((slot % 2 === 0 ? -1 : 1) * Math.min(1.15, 0.34 + (height * 0.18))),
       y: position.y + (slot * (height + 0.22)),
       z: position.z + ((slot % 3) * 0.06)
     };
@@ -1346,7 +1346,7 @@
       };
       return transformLocalChartPoint(component, lifted) || lifted;
     }
-    var position = parseVectorAttribute(entity && entity.getAttribute  entity.getAttribute('position') : null, { x: 0, y: 0, z: 0 });
+    var position = parseVectorAttribute(entity && entity.getAttribute ? entity.getAttribute('position') : null, { x: 0, y: 0, z: 0 });
     var local = {
       x: position.x,
       y: position.y + Math.max(0.24, Number(figure && figure.height) || 0.24) + 0.08,
@@ -1396,7 +1396,7 @@
     }
     var chartId = component.el && (component.el.id || component.runtimeId);
     if (chartId && state.charts[chartId]) {
-      state.charts[chartId].pinnedTooltipCount = component.getPinnedKeys  component.getPinnedKeys().length : 0;
+      state.charts[chartId].pinnedTooltipCount = component.getPinnedKeys ? component.getPinnedKeys().length : 0;
     }
   }
 
@@ -1414,7 +1414,7 @@
   }
 
   function skinAccentMaterial(profile, color, opacity) {
-    var resolvedOpacity = Number.isFinite(opacity)  opacity : profile.opacity || 0.3;
+    var resolvedOpacity = Number.isFinite(opacity) ? opacity : profile.opacity || 0.3;
     return [
       'color: ' + (color || profile.accent || '#ffffff'),
       'opacity: ' + resolvedOpacity,
@@ -1463,7 +1463,7 @@
   function visiblePieceMaterial(color) {
     var visualStyle = getVisualStyleRuntime();
     return visualStyle.buildMetricBodyMaterialString
-       visualStyle.buildMetricBodyMaterialString(color || '#6b7280')
+      ? visualStyle.buildMetricBodyMaterialString(color || '#6b7280')
       : 'color: ' + (color || '#6b7280') + '; opacity: 1; transparent: false; roughness: 0.68; metalness: 0.08; emissive: #000000';
   }
 
@@ -1471,7 +1471,7 @@
     if (!figure || !profile) {
       return [];
     }
-    var shape = profile.shape || (profile.skin === 'fresh'  'modern' : profile.skin === 'legacy'  'heritage' : profile.skin === 'aged'  'ruin' : 'standard');
+    var shape = profile.shape || (profile.skin === 'fresh' ? 'modern' : profile.skin === 'legacy' ? 'heritage' : profile.skin === 'aged' ? 'ruin' : 'standard');
     var width = Math.max(0.001, figure.width);
     var depth = Math.max(0.001, figure.depth);
     var height = Math.max(0.001, figure.height);
@@ -1606,7 +1606,7 @@
     }
     var visualStyle = getVisualStyleRuntime();
     var assets = visualStyle.getTemporalSkinAssets
-       visualStyle.getTemporalSkinAssets(figure.temporalTier || profile.tier || 'current', textureBase)
+      ? visualStyle.getTemporalSkinAssets(figure.temporalTier || profile.tier || 'current', textureBase)
       : {
         wall: (textureBase || './assets/codexr/code-xr-boats/temporal-skins') + '/' + (figure.temporalTier || 'current') + '-wall.svg',
         roof: (textureBase || './assets/codexr/code-xr-boats/temporal-skins') + '/' + (figure.temporalTier || 'current') + '-roof.svg',
@@ -1672,15 +1672,15 @@
       }
       appendTemporalSkinDescriptor(parent, descriptor);
     });
-    var silhouette = descriptors.find  descriptors.find(function (descriptor) { return descriptor && descriptor.type === 'silhouette'; }) : null;
+    var silhouette = descriptors.find ? descriptors.find(function (descriptor) { return descriptor && descriptor.type === 'silhouette'; }) : null;
     var skin = (silhouette && silhouette.skin) || profile.skin || figure.temporalTier || 'current';
-    var frontZ = silhouette  silhouette.frontZ : ((figure.depth * 0.5) + 0.003);
-    var sideX = silhouette  silhouette.sideX : ((figure.width * 0.5) + 0.003);
-    var topY = silhouette  silhouette.topY : ((figure.height * 0.5) + 0.003);
-    var baseY = silhouette  silhouette.baseY : ((-figure.height * 0.5) + Math.max(0.006, figure.height * 0.045));
-    var lineWidth = silhouette  silhouette.lineWidth : clamp(figure.width * 0.045, 0.008, 0.035);
-    var thinDepth = silhouette  silhouette.thinDepth : 0.006;
-    var bandHeight = silhouette  silhouette.bandHeight : clamp(figure.height * 0.045, 0.008, 0.04);
+    var frontZ = silhouette ? silhouette.frontZ : ((figure.depth * 0.5) + 0.003);
+    var sideX = silhouette ? silhouette.sideX : ((figure.width * 0.5) + 0.003);
+    var topY = silhouette ? silhouette.topY : ((figure.height * 0.5) + 0.003);
+    var baseY = silhouette ? silhouette.baseY : ((-figure.height * 0.5) + Math.max(0.006, figure.height * 0.045));
+    var lineWidth = silhouette ? silhouette.lineWidth : clamp(figure.width * 0.045, 0.008, 0.035);
+    var thinDepth = silhouette ? silhouette.thinDepth : 0.006;
+    var bandHeight = silhouette ? silhouette.bandHeight : clamp(figure.height * 0.045, 0.008, 0.04);
 
     if (skin === 'legacy') {
       appendTemporalSkinBox(parent, figure, profile, 'legacy-plinth', {
@@ -1695,10 +1695,10 @@
       }, { x: 0, y: topY - bandHeight * 0.5, z: 0 }, profile.accent, 0.42);
       [-0.25, 0.04, 0.28].forEach(function (offset, index) {
         appendTemporalSkinBox(parent, figure, profile, 'legacy-crack-' + index, {
-          width: lineWidth * (index === 1  0.72 : 1),
+          width: lineWidth * (index === 1 ? 0.72 : 1),
           depth: thinDepth,
-          height: figure.height * (index === 1  0.58 : 0.76)
-        }, { x: figure.width * offset, y: figure.height * (index === 1  -0.05 : 0.03), z: frontZ + 0.001 }, profile.accent, 0.5);
+          height: figure.height * (index === 1 ? 0.58 : 0.76)
+        }, { x: figure.width * offset, y: figure.height * (index === 1 ? -0.05 : 0.03), z: frontZ + 0.001 }, profile.accent, 0.5);
       });
       return;
     }
@@ -1709,7 +1709,7 @@
           width: figure.width * 1.02,
           depth: thinDepth,
           height: bandHeight
-        }, { x: 0, y: figure.height * offset, z: frontZ }, index === 1  profile.secondary : profile.accent, 0.34);
+        }, { x: 0, y: figure.height * offset, z: frontZ }, index === 1 ? profile.secondary : profile.accent, 0.34);
       });
       appendTemporalSkinBox(parent, figure, profile, 'aged-top-edge', {
         width: figure.width * 0.86,
@@ -1725,7 +1725,7 @@
           width: Math.max(0.006, lineWidth * 0.65),
           depth: thinDepth,
           height: figure.height * 0.86
-        }, { x: figure.width * offset, y: 0, z: frontZ + 0.001 }, index === 1  profile.highlight : profile.secondary, index === 1  0.56 : 0.42);
+        }, { x: figure.width * offset, y: 0, z: frontZ + 0.001 }, index === 1 ? profile.highlight : profile.secondary, index === 1 ? 0.56 : 0.42);
       });
       appendTemporalSkinBox(parent, figure, profile, 'fresh-crown', {
         width: figure.width * 0.86,
@@ -1740,7 +1740,7 @@
         width: Math.max(0.01, figure.width * 0.18),
         depth: thinDepth,
         height: figure.height * 0.78
-      }, { x: figure.width * offset, y: 0, z: frontZ }, index  profile.secondary : profile.accent, 0.3);
+      }, { x: figure.width * offset, y: 0, z: frontZ }, index ? profile.secondary : profile.accent, 0.3);
     });
     appendTemporalSkinBox(parent, figure, profile, 'current-side-pane', {
       width: thinDepth,
@@ -1887,7 +1887,7 @@
     var snapshots = collectElementSnapshots(activeRenderRoot);
     var snapshotKeys = Object.keys(snapshots);
     var animationDuration = component.options.animation && snapshotKeys.length
-       Math.max(0, Number(component.options.animationDuration) || 0)
+      ? Math.max(0, Number(component.options.animationDuration) || 0)
       : 0;
     component.animationState = {
       active: animationDuration > 0,
@@ -1931,7 +1931,7 @@
       skinAssetCounts: layout.stats && layout.stats.temporal && layout.stats.temporal.skinCounts,
       shapeCounts: layout.stats && layout.stats.temporal && layout.stats.temporal.shapeCounts,
       visiblePieceCount: component.visiblePieceCount || 0,
-      hoverableCount: el.querySelectorAll  el.querySelectorAll('[data-codexr-boats-key]').length : 0,
+      hoverableCount: el.querySelectorAll ? el.querySelectorAll('[data-codexr-boats-key]').length : 0,
       pinnedTooltipCount: Object.keys(component.pinnedTooltips || {}).length
     };
     if (component.animationTimer) {
@@ -1943,7 +1943,7 @@
         setRenderRootVisible(rootGroup, true);
         component.activeRenderRoot = rootGroup;
         component.pendingRenderRoot = null;
-        removeRenderRoots(oldRenderRoots.filter  oldRenderRoots.filter(function (rootEl) {
+        removeRenderRoots(oldRenderRoots.filter ? oldRenderRoots.filter(function (rootEl) {
           return rootEl !== rootGroup;
         }) : oldRenderRoots);
       };
@@ -1960,7 +1960,7 @@
         if (state.charts[el.id || component.runtimeId]) {
           state.charts[el.id || component.runtimeId].animation = component.animationState;
         }
-        el.emit.('codexr-boats-rendered', {
+        el.emit?.('codexr-boats-rendered', {
           width: layout.width,
           depth: layout.depth,
           buildingCount: layout.stats.leafCount,
@@ -1968,7 +1968,7 @@
         });
       }, animationDuration);
     } else {
-      el.emit.('codexr-boats-rendered', {
+      el.emit?.('codexr-boats-rendered', {
         width: layout.width,
         depth: layout.depth,
         buildingCount: layout.stats.leafCount,
@@ -2018,7 +2018,7 @@
   function subscribeToSource(component, oldData) {
     var data = component.data || {};
     if (component.prodComponent && component.notiBufferId !== undefined && oldData && oldData.from !== data.from) {
-      component.prodComponent.notiBuffer.unregister.(component.notiBufferId);
+      component.prodComponent.notiBuffer.unregister?.(component.notiBufferId);
       component.prodComponent = null;
       component.notiBufferId = undefined;
     }
@@ -2087,7 +2087,7 @@
   }
 
   function registerComponent(AFRAME) {
-    if (!AFRAME || !AFRAME.registerComponent || AFRAME.components.[COMPONENT]) {
+    if (!AFRAME || !AFRAME.registerComponent || AFRAME.components?.[COMPONENT]) {
       return false;
     }
     AFRAME.registerComponent(COMPONENT, {
@@ -2159,7 +2159,7 @@
           clearTimeout(this.animationTimer);
           this.animationTimer = null;
         }
-        this.prodComponent.notiBuffer.unregister.(this.notiBufferId);
+        this.prodComponent.notiBuffer.unregister?.(this.notiBufferId);
         removeTooltip(this);
         this.activeRenderRoot = null;
         this.pendingRenderRoot = null;
@@ -2194,20 +2194,20 @@
         return !!(key && this.pinnedTooltips && this.pinnedTooltips[key]);
       },
       updateTooltipEntity: function (tooltip, entity, figure, pinned, index) {
-        if (!tooltip || !root.CodeXRCommonRuntime.updateTooltip || !figure) {
+        if (!tooltip || !root.CodeXRCommonRuntime?.updateTooltip || !figure) {
           return false;
         }
         var detail = buildReadableTooltipDetail(figure, this.options);
-        var rowCount = Array.isArray(detail && detail.rows)  detail.rows.length : 0;
+        var rowCount = Array.isArray(detail && detail.rows) ? detail.rows.length : 0;
         var tooltipHeight = Math.max(.96, 0.66 + rowCount * 0.16);
         var position = getTooltipAnchor(this, entity, figure, tooltipHeight);
         if (pinned && Number.isFinite(index)) {
           position = offsetPinnedTooltipPosition(position, index, tooltipHeight);
         } else {
-          position = offsetHoverTooltipPosition(position, this.getPinnedKeys  this.getPinnedKeys().length : 0);
+          position = offsetHoverTooltipPosition(position, this.getPinnedKeys ? this.getPinnedKeys().length : 0);
         }
         return root.CodeXRCommonRuntime.updateTooltip(tooltip, detail, position, {
-          width: pinned  3.78 : 3.65,
+          width: pinned ? 3.78 : 3.65,
           minHeight: .96,
           titleLength: 28,
           subtitleLength: 42,
@@ -2215,9 +2215,9 @@
           secondaryLength: 70,
           rowLabelLength: 13,
           rowValueLength: 34,
-          connectorTarget: pinned  getFigureWorldAnchor(this, entity, figure) : null,
-          connectorColor: figure.kind === 'quarter'  '#86efac' : '#f59e0b',
-          animationDuration: pinned  220 : 260
+          connectorTarget: pinned ? getFigureWorldAnchor(this, entity, figure) : null,
+          connectorColor: figure.kind === 'quarter' ? '#86efac' : '#f59e0b',
+          animationDuration: pinned ? 220 : 260
         });
       },
       showTooltip: function (entity, figure) {
@@ -2225,7 +2225,7 @@
         return this.updateTooltipEntity(tooltip, entity, figure, false, 0);
       },
       hideTooltip: function () {
-        if (this.tooltip && root.CodeXRCommonRuntime.hideTooltip) {
+        if (this.tooltip && root.CodeXRCommonRuntime?.hideTooltip) {
           root.CodeXRCommonRuntime.hideTooltip(this.tooltip);
           return true;
         }
@@ -2251,7 +2251,7 @@
           return true;
         }
         var tooltip = createBoatsTooltip(this, {
-          accentColor: figure.kind === 'quarter'  '#86efac' : '#f59e0b',
+          accentColor: figure.kind === 'quarter' ? '#86efac' : '#f59e0b',
           width: 3.78,
           height: 1.02,
           key: figure.key,
@@ -2279,7 +2279,7 @@
         updatePinnedTooltipRuntimeCount(this);
       },
       processData: function (data) {
-        var tree = Array.isArray(data)  data : [];
+        var tree = Array.isArray(data) ? data : [];
         this.options = buildOptions(this.data || {});
         renderLayout(this, buildLayout(tree, this.options));
       }

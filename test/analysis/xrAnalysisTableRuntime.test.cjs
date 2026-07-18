@@ -145,7 +145,7 @@ test('active containment diagnostics report missing charts and clear warnings in
     };
     sandbox.document = {
         getElementById(id) {
-            return id === 'codexrAnalysisTable'  tableEl : null;
+            return id === 'codexrAnalysisTable' ? tableEl : null;
         },
         querySelectorAll(selector) {
             assert.equal(selector, '[codexr-chart-containment]');
@@ -181,13 +181,13 @@ test('active containment diagnostics recognize dependency graph visuals without 
     };
     const dependencyGraphEl = {
         getAttribute(name) {
-            return name === 'visible'  true : null;
+            return name === 'visible' ? true : null;
         },
         object3D: { visible: true },
     };
     sandbox.document = {
         getElementById(id) {
-            return id === 'codexrAnalysisTable'  tableEl : null;
+            return id === 'codexrAnalysisTable' ? tableEl : null;
         },
         querySelectorAll(selector) {
             if (selector === '[codexr-chart-containment]') {
@@ -575,10 +575,10 @@ test('analysis table runtime exposes tabletop debug plane controls and waits thr
 test('chart status exposes vertical guard and containment transition diagnostics', () => {
     assert.match(runtimeSource, /var transitionActive = !!\(this\.containmentTransition && this\.containmentTransition\.active\);/);
     assert.match(runtimeSource, /var heightOverflow = !!\(correctionState && correctionState\.heightOverflow\);/);
-    assert.match(runtimeSource, /: heightOverflow[\s\S]*\ 'height-overflow'/);
+    assert.match(runtimeSource, /: heightOverflow[\s\S]*\? 'height-overflow'/);
     assert.match(runtimeSource, /transitionActive: transitionActive/);
     assert.match(runtimeSource, /heightGuardApplied:/);
-    assert.match(runtimeSource, /heightRatio: correctionState \ toFixedNumber\(correctionState\.heightRatio\) : null/);
+    assert.match(runtimeSource, /heightRatio: correctionState \? toFixedNumber\(correctionState\.heightRatio\) : null/);
 });
 
 test('steady controller applies emergency containment before smooth PID adjustment', () => {
@@ -1086,7 +1086,7 @@ test('generated XR presets give the vertical controller enough headroom for tiny
     assert.match(runtimeSource, /yScaleMax: 12/);
     assert.match(templateCharts, /yScaleMax: 12;/);
     assert.match(historicalRuntime, /function getHistoricalContainmentProfile\(zone\)/);
-    assert.match(historicalRuntime, /getContainmentProfile\\.\(profileId\)/);
+    assert.match(historicalRuntime, /getContainmentProfile\?\.\(profileId\)/);
     assert.match(historicalRuntime, /applyContainmentProfile\(clone, containmentProfile\)/);
     assert.doesNotMatch(historicalRuntime, /heightUnderflowCorrectionEnabled: false/);
     assert.doesNotMatch(historicalRuntime, /planarUnderflowCorrectionEnabled: false/);

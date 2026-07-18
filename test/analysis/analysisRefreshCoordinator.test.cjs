@@ -7,6 +7,30 @@ const {
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 10));
 
+test('refresh coordinator runs background modes on every change even while another mode is active', async () => {
+  const coordinator = new AnalysisRefreshCoordinator();
+  const calls = { single: [], dependency: [] };
+  coordinator.registerHandler('bg', 'single', async batch => { calls.single.push(batch); });
+  coordinator.registerHandler('bg', 'dependency-graph', async batch => { calls.dependency.push(batch); });
+  coordinator.setActiveMode('bg', 'single');
+  // LivePanel marks its dependency graph as a background mode.
+  coordinator.setBackgroundRefresh('bg', 'dependency-graph', true);
+
+  coordinator.publishChanges('bg', { changedFiles: ['a.ts'], addedFiles: [], removedFiles: [] });
+  await flush();
+
+  assert.equal(calls.single.length, 1, 'the active mode runs');
+  assert.equal(calls.dependency.length, 1, 'the background mode also runs while inactive');
+  assert.deepEqual(calls.dependency[0].changedFiles, ['a.ts']);
+
+  // Disabling the background mode stops future off-view runs.
+  coordinator.setBackgroundRefresh('bg', 'dependency-graph', false);
+  coordinator.publishChanges('bg', { changedFiles: ['b.ts'], addedFiles: [], removedFiles: [] });
+  await flush();
+
+  assert.equal(calls.dependency.length, 1, 'no further background runs after disabling');
+});
+
 test('refresh coordinator only runs the active analysis mode', async () => {
   const coordinator = new AnalysisRefreshCoordinator();
   const calls = { single: [], dependency: [] };

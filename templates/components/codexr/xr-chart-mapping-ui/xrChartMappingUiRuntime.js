@@ -458,9 +458,9 @@
 
   function getConfiguredChartEntityIds(config) {
     return Array.isArray(state.chartEntityIdsOverride) && state.chartEntityIdsOverride.length
-       state.chartEntityIdsOverride
+      ? state.chartEntityIdsOverride
       : (Array.isArray(config && config.chartEntityIds) && config.chartEntityIds.length
-         config.chartEntityIds
+        ? config.chartEntityIds
         : [config && config.chartEntityId]);
   }
 
@@ -547,7 +547,7 @@
       var contained = queryEntities(preferred, '[codexr-chart-containment]');
       if (contained.length) {
         var containedMatch = componentName
-           contained.find(function (entity) { return hasEntityAttribute(entity, componentName); })
+          ? contained.find(function (entity) { return hasEntityAttribute(entity, componentName); })
           : null;
         return containedMatch || contained[0];
       }
@@ -602,7 +602,7 @@
     }
 
     var fallback = findFallbackChartEntity(config);
-    return fallback  [fallback] : [];
+    return fallback ? [fallback] : [];
   }
 
   function cloneMapping(mapping) {
@@ -624,8 +624,8 @@
   function getDimensionsForChart(config, chartId) {
     var byChart = config && config.dimensionsByChart;
     var dimensions = byChart && Array.isArray(byChart[chartId])
-       byChart[chartId]
-      : (Array.isArray(config && config.dimensions)  config.dimensions : []);
+      ? byChart[chartId]
+      : (Array.isArray(config && config.dimensions) ? config.dimensions : []);
     return dimensions;
   }
 
@@ -661,13 +661,13 @@
       return fallback;
     }
     var selected = snapshot.selectedByDimension && typeof snapshot.selectedByDimension === 'object' && !Array.isArray(snapshot.selectedByDimension)
-       snapshot.selectedByDimension
+      ? snapshot.selectedByDimension
       : fallback.selectedByDimension;
     var lastKnownGood = snapshot.lastKnownGoodMapping && typeof snapshot.lastKnownGoodMapping === 'object' && !Array.isArray(snapshot.lastKnownGoodMapping)
-       snapshot.lastKnownGoodMapping
+      ? snapshot.lastKnownGoodMapping
       : selected;
     return {
-      visible: typeof snapshot.visible === 'boolean'  snapshot.visible : fallback.visible,
+      visible: typeof snapshot.visible === 'boolean' ? snapshot.visible : fallback.visible,
       selectedByDimension: cloneMapping(selected),
       lastKnownGoodMapping: cloneMapping(lastKnownGood),
       invalidOptionsByDimension: cloneInvalidOptions(snapshot.invalidOptionsByDimension)
@@ -676,7 +676,7 @@
 
   function captureMappingProfile() {
     var confirmedMapping = Object.keys(state.lastKnownGoodMapping || {}).length
-       state.lastKnownGoodMapping
+      ? state.lastKnownGoodMapping
       : state.selectedByDimension;
     return {
       visible: state.visible,
@@ -765,7 +765,7 @@
         return fromValue;
       }
     }
-    return isHierarchicalChart(chartId)  'tree' : 'data';
+    return isHierarchicalChart(chartId) ? 'tree' : 'data';
   }
 
   function buildRuntimeChartData(chartId, existingData, mappingSnapshot) {
@@ -1461,7 +1461,7 @@
 
   function normalizeControllerView(viewId) {
     var requested = String(viewId || 'single.mapping');
-    return CONTROLLER_PANEL_BY_VIEW[requested]  requested : 'single.mapping';
+    return CONTROLLER_PANEL_BY_VIEW[requested] ? requested : 'single.mapping';
   }
 
   function inferModeFromControllerView(viewId) {
@@ -1637,7 +1637,7 @@
         return;
       }
 
-      var fields = Array.isArray(dimension.fields)  dimension.fields : [];
+      var fields = Array.isArray(dimension.fields) ? dimension.fields : [];
       if (fields.length === 0) {
         return;
       }
@@ -1716,7 +1716,7 @@
       return;
     }
     clearEntity(refs.chartRoot);
-    var charts = Array.isArray(config && config.availableCharts)  config.availableCharts : [];
+    var charts = Array.isArray(config && config.availableCharts) ? config.availableCharts : [];
     if (!charts.length) {
       return;
     }
@@ -1740,10 +1740,10 @@
         class: 'babiaxraycasterclass codexr-mapping-ui-chart-option',
         'data-codexr-interactive': 'true',
         'data-codexr-chart-id': chart.id,
-        color: active  '#be123c' : '#0f3a5f',
+        color: active ? '#be123c' : '#0f3a5f',
         width: buttonWidth,
         height: 0.22,
-        opacity: active  0.98 : 0.9,
+        opacity: active ? 0.98 : 0.9,
         position: x + ' ' + y + ' 0.01'
       });
       button.appendChild(createEntity('a-text', {

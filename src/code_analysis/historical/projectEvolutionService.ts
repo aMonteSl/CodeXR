@@ -38,7 +38,7 @@ export class ProjectEvolutionService {
         private readonly sessionId: string,
         private readonly staticRoot: string,
     ) {
-        const privateStorageRoot = context.storageUri.fsPath || context.globalStorageUri.fsPath;
+        const privateStorageRoot = context.storageUri?.fsPath || context.globalStorageUri.fsPath;
         this.gitService = new GitRepositoryService(
             this.getSession().targetPath,
             path.join(privateStorageRoot, 'project-evolution', sessionId, 'snapshots'),
@@ -190,7 +190,7 @@ export class ProjectEvolutionService {
                     index,
                     source,
                     label: source.label,
-                    date: this.extractDate(source),
+                    date: this.extractDate(source) || '',
                     url: `/evolution/revision-${revision}/${fileName}`,
                     itemCount: payload.payload.length,
                     missingTarget: payload.missingTarget,
@@ -255,11 +255,11 @@ export class ProjectEvolutionService {
         return this.sampleSources(timeline, maxFrames);
     }
 
-    private async buildAutomaticTimeline(existingReferences: { sources: ComparisonSource[]; workingTreeDirty: boolean }): Promise<ComparisonSource[]> {
+    private async buildAutomaticTimeline(existingReferences?: { sources: ComparisonSource[]; workingTreeDirty: boolean }): Promise<ComparisonSource[]> {
         const references = existingReferences || await this.gitService.listReferences();
         const timeline = await this.gitService.listTimelineSources(TIMELINE_SCAN_LIMIT);
         const gitTimeline = timeline.length
-             timeline
+            ? timeline
             : references.sources.filter((source) => source.kind === 'gitRef');
         const workingCopy = references.sources.find((source) => source.kind === 'workingCopy');
         if (references.workingTreeDirty && workingCopy) {

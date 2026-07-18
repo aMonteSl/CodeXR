@@ -47,14 +47,14 @@
           return { label: '', value: row };
         }
         return {
-          label: String(row && row.label != null  row.label : ''),
-          value: String(row && row.value != null  row.value : '')
+          label: String(row && row.label != null ? row.label : ''),
+          value: String(row && row.value != null ? row.value : '')
         };
       });
     }
     return [
-      model.primary  { label: '', value: String(model.primary) } : null,
-      model.secondary  { label: '', value: String(model.secondary) } : null
+      model.primary ? { label: '', value: String(model.primary) } : null,
+      model.secondary ? { label: '', value: String(model.secondary) } : null
     ].filter(Boolean);
   }
 
@@ -183,7 +183,7 @@
     }
     var opts = options || {};
     var position = tooltipPosition && Number.isFinite(tooltipPosition.x)
-       tooltipPosition
+      ? tooltipPosition
       : { x: 0, y: 0, z: 0 };
     var height = Number(tooltip.height) || .92;
     var color = opts.connectorColor || opts.color || '#f59e0b';
@@ -220,7 +220,7 @@
     var rowStep = Number(opts.rowStep) || .16;
     var autoHeight = hasExplicitRows && opts.autoHeight !== false;
     var height = autoHeight
-       Math.max(Number(opts.minHeight) || .92, .66 + rows.length * rowStep)
+      ? Math.max(Number(opts.minHeight) || .92, .66 + rows.length * rowStep)
       : (Number(opts.height) || tooltip.height || .92);
     var width = Number(opts.width) || tooltip.width || 3.75;
     var textWidth = Math.max(1.2, width - .44);
@@ -229,7 +229,7 @@
     var subtitleY = (height / 2) - .37;
     var footerReserve = Math.max(0, Number(opts.footerReserve) || 0);
     var secondaryY = -(height / 2) + .18 + footerReserve;
-    var primaryY = footerReserve > 0  secondaryY + .21 : -0.06;
+    var primaryY = footerReserve > 0 ? secondaryY + .21 : -0.06;
     var resolvedPosition = null;
     if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z)) {
       tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);

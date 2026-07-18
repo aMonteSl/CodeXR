@@ -81,15 +81,15 @@ export interface HistoricalComparisonReferences {
 export interface HistoricalComparisonProgress {
     state: 'idle' | 'analyzing' | 'ready' | 'error';
     message: string;
-    revision: number;
+    revision?: number;
 }
 
 export interface ProjectEvolutionRequest {
     mode: 'auto' | 'range' | 'manual';
-    startSourceId: string;
-    endSourceId: string;
-    sourceIds: string[];
-    maxFrames: number;
+    startSourceId?: string;
+    endSourceId?: string;
+    sourceIds?: string[];
+    maxFrames?: number;
 }
 
 export interface ProjectEvolutionFrame {
@@ -121,7 +121,7 @@ export interface ProjectEvolutionReferences extends Omit<HistoricalComparisonRef
 export interface ProjectEvolutionProgress {
     state: 'idle' | 'analyzing' | 'ready' | 'error';
     message: string;
-    revision: number;
-    frameIndex: number;
-    frameCount: number;
+    revision?: number;
+    frameIndex?: number;
+    frameCount?: number;
 }

@@ -5,30 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
   <link href="${styleUri}" rel="stylesheet">
-  <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <title>Code Analysis</title>
+  <title>File Analysis</title>
 </head>
-<body class="${theme}">
+<body data-theme="${theme}">
   <div id="app">
     <div class="header">
       <div class="header-content">
         <div class="header-main">
-          <h1>Code Analysis</h1>
-          <p class="subtitle">Select a file or directory to analyze</p>
+          <h1>File Analysis</h1>
+          <p class="subtitle">Classic analysis of file: <span id="file-name">Loading...</span></p>
+          <div class="analysis-info">
+            <span class="info-chip">
+              <svg class="info-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span class="info-chip-text" id="file-language">Unknown</span>
+            </span>
+            <span class="info-chip">
+              <svg class="info-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg>
+              <span class="info-chip-text" id="analysis-timestamp">Loading...</span>
+            </span>
+          </div>
         </div>
         <div class="header-controls">
-          <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
-            <span class="theme-icon" id="theme-icon"></span>
-          </button>
+          <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme"></button>
         </div>
       </div>
     </div>
-    
+
     <div id="no-data" class="message">
       <p>No analysis data to display yet. Run an analysis to see results here.</p>
     </div>
-    
+
     <div id="results" class="hidden">
+      <!-- Summary Section -->
       <div id="summary" class="section">
         <h2>Summary</h2>
         <div class="metrics-grid">
@@ -106,10 +114,11 @@
           </div>
         </div>
       </div>
-      
+
+      <!-- Cyclomatic Complexity -->
       <div id="complexity-section" class="section">
         <h2>Cyclomatic Complexity (CCN)</h2>
-        
+
         <div id="complexity-summary" class="complexity-summary">
           <h3>Summary</h3>
           <div class="summary-grid">
@@ -130,46 +139,25 @@
             </div>
           </div>
         </div>
-        
-        <div class="table-container">
-          <table class="functions-table" id="functions-table">
-            <thead>
-              <tr>
-                <th>Function Name</th>
-                <th>Start Line</th>
-                <th>End Line</th>
-                <th>Length</th>
-                <th>Span</th>
-                <th>Parameters</th>
-                <th>Nesting</th>
-                <th>Band</th>
-                <th>CCN</th>
-                <th>Density</th>
-              </tr>
-            </thead>
-            <tbody id="functions-body">
-              <tr>
-                <td colspan="7" class="loading-message">Loading function data...</td>
-              </tr>
-            </tbody>
-          </table>
+
+        <!-- Top complex functions at a glance, then the full searchable table. -->
+        <div class="chart-subsection">
+          <h3>Most Complex Functions</h3>
+          <div class="chart-container">
+            <div id="top-functions-chart"></div>
+          </div>
         </div>
+
+        <h3>All Functions</h3>
+        <div id="functions-table"></div>
       </div>
-      
+
+      <!-- Complexity Distribution -->
       <div id="distribution-section" class="section">
         <h2>Complexity Distribution</h2>
-        
-        <!-- UPPER ZONE: Chart + Legend side-by-side -->
-        <div class="chart-zone">
-          <div class="chart-container">
-            <canvas id="complexityChart" width="200" height="200"></canvas>
-          </div>
-          <div class="chart-legend" id="chart-legend">
-            <!-- Legend will be populated by JavaScript -->
-          </div>
+        <div class="chart-container">
+          <div id="complexity-distribution-chart"></div>
         </div>
-        
-        <!-- LOWER ZONE: Four Summary Blocks -->
         <div class="distribution-grid">
           <div class="distribution-item simple">
             <div class="distribution-value" id="simple-count">0</div>
@@ -189,10 +177,11 @@
           </div>
         </div>
       </div>
-      
+
+      <!-- Cyclomatic Density -->
       <div id="density-section" class="section">
         <h2>Cyclomatic Density</h2>
-        
+
         <div class="density-summary">
           <h3>Summary</h3>
           <div class="summary-grid">
@@ -213,7 +202,7 @@
             </div>
           </div>
         </div>
-        
+
         <div class="density-container">
           <div class="density-bar-container">
             <div class="density-label">Average Density</div>
@@ -223,7 +212,7 @@
             <div class="density-value" id="density-value">0.00</div>
           </div>
         </div>
-        
+
         <div class="density-distribution">
           <h3>Density Distribution</h3>
           <div class="distribution-grid">
@@ -246,9 +235,130 @@
           </div>
         </div>
       </div>
+
+      <!-- Dependency Summary (shared CodexrDependencySummaryPanel mounts) -->
+      <div id="dependency-graph-summary" class="section">
+        <h2>Dependency Summary</h2>
+        <!-- Recomputed automatically as part of the incremental re-analysis chain
+             (no manual refresh); updates arrive over SSE. -->
+        <div class="dependency-controls">
+          <span id="dependency-status" class="dependency-status"></span>
+        </div>
+
+        <div id="dependency-summary-content" class="hidden">
+          <div class="metrics-grid dependency-tiles">
+            <div class="metric">
+              <div class="metric-value" id="dependency-node-count">0</div>
+              <div class="metric-label">Nodes</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="dependency-edge-count">0</div>
+              <div class="metric-label">Edges</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="dependency-external-count">0</div>
+              <div class="metric-label">External Dependencies</div>
+            </div>
+            <div class="metric ccn-metric">
+              <div class="metric-value" id="dependency-cycle-count">0</div>
+              <div class="metric-label">Cycles</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="dependency-warning-count">0</div>
+              <div class="metric-label">Warnings</div>
+            </div>
+          </div>
+
+          <!-- Each list below is a shared DataTable mounted by main.js. -->
+          <div class="dependency-subsection">
+            <h3>Top Fan-In</h3>
+            <div id="dependency-fan-in-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Top Fan-Out</h3>
+            <div id="dependency-fan-out-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>External Dependencies</h3>
+            <div id="dependency-external-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Cycles</h3>
+            <div id="dependency-cycles-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Confidence Breakdown</h3>
+            <div id="dependency-confidence-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Capability Breakdown</h3>
+            <div id="dependency-capability-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Warnings</h3>
+            <ul id="dependency-warnings-list" class="dependency-warnings-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historical Comparison (shared CodexrHistoricalPanel mounts) -->
+      <div id="historical-comparison" class="section">
+        <h2>Historical Comparison</h2>
+        <span id="historical-status" class="historical-status">Checking Git availability...</span>
+        <div id="historical-controls" class="historical-controls hidden">
+          <div class="historical-source">
+            <label for="historical-left-source">Base version</label>
+            <select id="historical-left-source"></select>
+          </div>
+          <div class="historical-source">
+            <label for="historical-right-source">Compare with</label>
+            <select id="historical-right-source"></select>
+          </div>
+          <button id="historical-compare-btn" class="historical-compare-btn">Compare</button>
+        </div>
+
+        <div id="historical-results" class="hidden">
+          <div class="metrics-grid">
+            <div class="metric historical-tile-added">
+              <div class="metric-value" id="historical-added-count">0</div>
+              <div class="metric-label">Added</div>
+            </div>
+            <div class="metric historical-tile-removed">
+              <div class="metric-value" id="historical-removed-count">0</div>
+              <div class="metric-label">Removed</div>
+            </div>
+            <div class="metric historical-tile-modified">
+              <div class="metric-value" id="historical-modified-count">0</div>
+              <div class="metric-label">Modified</div>
+            </div>
+            <div class="metric historical-tile-unchanged">
+              <div class="metric-value" id="historical-unchanged-count">0</div>
+              <div class="metric-label">Unchanged</div>
+            </div>
+          </div>
+
+          <div class="historical-subsection">
+            <h3>Metric Totals</h3>
+            <div id="historical-metrics-chart"></div>
+          </div>
+
+          <div class="historical-subsection">
+            <h3>Changed Items</h3>
+            <div id="historical-detail-table"></div>
+          </div>
+
+          <p id="historical-meta" class="historical-meta"></p>
+        </div>
+      </div>
     </div>
   </div>
-  
+
   <script nonce="${nonce}">
     // Inject theme from server
     window.initialTheme = '${theme}';

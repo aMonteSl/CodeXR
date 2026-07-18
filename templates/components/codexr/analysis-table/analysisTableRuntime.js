@@ -171,9 +171,9 @@
       return value;
     }
     var source = value || {};
-    return String(Number.isFinite(source.x)  source.x : 0)
-      + ' ' + String(Number.isFinite(source.y)  source.y : 0)
-      + ' ' + String(Number.isFinite(source.z)  source.z : 0);
+    return String(Number.isFinite(source.x) ? source.x : 0)
+      + ' ' + String(Number.isFinite(source.y) ? source.y : 0)
+      + ' ' + String(Number.isFinite(source.z) ? source.z : 0);
   }
 
   function clonePlainObject(value) {
@@ -195,7 +195,7 @@
       var objectContainment = clonePlainObject(profileOrMode.containment || profileOrMode);
       return {
         id: profileOrMode.id || 'custom',
-        zone: profileOrMode.zone  Object.assign({}, profileOrMode.zone) : null,
+        zone: profileOrMode.zone ? Object.assign({}, profileOrMode.zone) : null,
         position: profileOrMode.position || profilePosition(objectContainment),
         containment: objectContainment
       };
@@ -208,7 +208,7 @@
 
     if (profileId === 'historical-left' || profileId === 'historical-right') {
       var historicalZones = getAnalysisTableZonesForMode('historical-compare');
-      var historicalZone = profileId === 'historical-left'  historicalZones[0] : historicalZones[1];
+      var historicalZone = profileId === 'historical-left' ? historicalZones[0] : historicalZones[1];
       return createContainmentProfile(profileId, historicalZone, {
         tableTopPadding: 0.14,
         tableEdgeMargin: 0.12,
@@ -218,8 +218,8 @@
     }
 
     if (profileId === 'historical-compare') {
-      var zoneId = typeof zone === 'string'  zone : (zone && zone.id);
-      return resolveContainmentProfile(zoneId === 'right'  'historical-right' : 'historical-left');
+      var zoneId = typeof zone === 'string' ? zone : (zone && zone.id);
+      return resolveContainmentProfile(zoneId === 'right' ? 'historical-right' : 'historical-left');
     }
 
     return createContainmentProfile('default', FULL_TABLE_ZONE);
@@ -750,10 +750,10 @@
 
   function getTableTopY(data) {
     var surfaceOffset = Number.isFinite(data.tableTopSurfaceOffsetY)
-       data.tableTopSurfaceOffsetY
+      ? data.tableTopSurfaceOffsetY
       : DEFAULTS.tableTopSurfaceOffsetY;
     var epsilon = Number.isFinite(data.tabletopAnchorEpsilon)
-       data.tabletopAnchorEpsilon
+      ? data.tabletopAnchorEpsilon
       : DEFAULTS.tabletopAnchorEpsilon;
     return (data.anchorY || 0) + surfaceOffset + Math.max(0, epsilon);
   }
@@ -1087,7 +1087,7 @@
     } else if (!withinBand) {
       desiredScale = currentScaleY * (setpointHeight / currentHeight);
       targetScale = desiredScale;
-      reason = underflowing  'toward-midpoint-up' : 'toward-midpoint-down';
+      reason = underflowing ? 'toward-midpoint-up' : 'toward-midpoint-down';
     }
 
     targetScale = clamp(targetScale, yScaleMin, yScaleMax);
@@ -1111,7 +1111,7 @@
         overflowing: false,
         changed: false,
         targetY: currentScaleY,
-        maxHeight: bandTargets && Number.isFinite(bandTargets.maxHeight)  bandTargets.maxHeight : null,
+        maxHeight: bandTargets && Number.isFinite(bandTargets.maxHeight) ? bandTargets.maxHeight : null,
         heightRatio: null,
         compromised: false
       };
@@ -1119,7 +1119,7 @@
 
     var heightRatio = currentHeight / bandTargets.maxHeight;
     var overflowing = heightRatio > 1.0005;
-    var desiredY = overflowing  currentScaleY * (bandTargets.maxHeight / currentHeight) : currentScaleY;
+    var desiredY = overflowing ? currentScaleY * (bandTargets.maxHeight / currentHeight) : currentScaleY;
     var targetY = clamp(desiredY, yScaleMin, yScaleMax);
 
     return {
@@ -1155,7 +1155,7 @@
   }
 
   function createNeutralHeightBandTarget(currentScaleY, reason) {
-    var scale = Number.isFinite(currentScaleY) && currentScaleY > 0  currentScaleY : 1;
+    var scale = Number.isFinite(currentScaleY) && currentScaleY > 0 ? currentScaleY : 1;
     return {
       targetScale: scale,
       setpointHeight: null,
@@ -1181,12 +1181,12 @@
       return null;
     }
     return {
-      ratio: Number.isFinite(target.ratio)  toFixedNumber(target.ratio) : null,
-      height: Number.isFinite(target.currentHeight)  toFixedNumber(target.currentHeight) : null,
-      targetScale: Number.isFinite(target.targetScale)  toFixedNumber(target.targetScale) : null,
+      ratio: Number.isFinite(target.ratio) ? toFixedNumber(target.ratio) : null,
+      height: Number.isFinite(target.currentHeight) ? toFixedNumber(target.currentHeight) : null,
+      targetScale: Number.isFinite(target.targetScale) ? toFixedNumber(target.targetScale) : null,
       setpoint: Number.isFinite(target.setpointRatio)
-         toFixedNumber(target.setpointRatio)
-        : (Number.isFinite(target.setpointHeight)  toFixedNumber(target.setpointHeight) : null),
+        ? toFixedNumber(target.setpointRatio)
+        : (Number.isFinite(target.setpointHeight) ? toFixedNumber(target.setpointHeight) : null),
       withinBand: !!target.withinBand,
       underflowing: !!target.underflowing,
       underflowAllowed: !!target.underflowAllowed,
@@ -1436,9 +1436,9 @@
       tableTopY: toFixedNumber(tableTopY),
       primaryMinY: toFixedNumber(primaryMinY),
       deltaY: toFixedNumber(tableTopY - primaryMinY),
-      epsilon: toFixedNumber(Number.isFinite(data.tabletopAnchorEpsilon)  data.tabletopAnchorEpsilon : DEFAULTS.tabletopAnchorEpsilon),
-      deadbandY: toFixedNumber(Number.isFinite(data.tabletopAnchorDeadbandY)  data.tabletopAnchorDeadbandY : DEFAULTS.tabletopAnchorDeadbandY),
-      surfaceOffsetY: toFixedNumber(Number.isFinite(data.tableTopSurfaceOffsetY)  data.tableTopSurfaceOffsetY : DEFAULTS.tableTopSurfaceOffsetY)
+      epsilon: toFixedNumber(Number.isFinite(data.tabletopAnchorEpsilon) ? data.tabletopAnchorEpsilon : DEFAULTS.tabletopAnchorEpsilon),
+      deadbandY: toFixedNumber(Number.isFinite(data.tabletopAnchorDeadbandY) ? data.tabletopAnchorDeadbandY : DEFAULTS.tabletopAnchorDeadbandY),
+      surfaceOffsetY: toFixedNumber(Number.isFinite(data.tableTopSurfaceOffsetY) ? data.tableTopSurfaceOffsetY : DEFAULTS.tableTopSurfaceOffsetY)
     };
   }
 
@@ -1565,7 +1565,7 @@
     },
 
     startContainmentTransition: function (fromTransform, toTransform, reason) {
-      var duration = Math.max(0, Number.isFinite(this.data.transformTransitionMs)  this.data.transformTransitionMs : DEFAULTS.transformTransitionMs);
+      var duration = Math.max(0, Number.isFinite(this.data.transformTransitionMs) ? this.data.transformTransitionMs : DEFAULTS.transformTransitionMs);
       if (!this.el || !this.el.setAttribute || duration <= 0 || !transformsDiffer(fromTransform, toTransform)) {
         return false;
       }
@@ -1693,14 +1693,14 @@
         stabilized: stabilized,
         geometryState: stabilized ? 'stabilized' : 'valid',
         reason: animationActive
-           'chart-animation-active'
+          ? 'chart-animation-active'
           : transitionActive
-           'containment-transition-active'
+          ? 'containment-transition-active'
           : heightOverflow
-           'height-overflow'
+          ? 'height-overflow'
           : needsCorrection
-           'containment-correcting'
-          : (this.renderPhase === 'steady-fit'  'ok' : this.renderPhase),
+          ? 'containment-correcting'
+          : (this.renderPhase === 'steady-fit' ? 'ok' : this.renderPhase),
         details: {
           phase: this.renderPhase,
           animationActive: animationActive,
@@ -1709,19 +1709,19 @@
           primaryHeight: toFixedNumber(measurements.primary.size.y),
           primaryDepth: toFixedNumber(measurements.primary.size.z),
           peakHeight: toFixedNumber(measurements.peakHeight),
-          xRatio: correctionState  toFixedNumber(correctionState.x.ratio) : null,
+          xRatio: correctionState ? toFixedNumber(correctionState.x.ratio) : null,
           yHeight: toFixedNumber(measurements.peakHeight),
-          zRatio: correctionState  toFixedNumber(correctionState.z.ratio) : null,
+          zRatio: correctionState ? toFixedNumber(correctionState.z.ratio) : null,
           needsCorrection: needsCorrection,
-          compromised: correctionState  !!correctionState.compromised : false,
+          compromised: correctionState ? !!correctionState.compromised : false,
           tabletopAnchor: buildTabletopAnchorDiagnostics(measurements, this.data),
-          minPlanar: correctionState  toFixedNumber(resolveSteadyPlanarRange(this.data).min) : null,
-          maxPlanar: correctionState  toFixedNumber(resolveSteadyPlanarRange(this.data).max) : null,
-          minHeight: correctionState  toFixedNumber(correctionState.minHeight) : null,
-          maxHeight: correctionState  toFixedNumber(correctionState.maxHeight) : null,
+          minPlanar: correctionState ? toFixedNumber(resolveSteadyPlanarRange(this.data).min) : null,
+          maxPlanar: correctionState ? toFixedNumber(resolveSteadyPlanarRange(this.data).max) : null,
+          minHeight: correctionState ? toFixedNumber(correctionState.minHeight) : null,
+          maxHeight: correctionState ? toFixedNumber(correctionState.maxHeight) : null,
           heightOverflow: heightOverflow,
           heightGuardApplied: !!(this.lastHardHeightGuardAt && Date.now() - this.lastHardHeightGuardAt < 1500),
-          heightRatio: correctionState  toFixedNumber(correctionState.heightRatio) : null
+          heightRatio: correctionState ? toFixedNumber(correctionState.heightRatio) : null
         }
       };
     },
@@ -1947,7 +1947,7 @@
         return false;
       }
 
-      var anchorDeadbandY = Math.max(0, Number.isFinite(this.data.tabletopAnchorDeadbandY)  this.data.tabletopAnchorDeadbandY : DEFAULTS.tabletopAnchorDeadbandY);
+      var anchorDeadbandY = Math.max(0, Number.isFinite(this.data.tabletopAnchorDeadbandY) ? this.data.tabletopAnchorDeadbandY : DEFAULTS.tabletopAnchorDeadbandY);
       if (Math.abs(offset.deltaY) <= anchorDeadbandY) {
         offset.deltaY = 0;
       }
@@ -2189,15 +2189,15 @@
       }
 
       var nextX = needsXGuard
-         xTarget.targetScale
+        ? xTarget.targetScale
         : object3D.scale.x;
       var nextZ = needsZGuard
-         zTarget.targetScale
+        ? zTarget.targetScale
         : object3D.scale.z;
-      var nextY = needsHeightGuard  yTarget.targetScale : object3D.scale.y;
+      var nextY = needsHeightGuard ? yTarget.targetScale : object3D.scale.y;
 
       if (yTarget.overflowing && yTarget.compromised && Number.isFinite(measurements.peakHeight) && measurements.peakHeight > 0) {
-        var heightFactor = (Number.isFinite(yTarget.setpointHeight)  yTarget.setpointHeight : measurements.peakHeight)
+        var heightFactor = (Number.isFinite(yTarget.setpointHeight) ? yTarget.setpointHeight : measurements.peakHeight)
           / measurements.peakHeight;
         if (Number.isFinite(heightFactor) && heightFactor > 0 && heightFactor < 1) {
           var dampedHeightFactor = Math.max(0.000001, heightFactor * 0.985);
@@ -3077,8 +3077,8 @@
       if (!active) {
         return true;
       }
-      var color = diagnostic.level === 'error'  '#fecaca' : '#fde68a';
-      var materialColor = diagnostic.level === 'error'  '#dc2626' : '#d97706';
+      var color = diagnostic.level === 'error' ? '#fecaca' : '#fde68a';
+      var materialColor = diagnostic.level === 'error' ? '#dc2626' : '#d97706';
       this.warningTextEls.forEach(function (textEl) {
         textEl.setAttribute('value', diagnostic.message);
         textEl.setAttribute('color', color);
@@ -3123,12 +3123,12 @@
 
   function getAnalysisTableElement() {
     var doc = root.document;
-    return doc && doc.getElementById  doc.getElementById('codexrAnalysisTable') : null;
+    return doc && doc.getElementById ? doc.getElementById('codexrAnalysisTable') : null;
   }
 
   function getAnalysisTableComponent() {
     var table = getAnalysisTableElement();
-    return table && table.components  table.components[TABLE_COMPONENT_NAME] : null;
+    return table && table.components ? table.components[TABLE_COMPONENT_NAME] : null;
   }
 
   function getCurrentTableMode() {
@@ -3137,12 +3137,12 @@
       return component.data.mode;
     }
     var table = getAnalysisTableElement();
-    var attr = table && table.getAttribute  table.getAttribute(TABLE_COMPONENT_NAME) : null;
+    var attr = table && table.getAttribute ? table.getAttribute(TABLE_COMPONENT_NAME) : null;
     if (attr && typeof attr === 'object' && attr.mode) {
       return attr.mode;
     }
     if (typeof attr === 'string') {
-      var match = attr.match(/(:^|;\s*)mode:\s*([^;]+)/);
+      var match = attr.match(/(?:^|;\s*)mode:\s*([^;]+)/);
       if (match) {
         return match[1].trim();
       }
@@ -3195,7 +3195,7 @@
         return resolveWaitTarget(target(), doc);
       } catch (error) {
         debugLog('wait-target-resolution-failed', {
-          error: error && error.message  error.message : String(error)
+          error: error && error.message ? error.message : String(error)
         });
         return null;
       }
@@ -3207,7 +3207,7 @@
         return null;
       }
 
-      var idCandidate = rawTarget.charAt(0) === '#'  rawTarget.slice(1) : rawTarget;
+      var idCandidate = rawTarget.charAt(0) === '#' ? rawTarget.slice(1) : rawTarget;
       if (idCandidate && doc.getElementById) {
         var byId = doc.getElementById(idCandidate);
         if (byId) {
@@ -3221,7 +3221,7 @@
         } catch (error) {
           debugLog('wait-target-selector-failed', {
             target: rawTarget,
-            error: error && error.message  error.message : String(error)
+            error: error && error.message ? error.message : String(error)
           });
         }
       }
@@ -3241,7 +3241,7 @@
     }
     if (targets) {
       var chart = resolveWaitTarget(targets, doc);
-      return chart && isEntityVisible(chart)  [chart] : [];
+      return chart && isEntityVisible(chart) ? [chart] : [];
     }
     return getVisibleContainmentCharts(doc);
   }
@@ -3282,7 +3282,7 @@
       return {
         level: 'ok',
         reason: status.reason === 'containment-correcting' || details.phase !== 'steady-fit'
-           'containment-correcting'
+          ? 'containment-correcting'
           : 'normalizing',
         message: '',
         details: details
@@ -3517,14 +3517,14 @@
     if (validModes.indexOf(nextMode) === -1) {
       nextMode = 'single';
     }
-    var table = root.document.getElementById.('codexrAnalysisTable');
-    table.setAttribute.(TABLE_COMPONENT_NAME, 'mode', nextMode);
-    var component = table.components.[TABLE_COMPONENT_NAME];
-    if (component.data) {
+    var table = root.document.getElementById?.('codexrAnalysisTable');
+    table?.setAttribute?.(TABLE_COMPONENT_NAME, 'mode', nextMode);
+    var component = table?.components?.[TABLE_COMPONENT_NAME];
+    if (component?.data) {
       component.data.mode = nextMode;
-      component.refreshGeometry.();
+      component.refreshGeometry?.();
     }
-    applyTableWarning(nextMode === 'selection'  { level: 'ok' } : buildActiveContainmentDiagnostics());
+    applyTableWarning(nextMode === 'selection' ? { level: 'ok' } : buildActiveContainmentDiagnostics());
     return nextMode;
   };
   root[RUNTIME_GLOBAL_NAME].getAnalysisTableZones = function (mode) {
@@ -3536,19 +3536,19 @@
     var profile = resolveContainmentProfile(mode, zone);
     return {
       id: profile.id,
-      zone: profile.zone  Object.assign({}, profile.zone) : null,
+      zone: profile.zone ? Object.assign({}, profile.zone) : null,
       position: Object.assign({}, profile.position),
       containment: Object.assign({}, profile.containment)
     };
   };
   root[RUNTIME_GLOBAL_NAME].applyContainmentProfile = function (chart, profileIdOrObject) {
     var doc = root.document;
-    var chartEl = typeof chart === 'string'  resolveWaitTarget(chart, doc) : chart;
+    var chartEl = typeof chart === 'string' ? resolveWaitTarget(chart, doc) : chart;
     if (!chartEl || !chartEl.setAttribute) {
       return null;
     }
     var profile = resolveContainmentProfile(profileIdOrObject || 'default');
-    var currentAttr = chartEl.getAttribute  chartEl.getAttribute(COMPONENT_NAME) : null;
+    var currentAttr = chartEl.getAttribute ? chartEl.getAttribute(COMPONENT_NAME) : null;
     var nextAttr = {};
     if (currentAttr && typeof currentAttr === 'object') {
       Object.keys(currentAttr).forEach(function (key) {
@@ -3562,7 +3562,7 @@
     chartEl.setAttribute(COMPONENT_NAME, nextAttr);
     return {
       id: profile.id,
-      zone: profile.zone  Object.assign({}, profile.zone) : null,
+      zone: profile.zone ? Object.assign({}, profile.zone) : null,
       position: Object.assign({}, profile.position),
       containment: Object.assign({}, nextAttr)
     };
@@ -3713,7 +3713,7 @@
   };
   root[RUNTIME_GLOBAL_NAME].showTabletopAnchorPlane = function (visible) {
     var doc = root.document;
-    var plane = doc && doc.querySelector  doc.querySelector('#codexr-analysis-table-anchor-plane') : null;
+    var plane = doc && doc.querySelector ? doc.querySelector('#codexr-analysis-table-anchor-plane') : null;
     if (!plane || !plane.setAttribute) {
       return false;
     }

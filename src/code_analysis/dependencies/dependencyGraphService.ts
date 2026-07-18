@@ -29,10 +29,11 @@ export class DependencyGraphService {
 
     public getAvailability(): { enabled: boolean; reason: string | null } {
         const session = this.getSession();
-        if (session.analysisMode !== 'XR') {
+        if (session.analysisMode !== 'XR' && session.analysisMode !== 'LivePanel') {
             return {
                 enabled: false,
-                reason: 'Dependency graphs are available for XR file, directory, or project analyses.',
+                reason: 'Dependency graphs are available for XR file/directory/project analyses '
+                    + 'and LivePanel directory/project analyses.',
             };
         }
         return { enabled: true, reason: null };

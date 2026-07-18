@@ -40,6 +40,9 @@ interface SessionRefreshState {
     rerunRequested: Set<AnalysisRefreshMode>;
     stateListeners: Set<(state: AnalysisViewState) => void>;
     refreshEnabled: Record<AnalysisRefreshMode, boolean>;
+    // Modes that refresh on every source change even while another mode is active
+    // (e.g. LivePanel keeps its dependency graph in lockstep with the classic view).
+    backgroundModes: Set<AnalysisRefreshMode>;
 }
 
 const MODES: AnalysisRefreshMode[] = ['single', 'historical-compare', 'project-evolution', 'dependency-graph'];
@@ -116,7 +119,31 @@ export class AnalysisRefreshCoordinator {
         if (state.activeMode !== 'selection') {
             void this.runIfNeeded(sessionId, state.activeMode);
         }
+        // Background modes refresh on every change regardless of the active view.
+        for (const backgroundMode of state.backgroundModes) {
+            if (backgroundMode !== state.activeMode) {
+                void this.runIfNeeded(sessionId, backgroundMode, false, true);
+            }
+        }
         return state.sourceRevision;
+    }
+
+    /**
+     * Mark a mode as a background refresh: it recomputes on every source change
+     * even when it is not the active view. Used by LivePanel so its dependency
+     * summary stays in lockstep with the classic (incremental) re-analysis.
+     */
+    public setBackgroundRefresh(
+        sessionId: string,
+        mode: AnalysisRefreshMode,
+        enabled: boolean,
+    ): void {
+        const state = this.getOrCreateState(sessionId);
+        if (enabled) {
+            state.backgroundModes.add(mode);
+        } else {
+            state.backgroundModes.delete(mode);
+        }
     }
 
     public setActiveMode(
@@ -261,6 +288,7 @@ export class AnalysisRefreshCoordinator {
                     'project-evolution': true,
                     'dependency-graph': true,
                 },
+                backgroundModes: new Set(),
             };
             this.sessions.set(sessionId, state);
         }

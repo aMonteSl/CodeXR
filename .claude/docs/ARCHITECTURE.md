@@ -82,7 +82,7 @@ Note: there is some historical duplication — e.g. `active_servers/views/` **an
 
 | Path | What it is |
 |---|---|
-| `templates/` | Raw HTML templates + **browser-side JS runtimes**. `xr/` (scene templates + SSE client scripts), `analysis_livePanel/` (webview panels), `components/` (A-Frame component runtimes — see `templates/components/COMPONENTS.md`), `utils/color-picker.html`. Copied into `dist/templates` at build. |
+| `templates/` | Raw HTML templates + **browser-side JS runtimes**. `xr/` (scene templates + SSE client scripts), `analysis_livePanel/` (webview panels), `components/` (A-Frame component runtimes — see `templates/components/COMPONENTS.md`; `components/livepanel/` holds shared 2D LivePanel components such as `dataTable.{js,css}` that `LivePanelParser` bundles ahead of each panel's own `main.js`/`style.css`), `utils/color-picker.html`. Copied into `dist/templates` at build. |
 | `test/` | All tests. `.test.cjs` unit suites (Node native runner), Python suites, language fixtures, manual HTML harnesses. See `DEVELOPMENT.md`. |
 | `resources/` | Icons and media (per-language icons, collaboration/comparison/screen assets). |
 | `examples/` | Bundled sample charts + data for the Babia Examples tree section. |

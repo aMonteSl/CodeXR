@@ -31,7 +31,7 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(historyRuntime, /function registerHistoricalModeOption\(\)/);
   assert.match(historyRuntime, /disabled: state\.availability !== 'enabled'/);
   assert.match(historyRuntime, /disabledReason: state\.unavailableReason \|\| 'Historical comparison requires a local Git repository\.'/);
-  assert.match(historyRuntime, /state\.unregisterModeOption\\.\(\);/);
+  assert.match(historyRuntime, /state\.unregisterModeOption\?\.\(\);/);
   assert.match(evolutionRuntime, /id: MODE/);
   assert.match(evolutionRuntime, /label: 'Project evolution'/);
   assert.match(evolutionRuntime, /disabled: state\.availability !== 'enabled'/);
@@ -61,24 +61,24 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(mappingRuntime, /function showControllerView\(viewId, context\)/);
   assert.match(mappingRuntime, /modeMemory: \{\}/);
   assert.doesNotMatch(evolutionRuntime, /setProjectEvolutionTableMode/);
-  assert.match(evolutionRuntime, /transitionTo\\.\(MODE, \{[\s\S]*panelViewId: MODE/);
+  assert.match(evolutionRuntime, /transitionTo\?\.\(MODE, \{[\s\S]*panelViewId: MODE/);
   assert.match(modeRuntime, /setTableMode\(mode\)/);
   assert.match(modeRuntime, /MODE_CONTROLLER_VIEW_BY_ID = \{/);
   assert.match(modeRuntime, /'historical-compare': 'historical.selection'/);
   assert.match(modeRuntime, /MODE_PANEL_VIEW_BY_ID = \{[\s\S]*'project-evolution': 'project-evolution'/);
   assert.match(modeRuntime, /function getDefaultPanelViewForMode\(mode\)/);
   assert.match(modeRuntime, /function applyAnalysisMode\(mode, context\)/);
-  assert.match(modeRuntime, /element\.querySelectorAll\\.\('\[codexr-chart-containment\]'\)/);
-  assert.match(modeRuntime, /ids = containedChartIds\.length \ containedChartIds : getNormalVisualizationRoots\(\)/);
+  assert.match(modeRuntime, /element\.querySelectorAll\?\.\('\[codexr-chart-containment\]'\)/);
+  assert.match(modeRuntime, /ids = containedChartIds\.length \? containedChartIds : getNormalVisualizationRoots\(\)/);
   assert.match(modeRuntime, /function detachNormalRoots\(reason\)[\s\S]*setElementTreeVisible\(element, false\);/);
   assert.doesNotMatch(modeRuntime, /function detachNormalRoots\(reason\)[\s\S]*element\.parentNode\.removeChild\(element\);[\s\S]*function mountNormalRoots/);
-  assert.match(modeRuntime, /switchMappingContext\\.\('normal-analysis'/);
+  assert.match(modeRuntime, /switchMappingContext\?\.\('normal-analysis'/);
   assert.doesNotMatch(modeRuntime, /mode === 'selection' \? 'single' : mode/);
   assert.match(modeRuntime, /clearVisualizationsForSelection/);
   assert.match(modeRuntime, /data-codexr-analysis-root/);
   assert.match(historyRuntime, /function selectHistoricalMode\(\)[\s\S]*if \(state\.result\)[\s\S]*analysis-mode-activate/);
-  assert.match(historyRuntime, /async function enterHistoricalSelection\(\)[\s\S]*transitionTo\\.\('historical-compare'/);
-  assert.doesNotMatch(historyRuntime, /transitionTo\\.\('selection', \{[\s\S]*historical-selection/);
+  assert.match(historyRuntime, /async function enterHistoricalSelection\(\)[\s\S]*transitionTo\?\.\('historical-compare'/);
+  assert.doesNotMatch(historyRuntime, /transitionTo\?\.\('selection', \{[\s\S]*historical-selection/);
   assert.match(dependencyRuntime, /function selectDependencyMode\(\)[\s\S]*if \(state\.dataset && state\.snapshot\?\.datasetUrl\)[\s\S]*analysis-mode-activate/);
   assert.ok(
     historyRuntime.indexOf('state.result = result;')
@@ -185,7 +185,7 @@ test('Project evolution leaves the neutral selection table theme through the aut
     CodeXRAnalysisControllerRuntime: {
       showView(viewId, options) {
         shownControllerViews.push({ viewId, options });
-        shownPanels.push(viewId === 'visualization-menu'  'visualization-mode' : 'project-evolution');
+        shownPanels.push(viewId === 'visualization-menu' ? 'visualization-mode' : 'project-evolution');
       },
     },
   };
@@ -234,7 +234,7 @@ test('Historical selection lives under the historical table theme', async () => 
     CodeXRAnalysisControllerRuntime: {
       showView(viewId, options) {
         shownControllerViews.push({ viewId, options });
-        shownPanels.push(viewId === 'historical.selection'  'historical-selection' : 'mapping');
+        shownPanels.push(viewId === 'historical.selection' ? 'historical-selection' : 'mapping');
       },
     },
   };

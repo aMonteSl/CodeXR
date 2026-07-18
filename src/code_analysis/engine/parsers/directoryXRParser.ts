@@ -77,7 +77,7 @@ export class DirectoryXRParser {
                 dataField,
             }));
 
-            const analysisData = bootstrap.payload ?? await new ExecutePython(context).executeAnalysis({
+            const analysisData = bootstrap?.payload ?? await new ExecutePython(context).executeAnalysis({
                 ...session,
                 analysisMode: 'XR',
                 targetType: 'directory',

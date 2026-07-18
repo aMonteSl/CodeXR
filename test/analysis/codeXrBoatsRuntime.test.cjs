@@ -78,7 +78,7 @@ function collectAbsoluteLayoutItems(nodes) {
       maxZ: center.z + figure.depth * 0.5,
     };
     items.push(item);
-    const nextAncestors = figure.kind === 'quarter'  [...ancestors, item] : ancestors;
+    const nextAncestors = figure.kind === 'quarter' ? [...ancestors, item] : ancestors;
     (figure.children || []).forEach((child) => visit(child, center, nextAncestors));
   }
   (nodes || []).forEach((node) => visit(node));
@@ -839,14 +839,14 @@ test('CodeXR boats snapshots use active visible root and current object3D positi
     parentNode: {},
     object3D: { visible: true, position: { x: 0, y: 0, z: 0 } },
     getAttribute(name) {
-      return name === 'visible'  true : null;
+      return name === 'visible' ? true : null;
     },
   };
   const layerEl = {
     parentNode: rootEl,
     object3D: { position: { x: 3, y: 0.4, z: -2 } },
     getAttribute(name) {
-      return name === 'position'  '99 99 99' : null;
+      return name === 'position' ? '99 99 99' : null;
     },
   };
   const buildingEl = {
@@ -861,7 +861,7 @@ test('CodeXR boats snapshots use active visible root and current object3D positi
         depth: '3',
         material: 'color: #ff5733; opacity: 0.7',
       };
-      return values[name]  null;
+      return values[name] || null;
     },
   };
   rootEl.querySelectorAll = () => [buildingEl];
@@ -872,7 +872,7 @@ test('CodeXR boats snapshots use active visible root and current object3D positi
   assert.equal(snapshots['building:src/a.ts'].chartPosition.z, -1.5);
   assert.equal(snapshots['building:src/a.ts'].parentKey, null);
 
-  rootEl.getAttribute = (name) => (name === 'visible'  'false' : null);
+  rootEl.getAttribute = (name) => (name === 'visible' ? 'false' : null);
   assert.equal(Object.keys(runtime.__testing.collectElementSnapshots(rootEl)).length, 0);
 });
 
@@ -913,7 +913,7 @@ test('CodeXR boats snapshots keep quarter group frame separate from quarter base
     parentNode: {},
     object3D: { visible: true, position: { x: 0, y: 0, z: 0 } },
     getAttribute(name) {
-      return name === 'visible'  true : null;
+      return name === 'visible' ? true : null;
     },
   };
   const groupEl = {
@@ -925,7 +925,7 @@ test('CodeXR boats snapshots keep quarter group frame separate from quarter base
         'data-codexr-boats-kind': 'quarter',
         position: '0 0 0',
       };
-      return values[name]  null;
+      return values[name] || null;
     },
   };
   const baseEl = {
@@ -941,7 +941,7 @@ test('CodeXR boats snapshots keep quarter group frame separate from quarter base
         depth: '2',
         material: 'color: #4f9e54; opacity: 0.85',
       };
-      return values[name]  null;
+      return values[name] || null;
     },
   };
   rootEl.querySelectorAll = () => [groupEl, baseEl];
@@ -962,14 +962,14 @@ test('CodeXR boats active root ignores pending or hidden roots with duplicated k
     parentNode: {},
     object3D: { visible: false },
     getAttribute(name) {
-      return name === 'visible'  false : null;
+      return name === 'visible' ? false : null;
     },
   };
   const visibleActiveRoot = {
     parentNode: {},
     object3D: { visible: true },
     getAttribute(name) {
-      return name === 'visible'  true : null;
+      return name === 'visible' ? true : null;
     },
   };
   const component = {
