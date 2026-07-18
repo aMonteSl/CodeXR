@@ -155,8 +155,10 @@
         console.warn('CODEXR_MAPPING_UI: invalid JSON config script', error);
       }
     }
+    // No config found (yet): report null instead of throwing — callers treat
+    // a missing config as "not ready" and the bootstrap keeps re-trying.
     state.runtimeConfig = root[CONFIG_KEY] || null;
-    state.activeChartId = state.runtimeConfig.chartId || null;
+    state.activeChartId = state.runtimeConfig ? (state.runtimeConfig.chartId || null) : null;
     return state.runtimeConfig;
   }
 

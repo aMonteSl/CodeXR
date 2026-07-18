@@ -54,6 +54,12 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(mappingRuntime, /whenPanelReady: whenPanelReady/);
   assert.match(mappingRuntime, /flushPanelReadyCallbacks\(\);/);
   assert.match(modeRuntime, /whenPanelReady\?\.\(function \(\) \{/);
+  // A missing tooling config must yield null, never a TypeError: the crash it
+  // caused during the mode runtime's boot aborted every later step and
+  // silently removed the analysis selector from the controller panel.
+  assert.match(mappingRuntime, /state\.runtimeConfig \? \(state\.runtimeConfig\.chartId \|\| null\) : null/);
+  // Boot steps are isolated so one failure cannot cascade into the others.
+  assert.match(modeRuntime, /boot step failed/);
   assert.match(historyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(dependencyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(tableRuntime, /oneOf: \['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'\]/);

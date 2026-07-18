@@ -41,7 +41,7 @@
     // Check if we're in an A-Frame scene
     function checkXRMode() {
       isXRMode = !!document.querySelector('a-scene');
-      console.log(isXRMode  ' XR mode detected' : ' Standard mode detected');
+      console.log(isXRMode ? ' XR mode detected' : ' Standard mode detected');
       return isXRMode;
     }
 

@@ -168,10 +168,17 @@
     }
   };
   if (root.document) {
-    getNormalRefreshRuntime();
-    ensureAnalysisSurfaceRuntime();
-    registerBuiltInLifecycles();
-    mountModePanel(0);
-    registerCollaboration(0);
+    // Each boot step is isolated: a failure in one (e.g. a config that is not
+    // in the DOM yet) must never prevent the later steps from running — that
+    // is how the analysis selector silently disappeared from the controller.
+    [getNormalRefreshRuntime, ensureAnalysisSurfaceRuntime, registerBuiltInLifecycles,
+      function () { mountModePanel(0); },
+      function () { registerCollaboration(0); }].forEach(function (step) {
+      try {
+        step();
+      } catch (error) {
+        root.console?.warn?.('[CodeXR][AnalysisMode] boot step failed:', error);
+      }
+    });
   }
 })(typeof window !== 'undefined' ? window : this);
