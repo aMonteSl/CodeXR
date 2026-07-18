@@ -192,17 +192,24 @@
   function mountModePanel(attempt) {
     if (state.unregisterPanelView) { return; }
     var mappingRuntime = root.CodeXRMappingUiRuntime;
-    if (!mappingRuntime?.registerPanelView) { return; }
-    if (!mappingRuntime.isPanelReady?.()) {
+    if (!mappingRuntime?.registerPanelView || !mappingRuntime.isPanelReady?.()) {
       // Event-driven: the controller calls back the moment its panel exists.
       // A capped retry here used to permanently lose the analysis selector on
-      // slow scenes.
+      // slow scenes. The interval is only a fallback for a controller build
+      // without whenPanelReady (mixed-version scene) or one that loads late.
       if (!state.modePanelMountQueued) {
         state.modePanelMountQueued = true;
-        mappingRuntime.whenPanelReady?.(function () {
+        var rearm = function () {
           state.modePanelMountQueued = false;
           mountModePanel(attempt);
-        });
+        };
+        if (mappingRuntime?.whenPanelReady) {
+          mappingRuntime.whenPanelReady(rearm);
+        } else {
+          // unref (Node-only) keeps this browser-oriented retry from pinning
+          // test processes open; in the browser it is a no-op.
+          root.setTimeout?.(rearm, 250)?.unref?.();
+        }
       }
       return;
     }
@@ -240,6 +247,9 @@
       });
       return;
     }
+    // One unconditional marker so a scene can be checked at a glance: if this
+    // line is absent from the console, the selector view never registered.
+    root.console?.log?.('[CodeXR] Analysis selector registered on the controller panel.');
     renderModeOptions();
   }
 
