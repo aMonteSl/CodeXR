@@ -1,7 +1,7 @@
 // == projectEvolutionRuntime.js | part 60: evolution-charts (assembled with its siblings; see COMPONENTS.md) ==
   function ensureEvolutionRoot() {
-    if (refs.evolutionRoot.isConnected !== false && refs.evolutionRoot) {
-      root.CodeXRAnalysisSurfaceRuntime.mountRoot?.(MODE, refs.evolutionRoot);
+    if (refs.evolutionRoot?.isConnected !== false && refs.evolutionRoot) {
+      root.CodeXRAnalysisSurfaceRuntime?.mountRoot?.(MODE, refs.evolutionRoot);
       return refs.evolutionRoot;
     }
     refs.evolutionRoot = entity('a-entity', {
@@ -9,8 +9,8 @@
       'data-codexr-analysis-root': 'true',
       'data-codexr-analysis-mode': MODE
     });
-    if (root.CodeXRAnalysisSurfaceRuntime.mountRoot) {
-      root.CodeXRAnalysisSurfaceRuntime.mountRoot(MODE, refs.evolutionRoot);
+    if (root.CodeXRAnalysisSurfaceRuntime?.mountRoot) {
+      root.CodeXRAnalysisSurfaceRuntime?.mountRoot(MODE, refs.evolutionRoot);
     } else {
       doc().querySelector?.('a-scene').appendChild?.(refs.evolutionRoot);
     }
@@ -44,13 +44,13 @@
     if (!componentName) { return null; }
     var chart = refs.evolutionChart;
     if (
-      chart.isConnected !== false
-      && chart.getAttribute?.('data-codexr-project-evolution-chart-id') === chartId
+      chart?.isConnected !== false
+      && chart?.getAttribute('data-codexr-project-evolution-chart-id') === chartId
     ) {
-      chart.setAttribute?.('visible', true);
+      chart.setAttribute('visible', true);
       return chart;
     }
-    if (chart.parentNode) {
+    if (chart?.parentNode) {
       chart.parentNode.removeChild(chart);
     }
     var template = getTemplateChart(chartId);
@@ -115,8 +115,8 @@
     if (!state.preparedChartIds[preparationKey]) {
       chart.setAttribute('scale', projectEvolutionInitialScale(chartId));
     }
-    if (root.CodeXRAnalysisTableRuntime.applyContainmentProfile) {
-      root.CodeXRAnalysisTableRuntime.applyContainmentProfile(chart, profile);
+    if (root.CodeXRAnalysisTableRuntime?.applyContainmentProfile) {
+      root.CodeXRAnalysisTableRuntime?.applyContainmentProfile(chart, profile);
     } else {
       chart.setAttribute('position', vectorToPositionAttribute(profile.position));
       chart.setAttribute('codexr-chart-containment', profile.containment);
@@ -125,8 +125,8 @@
   }
 
   function ensureEvolutionPlaybackRoot(frame) {
-    if (refs.evolutionPlaybackRoot.isConnected !== false && refs.evolutionPlaybackRoot) {
-      refs.evolutionPlaybackRoot.setAttribute?.('data-codexr-frame-index', String((frame.index || 0) + 1));
+    if (refs.evolutionPlaybackRoot?.isConnected !== false && refs.evolutionPlaybackRoot) {
+      refs.evolutionPlaybackRoot?.setAttribute('data-codexr-frame-index', String((frame.index || 0) + 1));
       return refs.evolutionPlaybackRoot;
     }
     var rootEl = ensureEvolutionRoot();
@@ -176,7 +176,7 @@
   }
 
   function ensureEvolutionDataSource(playbackRoot, initialUrl) {
-    if (refs.evolutionDataSource.isConnected !== false && refs.evolutionDataSource) {
+    if (refs.evolutionDataSource?.isConnected !== false && refs.evolutionDataSource) {
       if (refs.evolutionDataSource.parentNode !== playbackRoot) {
         playbackRoot.appendChild(refs.evolutionDataSource);
       }
@@ -211,7 +211,7 @@
       if (generation !== state.dataRefreshGeneration) {
         return;
       }
-      refs.evolutionDataSource.emit?.('data-loaded', {});
+      refs.evolutionDataSource?.emit('data-loaded', {});
     }, 100);
     return true;
   }
@@ -219,7 +219,7 @@
   function ensureEvolutionTreeBuilder(playbackRoot, targetType) {
     var field = targetType === 'directory' ? 'filePath' : 'treePath';
     var treeAttr = 'field: ' + field + '; split_by: /; from: codexrProjectEvolutionData';
-    if (refs.evolutionTreeBuilder.isConnected !== false && refs.evolutionTreeBuilder) {
+    if (refs.evolutionTreeBuilder?.isConnected !== false && refs.evolutionTreeBuilder) {
       if (refs.evolutionTreeBuilder.parentNode !== playbackRoot) {
         playbackRoot.appendChild(refs.evolutionTreeBuilder);
       }

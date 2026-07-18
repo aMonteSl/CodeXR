@@ -68,7 +68,7 @@
   };
 
   function doc() { return root.document; }
-  function client() { return root.CodeXRCollaborationRuntime.getClient?.(root) || null; }
+  function client() { return root.CodeXRCollaborationRuntime?.getClient?.(root) || null; }
 
   function config() {
     var script = doc().getElementById?.('codexr-tooling-config-xr-mapping-ui');
@@ -154,6 +154,6 @@
   function setStatus(message, level) {
     state.status = String(message || '');
     state.statusLevel = level || 'info';
-    refs.status.setAttribute?.('value', state.status);
-    refs.status.setAttribute?.('color', level === 'error' ? '#fecaca' : '#fde68a');
+    refs.status?.setAttribute('value', state.status);
+    refs.status?.setAttribute('color', level === 'error' ? '#fecaca' : '#fde68a');
   }

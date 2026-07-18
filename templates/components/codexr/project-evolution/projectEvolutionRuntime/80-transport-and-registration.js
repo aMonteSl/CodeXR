@@ -51,14 +51,14 @@
   function registerCollaboration() {
     var runtimeClient = client();
     if (!runtimeClient) { return; }
-    state.disposables.push(runtimeClient.onMessage?.('project-evolution-references', handleReferences));
-    state.disposables.push(runtimeClient.onMessage?.('project-evolution-progress', handleProgress));
-    state.disposables.push(runtimeClient.onMessage?.('project-evolution-error', handleError));
-    state.disposables.push(runtimeClient.onMessage?.('project-evolution-frame-applied', handleFrameApplied));
-    state.disposables.push(runtimeClient.onMessage?.('project-evolution-cleared', function (message) {
+    state.disposables.push(runtimeClient?.onMessage?.('project-evolution-references', handleReferences));
+    state.disposables.push(runtimeClient?.onMessage?.('project-evolution-progress', handleProgress));
+    state.disposables.push(runtimeClient?.onMessage?.('project-evolution-error', handleError));
+    state.disposables.push(runtimeClient?.onMessage?.('project-evolution-frame-applied', handleFrameApplied));
+    state.disposables.push(runtimeClient?.onMessage?.('project-evolution-cleared', function (message) {
       applyClearedState(unwrapPayload(message).message || 'Project evolution movie cleared.');
     }));
-    runtimeClient.registerEntityRuntime?.({
+    runtimeClient?.registerEntityRuntime?.({
       entityKind: ENTITY_KIND,
       entityId: ENTITY_ID,
       applySharedState: applySharedState,
@@ -74,22 +74,22 @@
   function autoInit() {
     if (state.initialized || !doc()) { return; }
     state.initialized = true;
-    state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime.register?.(MODE, {
+    state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime?.register?.(MODE, {
       activate: function () {
-        root.CodeXRAnalysisSurfaceRuntime.activateMode?.(MODE);
+        root.CodeXRAnalysisSurfaceRuntime?.activateMode?.(MODE);
         state.activeChartId = state.activeChartId || getDefaultChartId();
-        root.CodeXRMappingUiRuntime.switchMappingContext?.(MODE, { reason: 'project-evolution-ready' });
-        var mappingState = root.CodeXRMappingUiRuntime.getState?.() || {};
-        if (mappingState.chartId !== state.activeChartId && root.CodeXRMappingUiRuntime.selectChart) {
-          root.CodeXRMappingUiRuntime.selectChart(state.activeChartId);
+        root.CodeXRMappingUiRuntime?.switchMappingContext?.(MODE, { reason: 'project-evolution-ready' });
+        var mappingState = root.CodeXRMappingUiRuntime?.getState?.() || {};
+        if (mappingState.chartId !== state.activeChartId && root.CodeXRMappingUiRuntime?.selectChart) {
+          root.CodeXRMappingUiRuntime?.selectChart(state.activeChartId);
         }
-        root.CodeXRAnalysisControllerRuntime.showView?.('project-evolution', {
+        root.CodeXRAnalysisControllerRuntime?.showView?.('project-evolution', {
           mode: MODE,
           reason: 'project-evolution-activate',
           mappingContextId: MODE
-        }) || root.CodeXRMappingUiRuntime.showPanelView?.(MODE);
+        }) || root.CodeXRMappingUiRuntime?.showPanelView?.(MODE);
         if (!state.references) {
-          client().sendMessage?.('project-evolution-references-request', {});
+          client()?.sendMessage?.('project-evolution-references-request', {});
         }
         if (!state.result) {
           clearChartVisualization();

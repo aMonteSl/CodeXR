@@ -30,7 +30,18 @@ async function runPlaywrightIfAvailable() {
     return;
   }
 
+  // Close the browser even when an assertion fails: leaked pages keep the
+  // process alive forever, turning a red run into a silent hang.
   const browser = await chromium.launch();
+  try {
+    await runScenario(browser);
+  } finally {
+    await browser.close();
+  }
+  console.log('[xr-harness] Playwright harness validation passed.');
+}
+
+async function runScenario(browser) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const url = pathToFileURL(harnessPath).toString();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -57,8 +68,6 @@ async function runPlaywrightIfAvailable() {
   assert.match(dependencyStatus || '', /"mode":\s*"dependency-graph"/);
   assert.match(dependencyStatus || '', /"reason":\s*"dependency-graph-visible"/);
 
-  await browser.close();
-  console.log('[xr-harness] Playwright harness validation passed.');
 }
 
 runPlaywrightIfAvailable().catch((error) => {

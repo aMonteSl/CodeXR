@@ -4,7 +4,7 @@
     var frames = state.result.frames || [];
     var frame = frames[state.frameIndex];
     updateNowShowing(frame, frames.length);
-    refs.playButton.querySelector?.('a-text').setAttribute?.('value', state.playing ? 'Pause' : 'Play');
+    refs.playButton?.querySelector('a-text').setAttribute?.('value', state.playing ? 'Pause' : 'Play');
   }
 
   function updateNowShowing(frame, frameCount) {
@@ -24,7 +24,7 @@
     refs.modeRoot.children[0].setAttribute?.('material', 'color: ' + (state.timelineMode === 'auto' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
     refs.modeRoot.children[1].setAttribute?.('material', 'color: ' + (state.timelineMode === 'range' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
     refs.modeRoot.children[2].setAttribute?.('material', 'color: ' + (state.timelineMode === 'manual' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.rangeRoot.setAttribute?.('visible', state.timelineMode === 'range');
+    refs.rangeRoot?.setAttribute('visible', state.timelineMode === 'range');
     refs.rangeRoot.children[0].setAttribute?.('material', 'color: ' + (state.rangeSide === 'start' ? '#16a34a' : '#14532d') + '; opacity: 0.95; shader: flat');
     refs.rangeRoot.children[1].setAttribute?.('material', 'color: ' + (state.rangeSide === 'end' ? '#dc2626' : '#7f1d1d') + '; opacity: 0.95; shader: flat');
     while (refs.referencesRoot.firstChild) {
@@ -36,8 +36,8 @@
     var maxPage = clampSelectionPage();
     var pageStart = state.selectionPage * PANEL_LAYOUT.referenceRows;
     var sources = allSources.slice(pageStart, pageStart + PANEL_LAYOUT.referenceRows);
-    refs.pagerRoot.setAttribute?.('visible', allSources.length > PANEL_LAYOUT.referenceRows);
-    refs.pageText.setAttribute?.('value', 'Page ' + (state.selectionPage + 1) + ' / ' + (maxPage + 1));
+    refs.pagerRoot?.setAttribute('visible', allSources.length > PANEL_LAYOUT.referenceRows);
+    refs.pageText?.setAttribute('value', 'Page ' + (state.selectionPage + 1) + ' / ' + (maxPage + 1));
     var start = findSource(state.startSourceId);
     var end = findSource(state.endSourceId);
     var info = state.timelineMode === 'auto'
@@ -45,7 +45,7 @@
       : state.timelineMode === 'range'
         ? 'Range: ' + state.rangeSide.toUpperCase() + ' | ' + sourceDescription(start) + ' -> ' + sourceDescription(end)
         : 'Manual: ' + state.manualSourceIds.length + ' selected frames.';
-    refs.info.setAttribute?.('value', info);
+    refs.info?.setAttribute('value', info);
     if (!sources.length) {
       refs.referencesRoot.appendChild(text('No Git references received yet.', '0 0 0.02', 5.6, '#fecaca'));
       return;
@@ -96,19 +96,19 @@
       return false;
     }
     buildPanel();
-    root.CodeXRAnalysisModeRuntime.setSelectionPanel?.(MODE);
-    client().sendMessage?.('analysis-mode-activate', { mode: MODE });
-    await root.CodeXRAnalysisModeRuntime.transitionTo?.(MODE, {
+    root.CodeXRAnalysisModeRuntime?.setSelectionPanel?.(MODE);
+    client()?.sendMessage?.('analysis-mode-activate', { mode: MODE });
+    await root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
       reason: 'project-evolution-selection',
       controllerView: 'project-evolution',
       panelViewId: MODE
     });
-    root.CodeXRAnalysisControllerRuntime.showView?.('project-evolution', {
+    root.CodeXRAnalysisControllerRuntime?.showView?.('project-evolution', {
       mode: MODE,
       reason: 'project-evolution-selection'
-    }) || root.CodeXRMappingUiRuntime.showPanelView?.(MODE);
+    }) || root.CodeXRMappingUiRuntime?.showPanelView?.(MODE);
     setStatus('Loading project timeline...', 'info');
-    if (!client().sendMessage?.('project-evolution-references-request', {})) {
+    if (!client()?.sendMessage?.('project-evolution-references-request', {})) {
       setStatus('Collaboration connection is not ready.', 'error');
     }
     return true;
@@ -137,13 +137,13 @@
     setStatus('Analyzing project evolution. Please wait...', 'info');
     state.preparedChartIds = {};
     clearChartVisualization();
-    client().sendMessage?.('project-evolution-start', request);
+    client()?.sendMessage?.('project-evolution-start', request);
   }
 
   function clearMovie() {
     stop();
     setStatus('Clearing project evolution movie...', 'info');
-    if (!client().sendMessage?.('project-evolution-clear', {})) {
+    if (!client()?.sendMessage?.('project-evolution-clear', {})) {
       applyClearedState('Project evolution movie cleared locally.');
     }
   }

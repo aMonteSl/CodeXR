@@ -43,8 +43,8 @@
     state.frameIndex = 0;
     state.preparedChartIds = {};
     setStatus('Project evolution ready.', 'info');
-    client().sendMessage?.('analysis-mode-activate', { mode: MODE });
-    void root.CodeXRAnalysisModeRuntime.transitionTo?.(MODE, {
+    client()?.sendMessage?.('analysis-mode-activate', { mode: MODE });
+    void root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
       reason: 'project-evolution-ready',
       panelViewId: MODE
     }).then(function () {
@@ -67,15 +67,15 @@
     refs.evolutionTreeBuilder = null;
     state.chartDataSignature = '';
     state.dataRefreshGeneration += 1;
-    if (state.pendingFrameApply.requestId) {
-      state.supersededFrameApplyIds[state.pendingFrameApply.requestId] = true;
+    if (state.pendingFrameApply?.requestId) {
+      state.supersededFrameApplyIds[state.pendingFrameApply?.requestId] = true;
     }
-    state.pendingFrameApply.reject?.(Object.assign(new Error('Project evolution movie cleared.'), {
+    state.pendingFrameApply?.reject?.(Object.assign(new Error('Project evolution movie cleared.'), {
       code: 'project-evolution-cleared'
     }));
     state.pendingFrameApply = null;
-    root.CodeXRMappingUiRuntime.setChartEntityIds?.([]);
-    root.CodeXRAnalysisTableRuntime.renormalizeAll?.('project-evolution-cleared');
+    root.CodeXRMappingUiRuntime?.setChartEntityIds?.([]);
+    root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('project-evolution-cleared');
   }
 
   function applyClearedState(message) {
@@ -91,7 +91,7 @@
   }
 
   function getChartEntities() {
-    return refs.evolutionChart.isConnected === false || !refs.evolutionChart
+    return refs.evolutionChart?.isConnected === false || !refs.evolutionChart
       ? []
       : [refs.evolutionChart];
   }
@@ -119,7 +119,7 @@
   }
 
   function syncActiveChartFromMapping() {
-    var mappingState = root.CodeXRMappingUiRuntime.getState?.() || {};
+    var mappingState = root.CodeXRMappingUiRuntime?.getState?.() || {};
     if (mappingState.mappingContextId !== MODE || !mappingState.chartId) {
       return false;
     }

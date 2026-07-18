@@ -44,7 +44,7 @@ test('project evolution runtime keeps one bridge datasource and chart during pla
     assert.match(runtimeSource, /id: 'codexrProjectEvolutionData'/);
     assert.match(runtimeSource, /function refreshEvolutionDataSource\(frameUrl\)/);
     assert.match(runtimeSource, /setAttribute\('babia-queryjson', 'url: ' \+ frameUrl\)/);
-    assert.match(runtimeSource, /emit\?\.\('data-loaded', \{\}\)/);
+    assert.match(runtimeSource, /refs\.evolutionDataSource\?\.emit\('data-loaded', \{\}\)/);
     assert.match(runtimeSource, /function waitForComponent\(element, componentName, timeoutMs\)/);
     assert.match(runtimeSource, /await waitForComponent\(dataSource, 'babia-queryjson', 1200\)/);
     assert.match(runtimeSource, /await waitForComponent\(treeBuilder, 'babia-treebuilder', 1200\)/);

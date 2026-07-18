@@ -396,7 +396,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(runtime, /function ensureEvolutionPlaybackRoot\(frame\)/);
     assert.match(runtime, /function ensureEvolutionDataSource\(playbackRoot, initialUrl\)/);
     assert.match(runtime, /function refreshEvolutionDataSource\(frameUrl\)/);
-    assert.match(runtime, /emit\?\.\('data-loaded', \{\}\)/);
+    assert.match(runtime, /refs\.evolutionDataSource\?\.emit\('data-loaded', \{\}\)/);
     assert.match(runtime, /function ensureEvolutionTreeBuilder\(playbackRoot, targetType\)/);
     assert.match(runtime, /function applyBridgeFrameToChart\(frame, appliedBridgeUrl\)/);
     assert.match(runtime, /function requestBridgeFrame\(frameIndex\)/);

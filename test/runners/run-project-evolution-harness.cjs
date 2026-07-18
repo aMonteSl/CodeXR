@@ -138,7 +138,7 @@ async function listen(server, requestedPort = 0) {
 }
 
 async function validateBridge(port) {
-  const applyUrl = `http://127.0.0.1:${port}/__project_evolution_apply_framerevision=1&frameIndex=2`;
+  const applyUrl = `http://127.0.0.1:${port}/__project_evolution_apply_frame?revision=1&frameIndex=2`;
   const response = await fetch(applyUrl);
   assert.equal(response.status, 200);
   const payload = JSON.parse(fs.readFileSync(path.join(revisionRoot, 'data.json'), 'utf8'));
@@ -156,9 +156,19 @@ async function runPlaywrightIfAvailable(port) {
     return;
   }
 
+  // Close the browser even when an assertion fails: leaked pages keep the
+  // process alive forever, turning a red run into a silent hang.
   const browser = await chromium.launch();
+  try {
+    await runScenario(browser, port);
+  } finally {
+    await browser.close();
+  }
+}
+
+async function runScenario(browser, port) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 920 } });
-  const url = `http://127.0.0.1:${port}/test/manual/project-evolution-playback-harness.htmlbust=${Date.now()}`;
+  const url = `http://127.0.0.1:${port}/test/manual/project-evolution-playback-harness.html?bust=${Date.now()}`;
   const logs = [];
   page.on('console', (message) => {
     logs.push(`${message.type()}: ${message.text()}`);
@@ -191,7 +201,6 @@ async function runPlaywrightIfAvailable(port) {
 
   fs.writeFileSync(path.join(outputRoot, 'browser-console.log'), `${logs.join('\n')}\n`, 'utf8');
   fs.writeFileSync(path.join(outputRoot, 'final-metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`, 'utf8');
-  await browser.close();
   console.log(`[project-evolution-harness] screenshots: ${screenshotRoot}`);
 }
 
@@ -205,7 +214,7 @@ async function main() {
   writeFixtureFiles();
   const server = createServer();
   const port = await listen(server, requestedPort);
-  const harnessUrl = `http://127.0.0.1:${port}/test/manual/project-evolution-playback-harness.htmlbust=${Date.now()}`;
+  const harnessUrl = `http://127.0.0.1:${port}/test/manual/project-evolution-playback-harness.html?bust=${Date.now()}`;
   fs.writeFileSync(path.join(outputRoot, 'server-url.txt'), `${harnessUrl}\n`, 'utf8');
   try {
     await validateBridge(port);

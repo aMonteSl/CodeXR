@@ -42,7 +42,7 @@
     prepareChartForEvolution(chart, chartId, { force: true });
     var current = chart.getAttribute(componentName) || {};
     var data = root.CodeXRMappingUiRuntime?.__testing?.buildRuntimeChartData
-      ? root.CodeXRMappingUiRuntime.__testing.buildRuntimeChartData(chartId, current, mapping)
+      ? root.CodeXRMappingUiRuntime?.__testing.buildRuntimeChartData(chartId, current, mapping)
       : Object.assign({}, current, mapping);
     delete data.data;
     delete data.field;
@@ -67,7 +67,7 @@
     }
     chart.setAttribute('visible', true);
     refreshEvolutionDataSource(frameUrl);
-    root.CodeXRMappingUiRuntime.setChartEntityIds?.(getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean));
+    root.CodeXRMappingUiRuntime?.setChartEntityIds?.(getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean));
     scheduleFrameRenormalization();
     return true;
   }
@@ -77,16 +77,16 @@
     if (!revision) {
       return Promise.reject(new Error('project-evolution-missing-revision'));
     }
-    if (state.pendingFrameApply.reject) {
-      if (state.pendingFrameApply.requestId) {
-        state.supersededFrameApplyIds[state.pendingFrameApply.requestId] = true;
+    if (state.pendingFrameApply?.reject) {
+      if (state.pendingFrameApply?.requestId) {
+        state.supersededFrameApplyIds[state.pendingFrameApply?.requestId] = true;
       }
-      state.pendingFrameApply.reject(Object.assign(new Error('project-evolution-frame-apply-superseded'), {
+      state.pendingFrameApply?.reject(Object.assign(new Error('project-evolution-frame-apply-superseded'), {
         code: 'project-evolution-frame-apply-superseded'
       }));
     }
     var runtimeClient = client();
-    if (!runtimeClient.sendMessage) {
+    if (!runtimeClient?.sendMessage) {
       return Promise.resolve({
         revision: revision,
         frameIndex: frameIndex,
@@ -97,9 +97,9 @@
       var requestId = 'frame-' + (++state.frameApplyRequestId) + '-' + Date.now();
       var timeoutId = root.setTimeout(function () {
         if (
-          state.pendingFrameApply.frameIndex === frameIndex
-          && state.pendingFrameApply.revision === revision
-          && state.pendingFrameApply.requestId === requestId
+          state.pendingFrameApply?.frameIndex === frameIndex
+          && state.pendingFrameApply?.revision === revision
+          && state.pendingFrameApply?.requestId === requestId
         ) {
           state.pendingFrameApply = null;
           reject(Object.assign(new Error('project-evolution-frame-apply-timeout'), {
@@ -120,7 +120,7 @@
           reject(error);
         }
       };
-      var sent = runtimeClient.sendMessage('project-evolution-apply-frame', {
+      var sent = runtimeClient?.sendMessage('project-evolution-apply-frame', {
         revision: revision,
         frameIndex: frameIndex,
         requestId: requestId
@@ -136,11 +136,11 @@
   }
 
   function scheduleFrameRenormalization() {
-    root.CodeXRAnalysisTableRuntime.renormalizeAll?.('project-evolution-frame');
+    root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('project-evolution-frame');
     [260, 650, 1100, 2200, 3600].forEach(function (delay) {
       root.setTimeout(function () {
-        if (refs.evolutionChart.isConnected !== false) {
-          root.CodeXRAnalysisTableRuntime.renormalizeAll?.('project-evolution-frame');
+        if (refs.evolutionChart?.isConnected !== false) {
+          root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('project-evolution-frame');
         }
       }, delay);
     });

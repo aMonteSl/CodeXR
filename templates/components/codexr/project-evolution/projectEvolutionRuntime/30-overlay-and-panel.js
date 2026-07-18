@@ -1,6 +1,6 @@
 // == projectEvolutionRuntime.js | part 30: overlay-and-panel (assembled with its siblings; see COMPONENTS.md) ==
   function ensurePlaybackOverlay() {
-    if (refs.playbackOverlay && refs.playbackOverlay.isConnected !== false) {
+    if (refs.playbackOverlay && refs.playbackOverlay?.isConnected !== false) {
       return refs.playbackOverlay;
     }
     var overlay = entity('a-entity', {
@@ -28,18 +28,18 @@
     overlay.setAttribute?.('visible', visible && frameCount ? 'true' : 'false');
     if (!visible || !frameCount || !frame) { return; }
     var parts = splitSourceDescription(frame.source || frame);
-    refs.overlayTitle.setAttribute?.('value', 'Project evolution  ' + (state.frameIndex + 1) + ' / ' + frameCount + '  |  ' + parts.date);
-    refs.overlayDetail.setAttribute?.('value', compact(parts.label + (parts.subject ? ' - ' + parts.subject : ''), 86));
+    refs.overlayTitle?.setAttribute('value', 'Project evolution  ' + (state.frameIndex + 1) + ' / ' + frameCount + '  |  ' + parts.date);
+    refs.overlayDetail?.setAttribute('value', compact(parts.label + (parts.subject ? ' - ' + parts.subject : ''), 86));
   }
 
   function hidePlaybackOverlay() {
-    refs.playbackOverlay.setAttribute?.('visible', 'false');
+    refs.playbackOverlay?.setAttribute('visible', 'false');
   }
 
   async function configureAvailability() {
     var sessionInfo = null;
     try {
-      sessionInfo = await client().getSessionInfoAsync?.();
+      sessionInfo = await client()?.getSessionInfoAsync?.();
     } catch {
       sessionInfo = null;
     }
@@ -54,7 +54,7 @@
 
   function registerModeOption() {
     state.unregisterModeOption?.();
-    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption?.({
+    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime?.registerModeOption?.({
       id: MODE,
       label: 'Project evolution',
       color: '#f59e0b',
@@ -65,7 +65,7 @@
   }
 
   function buildPanel() {
-    if (refs.panel || !root.CodeXRMappingUiRuntime.registerPanelView || !root.CodeXRMappingUiRuntime.isPanelReady?.()) {
+    if (refs.panel || !root.CodeXRMappingUiRuntime?.registerPanelView || !root.CodeXRMappingUiRuntime?.isPanelReady?.()) {
       return !!refs.panel;
     }
     refs.panel = entity('a-entity', { position: '0 0 0.04' });
@@ -109,7 +109,7 @@
     refs.panel.appendChild(speedButton('2x', '1.35 ' + PANEL_LAYOUT.speedY + ' 0.02', 2));
     refs.status = smallText('', '-2.85 ' + PANEL_LAYOUT.statusY + ' 0.02', 5.7, '#fde68a', 'left', 54);
     refs.panel.appendChild(refs.status);
-    state.unregisterPanelView = root.CodeXRMappingUiRuntime.registerPanelView({
+    state.unregisterPanelView = root.CodeXRMappingUiRuntime?.registerPanelView({
       id: MODE,
       title: 'Project evolution',
       buttonLabel: 'E',
@@ -123,16 +123,16 @@
 
   function handlePanelShown() {
     render();
-    var modeState = root.CodeXRAnalysisModeRuntime.getState?.() || {};
+    var modeState = root.CodeXRAnalysisModeRuntime?.getState?.() || {};
     if (
       modeState.mode === MODE
       || (modeState.transitioning && modeState.requestedMode === MODE)
     ) {
       return;
     }
-    root.CodeXRAnalysisModeRuntime.setSelectionPanel?.(MODE);
-    client().sendMessage?.('analysis-mode-activate', { mode: MODE });
-    void root.CodeXRAnalysisModeRuntime.transitionTo?.(MODE, {
+    root.CodeXRAnalysisModeRuntime?.setSelectionPanel?.(MODE);
+    client()?.sendMessage?.('analysis-mode-activate', { mode: MODE });
+    void root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
       reason: 'project-evolution-panel-shown',
       controllerView: 'project-evolution',
       panelViewId: MODE
