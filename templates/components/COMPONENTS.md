@@ -4,18 +4,21 @@ This folder contains the browser-side runtimes copied into generated CodeXR anal
 
 ## Multi-part runtimes
 
-Large runtimes are split into ordered part files under
-`codexr/<component>/<runtimeBase>/NN-<section>.js` (for example
-`codexr/analysis-table/analysisTableRuntime/10-zones-and-profiles.js`). Parts
-concatenate in lexicographic order: the first part opens the runtime's IIFE/UMD
-wrapper, the last one closes it, and the parts in between are plain
-declarations at wrapper scope. At injection time
+Large runtimes are split into focused module files under
+`codexr/<component>/<runtimeBase>/` (for example
+`codexr/analysis-table/analysisTableRuntime/geometryUtils.js`), with the
+concatenation order declared in that directory's **`manifest.json`**
+(`{ "output": "<runtimeBase>.js", "parts": [...] }`). The first listed part
+opens the runtime's IIFE/UMD wrapper, the last one closes it, and the parts in
+between are plain declarations at wrapper scope. At injection time
 `src/.../customComponents/runtimeAssembly.ts` (tests:
 `test/helpers/runtimeAssembly.cjs`) joins them back into the single flat file
-listed below, so generated scenes are unchanged. To grow a split runtime, add
-or extend a part — never re-create the flat file next to its parts directory.
-Manual harnesses load assembled copies from `test/manual/assembled/`
-(regenerate with `node test/manual/buildAssembledRuntimes.cjs`).
+listed below, so generated scenes are unchanged. The assembler refuses orphan
+`.js` files that are not listed in the manifest — when adding a part, add it to
+`manifest.json` at the right position. Never re-create the flat file next to
+its parts directory. Manual harnesses load assembled copies from
+`test/manual/assembled/` (regenerate with
+`node test/manual/buildAssembledRuntimes.cjs`).
 
 ## Shared Runtime
 

@@ -1,0 +1,13 @@
+{
+  "output": "dependencyGraphRuntime.js",
+  "parts": [
+    "configAndStatus.js",
+    "datasetProjection.js",
+    "scalesAndControls.js",
+    "componentCore.js",
+    "edgesAndHighlights.js",
+    "flowAndAxes.js",
+    "tooltipsAndSelection.js",
+    "viewLifecycle.js"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "output": "analysisTableRuntime.js",
+  "parts": [
+    "zonesAndProfiles.js",
+    "geometryUtils.js",
+    "containmentLimits.js",
+    "diagnosticsAndPid.js",
+    "containmentComponentCore.js",
+    "measurementAndScaling.js",
+    "steadyController.js",
+    "stabilizationAndRenormalize.js",
+    "tableDefinition.js",
+    "diagnosticsSurface.js",
+    "policyAndRegistration.js"
+  ]
+}

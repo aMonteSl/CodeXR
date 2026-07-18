@@ -1,11 +1,11 @@
 /**
  * Test-side mirror of src/.../customComponents/runtimeAssembly.ts.
  *
- * Multi-part runtimes live as ordered part files under
- * templates/components/codexr/<component>/<runtimeBase>/NN-<section>.js and are
- * concatenated (lexicographic order, '\n'-joined) into the flat runtime file
- * generated scenes ship. Tests read the runtime source through this helper so
- * they exercise exactly what the extension assembles.
+ * Multi-part runtimes live as focused module files under
+ * templates/components/codexr/<component>/<runtimeBase>/ with their
+ * concatenation order declared in that directory's manifest.json. Tests read
+ * the runtime source through this helper so they exercise exactly what the
+ * extension assembles.
  */
 const fs = require('fs');
 const path = require('path');
@@ -18,13 +18,13 @@ function readAssembledRuntime(componentFolder, outputName) {
         projectRoot, 'templates', 'components', 'codexr', componentFolder, runtimeBase,
     );
     if (fs.existsSync(partsDir)) {
-        const parts = fs.readdirSync(partsDir)
-            .filter((name) => name.endsWith('.js'))
-            .sort();
-        if (parts.length === 0) {
-            throw new Error(`Runtime parts directory has no .js parts: ${partsDir}`);
+        const manifest = JSON.parse(fs.readFileSync(path.join(partsDir, 'manifest.json'), 'utf8'));
+        const orphans = fs.readdirSync(partsDir)
+            .filter((name) => name.endsWith('.js') && !manifest.parts.includes(name));
+        if (orphans.length > 0) {
+            throw new Error(`Runtime parts not listed in ${partsDir}\\manifest.json: ${orphans.join(', ')}`);
         }
-        return parts
+        return manifest.parts
             .map((name) => fs.readFileSync(path.join(partsDir, name), 'utf8'))
             .join('\n');
     }

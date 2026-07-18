@@ -1,0 +1,11 @@
+{
+  "output": "historicalComparisonRuntime.js",
+  "parts": [
+    "stateAndInteractionGuards.js",
+    "chartParkingAndUiHelpers.js",
+    "selectionPanel.js",
+    "compareFlowAndMessages.js",
+    "comparisonCharts.js",
+    "liveRefreshAndRegistration.js"
+  ]
+}
