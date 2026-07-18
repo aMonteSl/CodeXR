@@ -80,6 +80,7 @@
         this.activateSteadyController();
         this.runSteadyControllerStep('steady-transition', this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
         this.stopStabilizationLoop();
+        scheduleTableDiagnosticsRefresh('steady-fit');
         return;
       }
 
@@ -92,6 +93,7 @@
     },
 
     renormalize: function (reason) {
+      this.ensureRuntimeState();
       var generation = this.bumpNormalizationGeneration();
       if (this.containmentTransition && this.containmentTransition.active) {
         this.cancelContainmentTransition();
@@ -241,6 +243,7 @@
       }
 
       this.startStabilizationWindow(reason || 'normalize', generation);
+      scheduleTableDiagnosticsRefresh('normalized');
     },
 
     scheduleRetry: function (reason, generation, details) {

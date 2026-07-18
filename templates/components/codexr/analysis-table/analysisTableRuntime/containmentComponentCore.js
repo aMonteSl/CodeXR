@@ -40,7 +40,17 @@
       planarUnderflowCorrectionEnabled: { default: DEFAULTS.planarUnderflowCorrectionEnabled }
     },
 
-    init: function () {
+    // A-Frame can expose the component instance (and external callers like
+    // renormalizeAll can reach it) before init() has run — e.g. while the
+    // entity is still loading. Every public entry point funnels through this
+    // idempotent state bootstrap so a pre-init call works instead of
+    // corrupting counters (a NaN normalization generation used to permanently
+    // wedge tryNormalize's generation check).
+    ensureRuntimeState: function () {
+      if (this.runtimeStateReady) {
+        return;
+      }
+      this.runtimeStateReady = true;
       this.retryCount = 0;
       this.retryTimer = null;
       this.stabilizationTimer = null;
@@ -64,6 +74,10 @@
       this.lastHardHeightGuardAt = 0;
       this.renderPhase = 'waiting-geometry';
       this.pidController = createPidControllerState();
+    },
+
+    init: function () {
+      this.ensureRuntimeState();
       this.onComponentChangedBound = this.onComponentChanged.bind(this);
       this.onGeometryReadyBound = this.onGeometryReady.bind(this);
       this.onChartRenderedBound = this.onChartRendered.bind(this);
@@ -98,6 +112,7 @@
         }
         this.el.object3D.visible = true;
       }
+      scheduleTableDiagnosticsRefresh(reason || 'waiting-geometry');
     },
 
     captureStableTransform: function () {
@@ -187,6 +202,7 @@
     },
 
     requestRenormalize: function (reason) {
+      this.ensureRuntimeState();
       if (isChartAnimationActive(this.el)) {
         this.pendingRenormalizeReason = reason || 'chart-animation-active';
         return;
@@ -205,6 +221,7 @@
     },
 
     getChartStatus: function () {
+      this.ensureRuntimeState();
       var axisIssue = this.inspectAxisIssue();
       if (axisIssue) {
         return {
@@ -403,6 +420,9 @@
       if (!(this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active)) {
         this.runMaintenancePass('tick');
       }
+      // Keep the table's warning surface converging to the live chart state:
+      // a stale message can survive at most one containment check interval.
+      scheduleTableDiagnosticsRefresh('tick-maintenance');
     },
 
     remove: function () {
@@ -425,7 +445,8 @@
       this.deactivateSteadyController();
       this.stopStabilizationLoop();
       this.cancelContainmentTransition();
-
+      // Re-evaluate the shared warning surface without this chart.
+      scheduleTableDiagnosticsRefresh('containment-removed');
     },
 
     ensureInitialPlacement: function () {

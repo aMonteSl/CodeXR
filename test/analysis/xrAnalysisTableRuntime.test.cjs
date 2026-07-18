@@ -146,17 +146,114 @@ test('active containment diagnostics report missing charts and clear warnings in
         },
     };
 
-    const missing = runtime.getActiveContainmentDiagnostics();
-    assert.equal(missing.level, 'warning');
-    assert.equal(missing.reason, 'chart-not-found');
-    assert.equal(missing.message, 'No chart detected');
-    assert.equal(warnings.at(-1).message, 'No chart detected');
+    // A missing chart is graced first (mode transitions briefly have no chart);
+    // the warning only surfaces if the situation persists.
+    const missingFirst = runtime.getActiveContainmentDiagnostics();
+    assert.equal(missingFirst.level, 'ok');
+    assert.equal(missingFirst.reason, 'chart-not-found-pending');
+
+    // The runtime lives in its own vm context: shadow its Date global to jump
+    // past the persistence window.
+    const base = Date.now();
+    sandbox.Date = { now: () => base + 5000 };
+    try {
+        const missing = runtime.getActiveContainmentDiagnostics();
+        assert.equal(missing.level, 'warning');
+        assert.equal(missing.reason, 'chart-not-found');
+        assert.equal(missing.message, 'No chart detected');
+        assert.equal(warnings.at(-1).message, 'No chart detected');
+    } finally {
+        delete sandbox.Date;
+    }
 
     tableComponent.data.mode = 'selection';
     const neutral = runtime.getActiveContainmentDiagnostics();
     assert.equal(neutral.level, 'ok');
     assert.equal(neutral.reason, 'selection-mode');
     assert.equal(warnings.at(-1).level, 'ok');
+});
+
+test('a rebuilding chart is graced as pending and only surfaces as a warning when it persists', () => {
+    const { runtime, sandbox } = loadRuntimeSandbox();
+    const warnings = [];
+    const tableComponent = {
+        data: { mode: 'single' },
+        setContainmentWarning(diagnostic) {
+            warnings.push(diagnostic);
+            return true;
+        },
+    };
+    const tableEl = { components: { 'codexr-analysis-table': tableComponent } };
+    const chartEl = {
+        getAttribute() { return null; },
+        components: {
+            'codexr-chart-containment': {
+                data: { enabled: true },
+                getChartStatus() {
+                    return {
+                        ready: false,
+                        valid: false,
+                        stabilized: false,
+                        geometryState: 'rebuilding',
+                        reason: 'waiting-geometry',
+                        message: 'The chart is still rebuilding its geometry.',
+                    };
+                },
+            },
+        },
+    };
+    sandbox.document = {
+        getElementById(id) {
+            return id === 'codexrAnalysisTable' ? tableEl : null;
+        },
+        querySelectorAll(selector) {
+            return selector === '[codexr-chart-containment]' ? [chartEl] : [];
+        },
+    };
+
+    // Transient rebuild (initial load, re-analysis): no visible warning.
+    const first = runtime.getActiveContainmentDiagnostics();
+    assert.equal(first.level, 'ok');
+    assert.equal(first.reason, 'rebuilding-pending');
+    assert.equal(warnings.at(-1).level, 'ok');
+
+    // Only a rebuild that persists past the grace window becomes visible —
+    // and as a warning, never an error (nothing is broken yet).
+    const base = Date.now();
+    sandbox.Date = { now: () => base + 5000 };
+    try {
+        const stuck = runtime.getActiveContainmentDiagnostics();
+        assert.equal(stuck.level, 'warning');
+        assert.equal(stuck.reason, 'rebuilding');
+        assert.equal(stuck.message, 'The chart is still rebuilding its geometry.');
+    } finally {
+        delete sandbox.Date;
+    }
+
+    // Geometry arrived: the next refresh clears the surface immediately.
+    chartEl.components['codexr-chart-containment'].getChartStatus = () => ({
+        ready: true,
+        valid: true,
+        stabilized: true,
+        geometryState: 'stabilized',
+        reason: 'ok',
+        details: {},
+    });
+    const recovered = runtime.getActiveContainmentDiagnostics();
+    assert.equal(recovered.level, 'ok');
+    assert.equal(warnings.at(-1).level, 'ok');
+});
+
+test('containment lifecycle transitions keep the table warning surface self-refreshing', () => {
+    const source = runtimeSource;
+    // Every state transition schedules a coalesced diagnostics refresh, and the
+    // periodic maintenance tick guarantees a stale message cannot outlive one
+    // containment check interval.
+    assert.match(source, /markWaitingGeometry:[\s\S]*?scheduleTableDiagnosticsRefresh\(reason \|\| 'waiting-geometry'\)/);
+    assert.match(source, /runMaintenancePass\('tick'\);[\s\S]*?scheduleTableDiagnosticsRefresh\('tick-maintenance'\)/);
+    assert.match(source, /startStabilizationWindow\(reason \|\| 'normalize', generation\);\s*scheduleTableDiagnosticsRefresh\('normalized'\)/);
+    assert.match(source, /scheduleTableDiagnosticsRefresh\('steady-fit'\)/);
+    assert.match(source, /scheduleTableDiagnosticsRefresh\('containment-removed'\)/);
 });
 
 test('active containment diagnostics recognize dependency graph visuals without chart containment', () => {

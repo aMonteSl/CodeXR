@@ -36,6 +36,34 @@
     return component.setContainmentWarning(diagnostic || { level: 'ok' });
   }
 
+  /**
+   * Ask for a fresh sample of the containment diagnostics on the table's
+   * warning surface. Calls are coalesced into one shared timer (the table is
+   * a single shared surface) and slightly deferred so A-Frame finishes the
+   * transition that triggered them before the state is sampled.
+   */
+  function scheduleTableDiagnosticsRefresh(reason) {
+    if (TABLE_DIAGNOSTIC_REFRESH.timer) {
+      return;
+    }
+    var elapsed = Date.now() - TABLE_DIAGNOSTIC_REFRESH.lastRunAt;
+    var delay = Math.max(180, 250 - elapsed);
+    TABLE_DIAGNOSTIC_REFRESH.timer = setTimeout(function () {
+      TABLE_DIAGNOSTIC_REFRESH.timer = null;
+      TABLE_DIAGNOSTIC_REFRESH.lastRunAt = Date.now();
+      debugLog('table-diagnostics-refresh', { reason: reason || 'requested' });
+      var diagnostic = buildActiveContainmentDiagnostics();
+      applyTableWarning(diagnostic);
+      // A graced ("-pending") state is a promise to re-check: keep sampling
+      // until it either resolves (geometry arrived) or matures into a visible
+      // warning — components stuck waiting for geometry stop ticking, so this
+      // loop cannot rely on them.
+      if (diagnostic && typeof diagnostic.reason === 'string' && diagnostic.reason.slice(-8) === '-pending') {
+        scheduleTableDiagnosticsRefresh('pending:' + diagnostic.reason);
+      }
+    }, delay);
+  }
+
   function isEntityVisible(el) {
     var current = el;
     while (current && current !== root.document) {
@@ -132,6 +160,17 @@
         message: 'No chart detected'
       };
     }
+    if (status.ready === false) {
+      // Geometry is (re)building — a normal, transient phase during initial
+      // load and every re-analysis. Reported as a graced warning: it only
+      // becomes visible if the chart stays without measurable geometry.
+      return {
+        level: 'warning',
+        reason: 'rebuilding',
+        message: status.message || 'The chart is still rebuilding its geometry.',
+        details: status.details || null
+      };
+    }
     if (status.valid === false) {
       return {
         level: 'error',
@@ -186,7 +225,7 @@
     }
 
     var reason = diagnostic.reason || diagnostic.message || 'warning';
-    if (reason !== 'underflow' && reason !== 'normalizing') {
+    if (reason !== 'underflow' && reason !== 'normalizing' && reason !== 'rebuilding' && reason !== 'chart-not-found') {
       TABLE_DIAGNOSTIC_STATE.key = '';
       TABLE_DIAGNOSTIC_STATE.firstSeenAt = 0;
       return diagnostic;

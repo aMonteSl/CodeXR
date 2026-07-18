@@ -91,6 +91,14 @@
     firstSeenAt: 0
   };
   var TABLE_WARNING_PERSISTENCE_MS = 2600;
+  // Coalesced refresh of the table warning surface. Containment components
+  // request a refresh on every lifecycle transition; one shared timer samples
+  // the diagnostics so the displayed warning always converges to the current
+  // chart state instead of freezing on whatever the last caller observed.
+  var TABLE_DIAGNOSTIC_REFRESH = {
+    timer: null,
+    lastRunAt: 0
+  };
 
   var FULL_TABLE_ZONE = {
     id: 'single',

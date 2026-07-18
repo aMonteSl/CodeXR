@@ -221,7 +221,16 @@
       };
 
       window.addEventListener('load', function () {
-        render('bars', 'medium');
+        // Rendering into a scene that has not finished loading wedges entity
+        // initialization (children never init, the scene never fires
+        // 'loaded'); wait for the A-Frame scene, not the window.
+        var scene = document.getElementById('scene');
+        var start = function () { render('bars', 'medium'); };
+        if (scene.hasLoaded) {
+          start();
+        } else {
+          scene.addEventListener('loaded', start, { once: true });
+        }
       });
     }());
   </script>
