@@ -20,3 +20,4 @@ dist/
 !.vscode/tasks.json
 !.vscode/extensions.json
 *.vsix
+test/manual/assembled/

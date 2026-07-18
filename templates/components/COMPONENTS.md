@@ -2,6 +2,21 @@
 
 This folder contains the browser-side runtimes copied into generated CodeXR analysis scenes.
 
+## Multi-part runtimes
+
+Large runtimes are split into ordered part files under
+`codexr/<component>/<runtimeBase>/NN-<section>.js` (for example
+`codexr/analysis-table/analysisTableRuntime/10-zones-and-profiles.js`). Parts
+concatenate in lexicographic order: the first part opens the runtime's IIFE/UMD
+wrapper, the last one closes it, and the parts in between are plain
+declarations at wrapper scope. At injection time
+`src/.../customComponents/runtimeAssembly.ts` (tests:
+`test/helpers/runtimeAssembly.cjs`) joins them back into the single flat file
+listed below, so generated scenes are unchanged. To grow a split runtime, add
+or extend a part — never re-create the flat file next to its parts directory.
+Manual harnesses load assembled copies from `test/manual/assembled/`
+(regenerate with `node test/manual/buildAssembledRuntimes.cjs`).
+
 ## Shared Runtime
 
 - `common/codexrCommonRuntime.js`
@@ -56,4 +71,12 @@ This folder contains the browser-side runtimes copied into generated CodeXR anal
 6. Dependency graph and other CodeXR graphs.
 7. Debug runtimes last.
 
-Generated scene filenames are intentionally flat (`codexrCommonRuntime.js`, `dependencyGraphRuntime.js`, etc.) so existing analysis output remains simple and self-contained.
+Generated scene filenames are intentionally flat (`codexrCommonRuntime.js`, `dependencyGraphRuntime.js`, etc.) so existing analysis output remains simple and self-contained — multi-part runtimes are assembled back into these flat names at injection time.
+
+## Shared LivePanel components (`livepanel/`)
+
+Files under `livepanel/` are bundled by `LivePanelParser` (alphabetical order)
+ahead of each LivePanel template's own script/stylesheet: `charts.js|css`,
+`dataTable.js|css`, `dependencySummaryPanel.js`, `historicalPanel.js|css`, and
+`panelShell.js|css` (theme toggle, SSE status indicator, notifications, the
+DataTable registry and shared formatters).

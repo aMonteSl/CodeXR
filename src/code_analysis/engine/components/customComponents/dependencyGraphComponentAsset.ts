@@ -1,34 +1,18 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { assembleRuntimeContent, writeAssembledRuntimeToOutput } from './runtimeAssembly';
 
 export const DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME = 'dependencyGraphRuntime.js';
 
-const SOURCE_SEGMENTS = [
-    'templates',
-    'components',
-    'codexr',
-    'dependency-graph',
-    DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
-] as const;
-
-export function resolveDependencyGraphRuntimeSourcePath(extensionPath: string): string {
-    return path.join(extensionPath, ...SOURCE_SEGMENTS);
+// The Dependency graph runtime is a multi-part runtime (see runtimeAssembly.ts): its source
+// lives as ordered parts under dependency-graph/dependencyGraphRuntime/.
+export async function copyDependencyGraphRuntimeToOutput(
+    extensionPath: string,
+    outputDirectory: string,
+): Promise<string> {
+    return writeAssembledRuntimeToOutput(
+        extensionPath, 'dependency-graph', DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, outputDirectory,
+    );
 }
 
 export async function readDependencyGraphRuntimeContent(extensionPath: string): Promise<string> {
-    const sourcePath = resolveDependencyGraphRuntimeSourcePath(extensionPath);
-    if (!fs.existsSync(sourcePath)) {
-        throw new Error(`Dependency graph runtime not found at ${sourcePath}`);
-    }
-    return fs.promises.readFile(sourcePath, 'utf8');
-}
-
-export async function copyDependencyGraphRuntimeToOutput(
-    extensionPath: string,
-    outputPath: string,
-): Promise<string> {
-    const sourcePath = resolveDependencyGraphRuntimeSourcePath(extensionPath);
-    const targetPath = path.join(outputPath, DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME);
-    await fs.promises.copyFile(sourcePath, targetPath);
-    return targetPath;
+    return assembleRuntimeContent(extensionPath, 'dependency-graph', DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME);
 }

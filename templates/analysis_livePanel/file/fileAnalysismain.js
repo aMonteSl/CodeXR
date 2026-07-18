@@ -22,44 +22,7 @@ const dataTables = {};
 
 // ── Theme management ─────────────────────────────────────────────────────────
 
-function getStoredTheme() {
-  try {
-    return localStorage.getItem('fileAnalysisTheme') || 'light';
-  } catch (error) {
-    console.warn('Failed to get stored theme:', error);
-    return 'light';
-  }
-}
-
-function setStoredTheme(theme) {
-  try {
-    localStorage.setItem('fileAnalysisTheme', theme);
-  } catch (error) {
-    console.warn('Failed to store theme:', error);
-  }
-}
-
 // Inline SVG icons for the theme toggle (see the directory panel for rationale).
-const THEME_ICON_SUN = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>';
-const THEME_ICON_MOON = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
-
-function applyTheme(theme) {
-  document.body.setAttribute('data-theme', theme);
-  const themeToggle = document.getElementById('theme-toggle');
-  if (themeToggle) {
-    themeToggle.innerHTML = theme === 'dark' ? THEME_ICON_SUN : THEME_ICON_MOON;
-    themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`);
-  }
-  // Charts read their colors from CSS variables (charts.css); nothing to re-render.
-}
-
-function toggleTheme() {
-  const currentTheme = document.body.getAttribute('data-theme') || 'light';
-  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  applyTheme(newTheme);
-  setStoredTheme(newTheme);
-}
-
 window.toggleTheme = toggleTheme;
 
 // ── Data normalization ───────────────────────────────────────────────────────
@@ -244,50 +207,6 @@ function handleSSEMessage(data) {
     default:
       console.log('FILE_ANALYSIS: Unknown SSE message type:', messageType);
   }
-}
-
-function showSSEStatus(status) {
-  let statusElement = document.getElementById('sse-status');
-  if (!statusElement) {
-    statusElement = document.createElement('div');
-    statusElement.id = 'sse-status';
-    statusElement.className = 'sse-status';
-    document.body.appendChild(statusElement);
-  }
-
-  switch (status) {
-    case 'connected':
-      statusElement.textContent = 'Live Updates';
-      statusElement.style.backgroundColor = '#10b981';
-      statusElement.style.color = 'white';
-      break;
-    case 'error':
-      statusElement.textContent = 'Disconnected';
-      statusElement.style.backgroundColor = '#ef4444';
-      statusElement.style.color = 'white';
-      break;
-  }
-}
-
-let sseStatusFlashTimer = null;
-
-// Momentarily surface that fresh data arrived, then fall back to the steady
-// "Live Updates" indicator.
-function flashSSEStatus(message) {
-  const statusElement = document.getElementById('sse-status');
-  if (!statusElement) {
-    return;
-  }
-  statusElement.textContent = message;
-  statusElement.style.backgroundColor = '#3b82f6';
-  statusElement.style.color = 'white';
-  if (sseStatusFlashTimer) {
-    clearTimeout(sseStatusFlashTimer);
-  }
-  sseStatusFlashTimer = setTimeout(() => {
-    sseStatusFlashTimer = null;
-    showSSEStatus('connected');
-  }, 2500);
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -564,10 +483,6 @@ function renderDensityDistribution(functionDensities) {
 }
 
 // ── Formatting helpers ───────────────────────────────────────────────────────
-
-function formatRatio(value) {
-  return `${((value || 0) * 100).toFixed(1)}%`;
-}
 
 function formatBytes(bytes) {
   if (!bytes) {

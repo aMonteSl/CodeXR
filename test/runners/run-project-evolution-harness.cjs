@@ -199,6 +199,7 @@ async function main() {
   const serveOnly = process.argv.includes('--serve');
   const portArg = process.argv.find((arg) => arg.startsWith('--port='));
   const requestedPort = portArg ? Number(portArg.slice('--port='.length)) || 0 : 0;
+  require('../manual/buildAssembledRuntimes.cjs').buildAssembledRuntimes();
   assert.match(fs.readFileSync(harnessPath, 'utf8'), /CodeXRProjectEvolutionHarness/);
   assert.match(fs.readFileSync(harnessPath, 'utf8'), /project-evolution-apply-frame/);
   writeFixtureFiles();

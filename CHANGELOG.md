@@ -2,6 +2,12 @@
 
 ## [1.2.0] - Unreleased
 
+### Internal — templates refactor (no behavior change)
+
+- **Every oversized browser runtime split into ordered part files.** The ten 1,100–3,900-line runtime files under `templates/components/codexr/` (analysis table, virtual screen, dependency graph, mapping UI, analysis mode, historical comparison, project evolution, chart debug, collaboration, boats prototype) now live as cohesive 100–500-line parts under `codexr/<component>/<runtimeBase>/NN-<section>.js`. A shared assembler (`customComponents/runtimeAssembly.ts`, test mirror `test/helpers/runtimeAssembly.cjs`) concatenates each set back into the exact flat file generated scenes have always shipped — the split was verified byte-identical per runtime, so generated analysis output is unchanged. Component assets now delegate to the assembler; manual XR harnesses load assembled copies from `test/manual/assembled/` (built automatically by the harness runners, or via `node test/manual/buildAssembledRuntimes.cjs`).
+- **LivePanel templates deduplicated via a shared page shell** (`templates/components/livepanel/panelShell.{js,css}`): the theme toggle (both panels now share one stored preference, `codexrLivePanelTheme`), the SSE status indicator (now class-styled in both panels), notification toasts, the DataTable registry and shared formatters moved out of the two template scripts into one implementation. Both template mains are now well under 1,000 lines.
+- Convention documented in `templates/components/COMPONENTS.md` ("Multi-part runtimes"); no file under `templates/` exceeds 1,000 lines anymore.
+
 ### LivePanel
 
 - Added a Dependency Summary section to the directory/project LivePanel. It now runs automatically on page load alongside the classic analysis, so every dependency metric is present from the start; the button is now just a manual "Refresh".

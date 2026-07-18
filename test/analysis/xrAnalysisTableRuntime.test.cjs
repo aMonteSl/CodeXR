@@ -5,15 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const runtimePath = path.join(
-    projectRoot,
-    'templates',
-    'components',
-    'codexr',
-    'analysis-table',
-    'analysisTableRuntime.js',
-);
-const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const { readAssembledRuntime } = require(path.join(projectRoot, 'test', 'helpers', 'runtimeAssembly.cjs'));
+const runtimeSource = readAssembledRuntime('analysis-table', 'analysisTableRuntime.js');
 
 function loadRuntimeSandbox() {
     const registered = {};
@@ -38,7 +31,7 @@ function loadRuntimeSandbox() {
     };
 
     sandbox.window = sandbox;
-    vm.runInNewContext(runtimeSource, sandbox, { filename: runtimePath });
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'analysisTableRuntime.js' });
 
     return {
         sandbox,
@@ -1078,10 +1071,7 @@ test('generated XR presets give the vertical controller enough headroom for tiny
         path.join(projectRoot, 'src', 'babia_templates', 'charts', 'templateCharts.ts'),
         'utf8',
     );
-    const historicalRuntime = fs.readFileSync(
-        path.join(projectRoot, 'templates', 'components', 'codexr', 'historical-comparison', 'historicalComparisonRuntime.js'),
-        'utf8',
-    );
+    const historicalRuntime = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
 
     assert.match(runtimeSource, /yScaleMax: 12/);
     assert.match(templateCharts, /yScaleMax: 12;/);

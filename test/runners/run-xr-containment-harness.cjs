@@ -3,8 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { buildAssembledRuntimes } = require('../manual/buildAssembledRuntimes.cjs');
+
 const projectRoot = path.resolve(__dirname, '..', '..');
 const harnessPath = path.join(projectRoot, 'test', 'manual', 'xr-containment-harness.html');
+buildAssembledRuntimes();
 const html = fs.readFileSync(harnessPath, 'utf8');
 
 assert.match(html, /analysisTableRuntime\.js/);
