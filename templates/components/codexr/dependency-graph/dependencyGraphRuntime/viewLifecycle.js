@@ -117,11 +117,16 @@
       return;
     }
     if (state.transitionLocked) { return; }
+    var connection = client();
+    if (!connection?.sendMessage) {
+      setStatus('Dependency analysis is unavailable: no collaboration channel.', true);
+      return;
+    }
     setTransitionLocked(true, 'Opening dependencies...');
     await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
       reason: 'dependency-refresh'
     });
-    client()?.sendMessage?.('dependency-graph-start', {});
+    connection.sendMessage('dependency-graph-start', {});
   }
   async function reanalyze() {
     if (state.availability !== 'enabled' || state.transitionLocked) { return; }

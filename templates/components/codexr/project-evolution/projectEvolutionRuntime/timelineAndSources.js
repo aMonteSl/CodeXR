@@ -24,11 +24,14 @@
   }
 
   function getReferenceSources() {
-    var sources = Array.isArray(state.references.sources) ? state.references.sources : [];
+    // References stay null until the server answers; every render path
+    // (including stop() during deactivate) must tolerate that.
+    var references = state.references || {};
+    var sources = Array.isArray(references.sources) ? references.sources : [];
     var byId = {};
     sources.forEach(function (source) { byId[source.id] = source; });
-    var suggested = Array.isArray(state.references.suggestedSourceIds)
-      ? state.references.suggestedSourceIds.map(function (id) { return byId[id]; }).filter(Boolean)
+    var suggested = Array.isArray(references.suggestedSourceIds)
+      ? references.suggestedSourceIds.map(function (id) { return byId[id]; }).filter(Boolean)
       : [];
     var fallback = sources.filter(function (source) {
       return source && (source.kind === 'workingCopy' || source.kind === 'gitRef');

@@ -64,6 +64,23 @@
   function setTransitionLocked(locked, message) {
     state.transitionLocked = !!locked;
     if (message) { setStatus(message, false); }
+    // The lock is a promise of a server answer; if none arrives the watchdog
+    // releases it with a visible error instead of eating every later click.
+    if (state.transitionLockTimer) {
+      clearTimeout(state.transitionLockTimer);
+      state.transitionLockTimer = null;
+    }
+    if (state.transitionLocked) {
+      state.transitionLockTimer = setTimeout(function () {
+        state.transitionLockTimer = null;
+        if (state.transitionLocked) {
+          state.transitionLocked = false;
+          setStatus('The dependency analysis did not respond. Try again.', true);
+          root.console?.warn?.('[CodeXR][DependencyGraph] dependency-graph-start received no response within 20s.');
+        }
+      }, 20000);
+      state.transitionLockTimer?.unref?.();
+    }
   }
   function disposeView() {
     state.active = false;
