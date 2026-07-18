@@ -126,7 +126,15 @@
     await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
       reason: 'dependency-refresh'
     });
-    connection.sendMessage('dependency-graph-start', {});
+    // send() drops silently while the socket is still connecting — retry
+    // until it goes through (the transition lock's watchdog is the ceiling).
+    var attemptSend = function () {
+      if (!state.transitionLocked) { return; }
+      if (client()?.sendMessage?.('dependency-graph-start', {})) { return; }
+      root.console?.warn?.('[CodeXR][DependencyGraph] collaboration socket not ready; retrying dependency-graph-start...');
+      setTimeout(attemptSend, 500);
+    };
+    attemptSend();
   }
   async function reanalyze() {
     if (state.availability !== 'enabled' || state.transitionLocked) { return; }
