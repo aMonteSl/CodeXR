@@ -85,8 +85,8 @@
   }
 
   function registerHistoricalModeOption() {
-    state.unregisterModeOption.();
-    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption.({
+    state.unregisterModeOption?.();
+    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption?.({
       id: 'historical-compare',
       label: 'Historical comparison',
       color: '#be123c',
@@ -278,7 +278,7 @@
       return;
     }
     mappingRuntime.setChartEntityIds(ids);
-    mappingRuntime.switchMappingContext.('normal-analysis', {
+    mappingRuntime.switchMappingContext?.('normal-analysis', {
       reason: 'historical-restore-normal-targets'
     });
   }
@@ -544,8 +544,8 @@
     var label = String(source.label || source.refName || source.id || 'unknown');
     var description = String(source.description || '').trim();
     var match = description.match(/^(\d{4}-\d{2}-\d{2})\s*(.*)$/);
-    var date = match  match[1] : '';
-    var subject = match  match[2] : description;
+    var date = match ? match[1] : '';
+    var subject = match ? match[2] : description;
     if (source.kind === 'workingCopy') {
       date = 'Working copy';
     }
@@ -558,7 +558,7 @@
 
   function buildSourceLabel(source) {
     var parts = splitSourceDescription(source);
-    var subject = parts.subject  '\n' + parts.subject : '';
+    var subject = parts.subject ? '\n' + parts.subject : '';
     return parts.label + '\n' + parts.date + subject;
   }
 
@@ -655,16 +655,16 @@
   }
 
   function showHistoricalSelectionPanel() {
-    root.CodeXRAnalysisModeRuntime.setSelectionPanel.('historical-selection');
-    root.CodeXRMappingUiRuntime.showPanelView.('historical-selection');
+    root.CodeXRAnalysisModeRuntime.setSelectionPanel?.('historical-selection');
+    root.CodeXRMappingUiRuntime.showPanelView?.('historical-selection');
     showSourceSelection();
   }
 
   async function enterHistoricalSelection() {
-    getClient().sendMessage.('analysis-mode-activate', {
+    getClient().sendMessage?.('analysis-mode-activate', {
       mode: 'historical-compare'
     });
-    await root.CodeXRAnalysisModeRuntime.transitionTo.('historical-compare', {
+    await root.CodeXRAnalysisModeRuntime.transitionTo?.('historical-compare', {
       reason: 'historical-selection',
       controllerView: 'historical.selection',
       panelViewId: 'historical-selection'
@@ -771,7 +771,7 @@
       return '';
     }
     return CHART_COMPONENT_NAMES.find(function (name) {
-      return chart.hasAttribute.(name);
+      return chart.hasAttribute?.(name);
     }) || chart.getAttributeNames().find(function (name) {
       return name.indexOf('babia-') === 0
         && name !== 'babia-queryjson'
@@ -793,15 +793,15 @@
   function vectorToPositionAttribute(position) {
     var source = position || {};
     return [
-      Number.isFinite(source.x)  source.x : 0,
-      Number.isFinite(source.y)  source.y : 1,
-      Number.isFinite(source.z)  source.z : -18
+      Number.isFinite(source.x) ? source.x : 0,
+      Number.isFinite(source.y) ? source.y : 1,
+      Number.isFinite(source.z) ? source.z : -18
     ].join(' ');
   }
 
   function getHistoricalContainmentProfile(zone) {
-    var profileId = zone && zone.id === 'right'  'historical-right' : 'historical-left';
-    var profile = root.CodeXRAnalysisTableRuntime.getContainmentProfile.(profileId);
+    var profileId = zone && zone.id === 'right' ? 'historical-right' : 'historical-left';
+    var profile = root.CodeXRAnalysisTableRuntime?.getContainmentProfile?.(profileId);
     if (!profile) {
       profile = {
         id: profileId,
@@ -1017,7 +1017,7 @@
 
     await nextFrame();
     root.CodeXRMappingUiRuntime?.setChartEntityIds?.(activeChartIds);
-    root.CodeXRMappingUiRuntime.switchMappingContext.('historical-comparison', {
+    root.CodeXRMappingUiRuntime.switchMappingContext?.('historical-comparison', {
       reason: 'historical-comparison-ready'
     });
     parkOriginalChart(original);
@@ -1104,7 +1104,7 @@
       }
       dataEntity.setAttribute('babia-queryjson', 'url: ' + dataset.url + '?revision=' + result.revision);
     }
-    setText(liveSide === 'left'  refs.leftLabel : refs.rightLabel, buildSourceLabel(dataset.source), 4.2, liveSide === 'left'  '#67e8f9' : '#6ee7b7');
+    setText(liveSide === 'left' ? refs.leftLabel : refs.rightLabel, buildSourceLabel(dataset.source), 4.2, liveSide === 'left' ? '#67e8f9' : '#6ee7b7');
     setText(refs.deltaLabel, buildDeltaText(result.delta, state.selectedMapping, state.payloads), 4.2, '#ffffff');
     state.result = result;
     await nextFrame();

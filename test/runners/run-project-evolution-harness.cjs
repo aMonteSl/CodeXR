@@ -40,7 +40,7 @@ function file(filePath, functionCount, totalLines, complexity) {
     fileName,
     filePath,
     relativePath: filePath,
-    language: fileName.endsWith('.py')  'Python' : 'Markdown',
+    language: fileName.endsWith('.py') ? 'Python' : 'Markdown',
     functionCount,
     totalLines,
     codeLines: Math.max(1, totalLines - 8),
@@ -124,7 +124,7 @@ function createServer() {
     response.writeHead(200, {
       'content-type': contentType(filePath),
       'cache-control': filePath.endsWith('.json') || filePath.endsWith('.js') || filePath.endsWith('.html')
-         'no-store'
+        ? 'no-store'
         : 'public, max-age=60',
     });
     fs.createReadStream(filePath).pipe(response);
@@ -198,7 +198,7 @@ async function runPlaywrightIfAvailable(port) {
 async function main() {
   const serveOnly = process.argv.includes('--serve');
   const portArg = process.argv.find((arg) => arg.startsWith('--port='));
-  const requestedPort = portArg  Number(portArg.slice('--port='.length)) || 0 : 0;
+  const requestedPort = portArg ? Number(portArg.slice('--port='.length)) || 0 : 0;
   assert.match(fs.readFileSync(harnessPath, 'utf8'), /CodeXRProjectEvolutionHarness/);
   assert.match(fs.readFileSync(harnessPath, 'utf8'), /project-evolution-apply-frame/);
   writeFixtureFiles();

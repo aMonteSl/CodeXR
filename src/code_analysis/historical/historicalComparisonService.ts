@@ -52,9 +52,28 @@ export class HistoricalComparisonService {
         const references = await this.gitService.listReferences();
         this.references = {
             ...references,
+            sources: await this.filterSourcesForTarget(references.sources),
             activeRequest: this.activeRequest ? { ...this.activeRequest } : null,
         };
         return this.references;
+    }
+
+    /**
+     * A single-file comparison can only target versions that actually contain
+     * that file: hide every Git reference the file is absent from (deleted,
+     * renamed, or not yet created there). Directory targets keep all
+     * references — per-file presence is what the comparison itself reports.
+     */
+    private async filterSourcesForTarget(sources: ComparisonSource[]): Promise<ComparisonSource[]> {
+        if (this.getSession().targetType !== 'file') {
+            return sources;
+        }
+        const present = await Promise.all(sources.map((source) => (
+            source.kind === 'workingCopy'
+                ? Promise.resolve(true)
+                : this.gitService.targetExistsInCommit(source.commitSha)
+        )));
+        return sources.filter((_, index) => present[index]);
     }
 
     public async getAvailability(): Promise<{ enabled: boolean; reason: string | null }> {
@@ -133,6 +152,12 @@ export class HistoricalComparisonService {
         const rightPayload = await this.analyzeSource(rightSource);
 
         const session = this.getSession();
+        // Filtered references make this unreachable through the UI, but the
+        // request API accepts raw source ids: a single-file comparison against
+        // a version that lacks the file is meaningless, so refuse it.
+        if (session.targetType === 'file' && (leftPayload.missingTarget || rightPayload.missingTarget)) {
+            throw new Error('comparison-target-missing-in-version');
+        }
         const mappings = await this.getSelectedMetricFields(session);
         const delta = this.buildDelta(
             leftPayload.payload,
@@ -408,7 +433,7 @@ export class HistoricalComparisonService {
 
     private getSession(): UnifiedAnalysisSession {
         const session = UnifiedSessionRegistry.getInstance(this.context).getSession(this.sessionId);
-        if (!session || session.analysisMode !== 'XR') {
+        if (!session || (session.analysisMode !== 'XR' && session.analysisMode !== 'LivePanel')) {
             throw new Error('historical-comparison-session-unavailable');
         }
         return session;

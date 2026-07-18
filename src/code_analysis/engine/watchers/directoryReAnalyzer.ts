@@ -114,9 +114,9 @@ export class DirectoryReAnalyzer {
             if (options.notifyClients !== false) {
                 await this.sendSSENotification(session);
             }
-            const changedCount = (changeSet.removedFiles.length || 0)
-                + (changeSet.updatedResults.length || 0)
-                + (changeSet.addedFiles.length || 0);
+            const changedCount = (changeSet.removedFiles?.length || 0)
+                + (changeSet.updatedResults?.length || 0)
+                + (changeSet.addedFiles?.length || 0);
             vscode.window.setStatusBarMessage(
                 `$(check) CodeXR re-analysis updated ${changedCount} file(s)`,
                 2000,

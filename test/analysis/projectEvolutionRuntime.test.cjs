@@ -51,7 +51,7 @@ test('project evolution runtime keeps one bridge datasource and chart during pla
     assert.match(runtimeSource, /id: 'codexrProjectEvolutionData'/);
     assert.match(runtimeSource, /function refreshEvolutionDataSource\(frameUrl\)/);
     assert.match(runtimeSource, /setAttribute\('babia-queryjson', 'url: ' \+ frameUrl\)/);
-    assert.match(runtimeSource, /emit\\.\('data-loaded', \{\}\)/);
+    assert.match(runtimeSource, /emit\?\.\('data-loaded', \{\}\)/);
     assert.match(runtimeSource, /function waitForComponent\(element, componentName, timeoutMs\)/);
     assert.match(runtimeSource, /await waitForComponent\(dataSource, 'babia-queryjson', 1200\)/);
     assert.match(runtimeSource, /await waitForComponent\(treeBuilder, 'babia-treebuilder', 1200\)/);
@@ -68,7 +68,7 @@ test('project evolution runtime keeps one bridge datasource and chart during pla
     assert.match(runtimeSource, /project-evolution-frame-applied/);
     assert.match(runtimeSource, /requestId: requestId/);
     assert.match(runtimeSource, /project-evolution-frame-apply-superseded/);
-    assert.match(runtimeSource, /return false;\s*\}\s*setStatus\(error instanceof Error \ error\.message/);
+    assert.match(runtimeSource, /return false;\s*\}\s*setStatus\(error instanceof Error \? error\.message/);
 });
 
 test('project evolution runtime no longer builds manual boats trees in browser', () => {
@@ -88,7 +88,7 @@ test('project evolution bridge URL is cache-busted without changing its path', (
         url: '/evolution/revision-3/data4.json',
     }, '/evolution/revision-3/data.json');
 
-    assert.match(url, /^\/evolution\/revision-3\/data\.json\/);
+    assert.match(url, /^\/evolution\/revision-3\/data\.json\?/);
     assert.match(url, /revision=/);
     assert.match(url, /frame=4/);
     assert.match(url, /t=123456789/);

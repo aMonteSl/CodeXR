@@ -67,7 +67,7 @@ export class ExecutePython {
      */
     public async executeAnalysis(
         session: UnifiedAnalysisSession,
-        options: { silent: boolean } = {},
+        options: { silent?: boolean } = {},
     ): Promise<any> {
         console.log(`EXECUTE_PYTHON:  Starting Python analysis execution...`);
         console.log(`EXECUTE_PYTHON: Analysis mode: ${session.analysisMode}`);
@@ -98,13 +98,13 @@ export class ExecutePython {
                 throw new Error(`Unknown analysis combination: ${session.analysisMode} + ${session.targetType}`);
             } catch (error) {
                 console.error('EXECUTE_PYTHON:  Error during Python analysis:', error);
-                progress.report({ message: 'Analysis failed' });
+                progress.report({ increment: 0, message: 'Analysis failed' });
                 throw error;
             }
         };
 
         if (options.silent) {
-            return await runAnalysis();
+            return await runAnalysis({ report: () => {} });
         }
 
         return await vscode.window.withProgress(
@@ -205,7 +205,7 @@ export class ExecutePython {
 
             if (session.targetType === 'directory') {
                 console.log('EXECUTE_PYTHON: XR_ANALYSIS: Python coordinator will scan and filter directory contents internally');
-                progress.report({ message: session.isDeep ? 'Preparing deep XR analysis...' : 'Preparing XR directory analysis...' });
+                progress?.report({ message: session.isDeep ? 'Preparing deep XR analysis...' : 'Preparing XR directory analysis...' });
             }
 
             if (session.targetType === 'directory' && session.isDeep) {

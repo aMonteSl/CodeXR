@@ -2,11 +2,92 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const Module = require('node:module');
+const ts = require('typescript');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 
 function readProjectFile(...segments) {
     return fs.readFileSync(path.join(projectRoot, ...segments), 'utf8');
+}
+
+/**
+ * Loads the real, compiled LivePanelParser class with a stubbed `vscode` module,
+ * so its actual runtime behavior (not just its source text) can be exercised —
+ * this is what would have caught the "extension not found" server-launch bug,
+ * since `vscode.extensions.getExtension` is spied on and asserted never called.
+ */
+function loadLivePanelParserWithStubbedVscode() {
+    const sourcePath = path.join(
+        projectRoot,
+        'src',
+        'code_analysis',
+        'engine',
+        'parsers',
+        'livePanelParser.ts',
+    );
+
+    let getExtensionCallCount = 0;
+    const vscodeStub = {
+        ExtensionMode: { Development: 1, Production: 2, Test: 3 },
+        extensions: {
+            getExtension(id) {
+                getExtensionCallCount += 1;
+                throw new Error(`Unexpected vscode.extensions.getExtension('${id}') call — LivePanelParser must use context.extensionPath instead.`);
+            },
+        },
+        window: {
+            createOutputChannel() {
+                return { appendLine() {}, };
+            },
+        },
+        workspace: {
+            getConfiguration() {
+                return { get: () => false };
+            },
+            onDidChangeConfiguration() {
+                return { dispose() {} };
+            },
+        },
+    };
+
+    const originalModuleRequire = Module.prototype.require;
+    Module.prototype.require = function (id) {
+        if (id === 'vscode') {
+            return vscodeStub;
+        }
+        return originalModuleRequire.apply(this, arguments);
+    };
+
+    const previousLoader = require.extensions['.ts'];
+    require.extensions['.ts'] = function compileTypeScript(module, filename) {
+        const source = fs.readFileSync(filename, 'utf8');
+        const transpiled = ts.transpileModule(source, {
+            compilerOptions: {
+                module: ts.ModuleKind.CommonJS,
+                target: ts.ScriptTarget.ES2022,
+                esModuleInterop: true,
+            },
+            fileName: filename,
+        }).outputText;
+        module._compile(transpiled, filename);
+    };
+
+    try {
+        delete require.cache[sourcePath];
+        const { LivePanelParser } = require(sourcePath);
+        return {
+            LivePanelParser,
+            getExtensionCallCount: () => getExtensionCallCount,
+        };
+    } finally {
+        if (previousLoader) {
+            require.extensions['.ts'] = previousLoader;
+        } else {
+            delete require.extensions['.ts'];
+        }
+        Module.prototype.require = originalModuleRequire;
+    }
 }
 
 function extractMethodBlock(source, methodName) {
@@ -128,9 +209,11 @@ test('LivePanel file template and script expose unified file metrics such as rat
     assert.match(html, /id="complexity-density"/);
     assert.match(html, /id="avg-function-parameters"/);
     assert.match(html, /id="max-nesting-depth"/);
-    assert.match(html, /<th>Span<\/th>/);
-    assert.match(html, /<th>Nesting<\/th>/);
-    assert.match(html, /<th>Band<\/th>/);
+    // The functions table is now a shared DataTable whose columns are declared in JS.
+    assert.match(html, /<div id="functions-table"><\/div>/);
+    assert.match(js, /label: 'Span'/);
+    assert.match(js, /label: 'Nesting'/);
+    assert.match(js, /label: 'Band'/);
 
     assert.match(js, /spanLines/);
     assert.match(js, /complexityBand/);
@@ -147,14 +230,91 @@ test('LivePanel directory template and script expose unified directory aggregate
     assert.match(html, /id="high-complexity-functions"/);
     assert.match(html, /id="avg-function-params"/);
     assert.match(html, /id="max-function-nesting"/);
-    assert.match(html, /<th>Comment %<\/th>/);
-    assert.match(html, /<th>Avg Params<\/th>/);
-    assert.match(html, /<th>Critical CCN Fns<\/th>/);
+    // The file table is now a shared DataTable whose columns are declared in JS.
+    assert.match(html, /<div id="file-details-table"><\/div>/);
+    assert.match(js, /label: 'Comment %'/);
+    assert.match(js, /label: 'Avg Params'/);
+    assert.match(js, /label: 'Critical CCN Fns'/);
 
     assert.match(js, /summary\.highComplexityFunctions/);
     assert.match(js, /summary\.averageFunctionParameters/);
     assert.match(js, /summary\.averageFunctionNestingDepth/);
     assert.match(js, /formatRatio\(file\.commentRatio \|\| 0\)/);
     assert.match(js, /file\.criticalComplexityFunctions \|\| 0/);
+});
+
+// ── LivePanel server launch regression: extension-path resolution ──────────
+//
+// Bug: LivePanelParser resolved the extension's install path via a global
+// registry lookup (vscode.extensions.getExtension('amonteSl.code-xr')) instead
+// of the ExtensionContext already threaded through the whole launch pipeline.
+// Every other parser (FileXRParser, directoryXRParser, VisualizeDOMParser) uses
+// context.extensionPath directly, so XR/DOM launches never touched that lookup
+// and always worked, while LivePanel launches depended on the extension being
+// registered under that exact id in the current extension host — and threw
+// "Extension amonteSl.code-xr not found" whenever it wasn't, aborting the
+// server launch (FILE_REQUIREMENT_PROCESSOR / NEW_LAUNCHER_LIVEPANEL_ANALYSIS
+// error chain) with no equivalent failure on the XR side.
+
+test('LivePanelParser resolves templates from context.extensionPath like every other parser, never the extension registry', () => {
+    const source = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'livePanelParser.ts');
+    const bootstrap = readProjectFile('src', 'code_analysis', 'engine', 'processors', 'analysisBootstrap.ts');
+    const fileXRParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'fileXRParser.ts');
+    const visualizeDOMParser = readProjectFile('src', 'code_analysis', 'engine', 'parsers', 'visualizeDOMParser.ts');
+
+    assert.match(source, /constructor\(context: vscode\.ExtensionContext\)/);
+    assert.match(source, /this\.context = context;/);
+    assert.match(source, /path\.join\(this\.context\.extensionPath, 'templates', 'analysis_livePanel', targetType\)/);
+    assert.doesNotMatch(source, /vscode\.extensions\.getExtension/);
+    assert.doesNotMatch(source, /amonteSl/i);
+
+    // Same construction pattern as the parsers whose launches already work.
+    assert.match(bootstrap, /this\.livePanelParser = new LivePanelParser\(context\);/);
+    assert.match(fileXRParser, /constructor\(context: vscode\.ExtensionContext\)/);
+    assert.match(visualizeDOMParser, /constructor\(context: vscode\.ExtensionContext\)/);
+});
+
+test('LivePanelParser actually loads the real directory and file templates from context.extensionPath, with no vscode.extensions lookup at runtime', async () => {
+    const { LivePanelParser, getExtensionCallCount } = loadLivePanelParserWithStubbedVscode();
+
+    const fakeContext = { extensionPath: projectRoot };
+    const parser = new LivePanelParser(fakeContext);
+
+    const directoryFiles = await parser.loadTemplateFiles('directory', 'LivePanel', 'light');
+    assert.ok(directoryFiles.has('directoryAnalysis.html'), 'expected directoryAnalysis.html to load');
+    assert.ok(directoryFiles.has('main.js'), 'expected the directory main.js to load');
+    assert.ok(directoryFiles.has('style.css'), 'expected the directory style.css to load');
+    assert.match(directoryFiles.get('directoryAnalysis.html'), /id="dependency-graph-summary"/);
+
+    // The shared DataTable component is bundled ahead of the template's own code.
+    const directoryMainJs = directoryFiles.get('main.js');
+    assert.match(directoryMainJs, /class DataTable/);
+    assert.match(directoryMainJs, /function renderFileDetailsTable/);
+    assert.ok(
+        directoryMainJs.indexOf('class DataTable') < directoryMainJs.indexOf('function renderFileDetailsTable'),
+        'shared component must be bundled before the template script that uses it',
+    );
+    assert.match(directoryFiles.get('style.css'), /\.data-table-scroll/);
+
+    const fileFiles = await parser.loadTemplateFiles('file', 'LivePanel', 'light');
+    assert.ok(fileFiles.has('fileAnalysis.html'), 'expected fileAnalysis.html to load');
+    assert.ok(fileFiles.has('main.js'), 'expected the file main.js to load');
+    assert.ok(fileFiles.has('style.css'), 'expected the file style.css to load');
+    // Shared component is bundled into every LivePanel template's main.js.
+    assert.match(fileFiles.get('main.js'), /class DataTable/);
+
+    assert.equal(getExtensionCallCount(), 0, 'LivePanelParser must never call vscode.extensions.getExtension');
+});
+
+test('LivePanelParser throws a clear error instead of silently launching from the wrong directory when the extension path is wrong', async () => {
+    const { LivePanelParser } = loadLivePanelParserWithStubbedVscode();
+
+    const badContext = { extensionPath: path.join(projectRoot, 'this-path-does-not-exist') };
+    const parser = new LivePanelParser(badContext);
+
+    await assert.rejects(
+        () => parser.loadTemplateFiles('directory', 'LivePanel', 'light'),
+        /Template directory does not exist/,
+    );
 });
 

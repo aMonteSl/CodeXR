@@ -4,7 +4,7 @@
 
 **CodeXR** (`code-xr`, published by `aMonteSl`, GPL-3.0) is a VS Code extension that analyzes source code and visualizes the metrics in extended reality. The pipeline: a **Python backend** (Lizard metrics, ~23 languages, run in a venv the extension manages) produces JSON → **BabiaXR/A-Frame templates** turn it into an XR scene → **local HTTP/HTTPS servers with SSE live-reload** serve it to a browser or headset. Three analysis modes share the pipeline: XR scene, LivePanel (2D webview), and DOM visualization. It also offers collaborative XR sessions and opt-in cross-network sharing via Cloudflare tunnels.
 
-Current work: **v1.2.0** (branch `v1.2.0`; `master` is the PR target). The volatile state of the version lives in `.claude/docs/V1.2.0_STATUS.md` — read it, don't re-derive it from git.
+Current work: **v1.2.0** (branch `v1.2.0`, with larger features on `feature/*` branches off it; `master` is the PR target). The volatile state of the version lives in `.claude/docs/V1.2.0_STATUS.md` — read it, don't re-derive it from git.
 
 ## Context system — read this first
 
@@ -34,11 +34,20 @@ Current work: **v1.2.0** (branch `v1.2.0`; `master` is the PR target). The volat
 
 Full matrix and manual-validation flow: `.claude/docs/DEVELOPMENT.md`.
 
+## Project skills (`.claude/skills/`)
+
+| Skill | Use when |
+|---|---|
+| `verify` | Before declaring any change done — routes to the narrowest test script, then the `npm test` gate, then the F5 flow |
+| `session-close` | Ending a session — status doc + CHANGELOG + doc sync + commit hygiene checklist |
+| `runtime-component` | Touching JS/CSS under `templates/components/` — injection paths, load order, required tests |
+| `add-language` | Language-support changes — Python contract ↔ TS metadata sync, fixtures, test matrix |
+
 ## AI workflow rules
 
 1. **One feature, bug, or refactor per session.** Finish and validate before starting the next.
 2. Run `npm test` (plus the narrowest specialized script for the touched area) before declaring anything done. Never claim behavior works without a test run or the F5 flow.
-3. Work on `v1.2.0`; never commit directly to `master`.
+3. Work on `v1.2.0` or a `feature/*` branch off it; never commit directly to `master`.
 4. Label claims: confirmed / self-assessed (docs claim it) / inferred / open question. Docs' status labels ("Implementado") are self-assessments, not verified facts.
 5. When you change the version state (feature lands, verification resolved), **update `.claude/docs/V1.2.0_STATUS.md` and the CHANGELOG "[1.2.0] – Unreleased" section in the same session**. Architecture changed → `ARCHITECTURE.md`; tooling changed → `DEVELOPMENT.md`; doc added → `INDEX.md`.
 

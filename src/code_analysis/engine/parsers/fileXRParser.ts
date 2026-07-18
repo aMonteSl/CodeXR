@@ -91,7 +91,7 @@ export class FileXRParser {
             const validationResult = DimensionValidator.validateMappings(chartMetadata, babiaFormatMappings);
             this.displayConfigurationInfo(chartType, chartMetadata, babiaFormatMappings, validationResult);
 
-            const analysisData = bootstrap.payload ?? await new ExecutePython(this.context).executeAnalysis(session);
+            const analysisData = bootstrap?.payload ?? await new ExecutePython(this.context).executeAnalysis(session);
             if (!Array.isArray(analysisData) || analysisData.length === 0) {
                 throw new Error('Python analysis returned no data. Cannot generate XR visualization.');
             }

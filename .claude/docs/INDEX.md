@@ -17,6 +17,15 @@
 | `V1.2.0_STATUS.md` | **Volatile** dated snapshot: implemented / in progress / pending / needs-verification / documentation debt |
 | `AI_WORKFLOWS.md` | Playbooks per task type + universal session rules |
 
+### Project skills (`.claude/skills/` — never shipped; invoked via the Skill tool or `/<name>`)
+
+| Skill | One-line purpose |
+|---|---|
+| `verify` | Validation routing: narrowest test script per touched area → `npm test` gate → F5 flow |
+| `session-close` | End-of-session checklist: status doc, CHANGELOG, doc sync, commit hygiene |
+| `runtime-component` | Rules for `templates/components/` runtimes: injection paths, load order, tests |
+| `add-language` | Language-support changes: Python contract ↔ TS metadata, fixtures, test matrix |
+
 ### Existing project docs (shipped in the VSIX via `docs/**`)
 
 | Document | Language | One-line purpose |
@@ -63,4 +72,4 @@
 
 ## Keeping this index current
 
-Adding a document? Add its row here and, if task-relevant, to the task table. Repurposing or superseding one? Update its one-liner. This index only works if it stays complete — treat an unlisted doc as a bug.
+Adding a document? Add its row here and, if task-relevant, to the task table. Repurposing or superseding one? Update its one-liner. This index only works if it stays complete — treat an unlisted doc as a bug. The same applies to skills: adding or repurposing a skill under `.claude/skills/` means updating the skills table above and the skills table in `CLAUDE.md`.

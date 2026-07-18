@@ -16,7 +16,11 @@ try {
 // Global data storage
 let analysisData = null;
 let fileData = [];
-let charts = {};
+
+// Shared chart component instances (created on first render, updated in place).
+// Colors are CSS-variable driven (charts.css), so a theme change restyles them
+// without any re-render.
+const chartInstances = {};
 
 // Debug mode - set to false for production
 const DEBUG_MODE = false;
@@ -39,23 +43,22 @@ function setStoredTheme(theme) {
   }
 }
 
+// Inline SVG icons for the theme toggle. Using icons (not the words "Dark" /
+// "Light") keeps the control compact and language-neutral; `stroke: currentColor`
+// in the stylesheet colors them for whichever theme is active.
+const THEME_ICON_SUN = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>';
+const THEME_ICON_MOON = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+
 function applyTheme(theme) {
   document.body.setAttribute('data-theme', theme);
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
-    themeToggle.innerHTML = theme === 'dark' ? 'Light' : 'Dark';
+    // In dark mode, offer the sun (switch to light); in light mode, the moon.
+    themeToggle.innerHTML = theme === 'dark' ? THEME_ICON_SUN : THEME_ICON_MOON;
     themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`);
   }
-  
-  // Refresh charts with new theme colors if data is available
-  if (analysisData && fileData.length > 0) {
-    setTimeout(() => {
-      updateComplexityDistribution();
-      updateLanguageDistribution();
-      updateFileSizeDistribution();
-      updateComplexityOverview();
-    }, 100); // Small delay to ensure theme is applied
-  }
+  // Charts read their colors from CSS variables (charts.css), so switching the
+  // body[data-theme] attribute restyles every chart with no re-render.
 }
 
 function toggleTheme() {
@@ -68,25 +71,10 @@ function toggleTheme() {
 // Make toggleTheme available globally for template compatibility
 window.toggleTheme = toggleTheme;
 
-// Get theme-aware colors for charts
-function getThemeColors() {
-  const isDark = document.body.getAttribute('data-theme') === 'dark';
-  return {
-    textColor: isDark ? '#e0e0e0' : '#212529',
-    borderColor: isDark ? '#404040' : '#dee2e6',
-    gridColor: isDark ? '#404040' : '#dee2e6'
-  };
-}
-
 function debugLog(...args) {
   if (DEBUG_MODE) {
     console.log(...args);
   }
-}
-
-// Initialize the view (legacy function for compatibility)
-function init() {
-  console.log(' Legacy init function called - now handled by DOMContentLoaded');
 }
 
 // Load and display analysis data
@@ -280,13 +268,11 @@ function loadAnalysisData(data) {
     updateComplexityOverview();
     debugLog('Complexity overview updated');
     
-    console.log(' Updating top complex files...');
-    updateTopComplexFiles();
-    debugLog('Top complex files updated');
-    
-    console.log(' Updating file table...');
-    updateFileTable();
-    debugLog('File table updated');
+    renderComplexFilesTable();
+    debugLog('Complex files table updated');
+
+    renderFileDetailsTable();
+    debugLog('File details table updated');
     
     //  NEW: Restore scroll position after updates
     setTimeout(() => {
@@ -367,10 +353,30 @@ function handleSSEMessage(data) {
     case 'analysis-updated':
       console.log('DIRECTORY_ANALYSIS: Analysis updated for file:', data.fileUri || data.data?.fileUri);
       console.log('DIRECTORY_ANALYSIS: Triggering data reload...');
+      flashSSEStatus('New data received');
       showUpdateNotification();
       reloadAnalysisData();
       break;
-      
+
+    case 'dependency-updated':
+      // The server recomputed the dependency graph as part of the re-analysis;
+      // reload the freshly written artifact.
+      console.log('DIRECTORY_ANALYSIS: Dependency data updated, reloading summary...');
+      flashSSEStatus('New data received');
+      loadDependencySummary();
+      break;
+
+    case 'historical-progress':
+      // Comparison progress from the server (analyzing left/right versions).
+      historicalPanel.handleSseMessage(data.data && data.data.type ? data.data : data);
+      break;
+
+    case 'historical-updated':
+      // A comparison finished (or its working-copy side was re-analyzed).
+      flashSSEStatus('New data received');
+      historicalPanel.handleSseMessage(data.data && data.data.type ? data.data : data);
+      break;
+
     case 'heartbeat':
       console.log('DIRECTORY_ANALYSIS: Heartbeat received');
       // Keep-alive message, no action needed
@@ -452,16 +458,39 @@ function showSSEStatus(status) {
   
   switch (status) {
     case 'connected':
-      statusElement.textContent = ' Live Updates';
+      statusElement.textContent = 'Live Updates';
       statusElement.style.backgroundColor = '#10b981';
       statusElement.style.color = 'white';
       break;
     case 'error':
-      statusElement.textContent = ' Disconnected';
+      statusElement.textContent = 'Disconnected';
       statusElement.style.backgroundColor = '#ef4444';
       statusElement.style.color = 'white';
       break;
   }
+}
+
+let sseStatusFlashTimer = null;
+
+/**
+ * Momentarily surface that fresh data arrived, then fall back to the steady
+ * "Live Updates" indicator.
+ */
+function flashSSEStatus(message) {
+  const statusElement = document.getElementById('sse-status');
+  if (!statusElement) {
+    return;
+  }
+  statusElement.textContent = message;
+  statusElement.style.backgroundColor = '#3b82f6';
+  statusElement.style.color = 'white';
+  if (sseStatusFlashTimer) {
+    clearTimeout(sseStatusFlashTimer);
+  }
+  sseStatusFlashTimer = setTimeout(() => {
+    sseStatusFlashTimer = null;
+    showSSEStatus('connected');
+  }, 2500);
 }
 
 /**
@@ -599,12 +628,13 @@ function findMaxComplexity() {
   return maxAvgComplexity.toFixed(1); // Return with 1 decimal place for consistency
 }
 
-// Update language distribution chart
+// Update language distribution chart (categorical donut: identity per language,
+// fixed slot order; languages beyond the 8 categorical slots fold into "Other").
 function updateLanguageDistribution() {
   try {
     debugLog('Starting updateLanguageDistribution');
     const languageStats = {};
-    
+
     fileData.forEach(file => {
       const lang = file.language || 'Unknown';
       if (!languageStats[lang]) {
@@ -614,70 +644,46 @@ function updateLanguageDistribution() {
       languageStats[lang].lines += file.totalLines || 0;
     });
 
-    debugLog('Language stats calculated:', languageStats);
-
-    const languages = Object.keys(languageStats);
-    const counts = languages.map(lang => languageStats[lang].count);
-    const colors = generateColors(languages.length);
-
-    // Destroy existing chart if it exists
-    if (charts.language) {
-      charts.language.destroy();
+    const ranked = Object.keys(languageStats)
+      .map(lang => ({ label: lang, value: languageStats[lang].count }))
+      .sort((a, b) => b.value - a.value);
+    const segments = ranked.slice(0, 8).map((entry, index) => ({
+      label: entry.label,
+      value: entry.value,
+      colorClass: codexrSeriesClass(index),
+    }));
+    const rest = ranked.slice(8);
+    if (rest.length > 0) {
+      segments.push({
+        label: `Other (${rest.length})`,
+        value: rest.reduce((sum, entry) => sum + entry.value, 0),
+        colorClass: 'codexr-other',
+      });
     }
 
-    const canvas = document.getElementById('language-chart');
-    if (!canvas) {
-      console.error('Language chart canvas not found');
-      return;
+    if (!chartInstances.language) {
+      chartInstances.language = new CodexrDonutChart('language-chart', {
+        centerLabel: 'Files',
+        ariaLabel: 'Files per language',
+      });
+    }
+    chartInstances.language.setData(segments);
+
+    // Per-language stats grid (files + lines per language).
+    const statsContainer = document.getElementById('language-stats');
+    if (statsContainer) {
+      statsContainer.innerHTML = Object.keys(languageStats).map(lang => {
+        const stat = languageStats[lang];
+        return `
+          <div class="stat-item">
+            <div class="stat-label">${escapeHtml(lang)}</div>
+            <div class="stat-value">${stat.count} files, ${stat.lines.toLocaleString()} lines</div>
+          </div>
+        `;
+      }).join('');
     }
 
-    const ctx = canvas.getContext('2d');
-    const themeColors = getThemeColors();
-    
-    charts.language = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: languages,
-        datasets: [{
-          data: counts,
-          backgroundColor: colors,
-          borderWidth: 2,
-          borderColor: themeColors.borderColor
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: themeColors.textColor,
-              font: {
-                size: 11
-              },
-              padding: 15
-            }
-          }
-        }
-      }
-    });
-
-  // Update language stats
-  const statsContainer = document.getElementById('language-stats');
-  if (statsContainer) {
-    statsContainer.innerHTML = languages.map(lang => {
-      const stat = languageStats[lang];
-      return `
-        <div class="stat-item">
-          <div class="stat-label">${lang}</div>
-          <div class="stat-value">${stat.count} files, ${stat.lines.toLocaleString()} lines</div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  debugLog('Language distribution chart created successfully');
+    debugLog('Language distribution chart created successfully');
   } catch (error) {
     console.error('Error updating language distribution:', error);
   }
@@ -706,69 +712,19 @@ function updateFileSizeDistribution() {
 
     debugLog('Size categories calculated:', sizeCategories);
 
-    // Destroy existing chart if it exists
-    if (charts.size) {
-      charts.size.destroy();
+    // File size is a magnitude ordering, not a severity: one sequential hue.
+    if (!chartInstances.size) {
+      chartInstances.size = new CodexrBarChart('size-chart', {
+        colorClass: 'codexr-sequential',
+      });
     }
+    chartInstances.size.setData(Object.keys(sizeCategories).map(category => ({
+      label: category,
+      value: sizeCategories[category],
+      detail: 'files',
+    })));
 
-    const canvas = document.getElementById('size-chart');
-    if (!canvas) {
-      console.error('Size chart canvas not found');
-      return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    const themeColors = getThemeColors();
-    
-    charts.size = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(sizeCategories),
-      datasets: [{
-        label: 'Number of Files',
-        data: Object.values(sizeCategories),
-        backgroundColor: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c'],
-        borderWidth: 1,
-        borderColor: themeColors.borderColor
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: themeColors.textColor,
-            font: {
-              size: 11
-            }
-          },
-          grid: {
-            color: themeColors.gridColor
-          }
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            color: themeColors.textColor,
-            font: {
-              size: 11
-            }
-          },
-          grid: {
-            color: themeColors.gridColor
-          }
-        }
-      }
-    }
-  });
-
-  debugLog('File size distribution chart created successfully');
+    debugLog('File size distribution chart created successfully');
   } catch (error) {
     console.error('Error updating file size distribution:', error);
   }
@@ -802,166 +758,151 @@ function updateComplexityOverview() {
 
     debugLog('Complexity buckets calculated:', complexityBuckets);
 
-    // Destroy existing chart if it exists
-    if (charts.complexity) {
-      charts.complexity.destroy();
+    // Complexity bands are severities: status colors, direct-labeled per bar.
+    if (!chartInstances.complexity) {
+      chartInstances.complexity = new CodexrBarChart('complexity-chart');
     }
+    chartInstances.complexity.setData([
+      { label: 'Low (≤5)', value: complexityBuckets.low, colorClass: 'codexr-status-good', detail: 'files' },
+      { label: 'Medium (6-10)', value: complexityBuckets.medium, colorClass: 'codexr-status-warning', detail: 'files' },
+      { label: 'High (11-20)', value: complexityBuckets.high, colorClass: 'codexr-status-serious', detail: 'files' },
+      { label: 'Critical (>20)', value: complexityBuckets.critical, colorClass: 'codexr-status-critical', detail: 'files' },
+    ]);
 
-    const canvas = document.getElementById('complexity-chart');
-    if (!canvas) {
-      console.error('Complexity chart canvas not found');
-      return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    const themeColors = getThemeColors();
-    
-    charts.complexity = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Low (≤5)', 'Medium (6-10)', 'High (11-20)', 'Critical (>20)'],
-      datasets: [{
-        label: 'Number of Files',
-        data: [complexityBuckets.low, complexityBuckets.medium, complexityBuckets.high, complexityBuckets.critical],
-        backgroundColor: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c'],
-        borderWidth: 1,
-        borderColor: themeColors.borderColor
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: themeColors.textColor,
-            font: {
-              size: 11
-            }
-          },
-          grid: {
-            color: themeColors.gridColor
-          }
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            color: themeColors.textColor,
-            font: {
-              size: 11
-            }
-          },
-          grid: {
-            color: themeColors.gridColor
-          }
-        }
-      }
-    }
-  });
-
-  debugLog('Complexity overview chart created successfully');
+    debugLog('Complexity overview chart created successfully');
   } catch (error) {
     console.error('Error updating complexity overview:', error);
   }
 }
 
-// Update top complex files
-function updateTopComplexFiles() {
-  const sortedFiles = [...fileData]
-    .filter(file => file.cyclomaticComplexityNumber > 0)
-    .sort((a, b) => (b.cyclomaticComplexityNumber || 0) - (a.cyclomaticComplexityNumber || 0))
-    .slice(0, 10);
+// ── Table registry ───────────────────────────────────────────────────────────
+// Every list in this view is a shared DataTable. Instances are cached by mount
+// id so live updates (SSE reloads, dependency refresh) re-render existing tables
+// instead of rebuilding them and losing the user's current search/sort.
+const dataTables = {};
 
-  const container = document.getElementById('complex-files-list');
-  const isDeepMode = window.analysisMode === "deep";
-
-  container.innerHTML = sortedFiles.map(file => {
-    const complexity = file.cyclomaticComplexityNumber || 0;
-    const classification = getFileComplexityClassification(complexity);
-    const displayName = isDeepMode && file.relativePath && file.relativePath !== file.fileName
-      ? file.relativePath
-      : file.fileName;
-
-    return `
-      <div class="file-item ${classification.cssClass}">
-        <div class="file-name" title="${file.filePath}">${displayName}</div>
-        <div class="file-details">
-          <span class="complexity-badge ${classification.cssClass}">${complexity.toFixed(1)} CCN</span>
-          <span>${file.functionCount || 0} functions</span>
-          <span>${file.maxFunctionNestingDepth || 0} max nesting</span>
-          <span>${file.highComplexityFunctions || 0} high-risk</span>
-        </div>
-      </div>
-    `;
-  }).join('');
+function upsertDataTable(mountId, options, rows) {
+  if (dataTables[mountId]) {
+    dataTables[mountId].setRows(rows);
+  } else {
+    dataTables[mountId] = new DataTable(mountId, Object.assign({}, options, { rows: rows }));
+  }
+  return dataTables[mountId];
 }
 
-function updateFileTable() {
-  const tbody = document.getElementById('file-table-body');
-
-  tbody.innerHTML = fileData.map(file => {
-    const avgComplexity = file.cyclomaticComplexityNumber || 0;
-    const classification = getFileComplexityClassification(avgComplexity);
-    const maxFunctionComplexity = file.maxComplexity || 0;
-
-    return `
-      <tr class="${classification.cssClass}">
-        <td class="file-name clickable" title="${file.filePath}" data-file-path="${file.filePath}">
-          <span class="file-name-link">${file.fileName}</span>
-        </td>
-        <td class="relative-path" title="${file.relativePath || file.fileName}">
-          ${file.relativePath || file.fileName}
-        </td>
-        <td>${file.language || "Unknown"}</td>
-        <td>${formatFileSize(file.fileSizeBytes || 0)}</td>
-        <td>${(file.totalLines || 0).toLocaleString()}</td>
-        <td>${file.functionCount || 0}</td>
-        <td>${avgComplexity.toFixed(1)}</td>
-        <td>${maxFunctionComplexity}</td>
-        <td>${formatRatio(file.commentRatio || 0)}</td>
-        <td>${(file.averageFunctionParameters || 0).toFixed(2)}</td>
-        <td>${file.maxFunctionParameters || 0}</td>
-        <td>${(file.averageFunctionNestingDepth || 0).toFixed(2)}</td>
-        <td>${file.maxFunctionNestingDepth || 0}</td>
-        <td>${file.highComplexityFunctions || 0}</td>
-        <td>${file.criticalComplexityFunctions || 0}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const fileNameCells = document.querySelectorAll('.file-name.clickable');
-  fileNameCells.forEach(cell => {
-    cell.addEventListener('click', handleFileClick);
-  });
-}
-
-function handleFileClick(event) {
-  const filePath = event.currentTarget.getAttribute('data-file-path');
+// Ask the extension to open a single file's own analysis (from a clickable row).
+function openFileAnalysis(filePath) {
   if (!filePath) {
-    console.error('No file path found for clicked file');
     return;
   }
-  
-  // Send message to extension to open individual file analysis
-  const message = {
-    command: 'openFileAnalysis',
-    filePath: filePath
-  };
-  
   try {
     if (vsCodeApi) {
-      vsCodeApi.postMessage(message);
-    } else {
-      console.warn('VS Code API not available for postMessage');
+      vsCodeApi.postMessage({ command: 'openFileAnalysis', filePath: filePath });
     }
   } catch (error) {
-    console.error('Failed to send message to VS Code:', error);
+    console.error('Failed to open file analysis:', error);
   }
+}
+
+// Shared cell renderers / row helpers for the file tables.
+function renderFileNameCell(file, displayName) {
+  return `<span class="cell-link" title="${escapeHtml(file.filePath || '')}">${escapeHtml(displayName || '')}</span>`;
+}
+
+function fileComplexityRowClass(file) {
+  return getFileComplexityClassification(file.cyclomaticComplexityNumber || 0).cssClass;
+}
+
+// Most Complex Files — the files carrying cyclomatic complexity, searchable and
+// sortable, defaulting to the highest average CCN first.
+function renderComplexFilesTable() {
+  const rows = fileData.filter(file => (file.cyclomaticComplexityNumber || 0) > 0);
+  upsertDataTable('complex-files-table', {
+    searchPlaceholder: 'Search files...',
+    emptyMessage: 'No complex files detected.',
+    sort: { key: 'cyclomaticComplexityNumber', dir: 'desc' },
+    rowClass: fileComplexityRowClass,
+    onRowClick: file => openFileAnalysis(file.filePath),
+    columns: [
+      {
+        key: 'fileName', label: 'File',
+        render: file => renderFileNameCell(
+          file,
+          file.relativePath && file.relativePath !== file.fileName ? file.relativePath : file.fileName,
+        ),
+      },
+      { key: 'language', label: 'Language', align: 'center', value: file => file.language || 'Unknown' },
+      {
+        key: 'cyclomaticComplexityNumber', label: 'Avg CCN', align: 'center', defaultDir: 'desc',
+        value: file => file.cyclomaticComplexityNumber || 0,
+        render: file => escapeHtml((file.cyclomaticComplexityNumber || 0).toFixed(1)),
+      },
+      { key: 'functionCount', label: 'Functions', align: 'center', defaultDir: 'desc', value: file => file.functionCount || 0 },
+      { key: 'maxFunctionNestingDepth', label: 'Max Nesting', align: 'center', defaultDir: 'desc', value: file => file.maxFunctionNestingDepth || 0 },
+      { key: 'highComplexityFunctions', label: 'High-risk Fns', align: 'center', defaultDir: 'desc', value: file => file.highComplexityFunctions || 0 },
+    ],
+  }, rows);
+}
+
+// File Details — the full per-file metric table (the reference table style):
+// search box, "Sort by" menu, sortable headers, fixed-height internal scroll,
+// and a clickable file name that opens that file's own analysis.
+function renderFileDetailsTable() {
+  upsertDataTable('file-details-table', {
+    searchPlaceholder: 'Search files...',
+    emptyMessage: 'No files analyzed.',
+    sort: { key: 'fileName', dir: 'asc' },
+    rowClass: fileComplexityRowClass,
+    onRowClick: file => openFileAnalysis(file.filePath),
+    columns: [
+      { key: 'fileName', label: 'File', render: file => renderFileNameCell(file, file.fileName) },
+      {
+        key: 'relativePath', label: 'Relative Path',
+        value: file => file.relativePath || file.fileName || '',
+        render: file => {
+          const relPath = file.relativePath || file.fileName || '';
+          return `<span class="cell-path" title="${escapeHtml(relPath)}">${escapeHtml(relPath)}</span>`;
+        },
+      },
+      { key: 'language', label: 'Language', align: 'center', value: file => file.language || 'Unknown' },
+      {
+        key: 'fileSizeBytes', label: 'Size', align: 'right', defaultDir: 'desc',
+        value: file => file.fileSizeBytes || 0,
+        render: file => escapeHtml(formatFileSize(file.fileSizeBytes || 0)),
+      },
+      {
+        key: 'totalLines', label: 'Lines', align: 'right', defaultDir: 'desc',
+        value: file => file.totalLines || 0,
+        render: file => escapeHtml((file.totalLines || 0).toLocaleString()),
+      },
+      { key: 'functionCount', label: 'Functions', align: 'center', defaultDir: 'desc', value: file => file.functionCount || 0 },
+      {
+        key: 'cyclomaticComplexityNumber', label: 'Avg CCN', align: 'center', defaultDir: 'desc',
+        value: file => file.cyclomaticComplexityNumber || 0,
+        render: file => escapeHtml((file.cyclomaticComplexityNumber || 0).toFixed(1)),
+      },
+      { key: 'maxComplexity', label: 'Max Fn CCN', align: 'center', defaultDir: 'desc', value: file => file.maxComplexity || 0 },
+      {
+        key: 'commentRatio', label: 'Comment %', align: 'center', defaultDir: 'desc',
+        value: file => file.commentRatio || 0,
+        render: file => escapeHtml(formatRatio(file.commentRatio || 0)),
+      },
+      {
+        key: 'averageFunctionParameters', label: 'Avg Params', align: 'center', defaultDir: 'desc',
+        value: file => file.averageFunctionParameters || 0,
+        render: file => escapeHtml((file.averageFunctionParameters || 0).toFixed(2)),
+      },
+      { key: 'maxFunctionParameters', label: 'Max Params', align: 'center', defaultDir: 'desc', value: file => file.maxFunctionParameters || 0 },
+      {
+        key: 'averageFunctionNestingDepth', label: 'Avg Nesting', align: 'center', defaultDir: 'desc',
+        value: file => file.averageFunctionNestingDepth || 0,
+        render: file => escapeHtml((file.averageFunctionNestingDepth || 0).toFixed(2)),
+      },
+      { key: 'maxFunctionNestingDepth', label: 'Max Nesting', align: 'center', defaultDir: 'desc', value: file => file.maxFunctionNestingDepth || 0 },
+      { key: 'highComplexityFunctions', label: 'High CCN Fns', align: 'center', defaultDir: 'desc', value: file => file.highComplexityFunctions || 0 },
+      { key: 'criticalComplexityFunctions', label: 'Critical CCN Fns', align: 'center', defaultDir: 'desc', value: file => file.criticalComplexityFunctions || 0 },
+    ],
+  }, fileData);
 }
 
 //  SHARED: Get complexity classification based on file's average CCN
@@ -998,46 +939,7 @@ function getFileComplexityClassification(avgCCN) {
   };
 }
 
-// Legacy function for backward compatibility
-function getComplexityClass(ccn) {
-  return getFileComplexityClassification(ccn).cssClass;
-}
-
-// Filter files based on search input
-function filterFiles() {
-  const filter = document.getElementById('file-filter').value.toLowerCase();
-  const rows = document.querySelectorAll('#file-table tbody tr');
-  
-  rows.forEach(row => {
-    const fileName = row.querySelector('.file-name').textContent.toLowerCase();
-    const matches = fileName.includes(filter);
-    row.style.display = matches ? '' : 'none';
-  });
-}
-
-// Sort files by selected criteria
-function sortFiles() {
-  const sortBy = document.getElementById('sort-by').value;
-  
-  fileData.sort((a, b) => {
-    switch (sortBy) {
-      case 'name':
-        return a.fileName.localeCompare(b.fileName);
-      case 'size':
-        return (b.fileSizeBytes || 0) - (a.fileSizeBytes || 0);
-      case 'complexity':
-        return (b.cyclomaticComplexityNumber || 0) - (a.cyclomaticComplexityNumber || 0);
-      case 'lines':
-        return (b.totalLines || 0) - (a.totalLines || 0);
-      case 'functions':
-        return (b.functionCount || 0) - (a.functionCount || 0);
-      default:
-        return 0;
-    }
-  });
-  
-  updateFileTable();
-}
+// (File Details filtering and sorting are now handled by the shared DataTable.)
 
 // Update complexity distribution based on file-level average CCN
 function updateComplexityDistribution() {
@@ -1097,103 +999,49 @@ function updateComplexityDistribution() {
   }
 }
 
-// Create complexity distribution doughnut chart
+// Create complexity distribution donut chart (status colors: severity bands).
 function createComplexityDistributionChart(distribution) {
-  const canvas = document.getElementById('complexity-distribution-chart');
-  if (!canvas || !window.Chart) {
-    debugLog('Chart.js not available or canvas not found for complexity distribution');
-    return;
+  if (!chartInstances.complexityDistribution) {
+    chartInstances.complexityDistribution = new CodexrDonutChart('complexity-distribution-chart', {
+      centerLabel: 'Files',
+      ariaLabel: 'Files per complexity band',
+    });
   }
-
-  // Destroy existing chart if it exists
-  if (window.complexityDistributionChart) {
-    window.complexityDistributionChart.destroy();
-  }
-
-  const data = {
-    labels: ['Low (≤5)', 'Medium (6-10)', 'High (11-20)', 'Critical (>20)'],
-    datasets: [{
-      data: [distribution.simple, distribution.moderate, distribution.complex, distribution.veryComplex],
-      backgroundColor: [
-        '#27ae60', // Low - green
-        '#f39c12', // Medium - orange
-        '#e67e22', // High - dark orange
-        '#e74c3c'  // Critical - red
-      ],
-      borderWidth: 2,
-      borderColor: getThemeColors().borderColor
-    }]
-  };
-
-  window.complexityDistributionChart = new Chart(canvas, {
-    type: 'doughnut',
-    data: data,
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 1,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            usePointStyle: true,
-            padding: 15,
-            color: getThemeColors().textColor,
-            font: {
-              size: 11
-            }
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0.0';
-              return `${context.label}: ${context.parsed} files (${percentage}%)`;
-            }
-          }
-        }
-      }
-    }
-  });
+  chartInstances.complexityDistribution.setData([
+    { label: 'Low (≤5)', value: distribution.simple, colorClass: 'codexr-status-good' },
+    { label: 'Medium (6-10)', value: distribution.moderate, colorClass: 'codexr-status-warning' },
+    { label: 'High (11-20)', value: distribution.complex, colorClass: 'codexr-status-serious' },
+    { label: 'Critical (>20)', value: distribution.veryComplex, colorClass: 'codexr-status-critical' },
+  ]);
 }
 
-// Generate unique colors for charts
-function generateColors(count) {
-  const baseColors = [
-    '#27ae60', '#3498db', '#9b59b6', '#e74c3c', '#f39c12',
-    '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#2ecc71',
-    '#8e44ad', '#c0392b', '#d35400', '#16a085', '#2c3e50',
-    '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57',
-    '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43',
-    '#a55eea', '#26de81', '#fd79a8', '#6c5ce7', '#fab1a0',
-    '#ff7675', '#6c5ce7', '#a29bfe', '#fd79a8', '#fdcb6e',
-    '#e17055', '#00b894', '#00cec9', '#0984e3', '#6c5ce7'
-  ];
-  
-  const colors = [];
-  
-  // First, use all base colors without repetition
-  for (let i = 0; i < count && i < baseColors.length; i++) {
-    colors.push(baseColors[i]);
-  }
-  
-  // If we need more colors than base colors, generate HSL variations
-  if (count > baseColors.length) {
-    const remainingCount = count - baseColors.length;
-    for (let i = 0; i < remainingCount; i++) {
-      // Generate unique HSL colors with good saturation and lightness
-      // Using golden angle for optimal color distribution
-      const hue = (i * 137.508) % 360;
-      // Vary saturation and lightness for better distinction
-      const saturation = 65 + (i % 4) * 10; // 65%, 75%, 85%, 95%
-      const lightness = 45 + (i % 3) * 15; // 45%, 60%, 75%
-      colors.push(`hsl(${Math.round(hue)}, ${saturation}%, ${lightness}%)`);
-    }
-  }
-  
-  return colors;
+// ============================================================
+// Dependency Summary (shared CodexrDependencySummaryPanel)
+// ============================================================
+// All rendering lives in the shared component
+// (templates/components/livepanel/dependencySummaryPanel.js); this file only
+// wires initial loading and the `dependency-updated` SSE event to it.
+
+const dependencyPanel = new CodexrDependencySummaryPanel();
+
+function loadDependencySummary() {
+  return dependencyPanel.load();
 }
+
+// Load the current dependency dataset on startup; subsequent updates arrive via
+// the `dependency-updated` SSE event (see handleSSEMessage).
+function initializeDependencyGraphSummary() {
+  loadDependencySummary();
+}
+
+// ============================================================
+// Historical Comparison (shared CodexrHistoricalPanel)
+// ============================================================
+// Compare the working copy against any local Git branch/tag/commit. The shared
+// panel owns the whole REST + SSE flow
+// (templates/components/livepanel/historicalPanel.js).
+
+const historicalPanel = new CodexrHistoricalPanel();
 
 // Handle messages from the extension
 window.addEventListener('message', event => {
@@ -1254,7 +1102,14 @@ document.addEventListener('DOMContentLoaded', function() {
   if (themeToggle) {
     themeToggle.addEventListener('click', toggleTheme);
   }
-  
+
+  // Set up the Dependency Summary (auto-runs on load; SSE-driven afterwards)
+  initializeDependencyGraphSummary();
+
+  // Set up the Historical Comparison panel (loads Git references, or explains
+  // why the feature is unavailable for this target).
+  historicalPanel.initialize();
+
   // Listen for the analysisDataLoaded event from the template
   window.addEventListener('analysisDataLoaded', function(event) {
     console.log(' Received analysisDataLoaded event, initializing...');
@@ -1266,68 +1121,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log(' Found window.analysisData immediately, initializing...');
     loadAnalysisData(window.analysisData);
   } else {
-    console.log('⏳ Waiting for analysisDataLoaded event...');
+    console.log('Waiting for analysisDataLoaded event...');
   }
   
-  //  NEW: Initialize Server-Sent Events for live updates
+  // Live updates arrive over SSE; the tables re-render themselves on reload.
   initializeSSE();
-  
-  //  DIRECTORY ANALYSIS: Use SSE for live updates, NO polling needed
-  // Directory analysis uses SSE events for real-time updates
-  let lastDataHash = null;
-  
-  function checkForDataUpdates() {
-    // Only for debugging or manual refresh - not automatic polling
-    fetch('./data.json')
-      .then(response => response.json())
-      .then(data => {
-        // Create a simple hash of the data to detect changes
-        const dataString = JSON.stringify(data);
-        const currentHash = dataString.length + '_' + data.summary.analyzedAt;
-        
-        if (lastDataHash && lastDataHash !== currentHash) {
-          console.log(' Detected data.json change via manual check, updating...');
-          window.analysisData = data;
-          loadAnalysisData(data);
-        }
-        
-        lastDataHash = currentHash;
-      })
-      .catch(error => {
-        console.warn(' Failed to check data.json:', error);
-      });
-  }
-  
-  //  REMOVED: No automatic polling for directory analysis
-  // Directory analysis uses SSE events for live updates
-  // setInterval(checkForDataUpdates, 2000);
-  
-  // Initial check only - no repeated polling
-  setTimeout(checkForDataUpdates, 1000);
-  
-  // Set up event listeners
-  try {
-    const fileFilter = document.getElementById('file-filter');
-    const sortBy = document.getElementById('sort-by');
-    
-    if (fileFilter) {
-      fileFilter.addEventListener('input', filterFiles);
-    } else {
-      console.warn('file-filter element not found');
-    }
-    
-    if (sortBy) {
-      sortBy.addEventListener('change', sortFiles);
-    } else {
-      console.warn('sort-by element not found');
-    }
-  } catch (error) {
-    console.warn('Error setting up event listeners:', error);
-  }
 });
-
-// Legacy support for the old init function
-function init() {
-  console.log(' Legacy init function called');
-  // This is now handled by DOMContentLoaded
-}

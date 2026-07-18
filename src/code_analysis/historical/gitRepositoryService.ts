@@ -171,7 +171,7 @@ export class GitRepositoryService {
             `--max-count=${safeMaxCount}`,
             '--date=short',
             '--format=%H%x00%ad%x00%P%x00%s',
-        ])).stdout.split(/\r\n/).filter(Boolean);
+        ])).stdout.split(/\r?\n/).filter(Boolean);
         const sources: ComparisonSource[] = [];
         for (const line of commitLines) {
             const [commitSha, date, parents, subject] = line.split('\0');
@@ -240,6 +240,17 @@ export class GitRepositoryService {
         }
         this.resolveTargetRelativePath(repositoryRoot);
         return repositoryRoot;
+    }
+
+    /**
+     * Whether the analyzed target exists in the given commit. Lets a
+     * single-file comparison hide references the file is absent from
+     * (deleted, renamed, or not yet created in that version).
+     */
+    public async targetExistsInCommit(commitSha: string): Promise<boolean> {
+        const repositoryRoot = await this.resolveRepositoryRoot();
+        const targetRelativePath = this.resolveTargetRelativePath(repositoryRoot);
+        return this.gitObjectExists(repositoryRoot, `${commitSha}:${targetRelativePath}`);
     }
 
     private async materializeFile(
@@ -372,8 +383,8 @@ export class GitRepositoryService {
         label: string,
         commitSha: string,
         description?: string,
-        revisionType: GitRevisionType,
-        parentCount: number,
+        revisionType?: GitRevisionType,
+        parentCount = 0,
     ): ComparisonSource {
         const id = `${refType}-${crypto.createHash('sha256').update(refName).digest('hex').slice(0, 16)}`;
         return {

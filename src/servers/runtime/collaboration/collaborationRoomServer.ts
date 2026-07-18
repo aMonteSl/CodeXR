@@ -24,12 +24,12 @@ export type CollaborationRole = 'host' | 'guest';
 export type IdentityMode = 'anonymous' | 'custom';
 
 export interface ParticipantState {
-    peerId?: string;
-    displayName?: string;
-    identityMode?: IdentityMode;
-    avatarId?: string;
-    role?: CollaborationRole;
-    isPresenter?: boolean;
+    peerId: string;
+    displayName: string;
+    identityMode: IdentityMode;
+    avatarId: string;
+    role: CollaborationRole;
+    isPresenter: boolean;
     connectedAt: string;
 }
 
@@ -647,8 +647,8 @@ export class CollaborationRoomServer {
 
         this.removeAuthoritativeEntity(
             room,
-            String(message.entityKind || message.payload.entityKind || ''),
-            String(message.entityId || message.payload.entityId || ''),
+            String(message.entityKind || message.payload?.entityKind || ''),
+            String(message.entityId || message.payload?.entityId || ''),
             peer.id,
         );
     }
@@ -989,7 +989,7 @@ export class CollaborationRoomServer {
         return this.rooms.get(peer.roomId) || null;
     }
 
-    private normalizeEntityState(value: unknown): SharedEntityState | null {
+    private normalizeEntityState(value: unknown): (SharedEntityState & { entityKind: string; entityId: string }) | null {
         if (!value || typeof value !== 'object') {
             return null;
         }
@@ -1062,7 +1062,7 @@ export class CollaborationRoomServer {
             displayName: participant.displayName,
             avatarId: participant.avatarId,
             clientKind: peer?.session?.clientKind || 'browser',
-            connectionScope: peer.session.remote ? 'remote' : 'local',
+            connectionScope: peer?.session?.remote ? 'remote' : 'local',
             connectedAt: participant.connectedAt,
         };
     }

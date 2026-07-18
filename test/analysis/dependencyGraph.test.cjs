@@ -62,7 +62,7 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /Open folder/);
   assert.match(runtime, /Go to parent/);
   assert.match(runtime, /Open file/);
-  assert.match(runtime, /footerReserve: canNavigate \ \.28 : 0/);
+  assert.match(runtime, /footerReserve: canNavigate \? \.28 : 0/);
   assert.match(runtime, /'0 -0\.62 0\.02'/);
   assert.match(runtime, /Project root/);
   assert.match(runtime, /Back to:/);
@@ -257,7 +257,7 @@ test('dependency graph keeps density control local and packages diagnostics', ()
   assert.match(runtime, /setDetailOverride/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.createTooltip/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.updateTooltip/);
-  assert.match(runtime, /CodeXRCommonRuntime\\.updateTooltipConnector/);
+  assert.match(runtime, /CodeXRCommonRuntime\.updateTooltipConnector\?\./);
   assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
   assert.match(runtime, /'data-codexr-interactive': 'true'/);
   assert.match(runtime, /connectorTarget/);
@@ -567,4 +567,128 @@ test('python dependency packages are pinned centrally', () => {
   assert.match(manifest, /lizard/);
   assert.match(manifest, /tree-sitter-language-pack/);
   assert.match(manifest, /version: '1\.8\.1'/);
+});
+
+test('dependency graph availability gate allows LivePanel directory/project analyses', () => {
+  const service = read('src/code_analysis/dependencies/dependencyGraphService.ts');
+  assert.match(service, /session\.analysisMode !== 'XR' && session\.analysisMode !== 'LivePanel'/);
+});
+
+test('LivePanel dependency graph summary REST endpoint is thin and reuses the existing service', () => {
+  const server = read('src/servers/runtime/httpServer.ts');
+  assert.match(server, /case '\/dependency-graph\/summary':/);
+  assert.match(server, /private async handleDependencyGraphSummary\(/);
+  assert.match(server, /this\.dependencyGraphService\.getAvailability\(\)/);
+  assert.match(server, /scope\.kind !== 'directory'/);
+  assert.match(server, /this\.dependencyGraphService\.isBusy\(\)/);
+  assert.match(server, /await this\.dependencyGraphService\.analyze\(\)/);
+});
+
+test('LivePanel ties the dependency graph into the re-analysis chain as a background mode and pushes updates over SSE', () => {
+  const server = read('src/servers/runtime/httpServer.ts');
+  // Background refresh: recompute the dependency graph on every source change,
+  // seed the initial dataset, and clean up on dispose.
+  assert.match(server, /setBackgroundRefresh\(livePanelSessionId, 'dependency-graph', true\)/);
+  assert.match(server, /forceRefreshMode\(livePanelSessionId, 'dependency-graph'\)/);
+  assert.match(server, /setBackgroundRefresh\(livePanelSessionId, 'dependency-graph', false\)/);
+  // Delivery to the LivePanel browser (no collaboration room) is via SSE.
+  assert.match(server, /notifyLivePanelDependencyUpdated\(dataset\.revision\)/);
+  assert.match(server, /sseManager\.sendCustomMessage\(fileUri, \{[\s\S]*type: 'dependency-updated'/);
+});
+
+test('the refresh coordinator exposes background modes that publishChanges runs while inactive', () => {
+  const coordinator = read('src/code_analysis/refresh/analysisRefreshCoordinator.ts');
+  assert.match(coordinator, /backgroundModes: Set<AnalysisRefreshMode>/);
+  assert.match(coordinator, /public setBackgroundRefresh\(/);
+  assert.match(coordinator, /for \(const backgroundMode of state\.backgroundModes\)/);
+  assert.match(coordinator, /this\.runIfNeeded\(sessionId, backgroundMode, false, true\)/);
+});
+
+test('the dependency service consumes an incremental change batch (changed files only, extraction cache)', () => {
+  const service = read('src/code_analysis/dependencies/dependencyGraphService.ts');
+  // The incremental request feeds the Python analyzer the change batch + a cache.
+  assert.match(service, /const requestPath = path\.join\(requestDirectory, 'refresh-request\.json'\)/);
+  assert.match(service, /this\.extractionCachePath/);
+  const server = read('src/servers/runtime/httpServer.ts');
+  // The handler builds the request from the coordinator batch (first run full, then incremental).
+  assert.match(server, /changedFiles: batch\.changedFiles/);
+  assert.match(server, /forceFullScan: batch\.forceRefresh \|\| !this\.dependencyGraphService\.hasGeneratedDataset\(\)/);
+});
+
+test('directory LivePanel template exposes the Dependency Summary section with no manual refresh control', () => {
+  const html = read('templates/analysis_livePanel/directory/directoryAnalysis.html');
+  assert.match(html, /id="dependency-graph-summary"/);
+  assert.match(html, /<h2>Dependency Summary<\/h2>/);
+  // The summary is recomputed by the re-analysis chain; there is no refresh button.
+  assert.doesNotMatch(html, /dependency-refresh-btn/);
+  assert.doesNotMatch(html, /Generate\/Refresh Dependency Summary/);
+  assert.match(html, /id="dependency-status"/);
+  assert.match(html, /id="dependency-node-count"/);
+  assert.match(html, /id="dependency-edge-count"/);
+  assert.match(html, /id="dependency-external-count"/);
+  assert.match(html, /id="dependency-cycle-count"/);
+  assert.match(html, /id="dependency-warning-count"/);
+  // Each list is now a shared DataTable mount (div), not a static table.
+  assert.match(html, /<div id="dependency-fan-in-table"><\/div>/);
+  assert.match(html, /<div id="dependency-fan-out-table"><\/div>/);
+  assert.match(html, /<div id="dependency-external-table"><\/div>/);
+  assert.match(html, /<div id="dependency-cycles-table"><\/div>/);
+  assert.match(html, /<div id="dependency-confidence-table"><\/div>/);
+  assert.match(html, /<div id="dependency-capability-table"><\/div>/);
+  assert.match(html, /id="dependency-warnings-list"/);
+});
+
+test('directory LivePanel script loads the dependency artifact same-origin and reacts to the dependency-updated SSE event', () => {
+  const main = read('templates/analysis_livePanel/directory/directoryAnalysismain.js');
+  const panel = read('templates/components/livepanel/dependencySummaryPanel.js');
+  // No manual POST: the dataset is produced by the re-analysis chain and read as
+  // a static artifact by the shared dependency panel component.
+  assert.match(panel, /fetch\('\.\/dependency-graph\.json/);
+  assert.doesNotMatch(main, /\/api\/dependency-graph\/summary/);
+  assert.doesNotMatch(panel, /\/api\/dependency-graph\/summary/);
+  assert.match(main, /case 'dependency-updated':/);
+  assert.match(main, /loadDependencySummary\(\)/);
+  assert.doesNotMatch(main, /http:\/\/localhost/);
+  assert.doesNotMatch(main, /window\.location\.origin \+ '\/api/);
+  // The rendering logic lives in the shared panel component (one implementation
+  // for the file and directory templates), all through the shared DataTable.
+  assert.match(panel, /groupCycles\(/);
+  assert.match(panel, /renderRankingTable\(/);
+  assert.match(panel, /renderConfidenceTable\(/);
+  assert.match(panel, /renderCapabilityTable\(/);
+  assert.match(panel, /new DataTable\(mount/);
+  assert.match(main, /initializeDependencyGraphSummary\(\);/);
+});
+
+test('dependency graph summary grouping/ranking logic runs standalone against a small dataset', () => {
+  // The grouping logic lives in the shared panel component and must run with
+  // no DOM and no other component loaded.
+  const panelSource = read('templates/components/livepanel/dependencySummaryPanel.js');
+  const context = {
+    Map,
+    Set,
+    Array,
+    Number,
+    String,
+    Object,
+    console,
+  };
+  vm.runInNewContext(
+    `${panelSource}\nthis.__testing = { panel: new CodexrDependencySummaryPanel() };`,
+    context,
+  );
+  const groups = context.__testing.panel.groupCycles({
+    nodes: [
+      { id: 'a', external: false, metrics: { cycleSize: 2 } },
+      { id: 'b', external: false, metrics: { cycleSize: 2 } },
+      { id: 'c', external: false, metrics: { cycleSize: 0 } },
+    ],
+    edges: [
+      { id: 'e1', source: 'a', target: 'b', kind: 'import', confidence: 'exact', occurrences: 1 },
+      { id: 'e2', source: 'b', target: 'a', kind: 'import', confidence: 'exact', occurrences: 1 },
+      { id: 'e3', source: 'a', target: 'c', kind: 'import', confidence: 'exact', occurrences: 1 },
+    ],
+  });
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].length, 2);
 });

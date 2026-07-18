@@ -47,9 +47,9 @@ test('file and directory watchers use the hybrid stat-plus-hash reanalysis gate'
     assert.match(directoryWatcher, /\{ notifyClients: this\.session\.analysisMode !== 'XR', silent: true \}/);
     assert.match(directoryWatcher, /\{ notifyClients: this\.session\.analysisMode !== 'XR' \}/);
 
-    assert.match(executePython, /options: \{ silent\: boolean \} = \{\}/);
+    assert.match(executePython, /options: \{ silent\?: boolean \} = \{\}/);
     assert.match(executePython, /if \(options\.silent\) \{/);
-    assert.match(reAnalysisManager, /options: \{ notifyClients\: boolean; silent\: boolean \} = \{\}/);
+    assert.match(reAnalysisManager, /options: \{ notifyClients\?: boolean; silent\?: boolean \} = \{\}/);
     assert.match(reAnalysisManager, /executeAnalysis\(session, \{ silent: options\.silent === true \}\)/);
     assert.match(reAnalysisManager, /if \(options\.notifyClients !== false\) \{/);
     assert.match(directoryReAnalyzer, /options: \{ notifyClients\?: boolean \} = \{\}/);

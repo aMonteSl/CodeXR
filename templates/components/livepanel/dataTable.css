@@ -1,0 +1,239 @@
+/*
+ * Shared LivePanel DataTable styles.
+ *
+ * Bundled ahead of each template's own stylesheet by `LivePanelParser`, so every
+ * LivePanel table renders identically: a search + sort toolbar, a fixed-height
+ * body that scrolls internally, a pinned header row with sort indicators, and a
+ * consistent badge style. Colors come from the CSS custom properties declared in
+ * the consuming panel's stylesheet (`--primary-color`, `--border-color`, ...).
+ */
+
+.data-table {
+  text-align: left;
+}
+
+/* Toolbar: search box + "Sort by" menu, matching the File Details controls. */
+.data-table-toolbar {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.data-table-search,
+.data-table-sort {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--background-light);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.data-table-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.data-table-sort {
+  min-width: 180px;
+  cursor: pointer;
+}
+
+.data-table-search:focus,
+.data-table-sort:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+/* Fixed-height, internally-scrolling body so long lists never grow the page. */
+.data-table-scroll {
+  overflow: auto;
+  max-height: 420px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--background-light);
+}
+
+.data-table-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.data-table-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 6px;
+}
+
+.data-table-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}
+
+.data-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+/* Header: pinned while the body scrolls, and clickable when sortable. */
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--primary-color);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  white-space: nowrap;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.data-table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  /* Reserve room for the sort caret so the label never shifts on sort. */
+  padding-right: calc(var(--spacing-md) + 12px);
+  position: sticky; /* keep sticky specificity after adding .sortable */
+}
+
+/* Sort caret drawn with CSS borders (no glyph/emoji dependency). */
+.data-table thead th.sortable::after {
+  content: '';
+  position: absolute;
+  right: var(--spacing-sm);
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0.35;
+  transform: translateY(-50%);
+  border-top: 5px solid currentColor;
+}
+
+.data-table thead th.sorted-asc::after {
+  opacity: 1;
+  border-top: none;
+  border-bottom: 5px solid currentColor;
+}
+
+.data-table thead th.sorted-desc::after {
+  opacity: 1;
+  border-bottom: none;
+  border-top: 5px solid currentColor;
+}
+
+.data-table tbody td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  color: var(--text-primary);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--background-section);
+}
+
+.data-table tbody tr.clickable {
+  cursor: pointer;
+}
+
+/* Column alignment helpers (mirrored on header and cells). */
+.data-table .align-left { text-align: left; }
+.data-table .align-center { text-align: center; }
+.data-table .align-right { text-align: right; }
+
+.data-table-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: var(--spacing-lg);
+}
+
+/* Row-level complexity accent (reused from the file complexity classification). */
+.data-table tbody tr.low-complexity td:first-child { box-shadow: inset 3px 0 0 var(--complexity-simple); }
+.data-table tbody tr.medium-complexity td:first-child { box-shadow: inset 3px 0 0 var(--complexity-moderate); }
+.data-table tbody tr.high-complexity td:first-child { box-shadow: inset 3px 0 0 var(--complexity-complex); }
+.data-table tbody tr.critical-complexity td:first-child { box-shadow: inset 3px 0 0 var(--complexity-critical); }
+
+/* Clickable primary cell (for example a file name that opens its analysis). */
+.data-table .cell-link {
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.data-table .cell-link:hover {
+  text-decoration-color: var(--primary-color);
+}
+
+/* Monospace path cell, truncated with an ellipsis until hovered. */
+.data-table .cell-path {
+  font-family: var(--font-mono, 'Monaco', 'Menlo', 'Ubuntu Mono', monospace);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shared badge for categorical values (capability, confidence, cycle size). */
+.data-table-badge {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 2px var(--spacing-sm);
+  border-radius: 4px;
+}
+
+.data-table-badge.is-good {
+  background-color: rgba(40, 167, 69, 0.15);
+  color: var(--success-color);
+}
+
+.data-table-badge.is-warn {
+  background-color: rgba(255, 193, 7, 0.15);
+  color: var(--warning-color);
+}
+
+.data-table-badge.is-bad {
+  background-color: rgba(220, 53, 69, 0.15);
+  color: var(--danger-color);
+}
+
+.data-table-badge.is-neutral {
+  background-color: rgba(23, 162, 184, 0.15);
+  color: var(--info-color);
+}
+
+@media (max-width: 768px) {
+  .data-table-toolbar {
+    flex-direction: column;
+  }
+
+  .data-table-search,
+  .data-table-sort {
+    width: 100%;
+  }
+
+  .data-table table {
+    font-size: 0.8rem;
+  }
+
+  .data-table thead th,
+  .data-table tbody td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}

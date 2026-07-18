@@ -5,10 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
   <link href="${styleUri}" rel="stylesheet">
-  <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <title>Directory Analysis</title>
 </head>
-<body class="${theme}">
+<body data-theme="${theme}">
   <div id="app">
     <div class="header">
       <div class="header-content">
@@ -16,8 +15,14 @@
           <h1>Directory Analysis</h1>
           <p class="subtitle">Classic analysis of directory: <span id="directory-path">Loading...</span></p>
           <div class="analysis-info">
-            <span>Analyzed <span id="file-count">0</span> files out of <span id="total-file-count">0</span></span>
-            <span><span id="analysis-timestamp">Loading...</span></span>
+            <span class="info-chip">
+              <svg class="info-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span class="info-chip-text"><strong id="file-count">0</strong> / <span id="total-file-count">0</span> files analyzed</span>
+            </span>
+            <span class="info-chip">
+              <svg class="info-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg>
+              <span class="info-chip-text" id="analysis-timestamp">Loading...</span>
+            </span>
           </div>
         </div>
         <div class="header-controls">
@@ -117,7 +122,7 @@
       <div id="complexity-distribution" class="section">
         <h2>Complexity Distribution</h2>
         <div class="chart-container">
-          <canvas id="complexity-distribution-chart"></canvas>
+          <div id="complexity-distribution-chart"></div>
         </div>
         <div class="distribution-stats">
           <div class="distribution-grid">
@@ -145,7 +150,7 @@
       <div id="language-distribution" class="section">
         <h2>Language Distribution</h2>
         <div class="chart-container">
-          <canvas id="language-chart"></canvas>
+          <div id="language-chart"></div>
         </div>
         <div id="language-stats" class="stats-grid"></div>
       </div>
@@ -154,68 +159,149 @@
       <div id="file-size-distribution" class="section">
         <h2>File Size Distribution</h2>
         <div class="chart-container">
-          <canvas id="size-chart"></canvas>
+          <div id="size-chart"></div>
         </div>
       </div>
 
-      <!-- Complexity Overview -->
+      <!-- Complexity Overview (bands are direct-labeled on each bar) -->
       <div id="complexity-overview" class="section">
         <h2>Complexity Overview</h2>
         <div class="chart-container">
-          <canvas id="complexity-chart"></canvas>
-        </div>
-        <div class="complexity-legend">
-          <span class="legend-item low">■ Low (1-5)</span>
-          <span class="legend-item medium">■ Medium (6-10)</span>
-          <span class="legend-item high">■ High (11-20)</span>
-          <span class="legend-item critical">■ Critical (>20)</span>
+          <div id="complexity-chart"></div>
         </div>
       </div>
 
       <!-- Top Complex Files -->
       <div id="top-complex-files" class="section">
         <h2>Most Complex Files</h2>
-        <div id="complex-files-list" class="file-list"></div>
+        <div id="complex-files-table"></div>
+      </div>
+
+      <!-- Dependency Summary -->
+      <div id="dependency-graph-summary" class="section">
+        <h2>Dependency Summary</h2>
+        <!-- Recomputed automatically as part of the incremental re-analysis chain
+             (no manual refresh); updates arrive over SSE. -->
+        <div class="dependency-controls">
+          <span id="dependency-status" class="dependency-status"></span>
+        </div>
+
+        <div id="dependency-summary-content" class="hidden">
+          <div class="metrics-grid dependency-tiles">
+            <div class="metric">
+              <div class="metric-value" id="dependency-node-count">0</div>
+              <div class="metric-label">Nodes</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="dependency-edge-count">0</div>
+              <div class="metric-label">Edges</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="dependency-external-count">0</div>
+              <div class="metric-label">External Dependencies</div>
+            </div>
+            <div class="metric ccn-metric">
+              <div class="metric-value" id="dependency-cycle-count">0</div>
+              <div class="metric-label">Cycles</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="dependency-warning-count">0</div>
+              <div class="metric-label">Warnings</div>
+            </div>
+          </div>
+
+          <!-- Each list below is a shared DataTable mounted by main.js. -->
+          <div class="dependency-subsection">
+            <h3>Top Fan-In</h3>
+            <div id="dependency-fan-in-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Top Fan-Out</h3>
+            <div id="dependency-fan-out-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>External Dependencies</h3>
+            <div id="dependency-external-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Cycles</h3>
+            <div id="dependency-cycles-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Confidence Breakdown</h3>
+            <div id="dependency-confidence-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Capability Breakdown</h3>
+            <div id="dependency-capability-table"></div>
+          </div>
+
+          <div class="dependency-subsection">
+            <h3>Warnings</h3>
+            <ul id="dependency-warnings-list" class="dependency-warnings-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historical Comparison (shared CodexrHistoricalPanel mounts) -->
+      <div id="historical-comparison" class="section">
+        <h2>Historical Comparison</h2>
+        <span id="historical-status" class="historical-status">Checking Git availability...</span>
+        <div id="historical-controls" class="historical-controls hidden">
+          <div class="historical-source">
+            <label for="historical-left-source">Base version</label>
+            <select id="historical-left-source"></select>
+          </div>
+          <div class="historical-source">
+            <label for="historical-right-source">Compare with</label>
+            <select id="historical-right-source"></select>
+          </div>
+          <button id="historical-compare-btn" class="historical-compare-btn">Compare</button>
+        </div>
+
+        <div id="historical-results" class="hidden">
+          <div class="metrics-grid">
+            <div class="metric historical-tile-added">
+              <div class="metric-value" id="historical-added-count">0</div>
+              <div class="metric-label">Added</div>
+            </div>
+            <div class="metric historical-tile-removed">
+              <div class="metric-value" id="historical-removed-count">0</div>
+              <div class="metric-label">Removed</div>
+            </div>
+            <div class="metric historical-tile-modified">
+              <div class="metric-value" id="historical-modified-count">0</div>
+              <div class="metric-label">Modified</div>
+            </div>
+            <div class="metric historical-tile-unchanged">
+              <div class="metric-value" id="historical-unchanged-count">0</div>
+              <div class="metric-label">Unchanged</div>
+            </div>
+          </div>
+
+          <div class="historical-subsection">
+            <h3>Metric Totals</h3>
+            <div id="historical-metrics-chart"></div>
+          </div>
+
+          <div class="historical-subsection">
+            <h3>Changed Items</h3>
+            <div id="historical-detail-table"></div>
+          </div>
+
+          <p id="historical-meta" class="historical-meta"></p>
+        </div>
       </div>
 
       <!-- Detailed File List -->
       <div id="file-details" class="section">
         <h2>File Details</h2>
-        <div class="table-controls">
-          <input type="text" id="file-filter" placeholder="Filter files..." class="filter-input">
-          <select id="sort-by" class="sort-select">
-            <option value="name">Sort by Name</option>
-            <option value="size">Sort by Size</option>
-            <option value="complexity">Sort by Complexity</option>
-            <option value="lines">Sort by Lines</option>
-            <option value="functions">Sort by Functions</option>
-          </select>
-        </div>
-        <div id="files-table" class="table-container">
-          <table id="file-table">
-            <thead>
-              <tr>
-                <th>File</th>
-                <th>Relative Path</th>
-                <th>Language</th>
-                <th>Size</th>
-                <th>Lines</th>
-                <th>Functions</th>
-                <th>Avg CCN</th>
-                <th>Max Function CCN</th>
-                <th>Comment %</th>
-                <th>Avg Params</th>
-                <th>Max Params</th>
-                <th>Avg Nesting</th>
-                <th>Max Nesting</th>
-                <th>High CCN Fns</th>
-                <th>Critical CCN Fns</th>
-              </tr>
-            </thead>
-            <tbody id="file-table-body">
-            </tbody>
-          </table>
-        </div>
+        <div id="file-details-table"></div>
       </div>
     </div>
   </div>

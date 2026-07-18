@@ -67,10 +67,10 @@
   };
 
   function doc() { return root.document; }
-  function client() { return root.CodeXRCollaborationRuntime.getClient.(root) || null; }
+  function client() { return root.CodeXRCollaborationRuntime.getClient?.(root) || null; }
 
   function config() {
-    var script = doc().getElementById.('codexr-tooling-config-xr-mapping-ui');
+    var script = doc().getElementById?.('codexr-tooling-config-xr-mapping-ui');
     try { return JSON.parse(script.textContent || '{}'); } catch { return {}; }
   }
 
@@ -135,7 +135,7 @@
   }
 
   function transportButton(label, position, onClick) {
-    return button(label, position, 1.32, onClick, label === 'Play'  '#0e7490' : '#1e3a5f', {
+    return button(label, position, 1.32, onClick, label === 'Play' ? '#0e7490' : '#1e3a5f', {
       height: 0.38,
       textWidth: 1.75,
       wrapCount: 14
@@ -153,18 +153,18 @@
   function setStatus(message, level) {
     state.status = String(message || '');
     state.statusLevel = level || 'info';
-    refs.status.setAttribute.('value', state.status);
-    refs.status.setAttribute.('color', level === 'error'  '#fecaca' : '#fde68a');
+    refs.status.setAttribute?.('value', state.status);
+    refs.status.setAttribute?.('color', level === 'error' ? '#fecaca' : '#fde68a');
   }
 
   function unwrapPayload(message) {
     return message && typeof message === 'object' && Object.prototype.hasOwnProperty.call(message, 'payload')
-       message.payload
+      ? message.payload
       : message;
   }
 
   function setTimelineMode(mode) {
-    var nextMode = mode === 'range' || mode === 'manual'  mode : 'auto';
+    var nextMode = mode === 'range' || mode === 'manual' ? mode : 'auto';
     if (state.timelineMode !== nextMode) {
       state.startSourceId = '';
       state.endSourceId = '';
@@ -177,16 +177,16 @@
   }
 
   function setRangeSide(side) {
-    state.rangeSide = side === 'end'  'end' : 'start';
+    state.rangeSide = side === 'end' ? 'end' : 'start';
     render();
   }
 
   function getReferenceSources() {
-    var sources = Array.isArray(state.references.sources)  state.references.sources : [];
+    var sources = Array.isArray(state.references.sources) ? state.references.sources : [];
     var byId = {};
     sources.forEach(function (source) { byId[source.id] = source; });
     var suggested = Array.isArray(state.references.suggestedSourceIds)
-       state.references.suggestedSourceIds.map(function (id) { return byId[id]; }).filter(Boolean)
+      ? state.references.suggestedSourceIds.map(function (id) { return byId[id]; }).filter(Boolean)
       : [];
     var fallback = sources.filter(function (source) {
       return source && (source.kind === 'workingCopy' || source.kind === 'gitRef');
@@ -202,12 +202,12 @@
 
   function compact(value, limit) {
     var textValue = String(value || '');
-    return textValue.length > limit  textValue.slice(0, Math.max(1, limit - 3)) + '...' : textValue;
+    return textValue.length > limit ? textValue.slice(0, Math.max(1, limit - 3)) + '...' : textValue;
   }
 
   function sourceDescription(source) {
     if (!source) { return 'Not selected'; }
-    var description = source.description  ' - ' + source.description : '';
+    var description = source.description ? ' - ' + source.description : '';
     return compact(String(source.label || source.id) + description, 56);
   }
 
@@ -227,7 +227,7 @@
   function getSuggestedAutoOrderById() {
     var order = {};
     var ids = Array.isArray(state.references.suggestedSourceIds)
-       state.references.suggestedSourceIds
+      ? state.references.suggestedSourceIds
       : [];
     ids.forEach(function (id, index) {
       if (id && order[id] === undefined) {
@@ -242,8 +242,8 @@
     var description = String(source.description || '').trim();
     var explicitDate = String(source.date || '').trim();
     var match = description.match(/^(\d{4}-\d{2}-\d{2})\s*(.*)$/);
-    var date = explicitDate || (match  match[1] : '');
-    var subject = match  match[2] : description;
+    var date = explicitDate || (match ? match[1] : '');
+    var subject = match ? match[2] : description;
     if (source.kind === 'workingCopy') {
       date = date || 'Working copy';
     }
@@ -282,7 +282,7 @@
       position: '0 ' + (-index * PANEL_LAYOUT.referenceRowGap) + ' 0',
       width: 5.7,
       height: 0.31,
-      material: 'color: ' + (selected  (stateInfo.color || '#be123c') : '#1e3a5f') + '; opacity: 0.95; shader: flat',
+      material: 'color: ' + (selected ? (stateInfo.color || '#be123c') : '#1e3a5f') + '; opacity: 0.95; shader: flat',
       class: 'babiaxraycasterclass codexr-project-evolution-button',
       'data-codexr-interactive': 'true'
     });
@@ -320,12 +320,12 @@
   }
 
   function findSource(sourceId) {
-    var sources = Array.isArray(state.references.sources)  state.references.sources : [];
+    var sources = Array.isArray(state.references.sources) ? state.references.sources : [];
     return sources.find(function (source) { return source.id === sourceId; }) || null;
   }
 
   function sceneEl() {
-    return doc().querySelector.('a-scene') || doc().body || null;
+    return doc().querySelector?.('a-scene') || doc().body || null;
   }
 
   function ensurePlaybackOverlay() {
@@ -347,43 +347,43 @@
     refs.overlayDetail = smallText('', '-2.7 -0.15 0.02', 5.4, '#e0f2fe', 'left', 52);
     overlay.appendChild(refs.overlayTitle);
     overlay.appendChild(refs.overlayDetail);
-    sceneEl().appendChild.(overlay);
+    sceneEl().appendChild?.(overlay);
     refs.playbackOverlay = overlay;
     return overlay;
   }
 
   function updatePlaybackOverlay(frame, frameCount, visible) {
     var overlay = ensurePlaybackOverlay();
-    overlay.setAttribute.('visible', visible && frameCount  'true' : 'false');
+    overlay.setAttribute?.('visible', visible && frameCount ? 'true' : 'false');
     if (!visible || !frameCount || !frame) { return; }
     var parts = splitSourceDescription(frame.source || frame);
-    refs.overlayTitle.setAttribute.('value', 'Project evolution  ' + (state.frameIndex + 1) + ' / ' + frameCount + '  |  ' + parts.date);
-    refs.overlayDetail.setAttribute.('value', compact(parts.label + (parts.subject  ' - ' + parts.subject : ''), 86));
+    refs.overlayTitle.setAttribute?.('value', 'Project evolution  ' + (state.frameIndex + 1) + ' / ' + frameCount + '  |  ' + parts.date);
+    refs.overlayDetail.setAttribute?.('value', compact(parts.label + (parts.subject ? ' - ' + parts.subject : ''), 86));
   }
 
   function hidePlaybackOverlay() {
-    refs.playbackOverlay.setAttribute.('visible', 'false');
+    refs.playbackOverlay.setAttribute?.('visible', 'false');
   }
 
   async function configureAvailability() {
     var sessionInfo = null;
     try {
-      sessionInfo = await client().getSessionInfoAsync.();
+      sessionInfo = await client().getSessionInfoAsync?.();
     } catch {
       sessionInfo = null;
     }
-    var capabilities = sessionInfo.capabilities || {};
+    var capabilities = sessionInfo?.capabilities || {};
     var enabled = capabilities.projectEvolution === true;
-    state.availability = enabled  'enabled' : 'disabled';
+    state.availability = enabled ? 'enabled' : 'disabled';
     state.unavailableReason = enabled
-       ''
+      ? ''
       : String(capabilities.projectEvolutionReason || 'Project evolution requires a local Git repository.');
     registerModeOption();
   }
 
   function registerModeOption() {
-    state.unregisterModeOption.();
-    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption.({
+    state.unregisterModeOption?.();
+    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption?.({
       id: MODE,
       label: 'Project evolution',
       color: '#f59e0b',
@@ -394,7 +394,7 @@
   }
 
   function buildPanel() {
-    if (refs.panel || !root.CodeXRMappingUiRuntime.registerPanelView || !root.CodeXRMappingUiRuntime.isPanelReady.()) {
+    if (refs.panel || !root.CodeXRMappingUiRuntime.registerPanelView || !root.CodeXRMappingUiRuntime.isPanelReady?.()) {
       return !!refs.panel;
     }
     refs.panel = entity('a-entity', { position: '0 0 0.04' });
@@ -452,16 +452,16 @@
 
   function handlePanelShown() {
     render();
-    var modeState = root.CodeXRAnalysisModeRuntime.getState.() || {};
+    var modeState = root.CodeXRAnalysisModeRuntime.getState?.() || {};
     if (
       modeState.mode === MODE
       || (modeState.transitioning && modeState.requestedMode === MODE)
     ) {
       return;
     }
-    root.CodeXRAnalysisModeRuntime.setSelectionPanel.(MODE);
-    client().sendMessage.('analysis-mode-activate', { mode: MODE });
-    void root.CodeXRAnalysisModeRuntime.transitionTo.(MODE, {
+    root.CodeXRAnalysisModeRuntime.setSelectionPanel?.(MODE);
+    client().sendMessage?.('analysis-mode-activate', { mode: MODE });
+    void root.CodeXRAnalysisModeRuntime.transitionTo?.(MODE, {
       reason: 'project-evolution-panel-shown',
       controllerView: 'project-evolution',
       panelViewId: MODE
@@ -473,7 +473,7 @@
     var frames = state.result.frames || [];
     var frame = frames[state.frameIndex];
     updateNowShowing(frame, frames.length);
-    refs.playButton.querySelector.('a-text').setAttribute.('value', state.playing  'Pause' : 'Play');
+    refs.playButton.querySelector?.('a-text').setAttribute?.('value', state.playing ? 'Pause' : 'Play');
   }
 
   function updateNowShowing(frame, frameCount) {
@@ -485,17 +485,17 @@
     }
     var parts = splitSourceDescription(frame.source || frame);
     refs.frameTitle.setAttribute('value', 'Frame ' + (state.frameIndex + 1) + ' / ' + frameCount);
-    refs.frameDetail.setAttribute('value', compact(parts.date + ' | ' + parts.label + (parts.subject  ' - ' + parts.subject : ''), 72));
+    refs.frameDetail.setAttribute('value', compact(parts.date + ' | ' + parts.label + (parts.subject ? ' - ' + parts.subject : ''), 72));
   }
 
   function renderTimelineControls() {
     if (!refs.referencesRoot) { return; }
-    refs.modeRoot.children.[0].setAttribute.('material', 'color: ' + (state.timelineMode === 'auto'  '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.modeRoot.children.[1].setAttribute.('material', 'color: ' + (state.timelineMode === 'range'  '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.modeRoot.children.[2].setAttribute.('material', 'color: ' + (state.timelineMode === 'manual'  '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.rangeRoot.setAttribute.('visible', state.timelineMode === 'range');
-    refs.rangeRoot.children.[0].setAttribute.('material', 'color: ' + (state.rangeSide === 'start'  '#16a34a' : '#14532d') + '; opacity: 0.95; shader: flat');
-    refs.rangeRoot.children.[1].setAttribute.('material', 'color: ' + (state.rangeSide === 'end'  '#dc2626' : '#7f1d1d') + '; opacity: 0.95; shader: flat');
+    refs.modeRoot.children[0].setAttribute?.('material', 'color: ' + (state.timelineMode === 'auto' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
+    refs.modeRoot.children[1].setAttribute?.('material', 'color: ' + (state.timelineMode === 'range' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
+    refs.modeRoot.children[2].setAttribute?.('material', 'color: ' + (state.timelineMode === 'manual' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
+    refs.rangeRoot.setAttribute?.('visible', state.timelineMode === 'range');
+    refs.rangeRoot.children[0].setAttribute?.('material', 'color: ' + (state.rangeSide === 'start' ? '#16a34a' : '#14532d') + '; opacity: 0.95; shader: flat');
+    refs.rangeRoot.children[1].setAttribute?.('material', 'color: ' + (state.rangeSide === 'end' ? '#dc2626' : '#7f1d1d') + '; opacity: 0.95; shader: flat');
     while (refs.referencesRoot.firstChild) {
       refs.referencesRoot.removeChild(refs.referencesRoot.firstChild);
     }
@@ -505,16 +505,16 @@
     var maxPage = clampSelectionPage();
     var pageStart = state.selectionPage * PANEL_LAYOUT.referenceRows;
     var sources = allSources.slice(pageStart, pageStart + PANEL_LAYOUT.referenceRows);
-    refs.pagerRoot.setAttribute.('visible', allSources.length > PANEL_LAYOUT.referenceRows);
-    refs.pageText.setAttribute.('value', 'Page ' + (state.selectionPage + 1) + ' / ' + (maxPage + 1));
+    refs.pagerRoot.setAttribute?.('visible', allSources.length > PANEL_LAYOUT.referenceRows);
+    refs.pageText.setAttribute?.('value', 'Page ' + (state.selectionPage + 1) + ' / ' + (maxPage + 1));
     var start = findSource(state.startSourceId);
     var end = findSource(state.endSourceId);
     var info = state.timelineMode === 'auto'
-       'Auto: CodeXR samples ' + (autoCount || 'the') + ' timeline frames.'
+      ? 'Auto: CodeXR samples ' + (autoCount || 'the') + ' timeline frames.'
       : state.timelineMode === 'range'
-         'Range: ' + state.rangeSide.toUpperCase() + ' | ' + sourceDescription(start) + ' -> ' + sourceDescription(end)
+        ? 'Range: ' + state.rangeSide.toUpperCase() + ' | ' + sourceDescription(start) + ' -> ' + sourceDescription(end)
         : 'Manual: ' + state.manualSourceIds.length + ' selected frames.';
-    refs.info.setAttribute.('value', info);
+    refs.info.setAttribute?.('value', info);
     if (!sources.length) {
       refs.referencesRoot.appendChild(text('No Git references received yet.', '0 0 0.02', 5.6, '#fecaca'));
       return;
@@ -565,19 +565,19 @@
       return false;
     }
     buildPanel();
-    root.CodeXRAnalysisModeRuntime.setSelectionPanel.(MODE);
-    client().sendMessage.('analysis-mode-activate', { mode: MODE });
-    await root.CodeXRAnalysisModeRuntime.transitionTo.(MODE, {
+    root.CodeXRAnalysisModeRuntime.setSelectionPanel?.(MODE);
+    client().sendMessage?.('analysis-mode-activate', { mode: MODE });
+    await root.CodeXRAnalysisModeRuntime.transitionTo?.(MODE, {
       reason: 'project-evolution-selection',
       controllerView: 'project-evolution',
       panelViewId: MODE
     });
-    root.CodeXRAnalysisControllerRuntime.showView.('project-evolution', {
+    root.CodeXRAnalysisControllerRuntime.showView?.('project-evolution', {
       mode: MODE,
       reason: 'project-evolution-selection'
-    }) || root.CodeXRMappingUiRuntime.showPanelView.(MODE);
+    }) || root.CodeXRMappingUiRuntime.showPanelView?.(MODE);
     setStatus('Loading project timeline...', 'info');
-    if (!client().sendMessage.('project-evolution-references-request', {})) {
+    if (!client().sendMessage?.('project-evolution-references-request', {})) {
       setStatus('Collaboration connection is not ready.', 'error');
     }
     return true;
@@ -606,13 +606,13 @@
     setStatus('Analyzing project evolution. Please wait...', 'info');
     state.preparedChartIds = {};
     clearChartVisualization();
-    client().sendMessage.('project-evolution-start', request);
+    client().sendMessage?.('project-evolution-start', request);
   }
 
   function clearMovie() {
     stop();
     setStatus('Clearing project evolution movie...', 'info');
-    if (!client().sendMessage.('project-evolution-clear', {})) {
+    if (!client().sendMessage?.('project-evolution-clear', {})) {
       applyClearedState('Project evolution movie cleared locally.');
     }
   }
@@ -624,19 +624,19 @@
     var count = getReferenceSources().filter(function (source) {
       return source && source.kind === 'gitRef';
     }).length;
-    setStatus(count  'Ready to generate ' + count + ' timeline frames.' : 'No commits available for evolution.', count  'info' : 'error');
+    setStatus(count ? 'Ready to generate ' + count + ' timeline frames.' : 'No commits available for evolution.', count ? 'info' : 'error');
     render();
   }
 
   function handleProgress(message) {
     var payload = unwrapPayload(message);
     if (!payload) { return; }
-    setStatus(payload.message || '', payload.state === 'error'  'error' : 'info');
+    setStatus(payload.message || '', payload.state === 'error' ? 'error' : 'info');
   }
 
   function handleError(message) {
     var payload = unwrapPayload(message);
-    state.pendingFrameApply.reject.(new Error(payload.message || 'Project evolution failed.'));
+    state.pendingFrameApply?.reject?.(new Error(payload.message || 'Project evolution failed.'));
     state.pendingFrameApply = null;
     stop();
     setStatus(payload.message || 'Project evolution failed.', 'error');
@@ -686,8 +686,8 @@
     state.frameIndex = 0;
     state.preparedChartIds = {};
     setStatus('Project evolution ready.', 'info');
-    client().sendMessage.('analysis-mode-activate', { mode: MODE });
-    void root.CodeXRAnalysisModeRuntime.transitionTo.(MODE, {
+    client().sendMessage?.('analysis-mode-activate', { mode: MODE });
+    void root.CodeXRAnalysisModeRuntime.transitionTo?.(MODE, {
       reason: 'project-evolution-ready',
       panelViewId: MODE
     }).then(function () {
@@ -697,12 +697,12 @@
 
   function clearChartVisualization() {
     getChartEntities().forEach(function (chart) {
-      chart.setAttribute.('visible', false);
+      chart.setAttribute?.('visible', false);
     });
-    refs.evolutionFrameRoot.parentNode.removeChild.(refs.evolutionFrameRoot);
-    refs.evolutionPlaybackRoot.parentNode.removeChild.(refs.evolutionPlaybackRoot);
-    refs.evolutionDataSource.parentNode.removeChild.(refs.evolutionDataSource);
-    refs.evolutionTreeBuilder.parentNode.removeChild.(refs.evolutionTreeBuilder);
+    refs.evolutionFrameRoot.parentNode.removeChild?.(refs.evolutionFrameRoot);
+    refs.evolutionPlaybackRoot.parentNode.removeChild?.(refs.evolutionPlaybackRoot);
+    refs.evolutionDataSource.parentNode.removeChild?.(refs.evolutionDataSource);
+    refs.evolutionTreeBuilder.parentNode.removeChild?.(refs.evolutionTreeBuilder);
     refs.evolutionFrameRoot = null;
     refs.evolutionPlaybackRoot = null;
     refs.evolutionChart = null;
@@ -713,12 +713,12 @@
     if (state.pendingFrameApply.requestId) {
       state.supersededFrameApplyIds[state.pendingFrameApply.requestId] = true;
     }
-    state.pendingFrameApply.reject.(Object.assign(new Error('Project evolution movie cleared.'), {
+    state.pendingFrameApply.reject?.(Object.assign(new Error('Project evolution movie cleared.'), {
       code: 'project-evolution-cleared'
     }));
     state.pendingFrameApply = null;
-    root.CodeXRMappingUiRuntime.setChartEntityIds.([]);
-    root.CodeXRAnalysisTableRuntime.renormalizeAll.('project-evolution-cleared');
+    root.CodeXRMappingUiRuntime.setChartEntityIds?.([]);
+    root.CodeXRAnalysisTableRuntime.renormalizeAll?.('project-evolution-cleared');
   }
 
   function applyClearedState(message) {
@@ -735,7 +735,7 @@
 
   function getChartEntities() {
     return refs.evolutionChart.isConnected === false || !refs.evolutionChart
-       []
+      ? []
       : [refs.evolutionChart];
   }
 
@@ -753,16 +753,16 @@
   }
 
   function getActiveMappingForChart(chartId) {
-    var mappingState = root.CodeXRMappingUiRuntime.getState.() || {};
+    var mappingState = root.CodeXRMappingUiRuntime?.getState?.() || {};
     var defaultMapping = getDefaultMappingForChart(chartId);
     var liveMapping = mappingState.mappingContextId === MODE && mappingState.chartId === chartId
-       (mappingState.lastKnownGoodMapping || mappingState.selectedByDimension || {})
+      ? (mappingState.lastKnownGoodMapping || mappingState.selectedByDimension || {})
       : {};
     return Object.assign({}, defaultMapping, liveMapping);
   }
 
   function syncActiveChartFromMapping() {
-    var mappingState = root.CodeXRMappingUiRuntime.getState.() || {};
+    var mappingState = root.CodeXRMappingUiRuntime.getState?.() || {};
     if (mappingState.mappingContextId !== MODE || !mappingState.chartId) {
       return false;
     }
@@ -786,16 +786,16 @@
     var cfg = config();
     var componentName = COMPONENT_BY_CHART[chartId] || '';
     var ids = Array.isArray(cfg.chartEntityIds) && cfg.chartEntityIds.length
-       cfg.chartEntityIds
+      ? cfg.chartEntityIds
       : [cfg.chartEntityId, cfg.chartId];
     for (var index = 0; index < ids.length; index += 1) {
-      var candidate = ids[index]  document.getElementById.(ids[index]) : null;
-      if (candidate.hasAttribute.(componentName)) {
+      var candidate = ids[index] ? document.getElementById?.(ids[index]) : null;
+      if (candidate?.hasAttribute?.(componentName)) {
         return candidate;
       }
     }
-    return document.querySelector.('[data-codexr-normal-root="true"] [' + componentName + ']')
-      || document.querySelector.('[' + componentName + ']')
+    return document.querySelector?.('[data-codexr-normal-root="true"] [' + componentName + ']')
+      || document.querySelector?.('[' + componentName + ']')
       || null;
   }
 
@@ -806,7 +806,7 @@
 
   function ensureEvolutionRoot() {
     if (refs.evolutionRoot.isConnected !== false && refs.evolutionRoot) {
-      root.CodeXRAnalysisSurfaceRuntime.mountRoot.(MODE, refs.evolutionRoot);
+      root.CodeXRAnalysisSurfaceRuntime.mountRoot?.(MODE, refs.evolutionRoot);
       return refs.evolutionRoot;
     }
     refs.evolutionRoot = entity('a-entity', {
@@ -817,7 +817,7 @@
     if (root.CodeXRAnalysisSurfaceRuntime.mountRoot) {
       root.CodeXRAnalysisSurfaceRuntime.mountRoot(MODE, refs.evolutionRoot);
     } else {
-      doc().querySelector.('a-scene').appendChild.(refs.evolutionRoot);
+      doc().querySelector?.('a-scene').appendChild?.(refs.evolutionRoot);
     }
     return refs.evolutionRoot;
   }
@@ -825,7 +825,7 @@
   function cloneChartForEvolution(template, chartId) {
     var componentName = COMPONENT_BY_CHART[chartId];
     var clone = entity('a-entity');
-    template.getAttributeNames.().forEach(function (attributeName) {
+    template.getAttributeNames?.().forEach(function (attributeName) {
       if (
         attributeName === 'id'
         || attributeName === 'visible'
@@ -850,9 +850,9 @@
     var chart = refs.evolutionChart;
     if (
       chart.isConnected !== false
-      && chart.getAttribute.('data-codexr-project-evolution-chart-id') === chartId
+      && chart.getAttribute?.('data-codexr-project-evolution-chart-id') === chartId
     ) {
-      chart.setAttribute.('visible', true);
+      chart.setAttribute?.('visible', true);
       return chart;
     }
     if (chart.parentNode) {
@@ -870,14 +870,14 @@
   function vectorToPositionAttribute(position) {
     var source = position || {};
     return [
-      Number.isFinite(source.x)  source.x : 0,
-      Number.isFinite(source.y)  source.y : 1,
-      Number.isFinite(source.z)  source.z : -18
+      Number.isFinite(source.x) ? source.x : 0,
+      Number.isFinite(source.y) ? source.y : 1,
+      Number.isFinite(source.z) ? source.z : -18
     ].join(' ');
   }
 
   function projectEvolutionContainmentProfile() {
-    return root.CodeXRAnalysisTableRuntime.getContainmentProfile.('project-evolution') || {
+    return root.CodeXRAnalysisTableRuntime?.getContainmentProfile?.('project-evolution') || {
       id: 'project-evolution',
       position: { x: 0, y: 1, z: -18 },
       containment: {
@@ -908,7 +908,7 @@
 
   function projectEvolutionInitialScale(chartId) {
     var isBoats = chartId === 'boats';
-    return isBoats  '0.01 0.05 0.01' : '1 1 1';
+    return isBoats ? '0.01 0.05 0.01' : '1 1 1';
   }
 
   function prepareChartForEvolution(chart, chartId, options) {
@@ -931,7 +931,7 @@
 
   function ensureEvolutionPlaybackRoot(frame) {
     if (refs.evolutionPlaybackRoot.isConnected !== false && refs.evolutionPlaybackRoot) {
-      refs.evolutionPlaybackRoot.setAttribute.('data-codexr-frame-index', String((frame.index || 0) + 1));
+      refs.evolutionPlaybackRoot.setAttribute?.('data-codexr-frame-index', String((frame.index || 0) + 1));
       return refs.evolutionPlaybackRoot;
     }
     var rootEl = ensureEvolutionRoot();
@@ -956,7 +956,7 @@
       var timeout = root.setTimeout(function () {
         if (settled) { return; }
         settled = true;
-        element.removeEventListener.('componentinitialized', onInitialized);
+        element.removeEventListener?.('componentinitialized', onInitialized);
         resolve(!!(element.components && element.components[componentName]));
       }, timeoutMs || 900);
       function onInitialized(event) {
@@ -964,11 +964,11 @@
           return;
         }
         settled = true;
-        root.clearTimeout.(timeout);
-        element.removeEventListener.('componentinitialized', onInitialized);
+        root.clearTimeout?.(timeout);
+        element.removeEventListener?.('componentinitialized', onInitialized);
         resolve(true);
       }
-      element.addEventListener.('componentinitialized', onInitialized);
+      element.addEventListener?.('componentinitialized', onInitialized);
     });
   }
 
@@ -1008,7 +1008,7 @@
     var generation = ++state.dataRefreshGeneration;
     refs.evolutionDataSource.setAttribute('data-codexr-evolution-url', frameUrl);
     refs.evolutionDataSource.setAttribute('babia-queryjson', 'url: ' + frameUrl);
-    root.console.debug.('[CodeXR Project Evolution] datasource refresh', {
+    root.console.debug?.('[CodeXR Project Evolution] datasource refresh', {
       frameUrl: frameUrl,
       generation: generation
     });
@@ -1016,13 +1016,13 @@
       if (generation !== state.dataRefreshGeneration) {
         return;
       }
-      refs.evolutionDataSource.emit.('data-loaded', {});
+      refs.evolutionDataSource.emit?.('data-loaded', {});
     }, 100);
     return true;
   }
 
   function ensureEvolutionTreeBuilder(playbackRoot, targetType) {
-    var field = targetType === 'directory'  'filePath' : 'treePath';
+    var field = targetType === 'directory' ? 'filePath' : 'treePath';
     var treeAttr = 'field: ' + field + '; split_by: /; from: codexrProjectEvolutionData';
     if (refs.evolutionTreeBuilder.isConnected !== false && refs.evolutionTreeBuilder) {
       if (refs.evolutionTreeBuilder.parentNode !== playbackRoot) {
@@ -1042,15 +1042,15 @@
   }
 
   function bridgeUrl() {
-    return String(state.result.bridgeUrl || (state.result.revision  '/evolution/revision-' + state.result.revision + '/data.json' : ''));
+    return String(state.result?.bridgeUrl || (state.result?.revision ? '/evolution/revision-' + state.result.revision + '/data.json' : ''));
   }
 
   function frameUrlWithCache(frame, rawUrl) {
     var raw = String(rawUrl || bridgeUrl() || frame.url || '');
     if (!raw) { return ''; }
-    var separator = raw.indexOf('') === -1  '' : '&';
+    var separator = raw.indexOf('?') === -1 ? '?' : '&';
     return raw + separator
-      + 'revision=' + encodeURIComponent(String(state.result.revision || ''))
+      + 'revision=' + encodeURIComponent(String(state.result?.revision || ''))
       + '&frame=' + encodeURIComponent(String((frame.index || 0) + 1))
       + '&t=' + Date.now();
   }
@@ -1083,8 +1083,8 @@
     }
     prepareChartForEvolution(chart, chartId, { force: true });
     var current = chart.getAttribute(componentName) || {};
-    var data = root.CodeXRMappingUiRuntime.__testing.buildRuntimeChartData
-       root.CodeXRMappingUiRuntime.__testing.buildRuntimeChartData(chartId, current, mapping)
+    var data = root.CodeXRMappingUiRuntime?.__testing?.buildRuntimeChartData
+      ? root.CodeXRMappingUiRuntime.__testing.buildRuntimeChartData(chartId, current, mapping)
       : Object.assign({}, current, mapping);
     delete data.data;
     delete data.field;
@@ -1101,7 +1101,7 @@
       playbackRoot.appendChild(chart);
     }
     var signature = chartId + ':' + JSON.stringify(data);
-    if (state.chartDataSignature !== signature || !chart.hasAttribute.(componentName)) {
+    if (state.chartDataSignature !== signature || !chart.hasAttribute?.(componentName)) {
       chart.setAttribute(componentName, data);
       state.chartDataSignature = signature;
       await waitForComponent(chart, componentName, 1200);
@@ -1109,7 +1109,7 @@
     }
     chart.setAttribute('visible', true);
     refreshEvolutionDataSource(frameUrl);
-    root.CodeXRMappingUiRuntime.setChartEntityIds.(getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean));
+    root.CodeXRMappingUiRuntime.setChartEntityIds?.(getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean));
     scheduleFrameRenormalization();
     return true;
   }
@@ -1154,11 +1154,11 @@
         frameIndex: frameIndex,
         requestId: requestId,
         resolve: function (payload) {
-          root.clearTimeout.(timeoutId);
+          root.clearTimeout?.(timeoutId);
           resolve(payload);
         },
         reject: function (error) {
-          root.clearTimeout.(timeoutId);
+          root.clearTimeout?.(timeoutId);
           reject(error);
         }
       };
@@ -1169,7 +1169,7 @@
       });
       if (sent === false) {
         state.pendingFrameApply = null;
-        root.clearTimeout.(timeoutId);
+        root.clearTimeout?.(timeoutId);
         reject(Object.assign(new Error('project-evolution-frame-apply-unavailable'), {
           code: 'project-evolution-frame-apply-unavailable'
         }));
@@ -1178,11 +1178,11 @@
   }
 
   function scheduleFrameRenormalization() {
-    root.CodeXRAnalysisTableRuntime.renormalizeAll.('project-evolution-frame');
+    root.CodeXRAnalysisTableRuntime.renormalizeAll?.('project-evolution-frame');
     [260, 650, 1100, 2200, 3600].forEach(function (delay) {
       root.setTimeout(function () {
         if (refs.evolutionChart.isConnected !== false) {
-          root.CodeXRAnalysisTableRuntime.renormalizeAll.('project-evolution-frame');
+          root.CodeXRAnalysisTableRuntime.renormalizeAll?.('project-evolution-frame');
         }
       }, delay);
     });
@@ -1190,9 +1190,9 @@
 
   function waitForFrameStable(generation) {
     var chartIds = getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean);
-    var wait = root.CodeXRAnalysisTableRuntime.waitForChartsStable;
+    var wait = root.CodeXRAnalysisTableRuntime?.waitForChartsStable;
     var promise = typeof wait === 'function' && chartIds.length
-       wait(chartIds, { timeoutMs: 12000, pollMs: 160, stablePasses: 2 })
+      ? wait(chartIds, { timeoutMs: 12000, pollMs: 160, stablePasses: 2 })
       : new Promise(function (resolve) { root.setTimeout(resolve, 900); });
     return Promise.resolve(promise).catch(function () {
       if (state.playing && generation === state.playbackGeneration) {
@@ -1235,7 +1235,7 @@
       ) {
         return false;
       }
-      setStatus(error instanceof Error  error.message : 'Project evolution frame could not be applied.', 'error');
+      setStatus(error instanceof Error ? error.message : 'Project evolution frame could not be applied.', 'error');
       return false;
     }
     await applyBridgeFrameToChart(frames[state.frameIndex], applied.bridgeUrl);
@@ -1318,14 +1318,14 @@
   function registerCollaboration() {
     var runtimeClient = client();
     if (!runtimeClient) { return; }
-    state.disposables.push(runtimeClient.onMessage.('project-evolution-references', handleReferences));
-    state.disposables.push(runtimeClient.onMessage.('project-evolution-progress', handleProgress));
-    state.disposables.push(runtimeClient.onMessage.('project-evolution-error', handleError));
-    state.disposables.push(runtimeClient.onMessage.('project-evolution-frame-applied', handleFrameApplied));
-    state.disposables.push(runtimeClient.onMessage.('project-evolution-cleared', function (message) {
+    state.disposables.push(runtimeClient.onMessage?.('project-evolution-references', handleReferences));
+    state.disposables.push(runtimeClient.onMessage?.('project-evolution-progress', handleProgress));
+    state.disposables.push(runtimeClient.onMessage?.('project-evolution-error', handleError));
+    state.disposables.push(runtimeClient.onMessage?.('project-evolution-frame-applied', handleFrameApplied));
+    state.disposables.push(runtimeClient.onMessage?.('project-evolution-cleared', function (message) {
       applyClearedState(unwrapPayload(message).message || 'Project evolution movie cleared.');
     }));
-    runtimeClient.registerEntityRuntime.({
+    runtimeClient.registerEntityRuntime?.({
       entityKind: ENTITY_KIND,
       entityId: ENTITY_ID,
       applySharedState: applySharedState,
@@ -1341,22 +1341,22 @@
   function autoInit() {
     if (state.initialized || !doc()) { return; }
     state.initialized = true;
-    state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime.register.(MODE, {
+    state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime.register?.(MODE, {
       activate: function () {
-        root.CodeXRAnalysisSurfaceRuntime.activateMode.(MODE);
+        root.CodeXRAnalysisSurfaceRuntime.activateMode?.(MODE);
         state.activeChartId = state.activeChartId || getDefaultChartId();
-        root.CodeXRMappingUiRuntime.switchMappingContext.(MODE, { reason: 'project-evolution-ready' });
-        var mappingState = root.CodeXRMappingUiRuntime.getState.() || {};
+        root.CodeXRMappingUiRuntime.switchMappingContext?.(MODE, { reason: 'project-evolution-ready' });
+        var mappingState = root.CodeXRMappingUiRuntime.getState?.() || {};
         if (mappingState.chartId !== state.activeChartId && root.CodeXRMappingUiRuntime.selectChart) {
           root.CodeXRMappingUiRuntime.selectChart(state.activeChartId);
         }
-        root.CodeXRAnalysisControllerRuntime.showView.('project-evolution', {
+        root.CodeXRAnalysisControllerRuntime.showView?.('project-evolution', {
           mode: MODE,
           reason: 'project-evolution-activate',
           mappingContextId: MODE
-        }) || root.CodeXRMappingUiRuntime.showPanelView.(MODE);
+        }) || root.CodeXRMappingUiRuntime.showPanelView?.(MODE);
         if (!state.references) {
-          client().sendMessage.('project-evolution-references-request', {});
+          client().sendMessage?.('project-evolution-references-request', {});
         }
         if (!state.result) {
           clearChartVisualization();
@@ -1379,7 +1379,7 @@
     buildPanel();
     void configureAvailability();
     registerCollaboration();
-    doc().addEventListener.('codexr-mapping-confirmed', onMappingConfirmed);
+    doc().addEventListener?.('codexr-mapping-confirmed', onMappingConfirmed);
   }
 
   var runtime = {
@@ -1409,12 +1409,12 @@
     },
     destroy: function () {
       stop();
-      state.disposables.forEach(function (dispose) { dispose.(); });
+      state.disposables.forEach(function (dispose) { dispose?.(); });
       state.disposables = [];
-      doc().removeEventListener.('codexr-mapping-confirmed', onMappingConfirmed);
-      state.unregisterModeOption.();
-      state.unregisterLifecycle.();
-      state.unregisterPanelView.();
+      doc().removeEventListener?.('codexr-mapping-confirmed', onMappingConfirmed);
+      state.unregisterModeOption?.();
+      state.unregisterLifecycle?.();
+      state.unregisterPanelView?.();
       if (refs.playbackOverlay.parentNode) {
         refs.playbackOverlay.parentNode.removeChild(refs.playbackOverlay);
       }
@@ -1430,4 +1430,4 @@
     }
   }
   root.CodeXRProjectEvolutionRuntime = runtime;
-})(typeof window !== 'undefined'  window : this);
+})(typeof window !== 'undefined' ? window : this);

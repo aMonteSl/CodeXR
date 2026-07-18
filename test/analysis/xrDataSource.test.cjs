@@ -163,10 +163,10 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75">/);
     assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/codexrCommonRuntime\.js(?:\?v=\$\{nonce\})?"/);
-    assert.doesNotMatch(template, /src="\.\/codexrVisualStyleRuntime\.js(:\v=\$\{nonce\})"/);
-    assert.doesNotMatch(template, /src="\.\/codeXrBoatsRuntime\.js(:\v=\$\{nonce\})"/);
+    assert.doesNotMatch(template, /src="\.\/codexrVisualStyleRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.doesNotMatch(template, /src="\.\/codeXrBoatsRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/historicalComparisonRuntime\.js(?:\?v=\$\{nonce\})?"/);
-    assert.match(template, /src="\.\/projectEvolutionRuntime\.js(:\v=\$\{nonce\})"/);
+    assert.match(template, /src="\.\/projectEvolutionRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.ok(template.indexOf('historicalComparisonRuntime.js') < template.indexOf('projectEvolutionRuntime.js'));
     assert.ok(template.indexOf('codexrCommonRuntime.js') < template.indexOf('dependencyGraphRuntime.js'));
     assert.match(template, /id="codexrAnalysisTable"/);

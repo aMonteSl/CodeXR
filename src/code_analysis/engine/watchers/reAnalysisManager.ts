@@ -24,7 +24,7 @@ export class ReAnalysisManager {
 
     async executeDataJsonRegeneration(
         session: UnifiedAnalysisSession,
-        options: { notifyClients: boolean; silent: boolean } = {},
+        options: { notifyClients?: boolean; silent?: boolean } = {},
     ): Promise<boolean> {
         try {
             if (!session.savedFilesPath) {
