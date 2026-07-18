@@ -60,6 +60,12 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(mappingRuntime, /state\.runtimeConfig \? \(state\.runtimeConfig\.chartId \|\| null\) : null/);
   // Boot steps are isolated so one failure cannot cascade into the others.
   assert.match(modeRuntime, /boot step failed/);
+  // Cleanup lifecycle hooks run fault-isolated: a throwing deactivate or
+  // disposeView must never abort a transition (it left the table stuck in the
+  // old mode's theme with all interactions suspended - dead clicks).
+  assert.match(modeRuntime, /function invokeSafely\(lifecycle, method, context\)/);
+  assert.match(modeRuntime, /await invokeSafely\(lifecycles\[previousMode\], 'deactivate'/);
+  assert.match(modeRuntime, /await invokeSafely\(lifecycles\[mode\], 'disposeView'/);
   assert.match(historyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(dependencyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(tableRuntime, /oneOf: \['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'\]/);

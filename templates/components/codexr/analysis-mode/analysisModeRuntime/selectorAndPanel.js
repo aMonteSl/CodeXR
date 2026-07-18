@@ -6,6 +6,24 @@
     return Promise.resolve(lifecycle[method](context));
   }
 
+  /**
+   * Like invoke(), but failures are logged and swallowed (sync throws too).
+   * Cleanup hooks (deactivate/disposeView) run through this: a mode that
+   * fails to clean up may degrade itself, but it must never abort the
+   * transition — otherwise the table keeps the old mode's theme and the
+   * suspended interactions are never restored (dead clicks).
+   */
+  function invokeSafely(lifecycle, method, context) {
+    try {
+      return invoke(lifecycle, method, context).catch(function (error) {
+        root.console?.error?.('[CodeXR][AnalysisMode] Lifecycle ' + method + ' failed:', error);
+      });
+    } catch (error) {
+      root.console?.error?.('[CodeXR][AnalysisMode] Lifecycle ' + method + ' failed:', error);
+      return Promise.resolve();
+    }
+  }
+
   function register(mode, lifecycle) {
     if (!VALID_MODES.has(mode) || !lifecycle) {
       return function () {};
@@ -262,7 +280,7 @@
       reason: context?.reason || ''
     });
     if (previousMode !== mode) {
-      await invoke(lifecycles[previousMode], 'deactivate', {
+      await invokeSafely(lifecycles[previousMode], 'deactivate', {
         from: previousMode,
         to: mode,
         generation: generation
@@ -282,7 +300,7 @@
       });
     } catch (error) {
       if (generation === state.generation) {
-        await invoke(lifecycles[mode], 'disposeView', {
+        await invokeSafely(lifecycles[mode], 'disposeView', {
           from: mode,
           to: 'selection',
           generation: generation,
@@ -295,7 +313,7 @@
       return false;
     }
     if (generation !== state.generation) {
-      await invoke(lifecycles[mode], 'deactivate', {
+      await invokeSafely(lifecycles[mode], 'deactivate', {
         from: mode,
         to: null,
         generation: generation,
