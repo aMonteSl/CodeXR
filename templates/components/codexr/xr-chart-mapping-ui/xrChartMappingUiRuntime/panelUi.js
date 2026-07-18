@@ -1,4 +1,33 @@
 // == xrChartMappingUiRuntime.js | panelUi (assembled per manifest.json; see COMPONENTS.md) ==
+  /**
+   * Run `callback` as soon as the controller panel exists — immediately when
+   * it is already built, otherwise queued until buildUi() completes. This is
+   * the supported way for feature runtimes to time their registerPanelView
+   * call: polling with capped retries silently loses views on slow scenes.
+   */
+  function whenPanelReady(callback) {
+    if (typeof callback !== 'function') {
+      return false;
+    }
+    if (refs.panel && refs.panelContent) {
+      callback();
+      return true;
+    }
+    PANEL_READY_CALLBACKS.push(callback);
+    return true;
+  }
+
+  function flushPanelReadyCallbacks() {
+    while (PANEL_READY_CALLBACKS.length) {
+      var callback = PANEL_READY_CALLBACKS.shift();
+      try {
+        callback();
+      } catch (error) {
+        console.warn('[CodeXR][MappingUI] panel-ready callback failed:', error);
+      }
+    }
+  }
+
   function registerPanelView(options) {
     if (!refs.panel || !refs.panelContent) {
       return null;
@@ -419,4 +448,8 @@
       applyAdaptivePlacement(config);
       ensureAdaptivePlacementLoop();
     }
+
+    // The panel is now usable: let every queued feature runtime register its
+    // view (analysis selector, dependencies, historical, evolution, ...).
+    flushPanelReadyCallbacks();
   }

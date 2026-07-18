@@ -192,9 +192,17 @@
   function mountModePanel(attempt) {
     if (state.unregisterPanelView) { return; }
     var mappingRuntime = root.CodeXRMappingUiRuntime;
-    if (!mappingRuntime?.registerPanelView || !mappingRuntime.isPanelReady?.()) {
-      if (attempt < 30) {
-        root.setTimeout?.(function () { mountModePanel(attempt + 1); }, 100);
+    if (!mappingRuntime?.registerPanelView) { return; }
+    if (!mappingRuntime.isPanelReady?.()) {
+      // Event-driven: the controller calls back the moment its panel exists.
+      // A capped retry here used to permanently lose the analysis selector on
+      // slow scenes.
+      if (!state.modePanelMountQueued) {
+        state.modePanelMountQueued = true;
+        mappingRuntime.whenPanelReady?.(function () {
+          state.modePanelMountQueued = false;
+          mountModePanel(attempt);
+        });
       }
       return;
     }
@@ -227,9 +235,9 @@
     });
     if (!state.unregisterPanelView) {
       state.panelRoot = null;
-      if (attempt < 30) {
-        root.setTimeout?.(function () { mountModePanel(attempt + 1); }, 100);
-      }
+      root.CodeXRMappingUiRuntime?.whenPanelReady?.(function () {
+        mountModePanel(attempt);
+      });
       return;
     }
     renderModeOptions();

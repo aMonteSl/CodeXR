@@ -2,6 +2,12 @@
 
 ## [1.2.0] - Unreleased
 
+### Fixed — table controller (Field Mapping panel): reliable access to the analysis selector
+
+- **The analysis-type selector could permanently disappear from the controller panel.** Feature runtimes registered their panel views (analysis selector "V" button, dependency settings, historical selection, project evolution) by polling the controller with capped retries (3s for the selector, 2s for historical) — on a slow-loading scene the cap expired and the view was silently lost forever, leaving no way to switch between analyses. View registration is now event-driven: the controller exposes `whenPanelReady(callback)` (fires immediately once its panel exists, queues otherwise) and every consumer registers through it.
+- **The controller now bootstraps deterministically**: `autoInit` waits for the A-Frame scene's `loaded` event before building panel entities (attaching mid-load could wedge the scene's load pipeline), and keeps re-trying while its tooling config has not appeared yet instead of giving up on the first attempt.
+- **The controller's extension contract is documented in the source** (view registry, controller-view maps, how to add a new analysis surface), and a new Playwright runner (`npm run test:xr-mode-harness`) walks the real user path end to end: header button opens the analysis selector, each analysis mode is entered from it (dependency graph, historical comparison, back to normal analysis), and the Field Mapping chart selector stays interactive.
+
 ### Fixed — analysis table (pedestal) containment status and rescaling robustness
 
 - **The table's status readout no longer freezes on a stale message.** The warning surface ("The chart is still rebuilding its geometry", "No chart detected", …) was only updated when an external caller happened to sample the diagnostics, so a message captured mid-rebuild stayed on the table forever even after the chart settled. The containment component now drives the readout itself: every lifecycle transition (normalize success, waiting-geometry, steady-fit promotion, chart removal) and the periodic maintenance tick request a coalesced refresh, and graced states keep re-sampling on their own — the displayed message always converges to the live chart state.

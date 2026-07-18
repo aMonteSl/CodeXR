@@ -48,9 +48,14 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.doesNotMatch(modeRuntime, /class: 'babiaxraycasterclass codexr-analysis-mode-option'/);
   assert.match(modeRuntime, /class: 'codexr-analysis-mode-option'/);
   assert.match(mappingRuntime, /isPanelReady: function \(\)/);
-  assert.match(modeRuntime, /!mappingRuntime\.isPanelReady\?\.\(\)/);
-  assert.match(historyRuntime, /!mappingRuntime\.isPanelReady\?\.\(\)/);
-  assert.match(dependencyRuntime, /!root\.CodeXRMappingUiRuntime\?\.isPanelReady\?\.\(\)/);
+  // View registration is event-driven: the controller exposes whenPanelReady
+  // and every feature runtime schedules its registerPanelView through it
+  // (capped polling used to silently lose views on slow scenes).
+  assert.match(mappingRuntime, /whenPanelReady: whenPanelReady/);
+  assert.match(mappingRuntime, /flushPanelReadyCallbacks\(\);/);
+  assert.match(modeRuntime, /whenPanelReady\?\.\(function \(\) \{/);
+  assert.match(historyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
+  assert.match(dependencyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(tableRuntime, /oneOf: \['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'\]/);
   assert.match(tableRuntime, /selection[\s\S]*#f8fafc/);
   assert.match(tableRuntime, /MODE_THEME_BY_ID = \{/);

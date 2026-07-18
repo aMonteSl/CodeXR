@@ -730,6 +730,7 @@
     "test:analysis": "node test/runners/run-analysis-tests.cjs",
     "test:htmlanalysis": "node test/runners/run-html-analysis-tests.cjs",
     "test:xr-harness": "node test/runners/run-xr-containment-harness.cjs",
+    "test:xr-mode-harness": "node test/runners/run-xr-mode-cycle-harness.cjs",
     "test:project-evolution-harness": "node test/runners/run-project-evolution-harness.cjs",
     "report:manual-metrics": "node test/runners/run-analysis-tests.cjs --report-only"
   },

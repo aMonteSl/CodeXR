@@ -27,6 +27,17 @@
     pie: '0 0 0'
   };
 
+  // ── Controller contract ─────────────────────────────────────────────
+  // This runtime is the table's controller: one shared panel hosting one
+  // "panel view" per analysis surface. Feature runtimes contribute views via
+  // registerPanelView({ id, title, content, headerButton, ... }) — never by
+  // touching the panel directly — and must schedule that call through
+  // whenPanelReady() (fires immediately once the panel exists, queues
+  // otherwise), so load order and scene timing cannot strand a view.
+  // To add a new analysis surface: register its panel view, then map its
+  // controller view(s) here so mode transitions can address it.
+  var PANEL_READY_CALLBACKS = [];
+
   var CONTROLLER_PANEL_BY_VIEW = {
     'visualization-menu': 'visualization-mode',
     'single.mapping': 'mapping',

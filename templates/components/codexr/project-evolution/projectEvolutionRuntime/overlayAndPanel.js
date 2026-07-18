@@ -65,8 +65,19 @@
   }
 
   function buildPanel() {
-    if (refs.panel || !root.CodeXRMappingUiRuntime?.registerPanelView || !root.CodeXRMappingUiRuntime?.isPanelReady?.()) {
+    if (refs.panel || !root.CodeXRMappingUiRuntime?.registerPanelView) {
       return !!refs.panel;
+    }
+    if (!root.CodeXRMappingUiRuntime.isPanelReady?.()) {
+      // Event-driven: register as soon as the controller panel exists.
+      if (!refs.panelMountQueued) {
+        refs.panelMountQueued = true;
+        root.CodeXRMappingUiRuntime.whenPanelReady?.(function () {
+          refs.panelMountQueued = false;
+          buildPanel();
+        });
+      }
+      return false;
     }
     refs.panel = entity('a-entity', { position: '0 0 0.04' });
     refs.panel.appendChild(text('Project evolution', '0 ' + PANEL_LAYOUT.titleY + ' 0.02', 6.2, '#cde7ff'));

@@ -44,9 +44,26 @@
     return applyMappingRuntimeState(config, runtimeState, 'mapping-ui-restore');
   }
 
+  var sceneLoadHookInstalled = false;
+
   function autoInit() {
     var config = getConfig();
     if (!config || state.initialized) {
+      return;
+    }
+
+    // Never build panel entities into a scene that is still loading: entities
+    // attached mid-load can wedge A-Frame's load pipeline (their components
+    // never initialize and the scene never fires 'loaded'). Deterministic
+    // ordering instead of timing luck.
+    var scene = getScene();
+    if (scene && scene.hasLoaded === false) {
+      if (!sceneLoadHookInstalled) {
+        sceneLoadHookInstalled = true;
+        scene.addEventListener('loaded', function () {
+          autoInit();
+        }, { once: true });
+      }
       return;
     }
 
@@ -101,6 +118,7 @@
     isPanelReady: function () {
       return !!(refs.panel && refs.panelContent);
     },
+    whenPanelReady: whenPanelReady,
     setChartEntityIds: function (chartEntityIds) {
       state.chartEntityIdsOverride = Array.isArray(chartEntityIds)
         ? chartEntityIds.filter(Boolean).map(String)
@@ -124,13 +142,26 @@
     }
   };
 
+  // Bootstrap keeps re-trying until the tooling config is present: a config
+  // script injected after DOMContentLoaded must delay the controller, never
+  // permanently disable it (autoInit is a no-op until getConfig() resolves).
+  function bootstrapWhenConfigReady(attempt) {
+    runtime.autoInit();
+    if (state.initialized || attempt >= 120) {
+      return;
+    }
+    root.setTimeout?.(function () {
+      bootstrapWhenConfigReady(attempt + 1);
+    }, 250);
+  }
+
   if (root.document) {
     if (root.document.readyState === 'loading') {
       root.document.addEventListener('DOMContentLoaded', function () {
-        runtime.autoInit();
+        bootstrapWhenConfigReady(0);
       }, { once: true });
     } else {
-      runtime.autoInit();
+      bootstrapWhenConfigReady(0);
     }
   }
 

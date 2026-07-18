@@ -353,11 +353,18 @@
   }
 
   function buildPanel() {
-    if (
-      refs.controls
-      || !root.CodeXRMappingUiRuntime?.registerPanelView
-      || !root.CodeXRMappingUiRuntime?.isPanelReady?.()
-    ) { return; }
+    if (refs.controls || !root.CodeXRMappingUiRuntime?.registerPanelView) { return; }
+    if (!root.CodeXRMappingUiRuntime.isPanelReady?.()) {
+      // Event-driven: register as soon as the controller panel exists.
+      if (!refs.panelMountQueued) {
+        refs.panelMountQueued = true;
+        root.CodeXRMappingUiRuntime.whenPanelReady?.(function () {
+          refs.panelMountQueued = false;
+          buildPanel();
+        });
+      }
+      return;
+    }
     refs.controls = entity('a-entity', { position: '0 0 0.04' });
     state.unregisterPanel = root.CodeXRMappingUiRuntime.registerPanelView({
       id: 'dependency-graph',

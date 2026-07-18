@@ -139,17 +139,15 @@
     });
   }
 
-  function mountPanelView(attempt) {
+  function mountPanelView() {
     if (buildPanel()) {
       return;
     }
-    if (Number(attempt || 0) >= 20) {
-      console.warn('[CodeXR][HistoricalComparison] Mapping panel was not available.');
-      return;
-    }
-    setTimeout(function () {
-      mountPanelView(Number(attempt || 0) + 1);
-    }, 100);
+    // Event-driven: the controller calls back once its panel exists (a capped
+    // retry here used to silently drop the view on slow scenes).
+    root.CodeXRMappingUiRuntime?.whenPanelReady?.(function () {
+      buildPanel();
+    });
   }
 
   function autoInit() {
