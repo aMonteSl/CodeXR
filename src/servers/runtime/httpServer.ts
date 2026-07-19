@@ -1306,7 +1306,7 @@ prepareIdentity();
             return this.handleDependencyFileScopeRequestMessage(messageContext, message);
         }
         if (message.type === 'dependency-graph-start') {
-            console.log('[CodeXR][Server] dependency-graph-start received (room:', messageContext.roomId, ')');
+            console.log('[Code-XR Fix][Server] dependency-graph-start received (room:', messageContext.roomId, ')');
             return this.handleDependencyGraphStartMessage(messageContext, message);
         }
         if (!this.historicalComparisonService) {
@@ -1484,7 +1484,7 @@ prepareIdentity();
         if (!this.dependencyGraphService) {
             // Answer instead of silently dropping: the scene shows the reason
             // and the extension host log names the misconfiguration.
-            console.warn('[CodeXR][Server] dependency-graph-start received but no dependency service is attached (mode:', this.analysisMode, ')');
+            console.warn('[Code-XR Fix][Server] dependency-graph-start received but no dependency service is attached (mode:', this.analysisMode, ')');
             messageContext.send({
                 type: 'dependency-graph-error',
                 payload: { message: 'Dependency analysis is not attached to this analysis server.' },
@@ -1514,7 +1514,7 @@ prepareIdentity();
         const hasCachedDataset = typeof existingDependencyState?.datasetUrl === 'string'
             && existingDependencyState.datasetUrl.length > 0;
         const forceFullRefresh = message.payload?.forceFull === true;
-        console.log('[CodeXR][Server] dependency-graph-start accepted (cached:', hasCachedDataset, ', forceFull:', forceFullRefresh, ')');
+        console.log('[Code-XR Fix][Server] dependency-graph-start accepted (cached:', hasCachedDataset, ', forceFull:', forceFullRefresh, ')');
         analysisRefreshCoordinator.setSnapshotAvailable(
             this.config.analysisSessionId!,
             'dependency-graph',
@@ -1555,7 +1555,7 @@ prepareIdentity();
             },
         });
         if (!hasCachedDataset || forceFullRefresh) {
-            console.log('[CodeXR][Server] dependency-graph refresh requested for session', this.config.analysisSessionId);
+            console.log('[Code-XR Fix][Server] dependency-graph refresh requested for session', this.config.analysisSessionId);
             analysisRefreshCoordinator.requestRefresh(
                 this.config.analysisSessionId!,
                 'dependency-graph',
@@ -1903,7 +1903,7 @@ prepareIdentity();
         if (!this.dependencyGraphService) {
             return;
         }
-        console.log('[CodeXR][Server] dependency analysis starting (revision', batch.sourceRevision, ')');
+        console.log('[Code-XR Fix][Server] dependency analysis starting (revision', batch.sourceRevision, ')');
         try {
             this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
@@ -1968,7 +1968,7 @@ prepareIdentity();
             });
             this.notifyLivePanelDependencyUpdated(dataset.revision);
         } catch (error) {
-            console.error('[CodeXR][Server] dependency analysis failed:', error);
+            console.error('[Code-XR Fix][Server] dependency analysis failed:', error);
             this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
                 entityId: 'main',
@@ -2055,7 +2055,7 @@ prepareIdentity();
         // (total silence in the scene) while historical — which does not
         // await it — kept working. Run it in the background and log failures.
         void SessionWatcherManager.reconcileSession(this.config.analysisSessionId).catch((error) => {
-            console.warn('[CodeXR][Server] Session watcher reconciliation failed:', error);
+            console.warn('[Code-XR Fix][Server] Session watcher reconciliation failed:', error);
         });
     }
 

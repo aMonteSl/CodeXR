@@ -299,7 +299,7 @@ export class CollaborationRoomServer {
                 this.updateEntityLock(peer, message, false);
                 return;
             default:
-                console.log('[CodeXR][Room] application message received:', message.type, '(peer:', peer.id, ')');
+                console.log('[Code-XR Fix][Room] application message received:', message.type, '(peer:', peer.id, ')');
                 void this.handleApplicationMessage(peer, message);
         }
     }
