@@ -1306,6 +1306,7 @@ prepareIdentity();
             return this.handleDependencyFileScopeRequestMessage(messageContext, message);
         }
         if (message.type === 'dependency-graph-start') {
+            console.log('[CodeXR][Server] dependency-graph-start received (room:', messageContext.roomId, ')');
             return this.handleDependencyGraphStartMessage(messageContext, message);
         }
         if (!this.historicalComparisonService) {
@@ -1513,6 +1514,7 @@ prepareIdentity();
         const hasCachedDataset = typeof existingDependencyState?.datasetUrl === 'string'
             && existingDependencyState.datasetUrl.length > 0;
         const forceFullRefresh = message.payload?.forceFull === true;
+        console.log('[CodeXR][Server] dependency-graph-start accepted (cached:', hasCachedDataset, ', forceFull:', forceFullRefresh, ')');
         analysisRefreshCoordinator.setSnapshotAvailable(
             this.config.analysisSessionId!,
             'dependency-graph',
@@ -1553,6 +1555,7 @@ prepareIdentity();
             },
         });
         if (!hasCachedDataset || forceFullRefresh) {
+            console.log('[CodeXR][Server] dependency-graph refresh requested for session', this.config.analysisSessionId);
             analysisRefreshCoordinator.requestRefresh(
                 this.config.analysisSessionId!,
                 'dependency-graph',
@@ -1900,6 +1903,7 @@ prepareIdentity();
         if (!this.dependencyGraphService) {
             return;
         }
+        console.log('[CodeXR][Server] dependency analysis starting (revision', batch.sourceRevision, ')');
         try {
             this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
@@ -1964,6 +1968,7 @@ prepareIdentity();
             });
             this.notifyLivePanelDependencyUpdated(dataset.revision);
         } catch (error) {
+            console.error('[CodeXR][Server] dependency analysis failed:', error);
             this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
                 entityId: 'main',
