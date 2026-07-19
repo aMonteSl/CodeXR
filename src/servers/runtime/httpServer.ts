@@ -2045,7 +2045,13 @@ prepareIdentity();
             return;
         }
         analysisRefreshCoordinator.activateMode(this.config.analysisSessionId, mode, controllerView);
-        await SessionWatcherManager.reconcileSession(this.config.analysisSessionId);
+        // Watcher reconciliation must never gate the collaboration reply: a
+        // slow or stuck reconcile left dependency-graph-start unanswered
+        // (total silence in the scene) while historical — which does not
+        // await it — kept working. Run it in the background and log failures.
+        void SessionWatcherManager.reconcileSession(this.config.analysisSessionId).catch((error) => {
+            console.warn('[CodeXR][Server] Session watcher reconciliation failed:', error);
+        });
     }
 
     private publishAnalysisViewState(): void {
