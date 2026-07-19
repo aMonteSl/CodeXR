@@ -9,6 +9,7 @@
 
       switch (message.type) {
         case 'room-joined':
+          win.console?.log?.('[Code-XR Fix][Collab] room joined:', message.roomId, 'as', message.peerId);
           shared.peerId = String(message.peerId || '').trim();
           shared.roomId = String(message.roomId || shared.roomId).trim();
           shared.joinedRoom = true;

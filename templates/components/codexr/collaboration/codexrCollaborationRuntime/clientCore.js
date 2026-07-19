@@ -191,6 +191,7 @@
       }
 
       setConnectionStatus('connecting');
+      win.console?.log?.('[Code-XR Fix][Collab] connecting to', url);
       const socket = new win.WebSocket(url);
       shared.socket = socket;
       socket.onopen = function () {
@@ -209,7 +210,8 @@
           // Ignore malformed collaboration payloads.
         }
       };
-      socket.onclose = function () {
+      socket.onclose = function (event) {
+        win.console?.warn?.('[Code-XR Fix][Collab] socket closed (code', event?.code, ')');
         shared.joinedRoom = false;
         if (shared.socket === socket) {
           shared.socket = null;
