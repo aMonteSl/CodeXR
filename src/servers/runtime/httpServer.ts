@@ -1481,7 +1481,14 @@ prepareIdentity();
         message: CollaborationMessage,
     ): Promise<boolean> {
         if (!this.dependencyGraphService) {
-            return false;
+            // Answer instead of silently dropping: the scene shows the reason
+            // and the extension host log names the misconfiguration.
+            console.warn('[CodeXR][Server] dependency-graph-start received but no dependency service is attached (mode:', this.analysisMode, ')');
+            messageContext.send({
+                type: 'dependency-graph-error',
+                payload: { message: 'Dependency analysis is not attached to this analysis server.' },
+            });
+            return true;
         }
         const availability = this.dependencyGraphService.getAvailability();
         if (!availability.enabled) {

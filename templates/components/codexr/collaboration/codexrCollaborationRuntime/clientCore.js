@@ -80,6 +80,11 @@
 
     function setError(error) {
       shared.error = error || null;
+      if (error) {
+        // Server-reported failures must be visible: silently stored errors
+        // made broken feature requests look like the server never answered.
+        win.console?.warn?.('[CodeXR][Collaboration] Server error:', error.code || '', error.message || error);
+      }
       emitStateChanged();
     }
 

@@ -186,6 +186,7 @@
       setStatus(message?.payload?.message || 'Analyzing dependencies...', false);
     }));
     state.disposables.push(connection?.onMessage?.('dependency-graph-error', function (message) {
+      root.console?.warn?.('[CodeXR][DependencyGraph] Server reported:', message?.payload?.message || 'Dependency analysis failed.');
       setStatus(message?.payload?.message || 'Dependency analysis failed.', true);
       setTransitionLocked(false);
     }));
