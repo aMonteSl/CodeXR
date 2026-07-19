@@ -49,6 +49,20 @@ async function copyEntry(entry) {
   });
 }
 
+async function verifyStagedBuild() {
+  // The dev host debugs the STAGED copy, not dist/. A silent partial copy
+  // here means debugging stale code, so prove the staging is byte-identical.
+  const { createHash } = await import('node:crypto');
+  const hashOf = async (file) => createHash('sha256').update(await fs.readFile(file)).digest('hex').slice(0, 12);
+  const source = path.join(workspaceRoot, 'dist', 'extension.js');
+  const staged = path.join(devExtensionRoot, 'dist', 'extension.js');
+  const [sourceHash, stagedHash] = await Promise.all([hashOf(source), hashOf(staged)]);
+  if (sourceHash !== stagedHash) {
+    throw new Error(`[Code-XR Fix] Staged dev extension does not match dist/ (${stagedHash} != ${sourceHash})`);
+  }
+  return sourceHash;
+}
+
 async function main() {
   ensureInsideWorkspace(devExtensionRoot);
   await fs.rm(devExtensionRoot, { recursive: true, force: true });
@@ -56,7 +70,8 @@ async function main() {
   for (const entry of entriesToCopy) {
     await copyEntry(entry);
   }
-  console.log(`Prepared isolated CodeXR dev extension at ${devExtensionRoot}`);
+  const buildHash = await verifyStagedBuild();
+  console.log(`[Code-XR Fix] Prepared isolated dev extension at ${devExtensionRoot} (build ${buildHash})`);
 }
 
 await main();
