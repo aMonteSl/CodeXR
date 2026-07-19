@@ -3,7 +3,6 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
-import { parse as parseUrl } from 'url';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
 import { NetworkUtils } from '../utils/networkUtils';
@@ -1047,9 +1046,9 @@ prepareIdentity();
         res: http.ServerResponse,
         url: string
     ): Promise<void> {
-        // Parse URL to extract pathname without query string
-        const parsedUrl = parseUrl(url, true);
-        const pathname = parsedUrl.pathname || '/';
+        // Parse URL to extract pathname without query string (WHATWG parser:
+        // the legacy url.parse() emits DEP0169 in the extension host).
+        const pathname = decodeURIComponent(new URL(url, 'http://codexr.local').pathname) || '/';
         
         const filePath = path.join(this.config.staticRoot!, pathname);
         const normalizedPath = path.normalize(filePath);
