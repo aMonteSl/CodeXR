@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CodeXR Guide</title>
+    <style>
+        :root {
+            --bg: #0b1220;
+            --panel: #0e1626;
+            --text: #e2e8f0;
+            --muted: #7c8aa5;
+            --accent: #22d3ee;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+        }
+        header {
+            background: linear-gradient(180deg, #0b4f6c, transparent);
+            border-bottom: 1px solid rgba(34, 211, 238, .35);
+            padding: 2.2rem 1.5rem 1.6rem;
+            text-align: center;
+        }
+        header h1 { font-size: 1.9rem; letter-spacing: .02em; }
+        header p { color: var(--muted); margin-top: .35rem; }
+        main { max-width: 860px; margin: 0 auto; padding: 1.5rem; }
+        .guide-toc {
+            display: flex; flex-wrap: wrap; gap: .5rem;
+            margin: .5rem 0 1.6rem;
+        }
+        .guide-toc a {
+            color: var(--text); text-decoration: none; font-size: .9rem;
+            padding: .35rem .7rem; border-left: 3px solid var(--accent);
+            background: var(--panel); border-radius: 0 6px 6px 0;
+        }
+        .guide-toc a:hover { background: #16233c; }
+        .guide-section {
+            background: var(--panel);
+            border: 1px solid rgba(124, 138, 165, .18);
+            border-radius: 10px;
+            padding: 1.2rem 1.4rem;
+            margin-bottom: 1.1rem;
+        }
+        .guide-section h2 {
+            font-size: 1.15rem;
+            border-left: 4px solid var(--accent);
+            padding-left: .6rem;
+            margin-bottom: .7rem;
+        }
+        .guide-section ul { list-style: none; }
+        .guide-section li {
+            padding-left: 1.1rem;
+            position: relative;
+            margin-bottom: .35rem;
+        }
+        .guide-section li::before {
+            content: "•";
+            color: var(--accent);
+            position: absolute;
+            left: 0;
+        }
+        .guide-section h3 {
+            font-size: .8rem;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            margin: 1rem 0 .5rem;
+        }
+        .guide-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .45rem .9rem;
+        }
+        .guide-metric {
+            background: rgba(124, 138, 165, .08);
+            border-radius: 6px;
+            padding: .45rem .6rem;
+        }
+        .guide-metric dt { font-weight: 600; font-size: .9rem; }
+        .guide-metric dd { color: var(--muted); font-size: .85rem; margin-top: .1rem; }
+        @media (max-width: 640px) {
+            .guide-metrics { grid-template-columns: 1fr; }
+        }
+        footer {
+            color: var(--muted); text-align: center;
+            padding: 1.4rem; font-size: .85rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>CodeXR Guide</h1>
+        <p>What each analysis mode shows and how to explore it in the XR room.</p>
+    </header>
+    <main id="guide-root"></main>
+    <footer>Served by this CodeXR analysis session &middot; the same guide lives on the screen inside the XR room.</footer>
+    <script src="./guideScreenRuntime.js"></script>
+    <script>
+        window.CodeXRGuideRuntime.renderGuideHtml(document.getElementById('guide-root'));
+    </script>
+</body>
+</html>

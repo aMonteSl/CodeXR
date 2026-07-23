@@ -21,6 +21,10 @@ import {
     HISTORICAL_COMPARISON_RUNTIME_OUTPUT_NAME,
     PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME,
     DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME,
+    GUIDE_SCREEN_RUNTIME_OUTPUT_NAME,
+    GUIDE_PAGE_OUTPUT_NAME,
+    readGuideScreenRuntimeContent,
+    readGuidePageContent,
     RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
     DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
     CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
@@ -143,6 +147,8 @@ export class DirectoryXRParser {
             const historicalComparisonRuntimeContent = await readHistoricalComparisonRuntimeContent(context.extensionPath);
             const projectEvolutionRuntimeContent = await readProjectEvolutionRuntimeContent(context.extensionPath);
             const dependencyGraphRuntimeContent = await readDependencyGraphRuntimeContent(context.extensionPath);
+            const guideScreenRuntimeContent = await readGuideScreenRuntimeContent(context.extensionPath);
+            const guidePageContent = await readGuidePageContent(context.extensionPath);
             const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
             const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
             const codexrDebugRuntimeContent = await readCodeXrDebugRuntimeContent(context.extensionPath);
@@ -167,6 +173,8 @@ export class DirectoryXRParser {
             generatedFiles.set(RENDER_BUDGET_RUNTIME_OUTPUT_NAME, renderBudgetRuntimeContent);
             generatedFiles.set(DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME, dependencyVisualBudgetRuntimeContent);
             generatedFiles.set(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, dependencyGraphRuntimeContent);
+            generatedFiles.set(GUIDE_SCREEN_RUNTIME_OUTPUT_NAME, guideScreenRuntimeContent);
+            generatedFiles.set(GUIDE_PAGE_OUTPUT_NAME, guidePageContent);
             generatedFiles.set(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME, codexrDebugRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
             codexrRoomTextures.forEach((asset) => {

@@ -10,6 +10,7 @@ export * from './analysisModeComponentAsset';
 export * from './historicalComparisonComponentAsset';
 export * from './projectEvolutionComponentAsset';
 export * from './dependencyGraphComponentAsset';
+export * from './guideScreenComponentAsset';
 export * from './renderBudgetComponentAsset';
 export * from './dependencyVisualBudgetComponentAsset';
 export * from './codexrDebugComponentAsset';
