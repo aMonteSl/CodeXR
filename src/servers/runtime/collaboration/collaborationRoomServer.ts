@@ -620,7 +620,14 @@ export class CollaborationRoomServer {
         }
 
         const key = this.getEntityKey(entityKind, entityId);
-        const previous = room.entities.get(key) || { entityKind, entityId };
+        const previous = room.entities.get(key);
+        if (!previous) {
+            // Never resurrect an entity from a bare transform: the rebuilt
+            // record would lack its typed fields (contentKind, screen config…)
+            // and clients would materialize a broken copy. Entity-added always
+            // precedes transforms in every runtime.
+            return;
+        }
         const nextEntity: SharedEntityState = {
             ...previous,
             entityKind,
