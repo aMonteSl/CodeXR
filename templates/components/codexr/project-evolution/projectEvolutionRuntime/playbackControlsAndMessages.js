@@ -1,7 +1,9 @@
 // == projectEvolutionRuntime.js | playbackControlsAndMessages (assembled per manifest.json; see COMPONENTS.md) ==
   function render() {
     renderTimelineControls();
-    var frames = state.result.frames || [];
+    // Result stays null until a movie is built; stop() renders during
+    // deactivate/disposeView, so this runs for never-opened modes too.
+    var frames = state.result?.frames || [];
     var frame = frames[state.frameIndex];
     updateNowShowing(frame, frames.length);
     refs.playButton?.querySelector('a-text').setAttribute?.('value', state.playing ? 'Pause' : 'Play');

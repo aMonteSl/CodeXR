@@ -117,32 +117,70 @@
     return 'primitive: sphere; radius: ' + radius + '; segmentsWidth: 18; segmentsHeight: 12';
   }
 
+  // Type colour used as the legend accent (matches the node's own colour).
+  function nodeAccentColor(node) {
+    var visual = symbolVisual(node, 'force-3d');
+    if (visual) { return visual.color; }
+    if (node?.external || node?.syntheticExternal) { return '#fb923c'; }
+    if (node?.syntheticKind === 'parent') { return COLORS.parent || '#64748b'; }
+    if (node?.syntheticKind === 'directory' || node?.kind === 'group') { return COLORS.directory || '#38bdf8'; }
+    return COLORS[node?.language] || '#38bdf8';
+  }
+
+  function nodeSubtitle(node) {
+    if (node?.syntheticKind === 'parent') { return 'Parent directory'; }
+    if (node?.syntheticKind === 'directory' || node?.kind === 'group') { return 'Directory'; }
+    var bits = [];
+    if (node?.symbolKind) { bits.push(String(node.symbolKind).toUpperCase()); }
+    else if (node?.kind === 'file') { bits.push('FILE'); }
+    if (node?.language) { bits.push(String(node.language)); }
+    if (node?.lineStart) { bits.push('Line ' + node.lineStart); }
+    else if (node?.relativePath) { bits.push(String(node.relativePath)); }
+    return bits.join(' · ') || (node?.external ? 'External dependency' : 'Node');
+  }
+
   function nodeDetailModel(node) {
     var metrics = node?.metrics || {};
     if (node?.syntheticExternal) {
       var summary = node.summary || {};
-      var kinds = Object.keys(summary.relationKinds || {}).map(function (kind) {
-        return kind + ' ' + summary.relationKinds[kind];
+      var kindEntries = Object.keys(summary.relationKinds || {}).map(function (kind) {
+        return { label: kind, value: String(summary.relationKinds[kind]) };
+      });
+      var kindsText = kindEntries.map(function (entry) {
+        return entry.label + ' ' + entry.value;
       }).join('   ');
       return {
         title: 'External dependencies',
         subtitle: Number(summary.packageCount || 0) + ' hidden packages',
+        accentColor: '#fb923c',
+        rows: [
+          { label: 'Packages', value: String(Number(summary.packageCount || 0)) },
+          { label: 'Relations', value: String(Number(summary.relationCount || 0)) }
+        ].concat(kindEntries.slice(0, 4)),
         primary: 'Relations ' + Number(summary.relationCount || 0)
           + (summary.topPackages?.length ? '   Top: ' + summary.topPackages.join(', ') : ''),
-        secondary: kinds || 'No external relation details'
+        secondary: kindsText || 'No external relation details'
       };
     }
+    var fanIn = Number(metrics.fanIn || 0);
+    var fanOut = Number(metrics.fanOut || 0);
+    // Instability (Ce / (Ca + Ce)) — a standard dependency-health metric.
+    var instability = (fanIn + fanOut) > 0 ? Math.round((fanOut / (fanIn + fanOut)) * 100) : 0;
     return {
       title: node?.label || node?.id || 'Unknown node',
-      subtitle: node?.symbolKind
-        ? String(node.symbolKind).toUpperCase() + (node.lineStart ? '   Line ' + node.lineStart : '')
-        : node?.syntheticKind === 'parent'
-          ? 'Parent directory'
-          : node?.syntheticKind === 'directory'
-            ? 'Directory'
-            : node?.relativePath || (node?.external ? 'External dependency' : (node?.language || node?.kind || 'Node')),
-      primary: 'Fan-in ' + Number(metrics.fanIn || 0)
-        + '   Fan-out ' + Number(metrics.fanOut || 0)
+      subtitle: nodeSubtitle(node),
+      accentColor: nodeAccentColor(node),
+      rows: [
+        { label: 'Fan-in', value: String(fanIn) },
+        { label: 'Fan-out', value: String(fanOut) },
+        { label: 'Degree', value: String(Number(metrics.degree || 0)) },
+        { label: 'Relations', value: String(Number(metrics.relationCount || 0)) },
+        { label: 'Cycle', value: String(Number(metrics.cycleSize || 0)) },
+        { label: 'Lines', value: String(Number(metrics.totalLines || 0)) },
+        { label: 'Instab.', value: instability + '%' }
+      ],
+      primary: 'Fan-in ' + fanIn
+        + '   Fan-out ' + fanOut
         + '   Degree ' + Number(metrics.degree || 0),
       secondary: 'Relations ' + Number(metrics.relationCount || 0)
         + '   Cycle ' + Number(metrics.cycleSize || 0)
@@ -151,10 +189,17 @@
   }
 
   function edgeDetailModel(edge, nodes) {
+    var accent = '#f59e0b';
+    try { accent = edgeStyle(edge, 'relation-type').color || accent; } catch (_error) { /* keep default */ }
     return {
       title: String(edge?.kind || 'relation').toUpperCase(),
       subtitle: (nodes[edge?.source]?.data?.label || edge?.source || 'Unknown')
-        + '  ->  ' + (nodes[edge?.target]?.data?.label || edge?.target || 'Unknown'),
+        + '  →  ' + (nodes[edge?.target]?.data?.label || edge?.target || 'Unknown'),
+      accentColor: accent,
+      rows: [
+        { label: 'Confidence', value: String(edge?.confidence || 'unknown') },
+        { label: 'Occurs', value: String(Number(edge?.occurrences || 1)) }
+      ],
       primary: 'Confidence: ' + String(edge?.confidence || 'unknown'),
       secondary: 'Occurrences: ' + Number(edge?.occurrences || 1)
     };
@@ -167,19 +212,42 @@
       : normalized;
   }
 
+  // All rows anchor to PANEL_ROWS (configAndStatus.js) — one place to re-space
+  // the panel instead of magic Y literals scattered through the layout code.
+  function rowPosition(x, y) {
+    return x + ' ' + y + ' 0.02';
+  }
+
+  // Renders the active encoding's legend (from edgeEncodingLegend) into the
+  // band under the flow row: colour marks at one row, labels beneath.
+  function renderEdgeLegend(legend) {
+    if (!refs.controls || !legend?.entries?.length) { return; }
+    var pitch = legend.type === 'swatches' ? 0.74 : 0.78;
+    var startX = -((legend.entries.length - 1) / 2) * pitch;
+    legend.entries.forEach(function (entry, index) {
+      var x = startX + (index * pitch);
+      refs.controls.appendChild(entity('a-plane', {
+        position: x + ' ' + PANEL_ROWS.legendMarks + ' 0.024',
+        width: legend.type === 'swatches' ? 0.56 : 0.66,
+        height: entry.barHeight || 0.07,
+        material: 'color: ' + entry.color + '; opacity: .98; shader: flat'
+      }));
+      refs.controls.appendChild(text(entry.label, rowPosition(x, PANEL_ROWS.legendLabels), 0.72, '#cbd5e1', 'center', 9));
+    });
+  }
+
   function renderControls() {
     if (!refs.controls) { return; }
     while (refs.controls.firstChild) { refs.controls.removeChild(refs.controls.firstChild); }
-    refs.controls.appendChild(text('Dependency graph', '0 2.45 0.02', 5.6, '#fcd34d'));
     if (!state.snapshot) {
       refs.controls.appendChild(text(
         state.availability === 'disabled'
           ? state.unavailableReason
           : 'Waiting for the dependency snapshot...',
-        '0 0.45 0.02', 5.2, state.availability === 'disabled' ? '#fca5a5' : '#fde68a'
+        rowPosition(0, PANEL_ROWS.waitingText), 5.2, state.availability === 'disabled' ? '#fca5a5' : '#fde68a'
       ));
       refs.controls.appendChild(button(
-        'Re-analyze', '0 -1.85 0.02', 1.7, reanalyze, '#b45309'
+        'Re-analyze', rowPosition(0, PANEL_ROWS.waitingButton), 1.7, reanalyze, '#b45309'
       ));
       return;
     }
@@ -187,11 +255,11 @@
     refs.controls.appendChild(text(
       (scope.kind === 'file' ? 'File: ' : 'Folder: ')
         + (normalizeRelativePath(scope.relativePath) || '(project root)'),
-      '0 2.17 0.02', 5.2, '#67e8f9'
+      rowPosition(0, PANEL_ROWS.scope), 5.2, '#67e8f9'
     ));
     var layouts = ['force-3d', 'hierarchical', 'metric-space'];
     refs.controls.appendChild(cycleButton(
-      'Layout: ' + state.snapshot.layout, '0 1.76 0.02', 4.9,
+      'Layout: ' + state.snapshot.layout, rowPosition(0, PANEL_ROWS.layout), 4.9,
       function () { publishState({ layout: cycleValue(state.snapshot.layout, layouts, -1) }); },
       function () { publishState({ layout: cycleValue(state.snapshot.layout, layouts, 1) }); },
       '#6d28d9',
@@ -206,7 +274,7 @@
         : 'Project root';
     refs.controls.appendChild(attachHelp(button(
       truncateText(navigationLabel, 26),
-      '-1.55 1.28 0.02',
+      rowPosition(-1.55, PANEL_ROWS.nav),
       2.75,
       normalizedScopePath ? function () { openDirectory(parentPath); } : null,
       normalizedScopePath ? '#0f766e' : '#475569'
@@ -215,7 +283,7 @@
       : 'The dependency graph is already showing the project root.'));
     refs.controls.appendChild(attachHelp(button(
       'Root',
-      '0.15 1.28 0.02',
+      rowPosition(0.15, PANEL_ROWS.nav),
       0.55,
       normalizedScopePath ? function () { openDirectory(''); } : null,
       normalizedScopePath ? '#0369a1' : '#475569'
@@ -223,7 +291,7 @@
     var externalValues = [false, true];
     refs.controls.appendChild(cycleButton(
       state.snapshot.showExternal ? 'External: shown' : 'External: hidden',
-      '1.75 1.28 0.02', 2.05,
+      rowPosition(1.75, PANEL_ROWS.nav), 2.05,
       function () { publishState({ showExternal: cycleValue(state.snapshot.showExternal, externalValues, -1) }); },
       function () { publishState({ showExternal: cycleValue(state.snapshot.showExternal, externalValues, 1) }); },
       '#7c3aed',
@@ -261,7 +329,7 @@
       }
       refs.controls.appendChild(cycleButton(
         mappingControl.label + ': ' + state.snapshot.mapping?.[mappingControl.key],
-        mappingControl.x + ' 0.78 0.02',
+        rowPosition(mappingControl.x, PANEL_ROWS.mapping),
         state.snapshot.layout === 'metric-space' ? 1.02 : 1.72,
         function () { updateMapping(-1); },
         function () { updateMapping(1); },
@@ -271,37 +339,41 @@
     });
     RELATIONS.forEach(function (relation, index) {
       var enabled = state.snapshot.relationFilters?.[relation] !== false;
-      refs.controls.appendChild(cycleButton(
+      var toggleRelation = function () {
+        var filters = Object.assign({}, state.snapshot.relationFilters);
+        filters[relation] = !enabled;
+        publishState({ relationFilters: filters });
+      };
+      var filterButton = cycleButton(
         (enabled ? 'ON ' : 'OFF ') + relation,
-        (-2.1 + ((index % 4) * 1.4)) + ' ' + (0.25 - (Math.floor(index / 4) * 0.48)) + ' 0.02',
+        rowPosition(
+          -2.1 + ((index % 4) * 1.4),
+          PANEL_ROWS.relationsBase - (Math.floor(index / 4) * PANEL_ROWS.relationsStep)
+        ),
         1.25,
-        function () {
-          var filters = Object.assign({}, state.snapshot.relationFilters);
-          filters[relation] = !enabled;
-          publishState({ relationFilters: filters });
-        },
-        function () {
-          var filters = Object.assign({}, state.snapshot.relationFilters);
-          filters[relation] = !enabled;
-          publishState({ relationFilters: filters });
-        },
+        toggleRelation,
+        toggleRelation,
         enabled ? '#0f766e' : '#475569',
         RELATION_HELP[relation]
-      ));
+      );
+      // The chip doubles as an always-visible legend: this relation's edge
+      // colour, discoverable regardless of the active encoding.
+      filterButton.appendChild(entity('a-plane', {
+        position: '-0.57 0 0.02',
+        width: 0.07,
+        height: 0.3,
+        material: 'color: ' + (RELATION_COLORS[relation] || '#67e8f9') + '; opacity: .98; shader: flat'
+      }));
+      refs.controls.appendChild(filterButton);
     });
-    var encodingLabels = {
-      'relation-type': 'Relation type',
-      'intensity-color': 'Intensity color',
-      'intensity-width': 'Intensity width',
-      'intensity-combined': 'Color + width'
-    };
     var currentEncoding = state.snapshot.edgeEncoding || 'relation-type';
+    var encodingDef = EDGE_ENCODING_DEFS[currentEncoding] || EDGE_ENCODING_DEFS['relation-type'];
     refs.controls.appendChild(cycleButton(
-      'Edges: ' + encodingLabels[currentEncoding], '0 -0.72 0.02', 4.9,
+      'Edges: ' + encodingDef.label, rowPosition(0, PANEL_ROWS.edges), 4.9,
       function () { publishState({ edgeEncoding: cycleValue(currentEncoding, EDGE_ENCODINGS, -1) }); },
       function () { publishState({ edgeEncoding: cycleValue(currentEncoding, EDGE_ENCODINGS, 1) }); },
       '#9a3412',
-      'Edge style can show relation type, occurrence intensity, or both color and width.'
+      encodingDef.help
     ));
     var flowQuality = root.CodeXRRenderBudgetRuntime?.getSnapshot?.().quality || 'full';
     var visualBudget = root.CodeXRDependencyVisualBudgetRuntime?.getSnapshot?.() || {
@@ -310,7 +382,7 @@
     var detailOverrides = ['auto', 'full', 'focus'];
     refs.controls.appendChild(cycleButton(
       'Detail: ' + visualBudget.override,
-      '0 -1.04 0.02',
+      rowPosition(0, PANEL_ROWS.detail),
       4.9,
       function () {
         setDetailOverride(cycleValue(visualBudget.override, detailOverrides, -1));
@@ -321,34 +393,48 @@
       '#334155',
       'Detail is local to this device. Auto adapts to density, Full increases contrast, and Focus emphasizes interactions.'
     ));
-    refs.controls.appendChild(text(
-      currentEncoding === 'relation-type'
-        ? 'Colors identify relation kinds | Density: ' + visualBudget.profile + ' | Flow: ' + flowQuality
-        : 'Intensity: 1 | 2-3 | 4-7 | 8-15 | 16+ | Density: ' + visualBudget.profile,
-      '0 -1.31 0.02', 5.1, '#fdba74'
+    // Flow-particle preferences — shared with the whole room (validated by the
+    // analysis server), so every participant sees the same size and pace.
+    var flowSizeIds = FLOW_SIZE_OPTIONS.map(function (option) { return option.id; });
+    var flowSpeedIds = FLOW_SPEED_OPTIONS.map(function (option) { return option.id; });
+    var currentFlowSize = flowSizeOption(state.snapshot.flowSize).id;
+    var currentFlowSpeed = flowSpeedOption(state.snapshot.flowSpeed).id;
+    refs.controls.appendChild(cycleButton(
+      'Flow size: ' + flowSizeOption(currentFlowSize).label,
+      rowPosition(-1.28, PANEL_ROWS.flow), 2.35,
+      function () { publishState({ flowSize: cycleValue(currentFlowSize, flowSizeIds, -1) }); },
+      function () { publishState({ flowSize: cycleValue(currentFlowSize, flowSizeIds, 1) }); },
+      '#155e75',
+      'Size of the particles travelling along the edges. Shared with the room.'
     ));
-    if (currentEncoding !== 'relation-type') {
-      INTENSITY_COLORS.forEach(function (color, index) {
-        var sample = entity('a-plane', {
-          position: (-1.52 + (index * .76)) + ' -1.45 0.024',
-          width: .66,
-          height: .035 + (index * .018),
-          material: 'color: ' + color + '; opacity: .98; shader: flat'
-        });
-        refs.controls.appendChild(sample);
-      });
-    }
+    refs.controls.appendChild(cycleButton(
+      'Flow speed: ' + flowSpeedOption(currentFlowSpeed).label,
+      rowPosition(1.28, PANEL_ROWS.flow), 2.35,
+      function () { publishState({ flowSpeed: cycleValue(currentFlowSpeed, flowSpeedIds, -1) }); },
+      function () { publishState({ flowSpeed: cycleValue(currentFlowSpeed, flowSpeedIds, 1) }); },
+      '#155e75',
+      'Pace of the particles travelling along the edges. Shared with the room.'
+    ));
+    // Per-mode edge legend: relation-kind swatches or the occurrence ramp,
+    // rendered from the declarative model in edgeEncoding.js (one code path).
+    renderEdgeLegend(edgeEncodingLegend(currentEncoding));
+    refs.controls.appendChild(text(
+      'Density: ' + visualBudget.profile + ' | Flow: ' + flowQuality + ' | Opacity = confidence',
+      rowPosition(0, PANEL_ROWS.density), 5.8, '#fdba74', 'center', 64
+    ));
+    // Kept to a single line (high wrap-count) so it never overruns the buttons
+    // below it; the panel is wide enough (background width 6.2) to stay legible.
     refs.controls.appendChild(text(
       'Shapes: sphere function | cylinder method | pyramid class | diamond interface | box folder',
-      '0 -1.58 0.02', 5.25, '#ddd6fe'
+      rowPosition(0, PANEL_ROWS.shapes), 5.9, '#ddd6fe', 'center', 92
     ));
-    refs.controls.appendChild(button('Reset view', '-0.9 -1.86 0.02', 1.55, resetView, '#475569'));
-    refs.controls.appendChild(button('Re-analyze', '0.9 -1.86 0.02', 1.55, reanalyze, '#b45309'));
+    refs.controls.appendChild(button('Reset view', rowPosition(-0.9, PANEL_ROWS.actions), 1.55, resetView, '#475569'));
+    refs.controls.appendChild(button('Re-analyze', rowPosition(0.9, PANEL_ROWS.actions), 1.55, reanalyze, '#b45309'));
     refs.controls.appendChild(text(
       'Hover nodes or edges for details. Click once to pin and again to release.',
-      '0 -2.18 0.02', 5.3, '#cbd5e1'
+      rowPosition(0, PANEL_ROWS.hover), 5.9, '#cbd5e1', 'center', 74
     ));
-    refs.status = text(state.snapshot.message || '', '0 -2.42 0.02', 5.3, '#fde68a');
+    refs.status = text(state.snapshot.message || '', rowPosition(0, PANEL_ROWS.status), 5.6, '#fde68a');
     refs.controls.appendChild(refs.status);
   }
 
@@ -370,7 +456,7 @@
       id: 'dependency-graph',
       title: 'Dependencies',
       headerButton: false,
-      panelHeight: 4.9,
+      panelHeight: PANEL_ROWS.panelHeight,
       content: refs.controls,
       onShow: renderControls
     });

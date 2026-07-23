@@ -22,6 +22,31 @@
       .forEach(function (element) { roots.push(element); });
     return uniqueElements(roots);
   }
+  // A-Frame's raycaster still intersects entities hidden via `visible`, so a
+  // parked chart must also give up its raycast classes or its invisible nodes
+  // keep stealing clicks from the graph. Suspended classes are marked on the
+  // element and restored verbatim (same contract as the historical-comparison
+  // and analysis-mode runtimes).
+  var RAYCAST_SUSPENDED_ATTR = 'data-codexr-raycast-suspended';
+  function suspendSubtreeRaycast(rootElement) {
+    if (!rootElement) { return; }
+    var suspend = function (element) {
+      if (!element?.classList?.contains(RAYCAST_CLASS)) { return; }
+      element.classList.remove(RAYCAST_CLASS);
+      element.setAttribute(RAYCAST_SUSPENDED_ATTR, 'true');
+    };
+    suspend(rootElement);
+    rootElement.querySelectorAll?.('.' + RAYCAST_CLASS).forEach(suspend);
+  }
+  function restoreSubtreeRaycast(rootElement) {
+    if (!rootElement) { return; }
+    var restore = function (element) {
+      element.classList?.add(RAYCAST_CLASS);
+      element.removeAttribute?.(RAYCAST_SUSPENDED_ATTR);
+    };
+    if (rootElement.getAttribute?.(RAYCAST_SUSPENDED_ATTR) === 'true') { restore(rootElement); }
+    rootElement.querySelectorAll?.('[' + RAYCAST_SUSPENDED_ATTR + '="true"]').forEach(restore);
+  }
   function parkOriginal() {
     var surface = root.CodeXRAnalysisSurfaceRuntime;
     if (surface?.setNormalVisible) {
@@ -33,6 +58,7 @@
     if (!roots.length) { return; }
     state.originalRoots = roots;
     roots.forEach(function (element) {
+      suspendSubtreeRaycast(element);
       element.setAttribute?.('visible', false);
       if (element.object3D) { element.object3D.visible = false; }
     });
@@ -48,7 +74,10 @@
       state.originalRoots.forEach(function (element) {
         element.setAttribute?.('visible', true);
         if (element.object3D) { element.object3D.visible = true; }
+        restoreSubtreeRaycast(element);
       });
+    } else {
+      state.originalRoots.forEach(restoreSubtreeRaycast);
     }
     state.originalRoots = [];
   }
@@ -97,30 +126,7 @@
       || (modeState?.transitioning && modeState?.requestedMode === 'dependency-graph');
   }
 
-  function intensityBucket(occurrences) {
-    var value = Math.max(1, Number(occurrences || 1));
-    return value >= 16 ? 4 : value >= 8 ? 3 : value >= 4 ? 2 : value >= 2 ? 1 : 0;
-  }
-
-  function edgeStyle(edge, encoding, visualBudget) {
-    var bucket = intensityBucket(edge?.occurrences);
-    var useIntensityColor = encoding === 'intensity-color' || encoding === 'intensity-combined';
-    var useIntensityWidth = encoding === 'intensity-width' || encoding === 'intensity-combined';
-    var widths = visualBudget?.widths || FALLBACK_INTENSITY_WIDTHS;
-    var defaultWidth = widths[1] || widths[0] || .006;
-    return {
-      bucket: bucket,
-      color: useIntensityColor
-        ? INTENSITY_COLORS[bucket]
-        : (RELATION_COLORS[edge?.kind] || RELATION_COLORS.import),
-      width: useIntensityWidth ? widths[bucket] : defaultWidth,
-      opacity: root.CodeXRDependencyVisualBudgetRuntime?.opacityFor?.(
-        visualBudget?.effectiveProfile || 'balanced',
-        edge?.confidence || 'probable',
-        false
-      ) || FALLBACK_CONFIDENCE_OPACITY[edge?.confidence] || FALLBACK_CONFIDENCE_OPACITY.probable
-    };
-  }
+  // intensityBucket / edgeStyle live in edgeEncoding.js (shared IIFE scope).
 
   function graphDensityStats(dataset) {
     var nodes = Array.isArray(dataset?.nodes) ? dataset.nodes : [];
@@ -404,6 +410,8 @@
       layout: state.snapshot.layout,
       showExternal: state.snapshot.showExternal,
       edgeEncoding: state.snapshot.edgeEncoding || 'relation-type',
+      flowSize: state.snapshot.flowSize || FLOW_DEFAULTS.flowSize,
+      flowSpeed: state.snapshot.flowSpeed || FLOW_DEFAULTS.flowSpeed,
       relationFilters: state.snapshot.relationFilters,
       mapping: state.snapshot.mapping,
       scope: state.snapshot.scope

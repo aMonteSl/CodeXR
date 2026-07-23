@@ -2,6 +2,7 @@
   "output": "dependencyGraphRuntime.js",
   "parts": [
     "configAndStatus.js",
+    "edgeEncoding.js",
     "datasetProjection.js",
     "scalesAndControls.js",
     "componentCore.js",

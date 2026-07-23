@@ -44,6 +44,8 @@
   async function applySharedState(snapshot) {
     snapshot = snapshot ? Object.assign({
       edgeEncoding: 'relation-type',
+      flowSize: FLOW_DEFAULTS.flowSize,
+      flowSpeed: FLOW_DEFAULTS.flowSpeed,
       scope: { kind: 'directory', relativePath: '' }
     }, snapshot) : snapshot;
     state.snapshot = snapshot;
@@ -123,9 +125,18 @@
       return;
     }
     setTransitionLocked(true, 'Opening dependencies...');
-    await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
-      reason: 'dependency-refresh'
-    });
+    // The hop to selection is cosmetic; the server's authoritative
+    // analysis-view broadcast is what really drives the scene into
+    // dependency mode. A failed local transition must never swallow the
+    // start message (start() is called as `void start()` — an escaped
+    // rejection here is total silence in the scene).
+    try {
+      await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
+        reason: 'dependency-refresh'
+      });
+    } catch (error) {
+      root.console?.warn?.('[CodeXR][DependencyGraph] selection hop failed; sending dependency-graph-start anyway.', error);
+    }
     // send() drops silently while the socket is still connecting — retry
     // until it goes through. Gated on a send generation of its own (the
     // transition lock legitimately clears during the hop to selection).
@@ -258,6 +269,12 @@
       edgeDetailModel: edgeDetailModel,
       intensityBucket: intensityBucket,
       edgeStyle: edgeStyle,
+      edgeEncodingLegend: edgeEncodingLegend,
+      flowSizeOption: flowSizeOption,
+      flowSpeedOption: flowSpeedOption,
+      FLOW_SIZE_OPTIONS: FLOW_SIZE_OPTIONS,
+      FLOW_SPEED_OPTIONS: FLOW_SPEED_OPTIONS,
+      FLOW_DEFAULTS: FLOW_DEFAULTS,
       graphDensityStats: graphDensityStats,
       buildExternalSummaryDataset: buildExternalSummaryDataset,
       projectDirectoryScope: projectDirectoryScope,

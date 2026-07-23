@@ -777,3 +777,31 @@ test('a failed mode activation returns to an empty selection state', async () =>
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(runtime.getState().transitioning, false);
 });
+
+test('a mode whose disposeView throws synchronously cannot abort the selection transition', async () => {
+  const source = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
+  const context = { setTimeout, clearTimeout, console };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRAnalysisModeRuntime;
+  context.document = {
+    getElementById() { return null; },
+    querySelectorAll() { return []; },
+  };
+
+  runtime.register('selection', {
+    activate: runtime.__testing.clearVisualizationsForSelection,
+  });
+  // Reproduces the dependency-graph start bug: project evolution's disposeView
+  // threw a synchronous TypeError, which escaped the cleanup .map() before
+  // Promise.allSettled could contain it and rejected the whole transition.
+  runtime.register('project-evolution', {
+    activate() {},
+    disposeView() {
+      throw new TypeError("Cannot read properties of null (reading 'suggestedSourceIds')");
+    },
+  });
+
+  assert.equal(await runtime.transitionTo('selection', { reason: 'broken-cleanup-regression' }), true);
+  assert.equal(runtime.getState().mode, 'selection');
+  assert.equal(runtime.getState().transitioning, false);
+});

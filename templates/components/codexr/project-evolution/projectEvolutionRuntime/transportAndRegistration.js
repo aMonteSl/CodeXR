@@ -128,7 +128,8 @@
       frameUrlWithCache: frameUrlWithCache,
       bridgeUrl: bridgeUrl,
       projectEvolutionContainmentProfile: projectEvolutionContainmentProfile,
-      getActiveMappingForChart: getActiveMappingForChart
+      getActiveMappingForChart: getActiveMappingForChart,
+      getSuggestedAutoOrderById: getSuggestedAutoOrderById
     },
     getState: function () {
       return {

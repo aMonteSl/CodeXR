@@ -15,6 +15,7 @@
         this.flowGeometry = null;
         this.flowPositions = null;
         this.flowColors = null;
+        this.flowClock = 0;
         this.flowQuality = root.CodeXRRenderBudgetRuntime?.getSnapshot?.().quality || 'full';
         this.visualBudget = root.CodeXRDependencyVisualBudgetRuntime?.getSnapshot?.() || {
           profile: 'sparse',
@@ -28,12 +29,18 @@
         this.focusEdgeIds = new Set();
         this.lastFlowCount = 0;
         this.visibleArrowCount = 0;
-        this.selectionHalo = null;
+        this.selectionHalos = {};
         this.selectionStartedAt = 0;
         this.axisObjects = [];
         this.axesRoot = null;
-        this.tooltip = null;
-        this.pinnedSelection = null;
+        this.legendCards = {};
+        this.legendBoard = null;
+        this.legendBoardYaw = null;
+        this.scopeLabelRoot = null;
+        this.scopeLabelChip = null;
+        this.scopeLabelDockedState = false;
+        this.scopeLabelDockPhase = 0;
+        this.pinnedSelections = [];
         this.hoveredSelection = null;
         this.graphTopY = GRAPH_BASE_Y;
         this.layoutGeneration = 0;
@@ -50,14 +57,20 @@
           if (qualityChanged) { renderControls(); }
         }) || null;
       },
-      tick: function (time) {
-        if (this.tooltip?.root?.getAttribute('visible') && root.THREE) {
-          root.CodeXRCommonRuntime?.faceCamera?.(this.tooltip.root, this.el.sceneEl);
+      tick: function (time, timeDelta) {
+        // Legends follow the user: the board (all cards, rigid group) and the
+        // scope breadcrumb yaw-billboard toward the camera. Rotating the group
+        // as one keeps the cards' relative layout fixed — they can never rotate
+        // into overlapping each other.
+        this.updateLegendBoard();
+        if (this.scopeLabelRoot?.object3D) {
+          root.CodeXRCommonRuntime?.faceCameraYaw?.(this.scopeLabelRoot, this.el.sceneEl);
         }
         this.updateHighlightTransition();
         this.updateSelectionHalo(time || 0);
         this.updateFocusEdges();
-        this.updateFlow(time || 0);
+        this.updateFlow(timeDelta);
+        this.updateScopeLabelDock(timeDelta);
       },
       remove: function () {
         this.disposeView();
@@ -85,9 +98,7 @@
         this.clear();
       },
       resetView: function () {
-        this.pinnedSelection = null;
-        this.hoveredSelection = null;
-        this.tooltip?.root?.setAttribute?.('visible', false);
+        this.hideAllLegends();
         this.clear(false);
         if (this.currentDataset && this.currentView) {
           this.setGraph(this.currentDataset, this.currentView);
@@ -102,7 +113,7 @@
         this.disposeEdgeBatches();
         this.disposeFlowLayer();
         this.disposeFocusEdges();
-        this.disposeSelectionHalo();
+        this.disposeSelectionHalos();
         (this.axisObjects || []).forEach(function (object) {
           object.parent?.remove?.(object);
           object.geometry?.dispose?.();
@@ -117,13 +128,21 @@
         this.edgeBatchObjects = [];
         this.axisObjects = [];
         this.axesRoot = null;
-        this.tooltip = null;
+        // The legend board (cards + connectors inside it) was a child of this.el
+        // and is gone with the firstChild sweep above; drop the stale references.
+        this.legendCards = {};
+        this.legendBoard = null;
+        this.legendBoardYaw = null;
         this.scopeLabel = null;
+        this.scopeLabelRoot = null;
+        this.scopeLabelChip = null;
+        this.scopeLabelDockedState = false;
+        this.scopeLabelDockPhase = 0;
         this.hoveredSelection = null;
         this.lastFlowCount = 0;
         this.visibleArrowCount = 0;
         this.graphTopY = GRAPH_BASE_Y;
-        if (!preserveSelection) { this.pinnedSelection = null; }
+        if (!preserveSelection) { this.pinnedSelections = []; }
       },
       setGraph: function (dataset, view) {
         dataset = dataset || { nodes: [], edges: [] };
@@ -138,15 +157,45 @@
         });
         this.currentDataset = dataset;
         this.currentView = view;
-        if (!this.scopeLabel?.isConnected) {
-          this.scopeLabel = text('', '0 1.52 0.18', 5.4, '#67e8f9');
-          this.scopeLabel.setAttribute('side', 'double');
-          this.el.appendChild(this.scopeLabel);
+        // Drop any breadcrumb that isn't the tracked one before (re)building —
+        // kills a residue left at the old position by a prior mount/re-render,
+        // however it got orphaned, so two can never stack.
+        if (this.el.querySelectorAll) {
+          var trackedRoot = this.scopeLabelRoot;
+          this.el.querySelectorAll('.codexr-scope-breadcrumb').forEach(function (breadcrumb) {
+            if (breadcrumb !== trackedRoot) {
+              breadcrumb.parentNode && breadcrumb.parentNode.removeChild(breadcrumb);
+            }
+          });
         }
-        this.scopeLabel.setAttribute(
-          'value',
-          (view.scope?.kind === 'file' ? 'File: ' : 'Folder: ')
-            + (normalizeRelativePath(view.scope?.relativePath) || '(project root)')
+        if (!this.scopeLabelRoot?.isConnected) {
+          this.scopeLabelRoot = entity('a-entity', {
+            position: SCOPE_LABEL_HOME,
+            class: 'codexr-scope-breadcrumb'
+          });
+          // Dark contrast chip behind the breadcrumb so the path stays legible
+          // over the graph and the white table; depthTest:false keeps it from
+          // being occluded by nodes/edges at either the home or docked position.
+          this.scopeLabelChip = entity('a-plane', {
+            position: '0 0 -0.01',
+            width: 3, height: 0.34,
+            material: 'color: #0b1220; opacity: 0.82; shader: flat; side: double; transparent: true; depthTest: false'
+          });
+          this.scopeLabel = text('', '0 0 0.02', 5.4, '#67e8f9');
+          this.scopeLabel.setAttribute('side', 'double');
+          this.scopeLabelRoot.appendChild(this.scopeLabelChip);
+          this.scopeLabelRoot.appendChild(this.scopeLabel);
+          this.el.appendChild(this.scopeLabelRoot);
+          this.scopeLabelDockedState = false;
+          this.scopeLabelDockPhase = 0;
+        }
+        var scopeText = (view.scope?.kind === 'file' ? 'File: ' : 'Folder: ')
+          + (normalizeRelativePath(view.scope?.relativePath) || '(project root)');
+        this.scopeLabel.setAttribute('value', scopeText);
+        // Snug the chip to the text (~0.129 per char at this label width/wrap).
+        this.scopeLabelChip.setAttribute(
+          'width',
+          Math.max(1.5, Math.min(5.4, scopeText.length * 0.129 + 0.35))
         );
         var layoutNodes = dataset.nodes.filter(function (node) { return !node.syntheticExternal; });
         var metricScales = buildMetricScales(layoutNodes, view.mapping);
@@ -199,6 +248,31 @@
           width: GRAPH_WIDTH,
           depth: GRAPH_DEPTH
         });
+      },
+      // While a detail card is visible the scope breadcrumb dodges out of the
+      // card's band (HOME -> DOCKED) and returns when the card hides. This only
+      // records the target; the move is tweened deterministically in tick() so
+      // it never depends on the A-Frame animation component re-firing.
+      setScopeLabelDocked: function (docked) {
+        this.scopeLabelDockedState = !!docked;
+      },
+      updateScopeLabelDock: function (timeDelta) {
+        var group = this.scopeLabelRoot;
+        if (!group || !group.object3D) { return; }
+        var target = this.scopeLabelDockedState ? 1 : 0;
+        if (this.scopeLabelDockPhase === undefined) { this.scopeLabelDockPhase = target; }
+        if (this.scopeLabelDockPhase === target) { return; }
+        var step = Math.min(1, Math.max(0, (Number(timeDelta) || 16) / 220));
+        this.scopeLabelDockPhase = target > this.scopeLabelDockPhase
+          ? Math.min(target, this.scopeLabelDockPhase + step)
+          : Math.max(target, this.scopeLabelDockPhase - step);
+        var t = this.scopeLabelDockPhase;
+        var eased = t * t * (3 - 2 * t);
+        group.object3D.position.set(
+          SCOPE_LABEL_HOME_VEC.x + (SCOPE_LABEL_DOCKED_VEC.x - SCOPE_LABEL_HOME_VEC.x) * eased,
+          SCOPE_LABEL_HOME_VEC.y + (SCOPE_LABEL_DOCKED_VEC.y - SCOPE_LABEL_HOME_VEC.y) * eased,
+          SCOPE_LABEL_HOME_VEC.z + (SCOPE_LABEL_DOCKED_VEC.z - SCOPE_LABEL_HOME_VEC.z) * eased
+        );
       },
       applyPositions: function (event) {
         var response = event.data || {};
@@ -326,6 +400,10 @@
           nodes: nodeTransitions,
           edgeIds: new Set(pending.edges.map(function (edge) { return edge.id; }))
         };
+        // Write every edge's geometry + encoding colour immediately: the batches
+        // were just recreated with seeded (white) instance colours, and the real
+        // colours must not depend on the transition loop getting its first frame.
+        this.refreshEdgeColors(this.hasActiveSelection());
         this.scheduleTransitionFrame();
       },
       refreshVisualBudget: function () {
@@ -345,7 +423,7 @@
           var record = this.edgeRecords[edgeId];
           if (!record.remove) { this.updateEdgeGeometry(record); }
         }, this);
-        this.refreshEdgeColors(this.pinnedSelection || this.hoveredSelection);
+        this.refreshEdgeColors(this.hasActiveSelection());
         this.rebuildFocusEdges();
         this.updateFlowVisibility();
       },

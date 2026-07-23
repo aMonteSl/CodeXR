@@ -21,7 +21,7 @@
       },
       rebuildFocusEdges: function () {
         this.disposeFocusEdges();
-        if (!root.THREE || !(this.pinnedSelection || this.hoveredSelection)) { return; }
+        if (!root.THREE || !this.hasActiveSelection()) { return; }
         var records = Object.values(this.edgeRecords).filter(function (record) {
           return !record.remove && (record.highlighted || this.isEdgeActive(record.data));
         }, this).sort(function (left, right) {
@@ -88,10 +88,15 @@
           confidence,
           false
         ) || FALLBACK_CONFIDENCE_OPACITY[confidence] || FALLBACK_CONFIDENCE_OPACITY.probable;
+        // NOTE: no `vertexColors` here — the cylinder/cone geometries carry no
+        // per-vertex colour attribute, and enabling it made the shader multiply
+        // by a missing attribute (black edges everywhere, setColorAt ignored).
+        // Instance colours only need the instanceColor buffer, seeded below
+        // BEFORE first render so the material compiles with instancing colour.
         var body = new root.THREE.InstancedMesh(
           new root.THREE.CylinderGeometry(.01, .01, 1, 6),
           new root.THREE.MeshBasicMaterial({
-            color: 0xffffff, vertexColors: true, transparent: true,
+            color: 0xffffff, transparent: true,
             opacity: opacity, depthWrite: false
           }),
           count
@@ -99,11 +104,18 @@
         var arrows = new root.THREE.InstancedMesh(
           new root.THREE.ConeGeometry(.026, .085, 6),
           new root.THREE.MeshBasicMaterial({
-            color: 0xffffff, vertexColors: true, transparent: true,
+            color: 0xffffff, transparent: true,
             opacity: Math.min(1, opacity + .12), depthWrite: false
           }),
           count
         );
+        var seed = new root.THREE.Color('#ffffff');
+        for (var index = 0; index < count; index++) {
+          body.setColorAt(index, seed);
+          arrows.setColorAt(index, seed);
+        }
+        if (body.instanceColor) { body.instanceColor.needsUpdate = true; }
+        if (arrows.instanceColor) { arrows.instanceColor.needsUpdate = true; }
         body.instanceMatrix.setUsage?.(root.THREE.DynamicDrawUsage);
         arrows.instanceMatrix.setUsage?.(root.THREE.DynamicDrawUsage);
         body.frustumCulled = false;
@@ -249,18 +261,20 @@
         });
       },
       isEdgeActive: function (edge) {
-        var selection = this.pinnedSelection || this.hoveredSelection;
-        if (!selection) { return false; }
-        if (selection.type === 'edge') { return selection.id === edge.id; }
-        return edge.source === selection.id || edge.target === selection.id;
+        var active = this.activeSelections ? this.activeSelections() : [];
+        if (!active.length) { return false; }
+        return active.some(function (selection) {
+          if (selection.type === 'edge') { return selection.id === edge.id; }
+          return edge.source === selection.id || edge.target === selection.id;
+        });
       },
-      refreshEdgeColors: function (selection) {
+      refreshEdgeColors: function (anySelected) {
         if (!root.THREE) { return; }
         this.visibleArrowCount = 0;
         Object.keys(this.edgeRecords).forEach(function (edgeId) {
           var record = this.edgeRecords[edgeId];
           if (!record.batch || record.instanceIndex < 0) { return; }
-          var active = !selection || record.highlighted;
+          var active = !anySelected || record.highlighted;
           var color = new root.THREE.Color(record.style?.color || '#67e8f9');
           if (!active) { color.multiplyScalar(.42); }
           this.updateEdgeGeometry(record);
@@ -290,35 +304,60 @@
           }
         }, this);
       },
-      ensureSelectionHalo: function (selection) {
-        this.disposeSelectionHalo();
-        if (!root.THREE || selection.type !== 'node' || !this.nodes[selection.id]) { return; }
-        var radius = Math.max(.09, Number(this.nodes[selection.id].radius || .1)) * 1.5;
-        this.selectionHalo = new root.THREE.Mesh(
-          new root.THREE.SphereGeometry(radius, 12, 8),
-          new root.THREE.MeshBasicMaterial({
-            color: 0xfcd34d, transparent: true, opacity: .42,
-            wireframe: true, depthWrite: false
-          })
-        );
-        this.selectionHalo.userData.nodeId = selection.id;
-        this.el.object3D.add(this.selectionHalo);
+      disposeSingleHalo: function (halo) {
+        if (!halo) { return; }
+        halo.parent?.remove?.(halo);
+        halo.geometry?.dispose?.();
+        halo.material?.dispose?.();
+      },
+      // One pulsing halo per pinned/hovered node; syncs the live set to `nodeIds`.
+      syncSelectionHalos: function (nodeIds) {
+        this.selectionHalos = this.selectionHalos || {};
+        if (!root.THREE) { return; }
+        var wanted = {};
+        (nodeIds || []).forEach(function (id) { wanted[id] = true; });
+        Object.keys(this.selectionHalos).forEach(function (id) {
+          if (!wanted[id]) {
+            this.disposeSingleHalo(this.selectionHalos[id]);
+            delete this.selectionHalos[id];
+          }
+        }, this);
+        (nodeIds || []).forEach(function (id) {
+          if (this.selectionHalos[id] || !this.nodes[id]) { return; }
+          var radius = Math.max(.09, Number(this.nodes[id].radius || .1)) * 1.5;
+          var halo = new root.THREE.Mesh(
+            new root.THREE.SphereGeometry(radius, 12, 8),
+            new root.THREE.MeshBasicMaterial({
+              color: 0xfcd34d, transparent: true, opacity: .42,
+              wireframe: true, depthWrite: false
+            })
+          );
+          halo.userData.nodeId = id;
+          this.el.object3D.add(halo);
+          this.selectionHalos[id] = halo;
+        }, this);
       },
       updateSelectionHalo: function (time) {
-        if (!this.selectionHalo) { return; }
-        var node = this.nodes[this.selectionHalo.userData.nodeId];
-        if (!node) {
-          this.disposeSelectionHalo();
-          return;
-        }
-        this.selectionHalo.position.copy(node.el.object3D.position);
+        this.selectionHalos = this.selectionHalos || {};
+        var self = this;
         var pulse = this.flowQuality === 'static' ? 1 : 1 + Math.sin(time * .005) * .08;
-        this.selectionHalo.scale.setScalar(pulse);
+        Object.keys(this.selectionHalos).forEach(function (id) {
+          var halo = self.selectionHalos[id];
+          var node = self.nodes[id];
+          if (!node) {
+            self.disposeSingleHalo(halo);
+            delete self.selectionHalos[id];
+            return;
+          }
+          halo.position.copy(node.el.object3D.position);
+          halo.scale.setScalar(pulse);
+        });
       },
-      disposeSelectionHalo: function () {
-        if (!this.selectionHalo) { return; }
-        this.selectionHalo.parent?.remove?.(this.selectionHalo);
-        this.selectionHalo.geometry?.dispose?.();
-        this.selectionHalo.material?.dispose?.();
-        this.selectionHalo = null;
+      disposeSelectionHalos: function () {
+        this.selectionHalos = this.selectionHalos || {};
+        var self = this;
+        Object.keys(this.selectionHalos).forEach(function (id) {
+          self.disposeSingleHalo(self.selectionHalos[id]);
+        });
+        this.selectionHalos = {};
       },

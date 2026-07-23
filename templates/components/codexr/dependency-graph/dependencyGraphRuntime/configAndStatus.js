@@ -11,12 +11,76 @@
   var GRAPH_DEPTH = 2.35;
   var GRAPH_BASE_Y = 0.12;
   var GRAPH_HEIGHT = 1.05;
+  // The scope breadcrumb (path label) lives at HOME by default; while a detail
+  // card is visible it dodges to DOCKED — a low, forward band the card (anchored
+  // at graphTopY + 0.92, lower edge >= ~1.33) never reaches. The tween is driven
+  // manually in tick() (see updateScopeLabelDock), so the numeric endpoints are
+  // the source of truth; HOME's string form seeds the initial position attribute.
+  var SCOPE_LABEL_HOME_VEC = { x: 0, y: 1.52, z: 0.18 };
+  var SCOPE_LABEL_DOCKED_VEC = { x: 0, y: 0.2, z: 1.28 };
+  var SCOPE_LABEL_HOME = SCOPE_LABEL_HOME_VEC.x + ' ' + SCOPE_LABEL_HOME_VEC.y + ' ' + SCOPE_LABEL_HOME_VEC.z;
+  // Multiple legends can be pinned at once; cards are laid out in a
+  // non-overlapping grid above the graph (see legendSlotPosition), each with a
+  // connector to its node/edge. Oldest is evicted past MAX_PINNED_LEGENDS.
+  var MAX_PINNED_LEGENDS = 6;
+  // cardHeight must cover the tallest rendered card (a navigable node card with
+  // 7 metrics + an action button is ~1.72) so grid rows never overlap.
+  var LEGEND_SLOT = {
+    perRow: 2, cardWidth: 2.5, cardHeight: 1.85, gapX: 0.34, gapY: 0.3, originYOffset: 1.05, z: 0.18
+  };
+  // Flow-particle catalogues — part of the SHARED room contract: the ids travel
+  // in the dependency-graph entity as `flowSize` / `flowSpeed` (validated by the
+  // analysis server), so every participant sees the same particles.
+  var FLOW_SIZE_OPTIONS = [
+    { id: 's', label: 'S', scale: 0.6 },
+    { id: 'm', label: 'M', scale: 1 },
+    { id: 'l', label: 'L', scale: 1.5 },
+    { id: 'xl', label: 'XL', scale: 2.2 }
+  ];
+  var FLOW_SPEED_OPTIONS = [
+    { id: 'x05', label: 'x0.5', multiplier: 0.5 },
+    { id: 'x1', label: 'x1', multiplier: 1 },
+    { id: 'x2', label: 'x2', multiplier: 2 },
+    { id: 'x3', label: 'x3', multiplier: 3 }
+  ];
+  var FLOW_DEFAULTS = { flowSize: 'm', flowSpeed: 'x1' };
+  // Edge traversals per second at x1 (matches the pre-configurable behaviour).
+  var FLOW_BASE_SPEED = 0.42;
+  function flowSizeOption(id) {
+    return FLOW_SIZE_OPTIONS.find(function (option) { return option.id === id; })
+      || FLOW_SIZE_OPTIONS[1];
+  }
+  function flowSpeedOption(id) {
+    return FLOW_SPEED_OPTIONS.find(function (option) { return option.id === id; })
+      || FLOW_SPEED_OPTIONS[1];
+  }
+  // Single source of truth for the settings panel's row Y positions (and its
+  // registered height) — keep every renderControls row anchored here instead of
+  // scattering magic numbers through the layout code.
+  var PANEL_ROWS = {
+    scope: 2.95,
+    layout: 2.45,
+    nav: 1.95,
+    mapping: 1.35,
+    relationsBase: 0.75,
+    relationsStep: 0.52,
+    edges: -0.40,
+    detail: -0.85,
+    flow: -1.30,
+    legendMarks: -1.74,
+    legendLabels: -1.88,
+    density: -2.04,
+    shapes: -2.20,
+    actions: -2.58,
+    hover: -2.92,
+    status: -3.20,
+    waitingText: 0.6,
+    waitingButton: -1.4,
+    panelHeight: 6.8
+  };
   var AXIS_TICK_COUNT = 10;
   var EXTERNAL_SUMMARY_ID = 'codexr:external-summary';
-  var EDGE_ENCODINGS = ['relation-type', 'intensity-color', 'intensity-width', 'intensity-combined'];
-  var INTENSITY_COLORS = ['#67e8f9', '#38bdf8', '#818cf8', '#f59e0b', '#f97316'];
-  var FALLBACK_INTENSITY_WIDTHS = [.006, .009, .013, .018, .024];
-  var FALLBACK_CONFIDENCE_OPACITY = { exact: .78, probable: .52, ambiguous: .28 };
+  // Edge-encoding palettes, buckets and legend models live in edgeEncoding.js.
   var RELATIONS = ['import', 'include', 'require', 'inheritance', 'implementation', 'call', 'contains'];
   var RELATION_HELP = {
     import: 'Imports: module dependencies declared with import or equivalent syntax.',
@@ -33,11 +97,6 @@
     TypeScript: '#3178c6', Go: '#00add8', PHP: '#777bb4',
     Swift: '#f05138', Kotlin: '#7f52ff', external: '#94a3b8',
     directory: '#22d3ee', parent: '#f59e0b', symbol: '#a78bfa'
-  };
-  var RELATION_COLORS = {
-    import: '#67e8f9', include: '#22d3ee', require: '#60a5fa',
-    inheritance: '#e879f9', implementation: '#c084fc', call: '#f59e0b',
-    contains: '#a3e635'
   };
   var state = {
     initialized: false,
@@ -71,11 +130,11 @@
     Object.keys(attributes || {}).forEach(function (key) { el.setAttribute(key, attributes[key]); });
     return el;
   }
-  function text(value, position, width, color, align) {
+  function text(value, position, width, color, align, wrapCount) {
     return entity('a-text', {
       value: value || '', position: position || '0 0 0.02', width: width || 5,
       color: color || '#fff', align: align || 'center', baseline: 'center',
-      'wrap-count': 42
+      'wrap-count': wrapCount || 42
     });
   }
   function button(label, position, width, onClick, color) {
@@ -108,18 +167,18 @@
     var left = entity('a-plane', {
       position: (-width / 2 + segmentWidth / 2) + ' 0 0.012',
       width: segmentWidth, height: 0.38,
-      material: 'color: ' + (color || '#4c1d95') + '; opacity: 0.001; shader: flat',
+      material: 'color: ' + (color || '#4c1d95') + '; opacity: 0.001; shader: flat; depthWrite: false',
       class: RAYCAST_CLASS, 'data-codexr-interactive': 'true'
     });
     var center = entity('a-plane', {
       position: '0 0 0.012', width: centerWidth, height: 0.38,
-      material: 'color: ' + (color || '#4c1d95') + '; opacity: 0.001; shader: flat',
+      material: 'color: ' + (color || '#4c1d95') + '; opacity: 0.001; shader: flat; depthWrite: false',
       class: RAYCAST_CLASS, 'data-codexr-interactive': 'true'
     });
     var right = entity('a-plane', {
       position: (width / 2 - segmentWidth / 2) + ' 0 0.012',
       width: segmentWidth, height: 0.38,
-      material: 'color: ' + (color || '#4c1d95') + '; opacity: 0.001; shader: flat',
+      material: 'color: ' + (color || '#4c1d95') + '; opacity: 0.001; shader: flat; depthWrite: false',
       class: RAYCAST_CLASS, 'data-codexr-interactive': 'true'
     });
     left.appendChild(text('<', '0 0 0.012', 1.1));

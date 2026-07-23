@@ -71,8 +71,12 @@
 
   function getSuggestedAutoOrderById() {
     var order = {};
-    var ids = Array.isArray(state.references.suggestedSourceIds)
-      ? state.references.suggestedSourceIds
+    // References stay null until the server answers (same contract as
+    // getReferenceSources); stop() renders during deactivate, so this must
+    // not assume the mode was ever opened.
+    var references = state.references || {};
+    var ids = Array.isArray(references.suggestedSourceIds)
+      ? references.suggestedSourceIds
       : [];
     ids.forEach(function (id, index) {
       if (id && order[id] === undefined) {

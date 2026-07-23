@@ -1,198 +1,278 @@
 // == dependencyGraphRuntime.js | tooltipsAndSelection (assembled per manifest.json; see COMPONENTS.md) ==
-      ensureTooltip: function () {
-        if (this.tooltip?.root?.parentNode) { return this.tooltip; }
-        if (root.CodeXRCommonRuntime?.createTooltip) {
-          this.tooltip = root.CodeXRCommonRuntime.createTooltip({ accentColor: '#f59e0b', width: 3.55, height: .96 });
-          this.el.appendChild(this.tooltip.root);
-          return this.tooltip;
-        }
-        var tooltipRoot = entity('a-entity', { visible: false });
-        var background = entity('a-plane', {
-          width: 3.25, height: 1.42,
-          material: 'color: #0f172a; opacity: .94; shader: flat; side: double'
+      selectionKey: function (selection) {
+        return String(selection.type) + ':' + String(selection.id);
+      },
+      recordFor: function (selection) {
+        return selection.type === 'node' ? this.nodes[selection.id] : this.edgeRecords[selection.id];
+      },
+      selectionAnchor: function (selection, record) {
+        record = record || this.recordFor(selection);
+        if (!record) { return null; }
+        var point = selection.type === 'node' ? record.el.object3D.position : record.midpoint;
+        return { x: Number(point.x || 0), y: Number(point.y || 0), z: Number(point.z || 0) };
+      },
+      isPinned: function (selection) {
+        return (this.pinnedSelections || []).some(function (pinned) {
+          return pinned.type === selection.type && pinned.id === selection.id;
         });
-        var title = text('', '0 .2 .018', 3, '#fcd34d', 'center');
-        var primary = text('', '0 -.18 .018', 2.95, '#f8fafc', 'center');
-        tooltipRoot.appendChild(background);
-        tooltipRoot.appendChild(title);
-        tooltipRoot.appendChild(primary);
-        this.el.appendChild(tooltipRoot);
-        this.tooltip = {
-          root: tooltipRoot, background: background, title: title,
-          subtitle: primary, primary: primary, secondary: primary, action: null
-        };
-        return this.tooltip;
       },
-      positionPinnedTooltip: function () {
-        if (!this.pinnedSelection || !this.tooltip?.root?.getAttribute('visible') || !root.THREE) { return; }
-        var record = this.pinnedSelection.type === 'node'
-          ? this.nodes[this.pinnedSelection.id]
-          : this.edgeRecords[this.pinnedSelection.id];
-        if (!record) { return; }
-        var anchor = this.pinnedSelection.type === 'node'
-          ? record.el.object3D.position
-          : record.midpoint;
-        var position = new root.THREE.Vector3(
-          Math.max(-1.55, Math.min(1.55, Number(anchor.x || 0))),
-          this.graphTopY + .92,
-          .18
-        );
-        this.tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
-        root.CodeXRCommonRuntime.updateTooltipConnector?.(this.tooltip, position, {
-          x: Number(anchor.x || 0),
-          y: Number(anchor.y || 0),
-          z: Number(anchor.z || 0)
-        }, { connectorColor: '#f59e0b' });
+      hasActiveSelection: function () {
+        return (this.pinnedSelections || []).length > 0 || !!this.hoveredSelection;
       },
-      showSelection: function (selection) {
-        var tooltip = this.ensureTooltip();
-        var record = selection.type === 'node'
-          ? this.nodes[selection.id]
-          : this.edgeRecords[selection.id];
-        if (!record) {
-          if (this.pinnedSelection
-              && this.pinnedSelection.type === selection.type
-              && this.pinnedSelection.id === selection.id) {
-            this.pinnedSelection = null;
-          }
-          tooltip.root.setAttribute('visible', false);
-          return;
+      // The last-touched selection, used by the single-focus visuals (flow tint,
+      // status readout) that stay meaningful with just one representative.
+      primarySelection: function () {
+        if (this.hoveredSelection) { return this.hoveredSelection; }
+        var pinned = this.pinnedSelections || [];
+        return pinned.length ? pinned[pinned.length - 1] : null;
+      },
+      // Every legend currently on screen: all pins plus a distinct hover.
+      activeSelections: function () {
+        var list = (this.pinnedSelections || []).slice();
+        if (this.hoveredSelection && !this.isPinned(this.hoveredSelection)) {
+          list.push(this.hoveredSelection);
         }
-        var anchor = selection.type === 'node' ? record.el.object3D.position : record.midpoint;
-        var position = new root.THREE.Vector3(
-          Math.max(-1.55, Math.min(1.55, Number(anchor.x || 0))),
-          this.graphTopY + .92,
-          .18
-        );
+        return list;
+      },
+      // All legend cards live under one board entity; the board yaw-billboards
+      // toward the user as a rigid group, so cards follow the viewer without
+      // ever rotating into each other (their relative layout never changes).
+      ensureLegendBoard: function () {
+        if (this.legendBoard?.isConnected) { return this.legendBoard; }
+        this.legendBoard = entity('a-entity', { class: 'codexr-legend-board' });
+        this.legendBoardYaw = null;
+        this.el.appendChild(this.legendBoard);
+        return this.legendBoard;
+      },
+      // Node/edge anchors are expressed in the graph's space; leader lines live
+      // inside the (rotated) board, so anchors must be converted per update.
+      anchorInBoardSpace: function (anchor) {
+        if (!anchor || !root.THREE || !this.legendBoard?.object3D) { return anchor; }
+        var vec = new root.THREE.Vector3(anchor.x, anchor.y, anchor.z);
+        this.el.object3D.updateWorldMatrix(true, false);
+        this.el.object3D.localToWorld(vec);
+        this.legendBoard.object3D.updateWorldMatrix(true, false);
+        this.legendBoard.object3D.worldToLocal(vec);
+        return { x: vec.x, y: vec.y, z: vec.z };
+      },
+      updateLegendBoard: function () {
+        var board = this.legendBoard;
+        if (!board?.object3D || !this.hasActiveSelection()) { return; }
+        root.CodeXRCommonRuntime?.faceCameraYaw?.(board, this.el.sceneEl);
+        var yaw = board.object3D.rotation.y;
+        if (this.legendBoardYaw == null || Math.abs(yaw - this.legendBoardYaw) > .004) {
+          this.legendBoardYaw = yaw;
+          this.positionPinnedTooltip();
+        }
+      },
+      acquireLegendCard: function (key) {
+        this.legendCards = this.legendCards || {};
+        if (this.legendCards[key]) { return this.legendCards[key]; }
+        var card = root.CodeXRCommonRuntime?.createTooltip
+          ? root.CodeXRCommonRuntime.createTooltip({ accentColor: '#38bdf8', width: LEGEND_SLOT.cardWidth })
+          : null;
+        if (!card) { return null; }
+        this.ensureLegendBoard().appendChild(card.root);
+        this.legendCards[key] = card;
+        return card;
+      },
+      releaseLegendCard: function (key) {
+        this.legendCards = this.legendCards || {};
+        var card = this.legendCards[key];
+        if (!card) { return; }
+        if (card.action?.parentNode) { card.action.parentNode.removeChild(card.action); }
+        root.CodeXRCommonRuntime?.hideTooltip?.(card);
+        if (card.connectorRoot?.parentNode) { card.connectorRoot.parentNode.removeChild(card.connectorRoot); }
+        if (card.root?.parentNode) { card.root.parentNode.removeChild(card.root); }
+        delete this.legendCards[key];
+      },
+      renderLegendCard: function (card, selection, slotPosition) {
+        var record = this.recordFor(selection);
+        if (!card || !record || !root.CodeXRCommonRuntime?.updateTooltip) { return; }
         var detail = selection.type === 'node'
           ? nodeDetailModel(record.data)
           : edgeDetailModel(record.data, this.nodes);
-        if (tooltip.action?.parentNode) { tooltip.action.parentNode.removeChild(tooltip.action); }
-        tooltip.action = null;
+        var anchor = this.selectionAnchor(selection, record);
         var canNavigate = selection.type === 'node'
           && (record.data.kind === 'group' || record.data.kind === 'file' || record.data.syntheticExternal);
-        if (root.CodeXRCommonRuntime?.updateTooltip) {
-          root.CodeXRCommonRuntime.updateTooltip(tooltip, detail, position, {
-            width: 3.55,
-            height: canNavigate ? 1.52 : 1.04,
-            titleLength: 30,
-            subtitleLength: 42,
-            primaryLength: 48,
-            secondaryLength: 48,
-            footerReserve: canNavigate ? .28 : 0,
-            connectorTarget: this.pinnedSelection
-              && this.pinnedSelection.type === selection.type
-              && this.pinnedSelection.id === selection.id
-              ? {
-                x: Number(anchor.x || 0),
-                y: Number(anchor.y || 0),
-                z: Number(anchor.z || 0)
-              }
-              : null,
-            connectorColor: '#f59e0b'
-          });
-        } else {
-          tooltip.root.setAttribute('position', position.x + ' ' + position.y + ' ' + position.z);
-          tooltip.title.setAttribute('value', truncateText(detail.title, 42));
-          tooltip.subtitle.setAttribute('value', truncateText(detail.subtitle, 60));
-          tooltip.primary.setAttribute('value', truncateText(detail.primary, 68));
-          tooltip.secondary.setAttribute('value', truncateText(detail.secondary, 68));
-          tooltip.root.setAttribute('visible', true);
-          tooltip.background.setAttribute('height', canNavigate ? 1.78 : 1.42);
-        }
+        if (card.action?.parentNode) { card.action.parentNode.removeChild(card.action); }
+        card.action = null;
+        root.CodeXRCommonRuntime.updateTooltip(card, detail, slotPosition, {
+          width: LEGEND_SLOT.cardWidth,
+          columns: 2,
+          footerReserve: canNavigate ? .3 : 0,
+          titleLength: 28,
+          connectorTarget: this.anchorInBoardSpace(anchor),
+          connectorColor: detail.accentColor || '#38bdf8'
+        });
         if (canNavigate) {
-          var actionLabel = record.data.syntheticExternal
-            ? 'Show external details'
-            : record.data.syntheticKind === 'parent'
-              ? 'Go to parent'
-              : record.data.syntheticKind === 'directory'
-                ? 'Open folder'
-                : record.data.kind === 'file'
-                  ? 'Open file'
-                  : 'Open';
-          tooltip.action = button(
+          var data = record.data;
+          var actionLabel = data.syntheticExternal ? 'Show external'
+            : data.syntheticKind === 'parent' ? 'Go to parent'
+            : data.syntheticKind === 'directory' ? 'Open folder'
+            : data.kind === 'file' ? 'Open file' : 'Open';
+          card.action = button(
             actionLabel,
-            '0 -0.62 0.02',
-            record.data.syntheticExternal ? 2.15 : 1.55,
+            '0 ' + (-(card.height / 2) + .17) + ' 0.02',
+            data.syntheticExternal ? 1.9 : 1.5,
             function (event) {
               event.stopPropagation?.();
-              if (record.data.syntheticExternal) {
-                publishState({ showExternal: true });
-              } else if (record.data.kind === 'file') {
-                openFile(record.data.relativePath || record.data.label);
-              } else {
-                openDirectory(record.data.navigationPath || record.data.relativePath || '');
-              }
+              if (data.syntheticExternal) { publishState({ showExternal: true }); }
+              else if (data.kind === 'file') { openFile(data.relativePath || data.label); }
+              else { openDirectory(data.navigationPath || data.relativePath || ''); }
             },
-            record.data.syntheticExternal ? '#c2410c' : '#7c3aed'
+            data.syntheticExternal ? '#c2410c' : '#7c3aed'
           );
-          tooltip.root.appendChild(tooltip.action);
+          card.root.appendChild(card.action);
         }
-        this.applyHighlight(selection);
       },
-      hideTooltip: function () {
-        if (root.CodeXRCommonRuntime?.hideTooltip) {
-          root.CodeXRCommonRuntime.hideTooltip(this.tooltip);
-        } else if (this.tooltip?.root) {
-          this.tooltip.root.setAttribute('visible', false);
+      // Re-place every visible legend into a non-overlapping grid slot above the
+      // graph, drop cards whose selection is gone, and refresh the shared visuals.
+      relayoutLegends: function () {
+        this.legendCards = this.legendCards || {};
+        var active = this.activeSelections();
+        var wanted = {};
+        active.forEach(function (selection) { wanted[this.selectionKey(selection)] = true; }, this);
+        Object.keys(this.legendCards).forEach(function (key) {
+          if (!wanted[key]) { this.releaseLegendCard(key); }
+        }, this);
+        if (active.length) {
+          // The board carries the grid origin; slots are board-relative so the
+          // yaw billboard rotates the whole arrangement rigidly.
+          var board = this.ensureLegendBoard();
+          board.setAttribute('position', '0 ' + (this.graphTopY + LEGEND_SLOT.originYOffset) + ' ' + LEGEND_SLOT.z);
+          this.legendBoardYaw = null;
         }
-        this.clearHighlight();
+        active.forEach(function (selection, index) {
+          if (!this.recordFor(selection)) { return; }
+          var card = this.acquireLegendCard(this.selectionKey(selection));
+          if (!card) { return; }
+          var slot = root.CodeXRCommonRuntime.legendSlotPosition(index, active.length, {
+            perRow: LEGEND_SLOT.perRow,
+            cardWidth: LEGEND_SLOT.cardWidth,
+            cardHeight: LEGEND_SLOT.cardHeight,
+            gapX: LEGEND_SLOT.gapX,
+            gapY: LEGEND_SLOT.gapY,
+            originY: 0,
+            z: 0
+          });
+          this.renderLegendCard(card, selection, slot);
+        }, this);
+        this.applyHighlightUnion();
+        this.setScopeLabelDocked(active.length > 0);
+      },
+      // Called from the transition tick and on board rotation: keep each card's
+      // leader line on its node/edge (slots are fixed; anchors move under the
+      // transition, and the board-space anchor changes as the board turns).
+      positionPinnedTooltip: function () {
+        if (!root.THREE || !root.CodeXRCommonRuntime?.updateTooltipConnector) { return; }
+        this.activeSelections().forEach(function (selection) {
+          var card = (this.legendCards || {})[this.selectionKey(selection)];
+          if (!card || !card.root?.getAttribute('visible')) { return; }
+          var anchor = this.selectionAnchor(selection);
+          if (!anchor) { return; }
+          var pos = card.root.getAttribute('position') || { x: 0, y: 0, z: 0 };
+          root.CodeXRCommonRuntime.updateTooltipConnector(card, {
+            x: Number(pos.x || 0), y: Number(pos.y || 0), z: Number(pos.z || 0)
+          }, this.anchorInBoardSpace(anchor), { connectorColor: card.accentColor || '#38bdf8' });
+        }, this);
       },
       showTransientSelection: function (selection) {
-        if (this.pinnedSelection) { return; }
+        if (this.isPinned(selection)) { return; }
         this.hoveredSelection = selection;
-        this.showSelection(selection);
+        this.relayoutLegends();
       },
       hideTransientSelection: function (selection) {
-        if (this.pinnedSelection
-            || this.hoveredSelection?.type !== selection.type
+        if (this.hoveredSelection?.type !== selection.type
             || this.hoveredSelection?.id !== selection.id) { return; }
         this.hoveredSelection = null;
-        this.hideTooltip();
+        this.relayoutLegends();
       },
       togglePinnedSelection: function (selection) {
-        var isSame = this.pinnedSelection?.type === selection.type
-          && this.pinnedSelection?.id === selection.id;
-        this.pinnedSelection = isSame ? null : selection;
-        this.hoveredSelection = null;
-        if (this.pinnedSelection) { this.showSelection(this.pinnedSelection); }
-        else { this.hideTooltip(); }
-      },
-      restorePinnedSelection: function () {
-        if (this.pinnedSelection) { this.showSelection(this.pinnedSelection); }
-      },
-      applyHighlight: function (selection) {
-        var related = new Set();
-        if (selection.type === 'node') {
-          related.add(selection.id);
-          (this.dataset?.edges || []).forEach(function (edge) {
-            if (edge.source === selection.id) { related.add(edge.target); }
-            if (edge.target === selection.id) { related.add(edge.source); }
+        this.pinnedSelections = this.pinnedSelections || [];
+        if (this.isPinned(selection)) {
+          this.pinnedSelections = this.pinnedSelections.filter(function (pinned) {
+            return !(pinned.type === selection.type && pinned.id === selection.id);
           });
         } else {
-          var edge = this.edgeRecords[selection.id]?.data;
-          if (edge) { related.add(edge.source); related.add(edge.target); }
+          this.pinnedSelections.push({ type: selection.type, id: selection.id });
+          if (this.pinnedSelections.length > MAX_PINNED_LEGENDS) {
+            this.releaseLegendCard(this.selectionKey(this.pinnedSelections.shift()));
+          }
         }
+        if (this.hoveredSelection
+            && this.hoveredSelection.type === selection.type
+            && this.hoveredSelection.id === selection.id) {
+          this.hoveredSelection = null;
+        }
+        this.relayoutLegends();
+      },
+      restorePinnedSelection: function () {
+        this.relayoutLegends();
+      },
+      // Drop selections whose node/edge no longer exists (after a re-layout).
+      prunePinnedSelections: function () {
+        var self = this;
+        this.pinnedSelections = (this.pinnedSelections || []).filter(function (selection) {
+          if (self.recordFor(selection)) { return true; }
+          self.releaseLegendCard(self.selectionKey(selection));
+          return false;
+        });
+        if (this.hoveredSelection && !this.recordFor(this.hoveredSelection)) {
+          this.releaseLegendCard(this.selectionKey(this.hoveredSelection));
+          this.hoveredSelection = null;
+        }
+      },
+      hideAllLegends: function () {
+        this.pinnedSelections = [];
+        this.hoveredSelection = null;
+        Object.keys(this.legendCards || {}).forEach(function (key) { this.releaseLegendCard(key); }, this);
+        this.clearHighlight();
+        this.setScopeLabelDocked(false);
+      },
+      // Highlight the union of every active selection's neighbourhood (so pinning
+      // several nodes keeps all their relations lit, not just the last one).
+      applyHighlightUnion: function () {
+        var active = this.activeSelections();
+        if (!active.length) { this.clearHighlight(); return; }
+        var related = new Set();
+        var edges = this.dataset?.edges || [];
+        active.forEach(function (selection) {
+          if (selection.type === 'node') {
+            related.add(selection.id);
+            edges.forEach(function (edge) {
+              if (edge.source === selection.id) { related.add(edge.target); }
+              if (edge.target === selection.id) { related.add(edge.source); }
+            });
+          } else {
+            var edge = this.edgeRecords[selection.id]?.data;
+            if (edge) { related.add(edge.source); related.add(edge.target); }
+          }
+        }, this);
         Object.keys(this.nodes).forEach(function (nodeId) {
           this.nodes[nodeId].highlightTarget = related.has(nodeId) ? 1 : .18;
           this.nodes[nodeId].highlightColor = related.has(nodeId);
         }, this);
+        var self = this;
         Object.keys(this.edgeRecords).forEach(function (edgeId) {
-          var record = this.edgeRecords[edgeId];
-          var selected = selection.type === 'edge'
-            ? edgeId === selection.id
-            : record.data.source === selection.id || record.data.target === selection.id;
-          record.highlighted = selected;
-        }, this);
+          self.edgeRecords[edgeId].highlighted = self.isEdgeActive(self.edgeRecords[edgeId].data);
+        });
         this.selectionStartedAt = root.performance?.now?.() || Date.now();
-        this.ensureSelectionHalo(selection);
-        this.refreshEdgeColors(selection);
+        this.syncSelectionHalos(active
+          .filter(function (selection) { return selection.type === 'node'; })
+          .map(function (selection) { return selection.id; }));
+        this.refreshEdgeColors(true);
         this.rebuildFocusEdges();
         this.updateFlowVisibility();
-        var detail = selection.type === 'node'
-          ? nodeDetailModel(this.nodes[selection.id]?.data)
-          : edgeDetailModel(this.edgeRecords[selection.id]?.data, this.nodes);
-        setStatus([detail.title, detail.subtitle, detail.primary, detail.secondary].join(' | '), false);
+        var primary = this.primarySelection();
+        if (primary) {
+          var detail = primary.type === 'node'
+            ? nodeDetailModel(this.nodes[primary.id]?.data)
+            : edgeDetailModel(this.edgeRecords[primary.id]?.data, this.nodes);
+          if (detail) {
+            setStatus([detail.title, detail.subtitle, detail.primary, detail.secondary].join(' | '), false);
+          }
+        }
       },
       clearHighlight: function () {
         Object.keys(this.nodes).forEach(function (nodeId) {
@@ -202,8 +282,8 @@
         Object.keys(this.edgeRecords).forEach(function (edgeId) {
           this.edgeRecords[edgeId].highlighted = false;
         }, this);
-        this.disposeSelectionHalo();
-        this.refreshEdgeColors(null);
+        this.disposeSelectionHalos();
+        this.refreshEdgeColors(false);
         this.disposeFocusEdges();
         this.updateFlowVisibility();
         setStatus('', false);
@@ -215,9 +295,10 @@
         var visibleRecords = Object.values(this.edgeRecords || {}).filter(function (record) {
           return !record.remove && record.batch;
         });
-        var activeSelection = this.pinnedSelection || this.hoveredSelection || null;
+        var activeSelection = this.primarySelection();
         return {
           layout: this.view?.layout || null,
+          pinnedCount: (this.pinnedSelections || []).length,
           scope: this.view?.scope ? Object.assign({}, this.view.scope) : null,
           mapping: Object.assign({}, this.view?.mapping || {}),
           edgeEncoding: this.view?.edgeEncoding || 'relation-type',

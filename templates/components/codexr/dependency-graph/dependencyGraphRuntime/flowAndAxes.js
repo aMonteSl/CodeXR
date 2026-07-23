@@ -14,15 +14,23 @@
           vertexColors: true,
           uniforms: {
             pointSize: { value: this.visualBudget?.effectiveProfile === 'dense' ? 3 : 5 },
+            pointScale: { value: 1 },
             opacity: { value: .88 }
           },
           vertexShader: [
             'varying vec3 vColor;',
             'uniform float pointSize;',
+            'uniform float pointScale;',
             'void main() {',
             '  vColor = color;',
             '  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);',
-            '  gl_PointSize = pointSize * (80.0 / max(40.0, -mvPosition.z));',
+            // True perspective attenuation for this scene's 2-15 unit viewing
+            // range: base size at ~6 units, growing nearer / shrinking farther,
+            // clamped in pixels so close-up particles stay tasteful. (The old
+            // `80/max(40,dist)` was tuned for a far larger scale — below 40
+            // units it pinned a constant pixel size, which read as particles
+            // shrinking on approach relative to the perspective-scaled graph.)
+            '  gl_PointSize = clamp(pointSize * pointScale * (6.0 / max(0.5, -mvPosition.z)), 1.0, 28.0);',
             '  gl_Position = projectionMatrix * mvPosition;',
             '}'
           ].join('\n'),
@@ -87,7 +95,7 @@
         }, this);
         this.flushEdgeBatches();
       },
-      updateFlow: function (time) {
+      updateFlow: function (timeDelta) {
         if (!root.THREE) { return; }
         var records = this.activeFlowEdges();
         if (!records.length) {
@@ -96,13 +104,23 @@
           return;
         }
         this.ensureFlowLayer(records.length);
-        var selection = this.pinnedSelection || this.hoveredSelection;
+        // Room-shared particle preferences (validated by the server, defaults
+        // applied in applySharedState). The phase clock accumulates with the
+        // frame delta so a speed change re-paces the particles smoothly instead
+        // of teleporting them (an absolute-time phase would jump).
+        this.flowPoints.material.uniforms.pointScale.value =
+          flowSizeOption(this.view?.flowSize).scale;
+        this.flowClock = ((this.flowClock || 0)
+          + (Math.max(0, Number(timeDelta) || 16) / 1000)
+            * FLOW_BASE_SPEED
+            * flowSpeedOption(this.view?.flowSpeed).multiplier) % 1;
+        var selection = this.primarySelection ? this.primarySelection() : null;
         var count = 0;
         records.forEach(function (record, index) {
           var source = this.nodes[record.data.source]?.el?.object3D?.position;
           var target = this.nodes[record.data.target]?.el?.object3D?.position;
           if (!source || !target) { return; }
-          var phase = ((time * .00042) + ((index * .137) % 1)) % 1;
+          var phase = (this.flowClock + ((index * .137) % 1)) % 1;
           var position = source.clone().lerp(target, phase);
           this.flowPositions[count * 3] = position.x;
           this.flowPositions[count * 3 + 1] = position.y;
@@ -189,16 +207,11 @@
         });
         this.clearAxes();
         this.drawAxes();
-        if (this.pinnedSelection) {
-          var pinnedRecord = this.pinnedSelection.type === 'node'
-            ? this.nodes[this.pinnedSelection.id]
-            : this.edgeRecords[this.pinnedSelection.id];
-          if (!pinnedRecord) {
-            this.pinnedSelection = null;
-            this.hideTooltip();
-          } else {
-            this.restorePinnedSelection();
-          }
+        if (this.hasActiveSelection()) {
+          // Nodes/edges may have vanished in the new layout; drop those pins and
+          // re-place the surviving legends into their slots.
+          this.prunePinnedSelections();
+          this.relayoutLegends();
         }
         this.transition = null;
         this.transitionFrame = null;

@@ -1397,6 +1397,10 @@ prepareIdentity();
         const allowedEdgeEncodings = new Set([
             'relation-type', 'intensity-color', 'intensity-width', 'intensity-combined',
         ]);
+        // Flow-particle preferences are room-shared; ids mirror the runtime's
+        // FLOW_SIZE_OPTIONS / FLOW_SPEED_OPTIONS catalogues.
+        const allowedFlowSizes = new Set(['s', 'm', 'l', 'xl']);
+        const allowedFlowSpeeds = new Set(['x05', 'x1', 'x2', 'x3']);
         const payload = message.payload || {};
         const requestedScope = payload.scope && typeof payload.scope === 'object'
             ? payload.scope as Record<string, unknown>
@@ -1431,6 +1435,8 @@ prepareIdentity();
             ...(allowedEdgeEncodings.has(String(payload.edgeEncoding))
                 ? { edgeEncoding: payload.edgeEncoding }
                 : {}),
+            ...(allowedFlowSizes.has(String(payload.flowSize)) ? { flowSize: payload.flowSize } : {}),
+            ...(allowedFlowSpeeds.has(String(payload.flowSpeed)) ? { flowSpeed: payload.flowSpeed } : {}),
             ...(Object.keys(relationFilters).length ? { relationFilters } : {}),
             ...(Object.keys(mapping).length ? { mapping } : {}),
             ...(scope ? { scope } : {}),
@@ -1533,6 +1539,8 @@ prepareIdentity();
                 ? existingDependencyState.showExternal
                 : false,
             edgeEncoding: existingDependencyState?.edgeEncoding || 'relation-type',
+            flowSize: existingDependencyState?.flowSize || 'm',
+            flowSpeed: existingDependencyState?.flowSpeed || 'x1',
             relationFilters: existingDependencyState?.relationFilters || {
                 import: true,
                 include: true,

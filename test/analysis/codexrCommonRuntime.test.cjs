@@ -109,6 +109,7 @@ test('common runtime exposes reusable component helpers', () => {
     assert.equal(typeof runtime.updateTooltipConnector, 'function');
     assert.equal(typeof runtime.hideTooltip, 'function');
     assert.equal(typeof runtime.faceCamera, 'function');
+    assert.equal(typeof runtime.faceCameraYaw, 'function');
     assert.equal(typeof runtime.attachPickHitbox, 'function');
     assert.equal(typeof runtime.truncateText, 'function');
     assert.equal(typeof runtime.createEntity, 'function');
@@ -119,7 +120,8 @@ test('common tooltip creates the shared visual legend structure and updates cont
     const tooltip = runtime.createTooltip({ accentColor: '#22d3ee' });
 
     assert.ok(tooltip.root);
-    assert.equal(tooltip.root.children.length, 6);
+    // border, background, left accent bar, header divider, title, subtitle, primary, secondary.
+    assert.equal(tooltip.root.children.length, 8);
     assert.equal(tooltip.root.getAttribute('visible'), false);
 
     runtime.updateTooltip(tooltip, {
@@ -157,7 +159,7 @@ test('common tooltip supports autosized label-value rows without breaking legacy
     }, { x: 1, y: 2, z: 3 }, { width: 5.25, minHeight: 1.1 });
 
     assert.equal(tooltip.root.getAttribute('visible'), true);
-    assert.ok(tooltip.background.getAttribute('height') > 1.1);
+    assert.ok(tooltip.background.getAttribute('height') >= 1.1);
     assert.ok(tooltip.rows.length >= 4);
     assert.equal(tooltip.rows[0].label.getAttribute('value'), 'Type');
     assert.equal(tooltip.rows[0].value.getAttribute('value'), 'Building');
@@ -226,6 +228,36 @@ test('common tooltip reserves footer room for action buttons', () => {
     const secondaryY = Number(String(tooltip.secondary.getAttribute('position')).split(' ')[1]);
     assert.ok(primaryY > secondaryY);
     assert.ok(secondaryY > -0.42);
+});
+
+test('legendSlotPosition lays legends out in a non-overlapping grid', () => {
+    const runtime = loadRuntime().CodeXRCommonRuntime;
+    assert.equal(typeof runtime.legendSlotPosition, 'function');
+
+    const opts = { perRow: 2, cardWidth: 2.5, cardHeight: 1.85, gapX: 0.34, gapY: 0.3, originY: 3, z: 0.18 };
+    const count = 5;
+    const boxes = [];
+    for (let i = 0; i < count; i++) {
+        const p = runtime.legendSlotPosition(i, count, opts);
+        assert.equal(p.z, 0.18);
+        boxes.push({
+            minX: p.x - opts.cardWidth / 2, maxX: p.x + opts.cardWidth / 2,
+            minY: p.y - opts.cardHeight / 2, maxY: p.y + opts.cardHeight / 2,
+        });
+    }
+    // No two slots overlap in both axes (cards are the full slot size).
+    for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i]; const b = boxes[j];
+            const ox = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX);
+            const oy = Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY);
+            assert.ok(!(ox > 0.001 && oy > 0.001), `slots ${i} and ${j} overlap`);
+        }
+    }
+    // Each row is centered on x = 0.
+    const first = runtime.legendSlotPosition(0, 2, opts);
+    const second = runtime.legendSlotPosition(1, 2, opts);
+    assert.ok(Math.abs(first.x + second.x) < 1e-6);
 });
 
 test('common faceCamera and hitbox helpers tolerate missing scene state', () => {

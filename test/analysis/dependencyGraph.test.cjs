@@ -35,8 +35,9 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /cycleButton/);
   assert.match(runtime, /RELATION_HELP/);
   assert.match(runtime, /drawAxes/);
-  assert.match(runtime, /graphTopY \+ \.92/);
-  assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
+  // Legends are laid out in a non-overlapping grid above the graph.
+  assert.match(runtime, /graphTopY \+ LEGEND_SLOT\.originYOffset/);
+  assert.match(runtime, /CodeXRCommonRuntime\.legendSlotPosition/);
   assert.doesNotMatch(runtime, /tooltipCameraPosition/);
   assert.match(runtime, /transitionDuration.*600/);
   assert.match(runtime, /beginTransition/);
@@ -53,7 +54,7 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /focusEdgeIds\.has/);
   assert.match(runtime, /external-summary/);
   assert.match(runtime, /intensity-combined/);
-  assert.match(runtime, /Show external details/);
+  assert.match(runtime, /Show external/);
   assert.match(runtime, /response\.generation !== this\.pendingGraph\.generation/);
   assert.doesNotMatch(runtime, /setGraph: function \(dataset, view\) \{\s*this\.clear/);
   assert.match(runtime, /data-codexr-help/);
@@ -63,8 +64,9 @@ test('dependency runtime uses a worker and owns three layouts', () => {
   assert.match(runtime, /Open folder/);
   assert.match(runtime, /Go to parent/);
   assert.match(runtime, /Open file/);
-  assert.match(runtime, /footerReserve: canNavigate \? \.28 : 0/);
-  assert.match(runtime, /'0 -0\.62 0\.02'/);
+  assert.match(runtime, /footerReserve: canNavigate \? \.3 : 0/);
+  // The per-card action button sits at the card's own (dynamic) bottom edge.
+  assert.match(runtime, /-\(card\.height \/ 2\) \+ \.17/);
   assert.match(runtime, /Project root/);
   assert.match(runtime, /Back to:/);
   assert.match(runtime, /Reset view/);
@@ -258,8 +260,10 @@ test('dependency graph keeps density control local and packages diagnostics', ()
   assert.match(runtime, /setDetailOverride/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.createTooltip/);
   assert.match(runtime, /CodeXRCommonRuntime\?\.updateTooltip/);
-  assert.match(runtime, /CodeXRCommonRuntime\.updateTooltipConnector\?\./);
-  assert.match(runtime, /CodeXRCommonRuntime\?\.faceCamera/);
+  assert.match(runtime, /CodeXRCommonRuntime\.updateTooltipConnector\(/);
+  // Multiple legends can be pinned and are re-placed together without overlap.
+  assert.match(runtime, /relayoutLegends/);
+  assert.match(runtime, /pinnedSelections/);
   assert.match(runtime, /'data-codexr-interactive': 'true'/);
   assert.match(runtime, /connectorTarget/);
   assert.doesNotMatch(runtime, /detailOverride: state\.snapshot/);
@@ -340,15 +344,24 @@ test('dependency metric axes use readable shared scales', () => {
 
   const details = helpers.nodeDetailModel({
     label: 'service.ts',
+    kind: 'file',
     relativePath: 'src/service.ts',
     language: 'TypeScript',
     metrics: { fanIn: 4, fanOut: 6, degree: 10, relationCount: 8, cycleSize: 2, totalLines: 1000 },
   });
   assert.equal(details.title, 'service.ts');
-  assert.equal(details.subtitle, 'src/service.ts');
+  assert.equal(details.subtitle, 'FILE · TypeScript · src/service.ts');
+  // Legacy summary fields are kept for backward compatibility.
   assert.match(details.primary, /Fan-in 4/);
   assert.match(details.secondary, /Lines 1000/);
-  assert.ok(Object.values(details).every(value => !String(value).includes('\n')));
+  // Richer content: a metric grid, a type-colour accent, and the Instability metric.
+  assert.match(details.accentColor, /^#[0-9a-fA-F]{3,8}$/);
+  assert.ok(Array.isArray(details.rows) && details.rows.length >= 7);
+  const instability = details.rows.find(row => row.label === 'Instab.');
+  assert.ok(instability, 'exposes an Instability row');
+  assert.equal(instability.value, '60%');
+  assert.ok(details.rows.some(row => row.label === 'Fan-in' && row.value === '4'));
+  assert.ok(Object.keys(details).every(key => !String(details[key]).includes('\n')));
 });
 
 test('directory XR parser packages the dependency runtime', () => {
@@ -692,4 +705,146 @@ test('dependency graph summary grouping/ranking logic runs standalone against a 
   });
   assert.equal(groups.length, 1);
   assert.equal(groups[0].length, 2);
+});
+
+test('dependency-graph start still reaches the server when the selection hop rejects', async () => {
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  const context = { setTimeout, clearTimeout, console };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRDependencyGraphRuntime;
+  const sent = [];
+  context.CodeXRCollaborationRuntime = {
+    getClient() {
+      return {
+        sendMessage(type) {
+          sent.push(type);
+          return true;
+        },
+      };
+    },
+  };
+  // start() is invoked as `void start()`: if the local hop to selection
+  // rejects, the rejection used to abort start() before the send, leaving
+  // the scene in total silence until the 20s watchdog fired.
+  context.CodeXRAnalysisModeRuntime = {
+    transitionTo() {
+      return Promise.reject(new Error('selection hop broken'));
+    },
+  };
+  runtime.getState().availability = 'enabled';
+
+  await runtime.start();
+
+  assert.deepEqual(sent, ['dependency-graph-start']);
+});
+
+test('edge batches rely on seeded instance colours, not vertex colours (black-edge regression)', () => {
+  const runtime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  // vertexColors on the batch materials multiplied a missing vertex-colour
+  // attribute and rendered every edge black (setColorAt visually ignored);
+  // instance colours only need the instanceColor buffer, seeded before the
+  // batches first render so the material compiles with instancing colour.
+  // (The flow layer's ShaderMaterial keeps vertexColors — its geometry really
+  // has a colour attribute.)
+  assert.doesNotMatch(runtime, /0xffffff, vertexColors/);
+  assert.match(runtime, /body\.setColorAt\(index, seed\)/);
+  assert.match(runtime, /arrows\.setColorAt\(index, seed\)/);
+});
+
+test('every edge encoding declares a legend and the panel renders it through one path', () => {
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  const context = {};
+  vm.runInNewContext(source, context);
+  const helpers = context.CodeXRDependencyGraphRuntime.__testing;
+
+  const relation = helpers.edgeEncodingLegend('relation-type');
+  assert.equal(relation.type, 'swatches');
+  assert.equal(relation.entries.length, 7);
+  assert.ok(relation.entries.every(entry => /^#/.test(entry.color) && entry.label));
+
+  // Width mode colours by relation kind too, so it shares the swatch legend.
+  assert.equal(helpers.edgeEncodingLegend('intensity-width').type, 'swatches');
+
+  for (const encoding of ['intensity-color', 'intensity-combined']) {
+    const ramp = helpers.edgeEncodingLegend(encoding);
+    assert.equal(ramp.type, 'ramp');
+    assert.equal(ramp.entries.length, 5);
+    // JSON round-trip: vm-realm arrays fail cross-realm deepStrictEqual.
+    assert.deepEqual(JSON.parse(JSON.stringify(ramp.entries.map(entry => entry.label))), ['1', '2-3', '4-7', '8-15', '16+']);
+    for (let i = 1; i < ramp.entries.length; i++) {
+      assert.ok(ramp.entries[i].barHeight > ramp.entries[i - 1].barHeight, 'ramp bars grow with the bucket');
+    }
+  }
+
+  // One render path for every mode, and the relation filter buttons carry the
+  // edge colours as always-visible chips.
+  assert.match(source, /renderEdgeLegend\(edgeEncodingLegend\(currentEncoding\)\)/);
+  assert.match(source, /RELATION_COLORS\[relation\]/);
+  assert.doesNotMatch(source, /Colors identify relation kinds/);
+});
+
+test('legend cards follow the user as one rigid yaw-billboarded board', () => {
+  const runtime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  // All cards hang off one board entity that yaw-billboards toward the camera;
+  // rotating the group rigidly means cards can never rotate into overlap, and
+  // leader-line anchors are converted into the rotated board's space.
+  assert.match(runtime, /codexr-legend-board/);
+  assert.match(runtime, /CodeXRCommonRuntime\?\.faceCameraYaw/);
+  assert.match(runtime, /anchorInBoardSpace/);
+  assert.match(runtime, /this\.updateLegendBoard\(\)/);
+});
+
+test('flow particles use true perspective sizing and a delta-accumulated clock', () => {
+  const runtime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  // The old formula pinned a constant pixel size below 40 units (the whole
+  // interaction range), which read as particles shrinking on approach.
+  assert.doesNotMatch(runtime, /max\(40\.0, -mvPosition\.z\)/);
+  assert.match(runtime, /clamp\(pointSize \* pointScale \* \(6\.0 \/ max\(0\.5, -mvPosition\.z\)\), 1\.0, 28\.0\)/);
+  // Speed derives from the frame delta (smooth re-pacing), not absolute time.
+  assert.doesNotMatch(runtime, /time \* \.00042/);
+  assert.match(runtime, /this\.flowClock = \(\(this\.flowClock \|\| 0\)/);
+  assert.match(runtime, /FLOW_BASE_SPEED/);
+});
+
+test('flow size and speed are a room-shared catalogue rendered in the panel', () => {
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  const context = {};
+  vm.runInNewContext(source, context);
+  const helpers = context.CodeXRDependencyGraphRuntime.__testing;
+
+  // Catalogue contract: ids/labels/multipliers with sane defaults.
+  assert.equal(helpers.FLOW_SIZE_OPTIONS.length, 4);
+  assert.equal(helpers.FLOW_SPEED_OPTIONS.length, 4);
+  assert.equal(helpers.FLOW_DEFAULTS.flowSize, 'm');
+  assert.equal(helpers.FLOW_DEFAULTS.flowSpeed, 'x1');
+  assert.equal(helpers.flowSizeOption('xl').scale, 2.2);
+  assert.equal(helpers.flowSpeedOption('x2').multiplier, 2);
+  // Unknown ids fall back to the defaults instead of breaking the shader/clock.
+  assert.equal(helpers.flowSizeOption('nope').id, 'm');
+  assert.equal(helpers.flowSpeedOption(undefined).id, 'x1');
+
+  // Shared like the edge encoding: published with the settings payload,
+  // defaulted for old snapshots, and cycled from the panel.
+  assert.match(source, /flowSize: state\.snapshot\.flowSize \|\| FLOW_DEFAULTS\.flowSize/);
+  assert.match(source, /flowSpeed: state\.snapshot\.flowSpeed \|\| FLOW_DEFAULTS\.flowSpeed/);
+  assert.match(source, /'Flow size: ' \+ flowSizeOption\(currentFlowSize\)\.label/);
+  assert.match(source, /'Flow speed: ' \+ flowSpeedOption\(currentFlowSpeed\)\.label/);
+  assert.match(source, /publishState\(\{ flowSize: cycleValue\(currentFlowSize, flowSizeIds, 1\) \}\)/);
+  assert.match(source, /publishState\(\{ flowSpeed: cycleValue\(currentFlowSpeed, flowSpeedIds, 1\) \}\)/);
+
+  // The analysis server validates and persists the same contract.
+  const server = read('src/servers/runtime/httpServer.ts');
+  assert.match(server, /allowedFlowSizes = new Set\(\['s', 'm', 'l', 'xl'\]\)/);
+  assert.match(server, /allowedFlowSpeeds = new Set\(\['x05', 'x1', 'x2', 'x3'\]\)/);
+  assert.match(server, /flowSize: existingDependencyState\?\.flowSize \|\| 'm'/);
+  assert.match(server, /flowSpeed: existingDependencyState\?\.flowSpeed \|\| 'x1'/);
+});
+
+test('invisible cycle-button segments never write depth', () => {
+    const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+    // The <  label  > click segments are near-invisible raycast surfaces; with
+    // depthWrite they clip transparent content behind the settings panel.
+    const segments = source.match(/opacity: 0\.001; shader: flat; depthWrite: false/g) || [];
+    assert.equal(segments.length, 3, 'left/center/right segments must all be depth-inert');
+    assert.doesNotMatch(source, /opacity: 0\.001; shader: flat',/);
 });

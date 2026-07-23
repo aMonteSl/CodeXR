@@ -59,12 +59,16 @@
       activeLifecycleMode: state.activeLifecycleMode,
       mode: state.mode
     });
+    // invokeSafely, not invoke: a synchronous throw inside one mode's cleanup
+    // would escape the .map() before Promise.allSettled could contain it,
+    // rejecting the whole transition (and silently killing anything awaiting
+    // it, like the dependency-graph start handshake).
     await Promise.allSettled(
       ['single', 'historical-compare', 'project-evolution', 'dependency-graph'].map(function (mode) {
         var lifecycle = lifecycles[mode];
         return typeof lifecycle?.disposeView === 'function'
-          ? invoke(lifecycle, 'disposeView', context)
-          : invoke(lifecycle, 'deactivate', context);
+          ? invokeSafely(lifecycle, 'disposeView', context)
+          : invokeSafely(lifecycle, 'deactivate', context);
       })
     );
     ensureAnalysisSurfaceRuntime().clearForSelection(context.reason);

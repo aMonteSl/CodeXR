@@ -111,3 +111,13 @@ test('project evolution treats only active Babia boats as hierarchical charts', 
     assert.equal(runtime.__testing.isHierarchicalBoatsChart('codexr-boats', 'codexr-boats'), false);
     assert.equal(runtime.__testing.isHierarchicalBoatsChart('bars', 'babia-bars'), false);
 });
+
+test('suggested auto order tolerates never-loaded references (dependency-start regression)', () => {
+    const runtime = loadRuntime();
+
+    // references stays null until the server answers. stop() renders during
+    // deactivate/disposeView, so this path runs for a mode that was never
+    // opened — a throw here used to reject the whole selection transition
+    // and silently kill the dependency-graph start handshake.
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.__testing.getSuggestedAutoOrderById())), {});
+});
