@@ -38,6 +38,14 @@
     followAnchorSelector: '#rig',
     anchoredPosition: { x: 0, y: 8, z: 6 },
     anchoredRotation: { x: -10, y: 0, z: 0 },
+    // Collision stops: the screen tracks the user freely (look-at, drag,
+    // resize) until any edge would touch the room shell or another screen —
+    // there the motion stops like a physical bumper and resumes when the
+    // target comes back inside. Bounds are derived from the codexr-room
+    // entity; collisionBounds ({min:{x,y,z}, max:{x,y,z}}) overrides them.
+    collisionEnabled: true,
+    collisionMargin: 0.05,
+    collisionBounds: null,
     followOffset: { x: 0, y: 0.7, z: -2.2 },
     followRotation: { x: 0, y: 0, z: 0 },
     defaultSizeIndex: 2,
@@ -53,6 +61,16 @@
     screenId: '',
     ownerPeerId: '',
     displayName: '',
+    // Content subtype: 'broadcast' is the classic WebRTC screen; 'fixed' hosts
+    // locally-rendered content from a registered content provider (see
+    // registerContentProvider in wiringAndApi.js) — no video surface, no share
+    // button, content always visible while expanded. Fixed screens keep every
+    // other parent behaviour: chrome, drag/resize, follow, shared transform.
+    contentKind: 'broadcast',
+    contentProviderId: '',
+    // World width the provider designs its content at; layout() scales the
+    // content slot by screenWidth / contentDesignWidth so resizing works.
+    contentDesignWidth: 0,
     managedScreen: false,
     placeInFrontOfUserOnInit: false,
     deferInitialSharedState: false,
@@ -129,6 +147,47 @@
 
   const CONFIG_SCRIPT_ID = 'codexr-tooling-config-virtual-screen';
 
+  // Scene-wide raycaster whitelist class (see setInteractive: raycastable ⇔
+  // visible — hidden chrome must never keep this class).
+  const RAYCAST_CLASS = 'babiaxraycasterclass';
+
+  // Fixed-content providers, shared by every runtime instance (local and the
+  // ones materialized for remote peers). A provider mounts its content into the
+  // screen's content slot: build(contentRoot, runtimeApi).
+  const CONTENT_PROVIDERS = new Map();
+
+  function registerContentProvider(providerId, build) {
+    const id = String(providerId || '').trim();
+    if (!id || typeof build !== 'function') {
+      return false;
+    }
+    CONTENT_PROVIDERS.set(id, build);
+    return true;
+  }
+
+  function getContentProvider(providerId) {
+    return CONTENT_PROVIDERS.get(String(providerId || '').trim()) || null;
+  }
+
+  // Well-known screen ids: screens every scene creates itself under a stable
+  // id ('default', 'guide'…). Subtypes reserve their id at SCRIPT LOAD — before
+  // the scene initializes and before any collaboration snapshot can replay —
+  // so the multi-screen manager never materializes a remote copy for them.
+  const WELL_KNOWN_SCREEN_IDS = new Set(['default']);
+
+  function reserveWellKnownScreenId(screenId) {
+    const id = String(screenId || '').trim();
+    if (!id) {
+      return false;
+    }
+    WELL_KNOWN_SCREEN_IDS.add(id);
+    return true;
+  }
+
+  function getWellKnownScreenIds() {
+    return Array.from(WELL_KNOWN_SCREEN_IDS);
+  }
+
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
@@ -166,7 +225,21 @@
     merged.presenceEnabled = userConfig?.presenceEnabled !== false;
     merged.cursorPresenceEnabled = userConfig?.cursorPresenceEnabled === true;
     merged.virtualScreenSupportsLocalCapture = userConfig?.virtualScreenSupportsLocalCapture !== false;
+    merged.collisionEnabled = userConfig?.collisionEnabled !== false;
+    merged.collisionMargin = Number(userConfig?.collisionMargin) > 0
+      ? Number(userConfig.collisionMargin)
+      : DEFAULT_CONFIG.collisionMargin;
+    merged.collisionBounds = userConfig?.collisionBounds?.min && userConfig?.collisionBounds?.max
+      ? userConfig.collisionBounds
+      : null;
+    merged.contentKind = userConfig?.contentKind === 'fixed' ? 'fixed' : 'broadcast';
+    merged.contentProviderId = String(userConfig?.contentProviderId || '');
+    merged.contentDesignWidth = Number(userConfig?.contentDesignWidth) || 0;
     return merged;
+  }
+
+  function isFixedContent(config) {
+    return config?.contentKind === 'fixed';
   }
 
   function readConfigFromJsonScript(win) {
@@ -229,6 +302,12 @@
       display: null,
       interactionPlane: null,
       dragPlane: null,
+      raycasterRefreshScheduled: false,
+      // Collision caches: the room shell is static (cache once found); other
+      // screens move, so their obstacle list is refreshed on a short interval.
+      collisionBoundsCache: null,
+      obstacleCache: null,
+      obstacleCacheTime: 0,
       headerStrip: null,
       status: null,
       legendRoot: null,

@@ -251,6 +251,42 @@
       entity?.setAttribute('visible', visible ? 'true' : 'false');
     }
 
+    // A-Frame's raycaster intersects entities regardless of `visible`, so a
+    // hidden-but-classed element still steals clicks from the scene behind it.
+    // Interactive chrome must therefore keep the invariant
+    // raycastable ⇔ visible: hide = also drop the raycast class.
+    function setInteractive(entity, on) {
+      if (!entity) {
+        return;
+      }
+      setEntityVisible(entity, on);
+      if (entity.classList?.contains(RAYCAST_CLASS) === !!on) {
+        return;
+      }
+      entity.classList?.toggle(RAYCAST_CLASS, !!on);
+      scheduleRaycasterRefresh();
+    }
+
+    // A-Frame does not watch class mutations: every raycaster in the scene must
+    // be told to rebuild its objects whitelist. Coalesced to one refresh/frame.
+    function scheduleRaycasterRefresh() {
+      if (refs.raycasterRefreshScheduled) {
+        return;
+      }
+      refs.raycasterRefreshScheduled = true;
+      const flush = function () {
+        refs.raycasterRefreshScheduled = false;
+        getDocument()?.querySelectorAll('[raycaster]').forEach((el) => {
+          el.components?.raycaster?.refreshObjects?.();
+        });
+      };
+      if (typeof win.requestAnimationFrame === 'function') {
+        win.requestAnimationFrame(flush);
+      } else {
+        setTimeout(flush, 0);
+      }
+    }
+
     function setMaterial(entity, material) {
       if (entity) {
         entity.setAttribute('material', material);
@@ -276,7 +312,7 @@
     function createButton(id, glyph, width, height, textWidth, wrapCount) {
       const button = createEntity('a-plane', {
         id: getScopedId(id),
-        class: 'babiaxraycasterclass codexr-screen-button',
+        class: `${RAYCAST_CLASS} codexr-screen-button`,
         width: String(width),
         height: String(height),
         color: '#0F172A',
@@ -302,7 +338,7 @@
     function createHandle(id, width, height) {
       return createEntity('a-plane', {
         id: getScopedId(id),
-        class: 'babiaxraycasterclass codexr-screen-handle',
+        class: `${RAYCAST_CLASS} codexr-screen-handle`,
         width: String(width),
         height: String(height),
         color: '#FFFFFF',

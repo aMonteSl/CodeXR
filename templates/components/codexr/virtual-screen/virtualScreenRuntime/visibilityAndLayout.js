@@ -70,28 +70,53 @@
         position: '0 0 -0.01',
       });
 
-      refs.display = createEntity('a-video', {
-        id: getScopedId('codexrVirtualScreenDisplay'),
-        src: `#${getVideoElementId()}`,
-        position: '0 0 0.01',
-        visible: 'false',
-      });
+      if (isFixedContent(refs.config)) {
+        // Fixed-content subtype: the display surface is a content slot filled
+        // by the registered provider instead of the WebRTC video plane.
+        refs.display = null;
+        refs.contentRoot = createEntity('a-entity', {
+          id: getScopedId('codexrVirtualScreenContent'),
+          position: '0 0 0.01',
+        });
+        const buildContent = getContentProvider(refs.config.contentProviderId);
+        if (buildContent) {
+          buildContent(refs.contentRoot, api);
+        } else {
+          console.warn('VIRTUAL_SCREEN: no content provider registered for', refs.config.contentProviderId);
+        }
+      } else {
+        refs.contentRoot = null;
+        refs.display = createEntity('a-video', {
+          id: getScopedId('codexrVirtualScreenDisplay'),
+          src: `#${getVideoElementId()}`,
+          position: '0 0 0.01',
+          visible: 'false',
+        });
+      }
 
+      // Raycast-only surfaces: depthWrite: false keeps these near-invisible
+      // planes out of the depth buffer — otherwise every transparent object
+      // behind them is clipped along the plane (the "diagonal cut" artifact,
+      // most visible while dragging a screen across other components).
       refs.interactionPlane = createEntity('a-plane', {
         id: getScopedId('codexrVirtualScreenSurface'),
-        class: 'babiaxraycasterclass codexr-screen-surface',
+        class: `${RAYCAST_CLASS} codexr-screen-surface`,
         color: '#FFFFFF',
-        material: 'color: #FFFFFF; opacity: 0.001; transparent: true; side: double;',
+        material: 'color: #FFFFFF; opacity: 0.001; transparent: true; side: double; depthWrite: false;',
         position: '0 0 0.02',
       });
 
+      // Deliberately created WITHOUT the raycast class: this huge invisible
+      // plane only joins the raycaster's world while a drag is active
+      // (setInteractive in refreshUi / the drag lifecycle), otherwise it would
+      // silently block clicks across a large part of the room.
       refs.dragPlane = createEntity('a-plane', {
         id: getScopedId('codexrVirtualScreenDragPlane'),
-        class: 'babiaxraycasterclass codexr-screen-drag-plane',
+        class: 'codexr-screen-drag-plane',
         width: '28',
         height: '18',
         color: '#FFFFFF',
-        material: 'color: #FFFFFF; opacity: 0.001; transparent: true; side: double;',
+        material: 'color: #FFFFFF; opacity: 0.001; transparent: true; side: double; depthWrite: false;',
         position: '0 0 0.015',
         visible: 'false',
       });
@@ -118,7 +143,7 @@
 
       refs.legendPanel = createEntity('a-plane', {
         id: getScopedId('codexrVirtualScreenLegendPanel'),
-        class: 'babiaxraycasterclass codexr-screen-legend',
+        class: `${RAYCAST_CLASS} codexr-screen-legend`,
         color: '#0F172A',
         material: 'color: #0F172A; opacity: 0.72; transparent: true; shader: flat;',
       });
@@ -138,7 +163,10 @@
       refs.legendRoot.appendChild(refs.legendText);
       refs.legendRoot.appendChild(refs.legendToggle);
 
-      refs.shareButton = createButton('codexrShareSource', '▣', 0.86, 0.86, 1.6, 4);
+      // Fixed-content screens have no source picker: their content is immutable.
+      refs.shareButton = isFixedContent(refs.config)
+        ? null
+        : createButton('codexrShareSource', '▣', 0.86, 0.86, 1.6, 4);
       refs.audioUnlockButton = createButton('codexrEnableAudio', refs.config.labels.audioUnlock, 1.52, 0.34, 3.1, 18);
       refs.headerButtons.lookAt = createButton(HEADER_BUTTONS.lookAt, '◈', 0.24, 0.24, 0.65, 3);
       refs.headerButtons.follow = createButton(HEADER_BUTTONS.follow, '◎', 0.24, 0.24, 0.65, 3);
@@ -156,13 +184,20 @@
       refs.edgeHandles.left = createHandle(EDGE_HANDLES.left, 0.05, 0.70);
 
       refs.root.appendChild(refs.frame);
-      refs.root.appendChild(refs.display);
+      if (refs.display) {
+        refs.root.appendChild(refs.display);
+      }
+      if (refs.contentRoot) {
+        refs.root.appendChild(refs.contentRoot);
+      }
       refs.root.appendChild(refs.interactionPlane);
       refs.root.appendChild(refs.dragPlane);
       refs.root.appendChild(refs.headerStrip);
       refs.root.appendChild(refs.status);
       refs.root.appendChild(refs.legendRoot);
-      refs.root.appendChild(refs.shareButton);
+      if (refs.shareButton) {
+        refs.root.appendChild(refs.shareButton);
+      }
       refs.root.appendChild(refs.audioUnlockButton);
       Object.values(refs.headerButtons).forEach((button) => refs.root.appendChild(button));
       Object.values(refs.cornerHandles).forEach((handle) => refs.root.appendChild(handle));
@@ -176,6 +211,7 @@
       [
         refs.frame,
         refs.display,
+        refs.contentRoot,
         refs.interactionPlane,
         refs.headerStrip,
         refs.status,
@@ -188,7 +224,7 @@
         ...Object.values(refs.headerButtons),
         ...Object.values(refs.cornerHandles),
         ...Object.values(refs.edgeHandles),
-      ].forEach(wireChromeVisibility);
+      ].filter(Boolean).forEach(wireChromeVisibility);
       layout();
       refreshUi();
     }
@@ -209,6 +245,11 @@
     function getDisplayedStatusText() {
       if (hasDisplayedStream() || isMinimized()) {
         return '';
+      }
+      if (isFixedContent(refs.config)) {
+        // Fixed screens are never "idle broadcast" — only transient hints
+        // (move/resize/lock) surface over their content.
+        return state.statusMessage === refs.config.labels.idle ? '' : (state.statusMessage || '');
       }
       return state.statusMessage || refs.config.labels.idle;
     }
@@ -238,8 +279,16 @@
 
       refs.frame.setAttribute('width', String(frameWidth));
       refs.frame.setAttribute('height', String(frameHeight));
-      refs.display.setAttribute('width', String(width));
-      refs.display.setAttribute('height', String(height));
+      if (refs.display) {
+        refs.display.setAttribute('width', String(width));
+        refs.display.setAttribute('height', String(height));
+      }
+      if (refs.contentRoot) {
+        // Fixed content designs at contentDesignWidth; scale it with the screen
+        // so corner-resizes shrink/grow the whole guide uniformly.
+        const contentScale = width / (refs.config.contentDesignWidth || width || 1);
+        refs.contentRoot.setAttribute('scale', `${contentScale} ${contentScale} ${contentScale}`);
+      }
       refs.interactionPlane.setAttribute('width', String(width));
       refs.interactionPlane.setAttribute('height', String(height));
       refs.dragPlane.setAttribute('width', String(Math.max(28, width * 5.5)));
@@ -249,8 +298,13 @@
       refs.headerStrip.setAttribute('position', minimized ? '0 0 0.03' : `0 ${headerY} 0.03`);
 
       refs.status.setAttribute('width', String(Math.max(6, width + 1.4)));
-      refs.status.setAttribute('position', minimized ? '0 0.28 0.04' : '0 0.95 0.04');
-      refs.shareButton.setAttribute('position', '0 0 0.04');
+      // Fixed-content screens keep transient hints (move/resize/lock) above the
+      // screen so they never cover the content; broadcast screens keep the
+      // classic centered placement over the empty idle surface.
+      refs.status.setAttribute('position', minimized
+        ? '0 0.28 0.04'
+        : (isFixedContent(refs.config) ? `0 ${halfHeight + 0.34} 0.04` : '0 0.95 0.04'));
+      refs.shareButton?.setAttribute('position', '0 0 0.04');
       refs.audioUnlockButton.setAttribute('position', minimized ? '0 -0.06 0.04' : `0 ${-(halfHeight - 0.28)} 0.04`);
       refs.legendRoot.setAttribute('position', `${legendOffsetX} ${legendOffsetY} 0.05`);
       refs.legendPanel.setAttribute('width', String(legendWidth));
@@ -288,30 +342,35 @@
       }
 
       const minimized = isMinimized();
+      const fixedContent = isFixedContent(refs.config);
       const active = hasDisplayedStream();
       const expanded = !minimized;
       const chromeVisible = state.chromeVisible || !!state.drag;
       const headerVisible = minimized || chromeVisible;
-      const showShareButton = state.mode === 'idle';
-      const showStatus = !active && !minimized;
+      const showShareButton = !fixedContent && state.mode === 'idle';
+      const showStatus = !active && !minimized && !!getDisplayedStatusText();
       const showAudioUnlock = state.audioUnlockRequired && state.streamSourceType === 'remote' && state.hasAudio;
-      const showLegend = (active || minimized) && chromeVisible;
+      const showLegend = (active || minimized || fixedContent) && chromeVisible;
 
       setEntityVisible(refs.display, active && expanded);
+      // Fixed content is the screen's permanent face: visible whenever expanded.
+      setEntityVisible(refs.contentRoot, fixedContent && expanded);
       setEntityVisible(refs.frame, true);
-      setEntityVisible(refs.interactionPlane, expanded);
-      setEntityVisible(refs.dragPlane, !!state.drag);
+      // Interactive chrome goes through setInteractive so hidden elements also
+      // leave the raycaster's world (raycastable ⇔ visible).
+      setInteractive(refs.interactionPlane, expanded);
+      setInteractive(refs.dragPlane, !!state.drag);
       setEntityVisible(refs.headerStrip, headerVisible);
       setEntityVisible(refs.status, showStatus);
       setEntityVisible(refs.legendRoot, showLegend);
-      setEntityVisible(refs.legendPanel, showLegend && !state.legendCollapsed);
+      setInteractive(refs.legendPanel, showLegend && !state.legendCollapsed);
       setEntityVisible(refs.legendText, showLegend && !state.legendCollapsed);
-      setEntityVisible(refs.legendToggle, showLegend);
-      setEntityVisible(refs.shareButton, showShareButton);
-      setEntityVisible(refs.audioUnlockButton, showAudioUnlock);
-      Object.values(refs.headerButtons).forEach((button) => setEntityVisible(button, headerVisible));
-      Object.values(refs.cornerHandles).forEach((handle) => setEntityVisible(handle, expanded && chromeVisible));
-      Object.values(refs.edgeHandles).forEach((handle) => setEntityVisible(handle, chromeVisible));
+      setInteractive(refs.legendToggle, showLegend);
+      setInteractive(refs.shareButton, showShareButton);
+      setInteractive(refs.audioUnlockButton, showAudioUnlock);
+      Object.values(refs.headerButtons).forEach((button) => setInteractive(button, headerVisible));
+      Object.values(refs.cornerHandles).forEach((handle) => setInteractive(handle, expanded && chromeVisible));
+      Object.values(refs.edgeHandles).forEach((handle) => setInteractive(handle, chromeVisible));
 
       refs.status.setAttribute('value', getDisplayedStatusText());
       refs.legendText.setAttribute('value', getControlLegend());

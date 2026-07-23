@@ -102,7 +102,7 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(multiScreenManagerSource, /this\.schedulePlaceScreenInFrontOfUser\(instanceId/);
     assert.match(multiScreenManagerSource, /deferInitialSharedState: true/);
     assert.match(multiScreenManagerSource, /runtime\?\.flushInitialSharedState\?\.\(\)/);
-    assert.match(multiScreenManagerSource, /const canDelete = entry\.instanceId !== 'default'/);
+    assert.match(multiScreenManagerSource, /const canDelete = entry\.managed === true && !this\.wellKnownScreens\?\.has\(entry\.instanceId\)/);
     assert.match(multiScreenManagerSource, /screen:\$\{peerId\}:\$\{counter\}/);
     assert.match(multiScreenManagerSource, /setManagerCallbacks/);
     assert.match(multiScreenManagerSource, /onStateChange/);
@@ -250,4 +250,176 @@ test('analysis asset pipeline packages collaboration, screen, manager, and DOM s
 
     assert.doesNotMatch(runtimeSource, /request-host-start/);
     assert.doesNotMatch(runtimeSource, /virtualScreenSupportsHostBroadcast/);
+});
+
+test('virtual screen supports fixed-content subtypes through the provider seam', () => {
+    // Config surface + provider registry are part of the public API.
+    assert.match(runtimeSource, /contentKind: 'broadcast'/);
+    assert.match(runtimeSource, /function registerContentProvider/);
+    assert.match(runtimeSource, /function getContentProvider/);
+    assert.equal(typeof runtimeModule.registerContentProvider, 'function');
+    assert.equal(typeof runtimeModule.getContentProvider, 'function');
+    assert.equal(runtimeModule.registerContentProvider('test-provider', () => {}), true);
+    assert.equal(typeof runtimeModule.getContentProvider('test-provider'), 'function');
+    assert.equal(runtimeModule.getContentProvider('missing-provider'), null);
+    // Invalid registrations are rejected.
+    assert.equal(runtimeModule.registerContentProvider('', () => {}), false);
+    assert.equal(runtimeModule.registerContentProvider('no-build', null), false);
+
+    // Fixed screens swap the video surface for the provider-filled content slot,
+    // never build the share button, and skip the hidden <video> element.
+    assert.match(runtimeSource, /isFixedContent\(refs\.config\)/);
+    assert.match(runtimeSource, /codexrVirtualScreenContent/);
+    assert.match(runtimeSource, /refs\.shareButton = isFixedContent\(refs\.config\)/);
+    assert.match(runtimeSource, /Fixed-content screens never stream/);
+    // Content scales with the screen width against its design width.
+    assert.match(runtimeSource, /refs\.config\.contentDesignWidth \|\| width/);
+
+    // The subtype markers travel with the shared entity so remote peers can
+    // materialize (or safely skip) fixed screens.
+    assert.match(runtimeSource, /contentKind: refs\.config\.contentKind \|\| 'broadcast'/);
+    assert.match(runtimeSource, /contentProviderId: refs\.config\.contentProviderId \|\| ''/);
+    assert.match(runtimeSource, /contentDesignWidth: refs\.config\.contentDesignWidth \|\| 0/);
+
+    const managerSource = readProjectFile(
+        'templates', 'components', 'codexr', 'virtual-screen', 'codexrMultiScreenManagerRuntime.js',
+    );
+    // Well-known screens (default, guide…) sync in place and are never treated
+    // as removable remote screens; unknown fixed providers are skipped instead
+    // of materializing as dead video screens.
+    assert.match(managerSource, /registerWellKnownScreen/);
+    assert.match(managerSource, /this\.wellKnownScreens = new Set\(this\.runtimeFactory\?\.getWellKnownScreenIds\?\.\(\) \|\| \['default'\]\)/);
+    assert.match(managerSource, /wellKnownScreens\?\.has\(sharedState\.entityId\)/);
+    assert.match(managerSource, /skipping fixed screen without a registered provider/);
+    assert.match(managerSource, /contentKind: sharedState\.contentKind === 'fixed' \? 'fixed' : 'broadcast'/);
+});
+
+test('hidden screen chrome leaves the raycaster world (raycastable ⇔ visible)', () => {
+    // A-Frame's raycaster intersects entities regardless of `visible`, so the
+    // runtime must drop the raycast class whenever it hides interactive chrome.
+    assert.match(runtimeSource, /function setInteractive/);
+    assert.match(runtimeSource, /entity\.classList\?\.toggle\(RAYCAST_CLASS, !!on\)/);
+    assert.match(runtimeSource, /function scheduleRaycasterRefresh/);
+    assert.match(runtimeSource, /refreshObjects\?\.\(\)/);
+
+    // Raycast-only surfaces must never write depth: with depthWrite the
+    // near-invisible planes clip every transparent object behind them (the
+    // diagonal-cut artifact seen while dragging a screen across the room).
+    const utilityPlaneMaterial = 'color: #FFFFFF; opacity: 0.001; transparent: true; side: double; depthWrite: false;';
+    const utilityPlaneCount = runtimeSource.split(utilityPlaneMaterial).length - 1;
+    assert.equal(utilityPlaneCount, 2, 'interactionPlane and dragPlane must both be depth-inert');
+
+    // The 28x18 drag plane is the worst offender: it must be created WITHOUT
+    // the raycast class and only gain it while a drag is active.
+    assert.match(runtimeSource, /class: 'codexr-screen-drag-plane'/);
+    assert.doesNotMatch(runtimeSource, /babiaxraycasterclass codexr-screen-drag-plane/);
+    assert.match(runtimeSource, /setInteractive\(refs\.dragPlane, true\)/);
+    assert.match(runtimeSource, /setInteractive\(refs\.dragPlane, false\)/);
+    assert.match(runtimeSource, /setInteractive\(refs\.dragPlane, !!state\.drag\)/);
+
+    // Every interactive chrome element follows the same rule in refreshUi.
+    assert.match(runtimeSource, /setInteractive\(refs\.interactionPlane, expanded\)/);
+    assert.match(runtimeSource, /setInteractive\(refs\.shareButton, showShareButton\)/);
+    assert.match(runtimeSource, /setInteractive\(refs\.audioUnlockButton, showAudioUnlock\)/);
+    assert.match(runtimeSource, /setInteractive\(button, headerVisible\)/);
+    assert.match(runtimeSource, /setInteractive\(handle, expanded && chromeVisible\)/);
+    assert.match(runtimeSource, /setInteractive\(handle, chromeVisible\)/);
+    assert.match(runtimeSource, /setInteractive\(refs\.legendToggle, showLegend\)/);
+});
+
+test('dependency graph parks the normal charts without leaving raycastable ghosts', () => {
+    const graphSource = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+    // Fallback parking (no surface runtime) must suspend raycast classes on the
+    // hidden subtree and restore them on unpark — same marker attribute as the
+    // historical-comparison runtime so cross-runtime handoffs line up.
+    assert.match(graphSource, /data-codexr-raycast-suspended/);
+    assert.match(graphSource, /function suspendSubtreeRaycast/);
+    assert.match(graphSource, /function restoreSubtreeRaycast/);
+    assert.match(graphSource, /suspendSubtreeRaycast\(element\)/);
+    assert.match(graphSource, /forEach\(restoreSubtreeRaycast\)/);
+});
+
+test('screens control panel: guarded delete, min/exp, rich rows, gated refresh', () => {
+    const managerSource = readProjectFile(
+        'templates', 'components', 'codexr', 'virtual-screen', 'codexrMultiScreenManagerRuntime.js',
+    );
+    // Well-known screens (default, guide) are never deletable; only managed
+    // screens (Add Screen / remote copies) get the Del button.
+    assert.match(managerSource, /entry\.managed === true && !this\.wellKnownScreens\?\.has\(entry\.instanceId\)/);
+    assert.doesNotMatch(managerSource, /canDelete = entry\.instanceId !== 'default'/);
+    // Min/Exp toggle drives the runtime's (room-shared) presentation mode.
+    assert.match(managerSource, /entry\.runtime\?\.expand\?\.\(\)/);
+    assert.match(managerSource, /entry\.runtime\?\.minimize\?\.\(\)/);
+    // Rich rows: accent chip per kind + owner lookup for remote screens.
+    assert.match(managerSource, /const PANEL_KINDS = \{/);
+    assert.match(managerSource, /getParticipant\?\.\(entry\.ownerPeerId\)\?\.displayName/);
+    // The 350 ms poll only rebuilds when the content signature changes.
+    assert.match(managerSource, /computePanelSignature/);
+    assert.match(managerSource, /signature === this\.panelSignature/);
+    // Layout is constant-driven and the plane resizes to the row count.
+    assert.match(managerSource, /const PANEL_LAYOUT = \{/);
+    assert.match(managerSource, /panelPlane\?\.setAttribute\('height', String\(height\)\)/);
+});
+
+test('well-known screen ids are reserved at script load and survive materialization races', () => {
+    // Parent registry: subtypes reserve their id when their script loads,
+    // before any collaboration snapshot can replay.
+    assert.match(runtimeSource, /const WELL_KNOWN_SCREEN_IDS = new Set\(\['default'\]\)/);
+    assert.match(runtimeSource, /function reserveWellKnownScreenId/);
+    assert.match(runtimeSource, /function getWellKnownScreenIds/);
+    assert.equal(typeof runtimeModule.reserveWellKnownScreenId, 'function');
+    assert.equal(runtimeModule.reserveWellKnownScreenId('test-screen'), true);
+    assert.ok(runtimeModule.getWellKnownScreenIds().includes('test-screen'));
+    assert.ok(runtimeModule.getWellKnownScreenIds().includes('default'));
+    assert.equal(runtimeModule.reserveWellKnownScreenId(''), false);
+
+    const managerSource = readProjectFile(
+        'templates', 'components', 'codexr', 'virtual-screen', 'codexrMultiScreenManagerRuntime.js',
+    );
+    // Manager seeds its set from the registry (not a hardcoded list) and
+    // destroys any race-materialized copy before adopting the local runtime.
+    assert.match(managerSource, /new Set\(this\.runtimeFactory\?\.getWellKnownScreenIds\?\.\(\) \|\| \['default'\]\)/);
+    assert.match(managerSource, /stale\.runtime\.destroy\?\.\(\)/);
+    // Geometry survives materialization: aspectRatio flows shared-state →
+    // ensureRemoteScreen → buildRuntimeInitConfig.
+    assert.match(runtimeSource, /aspectRatio: refs\.config\.aspectRatio \|\| 0/);
+    assert.match(managerSource, /aspectRatio: Number\(sharedState\.aspectRatio\) \|\| 0/);
+    assert.match(managerSource, /aspectRatio: Number\(options\?\.aspectRatio\) > 0/);
+
+    // Server never resurrects an entity from a bare transform.
+    const serverSource = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationRoomServer.ts');
+    assert.match(serverSource, /Never resurrect an entity from a bare transform/);
+    assert.doesNotMatch(serverSource, /room\.entities\.get\(key\) \|\| \{ entityKind, entityId \}/);
+});
+
+test('collision bumpers stop look-at, drag, and resize at walls and screens', () => {
+    // Config surface: enabled by default, room-derived bounds with override.
+    assert.match(runtimeSource, /collisionEnabled: true/);
+    assert.match(runtimeSource, /collisionMargin: 0\.05/);
+    assert.match(runtimeSource, /merged\.collisionEnabled = userConfig\?\.collisionEnabled !== false/);
+    // Bounds derive from the codexr-room shell; collisionBounds overrides.
+    assert.match(runtimeSource, /function getCollisionBounds/);
+    assert.match(runtimeSource, /querySelector\('\[codexr-room\]'\)/);
+    assert.match(runtimeSource, /refs\.config\.collisionBounds/);
+    // Other screens are thin oriented-box obstacles.
+    assert.match(runtimeSource, /function getScreenObstacles/);
+    assert.match(runtimeSource, /inverseMatrix/);
+    // Rotation bumper: full look-at first, then shrinking slerp fractions,
+    // else hold the pose (a stop, never a limit while clear of obstacles).
+    assert.match(runtimeSource, /function constrainOrientation/);
+    assert.match(runtimeSource, /\[0\.5, 0\.25, 0\.1\]/);
+    assert.match(runtimeSource, /constrainOrientation\(\s*rootWorldPosition,\s*computeFaceUserQuaternion/);
+    // Movement bumper slides along the obstacle instead of sticking.
+    assert.match(runtimeSource, /function constrainPosition/);
+    assert.match(runtimeSource, /constrainPosition\(\s*intersectionPoint\.clone\(\)/);
+    // Resize bumper: growth into an obstacle is refused, shrinking is free.
+    assert.match(runtimeSource, /nextWidth > state\.screenWidth/);
+    // The fixed-cone experiment is fully removed (no legacy).
+    assert.doesNotMatch(runtimeSource, /lookAtMaxAngleDeg/);
+    assert.doesNotMatch(runtimeSource, /mountQuaternion/);
+    assert.doesNotMatch(runtimeSource, /rotateTowards/);
+
+    // Screens sit back on the wall; the bumper is what keeps them out of it.
+    const xrTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
+    assert.match(xrTemplate, /"anchoredPosition":\{"x":0,"y":4\.2,"z":-22\}/);
 });

@@ -44,7 +44,8 @@ its parts directory. Manual harnesses load assembled copies from
 - `codexr/historical-comparison/historicalComparisonRuntime.js`
   - Owns historical Git source selection and two-zone comparison rendering.
 - `codexr/virtual-screen/virtualScreenRuntime.js`
-  - Owns a shared virtual screen and screen broadcast interaction.
+  - Owns a shared virtual screen and screen broadcast interaction. Also the base for screen subtypes: `contentKind: 'fixed'` + `registerContentProvider(id, build)` hosts immutable locally-rendered content (no video surface, no share button) while inheriting chrome, drag/resize, follow and the shared `screen` entity.
+  - Collision bumpers: look-at, drag and resize stop at the room shell (bounds derived from the `codexr-room` entity, `collisionBounds` override) and at other screens; dragging slides along obstacles. `collisionEnabled: false` opts out.
 - `codexr/virtual-screen/codexrMultiScreenManagerRuntime.js`
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`
@@ -53,6 +54,9 @@ its parts directory. Manual harnesses load assembled copies from
   - Owns avatar rendering and optional downloaded avatar model assets.
 - `codexr/xr-room/codexrRoomRuntime.js`
   - Owns the CodeXR room shell and local room texture assets.
+- `codexr/guide-screen/guideScreenRuntime.js`
+  - Owns the in-room user guide: a fixed-content SUBTYPE of the virtual screen (well-known id `guide`, content provider `codexr-guide`). The parent contributes chrome, drag/resize, follow/look-at, minimize and the room-shared `screen` entity; this runtime contributes the immutable guide content (the same declarative model rendered as the served `guide.html`) plus its own interactions (tabs, Guide/Data glossary toggle, pagination — local per participant).
+  - Must load after `virtual-screen/virtualScreenRuntime.js` and the multi-screen manager.
 - `codexr/render-budget/renderBudgetRuntime.js`
   - Owns local FPS/render quality monitoring.
 - `codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js`
@@ -66,7 +70,7 @@ its parts directory. Manual harnesses load assembled copies from
 
 ## Recommended Load Order
 
-1. Room, collaboration, avatars and virtual screens.
+1. Room, collaboration, avatars and virtual screens; the `guide-screen` runtime right after the virtual screen + manager (it is a virtual-screen subtype).
 2. `common/codexrCommonRuntime.js`.
 3. CodeXR charts, mapping UI, chart debug and analysis table.
 4. Analysis mode and mode-specific runtimes.

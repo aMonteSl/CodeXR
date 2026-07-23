@@ -122,7 +122,18 @@
         Math.abs(localPoint.x) * 2,
         Math.abs(localPoint.y) * 2 * refs.config.aspectRatio,
       );
-      state.screenWidth = clamp(targetWidth, refs.config.minWidth, refs.config.maxWidth);
+      const nextWidth = clamp(targetWidth, refs.config.minWidth, refs.config.maxWidth);
+      // Collision bumper: growing must not push an edge into a wall or
+      // another screen (shrinking only pulls edges inward — always fine).
+      if (nextWidth > state.screenWidth) {
+        const worldPosition = getWorldPosition(refs.root);
+        const worldQuaternion = getWorldQuaternion(refs.root);
+        if (worldPosition && worldQuaternion
+          && violatesCollision(collectScreenSamplePoints(worldPosition, worldQuaternion, nextWidth))) {
+          return;
+        }
+      }
+      state.screenWidth = nextWidth;
       state.sizeIndex = findClosestSizeIndex(state.screenWidth);
       layout();
       refreshUi();
@@ -144,7 +155,11 @@
       }
       const referencePoint = state.drag.currentStartPoint || state.drag.startPoint;
       const referenceRootPosition = state.drag.currentStartRootWorldPosition || state.drag.startRootWorldPosition;
-      const targetWorldPosition = intersectionPoint.clone().sub(referencePoint).add(referenceRootPosition);
+      // Collision bumper: motion into a wall/screen stops, parallel motion
+      // keeps sliding along it.
+      const targetWorldPosition = constrainPosition(
+        intersectionPoint.clone().sub(referencePoint).add(referenceRootPosition),
+      );
       if (!applyDragRootWorldPosition(targetWorldPosition)) {
         return;
       }
@@ -287,7 +302,7 @@
         scheduleAnimationFrame(updateDrag);
       }
       showChrome();
-      setEntityVisible(refs.dragPlane, true);
+      setInteractive(refs.dragPlane, true);
       updateStatus(kind === 'resize' ? refs.config.labels.resize : refs.config.labels.move);
     }
 
@@ -297,7 +312,7 @@
       }
       console.log('VIRTUAL_SCREEN: drag end');
       state.drag = null;
-      setEntityVisible(refs.dragPlane, false);
+      setInteractive(refs.dragPlane, false);
       if (!state.follow && state.lookAtCameraEnabled) {
         applyFaceCameraOrientation();
         ensureFaceCameraLoop();

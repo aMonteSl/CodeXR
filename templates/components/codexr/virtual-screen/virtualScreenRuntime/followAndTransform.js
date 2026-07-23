@@ -7,6 +7,171 @@
       refs.root.setAttribute('rotation', formatVector(refs.config.anchoredRotation));
     }
 
+    // ── Collision stops ──────────────────────────────────────────────────────
+    // The screen behaves like a physical panel: look-at rotation and free
+    // movement track the user without limits until any edge would touch the
+    // room shell (walls, floor, ceiling) or another screen. There the motion
+    // stops — a bumper, not a bounce — and resumes the moment the target pose
+    // comes back inside. Bounds derive from the codexr-room entity; the
+    // collisionBounds config overrides them (mocks, custom scenes).
+
+    function getCollisionBounds() {
+      if (refs.config.collisionEnabled === false) {
+        return null;
+      }
+      if (refs.collisionBoundsCache) {
+        return refs.collisionBoundsCache;
+      }
+      const margin = refs.config.collisionMargin;
+      const override = refs.config.collisionBounds;
+      if (override?.min && override?.max) {
+        refs.collisionBoundsCache = {
+          minX: Number(override.min.x) + margin, maxX: Number(override.max.x) - margin,
+          minY: Number(override.min.y) + margin, maxY: Number(override.max.y) - margin,
+          minZ: Number(override.min.z) + margin, maxZ: Number(override.max.z) - margin,
+        };
+        return refs.collisionBoundsCache;
+      }
+      const roomEl = getDocument()?.querySelector('[codexr-room]');
+      const room = roomEl?.components?.['codexr-room']?.data;
+      if (!roomEl?.object3D || !room) {
+        return null;
+      }
+      const center = roomEl.object3D.position;
+      const wall = Math.max(0.05, Number(room.wallThickness) || 0.25);
+      refs.collisionBoundsCache = {
+        minX: center.x - (room.width / 2) + wall + margin,
+        maxX: center.x + (room.width / 2) - wall - margin,
+        minY: center.y + (Number(room.floorThickness) || 0.22) + margin,
+        maxY: center.y + room.height - (Number(room.ceilingThickness) || 0.18) - margin,
+        minZ: center.z - (room.depth / 2) + wall + margin,
+        maxZ: center.z + (room.depth / 2) - wall - margin,
+      };
+      return refs.collisionBoundsCache;
+    }
+
+    // Other screens as thin oriented boxes; refreshed on a short interval —
+    // they move rarely compared to the per-frame look-at loop.
+    function getScreenObstacles() {
+      if (refs.config.collisionEnabled === false) {
+        return [];
+      }
+      const now = Date.now();
+      if (refs.obstacleCache && (now - refs.obstacleCacheTime) < 250) {
+        return refs.obstacleCache;
+      }
+      const obstacles = [];
+      getDocument()?.querySelectorAll('[id^="codexrVirtualScreenRoot"]').forEach((el) => {
+        if (el === refs.root || !el.object3D) {
+          return;
+        }
+        const frame = el.querySelector('[id^="codexrVirtualScreenFrame"]');
+        const width = Number(frame?.getAttribute('width')) || 0;
+        const height = Number(frame?.getAttribute('height')) || 0;
+        if (!width || !height) {
+          return;
+        }
+        el.object3D.updateMatrixWorld(true);
+        obstacles.push({
+          inverseMatrix: el.object3D.matrixWorld.clone().invert(),
+          halfExtents: { x: width / 2, y: height / 2, z: 0.15 },
+        });
+      });
+      refs.obstacleCache = obstacles;
+      refs.obstacleCacheTime = now;
+      return obstacles;
+    }
+
+    // Sample grid of the screen plane (corners, edge midpoints, center) at a
+    // candidate world transform and size.
+    function collectScreenSamplePoints(worldPosition, worldQuaternion, width) {
+      const effectiveWidth = Number(width) > 0 ? Number(width) : state.screenWidth;
+      const w = effectiveWidth / 2;
+      const h = (effectiveWidth / refs.config.aspectRatio) / 2;
+      return [
+        [-w, -h], [w, -h], [-w, h], [w, h],
+        [0, -h], [0, h], [-w, 0], [w, 0], [0, 0],
+      ].map(([x, y]) => new global.THREE.Vector3(x, y, 0)
+        .applyQuaternion(worldQuaternion)
+        .add(worldPosition));
+    }
+
+    function violatesCollision(samplePoints) {
+      const bounds = getCollisionBounds();
+      if (bounds) {
+        for (const point of samplePoints) {
+          if (point.x < bounds.minX || point.x > bounds.maxX
+            || point.y < bounds.minY || point.y > bounds.maxY
+            || point.z < bounds.minZ || point.z > bounds.maxZ) {
+            return true;
+          }
+        }
+      }
+      const local = new global.THREE.Vector3();
+      for (const obstacle of getScreenObstacles()) {
+        for (const point of samplePoints) {
+          local.copy(point).applyMatrix4(obstacle.inverseMatrix);
+          if (Math.abs(local.x) < obstacle.halfExtents.x
+            && Math.abs(local.y) < obstacle.halfExtents.y
+            && Math.abs(local.z) < obstacle.halfExtents.z) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // Rotation bumper: apply as much of the target orientation as fits. Tries
+    // the full look-at first, then shrinking slerp fractions toward it; when
+    // nothing fits the screen simply holds its pose until the user moves back.
+    function constrainOrientation(worldPosition, targetQuaternion) {
+      if (!global.THREE || !targetQuaternion?.clone) {
+        return targetQuaternion;
+      }
+      if (!violatesCollision(collectScreenSamplePoints(worldPosition, targetQuaternion))) {
+        return targetQuaternion;
+      }
+      const currentQuaternion = getWorldQuaternion(refs.root);
+      if (!currentQuaternion?.clone) {
+        return targetQuaternion;
+      }
+      for (const fraction of [0.5, 0.25, 0.1]) {
+        const partial = currentQuaternion.clone().slerp(targetQuaternion, fraction);
+        if (!violatesCollision(collectScreenSamplePoints(worldPosition, partial))) {
+          return partial;
+        }
+      }
+      return currentQuaternion;
+    }
+
+    // Movement bumper with wall sliding: the component of the motion into the
+    // obstacle stops, the parallel components keep following the pointer.
+    function constrainPosition(targetWorldPosition) {
+      if (!global.THREE || !targetWorldPosition?.clone) {
+        return targetWorldPosition;
+      }
+      const orientation = getWorldQuaternion(refs.root);
+      if (!orientation?.clone) {
+        return targetWorldPosition;
+      }
+      if (!violatesCollision(collectScreenSamplePoints(targetWorldPosition, orientation))) {
+        return targetWorldPosition;
+      }
+      const current = getWorldPosition(refs.root);
+      if (!current?.clone) {
+        return targetWorldPosition;
+      }
+      const slid = current.clone();
+      for (const axis of ['x', 'y', 'z']) {
+        const attempt = slid.clone();
+        attempt[axis] = targetWorldPosition[axis];
+        if (!violatesCollision(collectScreenSamplePoints(attempt, orientation))) {
+          slid.copy(attempt);
+        }
+      }
+      return slid;
+    }
+
     function scheduleAnimationFrame(callback) {
       const nextFrame = win.requestAnimationFrame || global.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); };
       nextFrame(callback);
@@ -325,7 +490,10 @@
       if (!cameraWorldPosition?.clone || !rootWorldPosition?.clone) {
         return false;
       }
-      const targetWorldQuaternion = computeFaceUserQuaternion(rootWorldPosition, cameraWorldPosition);
+      const targetWorldQuaternion = constrainOrientation(
+        rootWorldPosition,
+        computeFaceUserQuaternion(rootWorldPosition, cameraWorldPosition),
+      );
       if (!targetWorldQuaternion?.clone) {
         return false;
       }

@@ -26,7 +26,7 @@
     }
 
     function wireControlHandlers() {
-      refs.shareButton.addEventListener('click', function () {
+      refs.shareButton?.addEventListener('click', function () {
         void startCapture('screen');
       });
       refs.audioUnlockButton.addEventListener('click', function () {
@@ -79,7 +79,10 @@
     }
 
     function finishInitialization() {
-      ensureVideoSource();
+      if (!isFixedContent(refs.config)) {
+        // Fixed-content screens never stream: no hidden <video> element needed.
+        ensureVideoSource();
+      }
       getOrCreateClientId();
       state.screenWidth = refs.config.sizeSteps[clamp(refs.config.defaultSizeIndex || DEFAULT_CONFIG.defaultSizeIndex, 0, refs.config.sizeSteps.length - 1)];
       state.sizeIndex = findClosestSizeIndex(state.screenWidth);
@@ -237,6 +240,8 @@
           displayName: getDisplayName(),
           screenId: getScreenId(),
           managed: !!refs.config.managedScreen,
+          contentKind: refs.config.contentKind || 'broadcast',
+          contentProviderId: refs.config.contentProviderId || '',
           collaborationSource: refs.config.collaborationSource || 'local',
           ownerPeerId: getOwnerPeerId() || null,
           broadcastRole: state.broadcastRole,
@@ -264,6 +269,10 @@
     api.DEFAULT_CONFIG = DEFAULT_CONFIG;
     api.mergeConfig = mergeConfig;
     api.createRuntime = createRuntime;
+    api.registerContentProvider = registerContentProvider;
+    api.getContentProvider = getContentProvider;
+    api.reserveWellKnownScreenId = reserveWellKnownScreenId;
+    api.getWellKnownScreenIds = getWellKnownScreenIds;
     api.getSharedRoomClient = function () {
       return getCollaborationClient();
     };
@@ -274,6 +283,10 @@
   runtime.DEFAULT_CONFIG = DEFAULT_CONFIG;
   runtime.mergeConfig = mergeConfig;
   runtime.createRuntime = createRuntime;
+  runtime.registerContentProvider = registerContentProvider;
+  runtime.getContentProvider = getContentProvider;
+  runtime.reserveWellKnownScreenId = reserveWellKnownScreenId;
+  runtime.getWellKnownScreenIds = getWellKnownScreenIds;
   runtime.getSharedRoomClient = function () {
     return global.CodeXRCollaborationRuntime?.getClient?.(global) || null;
   };

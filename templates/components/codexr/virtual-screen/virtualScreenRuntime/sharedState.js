@@ -73,6 +73,12 @@
         screenId: getScreenId(),
         ownerPeerId: getOwnerPeerId() || null,
         managed: !!refs.config.managedScreen,
+        // Subtype markers: remote peers use these to materialize fixed-content
+        // screens through the provider registry instead of a video screen.
+        contentKind: refs.config.contentKind || 'broadcast',
+        contentProviderId: refs.config.contentProviderId || '',
+        contentDesignWidth: refs.config.contentDesignWidth || 0,
+        aspectRatio: refs.config.aspectRatio || 0,
         displayName: getDisplayName(),
         presentationMode: state.presentationMode,
         lookAtCameraEnabled: state.lookAtCameraEnabled,
@@ -210,6 +216,15 @@
           refs.config.ownerPeerId = snapshot.ownerPeerId.trim();
         }
         state.gestureOwnerPeerId = snapshot.gestureOwnerPeerId || null;
+        if (isFixedContent(refs.config)) {
+          // Fixed-content screens have no stream: broadcast fields are inert.
+          layout();
+          refreshUi();
+          if (meta?.type === 'entity-lock-denied') {
+            updateStatus(refs.config.labels.collaborationLocked);
+          }
+          return true;
+        }
         if (typeof snapshot.broadcastStatus === 'string' && state.streamSourceType !== 'local') {
           state.broadcastStatus = snapshot.broadcastStatus;
         }
