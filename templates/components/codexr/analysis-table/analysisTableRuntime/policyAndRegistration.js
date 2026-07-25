@@ -133,11 +133,14 @@
       nextMode = 'single';
     }
     var table = root.document.getElementById?.('codexrAnalysisTable');
-    table?.setAttribute?.(TABLE_COMPONENT_NAME, 'mode', nextMode);
     var component = table?.components?.[TABLE_COMPONENT_NAME];
-    if (component?.data) {
-      component.data.mode = nextMode;
-      component.refreshGeometry?.();
+    // Rebuild the table geometry only on a real mode change, and only once:
+    // setAttribute drives A-Frame's update() → refreshGeometry(), so calling
+    // refreshGeometry() by hand as well rebuilt it twice per change, and
+    // re-applying the active mode rebuilt it for nothing. Both together were
+    // the visible table flash when an entry applies its state repeatedly.
+    if (component?.data?.mode !== nextMode) {
+      table?.setAttribute?.(TABLE_COMPONENT_NAME, 'mode', nextMode);
     }
     applyTableWarning(nextMode === 'selection' ? { level: 'ok' } : buildActiveContainmentDiagnostics());
     return nextMode;
@@ -175,6 +178,11 @@
     });
     chartEl.setAttribute('position', vectorToAttribute(profile.position || profilePosition(nextAttr)));
     chartEl.setAttribute(COMPONENT_NAME, nextAttr);
+    // A-Frame does not mirror a programmatic component to the DOM, so charts
+    // built at runtime were invisible to '[codexr-chart-containment]' lookups
+    // (the table then reported "No chart detected" over a chart it was already
+    // containing). This plain data attribute keeps them discoverable.
+    chartEl.setAttribute(CONTAINMENT_MARKER_ATTRIBUTE, 'true');
     return {
       id: profile.id,
       zone: profile.zone ? Object.assign({}, profile.zone) : null,
@@ -311,6 +319,30 @@
     applyTableWarning(buildActiveContainmentDiagnostics());
     return count;
   };
+
+  /**
+   * Targeted renormalization: only the given chart entity ids. Callers that
+   * refreshed a single chart (e.g. the historical live side) must use this —
+   * renormalizing every chart resets untouched ones to their 'rebuilding'
+   * containment state, waiting for a build event that never comes.
+   */
+  root[RUNTIME_GLOBAL_NAME].renormalizeCharts = function (chartIds, reason) {
+    var doc = root.document;
+    if (!doc || !doc.getElementById || !Array.isArray(chartIds)) {
+      return 0;
+    }
+    var count = 0;
+    chartIds.forEach(function (chartId) {
+      var chartEl = chartId ? doc.getElementById(String(chartId)) : null;
+      var component = chartEl && chartEl.components && chartEl.components[COMPONENT_NAME];
+      if (component && typeof component.renormalize === 'function') {
+        component.renormalize(reason || 'runtime-request');
+        count += 1;
+      }
+    });
+    applyTableWarning(buildActiveContainmentDiagnostics());
+    return count;
+  };
   root[RUNTIME_GLOBAL_NAME].enableDebug = function () {
     DEBUG_STATE.enabled = true;
     return true;
@@ -342,10 +374,10 @@
     PID_PROFILE: PID_PROFILE,
     matchesIgnoredBoundsMeta: matchesIgnoredBoundsMeta,
     matchesIgnoredContainmentBoundsMeta: matchesIgnoredContainmentBoundsMeta,
-    computePlanarFitFactor: computePlanarFitFactor,
+    collectNodeMeta: collectNodeMeta,
+    SETTLED_WATCH: SETTLED_WATCH,
     computeContainmentPlanarLimit: computeContainmentPlanarLimit,
     computeBootstrapPlanarScale: computeBootstrapPlanarScale,
-    computePlanarBandScale: computePlanarBandScale,
     computePlanarAxisTargetScale: computePlanarAxisTargetScale,
     computePeakHeight: computePeakHeight,
     resolveHeightBandTargets: resolveHeightBandTargets,
@@ -359,6 +391,7 @@
     createPidAxisState: createPidAxisState,
     stepPidAxis: stepPidAxis,
     buildMeasurementSignature: buildMeasurementSignature,
+    isObject3DVisibleInScene: isObject3DVisibleInScene,
     computeAnchorOffset: computeAnchorOffset,
     getTableTopY: getTableTopY,
     buildTabletopAnchorDiagnostics: buildTabletopAnchorDiagnostics,

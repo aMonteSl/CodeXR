@@ -9,6 +9,42 @@ export const DEFAULT_BOATS_LEGEND_TEXT = `{name}
 {farea} (area): {area}
 {fcolor} (color): {color}`;
 
+// One tree convention for every babia-boats — the one the normal analysis
+// always used: directory quarters split the FULL analyzed path (filePath),
+// file mode the synthetic treePath (fileName/functionName). Evolution and
+// historical analyses run in per-commit temp copies, so their services
+// REBUILD filePath against the original target (buildBabiaStyleFilePath) —
+// same field, same shape, identical quarters. Every treebuilder and inline
+// boats tree — template, movie, historical — must read this map; the scene
+// exposes it to runtimes via the codexr-chart-base-config script.
+export const XR_BOATS_TREE_FIELDS = {
+    directory: 'filePath',
+    file: 'treePath',
+} as const;
+
+// Canonical babia-boats base construction. The HTML template below is built
+// FROM this object and the scene injects it as JSON, so the in-scene builders
+// (chart switch, evolution movie) cannot drift from the generator again.
+export const BOATS_BASE_COMPONENT_ATTRIBUTES: Record<string, string | number | boolean> = {
+    legend: true,
+    legend_text: DEFAULT_BOATS_LEGEND_TEXT,
+    height_building_legend: -0.5,
+    legend_scale: 0.25,
+    legend_lookat: '[camera]',
+    axis_name: true,
+    extra: 1,
+    separation: 0.5,
+    zone_elevation: 0.01,
+    height_quarter_legend_box: 0.01,
+    height_quarter_legend_title: 2.5,
+};
+
+export function serializeComponentAttributes(attributes: Record<string, string | number | boolean>): string {
+    return Object.entries(attributes)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(';\n                                 ');
+}
+
 export const XR_TABLE_BOOTSTRAP_PLANAR_MAX = 0.84;
 export const XR_TABLE_STEADY_PLANAR_MIN = 0.78;
 export const XR_TABLE_STEADY_PLANAR_MAX = 0.92;
@@ -26,7 +62,6 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            bootstrapPlanarMaxRatio: ${XR_TABLE_BOOTSTRAP_PLANAR_MAX};
                                            minPlanarOccupancyRatio: ${XR_TABLE_STEADY_PLANAR_MIN};
                                            maxPlanarOccupancyRatio: ${XR_TABLE_STEADY_PLANAR_MAX};
-                                           minHeightOccupancyRatio: 0.45;
                                            heightBandMinRatio: ${XR_TABLE_HEIGHT_BAND_MIN};
                                            heightBandMaxRatio: ${XR_TABLE_HEIGHT_BAND_MAX};
                                            tableEdgeMargin: 0.18;
@@ -51,8 +86,7 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
@@ -77,8 +111,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -92,16 +125,14 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
                 label: 'Z-Axis',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
@@ -127,8 +158,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -142,8 +172,7 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
@@ -178,8 +207,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -193,16 +221,14 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'x_axis',
                 label: 'X-Axis',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names for x-axis'
             },
             {
                 name: 'z_axis',
                 label: 'Z-Axis',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names for z-axis'
             },
@@ -238,8 +264,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -253,8 +278,7 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'key',
                 label: 'Key',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names'
             },
@@ -262,7 +286,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'size',
                 label: 'Size', 
                 dataType: 'numeric',
-                valueRule: 'numeric-finite',
+                valueRule: 'numeric-positive',
                 required: true,
                 description: 'Field containing numeric values for each category'
             }
@@ -280,8 +304,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -295,8 +318,7 @@ export const chartTemplates: ChartMetadata[] = [
             {
                 name: 'key',
                 label: 'Key',
-                dataType: 'text',
-                valueRule: 'text-non-empty',
+                dataType: 'any',
                 required: true,
                 description: 'Field containing category names'
             },
@@ -304,7 +326,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'size',
                 label: 'Size',
                 dataType: 'numeric',
-                valueRule: 'numeric-finite',
+                valueRule: 'numeric-positive',
                 required: true,
                 description: 'Field containing numeric values for each sector'
             }
@@ -322,8 +344,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -382,8 +403,7 @@ export const chartTemplates: ChartMetadata[] = [
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="1.5 1.5 1.5"
-                    class="babiaxraycasterclass">
+                    scale="1.5 1.5 1.5">
                 </a-entity>`
     },
 
@@ -398,7 +418,7 @@ export const chartTemplates: ChartMetadata[] = [
                 name: 'area',
                 label: 'Area',
                 dataType: 'numeric',
-                valueRule: 'numeric-finite',
+                valueRule: 'numeric-positive',
                 required: true,
                 description: 'Numeric field used to size the boat area (e.g., parameters, function count)'
             },
@@ -422,26 +442,15 @@ export const chartTemplates: ChartMetadata[] = [
                 <a-entity id="chart"
                     babia-boats="from: tree;
                                  title: {{TITLE}};
-                                 legend: true;
-                                 legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};
-                                 height_building_legend: -0.5;
-                                 legend_scale: 0.25;
-                                 legend_lookat: [laser-controls];
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}};
-                                 axis_name: true;
-                                 extra: 1;
-                                 separation: 0.5;
-                                 zone_elevation: 0.01;
-                                 height_quarter_legend_box: 0.01;
-                                 height_quarter_legend_title: 2.5"
+                                 ${serializeComponentAttributes(BOATS_BASE_COMPONENT_ATTRIBUTES)}"
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="0 0 0"
-                    scale="0.01 0.05 0.01"
-                    class="babiaxraycasterclass">
+                    scale="0.01 0.05 0.01">
                 </a-entity>`
     }
 ];

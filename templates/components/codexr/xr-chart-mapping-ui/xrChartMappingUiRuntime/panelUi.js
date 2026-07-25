@@ -276,7 +276,13 @@
     });
   }
 
-  function selectChart(chartId) {
+  // `options.applyToEntities: false` switches the SELECTOR only (profile,
+  // dimensions, rows) without converting any chart entity: modes whose chart
+  // pipeline owns its own entities (project evolution) route the panel here
+  // while the resolved entity ids may still point at ANOTHER mode's parked
+  // chart — a full switch converted the normal analysis' chart in place.
+  function selectChart(chartId, options) {
+    var applyToEntities = !options || options.applyToEntities !== false;
     var config = getConfig();
     if (!config || !chartId || chartId === getActiveChartId(config)) {
       return false;
@@ -306,7 +312,7 @@
       return false;
     }
 
-    if (!applyChartTypeToEntities(config, chartId, nextSnapshot.lastKnownGoodMapping || nextSnapshot.selectedByDimension)) {
+    if (applyToEntities && !applyChartTypeToEntities(config, chartId, nextSnapshot.lastKnownGoodMapping || nextSnapshot.selectedByDimension)) {
       config.dimensions = previousDimensions;
       state.activeChartId = previousChartId;
       setStatusMessage('CodeXR could not switch chart; the previous chart was kept.', 'error', 4800);
@@ -316,14 +322,19 @@
     state.activeChartId = chartId;
     config.chartId = chartId;
     config.dimensions = nextDimensions;
-    applyMappingRuntimeState(config, nextSnapshot, 'mapping-ui-chart-switch-' + chartId);
+    applyMappingRuntimeState(config, nextSnapshot, 'mapping-ui-chart-switch-' + chartId, { applyToEntities: applyToEntities });
     renderChartSelector(config);
     renderRows(config);
-    requestChartContainmentRenormalize('mapping-ui-chart-switch');
-    scheduleContainmentValidationBursts('mapping-ui-chart-switch');
-    setStatusMessage('Chart changed to ' + (chart.name || chartId) + '.', 'info', 2600);
-    publishSharedMappingState(config);
-    notifyMappingConfirmed(state.lastKnownGoodMapping);
+    if (applyToEntities) {
+      requestChartContainmentRenormalize('mapping-ui-chart-switch');
+      scheduleContainmentValidationBursts('mapping-ui-chart-switch');
+      setStatusMessage('Chart changed to ' + (chart.name || chartId) + '.', 'info', 2600);
+      publishSharedMappingState(config);
+      notifyMappingConfirmed(state.lastKnownGoodMapping);
+      // Reverts by itself if the new chart turns out geometrically invalid,
+      // instead of leaving a broken chart under a success message.
+      scheduleChartSwitchValidation(config, chartId, previousChartId);
+    }
     return true;
   }
 

@@ -25,7 +25,8 @@
     'historical.mapping': 'mapping',
     'project-evolution': 'project-evolution',
     'project-evolution.selection': 'project-evolution',
-    'project-evolution.playback': 'project-evolution'
+    'project-evolution.playback': 'project-evolution',
+    'project-evolution.mapping': 'mapping'
   };
   var RAYCAST_CLASS = 'babiaxraycasterclass';
   var SUSPENDED_INTERACTIVE_ATTR = 'data-codexr-suspended-interactive';
@@ -36,6 +37,7 @@
     activeLifecycleMode: 'single',
     requestedMode: 'single',
     transitioning: false,
+    pendingTransitionMode: null,
     generation: 0,
     transition: Promise.resolve(),
     collaborationRegistered: false,

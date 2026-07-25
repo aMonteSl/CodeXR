@@ -17,6 +17,21 @@
     return Math.max(minValue, Math.min(maxValue, value));
   }
 
+  // True when the entity is actually on screen: its own object3D is visible and
+  // so is every ancestor (a parked analysis root hides the whole subtree).
+  function isObject3DVisibleInScene(el) {
+    var object3D = el && el.object3D;
+    if (!object3D) {
+      return false;
+    }
+    for (var node = object3D; node; node = node.parent) {
+      if (node.visible === false) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   function midpoint(minValue, maxValue) {
     return minValue + ((maxValue - minValue) / 2);
   }
@@ -55,14 +70,6 @@
       && isFiniteBoundsInfo(measurements.containment)
       && isFiniteBoundsInfo(measurements.full)
       && hasPositiveSize(measurements.primary.size);
-  }
-
-  function isChartAnimationActive(chartEl) {
-    if (!chartEl || !chartEl.components) {
-      return false;
-    }
-    var boats = chartEl.components['codexr-boats'];
-    return !!(boats && boats.animationState && boats.animationState.active);
   }
 
   function cloneScale(object3D) {
@@ -119,17 +126,6 @@
     object3D.visible = snapshot.visible !== false;
     object3D.updateMatrixWorld(true);
     return true;
-  }
-
-  function resolvePlanarScale(scaleLike) {
-    if (!scaleLike) {
-      return 1;
-    }
-    var planar = Math.max(scaleLike.x, scaleLike.z);
-    if (!Number.isFinite(planar) || planar <= 0) {
-      return 1;
-    }
-    return planar;
   }
 
   function buildBounds(three, object3D) {
@@ -262,33 +258,56 @@
     return null;
   }
 
-  function findOwningEntity(node) {
+  function entityMetaString(entity) {
+    var classAttr = entity.getAttribute ? entity.getAttribute('class') : '';
+    var attributeNames = entity.getAttributeNames ? entity.getAttributeNames() : [];
+    return [
+      entity.id || '',
+      typeof classAttr === 'string' ? classAttr : '',
+      entity.getAttribute ? (entity.getAttribute('data-name') || entity.getAttribute('name') || '') : '',
+      entity.getAttribute ? (entity.getAttribute('data-codexr-role') || '') : '',
+      Array.isArray(attributeNames) ? attributeNames.join(' ') : ''
+    ].join(' ');
+  }
+
+  // Meta of the mesh's WHOLE ancestor entity chain up to (excluding) the chart
+  // root. Babia nests its chrome: the legend container carries the
+  // `babiaxrLegend` class, but its background plane is an anonymous child
+  // entity — judging only the immediate owner let those meshes into the
+  // measurement, and a `legend_lookat` billboard changes its world AABB as the
+  // camera turns, which kept nudging the fit while the user moved around.
+  function collectNodeMeta(node) {
+    var parts = [];
+    var tagName = '';
+    var hasTextComponent = false;
     var current = node;
+    var lastEntity = null;
     while (current) {
-      if (current.el) {
-        return current.el;
+      var entity = current.el;
+      if (entity && entity !== lastEntity) {
+        if (
+          (entity.components && entity.components[COMPONENT_NAME])
+          || entity.tagName === 'A-SCENE'
+        ) {
+          break;
+        }
+        parts.push(entityMetaString(entity));
+        if (!tagName && entity.tagName) {
+          tagName = entity.tagName;
+        }
+        hasTextComponent = hasTextComponent || !!(entity.hasAttribute && TEXT_COMPONENT_KEYS.some(function (key) {
+          return entity.hasAttribute(key);
+        }));
+        lastEntity = entity;
       }
       current = current.parent;
     }
-    return null;
-  }
-
-  function collectNodeMeta(node) {
-    var ownerEntity = findOwningEntity(node);
-    var classAttr = ownerEntity && ownerEntity.getAttribute ? ownerEntity.getAttribute('class') : '';
-    var attributeNames = ownerEntity && ownerEntity.getAttributeNames ? ownerEntity.getAttributeNames() : [];
 
     return {
-      id: ownerEntity && ownerEntity.id ? ownerEntity.id : '',
-      className: typeof classAttr === 'string' ? classAttr : '',
-      tagName: ownerEntity && ownerEntity.tagName ? ownerEntity.tagName : '',
-      name: ownerEntity && ownerEntity.getAttribute ? (ownerEntity.getAttribute('data-name') || ownerEntity.getAttribute('name') || '') : '',
-      dataName: ownerEntity && ownerEntity.getAttribute ? (ownerEntity.getAttribute('data-codexr-role') || '') : '',
-      attributeNames: Array.isArray(attributeNames) ? attributeNames.join(' ') : '',
+      tagName: tagName,
+      combined: parts.join(' '),
       nodeName: node && node.name ? String(node.name) : '',
-      hasTextComponent: !!(ownerEntity && ownerEntity.hasAttribute && TEXT_COMPONENT_KEYS.some(function (key) {
-        return ownerEntity.hasAttribute(key);
-      }))
+      hasTextComponent: hasTextComponent
     };
   }
 
@@ -297,8 +316,7 @@
       return false;
     }
 
-    var tagName = String(meta.tagName || '').toLowerCase();
-    if (tagName === 'a-text') {
+    if (String(meta.tagName || '').toLowerCase() === 'a-text') {
       return true;
     }
 
@@ -306,20 +324,7 @@
       return true;
     }
 
-    if (/\bcodexr-boats-primary\b/.test(String(meta.className || ''))) {
-      return false;
-    }
-
-    var combined = [
-      meta.id || '',
-      meta.className || '',
-      meta.name || '',
-      meta.dataName || '',
-      meta.attributeNames || '',
-      meta.nodeName || ''
-    ].join(' ');
-
-    return pattern.test(combined);
+    return pattern.test([meta.combined || '', meta.nodeName || ''].join(' '));
   }
 
   function matchesIgnoredBoundsMeta(meta) {
@@ -459,21 +464,6 @@
 
   function shouldUseContentBounds(contentBounds, fullBounds) {
     return shouldUseDerivedBounds(contentBounds, fullBounds);
-  }
-
-  function computePlanarFitFactor(size, targetWidth, targetDepth) {
-    if (!size || !Number.isFinite(size.x) || !Number.isFinite(size.z) || size.x <= 0 || size.z <= 0) {
-      return null;
-    }
-
-    var fitX = targetWidth / size.x;
-    var fitZ = targetDepth / size.z;
-    var planarFactor = Math.min(fitX, fitZ);
-    if (!Number.isFinite(planarFactor) || planarFactor <= 0) {
-      return null;
-    }
-
-    return planarFactor;
   }
 
   function resolveHeightBandTargets(data) {

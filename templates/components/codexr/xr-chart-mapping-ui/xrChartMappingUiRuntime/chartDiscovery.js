@@ -30,17 +30,29 @@
     ));
   }
 
+  // A live A-Frame component leaves no DOM attribute, so an entity built at
+  // runtime (the project-evolution movie chart) failed every attribute check
+  // here: chart resolution fell through to the parked NORMAL chart, and a chart
+  // switch made in the movie converted that one instead. Live components count.
+  function hasEntityComponent(entity, componentName) {
+    return !!(componentName && entity && entity.components && entity.components[componentName]);
+  }
+
   function isChartMappingEntity(entity, componentName) {
     if (!entity) {
       return false;
     }
-    if (hasEntityAttribute(entity, 'codexr-chart-containment')) {
+    if (
+      hasEntityAttribute(entity, 'codexr-chart-containment')
+      || hasEntityAttribute(entity, 'data-codexr-chart-containment')
+      || hasEntityComponent(entity, 'codexr-chart-containment')
+    ) {
       return true;
     }
     if (isAnalysisRootEntity(entity)) {
       return false;
     }
-    return !!(componentName && hasEntityAttribute(entity, componentName));
+    return !!(componentName && (hasEntityAttribute(entity, componentName) || hasEntityComponent(entity, componentName)));
   }
 
   function queryEntities(scope, selector) {

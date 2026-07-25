@@ -69,33 +69,33 @@ export class GitRepositoryService {
 
         const branchLines = (await this.runGit(repositoryRoot, [
             'for-each-ref',
-            '--format=%(refname)%00%(objectname)%00%(refname:short)',
+            '--format=%(refname)%00%(objectname)%00%(refname:short)%00%(committerdate:short)%00%(committerdate:unix)',
             'refs/heads',
             'refs/remotes',
         ])).stdout.split(/\r?\n/).filter(Boolean);
         for (const line of branchLines) {
-            const [fullRef, commitSha, shortName] = line.split('\0');
+            const [fullRef, commitSha, shortName, committerDate, committerUnix] = line.split('\0');
             if (!fullRef || !this.isCommitSha(commitSha) || !shortName || shortName.endsWith('/HEAD')) {
                 continue;
             }
             if (headName && fullRef === `refs/heads/${headName}`) {
                 continue;
             }
-            sources.push(this.createGitSource('branch', fullRef, shortName, commitSha));
+            sources.push(this.createGitSource('branch', fullRef, shortName, commitSha, undefined, undefined, 0, committerDate, committerUnix));
         }
 
         const tagLines = (await this.runGit(repositoryRoot, [
             'for-each-ref',
-            '--format=%(refname)%00%(*objectname)%00%(objectname)%00%(refname:short)',
+            '--format=%(refname)%00%(*objectname)%00%(objectname)%00%(refname:short)%00%(*committerdate:short)%00%(committerdate:short)%00%(*committerdate:unix)%00%(committerdate:unix)',
             'refs/tags',
         ])).stdout.split(/\r?\n/).filter(Boolean);
         for (const line of tagLines) {
-            const [fullRef, peeledSha, objectSha, shortName] = line.split('\0');
+            const [fullRef, peeledSha, objectSha, shortName, peeledDate, tagDate, peeledUnix, tagUnix] = line.split('\0');
             const commitSha = peeledSha || objectSha;
             if (!fullRef || !this.isCommitSha(commitSha) || !shortName) {
                 continue;
             }
-            sources.push(this.createGitSource('tag', fullRef, shortName, commitSha));
+            sources.push(this.createGitSource('tag', fullRef, shortName, commitSha, undefined, undefined, 0, peeledDate || tagDate, peeledUnix || tagUnix));
         }
 
         const commitLines = (await this.runGit(repositoryRoot, [
@@ -103,10 +103,10 @@ export class GitRepositoryService {
             '--all',
             '--max-count=50',
             '--date=short',
-            '--format=%H%x00%ad%x00%P%x00%s',
+            '--format=%H%x00%ad%x00%ct%x00%P%x00%s',
         ])).stdout.split(/\r?\n/).filter(Boolean);
         for (const line of commitLines) {
-            const [commitSha, date, parents, subject] = line.split('\0');
+            const [commitSha, date, committerUnix, parents, subject] = line.split('\0');
             if (!this.isCommitSha(commitSha)) {
                 continue;
             }
@@ -119,6 +119,8 @@ export class GitRepositoryService {
                 `${date || ''} ${subject || ''}`.trim(),
                 parentCount > 1 ? 'merge' : 'commit',
                 parentCount,
+                date,
+                committerUnix,
             ));
         }
 
@@ -170,11 +172,11 @@ export class GitRepositoryService {
             '--reverse',
             `--max-count=${safeMaxCount}`,
             '--date=short',
-            '--format=%H%x00%ad%x00%P%x00%s',
+            '--format=%H%x00%ad%x00%ct%x00%P%x00%s',
         ])).stdout.split(/\r?\n/).filter(Boolean);
         const sources: ComparisonSource[] = [];
         for (const line of commitLines) {
-            const [commitSha, date, parents, subject] = line.split('\0');
+            const [commitSha, date, committerUnix, parents, subject] = line.split('\0');
             if (!this.isCommitSha(commitSha)) {
                 continue;
             }
@@ -187,6 +189,8 @@ export class GitRepositoryService {
                 `${date || ''} ${subject || ''}`.trim(),
                 parentCount > 1 ? 'merge' : 'commit',
                 parentCount,
+                date,
+                committerUnix,
             ));
         }
         for (const source of sources) {
@@ -227,6 +231,22 @@ export class GitRepositoryService {
 
     public async dispose(): Promise<void> {
         await fs.promises.rm(this.snapshotRoot, { recursive: true, force: true });
+    }
+
+    /**
+     * Whether the analyzed target sits inside a local Git repository. Shared
+     * by every Git-gated analysis (historical comparison, project evolution)
+     * so the availability rule lives in one place.
+     */
+    public async getAvailability(
+        reason = 'The analyzed target is not inside a local Git repository.',
+    ): Promise<{ enabled: boolean; reason: string | null }> {
+        try {
+            await this.resolveRepositoryRoot();
+            return { enabled: true, reason: null };
+        } catch {
+            return { enabled: false, reason };
+        }
     }
 
     public async resolveRepositoryRoot(): Promise<string> {
@@ -385,8 +405,11 @@ export class GitRepositoryService {
         description?: string,
         revisionType?: GitRevisionType,
         parentCount = 0,
+        date?: string,
+        timestamp?: string,
     ): ComparisonSource {
         const id = `${refType}-${crypto.createHash('sha256').update(refName).digest('hex').slice(0, 16)}`;
+        const parsedTimestamp = Number.parseInt(String(timestamp || '').trim(), 10);
         return {
             id,
             kind: 'gitRef',
@@ -395,6 +418,13 @@ export class GitRepositoryService {
             commitSha,
             label,
             description,
+            // Committer date (YYYY-MM-DD) of the ref's target commit, so every
+            // source — branches and tags included — can be shown and time-sorted
+            // in the picker, not just commits.
+            date: (date || '').trim() || undefined,
+            // Precise committer time (epoch seconds): the short date is
+            // day-granular, so same-day refs need this to order correctly.
+            timestamp: Number.isFinite(parsedTimestamp) ? parsedTimestamp : undefined,
             live: false,
             revisionType: revisionType || refType,
             parentCount,

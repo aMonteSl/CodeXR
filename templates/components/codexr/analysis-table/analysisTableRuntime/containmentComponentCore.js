@@ -8,7 +8,6 @@
       anchorX: { type: 'number', default: DEFAULTS.anchorX },
       anchorY: { type: 'number', default: DEFAULTS.anchorY },
       anchorZ: { type: 'number', default: DEFAULTS.anchorZ },
-      revealOffsetY: { type: 'number', default: DEFAULTS.revealOffsetY },
       tableTopSurfaceOffsetY: { type: 'number', default: DEFAULTS.tableTopSurfaceOffsetY },
       tabletopAnchorEpsilon: { type: 'number', default: DEFAULTS.tabletopAnchorEpsilon },
       tabletopAnchorDeadbandY: { type: 'number', default: DEFAULTS.tabletopAnchorDeadbandY },
@@ -18,15 +17,12 @@
       bootstrapPlanarMaxRatio: { type: 'number', default: DEFAULTS.bootstrapPlanarMaxRatio },
       minPlanarOccupancyRatio: { type: 'number', default: DEFAULTS.minPlanarOccupancyRatio },
       maxPlanarOccupancyRatio: { type: 'number', default: DEFAULTS.maxPlanarOccupancyRatio },
-      minHeightOccupancyRatio: { type: 'number', default: DEFAULTS.minHeightOccupancyRatio },
       heightBandMinRatio: { type: 'number', default: DEFAULTS.heightBandMinRatio },
       heightBandMaxRatio: { type: 'number', default: DEFAULTS.heightBandMaxRatio },
       tableEdgeMargin: { type: 'number', default: DEFAULTS.tableEdgeMargin },
-      buildingHeightBandEnabled: { default: DEFAULTS.buildingHeightBandEnabled },
       yScaleMin: { type: 'number', default: DEFAULTS.yScaleMin },
       yScaleMax: { type: 'number', default: DEFAULTS.yScaleMax },
       containmentToleranceRatio: { type: 'number', default: DEFAULTS.containmentToleranceRatio },
-      containmentDamping: { type: 'number', default: DEFAULTS.containmentDamping },
       containmentMaxIterations: { type: 'int', default: DEFAULTS.containmentMaxIterations },
       containmentCheckMs: { type: 'int', default: DEFAULTS.containmentCheckMs },
       periodicContainmentEnabled: { default: DEFAULTS.periodicContainmentEnabled },
@@ -58,6 +54,11 @@
       this.stabilizationStableCount = 0;
       this.steadyControllerTimer = null;
       this.lastMeasurementSignature = null;
+      // Signature of the fit currently on screen. Unlike lastMeasurementSignature
+      // (owned by the stabilization loop, and cleared on steady-fit) this one
+      // survives so renormalize() can tell "already fitted, nothing changed"
+      // from a real re-fit request.
+      this.normalizedSignature = null;
       this.lastRenormalizeRequestAt = 0;
       this.nextContainmentCheckAt = 0;
       this.baseScale = null;
@@ -74,13 +75,17 @@
       this.lastHardHeightGuardAt = 0;
       this.renderPhase = 'waiting-geometry';
       this.pidController = createPidControllerState();
+      // Terminal state: once the fit converged, the component goes quiet — no
+      // per-frame work, only the periodic settled watch. See enterSettledState.
+      this.settled = false;
+      this.settledReference = null;
+      this.settledDriftStreak = 0;
     },
 
     init: function () {
       this.ensureRuntimeState();
       this.onComponentChangedBound = this.onComponentChanged.bind(this);
       this.onGeometryReadyBound = this.onGeometryReady.bind(this);
-      this.onChartRenderedBound = this.onChartRendered.bind(this);
 
       if (!this.data.enabled) {
         return;
@@ -90,7 +95,6 @@
       this.el.addEventListener('componentchanged', this.onComponentChangedBound);
       this.el.addEventListener('child-attached', this.onGeometryReadyBound);
       this.el.addEventListener('object3dset', this.onGeometryReadyBound);
-      this.el.addEventListener('codexr-boats-rendered', this.onChartRenderedBound);
 
       this.tryNormalize('init', this.bumpNormalizationGeneration());
     },
@@ -98,6 +102,10 @@
     markWaitingGeometry: function (reason, generation, details) {
       this.renderPhase = 'waiting-geometry';
       this.normalized = false;
+      // The fit on screen is no longer valid: drop its signature so the next
+      // renormalize re-fits instead of recognising a stale one.
+      this.normalizedSignature = null;
+      this.unsettle('waiting-geometry');
       this.deactivateSteadyController();
       this.lastNormalizationIssue = {
         reason: reason || 'waiting-geometry',
@@ -203,8 +211,8 @@
 
     requestRenormalize: function (reason) {
       this.ensureRuntimeState();
-      if (isChartAnimationActive(this.el)) {
-        this.pendingRenormalizeReason = reason || 'chart-animation-active';
+      if (this.containmentTransition && this.containmentTransition.active) {
+        this.pendingRenormalizeReason = reason || 'containment-transition-active';
         return;
       }
       var now = Date.now();
@@ -252,13 +260,11 @@
 
       var correctionState = buildContainmentCorrectionState(measurements, this.el && this.el.object3D, this.data);
       var needsCorrection = !!(correctionState && correctionState.needsCorrection);
-      var animationActive = isChartAnimationActive(this.el);
       var transitionActive = !!(this.containmentTransition && this.containmentTransition.active);
       var heightOverflow = !!(correctionState && correctionState.heightOverflow);
       var stabilized = this.renderPhase === 'steady-fit'
         && (!this.pidController || !this.pidController.active)
         && !needsCorrection
-        && !animationActive
         && !transitionActive
         && !heightOverflow;
       return {
@@ -266,9 +272,7 @@
         valid: true,
         stabilized: stabilized,
         geometryState: stabilized ? 'stabilized' : 'valid',
-        reason: animationActive
-          ? 'chart-animation-active'
-          : transitionActive
+        reason: transitionActive
           ? 'containment-transition-active'
           : heightOverflow
           ? 'height-overflow'
@@ -277,7 +281,6 @@
           : (this.renderPhase === 'steady-fit' ? 'ok' : this.renderPhase),
         details: {
           phase: this.renderPhase,
-          animationActive: animationActive,
           transitionActive: transitionActive,
           primaryWidth: toFixedNumber(measurements.primary.size.x),
           primaryHeight: toFixedNumber(measurements.primary.size.y),
@@ -317,7 +320,7 @@
       if (typeof name !== 'string') {
         return;
       }
-      if ((name.indexOf('babia-') === 0 && name !== 'babia-queryjson') || name === 'codexr-boats') {
+      if (name.indexOf('babia-') === 0 && name !== 'babia-queryjson') {
         this.requestRenormalize('chart-componentchanged:' + name);
       }
     },
@@ -332,50 +335,39 @@
       this.requestRenormalize(event.type || 'geometry-ready');
     },
 
-    onChartRendered: function (event) {
-      if (!this.data.enabled || !this.el || !event || event.target !== this.el) {
-        return;
-      }
-      var pendingReason = this.pendingRenormalizeReason;
-      this.pendingRenormalizeReason = null;
-      this.renormalize(pendingReason || event.type || 'chart-rendered');
-    },
-
     update: function (oldData) {
       if (!oldData) {
         return;
       }
 
       if (!this.data.enabled) {
+        // Disabled means fully off: the steady controller's own setTimeout
+        // loop used to survive this (only the tick stopped).
         this.stopStabilizationLoop();
+        this.deactivateSteadyController();
+        this.unsettle('containment-disabled');
         return;
       }
 
-      if (
-        oldData.targetWidth !== this.data.targetWidth
-        || oldData.targetHeight !== this.data.targetHeight
-        || oldData.targetDepth !== this.data.targetDepth
-        || oldData.anchorX !== this.data.anchorX
-        || oldData.anchorY !== this.data.anchorY
-        || oldData.anchorZ !== this.data.anchorZ
-        || oldData.tableTopSurfaceOffsetY !== this.data.tableTopSurfaceOffsetY
-        || oldData.tabletopAnchorEpsilon !== this.data.tabletopAnchorEpsilon
-        || oldData.bootstrapPlanarMaxRatio !== this.data.bootstrapPlanarMaxRatio
-        || oldData.minPlanarOccupancyRatio !== this.data.minPlanarOccupancyRatio
-        || oldData.maxPlanarOccupancyRatio !== this.data.maxPlanarOccupancyRatio
-        || oldData.minHeightOccupancyRatio !== this.data.minHeightOccupancyRatio
-        || oldData.heightBandMinRatio !== this.data.heightBandMinRatio
-        || oldData.heightBandMaxRatio !== this.data.heightBandMaxRatio
-        || oldData.tableEdgeMargin !== this.data.tableEdgeMargin
-        || oldData.yScaleMin !== this.data.yScaleMin
-        || oldData.yScaleMax !== this.data.yScaleMax
-        || oldData.containmentToleranceRatio !== this.data.containmentToleranceRatio
-        || oldData.stabilizationCheckMs !== this.data.stabilizationCheckMs
-        || oldData.stabilizationMaxChecks !== this.data.stabilizationMaxChecks
-        || oldData.stabilizationStablePasses !== this.data.stabilizationStablePasses
-        || oldData.heightUnderflowCorrectionEnabled !== this.data.heightUnderflowCorrectionEnabled
-        || oldData.planarUnderflowCorrectionEnabled !== this.data.planarUnderflowCorrectionEnabled
-      ) {
+      // Every key that feeds a fit computation; a change re-fits, the rest of
+      // the schema (debug/timing knobs) does not.
+      var refitKeys = [
+        'targetWidth', 'targetHeight', 'targetDepth',
+        'anchorX', 'anchorY', 'anchorZ',
+        'tableTopSurfaceOffsetY', 'tabletopAnchorEpsilon', 'tableTopPadding',
+        'bootstrapPlanarMaxRatio', 'minPlanarOccupancyRatio', 'maxPlanarOccupancyRatio',
+        'heightBandMinRatio', 'heightBandMaxRatio',
+        'tableEdgeMargin', 'yScaleMin', 'yScaleMax',
+        'containmentToleranceRatio',
+        'stabilizationCheckMs', 'stabilizationMaxChecks', 'stabilizationStablePasses',
+        'heightUnderflowCorrectionEnabled', 'planarUnderflowCorrectionEnabled',
+        'hardHeightGuardEnabled'
+      ];
+      var self = this;
+      var needsRefit = refitKeys.some(function (key) {
+        return oldData[key] !== self.data[key];
+      });
+      if (needsRefit) {
         this.ensureInitialPlacement();
         this.renormalize('update');
       }
@@ -395,17 +387,23 @@
         return;
       }
 
-      var tickMeasurements = this.measureBounds();
-      if (tickMeasurements && this.applyHardHeightGuard(tickMeasurements, 'tick-hard-height-guard')) {
-        return;
-      }
+      // Settled is TERMINAL: no per-frame measuring, no per-frame guard —
+      // measuring bounds and running the hard guard at 60-90 Hz was most of
+      // the micro-resize churn. Everything below the periodic gate is all a
+      // settled chart ever does.
+      if (!this.settled) {
+        var tickMeasurements = this.measureBounds();
+        if (tickMeasurements && this.applyHardHeightGuard(tickMeasurements, 'tick-hard-height-guard')) {
+          return;
+        }
 
-      if ((this.containmentTransition && this.containmentTransition.active) || isChartAnimationActive(this.el)) {
-        return;
-      }
+        if (this.containmentTransition && this.containmentTransition.active) {
+          return;
+        }
 
-      if (this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active) {
-        this.runSteadyControllerStep('tick', timeDelta);
+        if (this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active) {
+          this.runSteadyControllerStep('tick', timeDelta);
+        }
       }
 
       if (!this.data.periodicContainmentEnabled) {
@@ -417,7 +415,18 @@
       }
 
       this.nextContainmentCheckAt = time + Math.max(120, this.data.containmentCheckMs);
-      if (!(this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active)) {
+      // A re-fit requested while the chart was hidden is honoured on the first
+      // periodic pass with the chart visible again (a no-op unless its content
+      // really changed — the signature guard filters it).
+      if (this.pendingRenormalizeReason && isObject3DVisibleInScene(this.el)) {
+        var pendingReason = this.pendingRenormalizeReason;
+        this.pendingRenormalizeReason = null;
+        this.renormalize(pendingReason);
+        return;
+      }
+      if (this.settled) {
+        this.runSettledWatch('tick-settled-watch');
+      } else if (!(this.renderPhase === 'steady-fit' && this.pidController && this.pidController.active)) {
         this.runMaintenancePass('tick');
       }
       // Keep the table's warning surface converging to the live chart state:
@@ -432,9 +441,6 @@
       if (this.onGeometryReadyBound && this.el && this.el.removeEventListener) {
         this.el.removeEventListener('child-attached', this.onGeometryReadyBound);
         this.el.removeEventListener('object3dset', this.onGeometryReadyBound);
-      }
-      if (this.onChartRenderedBound && this.el && this.el.removeEventListener) {
-        this.el.removeEventListener('codexr-boats-rendered', this.onChartRenderedBound);
       }
 
       if (this.retryTimer) {

@@ -26,6 +26,7 @@
     light="defaultLightsEnabled: false"
     background="color: ${BACKGROUND_COLOR}"
     xr-mode-ui="enabled: true; XRMode: xr"
+    codexr-pointer-policy
     device-orientation-permission-ui>
 
         
@@ -89,10 +90,22 @@
         ${BABIA_UI_COMPONENT}
 
         <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75">
-        <!-- Cámara -->
-        <a-entity id="head" camera position="0 0 0" look-controls></a-entity>
+        <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy) -->
+        <a-entity id="head" camera position="0 0 0" look-controls>
+            <a-entity
+            id="gazeCursor"
+            visible="false"
+            cursor="rayOrigin: entity; fuse: false"
+            raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
+                <a-ring
+                position="0 0 -0.6"
+                radius-inner="0.008"
+                radius-outer="0.014"
+                material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
+            </a-entity>
+        </a-entity>
 
-        <!-- Mando izquierdo SIN raycaster (solo visual) -->
+        <!-- Mando izquierdo: modelo visible; codexr-pointer-policy le retira el cursor/raycaster que laser-controls inyecta -->
         <a-entity
         id="leftController"
         laser-controls="hand: left"
@@ -109,7 +122,7 @@
         generic-tracked-controller-controls="hand: left">
         </a-entity>
 
-        <!-- Mando derecho CON raycaster (SOLO este interactúa) -->
+        <!-- Mando derecho: puntero por defecto cuando hay mandos conectados -->
         <a-entity
         id="rightController"
         laser-controls="hand: right"
@@ -128,13 +141,15 @@
         raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
         </a-entity>
 
-        <!-- Cursor para interacción con ratón -->
-        <a-entity 
+        <!-- Cursor para interacción con ratón (puntero activo en navegador normal) -->
+        <a-entity
+        id="mouseCursor"
         cursor="rayOrigin: mouse"
         raycaster="objects: .babiaxraycasterclass; far: 100">
         </a-entity>
         </a-entity>
     </a-scene>
+    <script id="codexr-chart-base-config" type="application/json">${CHART_BASE_CONFIG}</script>
     <script id="codexr-tooling-config-collaboration" type="application/json">{"enabled":true,"collaborationEnabled":true,"presenceEnabled":true,"cursorPresenceEnabled":false,"sceneSelector":"#scene","roomSignalingPath":"/codexr-room","sessionEndpoint":"/api/collaboration/session","broadcastSocketPath":"/codexr-broadcast","followAnchorSelector":"#rig"}</script>
     <script id="codexr-tooling-config-virtual-screen" type="application/json">{"enabled":true,"broadcastEnabled":true,"signalingPath":"/codexr-broadcast","sceneSelector":"#scene","followAnchorSelector":"#rig","anchoredPosition":{"x":0,"y":4.2,"z":-22},"anchoredRotation":{"x":-12,"y":0,"z":0},"followOffset":{"x":0,"y":0.8,"z":-2.4},"followRotation":{"x":0,"y":0,"z":0}}</script>
 <script nonce="${nonce}" src="./codexrAvatarRuntime.js?v=${nonce}"></script>
@@ -144,6 +159,8 @@
 <script nonce="${nonce}" src="./guideScreenRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrRoomRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrCommonRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrGitRefPickerRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartMappingUiRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartDebugRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./analysisTableRuntime.js?v=${nonce}"></script>

@@ -56,10 +56,12 @@ export class DimensionValidator {
             }
 
             const dimension = chart.dimensions.find((candidate) => candidate.name === mapping.dimension);
-            if (!dimension || !fieldTypes || dimension.dataType === 'any') {
+            if (!dimension || !fieldTypes) {
                 continue;
             }
 
+            // 'any' skips the TYPE check but the field must still exist in the
+            // schema — a typo used to sail through untouched.
             const actualType = fieldTypes[mapping.dataField];
             if (actualType === undefined) {
                 result.errors.push(`Data field '${mapping.dataField}' is not available for chart type '${chart.name}'`);
@@ -67,7 +69,7 @@ export class DimensionValidator {
                 continue;
             }
 
-            if (actualType !== dimension.dataType) {
+            if (dimension.dataType !== 'any' && actualType !== dimension.dataType) {
                 result.errors.push(
                     `Dimension '${mapping.dimension}' (${dimension.label}) requires ${dimension.dataType} data, but '${mapping.dataField}' is ${actualType}`,
                 );
@@ -107,7 +109,7 @@ export class DimensionValidator {
             };
         }
 
-        if (dimension.dataType !== 'any' && fieldTypes) {
+        if (fieldTypes) {
             const actualType = fieldTypes[dataField];
             if (actualType === undefined) {
                 return {
@@ -116,7 +118,7 @@ export class DimensionValidator {
                 };
             }
 
-            if (actualType !== dimension.dataType) {
+            if (dimension.dataType !== 'any' && actualType !== dimension.dataType) {
                 return {
                     isValid: false,
                     error: `Dimension '${dimensionName}' requires ${dimension.dataType} data, but '${dataField}' is ${actualType}`,

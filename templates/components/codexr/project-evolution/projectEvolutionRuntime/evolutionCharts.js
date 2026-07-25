@@ -17,26 +17,35 @@
     return refs.evolutionRoot;
   }
 
-  function cloneChartForEvolution(template, chartId) {
+  // Builds the movie's chart entity from scratch. Everything it NEEDS is known
+  // here (id, markers, the babia component name); a scene chart, when present,
+  // only contributes decorative attributes. Cloning a DOM template used to be
+  // mandatory, which made the whole movie depend on an attribute the mapping UI
+  // removes on the first chart switch.
+  function buildEvolutionChart(chartId) {
     var componentName = COMPONENT_BY_CHART[chartId];
-    var clone = entity('a-entity');
-    template.getAttributeNames?.().forEach(function (attributeName) {
+    if (!componentName) { return null; }
+    var chart = entity('a-entity');
+    var styleSource = getChartStyleSource(chartId);
+    styleSource?.getAttributeNames?.().forEach(function (attributeName) {
       if (
         attributeName === 'id'
         || attributeName === 'visible'
         || attributeName === 'position'
         || attributeName === 'scale'
         || attributeName === 'codexr-chart-containment'
+        || attributeName === 'data-codexr-chart-containment'
+        || COMPONENT_BY_CHART[attributeName.replace('babia-', '')] === attributeName
         || attributeName === componentName
       ) {
         return;
       }
-      clone.setAttribute(attributeName, template.getAttribute(attributeName));
+      chart.setAttribute(attributeName, styleSource.getAttribute(attributeName));
     });
-    clone.setAttribute('id', 'codexrProjectEvolutionChart');
-    clone.setAttribute('data-codexr-project-evolution-chart', 'true');
-    clone.setAttribute('data-codexr-project-evolution-chart-id', chartId);
-    return clone;
+    chart.setAttribute('id', 'codexrProjectEvolutionChart');
+    chart.setAttribute('data-codexr-project-evolution-chart', 'true');
+    chart.setAttribute('data-codexr-project-evolution-chart-id', chartId);
+    return chart;
   }
 
   function ensureEvolutionChart(chartId) {
@@ -50,12 +59,18 @@
       chart.setAttribute('visible', true);
       return chart;
     }
-    if (chart?.parentNode) {
-      chart.parentNode.removeChild(chart);
+    // Build the replacement BEFORE dropping the current one: the old order
+    // detached the chart and only then looked for a template, so a failure left
+    // the scene with no chart at all and refs pointing at a detached node.
+    var nextChart = buildEvolutionChart(chartId);
+    if (!nextChart) { return null; }
+    if (chart) {
+      // Babia never unsubscribes a chart component from its data producer, so
+      // the discarded chart would keep repainting on every frame push.
+      root.CodeXRMappingUiRuntime?.releaseChartEntity?.(chart);
+      chart.parentNode?.removeChild(chart);
     }
-    var template = getTemplateChart(chartId);
-    if (!template) { return null; }
-    refs.evolutionChart = cloneChartForEvolution(template, chartId);
+    refs.evolutionChart = nextChart;
     state.activeChartId = chartId;
     state.preparedChartIds = {};
     state.chartDataSignature = '';
@@ -86,7 +101,6 @@
         bootstrapPlanarMaxRatio: 0.84,
         minPlanarOccupancyRatio: 0.78,
         maxPlanarOccupancyRatio: 0.92,
-        minHeightOccupancyRatio: 0.45,
         heightBandMinRatio: 0.38,
         heightBandMaxRatio: 0.72,
         tableTopPadding: 0.9,
@@ -216,8 +230,20 @@
     return true;
   }
 
+  function evolutionTreeField(targetType) {
+    // Shared boats tree contract (generator-injected): directory quarters
+    // split the full analyzed path (filePath — rebuilt by the service against
+    // the ORIGINAL target, exactly like the normal analysis), file mode the
+    // synthetic treePath.
+    var treeFields = root.CodeXRMappingUiRuntime?.getChartBaseConfig?.()?.treeFields;
+    if (targetType === 'directory') {
+      return treeFields?.directory || 'filePath';
+    }
+    return treeFields?.file || 'treePath';
+  }
+
   function ensureEvolutionTreeBuilder(playbackRoot, targetType) {
-    var field = targetType === 'directory' ? 'filePath' : 'treePath';
+    var field = evolutionTreeField(targetType);
     var treeAttr = 'field: ' + field + '; split_by: /; from: codexrProjectEvolutionData';
     if (refs.evolutionTreeBuilder?.isConnected !== false && refs.evolutionTreeBuilder) {
       if (refs.evolutionTreeBuilder.parentNode !== playbackRoot) {

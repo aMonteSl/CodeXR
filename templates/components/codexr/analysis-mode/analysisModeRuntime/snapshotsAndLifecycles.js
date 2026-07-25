@@ -66,6 +66,11 @@
       }
     });
     register('single', {
+      // The authoritative analysis-view snapshot is this mode's data-refresh
+      // path (waitForNormalChartReady reads its modeRevision), so a snapshot
+      // echo must re-activate it. Modes with their own shared entity don't
+      // declare this and are left alone by echoes.
+      consumesSnapshot: true,
       activate: function (activation) {
         var config = getConfig();
         ensureAnalysisSurfaceRuntime().activateMode('single');
@@ -113,13 +118,30 @@
           }
           state.requestedMode = snapshot.mode === 'selection' ? state.requestedMode : snapshot.mode;
           var visibleMode = snapshot.mode;
+          // Echo dedupe: a transition toward this exact mode is already in
+          // flight (the runtime that sent analysis-mode-activate also called
+          // transitionTo directly). Queueing the echo behind it would repeat
+          // the whole deactivate/activate cycle — the double park/rebuild
+          // behind the entry flicker.
+          if (state.transitioning && state.pendingTransitionMode === visibleMode) {
+            return;
+          }
+          // View routing: the mode's own lifecycle resolver wins over the
+          // snapshot's controllerView. The server-side view can be stale (its
+          // historical-comparison entity persists after the client clears the
+          // comparison locally), and trusting it stranded the panel on the
+          // generic mapping with nothing rendered. The client's live state is
+          // the routing authority; the snapshot view is only a fallback.
+          var echoView = lifecycles[visibleMode]?.resolveControllerView?.()
+            || snapshot.controllerView
+            || getDefaultControllerViewForMode(visibleMode);
           void transitionTo(visibleMode, {
             reason: 'authoritative-analysis-view',
             snapshot: snapshot,
-            controllerView: snapshot.controllerView || getDefaultControllerViewForMode(visibleMode),
+            controllerView: echoView,
             panelViewId: visibleMode === 'selection'
               ? state.selectionPanelView
-              : getPanelViewForControllerView(snapshot.controllerView || getDefaultControllerViewForMode(visibleMode))
+              : getPanelViewForControllerView(echoView)
           });
         }
       },
@@ -157,6 +179,7 @@
         state.requestedMode = 'single';
         state.controllerView = 'single.mapping';
         state.transitioning = false;
+        state.pendingTransitionMode = null;
         state.generation = 0;
         state.transition = Promise.resolve();
         state.collaborationRegistered = false;

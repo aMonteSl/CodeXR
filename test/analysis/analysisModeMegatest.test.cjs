@@ -30,14 +30,31 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(dependencyRuntime, /id: 'dependency-graph'[\s\S]*headerButton: false/);
   assert.match(historyRuntime, /id: 'historical-selection'[\s\S]*headerButton: false/);
   assert.match(historyRuntime, /function registerHistoricalModeOption\(\)/);
-  assert.match(historyRuntime, /disabled: state\.availability !== 'enabled'/);
-  assert.match(historyRuntime, /disabledReason: state\.unavailableReason \|\| 'Historical comparison requires a local Git repository\.'/);
+  // Both Git analyses now gate through the shared registerGitGatedMode helper.
+  assert.match(historyRuntime, /registerGitGatedMode\?\.\(\{/);
+  assert.match(historyRuntime, /capabilityKey: 'historicalComparison'/);
+  assert.match(historyRuntime, /reasonFallback: state\.unavailableReason \|\| HISTORICAL_UNAVAILABLE_REASON/);
   assert.match(historyRuntime, /state\.unregisterModeOption\?\.\(\);/);
   assert.match(evolutionRuntime, /id: MODE/);
   assert.match(evolutionRuntime, /label: 'Project evolution'/);
-  assert.match(evolutionRuntime, /disabled: state\.availability !== 'enabled'/);
+  assert.match(evolutionRuntime, /registerGitGatedMode\?\.\(\{/);
+  assert.match(evolutionRuntime, /capabilityKey: 'projectEvolution'/);
   assert.match(evolutionRuntime, /Project evolution requires a local Git repository/);
   assert.match(evolutionRuntime, /if \(!state\.result\) \{[\s\S]*clearChartVisualization\(\);[\s\S]*return true;[\s\S]*\}/);
+  // activate() calls clearChartVisualization on every cold entry (no movie yet),
+  // and `refs` starts empty — dereferencing a ref there threw, which aborted the
+  // transition and bounced the user straight back to the analysis selector.
+  // Every node must be detached defensively.
+  assert.match(evolutionRuntime, /function detachEvolutionNode\(node\) \{\s*node\?\.parentNode\?\.removeChild\?\.\(node\);/);
+  assert.doesNotMatch(evolutionRuntime, /refs\.evolution[A-Za-z]*\.parentNode\./);
+  assert.doesNotMatch(evolutionRuntime, /refs\.playbackOverlay\.parentNode/);
+  // Same class of bug: optional chaining must cover the object, not just the
+  // method (`refs.playButton?.querySelector('a-text').setAttribute?.(…)`).
+  assert.doesNotMatch(evolutionRuntime, /querySelector\('a-text'\)\.setAttribute/);
+  assert.doesNotMatch(evolutionRuntime, /refs\.(modeRoot|rangeRoot)\.children\[/);
+  // A failed activation is reported on the controller instead of silently
+  // returning to the selector.
+  assert.match(modeRuntime, /setStatusMessage\?\.\(\s*'CodeXR could not open this analysis\./);
   assert.match(evolutionRuntime, /registerPanelView\(\{/);
   assert.match(evolutionRuntime, /id: MODE/);
   assert.match(evolutionRuntime, /headerButton: false/);
@@ -75,17 +92,39 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.match(tableRuntime, /'historical-compare': \{[\s\S]*top: 'color: #be123c/);
   assert.match(tableRuntime, /'project-evolution': \{[\s\S]*top: 'color: #f59e0b/);
   assert.match(tableRuntime, /setMode = function \(mode\)/);
+  // The table rebuilds its geometry only on a real mode change, and only once:
+  // setAttribute already drives A-Frame's update() → refreshGeometry(), so the
+  // manual call is gone and re-applying the active mode is a no-op. Both were
+  // the visible table flash on entering an analysis.
+  assert.match(tableRuntime, /if \(component\?\.data\?\.mode !== nextMode\) \{\s*table\?\.setAttribute\?\.\(TABLE_COMPONENT_NAME, 'mode', nextMode\);\s*\}/);
+  assert.doesNotMatch(tableRuntime, /component\.refreshGeometry\?\.\(\)/);
   assert.match(mappingRuntime, /root\.CodeXRAnalysisControllerRuntime = runtime/);
   assert.match(mappingRuntime, /function showControllerView\(viewId, context\)/);
-  assert.match(mappingRuntime, /modeMemory: \{\}/);
+  // Zombie modeMemory API removed (no callers existed).
+  assert.doesNotMatch(mappingRuntime, /modeMemory/);
   assert.doesNotMatch(evolutionRuntime, /setProjectEvolutionTableMode/);
   assert.match(evolutionRuntime, /transitionTo\?\.\(MODE, \{[\s\S]*panelViewId: MODE/);
   assert.match(modeRuntime, /setTableMode\(mode\)/);
   assert.match(modeRuntime, /MODE_CONTROLLER_VIEW_BY_ID = \{/);
   assert.match(modeRuntime, /'historical-compare': 'historical.selection'/);
+  // A mode lifecycle can resolve its default controller view from its own live
+  // state (historical: mapping when a comparison exists, selector otherwise), so
+  // the local transition and the authoritative server echo agree on the view.
+  assert.match(modeRuntime, /lifecycles\[mode\]\?\.resolveControllerView\?\.\(\)/);
   assert.match(modeRuntime, /MODE_PANEL_VIEW_BY_ID = \{[\s\S]*'project-evolution': 'project-evolution'/);
   assert.match(modeRuntime, /function getDefaultPanelViewForMode\(mode\)/);
   assert.match(modeRuntime, /function applyAnalysisMode\(mode, context\)/);
+  // One application of the mode per transition: applying it again after
+  // activate redid the table geometry and the panel routing, and overwrote the
+  // view the lifecycle had just chosen (the entry flicker).
+  assert.doesNotMatch(
+    modeRuntime,
+    /applyAnalysisMode\(mode, context \|\| null\);\s*debugLog\('Analysis mode transition completed'/,
+  );
+  // Echoes only re-activate lifecycles that declare they consume the snapshot
+  // (single). Modes fed by their own shared entity are left alone.
+  assert.match(modeRuntime, /var snapshotDrivesReactivation = !!context\?\.snapshot\s*&& lifecycles\[mode\]\?\.consumesSnapshot === true/);
+  assert.match(modeRuntime, /consumesSnapshot: true/);
   assert.match(modeRuntime, /element\.querySelectorAll\?\.\('\[codexr-chart-containment\]'\)/);
   assert.match(modeRuntime, /ids = containedChartIds\.length \? containedChartIds : getNormalVisualizationRoots\(\)/);
   assert.match(modeRuntime, /function detachNormalRoots\(reason\)[\s\S]*setElementTreeVisible\(element, false\);/);
@@ -94,8 +133,20 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   assert.doesNotMatch(modeRuntime, /mode === 'selection' \? 'single' : mode/);
   assert.match(modeRuntime, /clearVisualizationsForSelection/);
   assert.match(modeRuntime, /data-codexr-analysis-root/);
-  assert.match(historyRuntime, /function selectHistoricalMode\(\)[\s\S]*if \(state\.result\)[\s\S]*analysis-mode-activate/);
+  // Single historical entry path: no result-dependent branching in the entry —
+  // the lifecycle's resolveControllerView routes (restore vs source selector).
+  assert.match(historyRuntime, /function selectHistoricalMode\(\)[\s\S]*enterHistoricalSelection\(\)/);
   assert.match(historyRuntime, /async function enterHistoricalSelection\(\)[\s\S]*transitionTo\?\.\('historical-compare'/);
+  // Preserve pass: the surface hides preserved roots instead of removing them,
+  // and the residual cleanup skips them (saved state, not residue).
+  assert.match(modeRuntime, /function isPreservedRoot\(element\)/);
+  assert.match(modeRuntime, /function preserveModeRoots\(mode\)/);
+  assert.match(modeRuntime, /preserveModeRoots: preserveModeRoots/);
+  assert.match(modeRuntime, /if \(isPreservedRoot\(element\)\) \{\s*setElementTreeVisible\(element, false\);\s*return;/);
+  assert.match(modeRuntime, /data-codexr-preserve'\) !== 'true'/);
+  // The authoritative echo routes through the mode's live resolver first — a
+  // stale server controllerView can no longer strand the panel.
+  assert.match(modeRuntime, /var echoView = lifecycles\[visibleMode\]\?\.resolveControllerView\?\.\(\)/);
   assert.doesNotMatch(historyRuntime, /transitionTo\?\.\('selection', \{[\s\S]*historical-selection/);
   assert.match(dependencyRuntime, /function selectDependencyMode\(\)[\s\S]*if \(state\.dataset && state\.snapshot\?\.datasetUrl\)[\s\S]*analysis-mode-activate/);
   assert.ok(
@@ -279,6 +330,19 @@ test('Historical selection lives under the historical table theme', async () => 
   assert.equal(runtime.getState().controllerView, 'historical.selection');
   assert.equal(tableModes.at(-1), 'historical-compare');
   assert.equal(shownControllerViews.at(-1).viewId, 'historical.selection');
+
+  // A lifecycle that resolves its own view (a live comparison exists) makes the
+  // default resolve to historical.mapping — so a re-entry with no explicit
+  // controllerView (e.g. the authoritative echo) restores instead of showing the
+  // selector. Reproduces the fix for the leave-and-return bug.
+  await runtime.transitionTo('selection', { panelViewId: 'visualization-mode' });
+  runtime.register('historical-compare', {
+    activate() { return true; },
+    resolveControllerView() { return 'historical.mapping'; },
+  });
+  assert.equal(await runtime.transitionTo('historical-compare', {}), true);
+  assert.equal(runtime.getState().controllerView, 'historical.mapping');
+  assert.equal(shownControllerViews.at(-1).viewId, 'historical.mapping');
 });
 
 test('first Visualization mode click hides but preserves normal visualization roots', async () => {
@@ -804,4 +868,95 @@ test('a mode whose disposeView throws synchronously cannot abort the selection t
   assert.equal(await runtime.transitionTo('selection', { reason: 'broken-cleanup-regression' }), true);
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(runtime.getState().transitioning, false);
+});
+
+test('same-mode transitions dedupe instead of re-running the lifecycle', () => {
+    const modeRuntime = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
+    const historyRuntime = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
+    // Every entry fires twice (direct transitionTo + authoritative echo, in
+    // either order). Duplicates must not queue a second deactivate/activate
+    // cycle — that double park/rebuild was the historical entry flicker and,
+    // with a comparison result present, the empty-scene stall.
+    assert.match(modeRuntime, /transition skipped \(mode already active\)/);
+    assert.match(modeRuntime, /merged into in-flight transition/);
+    assert.match(modeRuntime, /state\.pendingTransitionMode = mode/);
+    assert.match(modeRuntime, /state\.transitioning && state\.pendingTransitionMode === visibleMode/);
+    // Duplicate activation of an already-live comparison must not rebuild it.
+    assert.match(historyRuntime, /refs\.comparisonRoot\?\.isConnected/);
+});
+
+test('mapping panel supports per-context companion child sections', () => {
+    const mappingRuntime = readAssembledRuntime('xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
+    // registerMappingCompanion(contextId, {content, height, title}): content
+    // shown under the mapping rows only while its context is active, panel
+    // height extended, child title applied, interactions synced, and context
+    // switches re-sync everything.
+    assert.match(mappingRuntime, /function registerMappingCompanion/);
+    assert.match(mappingRuntime, /function syncMappingCompanion/);
+    assert.match(mappingRuntime, /function getActiveMappingCompanion/);
+    assert.match(mappingRuntime, /registerMappingCompanion: registerMappingCompanion/);
+    // Placement: 'bottom' grows height, 'side' widens the panel. A side
+    // companion re-centres the whole block on the mount axis (not grown to the
+    // right only): background centred at x=0, left column / toggle / view
+    // buttons shifted left by centreShift so both edges straddle the centre.
+    assert.match(mappingRuntime, /options\?\.placement === 'side' \? 'side' : 'bottom'/);
+    assert.match(mappingRuntime, /active && active\.placement === 'bottom' \? active\.height : 0/);
+    assert.match(mappingRuntime, /var sideWidth = sideCompanion \? sideCompanion\.width \+ COMPANION_SIDE_GAP : 0/);
+    assert.match(mappingRuntime, /refs\.panelBackground\.setAttribute\('width', BASE_PANEL_WIDTH \+ sideWidth\)/);
+    assert.match(mappingRuntime, /refs\.panelBackground\.setAttribute\('position', '0 0 0'\)/);
+    assert.match(mappingRuntime, /refs\.toggle\.setAttribute\('position', \(rightEdge - centreShift - 0\.15\)/);
+    assert.match(mappingRuntime, /\(-0\.05 - centreShift\)/);
+    // A side companion can fill its column height via an optional layout callback.
+    assert.match(mappingRuntime, /layout: typeof options\.layout === 'function' \? options\.layout : null/);
+    assert.match(mappingRuntime, /sideCompanion\.layout\(height\)/);
+    // Title comes from a single resolver (companion title or the generic one),
+    // written once instead of generic-then-overwritten.
+    assert.match(mappingRuntime, /function getMappingPanelTitle\(\)/);
+    assert.match(mappingRuntime, /getActiveMappingCompanion\(\)\?\.title \|\| 'CodeXR Field Mapping'/);
+    // Context switches swap the companion in/out.
+    assert.match(mappingRuntime, /applyMappingRuntimeState\(config, profile[\s\S]*?syncMappingCompanion\(\)/);
+    // Non-mapping views hide companions and disable their interactions, and
+    // every companion visibility change goes through ONE owner that also sets
+    // object3D.visible (A-Frame caches the attribute; a cached no-op left a
+    // foreign companion painted over the mapping rows).
+    assert.match(mappingRuntime, /function setCompanionContentVisible\(content, visible\)/);
+    assert.match(mappingRuntime, /content\.object3D\.visible = !!visible/);
+    assert.match(mappingRuntime, /setCompanionContentVisible\(state\.mappingCompanions\[contextId\]\.content, false\)/);
+    assert.match(mappingRuntime, /setCompanionContentVisible\(companion\.content, isActive\)/);
+    assert.doesNotMatch(mappingRuntime, /companion\.content\.setAttribute\('visible', isActive\)/);
+    // The status text belongs to the mapping view: a message set while another
+    // panel view is active (playback locks refresh every frame) must not paint
+    // over that view's own status. updateStatusText is the single visibility
+    // owner (view gate + attr + object3D), and showPanelView delegates to it.
+    assert.match(mappingRuntime, /var visible = state\.activePanelView === 'mapping' && !!state\.statusMessage/);
+    assert.match(mappingRuntime, /refs\.statusText\.object3D\.visible = visible/);
+    assert.doesNotMatch(mappingRuntime, /refs\.statusText\.setAttribute\('visible', !!state\.statusMessage\)/);
+    assert.doesNotMatch(mappingRuntime, /refs\.statusText\.setAttribute\('visible', nextViewId === 'mapping'/);
+    // Project evolution reaches the Field Mapping view like historical does:
+    // both routing maps know its mapping controller view.
+    const modeRuntime = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
+    assert.match(modeRuntime, /'project-evolution\.mapping': 'mapping'/);
+    assert.match(mappingRuntime, /'project-evolution\.mapping': 'mapping'/);
+    // The chart selector follows the mode: selectChart supports a UI-only
+    // switch (no entity conversion — a full switch from PE's activate
+    // converted the parked NORMAL chart in place), and every non-evolution
+    // mode restores the scene's pristine chart on entry.
+    assert.match(mappingRuntime, /function selectChart\(chartId, options\)/);
+    assert.match(mappingRuntime, /var applyToEntities = !options \|\| options\.applyToEntities !== false/);
+    assert.match(mappingRuntime, /if \(applyToEntities && !applyChartTypeToEntities\(/);
+    // ...and the mapping apply obeys the same flag: a UI-only switch stamped
+    // the new chart's component onto the parked normal chart via the snapshot.
+    assert.match(mappingRuntime, /function applyMappingRuntimeState\(config, runtimeState, reason, options\)/);
+    assert.match(mappingRuntime, /\{ applyToEntities: applyToEntities \}/);
+    assert.match(mappingRuntime, /if \(applyToEntities\) \{\s*applyMappingSnapshot\(/);
+    assert.match(mappingRuntime, /state\.sceneChartId = state\.runtimeConfig\.chartId \|\| null/);
+    assert.match(modeRuntime, /if \(nextMode !== 'project-evolution'\)/);
+    assert.match(modeRuntime, /selectChart\?\.\(sceneChartId, \{ applyToEntities: false \}\)/);
+    // Every runtime that discards a chart unsubscribes it from its Babia data
+    // producer first; otherwise the discarded chart repaints on the next push.
+    const historyRuntimeSource = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
+    assert.match(historyRuntimeSource, /releaseChartEntity\?\.\(chart\)/);
+    // Targeted renormalization API exists beside renormalizeAll.
+    const tableRuntime = readAssembledRuntime('analysis-table', 'analysisTableRuntime.js');
+    assert.match(tableRuntime, /renormalizeCharts = function \(chartIds, reason\)/);
 });

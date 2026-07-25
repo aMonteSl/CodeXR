@@ -17,7 +17,7 @@
 
 - `common/codexrCommonRuntime.js` — shared A-Frame helpers (entity creation, tooltips, text, model normalization). Added in v1.2.0; tested by `test/analysis/codexrCommonRuntime.test.cjs`.
 - `common/codexrVisualStyleRuntime.js` — shared visual styling (v1.2.0 work in progress).
-- `codexr/<component>/` — per-feature runtimes: analysis-table, chart containment, mapping UI, dependency-graph, historical-comparison, project-evolution, virtual-screen, collaboration, avatar, xr-room, render budget, debug, code-xr-boats.
+- `codexr/<component>/` — per-feature runtimes: pointer-policy (single-active-pointer arbitration: mouse / gaze / laser), analysis-table, chart containment, mapping UI, dependency-graph, historical-comparison, project-evolution, virtual-screen, collaboration, avatar, xr-room, render budget, debug.
 - Runtime `.cjs` tests in `test/analysis/` exercise these browser runtimes directly with Node's test runner.
 
 ## The `codexr-analysis-table` modes
@@ -35,7 +35,7 @@ The analysis table is the central XR surface; the old "pedestal" was split into 
 
 - **Registry**: `src/babia_templates/registry/chartRegistry.ts` (`BabiaChartRegistry` singleton) — chart types + dimension requirements (`models/chartModels.ts`: `ChartMetadata`, `DimensionMapping`).
 - **Validation**: `processing/dimensionValidator.ts` validates mappings against the Python-derived field schema (see `PYTHON_ANALYSIS.md` → field-schema contract) before launch. The in-scene Mapping UI performs transactional mapping changes with safe recovery.
-- **Default hierarchical chart is Babia Boats.** The custom `code-xr-boats` ("Code City") runtime is a **paused prototype, out of scope for v1.2.0** — preserved in `templates/components/codexr/code-xr-boats/` but not in the public chart selector (per roadmap and COMPONENTS.md; git history shows the Code City commit series was reverted).
+- **Default hierarchical chart is Babia Boats.** The custom `code-xr-boats` ("Code City") prototype was **deleted on `fix/gitcontroller` (2026-07-25)** — nothing injected it, generated scenes use `babia-boats`, and old configs migrate (see V1.2.0_STATUS.md).
 
 ## Debugging XR scenes
 

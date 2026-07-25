@@ -77,6 +77,79 @@ async function runScenario(browser) {
   assert.match(dependencyStatus || '', /"reason":\s*"dependency-graph-visible"/);
 
   await runWarningStabilityScenario(page);
+  await runSettledQuietScenario(page);
+}
+
+// ── Settled state: a converged chart goes QUIET ──────────────────────────────
+//
+// A camera-facing legend (a `babiaxrLegend` container whose visible mesh is an
+// ANONYMOUS child plane, exactly Babia's structure) spins inside the chart —
+// pure measurement noise. Once settled the scale must stay bit-identical
+// across ≥6 watch periods (the user-visible "stop resizing"); a REAL content
+// change must re-fit and re-settle at a different scale.
+async function runSettledQuietScenario(page) {
+  await page.getByText('bars', { exact: true }).click();
+  await page.evaluate(() => window.CodeXRAnalysisTableRuntime.waitForChartsStable('#harnessChart', { timeoutMs: 12000 }));
+
+  await page.evaluate(() => {
+    const chart = document.getElementById('harnessChart');
+    const legend = document.createElement('a-entity');
+    legend.setAttribute('class', 'babiaxrLegend');
+    const plane = document.createElement('a-plane');
+    plane.setAttribute('width', 2);
+    plane.setAttribute('height', 1);
+    plane.setAttribute('position', '0 2.2 0');
+    legend.appendChild(plane);
+    chart.appendChild(legend);
+    let angle = 0;
+    window.__legendSpin = setInterval(() => {
+      angle = (angle + 23) % 360;
+      legend.setAttribute('rotation', `0 ${angle} 0`);
+    }, 120);
+  });
+
+  const settled = await page.waitForFunction(() => {
+    const component = document.getElementById('harnessChart').components['codexr-chart-containment'];
+    return !!(component && component.settled === true);
+  }, null, { timeout: 15000 }).catch(() => null);
+  assert.ok(settled, 'chart must reach the settled state with a spinning legend inside');
+
+  const readScale = () => page.evaluate(() => {
+    const scale = document.getElementById('harnessChart').object3D.scale;
+    return `${scale.x}|${scale.y}|${scale.z}`;
+  });
+  const samples = [];
+  for (let i = 0; i < 6; i += 1) {
+    samples.push(await readScale());
+    await page.waitForTimeout(750);
+  }
+  assert.ok(
+    samples.every((value) => value === samples[0]),
+    `settled scale must stay bit-identical, got ${JSON.stringify(samples)}`,
+  );
+
+  // A REAL change: content grows well past the resume threshold → the watch
+  // re-engages the controller, which re-fits and re-settles.
+  const scaleBeforeGrowth = samples[0];
+  await page.evaluate(() => {
+    const chart = document.getElementById('harnessChart');
+    const box = document.createElement('a-box');
+    box.setAttribute('width', 3);
+    box.setAttribute('depth', 3);
+    box.setAttribute('height', 0.5);
+    box.setAttribute('position', '4 0.25 0');
+    chart.appendChild(box);
+  });
+  const stable = await page.evaluate(() => window.CodeXRAnalysisTableRuntime.waitForChartsStable('#harnessChart', { timeoutMs: 15000 }));
+  assert.equal(stable.valid, true, 'chart must become valid again after a real content change');
+  const resettled = await page.waitForFunction(() => {
+    const component = document.getElementById('harnessChart').components['codexr-chart-containment'];
+    return !!(component && component.settled === true);
+  }, null, { timeout: 15000 }).catch(() => null);
+  assert.ok(resettled, 'chart must re-settle after the correction');
+  const scaleAfterGrowth = await readScale();
+  assert.notEqual(scaleAfterGrowth, scaleBeforeGrowth, 'a real content change must produce a different fit');
+  await page.evaluate(() => { clearInterval(window.__legendSpin); });
 }
 
 // ── Warning-surface stability across chart data changes ──────────────────────

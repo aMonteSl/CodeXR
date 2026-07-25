@@ -20,12 +20,22 @@ const HARNESS_RUNTIMES = [
     ['project-evolution', 'projectEvolutionRuntime.js'],
 ];
 
+// Single-file shared runtimes the Git analyses depend on (not manifest-assembled).
+const HARNESS_SINGLE_FILE_RUNTIMES = [
+    ['common', 'codexrGitRefPickerRuntime.js'],
+];
+
 function buildAssembledRuntimes() {
     const outputDir = path.join(__dirname, 'assembled');
     fs.mkdirSync(outputDir, { recursive: true });
     for (const [componentFolder, outputName] of HARNESS_RUNTIMES) {
         const content = readAssembledRuntime(componentFolder, outputName);
         fs.writeFileSync(path.join(outputDir, outputName), content, 'utf8');
+    }
+    const componentsRoot = path.resolve(__dirname, '..', '..', 'templates', 'components');
+    for (const [folder, name] of HARNESS_SINGLE_FILE_RUNTIMES) {
+        const content = fs.readFileSync(path.join(componentsRoot, folder, name), 'utf8');
+        fs.writeFileSync(path.join(outputDir, name), content, 'utf8');
     }
     return outputDir;
 }

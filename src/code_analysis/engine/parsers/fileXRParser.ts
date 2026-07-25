@@ -21,6 +21,7 @@ import {
     copyHistoricalComparisonRuntimeToOutput,
     copyProjectEvolutionRuntimeToOutput,
     copyCodeXrCommonRuntimeToOutput,
+    copyCodeXrGitRefPickerToOutput,
     CODEXR_COLLABORATION_RUNTIME_OUTPUT_NAME,
     copyCodeXrRoomAssetsToOutput,
     copyCodeXrAvatarRuntimeToOutput,
@@ -34,6 +35,8 @@ import {
     XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME,
     copyXrChartMappingUiRuntimeToOutput,
     XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
+    copyPointerPolicyRuntimeToOutput,
+    POINTER_POLICY_RUNTIME_OUTPUT_NAME,
     copyCodeXrDebugRuntimeToOutput,
     CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
     copyRenderBudgetRuntimeToOutput,
@@ -92,7 +95,13 @@ export class FileXRParser {
                 dataField,
             }));
 
-            const validationResult = DimensionValidator.validateMappings(chartMetadata, babiaFormatMappings);
+            // With the schema's field types the validator can also catch a
+            // mapping that names a non-existent field (without them the type
+            // pass is skipped entirely).
+            const validationFieldTypes = await XRFieldSchemaService.getInstance(this.context)
+                .getFieldTypeMap('file')
+                .catch(() => undefined);
+            const validationResult = DimensionValidator.validateMappings(chartMetadata, babiaFormatMappings, validationFieldTypes);
             this.displayConfigurationInfo(chartType, chartMetadata, babiaFormatMappings, validationResult);
 
             const analysisData = bootstrap?.payload ?? await new ExecutePython(this.context).executeAnalysis(session);
@@ -114,9 +123,11 @@ export class FileXRParser {
             await copyVirtualScreenRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyVirtualScreenManagerRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrCommonRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyCodeXrGitRefPickerToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrAvatarRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrCollaborationRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
+            await copyPointerPolicyRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyRenderBudgetRuntimeToOutput(this.context.extensionPath, session.outputPath);
@@ -163,6 +174,7 @@ export class FileXRParser {
                 || !loadedFiles.has(VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(POINTER_POLICY_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME)

@@ -309,6 +309,14 @@
         applyAnalysisMode('selection', { panelViewId: state.selectionPanelView });
         await clearVisualizationsForSelection({ generation: generation });
       }
+      // Say it on the controller too: a failed activation silently bounces the
+      // user back to the analysis selector, which reads as "this analysis just
+      // won't open" with no clue why.
+      root.CodeXRMappingUiRuntime?.setStatusMessage?.(
+        'CodeXR could not open this analysis. ' + (error instanceof Error ? error.message : String(error)),
+        'error',
+        6000
+      );
       console.error('[CodeXR][AnalysisMode] Could not activate mode:', mode, error);
       return false;
     }
@@ -324,7 +332,10 @@
       }
       return false;
     }
-    applyAnalysisMode(mode, context || null);
+    // The mode was applied once before activate (the lifecycle needs it in
+    // place while it mounts). Re-applying it here would redo the table geometry
+    // and the panel routing — and overwrite the view the lifecycle just chose
+    // (historical routes itself to the comparison or the source selector).
     debugLog('Analysis mode transition completed', {
       mode: mode,
       activeLifecycleMode: state.activeLifecycleMode,

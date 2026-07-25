@@ -17,26 +17,40 @@
 
   function getDimensionsForChart(config, chartId) {
     var byChart = config && config.dimensionsByChart;
-    var dimensions = byChart && Array.isArray(byChart[chartId])
-      ? byChart[chartId]
-      : (Array.isArray(config && config.dimensions) ? config.dimensions : []);
-    return dimensions;
+    if (byChart && Array.isArray(byChart[chartId])) {
+      return byChart[chartId];
+    }
+    // config.dimensions belongs to the chart currently applied (selectChart
+    // rewrites it), so it is only a valid answer for that same chart — using it
+    // for another one handed back the PREVIOUS chart's axes.
+    var appliedChartId = config && config.chartId;
+    if (!chartId || chartId === appliedChartId) {
+      return Array.isArray(config && config.dimensions) ? config.dimensions : [];
+    }
+    return [];
   }
 
+  // The mapping of a chart always covers every dimension the chart declares:
+  // published defaults first, then the dimension's own current/first field for
+  // anything missing. A partial mapping reached Babia as a missing axis, which
+  // is what surfaced as "invalid axis" (and it can still arrive that way from a
+  // scene generated before the contract was fixed).
   function getDefaultMappingForChart(config, chartId) {
     var defaultsByChart = config && config.defaultMappingsByChart;
-    if (defaultsByChart && defaultsByChart[chartId]) {
-      return cloneMapping(defaultsByChart[chartId]);
-    }
-    var selectedByDimension = {};
+    var published = defaultsByChart && defaultsByChart[chartId]
+      ? cloneMapping(defaultsByChart[chartId])
+      : {};
     getDimensionsForChart(config, chartId).forEach(function (dimension) {
-      if (!dimension || !dimension.id) {
+      if (!dimension || !dimension.id || published[dimension.id]) {
         return;
       }
       var fields = Array.isArray(dimension.fields) ? dimension.fields : [];
-      selectedByDimension[dimension.id] = dimension.currentField || fields[0] || '';
+      var field = dimension.currentField || fields[0] || '';
+      if (field) {
+        published[dimension.id] = field;
+      }
     });
-    return selectedByDimension;
+    return published;
   }
 
   function buildDefaultMappingSnapshot(config) {
@@ -49,16 +63,36 @@
     };
   }
 
+  // Reconciles a mapping against the chart that is about to be applied: the
+  // chart's own dimensions win the shape (stale axes from the previous chart are
+  // dropped, missing ones are filled from the defaults). Every snapshot path —
+  // restore, context switch, chart switch — funnels through here, so no chart
+  // can be applied with a partial or foreign mapping.
+  function reconcileMappingForChart(mapping, fallbackMapping, dimensions) {
+    var source = mapping && typeof mapping === 'object' && !Array.isArray(mapping) ? mapping : {};
+    if (!dimensions.length) {
+      return Object.assign({}, fallbackMapping, source);
+    }
+    var reconciled = {};
+    dimensions.forEach(function (dimension) {
+      if (!dimension || !dimension.id) { return; }
+      var field = source[dimension.id] || fallbackMapping[dimension.id] || '';
+      if (field) {
+        reconciled[dimension.id] = field;
+      }
+    });
+    return reconciled;
+  }
+
   function normalizeMappingSnapshot(snapshot, config) {
     var fallback = buildDefaultMappingSnapshot(config);
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
       return fallback;
     }
-    var selected = snapshot.selectedByDimension && typeof snapshot.selectedByDimension === 'object' && !Array.isArray(snapshot.selectedByDimension)
-      ? snapshot.selectedByDimension
-      : fallback.selectedByDimension;
+    var dimensions = getDimensionsForChart(config, getActiveChartId(config));
+    var selected = reconcileMappingForChart(snapshot.selectedByDimension, fallback.selectedByDimension, dimensions);
     var lastKnownGood = snapshot.lastKnownGoodMapping && typeof snapshot.lastKnownGoodMapping === 'object' && !Array.isArray(snapshot.lastKnownGoodMapping)
-      ? snapshot.lastKnownGoodMapping
+      ? reconcileMappingForChart(snapshot.lastKnownGoodMapping, selected, dimensions)
       : selected;
     return {
       visible: typeof snapshot.visible === 'boolean' ? snapshot.visible : fallback.visible,
@@ -88,7 +122,12 @@
     return state.mappingProfiles[profileKey];
   }
 
-  function applyMappingRuntimeState(config, runtimeState, reason) {
+  // `options.applyToEntities: false` updates the runtime STATE and rows only:
+  // UI-only chart switches route the panel while the resolved chart entities
+  // may belong to another mode — applying the new mapping to them stamped a
+  // foreign chart component onto the parked normal chart.
+  function applyMappingRuntimeState(config, runtimeState, reason, options) {
+    var applyToEntities = !options || options.applyToEntities !== false;
     var snapshot = normalizeMappingSnapshot(runtimeState, config);
     clearPendingValidationTimers();
     clearStatusTimer();
@@ -99,12 +138,22 @@
     state.selectedByDimension = cloneMapping(snapshot.selectedByDimension);
     state.lastKnownGoodMapping = cloneMapping(snapshot.lastKnownGoodMapping || snapshot.selectedByDimension);
     state.invalidOptionsByDimension = cloneInvalidOptions(snapshot.invalidOptionsByDimension);
-    applyMappingSnapshot(config, state.lastKnownGoodMapping, reason || 'mapping-ui-restore');
+    if (applyToEntities) {
+      applyMappingSnapshot(config, state.lastKnownGoodMapping, reason || 'mapping-ui-restore');
+    }
     state.selectedByDimension = cloneMapping(state.lastKnownGoodMapping);
     setVisible(config, state.visible);
     renderRows(config);
-    requestChartContainmentRenormalize(reason || 'mapping-ui-restore');
+    // No re-fit request here: applyMappingSnapshot above already asks for one
+    // when it actually applies a mapping to the charts. Asking again queued a
+    // second pass over every chart for the same change.
     saveActiveMappingProfile();
+    // Single place where the runtime state is applied → the profile now on
+    // screen. switchMappingContext compares against this to stay idempotent.
+    state.appliedMappingProfileKey = getMappingProfileKey(
+      state.activeMappingContextId,
+      getActiveChartId(config)
+    );
     return true;
   }
 
@@ -146,6 +195,48 @@
     return chartId === 'boats';
   }
 
+  // Canonical chart construction, injected by the generator as JSON
+  // (#codexr-chart-base-config). The fallback mirrors the generator's values
+  // for scenes generated before the config existed and for harnesses; the
+  // injected config always wins so the generator stays the single source.
+  var CHART_BASE_CONFIG_FALLBACK = {
+    boats: {
+      legend: true,
+      legend_text: '{name}\n{fheight} (height): {height}\n{farea} (area): {area}\n{fcolor} (color): {color}',
+      height_building_legend: -0.5,
+      legend_scale: 0.25,
+      legend_lookat: '[camera]',
+      axis_name: true,
+      extra: 1,
+      separation: 0.5,
+      zone_elevation: 0.01,
+      height_quarter_legend_box: 0.01,
+      height_quarter_legend_title: 2.5
+    },
+    treeFields: { directory: 'filePath', file: 'treePath' }
+  };
+  var chartBaseConfigCache = null;
+
+  function getChartBaseConfig() {
+    if (chartBaseConfigCache) {
+      return chartBaseConfigCache;
+    }
+    var parsed = null;
+    var element = getDoc()?.getElementById?.('codexr-chart-base-config');
+    if (element && element.textContent) {
+      try {
+        parsed = JSON.parse(element.textContent);
+      } catch (error) {
+        console.warn('CODEXR_MAPPING_UI: invalid codexr-chart-base-config JSON', error);
+      }
+    }
+    chartBaseConfigCache = {
+      boats: Object.assign({}, CHART_BASE_CONFIG_FALLBACK.boats, parsed?.boats || {}),
+      treeFields: Object.assign({}, CHART_BASE_CONFIG_FALLBACK.treeFields, parsed?.treeFields || {})
+    };
+    return chartBaseConfigCache;
+  }
+
   function getChartFromSource(chartId, existingData) {
     if (existingData && existingData.from) {
       var fromValue = String(existingData.from);
@@ -172,17 +263,7 @@
     data.axis_name = true;
 
     if (chartId === 'boats') {
-      return Object.assign({
-        legend_text: '{name}\\n{path}',
-        height_building_legend: -0.5,
-        legend_scale: 0.25,
-        legend_lookat: '[laser-controls]',
-        extra: 1,
-        separation: 0.5,
-        zone_elevation: 0.01,
-        height_quarter_legend_box: 0.01,
-        height_quarter_legend_title: 2.5
-      }, data);
+      return Object.assign({}, getChartBaseConfig().boats, data);
     }
 
     return data;
@@ -206,10 +287,46 @@
     return {};
   }
 
+  // BabiaXR chart components subscribe to their data source through the
+  // producer's NotiBuffer and — as of 1.3.4 — NONE of them declares `remove()`,
+  // so removing the component leaves its callback registered. The next data
+  // push (every refresh; in project evolution, every frame) then makes the
+  // DELETED chart paint itself again on top of the new one: the leftover
+  // geometry left behind by a chart switch. Unregistering with Babia's own API
+  // is what its components forgot to do.
+  function releaseChartComponentSubscription(chartEntity, componentName) {
+    var component = chartEntity && chartEntity.components && chartEntity.components[componentName];
+    if (!component) {
+      return;
+    }
+    var buffer = component.prodComponent && component.prodComponent.notiBuffer;
+    if (buffer && typeof buffer.unregister === 'function' && component.notiBufferId !== undefined) {
+      try {
+        buffer.unregister(component.notiBufferId);
+      } catch (error) {
+        console.warn('CODEXR_MAPPING_UI: could not unsubscribe ' + componentName, error);
+      }
+    }
+    component.prodComponent = null;
+    component.notiBufferId = undefined;
+  }
+
+  function releaseChartEntity(chartEntity) {
+    if (!chartEntity || !chartEntity.components) {
+      return;
+    }
+    Object.keys(chartEntity.components).forEach(function (componentName) {
+      if (componentName.indexOf('babia-') === 0) {
+        releaseChartComponentSubscription(chartEntity, componentName);
+      }
+    });
+  }
+
   function clearChartComponents(chartEntity) {
     Object.keys(COMPONENT_BY_CHART).forEach(function (chartId) {
       var componentName = COMPONENT_BY_CHART[chartId];
       if (componentName && chartEntity.removeAttribute) {
+        releaseChartComponentSubscription(chartEntity, componentName);
         chartEntity.removeAttribute(componentName);
       }
     });
@@ -222,6 +339,55 @@
     while (chartEntity.firstChild) {
       chartEntity.removeChild(chartEntity.firstChild);
     }
+  }
+
+  // Second line of defence: anything hanging off the chart entity that no LIVE
+  // component claims is residue from a previous chart (Babia caches its roots
+  // as `chartEl`/`titleEl` on the component instance). Runs after the new chart
+  // has had time to build, so a producer we could not reach cannot leave a
+  // ghost chart on the table.
+  function sweepOrphanChartChildren(chartEntity) {
+    if (!chartEntity || !chartEntity.children || typeof chartEntity.removeChild !== 'function') {
+      return 0;
+    }
+    var liveRoots = [];
+    Object.keys(chartEntity.components || {}).forEach(function (componentName) {
+      if (componentName.indexOf('babia-') !== 0) {
+        return;
+      }
+      var component = chartEntity.components[componentName];
+      ['chartEl', 'titleEl', 'legendEl'].forEach(function (key) {
+        if (component && component[key]) {
+          liveRoots.push(component[key]);
+        }
+      });
+    });
+    var removed = 0;
+    Array.prototype.slice.call(chartEntity.children).forEach(function (child) {
+      // Never touch nodes CodeXR itself mounts inside a chart.
+      if (child.getAttribute && String(child.getAttribute('data-codexr-role') || '')) {
+        return;
+      }
+      if (liveRoots.indexOf(child) === -1) {
+        chartEntity.removeChild(child);
+        removed += 1;
+      }
+    });
+    return removed;
+  }
+
+  function scheduleOrphanChartSweep(chartEntity) {
+    if (!chartEntity) {
+      return;
+    }
+    [400, 1500].forEach(function (delayMs) {
+      setTimeout(function () {
+        var removed = sweepOrphanChartChildren(chartEntity);
+        if (removed) {
+          resizeTrace('chart-orphan-children-removed', { chartId: chartEntity.id || '', removed: removed });
+        }
+      }, delayMs);
+    });
   }
 
   function applyChartDefaultTransform(chartEntity, chartId) {
@@ -243,6 +409,7 @@
     applyChartDefaultTransform(chartEntity, chartId);
     chartEntity.setAttribute(componentName, buildRuntimeChartData(chartId, existingData, mappingSnapshot));
     chartEntity.setAttribute('data-codexr-active-chart-id', chartId);
+    scheduleOrphanChartSweep(chartEntity);
     return true;
   }
 

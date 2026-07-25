@@ -93,14 +93,17 @@ async function runScenario(browser) {
   // 2. Header button opens the analysis selector with its mode options.
   await clickEntity('#codexrMappingUiView-visualization-mode', 'open selector');
   const selection = await waitForState({ panelView: 'visualization-mode', mode: 'selection' }, 'open selector');
-  // Normal analysis + historical comparison + dependency graph (the harness
-  // does not bundle the project-evolution runtime).
-  assert.ok(selection.optionCount >= 3, `expected >=3 analysis options, saw ${selection.optionCount}`);
+  // Normal analysis + historical comparison + dependency graph + project
+  // evolution.
+  assert.ok(selection.optionCount >= 4, `expected >=4 analysis options, saw ${selection.optionCount}`);
 
   // 3. Enter each analysis from the selector, returning via the same button.
+  //    Project evolution is entered with NO movie generated — the cold path
+  //    that used to throw inside activate() and bounce back to the selector.
   const journeys = [
     ['dependency-graph', { panelView: 'dependency-graph', mode: 'dependency-graph' }],
     ['historical-compare', { panelView: 'historical-selection', mode: 'historical-compare' }],
+    ['project-evolution', { panelView: 'project-evolution', mode: 'project-evolution' }],
     ['single', { panelView: 'mapping', mode: 'single' }],
   ];
   for (const [optionId, expected] of journeys) {

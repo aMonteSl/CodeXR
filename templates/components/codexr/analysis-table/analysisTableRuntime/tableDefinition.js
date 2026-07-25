@@ -188,7 +188,13 @@
       return [];
     }
 
-    var charts = doc.querySelectorAll('[' + COMPONENT_NAME + ']');
+    // Charts written in the generated HTML carry the component as a DOM
+    // attribute; charts built at runtime (project evolution, historical
+    // comparison) get it through setAttribute, which A-Frame does NOT mirror to
+    // the DOM — those were invisible here, which is how a perfectly rendered
+    // movie chart produced "No chart detected". applyContainmentProfile stamps
+    // the data marker so both kinds are discoverable.
+    var charts = doc.querySelectorAll('[' + COMPONENT_NAME + '], [' + CONTAINMENT_MARKER_ATTRIBUTE + ']');
     return Array.prototype.slice.call(charts || []);
   }
 

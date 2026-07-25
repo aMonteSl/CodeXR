@@ -12,6 +12,8 @@ import {
     VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME,
     readVirtualScreenRuntimeContent,
     VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
+    readPointerPolicyRuntimeContent,
+    POINTER_POLICY_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 /**
@@ -126,6 +128,9 @@ export class VisualizeDOMParser {
             const domSceneCollaborationRuntime = await readCodeXrDomSceneCollaborationRuntimeContent(this.context.extensionPath);
             resultFiles.set(CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME, domSceneCollaborationRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${CODEXR_DOM_SCENE_COLLAB_RUNTIME_OUTPUT_NAME} (${domSceneCollaborationRuntime.length} chars)`);
+            const pointerPolicyRuntime = await readPointerPolicyRuntimeContent(this.context.extensionPath);
+            resultFiles.set(POINTER_POLICY_RUNTIME_OUTPUT_NAME, pointerPolicyRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${POINTER_POLICY_RUNTIME_OUTPUT_NAME} (${pointerPolicyRuntime.length} chars)`);
 
             // FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);

@@ -11,7 +11,15 @@
     }
     refs.statusText.setAttribute('value', state.statusMessage || '');
     refs.statusText.setAttribute('color', state.statusLevel === 'error' ? '#fca5a5' : '#fde68a');
-    refs.statusText.setAttribute('visible', !!state.statusMessage);
+    // This text belongs to the mapping view: other panel views (e.g. project
+    // evolution) place their own status in the same spot, and a message set
+    // while another view is active (playback locks refresh every frame) must
+    // not paint over it. showPanelView re-evaluates this on view switches.
+    var visible = state.activePanelView === 'mapping' && !!state.statusMessage;
+    refs.statusText.setAttribute('visible', visible);
+    if (refs.statusText.object3D) {
+      refs.statusText.object3D.visible = visible;
+    }
   }
 
   function clearStatusTimer() {

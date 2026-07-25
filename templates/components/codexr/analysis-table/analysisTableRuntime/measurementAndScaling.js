@@ -1,12 +1,18 @@
 // == analysisTableRuntime.js | measurementAndScaling (assembled per manifest.json; see COMPONENTS.md) ==
+    // The base scale is per CHART TYPE: templates ship very different ones
+    // (1.5 for the flat charts, 0.01/0.05/0.01 for boats). Capturing it once
+    // meant that after a chart switch every reset restored the PREVIOUS type's
+    // scale, and the fit had to climb back from a wrong starting point.
     ensureBaseScale: function () {
       var object3D = this.el && this.el.object3D;
       if (!object3D || !object3D.scale) {
         return;
       }
 
-      if (!this.baseScale) {
+      var chartId = this.el.getAttribute?.('data-codexr-active-chart-id') || '';
+      if (!this.baseScale || this.baseScaleChartId !== chartId) {
         this.baseScale = cloneScale(object3D);
+        this.baseScaleChartId = chartId;
       }
     },
 
@@ -134,7 +140,8 @@
         bandTargets,
         Math.max(0.001, this.data.yScaleMin),
         Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax),
-        this.data.hardHeightGuardEnabled !== false
+        this.data.hardHeightGuardEnabled !== false,
+        this.data.containmentToleranceRatio
       );
 
       if (!guard || !guard.overflowing) {
@@ -217,10 +224,23 @@
       return true;
     },
 
+    // Whether inflating a planar axis raises the measured peak (rotated
+    // geometry). The probe MUTATES the scale (inflate, measure, restore), so it
+    // is cached per normalization generation: probing twice per controller
+    // step touched the transform 4× per 140 ms for an answer that only changes
+    // when the geometry itself changes.
     axisContributesToPeakHeight: function (axis, currentHeight) {
       var object3D = this.el && this.el.object3D;
       if (!object3D || !object3D.scale || !Number.isFinite(object3D.scale[axis]) || object3D.scale[axis] <= 0 || !Number.isFinite(currentHeight)) {
         return false;
+      }
+
+      if (!this.axisPeakProbeCache) {
+        this.axisPeakProbeCache = {};
+      }
+      var cached = this.axisPeakProbeCache[axis];
+      if (cached && cached.generation === this.normalizationGeneration) {
+        return cached.value;
       }
 
       var originalScale = object3D.scale[axis];
@@ -230,11 +250,13 @@
       object3D.scale[axis] = originalScale;
       object3D.updateMatrixWorld(true);
 
-      if (!probeMeasurements || !Number.isFinite(probeMeasurements.peakHeight)) {
-        return false;
+      var contributes = false;
+      if (probeMeasurements && Number.isFinite(probeMeasurements.peakHeight)) {
+        var minimumDelta = Math.max(0.01, Math.abs(currentHeight) * 0.02);
+        contributes = probeMeasurements.peakHeight > currentHeight + minimumDelta;
       }
-      var minimumDelta = Math.max(0.01, Math.abs(currentHeight) * 0.02);
-      return probeMeasurements.peakHeight > currentHeight + minimumDelta;
+      this.axisPeakProbeCache[axis] = { generation: this.normalizationGeneration, value: contributes };
+      return contributes;
     },
 
     constrainPlanarTargetForMeasuredHeight: function (axis, target, currentScale, yTarget, measurements, heightTargets) {
@@ -256,6 +278,9 @@
       }
       this.pidController.active = true;
       this.pidController.stableTicks = 0;
+      // A live controller means the fit is not final: leave the settled state
+      // (no-op if it was never entered).
+      this.unsettle('steady-controller-activate');
       resetPidAxisState(this.pidController.axes.x);
       resetPidAxisState(this.pidController.axes.y);
       resetPidAxisState(this.pidController.axes.z);
