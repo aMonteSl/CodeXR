@@ -274,12 +274,23 @@ export class TemplateProcessor {
             hidden: boolean;
         }> = [];
 
+        // Candidates for a dimension: its own data type first, every field as the
+        // fallback. Dropping a dimension when its strict pool is empty published
+        // an INCOMPLETE contract (e.g. barsmap without z_axis) while still
+        // offering the chart — Babia then built axes with non-finite lengths and
+        // the table reported "invalid axis". Every declared dimension always gets
+        // a candidate list now; the best available field beats no field at all.
+        const candidateFieldsFor = (dataType: 'numeric' | 'text' | 'any'): string[] => {
+            const strictFields = dataType === 'numeric'
+                ? numericFields
+                : (dataType === 'text' ? textFields : anyFields);
+            return strictFields.length > 0 ? strictFields : anyFields;
+        };
+
         const buildDimensionsForChart = (chart: typeof chartMetadata, selectedFields: Map<string, string>) => {
             const result: typeof dimensions = [];
             for (const dimension of chart.dimensions) {
-                const candidateFields = dimension.dataType === 'numeric'
-                    ? numericFields
-                    : (dimension.dataType === 'text' ? textFields : anyFields);
+                const candidateFields = candidateFieldsFor(dimension.dataType);
                 if (candidateFields.length === 0) {
                     continue;
                 }
@@ -307,9 +318,7 @@ export class TemplateProcessor {
             dimensionDataType: 'numeric' | 'text' | 'any',
             preferredFields: string[],
         ): string => {
-            const candidateFields = dimensionDataType === 'numeric'
-                ? numericFields
-                : (dimensionDataType === 'text' ? textFields : anyFields);
+            const candidateFields = candidateFieldsFor(dimensionDataType);
             for (const preferredField of preferredFields) {
                 if (candidateFields.includes(preferredField)) {
                     return preferredField;
@@ -336,17 +345,23 @@ export class TemplateProcessor {
                     key: ['fileName', 'relativePath', 'language'],
                     value: ['totalLines', 'functionCount', 'codeLines'],
                 }
+                // Field-analysis schema (XR_FILE_FIELDS): text fields are
+                // functionName/complexityBand/filePath/fileName/treePath and
+                // numerics lineCount/complexity/parameters/… — the old list
+                // named fields that do not exist there (`name`, `longName`,
+                // `codeLines`), so defaults silently fell back to whatever
+                // came first in the pool.
                 : {
                     area: ['parameters', 'lineCount', 'complexity'],
-                    height: ['lineCount', 'codeLines', 'complexity'],
-                    color: ['complexity', 'name', 'longName'],
-                    x_axis: ['name', 'longName', 'parameters'],
-                    y_axis: ['lineCount', 'codeLines', 'complexity'],
-                    z_axis: ['complexity', 'parameters', 'lineCount'],
+                    height: ['lineCount', 'spanLines', 'complexity'],
+                    color: ['complexity', 'complexityBand', 'functionName'],
+                    x_axis: ['functionName', 'fileName', 'complexityBand'],
+                    y_axis: ['lineCount', 'spanLines', 'complexity'],
+                    z_axis: ['complexityBand', 'complexity', 'parameters'],
                     radius: ['parameters', 'lineCount', 'complexity'],
                     size: ['lineCount', 'parameters', 'complexity'],
-                    heightmap: ['lineCount', 'codeLines', 'complexity'],
-                    key: ['name', 'longName'],
+                    heightmap: ['lineCount', 'spanLines', 'complexity'],
+                    key: ['functionName', 'fileName'],
                     value: ['lineCount', 'complexity', 'parameters'],
                 };
             const defaults: Record<string, string> = {};
@@ -356,6 +371,9 @@ export class TemplateProcessor {
                     dimension.dataType,
                     preferredByDimension[dimension.name] ?? [dimension.name],
                 );
+                // Every declared dimension gets a key: an omitted one reached
+                // Babia as a missing axis, which is the "invalid axis" failure.
+                // `field` is only empty when the analysis has no fields at all.
                 if (field) {
                     defaults[dimension.name] = field;
                 }

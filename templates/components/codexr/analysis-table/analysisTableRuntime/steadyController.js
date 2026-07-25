@@ -46,7 +46,8 @@
         heightTargets,
         Math.max(0.001, this.data.yScaleMin),
         Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax),
-        this.data.heightUnderflowCorrectionEnabled !== false
+        this.data.heightUnderflowCorrectionEnabled !== false,
+        this.data.containmentToleranceRatio
       ) || createNeutralHeightBandTarget(object3D.scale.y, 'height-unavailable');
 
       if (!xTarget || !zTarget) {
@@ -116,6 +117,8 @@
 
       if (this.pidController.stableTicks >= PID_PROFILE.stableTicks) {
         this.deactivateSteadyController();
+        // Converged: go quiet. From here on only the settled watch runs.
+        this.enterSettledState(nextMeasurements || measurements);
       } else {
         this.scheduleSteadyControllerStep(source || 'steady-fit');
       }
@@ -159,59 +162,6 @@
           xFactor: toFixedNumber(bootstrapScale.xFactor),
           zFactor: toFixedNumber(bootstrapScale.zFactor),
           bootstrapPlanarMaxRatio: toFixedNumber(bootstrapScale.bootstrapPlanarMaxRatio)
-        }]);
-      }
-
-      return changed;
-    },
-
-    applySteadyPlanarFit: function (measurements, source) {
-      if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !isFiniteBoundsInfo(measurements.containment)) {
-        return false;
-      }
-
-      var planarBand = computePlanarBandScale(measurements.primary, measurements.containment, this.data);
-      if (!planarBand) {
-        return false;
-      }
-
-      if (planarBand.compromised) {
-        this.warnMinimumCompromised({
-          source: source || 'steady-fit',
-          reason: planarBand.reason,
-          xMinRequiredFactor: toFixedNumber(planarBand.x.minRequiredFactor),
-          zMinRequiredFactor: toFixedNumber(planarBand.z.minRequiredFactor),
-          xMaxAllowedByRange: Number.isFinite(planarBand.x.maxAllowedByRange) ? toFixedNumber(planarBand.x.maxAllowedByRange) : null,
-          zMaxAllowedByRange: Number.isFinite(planarBand.z.maxAllowedByRange) ? toFixedNumber(planarBand.z.maxAllowedByRange) : null,
-          xMaxAllowedByContainment: Number.isFinite(planarBand.x.maxAllowedByContainment) ? toFixedNumber(planarBand.x.maxAllowedByContainment) : null,
-          zMaxAllowedByContainment: Number.isFinite(planarBand.z.maxAllowedByContainment) ? toFixedNumber(planarBand.z.maxAllowedByContainment) : null,
-          primaryWidth: toFixedNumber(measurements.primary.size.x),
-          primaryDepth: toFixedNumber(measurements.primary.size.z),
-          containmentWidth: toFixedNumber(measurements.containment.size.x),
-          containmentDepth: toFixedNumber(measurements.containment.size.z),
-          containmentWidthLimit: toFixedNumber(planarBand.containmentWidthLimit),
-          containmentDepthLimit: toFixedNumber(planarBand.containmentDepthLimit)
-        });
-      }
-
-      var xFactor = softenFactor(planarBand.xFactor, clamp(this.data.containmentDamping, 0.8, 0.999));
-      var zFactor = softenFactor(planarBand.zFactor, clamp(this.data.containmentDamping, 0.8, 0.999));
-      var changed = false;
-      if (Math.abs(xFactor - 1) > 0.0005 || Math.abs(zFactor - 1) > 0.0005) {
-        changed = this.applyScaleFactors(
-          clamp(xFactor, 0.2, 4),
-          1,
-          clamp(zFactor, 0.2, 4)
-        );
-      }
-
-      if (changed) {
-        debugTable('steady-planar-adjusted', [{
-          source: source || 'steady-fit',
-          xFactor: toFixedNumber(planarBand.xFactor),
-          zFactor: toFixedNumber(planarBand.zFactor),
-          xRatio: toFixedNumber(planarBand.x.ratio),
-          zRatio: toFixedNumber(planarBand.z.ratio)
         }]);
       }
 
@@ -281,9 +231,10 @@
           return changed;
         }
 
-        var localChanged = this.renderPhase === 'steady-fit'
-          ? this.applySteadyPlanarFit(measurements, source || 'steady-fit')
-          : this.applyBootstrapPlanarFit(measurements, source || 'bootstrap-visible');
+        // Only bootstrap ever reaches here: in steady-fit runMaintenancePass
+        // re-engages the controller instead, and the settled state stops the
+        // maintenance entirely.
+        var localChanged = this.applyBootstrapPlanarFit(measurements, source || 'bootstrap-visible');
 
         var nextMeasurements = this.measureBounds();
         var moved = nextMeasurements ? this.applyAnchorPlacement(nextMeasurements) : false;
@@ -328,11 +279,18 @@
       if (guardMeasurements && this.applyHardHeightGuard(guardMeasurements, (source || 'maintenance') + '-hard-height-guard')) {
         return true;
       }
-      if ((this.containmentTransition && this.containmentTransition.active) || isChartAnimationActive(this.el)) {
+      if (this.containmentTransition && this.containmentTransition.active) {
         return false;
       }
       if (this.renderPhase === 'steady-fit') {
-        return this.runSteadyControllerStep(source || 'steady-fit', this.data.stabilizationCheckMs || DEFAULTS.stabilizationCheckMs);
+        // Interrupted convergence (a reset knocked the controller out without
+        // leaving steady): re-engage the closed loop instead of stepping it
+        // open-loop from maintenance forever — that endless re-entry was the
+        // charts that never stopped resizing.
+        if (!this.pidController || !this.pidController.active) {
+          this.activateSteadyController();
+        }
+        return false;
       }
       var changedEnvelope = this.enforceEnvelope(source);
       var changedHeight = this.enforceHeightBand(source || 'maintenance-height-band');
@@ -345,4 +303,93 @@
         this.syncTransformAttributes();
       }
       return changedHeight || changedEnvelope || moved;
+    },
+
+    // ── Settled state ──────────────────────────────────────────────────────
+    // The terminal state the whole controller drives towards: fit converged,
+    // component quiet. No per-frame measuring, no maintenance stepping — only
+    // the periodic watch below, which re-engages the controller when the chart
+    // REALLY changed (persistent relative drift) or is REALLY out (hard
+    // violation). One-sample blips — a legend catching the camera, a label
+    // loading — never wake it up.
+
+    enterSettledState: function (measurements) {
+      var resolved = measurements || this.measureBounds();
+      if (!hasUsableMeasurements(resolved)) {
+        return;
+      }
+      this.settled = true;
+      this.settledDriftStreak = 0;
+      this.settledReference = {
+        containmentX: resolved.containment.size.x,
+        containmentZ: resolved.containment.size.z,
+        peakHeight: Number.isFinite(resolved.peakHeight) ? resolved.peakHeight : null
+      };
+      resizeTrace('containment-settled', {
+        containmentX: toFixedNumber(resolved.containment.size.x),
+        containmentZ: toFixedNumber(resolved.containment.size.z),
+        peakHeight: toFixedNumber(resolved.peakHeight)
+      });
+    },
+
+    unsettle: function (reason) {
+      if (!this.settled && !this.settledReference) {
+        return;
+      }
+      this.settled = false;
+      this.settledReference = null;
+      this.settledDriftStreak = 0;
+      resizeTrace('containment-unsettled', { reason: reason || '' });
+    },
+
+    runSettledWatch: function (source) {
+      if (!this.settled || !this.settledReference || !this.el || !this.el.object3D) {
+        return;
+      }
+      if (!isObject3DVisibleInScene(this.el)) {
+        return;
+      }
+      var measurements = this.measureBounds();
+      if (!hasUsableMeasurements(measurements)) {
+        return;
+      }
+
+      var reference = this.settledReference;
+      var relativeDrift = function (current, settledValue) {
+        if (!Number.isFinite(current) || !Number.isFinite(settledValue) || settledValue <= 0) {
+          return 0;
+        }
+        return Math.abs(current - settledValue) / settledValue;
+      };
+      var drift = Math.max(
+        relativeDrift(measurements.containment.size.x, reference.containmentX),
+        relativeDrift(measurements.containment.size.z, reference.containmentZ),
+        relativeDrift(measurements.peakHeight, reference.peakHeight)
+      );
+
+      // Hard violation: physically past the table limits — react now.
+      var limits = computeContainmentLimits(this.data);
+      var heightTargets = resolveHeightBandTargets(this.data);
+      var hardViolation = measurements.containment.size.x > limits.containmentWidthLimit * SETTLED_WATCH.hardViolationRatio
+        || measurements.containment.size.z > limits.containmentDepthLimit * SETTLED_WATCH.hardViolationRatio
+        || (Number.isFinite(measurements.peakHeight)
+          && heightTargets && Number.isFinite(heightTargets.maxHeight)
+          && measurements.peakHeight > heightTargets.maxHeight * SETTLED_WATCH.hardViolationRatio);
+
+      if (hardViolation) {
+        this.unsettle((source || 'settled-watch') + '-hard-violation');
+        this.activateSteadyController();
+        return;
+      }
+
+      if (drift >= SETTLED_WATCH.resumeThresholdRatio) {
+        this.settledDriftStreak += 1;
+        if (this.settledDriftStreak >= SETTLED_WATCH.resumeSamples) {
+          this.unsettle((source || 'settled-watch') + '-persistent-drift');
+          this.activateSteadyController();
+        }
+        return;
+      }
+
+      this.settledDriftStreak = 0;
     },

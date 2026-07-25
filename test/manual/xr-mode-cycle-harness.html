@@ -59,9 +59,13 @@
       codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
     </a-entity>
     <a-entity id="data" babia-queryjson="url: ./xr-mode-normal-data.json"></a-entity>
+    <!-- Real scenes attach the containment component to every chart; the
+         mapping-ui's chart discovery requires it on analysis-root entities,
+         so without it the chart-switch path can never resolve this chart. -->
     <a-entity
       id="normalChart"
       position="0 1 -18"
+      codexr-chart-containment="zone: center"
       babia-bars="from: data; x_axis: name; height: totalLines; radius: complexity; color: language">
     </a-entity>
     <a-entity id="rig" position="0 2.8 -5">
@@ -74,7 +78,69 @@
   {
     "sceneSelector": "#scene",
     "chartEntityId": "normalChart",
+    "chartId": "bars",
     "chartType": "bars",
+    "availableCharts": [
+      { "id": "bars", "name": "Bars Chart", "category": "flat" },
+      { "id": "barsmap", "name": "Barsmap Chart", "category": "flat" },
+      { "id": "cyls", "name": "Cyls Chart", "category": "flat" },
+      { "id": "cylsmap", "name": "Cylsmap Chart", "category": "flat" },
+      { "id": "pie", "name": "Pie Chart", "category": "flat" },
+      { "id": "donut", "name": "Donut Chart", "category": "flat" },
+      { "id": "bubbles", "name": "Bubbles Chart", "category": "flat" },
+      { "id": "boats", "name": "Babia Boats", "category": "hierarchical" }
+    ],
+    "dimensionsByChart": {
+      "bars": [
+        { "id": "x_axis", "label": "X", "dataType": "text", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "height", "label": "Height", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] }
+      ],
+      "barsmap": [
+        { "id": "x_axis", "label": "X", "dataType": "text", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "z_axis", "label": "Z", "dataType": "text", "currentField": "language", "fields": ["language", "fileName"] },
+        { "id": "height", "label": "Height", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] }
+      ],
+      "cyls": [
+        { "id": "x_axis", "label": "X", "dataType": "text", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "height", "label": "Height", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] },
+        { "id": "radius", "label": "Radius", "dataType": "numeric", "currentField": "complexity", "fields": ["complexity", "totalLines"] }
+      ],
+      "cylsmap": [
+        { "id": "x_axis", "label": "X", "dataType": "text", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "z_axis", "label": "Z", "dataType": "text", "currentField": "language", "fields": ["language", "fileName"] },
+        { "id": "height", "label": "Height", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] },
+        { "id": "radius", "label": "Radius", "dataType": "numeric", "currentField": "complexity", "fields": ["complexity", "totalLines"] }
+      ],
+      "pie": [
+        { "id": "key", "label": "Key", "dataType": "text", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "size", "label": "Size", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] }
+      ],
+      "donut": [
+        { "id": "key", "label": "Key", "dataType": "text", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "size", "label": "Size", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] }
+      ],
+      "bubbles": [
+        { "id": "x_axis", "label": "X", "dataType": "any", "currentField": "fileName", "fields": ["fileName", "language"] },
+        { "id": "z_axis", "label": "Z", "dataType": "any", "currentField": "language", "fields": ["language", "fileName"] },
+        { "id": "height", "label": "Height", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] },
+        { "id": "radius", "label": "Radius", "dataType": "numeric", "currentField": "complexity", "fields": ["complexity", "totalLines"] }
+      ],
+      "boats": [
+        { "id": "area", "label": "Area", "dataType": "numeric", "currentField": "functionCount", "fields": ["functionCount", "totalLines"] },
+        { "id": "height", "label": "Height", "dataType": "numeric", "currentField": "totalLines", "fields": ["totalLines", "complexity"] },
+        { "id": "color", "label": "Color", "dataType": "any", "currentField": "complexity", "fields": ["complexity", "language"] }
+      ]
+    },
+    "defaultMappingsByChart": {
+      "bars": { "x_axis": "fileName", "height": "totalLines" },
+      "barsmap": { "x_axis": "fileName", "height": "totalLines" },
+      "cyls": { "x_axis": "fileName", "height": "totalLines", "radius": "complexity" },
+      "cylsmap": { "x_axis": "fileName", "z_axis": "language", "height": "totalLines", "radius": "complexity" },
+      "pie": { "key": "fileName", "size": "totalLines" },
+      "donut": { "key": "fileName", "size": "totalLines" },
+      "bubbles": { "x_axis": "fileName", "z_axis": "language", "height": "totalLines", "radius": "complexity" },
+      "boats": { "area": "functionCount", "height": "totalLines", "color": "complexity" }
+    },
     "targetType": "directory",
     "panelPosition": "3.8 2.8 -10",
     "panelRotation": "0 -18 0",
@@ -110,21 +176,62 @@
   </script>
 
   <script>
+    // Faithful to BabiaXR 1.3.4: the data source owns a NotiBuffer, consumers
+    // register a bound callback and get an id back, and `set()` calls EVERY
+    // registered callback. Chart components never unregister (they declare no
+    // `remove()`), so a removed chart keeps repainting on each push unless
+    // something unsubscribes it — the leftover-geometry bug this models.
+    function HarnessNotiBuffer() {
+      this.currentId = 0;
+      this.notifiers = {};
+      this.data = undefined;
+    }
+    HarnessNotiBuffer.prototype.set = function (data) {
+      this.data = data;
+      Object.keys(this.notifiers).forEach((id) => this.notifiers[id](data));
+    };
+    HarnessNotiBuffer.prototype.register = function (callback) {
+      if (this.data !== undefined) { callback(this.data); }
+      const id = this.currentId;
+      this.notifiers[id] = callback;
+      this.currentId += 1;
+      return id;
+    };
+    HarnessNotiBuffer.prototype.unregister = function (id) { delete this.notifiers[id]; };
+
     AFRAME.registerComponent('babia-queryjson', {
       schema: { url: { type: 'string' } },
-      init: function () { this.load(); },
+      init: function () { this.notiBuffer = new HarnessNotiBuffer(); this.load(); },
       update: function () { this.load(); },
       load: async function () {
         if (!this.data.url) return;
         try {
           const response = await fetch(this.data.url);
           this.el._codexrData = await response.json();
+          this.notiBuffer.set(this.el._codexrData);
           this.el.emit('babiaDataReady', { data: this.el._codexrData });
         } catch (error) {
           console.error(error);
         }
       }
     });
+
+    // Subscribes a chart mock the way Babia does, keeping `prodComponent` and
+    // `notiBufferId` on the component instance (the handles CodeXR uses to
+    // unsubscribe on behalf of the library).
+    function subscribeHarnessChart(component) {
+      const producer = component.data.from ? document.getElementById(component.data.from) : null;
+      component.prodComponent = producer && producer.components && producer.components['babia-queryjson'];
+      if (!component.prodComponent || !component.prodComponent.notiBuffer) { return; }
+      component.notiBufferId = component.prodComponent.notiBuffer.register(function () {
+        // A dead component repaints into its LIVE entity — exactly what leaves
+        // the previous chart on the table after a switch.
+        if (component.root && !component.root.parentNode && component.el) {
+          component.el.appendChild(component.root);
+        }
+        component.render();
+      });
+    }
     AFRAME.registerComponent('babia-bars', {
       schema: {
         from: { type: 'string' },
@@ -137,12 +244,12 @@
         this.root = document.createElement('a-entity');
         this.el.appendChild(this.root);
         this.render = this.render.bind(this);
-        document.getElementById(this.data.from)?.addEventListener('babiaDataReady', this.render);
+        subscribeHarnessChart(this);
         setTimeout(this.render, 50);
       },
       update: function () { setTimeout(this.render, 0); },
       render: function () {
-        if (!this.root) return;
+        if (!this.root || !this.data) return;
         this.root.replaceChildren();
         const source = document.getElementById(this.data.from);
         const rows = source?._codexrData || [
@@ -162,11 +269,128 @@
         this.el.emit('babiaBarsReady');
       }
     });
+    // Project evolution's default chart. Same box renderer as babia-bars, but
+    // accepting inline data/field (the boats path feeds JSON directly) — without
+    // it the evolution chart never builds geometry and stabilization times out.
+    AFRAME.registerComponent('babia-boats', {
+      schema: {
+        from: { type: 'string', default: '' },
+        data: { type: 'string', default: '' },
+        field: { type: 'string', default: 'uid' },
+        height: { type: 'string', default: 'totalLines' },
+        area: { type: 'string', default: 'complexity' },
+        color: { type: 'string', default: 'language' }
+      },
+      init: function () {
+        this.root = document.createElement('a-entity');
+        this.el.appendChild(this.root);
+        this.render = this.render.bind(this);
+        subscribeHarnessChart(this);
+        setTimeout(this.render, 50);
+      },
+      update: function () { setTimeout(this.render, 0); },
+      render: function () {
+        if (!this.root || !this.data) return;
+        this.root.replaceChildren();
+        var rows = [];
+        try { rows = this.data.data ? JSON.parse(this.data.data) : []; } catch (e) { rows = []; }
+        if (!rows.length && this.data.from) {
+          rows = (document.getElementById(this.data.from) || {})._codexrData || [];
+        }
+        if (!rows.length) { rows = [{ name: 'seed', totalLines: 10, complexity: 2 }]; }
+        rows.slice(0, 9).forEach(function (row, index) {
+          var box = document.createElement('a-box');
+          var h = 0.3 + Math.min(2, Number(row.totalLines || row.height || 1) / 20);
+          box.setAttribute('position', ((index % 3) - 1) * 0.7 + ' ' + (h / 2) + ' ' + (Math.floor(index / 3) - 1) * 0.7);
+          box.setAttribute('width', 0.4);
+          box.setAttribute('depth', 0.4);
+          box.setAttribute('height', h);
+          box.setAttribute('color', ['#0ea5e9', '#f59e0b', '#22c55e'][index % 3]);
+          this.root.appendChild(box);
+        }, this);
+        this.el.emit('babiaBarsReady');
+      }
+    });
+    // The remaining chart types, so a chart switch can be swept across the whole
+    // catalogue. Each declares the axes its real Babia counterpart declares and
+    // builds a `babia-axis-*` child from them: an axis the mapping failed to
+    // provide lands as an empty string and the containment component reports
+    // `invalid-axis-length`, exactly like the real component does.
+    [
+      { name: 'babia-barsmap', axes: ['x_axis', 'z_axis'], numeric: ['height'] },
+      { name: 'babia-cyls', axes: ['x_axis'], numeric: ['height', 'radius'] },
+      { name: 'babia-cylsmap', axes: ['x_axis', 'z_axis'], numeric: ['height', 'radius'] },
+      { name: 'babia-pie', axes: ['key'], numeric: ['size'] },
+      { name: 'babia-doughnut', axes: ['key'], numeric: ['size'] },
+      { name: 'babia-bubbles', axes: ['x_axis', 'z_axis'], numeric: ['height', 'radius'] }
+    ].forEach(function (spec) {
+      var schema = { from: { type: 'string', default: '' } };
+      spec.axes.concat(spec.numeric).forEach(function (key) {
+        schema[key] = { type: 'string', default: '' };
+      });
+      AFRAME.registerComponent(spec.name, {
+        schema: schema,
+        init: function () {
+          this.root = document.createElement('a-entity');
+          this.el.appendChild(this.root);
+          this.render = this.render.bind(this);
+          subscribeHarnessChart(this);
+          setTimeout(this.render, 50);
+        },
+        update: function () { setTimeout(this.render, 0); },
+        // Faithful to BabiaXR 1.3.4: NO chart component declares `remove()`, so
+        // removing the component tears nothing down — its generated children and
+        // its data subscription outlive it. Only the stale-data guard is kept,
+        // because a callback with no component data would throw instead of
+        // reproducing the leftover geometry we want to exercise.
+        render: function () {
+          if (!this.root || !this.data) { return; }
+          this.root.replaceChildren();
+          var rows = (document.getElementById(this.data.from) || {})._codexrData || [];
+          if (!rows.length) { rows = [{ name: 'seed', totalLines: 10, complexity: 2 }]; }
+          var self = this;
+          spec.axes.forEach(function (axisKey, axisIndex) {
+            var axisEl = document.createElement('a-entity');
+            var field = self.data[axisKey];
+            // No field → no domain → non-finite length, which is what the real
+            // components produce and what the table flags as an invalid axis.
+            var length = field ? rows.length : Number.NaN;
+            axisEl.setAttribute('babia-axis-' + (axisIndex === 0 ? 'x' : 'z'), 'length: ' + length);
+            self.root.appendChild(axisEl);
+          });
+          rows.slice(0, 9).forEach(function (row, index) {
+            var box = document.createElement('a-box');
+            var h = 0.3 + Math.min(2, Number(row.totalLines || 1) / 20);
+            box.setAttribute('position', ((index % 3) - 1) * 0.7 + ' ' + (h / 2) + ' ' + (Math.floor(index / 3) - 1) * 0.7);
+            box.setAttribute('width', 0.4);
+            box.setAttribute('depth', 0.4);
+            box.setAttribute('height', h);
+            box.setAttribute('color', ['#0ea5e9', '#f59e0b', '#22c55e'][index % 3]);
+            self.root.appendChild(box);
+          });
+          this.el.emit('babiaBarsReady');
+        }
+      });
+    });
   </script>
   <script>
     (function createHarnessCollaboration(root) {
       const entityRuntimes = new Map();
       const messageListeners = new Map();
+      // Models the server-owned historical-comparison entity: once a comparison
+      // has run it persists server-side (there is no reset message), so a
+      // re-activation reports it available and the snapshot's controllerView
+      // may be STALE relative to the client (httpServer.ts:1344-1380). The
+      // client's lifecycle resolver must win over it.
+      let serverHistoryResult = null;
+      function controllerViewForMode(mode) {
+        if (mode === 'historical-compare') {
+          return serverHistoryResult ? 'historical.mapping' : 'historical.selection';
+        }
+        if (mode === 'dependency-graph') { return 'dependency.settings'; }
+        if (mode === 'selection') { return 'visualization-menu'; }
+        return 'single.mapping';
+      }
       const analysisState = {
         entityKind: 'analysis-view',
         entityId: 'main',
@@ -201,12 +425,12 @@
       const historyResult = {
         revision: 1,
         left: {
-          source: { id: 'working-copy', label: 'main (live)', live: true },
+          source: { id: 'working-copy', kind: 'workingCopy', label: 'main (live)', live: true },
           url: './xr-mode-history-left.json',
           itemCount: 4
         },
         right: {
-          source: { id: 'commit-1', label: 'HEAD~1', live: false },
+          source: { id: 'commit-1', kind: 'gitRef', refType: 'commit', label: 'HEAD~1', live: false },
           url: './xr-mode-history-right.json',
           itemCount: 4
         },
@@ -237,26 +461,37 @@
           return {
             capabilities: {
               historicalComparison: true,
-              dependencyGraph: true
+              dependencyGraph: true,
+              // The real server publishes this too (httpServer getSessionInfo →
+              // projectEvolutionService.getAvailability); without it the mode
+              // option is git-gated off and the harness can't exercise it.
+              projectEvolution: true
             }
           };
         },
         sendMessage(type, payload) {
           if (type === 'analysis-mode-selection') {
-            Object.assign(analysisState, { mode: 'selection', status: 'selecting', hasUsableSnapshot: false });
+            Object.assign(analysisState, { mode: 'selection', status: 'selecting', hasUsableSnapshot: false, controllerView: 'visualization-menu' });
             setTimeout(() => apply('analysis-view', analysisState), 120);
           } else if (type === 'analysis-mode-activate') {
             Object.assign(analysisState, {
               mode: payload.mode,
               status: 'ready',
-              hasUsableSnapshot: true
+              hasUsableSnapshot: true,
+              // Authoritative view derived from server-side availability, like
+              // the real server — may be STALE relative to the client.
+              controllerView: controllerViewForMode(payload.mode)
             });
             apply('analysis-view', analysisState);
           } else if (type === 'dependency-graph-start') {
             Object.assign(analysisState, {
               mode: 'dependency-graph',
               status: 'ready',
-              hasUsableSnapshot: true
+              hasUsableSnapshot: true,
+              // Every mode assignment carries its paired view, like the real
+              // server — a stale controllerView here bounced the echo back to
+              // the selector.
+              controllerView: 'dependency.settings'
             });
             apply('dependency-graph', dependencyState);
             apply('analysis-view', analysisState);
@@ -274,6 +509,99 @@
                 }
               ]
             });
+          } else if (type === 'project-evolution-references-request') {
+            // Timeline for the evolution "movie": commits plus the auto-sampled
+            // suggestion, same source vocabulary as the shared Git picker.
+            emit('project-evolution-references', {
+              pageSize: 5,
+              activeRequest: null,
+              maxFrames: 12,
+              suggestedSourceIds: ['commit-1', 'commit-3'],
+              // Timestamps are epoch seconds matching the short dates. The two
+              // branches reproduce the same-day range bug: one ALIASES commit-1
+              // (same sha — must paint as the endpoint), the other is the same
+              // day but LATER (must stay unpainted when commit-1 is the end).
+              sources: [
+                { id: 'working-copy', kind: 'workingCopy', label: 'main (live)', live: true, dirty: true },
+                {
+                  id: 'branch-newer', kind: 'gitRef', refType: 'branch',
+                  refName: 'refs/remotes/origin/main', commitSha: 'feedface00000001',
+                  label: 'origin/main', description: 'Remote tip after the release', live: false,
+                  date: '2026-06-14', timestamp: 1781462400
+                },
+                {
+                  id: 'branch-alias', kind: 'gitRef', refType: 'branch',
+                  refName: 'refs/heads/release', commitSha: '1234567890abcdef',
+                  label: 'release', description: 'Branch on the same commit', live: false,
+                  date: '2026-06-14', timestamp: 1781431200
+                },
+                {
+                  id: 'commit-1', kind: 'gitRef', refType: 'commit',
+                  refName: 'HEAD~1', commitSha: '1234567890abcdef',
+                  label: '1234567', description: 'Previous stable revision', live: false,
+                  date: '2026-06-14', timestamp: 1781431200
+                },
+                {
+                  id: 'commit-2', kind: 'gitRef', refType: 'commit',
+                  refName: 'HEAD~2', commitSha: 'abcdef1234567890',
+                  label: 'abcdef1', description: 'Earlier revision', live: false,
+                  date: '2026-06-07', timestamp: 1780790400
+                },
+                {
+                  id: 'commit-3', kind: 'gitRef', refType: 'commit',
+                  refName: 'HEAD~3', commitSha: 'cafebabe12345678',
+                  label: 'cafebab', description: 'Mid revision', live: false,
+                  date: '2026-06-01', timestamp: 1780272000
+                },
+                {
+                  id: 'commit-4', kind: 'gitRef', refType: 'commit',
+                  refName: 'HEAD~4', commitSha: 'deadbeef12345678',
+                  label: 'deadbee', description: 'Oldest revision', live: false,
+                  date: '2026-05-20', timestamp: 1779235200
+                }
+              ]
+            });
+          } else if (type === 'project-evolution-start' && payload && payload.simulateSlow) {
+            // Generation left "in flight": progress only, never a result — lets
+            // the harness exercise leaving the mode mid-analysis.
+            emit('project-evolution-progress', { state: 'analyzing', message: 'Analyzing 3 project revisions...', frameIndex: 1, frameCount: 3 });
+          } else if (type === 'project-evolution-start') {
+            // Progress first (drives the progress bar), then the movie entity.
+            var evoFrames = [
+              { index: 0, source: { id: 'commit-2', kind: 'gitRef', refType: 'commit', label: 'abcdef1', date: '2026-06-01', live: false },
+                label: 'abcdef1', date: '2026-06-01', url: './xr-mode-history-right.json', itemCount: 3, missingTarget: false, warnings: [] },
+              { index: 1, source: { id: 'commit-1', kind: 'gitRef', refType: 'commit', label: '1234567', date: '2026-06-14', live: false },
+                label: '1234567', date: '2026-06-14', url: './xr-mode-history-right.json', itemCount: 4, missingTarget: false, warnings: [] },
+              { index: 2, source: { id: 'working-copy', kind: 'workingCopy', label: 'main (live)', live: true },
+                label: 'main (live)', date: '', url: './xr-mode-history-left.json', itemCount: 6, missingTarget: false, warnings: [] }
+            ];
+            emit('project-evolution-progress', { state: 'analyzing', message: 'Analyzing 3 project revisions...', frameIndex: 1, frameCount: 3 });
+            apply('project-evolution', {
+              entityKind: 'project-evolution', entityId: 'main', mode: 'project-evolution',
+              result: {
+                revision: 1, mode: 'project-evolution', frames: evoFrames,
+                generatedAt: new Date().toISOString(),
+                manifestUrl: './xr-mode-history-right.json',
+                bridgeUrl: './xr-mode-history-right.json'
+              }
+            });
+            emit('project-evolution-progress', { state: 'ready', message: 'Project evolution ready.', frameIndex: 3, frameCount: 3 });
+            Object.assign(analysisState, { mode: 'project-evolution', status: 'ready', hasUsableSnapshot: true, controllerView: 'project-evolution' });
+            apply('analysis-view', analysisState);
+          } else if (type === 'project-evolution-clear') {
+            // Real server: cancels any in-flight generation and broadcasts the
+            // cleared notice, which resets the client state.
+            emit('project-evolution-cleared', { message: 'Project evolution movie cleared.' });
+          } else if (type === 'project-evolution-apply-frame') {
+            // The bridge swap the client waits for before rendering a frame.
+            // `revision` is mandatory: handleFrameApplied drops any reply whose
+            // revision does not match the movie's (the real server sends it).
+            emit('project-evolution-frame-applied', {
+              revision: (payload && payload.revision) || 1,
+              requestId: payload && payload.requestId,
+              frameIndex: payload && payload.frameIndex,
+              bridgeUrl: './xr-mode-history-right.json'
+            });
           } else if (type === 'historical-comparison-start') {
             apply('historical-comparison', {
               entityKind: 'historical-comparison',
@@ -281,10 +609,15 @@
               mode: 'historical-compare',
               result: historyResult
             });
+            // The comparison now persists server-side → later re-activations
+            // report it available (historical.mapping) even if the client
+            // cleared its local copy — the real stale-view scenario.
+            serverHistoryResult = historyResult;
             Object.assign(analysisState, {
               mode: 'historical-compare',
               status: 'ready',
-              hasUsableSnapshot: true
+              hasUsableSnapshot: true,
+              controllerView: 'historical.mapping'
             });
             apply('analysis-view', analysisState);
           }
@@ -303,7 +636,9 @@
   <script src="assembled/xrChartMappingUiRuntime.js"></script>
   <script src="assembled/analysisTableRuntime.js"></script>
   <script src="assembled/analysisModeRuntime.js"></script>
+  <script src="assembled/codexrGitRefPickerRuntime.js"></script>
   <script src="assembled/historicalComparisonRuntime.js"></script>
+  <script src="assembled/projectEvolutionRuntime.js"></script>
   <script src="../../templates/components/codexr/render-budget/renderBudgetRuntime.js?v=modefix3"></script>
   <script src="../../templates/components/codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js?v=modefix3"></script>
   <script src="assembled/dependencyGraphRuntime.js"></script>

@@ -222,7 +222,13 @@ test('mapping UI validates against dynamically resolved containment targets duri
     assert.match(runtimeSource, /function isChartMappingEntity\(entity, componentName\)/);
     assert.match(runtimeSource, /hasEntityAttribute\(entity, 'codexr-chart-containment'\)/);
     assert.match(runtimeSource, /function isAnalysisRootEntity\(entity\)/);
-    assert.match(runtimeSource, /return false;\s*\}\s*return !!\(componentName && hasEntityAttribute\(entity, componentName\)\);/);
+    // Live components count as well as DOM attributes: an entity built at
+    // runtime (the movie chart) has no DOM attribute, so chart resolution fell
+    // through to the parked NORMAL chart and switches landed on the wrong one.
+    assert.match(runtimeSource, /function hasEntityComponent\(entity, componentName\)/);
+    assert.match(runtimeSource, /entity\.components && entity\.components\[componentName\]/);
+    assert.match(runtimeSource, /hasEntityComponent\(entity, 'codexr-chart-containment'\)/);
+    assert.match(runtimeSource, /return false;\s*\}\s*return !!\(componentName && \(hasEntityAttribute\(entity, componentName\) \|\| hasEntityComponent\(entity, componentName\)\)\);/);
     assert.match(runtimeSource, /function findFallbackChartEntity\(config, preferredId\)/);
     assert.match(runtimeSource, /function buildChartValidationTargets\(config\)/);
     assert.match(runtimeSource, /return function resolveChartTarget\(\) \{/);
@@ -242,6 +248,101 @@ test('mapping UI schedules containment bursts while waiting for a stable table f
     assert.match(runtimeSource, /scheduleContainmentValidationBursts\('mapping-ui-revert'\)/);
     assert.match(runtimeSource, /scheduleContainmentValidationBursts\('mapping-ui-timeout-revert'\)/);
     assert.match(runtimeSource, /renormalizeAll\(\(reason \|\| 'mapping-ui-validation'\) \+ '-burst-'/);
+    // The ladder stops once every chart reports a settled, valid fit instead of
+    // re-measuring a stable scene for 18 seconds.
+    assert.match(runtimeSource, /if \(chain\.cancelled\) \{\s*return;\s*\}/);
+    assert.match(runtimeSource, /if \(settled\) \{\s*chain\.cancelled = true;/);
+});
+
+test('a chart type switch is validated and reverted when the new chart is invalid', () => {
+    // The per-dimension pending-mapping flow never covered a chart TYPE switch:
+    // an invalid chart stayed on screen under a "Chart changed to X" message.
+    assert.match(runtimeSource, /function scheduleChartSwitchValidation\(config, chartId, previousChartId\)/);
+    assert.match(runtimeSource, /scheduleChartSwitchValidation\(config, chartId, previousChartId\)/);
+    assert.match(runtimeSource, /if \(!result \|\| result\.state !== 'invalid'\) \{\s*return;\s*\}/);
+    assert.match(runtimeSource, /CodeXR restored the previous chart\./);
+});
+
+test('switching chart type unsubscribes the previous chart from its data producer', () => {
+    // BabiaXR 1.3.4 declares no `remove()` on any chart component, so removing
+    // one leaves its NotiBuffer callback registered: the next data push makes
+    // the DELETED chart paint itself again over the new one. CodeXR
+    // unsubscribes on the library's behalf, using its own API.
+    assert.match(runtimeSource, /function releaseChartComponentSubscription\(chartEntity, componentName\)/);
+    assert.match(runtimeSource, /buffer\.unregister\(component\.notiBufferId\)/);
+    assert.match(runtimeSource, /component\.prodComponent = null/);
+    assert.match(runtimeSource, /releaseChartComponentSubscription\(chartEntity, componentName\);\s*chartEntity\.removeAttribute\(componentName\);/);
+    // Exposed so the movie and the comparison can release a chart they drop.
+    assert.match(runtimeSource, /releaseChartEntity: releaseChartEntity/);
+    // Second line of defence: children no live component claims are residue.
+    assert.match(runtimeSource, /function sweepOrphanChartChildren\(chartEntity\)/);
+    assert.match(runtimeSource, /\['chartEl', 'titleEl', 'legendEl'\]/);
+    assert.match(runtimeSource, /scheduleOrphanChartSweep\(chartEntity\);/);
+
+    // Functional: a component holding a producer handle is unsubscribed and its
+    // handles cleared, so a later push cannot reach it.
+    const runtime = loadRuntime();
+    const unregistered = [];
+    const chart = createChartEntityForSwitchTest({});
+    chart.components = {
+        'babia-bars': {
+            prodComponent: { notiBuffer: { unregister(id) { unregistered.push(id); } } },
+            notiBufferId: 7,
+        },
+    };
+    runtime.releaseChartEntity(chart);
+    assert.deepEqual([...unregistered], [7]);
+    assert.equal(chart.components['babia-bars'].prodComponent, null);
+    assert.equal(chart.components['babia-bars'].notiBufferId, undefined);
+});
+
+test('an incomplete published default is completed from the chart dimensions', () => {
+    const runtime = loadRuntime();
+    // Exactly the shape a scene generated before the contract fix produces:
+    // barsmap declares x_axis/z_axis/height but the published defaults dropped
+    // z_axis (no text field survived the strict pool). That missing axis is
+    // what reached Babia and surfaced as "invalid axis".
+    const config = {
+        chartId: 'bars',
+        dimensionsByChart: {
+            barsmap: [
+                { id: 'x_axis', currentField: 'fileName', fields: ['fileName', 'language'] },
+                { id: 'z_axis', currentField: 'language', fields: ['language', 'fileName'] },
+                { id: 'height', currentField: 'totalLines', fields: ['totalLines'] },
+            ],
+        },
+        defaultMappingsByChart: {
+            barsmap: { x_axis: 'fileName', height: 'totalLines' },
+        },
+    };
+
+    const mapping = runtime.__testing.getDefaultMappingForChart(config, 'barsmap');
+    // Spread into a host array: values built inside the vm context are not
+    // reference-equal to host ones under deepStrictEqual.
+    assert.deepEqual([...Object.keys(mapping)].sort(), ['height', 'x_axis', 'z_axis']);
+    assert.equal(mapping.z_axis, 'language');
+    // Published values win over the dimension's own current field.
+    assert.equal(mapping.x_axis, 'fileName');
+
+    // config.dimensions describes the APPLIED chart only: asking for another
+    // chart must not hand back its axes.
+    const withLooseDimensions = Object.assign({}, config, {
+        dimensions: [{ id: 'key', currentField: 'fileName', fields: ['fileName'] }],
+    });
+    assert.equal(runtime.__testing.getDimensionsForChart(withLooseDimensions, 'pie').length, 0);
+    assert.equal(runtime.__testing.getDimensionsForChart(withLooseDimensions, 'bars').length, 1);
+});
+
+test('a chart mapping always covers every dimension the chart declares', () => {
+    // Partial mappings reached Babia as a missing axis — the "invalid axis"
+    // failure. Defaults are completed, and stale axes from the previous chart
+    // are dropped, in the single funnel every snapshot goes through.
+    assert.match(runtimeSource, /function reconcileMappingForChart\(mapping, fallbackMapping, dimensions\)/);
+    assert.match(runtimeSource, /var selected = reconcileMappingForChart\(snapshot\.selectedByDimension/);
+    assert.match(runtimeSource, /getDimensionsForChart\(config, chartId\)\.forEach\(function \(dimension\) \{[\s\S]{0,400}published\[dimension\.id\] = field;/);
+    // config.dimensions belongs to the applied chart only (selectChart rewrites
+    // it), so it must not answer for a different chart.
+    assert.match(runtimeSource, /if \(!chartId \|\| chartId === appliedChartId\)/);
 });
 
 test('mapping UI stores confirmed mappings per analysis context', () => {
@@ -266,9 +367,96 @@ test('mapping UI exposes the Analysis Controller facade while preserving legacy 
     assert.match(runtimeSource, /'historical.mapping': 'mapping'/);
     assert.match(runtimeSource, /function showControllerView\(viewId, context\)/);
     assert.match(runtimeSource, /state\.activeControllerView = nextViewId;/);
-    assert.match(runtimeSource, /getModeMemory: getModeMemory/);
-    assert.match(runtimeSource, /saveModeMemory: saveModeMemory/);
+    // Switching to the mapping profile already on screen is a no-op: otherwise
+    // applyMappingRuntimeState → renderRows clears and rebuilds every panel
+    // row, which is the visible controller flash when a mode entry applies its
+    // state more than once.
+    assert.match(runtimeSource, /getMappingProfileKey\(nextContextId, getActiveChartId\(config\)\) === state\.appliedMappingProfileKey/);
+    assert.match(runtimeSource, /state\.appliedMappingProfileKey = getMappingProfileKey\(/);
+    // One re-fit request per change, on the next frame. The extra 300 ms
+    // "settled" pass was a second retry mechanism competing with the
+    // containment component's own, and its only visible effect was a late
+    // re-fit after the scene was already correct.
+    assert.doesNotMatch(runtimeSource, /-settled/);
+    assert.doesNotMatch(runtimeSource, /delayedRenormalizeTimer/);
+    // applyMappingSnapshot already asks for the re-fit when it applies a
+    // mapping; applyMappingRuntimeState must not ask a second time for the
+    // same change (selectChart still asks — a chart swap is a real change).
+    assert.match(runtimeSource, /renderRows\(config\);\s*\/\/ No re-fit request here/);
+    // Panel title resolved from one place (generic-then-overwritten flickered).
+    assert.match(runtimeSource, /function getMappingPanelTitle\(\)/);
+    assert.doesNotMatch(runtimeSource, /setAttribute\('value', 'CodeXR Field Mapping'\)/);
+    // Zombie modeMemory API removed (no callers existed).
+    assert.doesNotMatch(runtimeSource, /getModeMemory|saveModeMemory/);
     assert.match(runtimeSource, /controllerView: state\.activeControllerView/);
+});
+
+test('boats runtime base comes from the injected chart-base config, with a faithful fallback', () => {
+    // With no document at all the runtime must fall back to the canonical
+    // values it mirrors from the generator.
+    const fallbackRuntime = loadRuntime();
+    const fallbackData = fallbackRuntime.__testing.buildRuntimeChartData('boats', {}, { area: 'functionCount' });
+    assert.equal(
+        fallbackData.legend_text,
+        '{name}\n{fheight} (height): {height}\n{farea} (area): {area}\n{fcolor} (color): {color}',
+    );
+    assert.equal(fallbackData.extra, 1);
+    assert.equal(fallbackData.separation, 0.5);
+    assert.equal(fallbackData.legend_lookat, '[camera]');
+    assert.deepEqual(plain(fallbackRuntime.getChartBaseConfig().treeFields), {
+        directory: 'filePath',
+        file: 'treePath',
+    });
+
+    // The generator-injected JSON always wins over the fallback.
+    const sandbox = {
+        console: { log() {}, warn() {}, error() {} },
+        module: { exports: {} },
+        exports: {},
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        document: {
+            getElementById(id) {
+                if (id !== 'codexr-chart-base-config') {
+                    return null;
+                }
+                return {
+                    textContent: JSON.stringify({
+                        boats: { legend_text: '{name} only', extra: 2 },
+                        treeFields: { directory: 'filePath', file: 'treePath' },
+                    }),
+                };
+            },
+        },
+    };
+    sandbox.globalThis = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'xrChartMappingUiRuntime.js' });
+    const injectedRuntime = sandbox.module.exports;
+    const injectedData = injectedRuntime.__testing.buildRuntimeChartData('boats', {}, { area: 'functionCount' });
+    assert.equal(injectedData.legend_text, '{name} only');
+    assert.equal(injectedData.extra, 2);
+    // Keys the injected config does not override keep the canonical value.
+    assert.equal(injectedData.separation, 0.5);
+
+    // Drift guard: the runtime fallback must spell out the SAME construction
+    // the generator publishes (templateCharts.BOATS_BASE_COMPONENT_ATTRIBUTES).
+    const templateCharts = fs.readFileSync(
+        path.join(projectRoot, 'src', 'babia_templates', 'charts', 'templateCharts.ts'),
+        'utf8',
+    );
+    for (const fragment of [
+        'height_building_legend: -0.5',
+        'legend_scale: 0.25',
+        "legend_lookat: '[camera]'",
+        'extra: 1',
+        'separation: 0.5',
+        'zone_elevation: 0.01',
+        'height_quarter_legend_box: 0.01',
+        'height_quarter_legend_title: 2.5',
+    ]) {
+        assert.ok(templateCharts.includes(fragment), `templateCharts must declare ${fragment}`);
+        assert.ok(runtimeSource.includes(fragment), `runtime fallback must mirror ${fragment}`);
+    }
 });
 
 test('mapping UI exposes live chart switching with chart-specific defaults', () => {
@@ -290,7 +478,7 @@ test('mapping UI exposes live chart switching with chart-specific defaults', () 
     assert.equal(barsData.x_axis, 'fileName');
     assert.match(runtimeSource, /function renderChartSelector\(config\)/);
     assert.match(runtimeSource, /data-codexr-chart-id/);
-    assert.match(runtimeSource, /function selectChart\(chartId\)/);
+    assert.match(runtimeSource, /function selectChart\(chartId, options\)/);
     assert.match(runtimeSource, /chartId: getActiveChartId\(getConfig\(\)\)/);
     assert.match(runtimeSource, /chartId: getActiveChartId\(config\)/);
 });

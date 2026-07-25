@@ -131,6 +131,10 @@
       return removed;
     }
 
+    function isPreservedRoot(element) {
+      return element?.getAttribute?.('data-codexr-preserve') === 'true';
+    }
+
     function removeTransientRoots() {
       var document = documentRef();
       if (!document) { return []; }
@@ -141,6 +145,13 @@
         if (element === normalRoot || element.getAttribute?.('data-codexr-analysis-mode') === 'single') {
           return;
         }
+        // Preserved roots keep their state across the selector (the mode
+        // restores them as left, like the hidden single-mode roots): hide,
+        // never remove.
+        if (isPreservedRoot(element)) {
+          setElementTreeVisible(element, false);
+          return;
+        }
         removed.push(element.id || element.getAttribute?.('data-codexr-analysis-mode') || 'anonymous-root');
         removeElement(element);
       });
@@ -148,15 +159,33 @@
         if (child === normalRoot || child.getAttribute?.('data-codexr-analysis-mode') === 'single') {
           return;
         }
+        if (isPreservedRoot(child)) {
+          setElementTreeVisible(child, false);
+          return;
+        }
         removed.push(child.id || child.getAttribute?.('data-codexr-analysis-mode') || 'anonymous-child');
         removeElement(child);
       });
       registeredRoots.forEach(function (entry, key) {
-        if (entry.mode !== 'single') {
+        if (entry.mode !== 'single' && !isPreservedRoot(entry.element)) {
           registeredRoots.delete(key);
         }
       });
       return removed;
+    }
+
+    // Hides a mode's preserved roots through the same visibility/interaction
+    // bookkeeping the surface uses everywhere else (a second suspension
+    // mechanism would leak: mountRoot only restores this one).
+    function preserveModeRoots(mode) {
+      var hidden = 0;
+      getModeRoots(mode).forEach(function (element) {
+        if (isPreservedRoot(element)) {
+          setElementTreeVisible(element, false);
+          hidden += 1;
+        }
+      });
+      return hidden;
     }
 
     function detachNormalRoots(reason) {
@@ -289,6 +318,7 @@
       getSurface: function () { return getSurface(true); },
       mountRoot: mountRoot,
       removeMode: removeMode,
+      preserveModeRoots: preserveModeRoots,
       clearForSelection: clearForSelection,
       setNormalVisible: setNormalVisible,
       activateMode: activateMode,

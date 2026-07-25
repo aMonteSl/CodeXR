@@ -1,5 +1,5 @@
 import { ChartMetadata, DimensionMapping } from '../../models/chartModels';
-import { chartTemplates, DEFAULT_BOATS_LEGEND_TEXT, UNIVERSAL_XR_TABLE_SETTINGS } from '../../charts/templateCharts';
+import { chartTemplates } from '../../charts/templateCharts';
 
 /**
  * Chart Creator Module - Specialized for Chart Entity Creation
@@ -23,8 +23,10 @@ export class CreateChart {
         console.log(`CREATE_CHART: Mappings:`, mappings);
 
         try {
-            // Get or create chart template
-            const chart = this.getOrCreateChart(chartId);
+            // Every chart — boats included — comes from the single canonical
+            // template list; a duplicated boats fallback used to live here and
+            // drifted from the real one.
+            const chart = chartTemplates.find((candidate) => candidate.id === chartId) || null;
             if (!chart) {
                 return { 
                     success: false, 
@@ -60,90 +62,6 @@ export class CreateChart {
                 error: error instanceof Error ? error.message : String(error) 
             };
         }
-    }
-
-    /**
-     * Get existing chart from chartTemplates or create default boats chart
-     */
-    private static getOrCreateChart(chartId: string): ChartMetadata | null {
-        // First try to find existing chart
-        const existingChart = chartTemplates.find(c => c.id === chartId);
-        if (existingChart) {
-            console.log(`CREATE_CHART: Found existing chart: ${chartId}`);
-            return existingChart;
-        }
-
-        // If not found and it's 'boats', create default boats chart
-        if (chartId === 'boats') {
-            console.log(`CREATE_CHART: Creating default boats chart`);
-            return this.createDefaultBoatsChart();
-        }
-
-        // For other unknown charts, return null
-        console.error(`CREATE_CHART: Unknown chart ID and cannot create default: ${chartId}`);
-        return null;
-    }
-
-    /**
-     * Create default boats chart with standard XR analysis dimensions
-     */
-    private static createDefaultBoatsChart(): ChartMetadata {
-        return {
-            id: 'boats',
-            name: 'Boats Chart',
-            description: 'XR Analysis Boats Chart with Parameters, Lines Count, and Complexity',
-            category: 'geometric',
-            dimensions: [
-                {
-                    name: 'area',
-                    label: 'Area (Parameters)',
-                    dataType: 'numeric',
-                    valueRule: 'numeric-finite',
-                    required: true,
-                    description: 'Function parameters count'
-                },
-                {
-                    name: 'height',
-                    label: 'Height (Lines Count)',
-                    dataType: 'numeric',
-                    valueRule: 'numeric-finite',
-                    required: true,
-                    description: 'Lines of code count'
-                },
-                {
-                    name: 'color',
-                    label: 'Color (Complexity)',
-                    dataType: 'any',
-                    required: true,
-                    description: 'Categorical or numeric field used for boat color grouping'
-                }
-            ],
-            htmlTemplate: `<!-- XR Analysis Boats Chart -->
-                <a-entity id="{{CHART_ID}}"
-                    babia-boats="from: tree;
-                                 title: {{TITLE}};
-                                 legend: true;
-                                 legend_text: ${DEFAULT_BOATS_LEGEND_TEXT};
-                                 height_building_legend: -0.5;
-                                 legend_scale: 0.25;
-                                 legend_lookat: [laser-controls];
-                                 palette: {{PALETTE}};
-                                 area: {{AREA_FIELD}};
-                                 height: {{HEIGHT_FIELD}};
-                                 color: {{COLOR_FIELD}};
-                                 axis_name: true;
-                                 extra: 1;
-                                 separation: 0.5;
-                                 zone_elevation: 0.01;
-                                 height_quarter_legend_box: 0.01;
-                                 height_quarter_legend_title: 2.5"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="0.01 0.05 0.01"
-                    class="babiaxraycasterclass">
-                </a-entity>`
-        };
     }
 
     /**

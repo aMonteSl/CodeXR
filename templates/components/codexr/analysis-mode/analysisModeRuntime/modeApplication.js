@@ -8,6 +8,17 @@
     state.activeLifecycleMode = nextMode;
     state.mode = nextMode;
     state.controllerView = controllerView;
+    // The chart selector follows the mode: project evolution selects its own
+    // movie chart (boats) in its activate; every other mode shows the chart
+    // the scene was generated with. UI-only — converting entities is the
+    // target mode's own business, and chart selection is global otherwise.
+    if (nextMode !== 'project-evolution') {
+      var mappingRuntime = root.CodeXRMappingUiRuntime;
+      var sceneChartId = mappingRuntime?.getSceneChartId?.();
+      if (sceneChartId && mappingRuntime?.getState?.()?.chartId !== sceneChartId) {
+        mappingRuntime?.selectChart?.(sceneChartId, { applyToEntities: false });
+      }
+    }
     setTableMode(nextMode);
     var panelViewId = resolveModePanelView(nextMode, context || null);
     applyControllerView(nextMode, controllerView, panelViewId, context || null);
@@ -37,6 +48,11 @@
       if (!roots.includes(element)) {
         roots.push(element);
       }
+    });
+    // Preserved roots are saved state, not residue: their mode hides them and
+    // restores them as left (mirrors removeTransientRoots in the surface).
+    roots = roots.filter(function (element) {
+      return element.getAttribute?.('data-codexr-preserve') !== 'true';
     });
     debugLog('Residual visual root cleanup', {
       count: roots.length,

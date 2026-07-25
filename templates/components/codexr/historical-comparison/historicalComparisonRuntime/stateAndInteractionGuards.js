@@ -8,10 +8,7 @@
     initialized: false,
     panelVisible: false,
     references: null,
-    page: 0,
-    pageSize: 5,
     activeSide: 'left',
-    activeCategory: 'branch',
     availability: 'loading',
     unavailableReason: 'Checking Git history availability...',
     selected: { left: 'working-copy', right: '' },
@@ -22,6 +19,7 @@
     statusLevel: 'info',
     disposables: [],
     unregisterPanelView: null,
+    unregisterMappingCompanion: null,
     unregisterLifecycle: null,
     unregisterModeOption: null,
     loadGeneration: 0
@@ -66,33 +64,30 @@
       || (modeState?.transitioning && modeState?.requestedMode === 'historical-compare');
   }
 
+  var HISTORICAL_UNAVAILABLE_REASON = 'Historical comparison requires a local Git repository.';
+
   async function configureAvailability() {
-    var client = getClient();
-    var sessionInfo = null;
-    try {
-      sessionInfo = await client?.getSessionInfoAsync?.();
-    } catch {
-      sessionInfo = null;
-    }
-    var capabilities = sessionInfo?.capabilities || {};
+    var picker = root.CodeXRGitRefPickerRuntime;
+    var capabilities = picker?.resolveCapabilities ? await picker.resolveCapabilities() : {};
     var enabled = capabilities.historicalComparison === true;
-    var reason = String(
-      capabilities.historicalComparisonReason
-        || 'Historical comparison requires a local Git repository.'
-    );
     state.availability = enabled ? 'enabled' : 'disabled';
-    state.unavailableReason = enabled ? '' : reason;
+    state.unavailableReason = enabled
+      ? ''
+      : String(capabilities.historicalComparisonReason || HISTORICAL_UNAVAILABLE_REASON);
     registerHistoricalModeOption();
   }
 
+  // Delegates to the shared Git-gated mode registration so both Git analyses
+  // gate their controller option through one path.
   function registerHistoricalModeOption() {
     state.unregisterModeOption?.();
-    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime.registerModeOption?.({
-      id: 'historical-compare',
+    state.unregisterModeOption = root.CodeXRGitRefPickerRuntime?.registerGitGatedMode?.({
+      modeId: 'historical-compare',
       label: 'Historical comparison',
       color: '#be123c',
-      disabled: state.availability !== 'enabled',
-      disabledReason: state.unavailableReason || 'Historical comparison requires a local Git repository.',
+      capabilityKey: 'historicalComparison',
+      enabled: state.availability === 'enabled',
+      reasonFallback: state.unavailableReason || HISTORICAL_UNAVAILABLE_REASON,
       onSelect: selectHistoricalMode
     }) || null;
   }

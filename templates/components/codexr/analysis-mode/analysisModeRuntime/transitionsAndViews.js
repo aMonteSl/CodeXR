@@ -3,14 +3,57 @@
     if (!VALID_MODES.has(mode)) {
       return Promise.reject(new Error('Unsupported CodeXR analysis mode: ' + mode));
     }
+    // Same-mode dedupe: entering the mode that is already fully active only
+    // re-applies the controller/panel routing — it must NOT queue another
+    // deactivate/activate cycle. Every entry fires twice (the runtime's direct
+    // transitionTo plus the server's authoritative analysis-view echo), and the
+    // duplicated lifecycle pass re-parked and re-built everything: the entry
+    // flicker, and — with a comparison result present — a full chart rebuild
+    // with the scene left empty for its stabilization wait.
+    // A snapshot only forces a re-activation for lifecycles that declare they
+    // consume it (single: the analysis-view snapshot IS its data-refresh path).
+    // Modes fed by their own shared entity — historical, dependency graph,
+    // project evolution — must NOT re-run their whole lifecycle for an echo:
+    // that second pass re-applied the table geometry and rebuilt the panel
+    // rows over an already-correct scene, which is what the entry flicker was.
+    var snapshotDrivesReactivation = !!context?.snapshot
+      && lifecycles[mode]?.consumesSnapshot === true;
+    if (mode === state.mode && state.activeLifecycleMode === mode && !state.transitioning && !snapshotDrivesReactivation) {
+      debugLog('Analysis mode transition skipped (mode already active)', {
+        mode: mode,
+        reason: context?.reason || ''
+      });
+      applyAnalysisMode(mode, context || null);
+      return Promise.resolve(true);
+    }
+    // In-flight dedupe: a transition to this exact mode is already queued
+    // (every entry fires twice — direct call + authoritative echo, in either
+    // order). Ride the in-flight transition and re-apply only this caller's
+    // routing once it lands, instead of queueing a second lifecycle cycle.
+    if (state.transitioning && state.pendingTransitionMode === mode) {
+      debugLog('Analysis mode transition merged into in-flight transition', {
+        mode: mode,
+        reason: context?.reason || ''
+      });
+      return state.transition.then(function (result) {
+        if (state.mode === mode && !state.transitioning) {
+          applyAnalysisMode(mode, context || null);
+        }
+        return result;
+      });
+    }
     var generation = ++state.generation;
     state.transitioning = true;
+    // Target of the latest queued transition — lets the authoritative-echo
+    // handler recognise a duplicate before it queues a second full cycle.
+    state.pendingTransitionMode = mode;
     var previousTransition = state.transition.catch(function () {});
     var nextTransition = previousTransition.then(function () {
       return performTransition(mode, context, generation);
     }).finally(function () {
       if (generation === state.generation) {
         state.transitioning = false;
+        state.pendingTransitionMode = null;
       }
     });
     state.transition = nextTransition;
@@ -120,7 +163,12 @@
   }
 
   function getDefaultControllerViewForMode(mode) {
-    return MODE_CONTROLLER_VIEW_BY_ID[mode] || 'single.mapping';
+    // A mode lifecycle may resolve its default view from its own live state
+    // (e.g. historical: mapping when a comparison exists, selector otherwise).
+    // This keeps the local transition and the authoritative server echo — which
+    // both fall back to this default — from disagreeing on the view.
+    var lifecycleView = lifecycles[mode]?.resolveControllerView?.();
+    return lifecycleView || MODE_CONTROLLER_VIEW_BY_ID[mode] || 'single.mapping';
   }
 
   function getPanelViewForControllerView(controllerView) {

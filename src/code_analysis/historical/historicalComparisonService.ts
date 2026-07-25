@@ -15,6 +15,7 @@ import {
     HistoricalComparisonReferences,
     HistoricalComparisonRequest,
     HistoricalComparisonResult,
+    buildBabiaStyleFilePath,
 } from './historicalComparisonModels';
 
 const ANALYZER_CACHE_VERSION = 'historical-v1';
@@ -76,16 +77,10 @@ export class HistoricalComparisonService {
         return sources.filter((_, index) => present[index]);
     }
 
-    public async getAvailability(): Promise<{ enabled: boolean; reason: string | null }> {
-        try {
-            await this.gitService.resolveRepositoryRoot();
-            return { enabled: true, reason: null };
-        } catch (error) {
-            return {
-                enabled: false,
-                reason: 'The analyzed target is not inside a local Git repository.',
-            };
-        }
+    public getAvailability(): Promise<{ enabled: boolean; reason: string | null }> {
+        return this.gitService.getAvailability(
+            'The analyzed target is not inside a local Git repository.',
+        );
     }
 
     public async compare(
@@ -275,7 +270,14 @@ export class HistoricalComparisonService {
                 const relativePath = this.toPortableRelativePath(analyzedTargetPath, sourcePath);
                 return {
                     ...entry,
-                    filePath: relativePath,
+                    // Both comparison sides rebuild filePath against the
+                    // ORIGINAL target (normal-analysis shape): the working
+                    // copy and the materialized commit then paint identical
+                    // quarters for the same file.
+                    filePath: buildBabiaStyleFilePath(session.targetPath, relativePath),
+                    relativePath,
+                    // Cross-side identity stays RELATIVE, independent of
+                    // where each side was analyzed.
                     comparisonKey: `file:${relativePath.toLocaleLowerCase()}`,
                 };
             });

@@ -46,7 +46,8 @@
     'historical.mapping': 'mapping',
     'project-evolution': 'project-evolution',
     'project-evolution.selection': 'project-evolution',
-    'project-evolution.playback': 'project-evolution'
+    'project-evolution.playback': 'project-evolution',
+    'project-evolution.mapping': 'mapping'
   };
 
   var CONTROLLER_VIEW_BY_PANEL = {
@@ -80,7 +81,6 @@
     activeCornerId: null,
     lastCornerSwitchAt: 0,
     lastConfigSnapshot: null,
-    delayedRenormalizeTimer: null,
     pendingValidationTimers: [],
     pendingMappingToken: 0,
     pendingMapping: null,
@@ -91,6 +91,10 @@
     chartEntityIdsOverride: null,
     activeMappingContextId: 'normal-analysis',
     mappingProfiles: {},
+    // Per-context companion sections shown under the mapping view (child
+    // versions of the Field Mapping panel, e.g. the historical comparison
+    // extension with its side info + change-comparison action).
+    mappingCompanions: {},
     activePanelView: 'mapping',
     mappingPanelHeight: 2.45,
     panelViews: {},
@@ -99,7 +103,9 @@
     activeChartId: null,
     mode: 'single',
     activeControllerView: 'single.mapping',
-    modeMemory: {}
+    // Mapping profile currently rendered (context + chart); guards the
+    // idempotent context switch.
+    appliedMappingProfileKey: null
   };
 
   var ADAPTIVE_DEFAULTS = {
@@ -150,6 +156,10 @@
       try {
         state.runtimeConfig = JSON.parse(configScript.textContent);
         state.activeChartId = state.runtimeConfig.chartId || null;
+        // Pristine scene chart, captured before selectChart ever mutates
+        // config.chartId: modes that are not project evolution restore the
+        // selector to this chart on entry.
+        state.sceneChartId = state.runtimeConfig.chartId || null;
         return state.runtimeConfig;
       } catch (error) {
         console.warn('CODEXR_MAPPING_UI: invalid JSON config script', error);

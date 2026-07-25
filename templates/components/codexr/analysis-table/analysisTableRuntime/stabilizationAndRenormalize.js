@@ -94,7 +94,46 @@
 
     renormalize: function (reason) {
       this.ensureRuntimeState();
+      // A hidden chart (another mode's, parked while its analysis is not on
+      // screen) must not be re-fitted: measuring it while invisible yields a
+      // different fit, which then had to be corrected — visibly — the moment it
+      // came back. Remember the request instead; the fit it already has stays
+      // valid, and whoever shows the chart again asks for a re-fit (which is a
+      // no-op unless its content really changed).
+      if (this.normalized && !isObject3DVisibleInScene(this.el)) {
+        this.pendingRenormalizeReason = reason || 'hidden-chart';
+        resizeTrace('renormalize-deferred-hidden', {
+          reason: reason || 'renormalize'
+        });
+        return;
+      }
+      // Already fitted and nothing changed → keep the chart exactly as it is.
+      // Re-fitting is destructive (it clears `normalized`, resets the transform
+      // and runs the bootstrap fit again), so an unconditional re-fit made the
+      // chart visibly jump every time something asked "just in case" — the
+      // flash on entering an analysis. Real changes (new data, a rebuilt chart,
+      // a different containment zone) move the measurements or the transform,
+      // so the signature differs and the fit runs normally.
+      if (this.normalized && this.normalizedSignature && this.el?.object3D) {
+        // A transition in flight is not a reason to re-fit: it IS this
+        // component's own animation towards the fit it just computed. Restarting
+        // then made captureStableTransform() below record a half-animated
+        // transform as the stable one and fit from there — the chained re-fits
+        // when several "just in case" requests land inside one 650 ms animation.
+        var transitioning = !!(this.containmentTransition && this.containmentTransition.active);
+        var currentSignature = transitioning
+          ? this.normalizedSignature
+          : buildMeasurementSignature(this.measureBounds(), this.el.object3D);
+        if (currentSignature && currentSignature === this.normalizedSignature) {
+          resizeTrace('renormalize-skipped-unchanged', {
+            reason: reason || 'renormalize',
+            transitioning: transitioning
+          });
+          return;
+        }
+      }
       var generation = this.bumpNormalizationGeneration();
+      this.unsettle(reason || 'renormalize');
       if (this.containmentTransition && this.containmentTransition.active) {
         this.cancelContainmentTransition();
       }
@@ -212,6 +251,9 @@
       this.lastSuccessfulNormalizeAt = Date.now();
       this.nextContainmentCheckAt = 0;
       this.lastMeasurementSignature = buildMeasurementSignature(this.measureBounds(), el.object3D);
+      // Remember the fit that is now on screen so redundant renormalize
+      // requests can be skipped instead of re-running the whole fit.
+      this.normalizedSignature = this.lastMeasurementSignature;
       var finalTransform = cloneTransform(el.object3D);
       if (finalTransform && shouldAnimateContainmentTransform(reason, previousTransform, finalTransform, this.data)) {
         restoreTransform(el.object3D, previousTransform);

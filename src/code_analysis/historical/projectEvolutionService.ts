@@ -6,12 +6,14 @@ import { UnifiedAnalysisSession } from '../engine/core/analysisSession';
 import { UnifiedSessionRegistry } from '../engine/core/sessionRegistry';
 import { ExecutePython } from '../engine/utils/executePython';
 import { GitRepositoryService } from './gitRepositoryService';
+import { sampleTimeline } from './gitTimelineSampler';
 import {
     ComparisonSource,
     ProjectEvolutionProgress,
     ProjectEvolutionReferences,
     ProjectEvolutionRequest,
     ProjectEvolutionResult,
+    buildBabiaStyleFilePath,
 } from './historicalComparisonModels';
 
 const ANALYZER_CACHE_VERSION = 'project-evolution-v1';
@@ -45,16 +47,10 @@ export class ProjectEvolutionService {
         );
     }
 
-    public async getAvailability(): Promise<{ enabled: boolean; reason: string | null }> {
-        try {
-            await this.gitService.resolveRepositoryRoot();
-            return { enabled: true, reason: null };
-        } catch {
-            return {
-                enabled: false,
-                reason: 'Project evolution requires a local Git repository.',
-            };
-        }
+    public getAvailability(): Promise<{ enabled: boolean; reason: string | null }> {
+        return this.gitService.getAvailability(
+            'Project evolution requires a local Git repository.',
+        );
     }
 
     public async getReferences(): Promise<ProjectEvolutionReferences> {
@@ -244,15 +240,51 @@ export class ProjectEvolutionService {
         }
         const timeline = await this.buildAutomaticTimeline();
         if (mode === 'range' && request.startSourceId && request.endSourceId) {
-            const startIndex = timeline.findIndex((source) => source.id === request.startSourceId);
-            const endIndex = timeline.findIndex((source) => source.id === request.endSourceId);
-            if (startIndex >= 0 && endIndex >= 0) {
-                const from = Math.min(startIndex, endIndex);
-                const to = Math.max(startIndex, endIndex);
-                return this.sampleSources(timeline.slice(from, to + 1), maxFrames);
+            const startIndex = await this.resolveTimelineIndex(timeline, request.startSourceId);
+            const endIndex = await this.resolveTimelineIndex(timeline, request.endSourceId);
+            // A range the user asked for must never silently degrade into the
+            // full automatic movie — that is how "my range was not analyzed"
+            // presented. Unresolvable endpoints are a loud error instead.
+            if (startIndex < 0 || endIndex < 0) {
+                throw new Error('project-evolution-range-not-found');
             }
+            const from = Math.min(startIndex, endIndex);
+            const to = Math.max(startIndex, endIndex);
+            return this.sampleSources(timeline.slice(from, to + 1), maxFrames);
         }
         return this.sampleSources(timeline, maxFrames);
+    }
+
+    /**
+     * Position of a picked source inside the commit timeline.
+     *
+     * The picker offers branches, tags and the working copy, whose ids do not
+     * exist in the commit-only timeline — so a direct id match is only the fast
+     * path. Otherwise the source is resolved to its commit sha (branches/tags
+     * point at one) and located by sha; the working copy means "the end".
+     */
+    private async resolveTimelineIndex(
+        timeline: ComparisonSource[],
+        sourceId: string,
+    ): Promise<number> {
+        const byId = timeline.findIndex((source) => source.id === sourceId);
+        if (byId >= 0) {
+            return byId;
+        }
+        if (sourceId === 'working-copy') {
+            return timeline.length - 1;
+        }
+        try {
+            const picked = await this.gitService.resolveSource(sourceId);
+            if (picked.kind !== 'gitRef' || !picked.commitSha) {
+                return -1;
+            }
+            return timeline.findIndex(
+                (source) => source.kind === 'gitRef' && source.commitSha === picked.commitSha,
+            );
+        } catch {
+            return -1;
+        }
     }
 
     private async buildAutomaticTimeline(existingReferences?: { sources: ComparisonSource[]; workingTreeDirty: boolean }): Promise<ComparisonSource[]> {
@@ -261,29 +293,31 @@ export class ProjectEvolutionService {
         const gitTimeline = timeline.length
             ? timeline
             : references.sources.filter((source) => source.kind === 'gitRef');
-        const workingCopy = references.sources.find((source) => source.kind === 'workingCopy');
-        if (references.workingTreeDirty && workingCopy) {
-            return [...gitTimeline, workingCopy];
+        const endAnchor = this.resolveCurrentStateSource(references);
+        if (endAnchor && !gitTimeline.some((source) => source.id === endAnchor.id)) {
+            return [...gitTimeline, endAnchor];
         }
         return gitTimeline;
     }
 
+    /**
+     * The revision a movie must finish on: the branch as it stands right now.
+     *
+     * That is the working copy — it is the checked-out branch whether or not the
+     * tree is dirty, and it is what the user is looking at. The timeline itself
+     * is `--all`, so its last entry may well belong to a different branch and
+     * cannot be trusted as the ending.
+     */
+    private resolveCurrentStateSource(
+        references: { sources: ComparisonSource[]; workingTreeDirty: boolean },
+    ): ComparisonSource | null {
+        return references.sources.find((source) => source.kind === 'workingCopy') || null;
+    }
+
     private sampleSources(sources: ComparisonSource[], maxFrames: number): ComparisonSource[] {
-        if (sources.length <= maxFrames) {
-            return sources.slice();
-        }
-        const selected: ComparisonSource[] = [];
-        const last = sources.length - 1;
-        const slots = Math.max(2, maxFrames);
-        const seen = new Set<string>();
-        for (let index = 0; index < slots; index += 1) {
-            const source = sources[Math.round((index / (slots - 1)) * last)];
-            if (source && !seen.has(source.id)) {
-                seen.add(source.id);
-                selected.push(source);
-            }
-        }
-        return selected;
+        // Shared sampler: even spacing in time, milestones preferred, and the
+        // current state of the branch always last (see gitTimelineSampler).
+        return sampleTimeline(sources, maxFrames, sources[sources.length - 1] || null);
     }
 
     private mergeSources(primary: ComparisonSource[], timeline: ComparisonSource[]): ComparisonSource[] {
@@ -370,7 +404,16 @@ export class ProjectEvolutionService {
                 const relativePath = this.toPortableRelativePath(analyzedTargetPath, sourcePath);
                 return {
                     ...entry,
-                    filePath: relativePath,
+                    // The boats tree splits filePath — the same field, with
+                    // the same shape, the normal analysis publishes. Rebuild
+                    // it against the ORIGINAL target so the materialized
+                    // copy's temp location never shapes the quarters and the
+                    // movie's tree matches the normal analysis exactly.
+                    filePath: buildBabiaStyleFilePath(session.targetPath, relativePath),
+                    relativePath,
+                    // Cross-commit identity stays RELATIVE: it must match the
+                    // same file across frames regardless of where each
+                    // revision was materialized.
                     evolutionKey: `file:${relativePath.toLocaleLowerCase()}`,
                 };
             });

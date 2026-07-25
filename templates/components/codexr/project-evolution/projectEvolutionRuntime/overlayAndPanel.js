@@ -36,36 +36,35 @@
     refs.playbackOverlay?.setAttribute('visible', 'false');
   }
 
+  var EVOLUTION_UNAVAILABLE_REASON = 'Project evolution requires a local Git repository.';
+
   async function configureAvailability() {
-    var sessionInfo = null;
-    try {
-      sessionInfo = await client()?.getSessionInfoAsync?.();
-    } catch {
-      sessionInfo = null;
-    }
-    var capabilities = sessionInfo?.capabilities || {};
+    var picker = root.CodeXRGitRefPickerRuntime;
+    var capabilities = picker?.resolveCapabilities ? await picker.resolveCapabilities() : {};
     var enabled = capabilities.projectEvolution === true;
     state.availability = enabled ? 'enabled' : 'disabled';
     state.unavailableReason = enabled
       ? ''
-      : String(capabilities.projectEvolutionReason || 'Project evolution requires a local Git repository.');
+      : String(capabilities.projectEvolutionReason || EVOLUTION_UNAVAILABLE_REASON);
     registerModeOption();
   }
 
+  // Delegates to the shared Git-gated mode registration (see historical).
   function registerModeOption() {
     state.unregisterModeOption?.();
-    state.unregisterModeOption = root.CodeXRAnalysisModeRuntime?.registerModeOption?.({
-      id: MODE,
+    state.unregisterModeOption = root.CodeXRGitRefPickerRuntime?.registerGitGatedMode?.({
+      modeId: MODE,
       label: 'Project evolution',
       color: '#f59e0b',
-      disabled: state.availability !== 'enabled',
-      disabledReason: state.unavailableReason || 'Project evolution requires a local Git repository.',
+      capabilityKey: 'projectEvolution',
+      enabled: state.availability === 'enabled',
+      reasonFallback: state.unavailableReason || EVOLUTION_UNAVAILABLE_REASON,
       onSelect: selectMode
     }) || null;
   }
 
   function buildPanel() {
-    if (refs.panel || !root.CodeXRMappingUiRuntime?.registerPanelView) {
+    if (refs.panel || !root.CodeXRMappingUiRuntime?.registerPanelView || !root.CodeXRGitRefPickerRuntime?.createPicker) {
       return !!refs.panel;
     }
     if (!root.CodeXRMappingUiRuntime.isPanelReady?.()) {
@@ -80,56 +79,159 @@
       return false;
     }
     refs.panel = entity('a-entity', { position: '0 0 0.04' });
-    refs.panel.appendChild(text('Project evolution', '0 ' + PANEL_LAYOUT.titleY + ' 0.02', 6.2, '#cde7ff'));
-    refs.panel.appendChild(text('Replay the project through local Git commits.', '0 ' + PANEL_LAYOUT.subtitleY + ' 0.02', 5.8, '#cbd5e1'));
-    refs.info = text('Automatic timeline: oldest commits to newest commits.', '0 ' + PANEL_LAYOUT.infoY + ' 0.02', 5.8, '#ffffff');
+    // No title here: the controller's own header already names the view. It was
+    // printed twice.
+    refs.help = text('Replay the project through local Git commits.', '0 0 0.02', 5.8, '#cbd5e1');
+    refs.panel.appendChild(refs.help);
+    refs.info = text('Automatic timeline: oldest commits to newest commits.', '0 0 0.02', 5.8, '#ffffff');
     refs.panel.appendChild(refs.info);
-    refs.modeRoot = entity('a-entity', { position: '0 ' + PANEL_LAYOUT.modeY + ' 0.02' });
+    refs.modeRoot = entity('a-entity', { position: '0 0 0.02' });
     refs.modeRoot.appendChild(modeButton('Auto', '-1.75 0 0', function () { setTimelineMode('auto'); }, '#0e7490'));
     refs.modeRoot.appendChild(modeButton('Range', '0 0 0', function () { setTimelineMode('range'); }, '#334155'));
     refs.modeRoot.appendChild(modeButton('Manual', '1.75 0 0', function () { setTimelineMode('manual'); }, '#334155'));
     refs.panel.appendChild(refs.modeRoot);
-    refs.rangeRoot = entity('a-entity', { position: '0 ' + PANEL_LAYOUT.rangeY + ' 0.02' });
+    refs.rangeRoot = entity('a-entity', { position: '0 0 0.02' });
     refs.rangeRoot.appendChild(button('Pick start', '-1.05 0 0', 1.65, function () { setRangeSide('start'); }, '#15803d', { textWidth: 2.1, wrapCount: 18 }));
     refs.rangeRoot.appendChild(button('Pick end', '1.05 0 0', 1.65, function () { setRangeSide('end'); }, '#b91c1c', { textWidth: 2.1, wrapCount: 18 }));
     refs.panel.appendChild(refs.rangeRoot);
-    refs.referencesRoot = entity('a-entity', { position: '0 ' + PANEL_LAYOUT.referencesY + ' 0.02' });
-    refs.panel.appendChild(refs.referencesRoot);
-    refs.pagerRoot = entity('a-entity', { position: '0 ' + PANEL_LAYOUT.pagerY + ' 0.02' });
-    refs.pagerRoot.appendChild(button('<', '-0.72 0 0', 0.5, function () { setSelectionPage(state.selectionPage - 1); }, '#334155', { height: 0.26, textWidth: 0.7, wrapCount: 4 }));
-    refs.pageText = smallText('Page 1 / 1', '0 0 0.02', 1.2, '#cbd5e1', 'center', 16);
-    refs.pagerRoot.appendChild(refs.pageText);
-    refs.pagerRoot.appendChild(button('>', '0.72 0 0', 0.5, function () { setSelectionPage(state.selectionPage + 1); }, '#334155', { height: 0.26, textWidth: 0.7, wrapCount: 4 }));
-    refs.panel.appendChild(refs.pagerRoot);
+    // Ordered multi-select source list is the shared Git picker in 'sequence'
+    // mode, now with the same category tabs and time-order toggle the
+    // comparison uses — hundreds of commits are unusable without them.
+    refs.picker = root.CodeXRGitRefPickerRuntime.createPicker({
+      mode: 'sequence',
+      tabs: true,
+      sortToggle: true,
+      pageSize: PANEL_LAYOUT.referenceRows,
+      rowGap: PANEL_LAYOUT.rowGap,
+      // Laid out relative to the picker root, which layoutPanel positions as a
+      // single block: tabs on top, then the rows, then the pager.
+      tabsY: -(PANEL_LAYOUT.tabsHeight / 2),
+      listY: -(PANEL_LAYOUT.tabsHeight + PANEL_LAYOUT.gap),
+      listTopY: 0,
+      pagerY: -(pickerBlockHeight() - (PANEL_LAYOUT.pagerHeight / 2)),
+      rowClass: 'codexr-project-evolution-button',
+      resolveRowState: resolveRowStateForSource,
+      onRowClick: function (source) { selectSourceForTimeline(source); }
+    });
+    refs.panel.appendChild(refs.picker.el);
     refs.frame = buildNowShowingCard();
     refs.panel.appendChild(refs.frame);
-    refs.generateButton = primaryActionButton('Generate movie', '0 ' + PANEL_LAYOUT.generateY + ' 0.02', startSelectedTimeline);
+    refs.progressRoot = buildProgressBar();
+    refs.panel.appendChild(refs.progressRoot);
+    refs.generateButton = primaryActionButton('Generate movie', '0 0 0.02', startSelectedTimeline);
     refs.panel.appendChild(refs.generateButton);
-    refs.clearButton = button('Clear movie', '2.25 ' + PANEL_LAYOUT.generateY + ' 0.02', 1.18, clearMovie, '#7f1d1d', {
-      height: 0.34,
-      textWidth: 1.5,
+    refs.clearButton = button('Clear movie', '0 0 0.02', 1.5, clearMovie, '#7f1d1d', {
+      height: 0.4,
+      textWidth: 1.9,
       wrapCount: 14
     });
     refs.panel.appendChild(refs.clearButton);
-    refs.panel.appendChild(transportButton('Prev', '-1.65 ' + PANEL_LAYOUT.transportY + ' 0.02', previousFrame));
-    refs.playButton = transportButton('Play', '0 ' + PANEL_LAYOUT.transportY + ' 0.02', togglePlay);
-    refs.panel.appendChild(refs.playButton);
-    refs.panel.appendChild(transportButton('Next', '1.65 ' + PANEL_LAYOUT.transportY + ' 0.02', nextFrame));
-    refs.panel.appendChild(speedButton('0.5x', '-1.35 ' + PANEL_LAYOUT.speedY + ' 0.02', 0.5));
-    refs.panel.appendChild(speedButton('1x', '0 ' + PANEL_LAYOUT.speedY + ' 0.02', 1));
-    refs.panel.appendChild(speedButton('2x', '1.35 ' + PANEL_LAYOUT.speedY + ' 0.02', 2));
-    refs.status = smallText('', '-2.85 ' + PANEL_LAYOUT.statusY + ' 0.02', 5.7, '#fde68a', 'left', 54);
+    // Back to the Field Mapping view without regenerating (mirror of
+    // Historical's closePanel); its row folds away until a movie exists.
+    refs.mappingButton = button('Field mapping', '0 0 0.02', 3.15, showMovieMappingView, '#0e7490', {
+      height: 0.4,
+      textWidth: 3.9,
+      wrapCount: 28
+    });
+    refs.panel.appendChild(refs.mappingButton);
+    refs.transportRoot = entity('a-entity', { position: '0 0 0.02' });
+    refs.transportRoot.appendChild(transportButton('Prev', '-1.65 0 0', previousFrame));
+    refs.playButton = transportButton('Play', '0 0 0', togglePlay);
+    refs.transportRoot.appendChild(refs.playButton);
+    refs.transportRoot.appendChild(transportButton('Next', '1.65 0 0', nextFrame));
+    refs.panel.appendChild(refs.transportRoot);
+    refs.speedRoot = entity('a-entity', { position: '0 0 0.02' });
+    refs.speedRoot.appendChild(speedButton('0.5x', '-1.35 0 0', 0.5));
+    refs.speedRoot.appendChild(speedButton('1x', '0 0 0', 1));
+    refs.speedRoot.appendChild(speedButton('2x', '1.35 0 0', 2));
+    refs.panel.appendChild(refs.speedRoot);
+    refs.timeline = {};
+    refs.timelineBar = buildTimelineBar(refs.timeline);
+    refs.panel.appendChild(refs.timelineBar);
+    refs.sparkline = buildSparkline();
+    refs.panel.appendChild(refs.sparkline);
+    refs.status = smallText('', PANEL_LAYOUT.left + ' 0 0.02', 5.7, '#fde68a', 'left', 54);
     refs.panel.appendChild(refs.status);
     state.unregisterPanelView = root.CodeXRMappingUiRuntime?.registerPanelView({
       id: MODE,
       title: 'Project evolution',
       buttonLabel: 'E',
       headerButton: false,
-      panelHeight: PANEL_LAYOUT.panelHeight,
+      panelHeight: layoutPanel(),
       content: refs.panel,
       onShow: handlePanelShown
     });
+    // Child section of the Field Mapping view: chart/axis controls on the left,
+    // the movie and its transport on the right (same pattern as Historical).
+    buildMovieCompanion(root.CodeXRMappingUiRuntime);
     return true;
+  }
+
+  // Places every section from PANEL_LAYOUT, top to bottom, and returns the
+  // panel height it needs. The range row only takes space in Range mode, so the
+  // rest of the panel moves up instead of leaving a hole.
+  function layoutPanel() {
+    var L = PANEL_LAYOUT;
+    var hasMovie = !!(state.result?.frames || []).length;
+    var generating = !!state.generating;
+    // Sections in order. `show: false` folds one away completely — it neither
+    // takes space nor leaves a hole (the range row outside Range mode, the
+    // playback chrome before a movie exists).
+    var sections = [
+      { node: refs.help, height: L.helpHeight, show: true },
+      { node: refs.info, height: L.infoHeight, show: true },
+      { node: refs.modeRoot, height: L.modeHeight, show: true },
+      { node: refs.rangeRoot, height: L.rangeHeight, show: state.timelineMode === 'range' },
+      { node: refs.picker?.el, height: pickerBlockHeight(), show: true, anchorTop: true },
+      { node: refs.frame, height: L.nowShowingHeight, show: true },
+      { node: refs.progressRoot, height: L.progressHeight, show: generating },
+      { node: null, height: L.actionsHeight, show: true, actions: true },
+      { node: refs.mappingButton, height: L.actionsHeight, show: hasMovie },
+      { node: refs.transportRoot, height: L.transportHeight, show: true },
+      { node: refs.speedRoot, height: L.speedHeight, show: true },
+      { node: refs.timelineBar, height: L.timelineBarHeight, show: hasMovie },
+      { node: refs.sparkline, height: L.sparklineHeight, show: hasMovie },
+      { node: refs.status, height: L.statusHeight, show: true, alignLeft: true }
+    ];
+    var visible = sections.filter(function (section) { return section.show; });
+    var contentHeight = visible.reduce(function (total, section) {
+      return total + section.height;
+    }, 0) + (Math.max(0, visible.length - 1) * L.gap);
+
+    // Content is centred on the panel, which is drawn around y = 0.
+    var y = contentHeight / 2;
+    sections.forEach(function (section) {
+      if (!section.actions) { setNodeVisible(section.node, section.show); }
+      if (!section.show) { return; }
+      if (section.anchorTop) {
+        // The picker positions its own internals downward from its root.
+        section.node?.setAttribute?.('position', L.centerX + ' ' + y + ' 0.02');
+        y -= section.height + L.gap;
+        return;
+      }
+      y -= section.height / 2;
+      if (section.actions) {
+        // Generate + Clear share a row, both inside the panel margins.
+        refs.generateButton?.setAttribute?.('position', (L.centerX - 0.85) + ' ' + y + ' 0.02');
+        refs.clearButton?.setAttribute?.('position', (L.centerX + 1.55) + ' ' + y + ' 0.02');
+      } else {
+        // Left-aligned text (the status line) hangs from the left margin.
+        section.node?.setAttribute?.('position', (section.alignLeft ? L.left : L.centerX) + ' ' + y + ' 0.02');
+      }
+      y -= (section.height / 2) + L.gap;
+    });
+    return Math.max(2.45, contentHeight + L.bottomPadding);
+  }
+
+  function pickerBlockHeight() {
+    var L = PANEL_LAYOUT;
+    return L.tabsHeight + L.gap + (L.referenceRows * L.rowGap) + L.gap + L.pagerHeight;
+  }
+
+  function setNodeVisible(node, visible) {
+    if (!node) { return; }
+    if (node.object3D) { node.object3D.visible = !!visible; }
+    node.setAttribute?.('visible', visible ? 'true' : 'false');
   }
 
   function handlePanelShown() {

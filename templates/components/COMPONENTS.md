@@ -26,16 +26,22 @@ its parts directory. Manual harnesses load assembled copies from
   - Global: `window.CodeXRCommonRuntime`.
   - Owns reusable UI helpers for CodeXR components: tooltip panels, camera-facing billboards, hitboxes, text compaction and entity creation.
   - Use this folder for logic that is useful to more than one component or future CodeXR graph.
+
+- `common/codexrGitRefPickerRuntime.js`
+  - Global: `window.CodeXRGitRefPickerRuntime`.
+  - Shared Git-reference facility for the controller: the detection vocabulary (`describeSource`, `sourceCategory`, `filterByCategory`, type label/color) and an embeddable picker (`createPicker`) with two modes — `compare` (two slots + category tabs, e.g. historical comparison) and `sequence` (ordered multi-select with click-order badges, e.g. project evolution). Also `registerGitGatedMode` for the shared "disabled unless inside a Git repo" mode option. Historical comparison and project evolution both embed it.
+  - Loads after `codexrCommonRuntime.js` and before the historical/project-evolution runtimes that consume it.
   - Keep graph-specific semantics, data models and protocol handling in the owning component.
 
 ## CodeXR Runtimes
 
+- `codexr/pointer-policy/codexrPointerPolicyRuntime.js`
+  - Scene-level `codexr-pointer-policy` component: guarantees exactly ONE pointer raycaster is enabled at a time — mouse cursor on desktop, gaze cursor (`#gazeCursor` under `#head`) in VR without controllers, the right laser (left as fallback) when controllers connect. Babia's legend show/hide shares one implicit global, so a second live pointer corrupts it; this policy is what keeps legends hover-only and single-sourced. Re-neutralizes the inactive controller after every `laser-controls` cursor/raycaster injection.
+  - Both scene templates declare it on `<a-scene>` and provide the pointer entities by id (`#mouseCursor`, `#gazeCursor`, `#leftController`, `#rightController`).
 - `codexr/analysis-table/analysisTableRuntime.js`
   - Owns the XR table, visual surface, table modes and chart containment.
 - `codexr/xr-chart-mapping-ui/xrChartMappingUiRuntime.js`
   - Owns Field Mapping, live chart switching, contextual panel views and transactional metric mapping.
-- `codexr/code-xr-boats/codeXrBoatsRuntime.js`
-  - Experimental CodeXR hierarchical boats chart. Paused for 1.2.0, kept only as a preserved prototype, and not part of the public chart selector or generated scene runtime by default.
 - `codexr/analysis-mode/analysisModeRuntime.js`
   - Owns mode switching between normal analysis, historical comparison and dependency graph.
 - `codexr/dependency-graph/dependencyGraphRuntime.js`
@@ -71,12 +77,13 @@ its parts directory. Manual harnesses load assembled copies from
 ## Recommended Load Order
 
 1. Room, collaboration, avatars and virtual screens; the `guide-screen` runtime right after the virtual screen + manager (it is a virtual-screen subtype).
-2. `common/codexrCommonRuntime.js`.
-3. CodeXR charts, mapping UI, chart debug and analysis table.
-4. Analysis mode and mode-specific runtimes.
-5. Render budgets before visualizations that consume them.
-6. Dependency graph and other CodeXR graphs.
-7. Debug runtimes last.
+2. `common/codexrCommonRuntime.js`, then `common/codexrGitRefPickerRuntime.js` (before the Git analyses that embed it).
+3. `codexr/pointer-policy/codexrPointerPolicyRuntime.js` (scene-level pointer arbitration, before anything that assumes pointers).
+4. CodeXR charts, mapping UI, chart debug and analysis table.
+5. Analysis mode and mode-specific runtimes.
+6. Render budgets before visualizations that consume them.
+7. Dependency graph and other CodeXR graphs.
+8. Debug runtimes last.
 
 Generated scene filenames are intentionally flat (`codexrCommonRuntime.js`, `dependencyGraphRuntime.js`, etc.) so existing analysis output remains simple and self-contained — multi-part runtimes are assembled back into these flat names at injection time.
 

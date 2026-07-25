@@ -6,7 +6,19 @@
     var frames = state.result?.frames || [];
     var frame = frames[state.frameIndex];
     updateNowShowing(frame, frames.length);
-    refs.playButton?.querySelector('a-text').setAttribute?.('value', state.playing ? 'Pause' : 'Play');
+    renderTimelineBar(refs.timeline);
+    renderSparkline();
+    renderMovieCompanion();
+    // The chart/axis controls follow playback: usable only when stopped.
+    syncMappingControlsLock();
+    // Sections are re-placed here because the range row folds in/out with the
+    // timeline mode; the panel height follows it.
+    if (refs.panel) {
+      root.CodeXRMappingUiRuntime?.setPanelViewHeight?.(MODE, layoutPanel());
+    }
+    // render() runs before the panel exists (activate with no movie) and during
+    // deactivate, so every node here is optional all the way down.
+    refs.playButton?.querySelector?.('a-text')?.setAttribute?.('value', state.playing ? 'Pause' : 'Play');
   }
 
   function updateNowShowing(frame, frameCount) {
@@ -21,51 +33,106 @@
     refs.frameDetail.setAttribute('value', compact(parts.date + ' | ' + parts.label + (parts.subject ? ' - ' + parts.subject : ''), 72));
   }
 
-  function renderTimelineControls() {
-    if (!refs.referencesRoot) { return; }
-    refs.modeRoot.children[0].setAttribute?.('material', 'color: ' + (state.timelineMode === 'auto' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.modeRoot.children[1].setAttribute?.('material', 'color: ' + (state.timelineMode === 'range' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.modeRoot.children[2].setAttribute?.('material', 'color: ' + (state.timelineMode === 'manual' ? '#be123c' : '#334155') + '; opacity: 0.95; shader: flat');
-    refs.rangeRoot?.setAttribute('visible', state.timelineMode === 'range');
-    refs.rangeRoot.children[0].setAttribute?.('material', 'color: ' + (state.rangeSide === 'start' ? '#16a34a' : '#14532d') + '; opacity: 0.95; shader: flat');
-    refs.rangeRoot.children[1].setAttribute?.('material', 'color: ' + (state.rangeSide === 'end' ? '#dc2626' : '#7f1d1d') + '; opacity: 0.95; shader: flat');
-    while (refs.referencesRoot.firstChild) {
-      refs.referencesRoot.removeChild(refs.referencesRoot.firstChild);
+  // Committer time as a sortable number: the precise epoch timestamp when the
+  // server sends one, else the (day-granular) short date, else NaN. The short
+  // date alone ties every same-day ref, which painted refs NEWER than the
+  // range end as span.
+  function sourceTimeKey(source) {
+    var timestamp = Number(source?.timestamp);
+    if (Number.isFinite(timestamp) && timestamp > 0) { return timestamp * 1000; }
+    var parsed = Date.parse(String(source?.date || ''));
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+
+  // A range ENDPOINT without a time can only be the working copy, which is
+  // "now": Infinity sorts after every commit so the span up to Live still
+  // paints. Only endpoints get this fallback — an undated row being TESTED is
+  // the Live row itself, which is either an endpoint (coloured by id before
+  // the span check) or genuinely outside a commit-ended range.
+  function endpointTimeKey(source) {
+    var time = sourceTimeKey(source);
+    if (Number.isFinite(time)) { return time; }
+    var isLive = source?.kind === 'workingCopy' || source?.revisionType === 'working-copy';
+    return isLive ? Infinity : NaN;
+  }
+
+  // True when the source falls between the two picked range endpoints. Uses
+  // committer times because the range is temporal; the endpoints themselves
+  // (and refs aliasing their commit) are handled — and coloured — separately.
+  function isInsideSelectedRange(source) {
+    if (!state.startSourceId || !state.endSourceId) { return false; }
+    var startTime = endpointTimeKey(findSource(state.startSourceId));
+    var endTime = endpointTimeKey(findSource(state.endSourceId));
+    var time = sourceTimeKey(source);
+    if (!Number.isFinite(time) || isNaN(startTime) || isNaN(endTime)) { return false; }
+    return time >= Math.min(startTime, endTime) && time <= Math.max(startTime, endTime);
+  }
+
+  // Per-row highlight/order for the shared picker: start/end (range), the
+  // span between them, the click-order number (manual), or the suggested
+  // order (auto).
+  function resolveRowStateForSource(source) {
+    if (!source) { return { selected: false }; }
+    if (source.id === state.startSourceId) {
+      return { selected: true, color: '#15803d' };
     }
-    var allSources = getReferenceSources();
-    var autoOrderById = getSuggestedAutoOrderById();
-    var autoCount = Object.keys(autoOrderById).length;
-    var maxPage = clampSelectionPage();
-    var pageStart = state.selectionPage * PANEL_LAYOUT.referenceRows;
-    var sources = allSources.slice(pageStart, pageStart + PANEL_LAYOUT.referenceRows);
-    refs.pagerRoot?.setAttribute('visible', allSources.length > PANEL_LAYOUT.referenceRows);
-    refs.pageText?.setAttribute('value', 'Page ' + (state.selectionPage + 1) + ' / ' + (maxPage + 1));
-    var start = findSource(state.startSourceId);
-    var end = findSource(state.endSourceId);
+    if (source.id === state.endSourceId) {
+      return { selected: true, color: '#b91c1c' };
+    }
+    // A ref pointing AT an endpoint's commit (a branch/tag on the same sha,
+    // e.g. the repo tip picked as end plus origin/master) IS that endpoint,
+    // not span: its colour answers "why is this row marked".
+    if (state.timelineMode === 'range' && source.commitSha) {
+      if (source.commitSha === findSource(state.startSourceId)?.commitSha) {
+        return { selected: true, color: '#15803d' };
+      }
+      if (source.commitSha === findSource(state.endSourceId)?.commitSha) {
+        return { selected: true, color: '#b91c1c' };
+      }
+    }
+    if (state.timelineMode === 'range' && isInsideSelectedRange(source)) {
+      return { selected: true, color: '#b45309' };
+    }
+    var manualIndex = state.manualSourceIds.indexOf(source.id);
+    if (manualIndex >= 0) {
+      return { selected: true, color: '#7c3aed', orderLabel: String(manualIndex + 1) };
+    }
+    if (state.timelineMode === 'auto') {
+      var autoOrder = getSuggestedAutoOrderById()[source.id];
+      if (autoOrder) {
+        return { selected: true, color: '#92400e', orderLabel: String(autoOrder) };
+      }
+    }
+    return { selected: false };
+  }
+
+  // Panel buttons are only there once buildPanel ran; painting one that does not
+  // exist must never throw (this runs from the mode's activate/deactivate).
+  function paintButton(rootEntity, index, color) {
+    rootEntity?.children?.[index]?.setAttribute?.(
+      'material',
+      'color: ' + color + '; opacity: 0.95; shader: flat'
+    );
+  }
+
+  function renderTimelineControls() {
+    if (!refs.picker) { return; }
+    paintButton(refs.modeRoot, 0, state.timelineMode === 'auto' ? '#be123c' : '#334155');
+    paintButton(refs.modeRoot, 1, state.timelineMode === 'range' ? '#be123c' : '#334155');
+    paintButton(refs.modeRoot, 2, state.timelineMode === 'manual' ? '#be123c' : '#334155');
+    refs.rangeRoot?.setAttribute?.('visible', state.timelineMode === 'range');
+    paintButton(refs.rangeRoot, 0, state.rangeSide === 'start' ? '#16a34a' : '#14532d');
+    paintButton(refs.rangeRoot, 1, state.rangeSide === 'end' ? '#dc2626' : '#7f1d1d');
+    // Same active-speed highlight the companion shows, so both rows agree.
+    paintSpeedRow(refs.speedRoot);
+    var autoCount = Object.keys(getSuggestedAutoOrderById()).length;
     var info = state.timelineMode === 'auto'
       ? 'Auto: CodeXR samples ' + (autoCount || 'the') + ' timeline frames.'
       : state.timelineMode === 'range'
-        ? 'Range: ' + state.rangeSide.toUpperCase() + ' | ' + sourceDescription(start) + ' -> ' + sourceDescription(end)
+        ? 'Range: ' + state.rangeSide.toUpperCase() + ' | ' + sourceDescription(findSource(state.startSourceId)) + ' -> ' + sourceDescription(findSource(state.endSourceId))
         : 'Manual: ' + state.manualSourceIds.length + ' selected frames.';
     refs.info?.setAttribute('value', info);
-    if (!sources.length) {
-      refs.referencesRoot.appendChild(text('No Git references received yet.', '0 0 0.02', 5.6, '#fecaca'));
-      return;
-    }
-    sources.forEach(function (source, index) {
-      var manualIndex = state.manualSourceIds.indexOf(source.id);
-      var selection = { selected: false };
-      if (source.id === state.startSourceId) {
-        selection = { selected: true, color: '#15803d' };
-      } else if (source.id === state.endSourceId) {
-        selection = { selected: true, color: '#b91c1c' };
-      } else if (manualIndex >= 0) {
-        selection = { selected: true, color: '#7c3aed', orderLabel: String(manualIndex + 1) };
-      } else if (state.timelineMode === 'auto' && autoOrderById[source.id]) {
-        selection = { selected: true, color: '#92400e', orderLabel: String(autoOrderById[source.id]) };
-      }
-      refs.referencesRoot.appendChild(referenceRow(source, index, selection));
-    });
+    refs.picker.render();
   }
 
   function selectSourceForTimeline(source) {
@@ -100,15 +167,13 @@
     buildPanel();
     root.CodeXRAnalysisModeRuntime?.setSelectionPanel?.(MODE);
     client()?.sendMessage?.('analysis-mode-activate', { mode: MODE });
+    // Single entry path: no explicit controllerView/panelViewId — the mode's
+    // resolveControllerView routes (Field Mapping when a movie exists, the
+    // selection panel otherwise) and the lifecycle's activate shows it, so
+    // the local transition and the server echo can never disagree.
     await root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
-      reason: 'project-evolution-selection',
-      controllerView: 'project-evolution',
-      panelViewId: MODE
-    });
-    root.CodeXRAnalysisControllerRuntime?.showView?.('project-evolution', {
-      mode: MODE,
       reason: 'project-evolution-selection'
-    }) || root.CodeXRMappingUiRuntime?.showPanelView?.(MODE);
+    });
     setStatus('Loading project timeline...', 'info');
     if (!client()?.sendMessage?.('project-evolution-references-request', {})) {
       setStatus('Collaboration connection is not ready.', 'error');
@@ -153,8 +218,8 @@
   function handleReferences(message) {
     var payload = unwrapPayload(message);
     state.references = payload || null;
-    clampSelectionPage();
-    var count = getReferenceSources().filter(function (source) {
+    refs.picker?.setReferences(state.references);
+    var count = (refs.picker?.getVisibleSources?.() || []).filter(function (source) {
       return source && source.kind === 'gitRef';
     }).length;
     setStatus(count ? 'Ready to generate ' + count + ' timeline frames.' : 'No commits available for evolution.', count ? 'info' : 'error');
@@ -165,6 +230,10 @@
     var payload = unwrapPayload(message);
     if (!payload) { return; }
     setStatus(payload.message || '', payload.state === 'error' ? 'error' : 'info');
+    // Drives both the progress bar and whether the panel reserves room for it.
+    state.generating = payload.state === 'analyzing' && Number(payload.frameCount) > 0;
+    renderGenerationProgress(payload);
+    render();
   }
 
   function handleError(message) {

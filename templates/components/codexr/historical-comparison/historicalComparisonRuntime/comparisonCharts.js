@@ -16,6 +16,18 @@
     return componentName === 'babia-boats';
   }
 
+  // Shared boats tree contract (generator-injected via the mapping runtime):
+  // directory quarters split the full analyzed path (filePath — both sides
+  // rebuild it against the ORIGINAL target, so working copy and materialized
+  // commit paint identical quarters), file mode the synthetic treePath.
+  function comparisonTreeField(targetType) {
+    var treeFields = root.CodeXRMappingUiRuntime?.getChartBaseConfig?.()?.treeFields;
+    if (targetType === 'directory') {
+      return treeFields?.directory || 'filePath';
+    }
+    return treeFields?.file || 'treePath';
+  }
+
   function createDataSource(id, url) {
     return createEntity('a-entity', {
       id: id,
@@ -119,7 +131,8 @@
     var safeNamespace = String(namespace || 'comparison').replace(/[^a-zA-Z0-9_-]/g, '-');
 
     normalizePayload(payload).forEach(function (entry) {
-      var parts = normalizeComparisonPath(entry?.[pathField]);
+      // Payloads decorated before relativePath existed only carry filePath.
+      var parts = normalizeComparisonPath(entry?.[pathField] || entry?.filePath);
       if (!parts.length) {
         return;
       }
@@ -157,10 +170,15 @@
     return roots;
   }
 
-  function createLabel(value, position, color) {
-    var label = createEntity('a-entity', { position: position });
-    setText(label, value, 4.2, color);
-    return label;
+  // Side nameplates are shared Git chrome (see codexrGitRefPickerRuntime): a
+  // lectern-style plate on the table edge closest to the user. Project
+  // evolution labels its current frame with the very same plate.
+  function buildSideNameplateText(source) {
+    return root.CodeXRGitRefPickerRuntime.buildSourceNameplateText(source);
+  }
+
+  function createSideNameplate(source, zone, color) {
+    return root.CodeXRGitRefPickerRuntime.createSourceNameplate(source, zone, color);
   }
 
   async function renderComparison(result, leftPayload, rightPayload) {
@@ -178,7 +196,11 @@
     refs.comparisonRoot = createEntity('a-entity', {
       id: 'codexrHistoricalComparisonRoot',
       'data-codexr-analysis-root': 'true',
-      'data-codexr-analysis-mode': 'historical-compare'
+      'data-codexr-analysis-mode': 'historical-compare',
+      // Preserved: leaving the mode hides this root (surface preserve pass)
+      // instead of removing it, so returning restores the comparison as left
+      // without a rebuild — same save/restore pattern as the single mode.
+      'data-codexr-preserve': 'true'
     });
     if (root.CodeXRAnalysisSurfaceRuntime?.mountRoot) {
       root.CodeXRAnalysisSurfaceRuntime.mountRoot('historical-compare', refs.comparisonRoot);
@@ -188,7 +210,7 @@
     var chartComponent = getChartComponentName(original);
     var leftFrom = 'codexrComparisonDataLeft';
     var rightFrom = 'codexrComparisonDataRight';
-    var boatsPathField = config?.targetType === 'directory' ? 'filePath' : 'treePath';
+    var boatsPathField = comparisonTreeField(config?.targetType);
     var leftChartOptions = null;
     var rightChartOptions = null;
     if (isHierarchicalBoatsComponent(chartComponent)) {
@@ -241,20 +263,25 @@
     } else {
       refs.comparisonRoot.appendChild(createEmptyState(result.right, zones[1], '#6ee7b7'));
     }
-    refs.leftLabel = createLabel(buildSourceLabel(result.left.source), zones[0].anchorX + ' 3.05 ' + zones[0].anchorZ, '#67e8f9');
-    refs.rightLabel = createLabel(buildSourceLabel(result.right.source), zones[1].anchorX + ' 3.05 ' + zones[1].anchorZ, '#6ee7b7');
-    refs.deltaLabel = createLabel(buildDeltaText(result.delta, state.selectedMapping, state.payloads), '0 3.48 -18', '#ffffff');
+    // Side nameplates on the table edge; the delta/metric comparison now lives
+    // in the Field Mapping companion table (no floating text over the table).
+    refs.leftLabel = createSideNameplate(result.left.source, zones[0], '#67e8f9');
+    refs.rightLabel = createSideNameplate(result.right.source, zones[1], '#6ee7b7');
+    updateMappingCompanion();
     refs.comparisonRoot.appendChild(refs.leftLabel);
     refs.comparisonRoot.appendChild(refs.rightLabel);
-    refs.comparisonRoot.appendChild(refs.deltaLabel);
 
     await nextFrame();
+    refs.comparisonChartIds = activeChartIds.slice();
     root.CodeXRMappingUiRuntime?.setChartEntityIds?.(activeChartIds);
     root.CodeXRMappingUiRuntime.switchMappingContext?.('historical-comparison', {
       reason: 'historical-comparison-ready'
     });
     parkOriginalChart(original);
-    root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('historical-comparison-ready');
+    // Targeted: only the two comparison charts. renormalizeAll would also
+    // re-fit charts belonging to other modes (the parked normal one), leaving
+    // them re-measuring for no reason.
+    root.CodeXRAnalysisTableRuntime?.renormalizeCharts?.(activeChartIds, 'historical-comparison-ready');
     if (activeChartIds.length) {
       var stabilization = await root.CodeXRAnalysisTableRuntime?.waitForChartsStable?.(activeChartIds, {
         timeoutMs: 12000,
@@ -264,6 +291,33 @@
       if (stabilization && !stabilization.valid) {
         throw new Error('One side of the historical comparison could not build a valid chart.');
       }
+    }
+    refs.renderedRevision = result.revision;
+  }
+
+  // Fast path for re-entering the mode with the comparison still mounted
+  // (hidden by the surface preserve pass on leave): re-park the normal charts,
+  // re-show the preserved root and re-point the mapping controller at the
+  // comparison — no geometry rebuild, the scene comes back exactly as left.
+  function restoreComparisonScene() {
+    var config = getConfig();
+    var original = getTemplateChart(config);
+    parkOriginalChart(original);
+    if (root.CodeXRAnalysisSurfaceRuntime?.mountRoot) {
+      root.CodeXRAnalysisSurfaceRuntime.mountRoot('historical-compare', refs.comparisonRoot);
+    }
+    var chartIds = Array.isArray(refs.comparisonChartIds) ? refs.comparisonChartIds : [];
+    if (chartIds.length) {
+      root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds);
+    }
+    root.CodeXRMappingUiRuntime?.switchMappingContext?.('historical-comparison', {
+      reason: 'historical-comparison-restored'
+    });
+    // The charts were hidden, so any re-fit request made meanwhile was deferred.
+    // Honour it now that they are visible again: a no-op when nothing changed
+    // (the fit they already have is still valid), a real re-fit if it did.
+    if (chartIds.length) {
+      root.CodeXRAnalysisTableRuntime?.renormalizeCharts?.(chartIds, 'historical-comparison-restored');
     }
   }
 

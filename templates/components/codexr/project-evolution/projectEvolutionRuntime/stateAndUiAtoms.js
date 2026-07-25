@@ -30,7 +30,20 @@
     frameApplyRequestId: 0,
     supersededFrameApplyIds: {},
     timelineMode: 'auto',
-    selectionPage: 0,
+    // True while the server is building the movie: shows the progress bar and
+    // makes the panel reserve room for it.
+    generating: false,
+    // True while a confirmed chart/axis change is being applied to the current
+    // frame: playback and seeking stay locked until it settles.
+    applyingMapping: false,
+    // Whether the movie was playing when the user left the mode, so re-entry
+    // resumes playback and not just the frame position.
+    resumePlayback: false,
+    // Seconds left before the movie advances (0 while a frame is still
+    // settling): the panel prints it on its status line, the companion on its
+    // own countdown line.
+    nextFrameSeconds: 0,
+    unregisterMappingCompanion: null,
     rangeSide: 'start',
     startSourceId: '',
     endSourceId: '',
@@ -49,22 +62,35 @@
     disposables: []
   };
   var refs = {};
+  // Section heights, top to bottom. Positions are COMPUTED from these (see
+  // layoutPanel) instead of being hand-tuned constants: the range row folds
+  // away when it is not in use, and every section keeps a real gap, so nothing
+  // overlaps and nothing drifts outside the panel margins.
   var PANEL_LAYOUT = {
-    titleY: 2.55,
-    subtitleY: 2.22,
-    infoY: 1.9,
-    modeY: 1.5,
-    rangeY: 1.15,
-    referencesY: 0.78,
-    referenceRows: 5,
-    referenceRowGap: 0.34,
-    pagerY: -0.94,
-    nowShowingY: -1.26,
-    generateY: -1.74,
-    transportY: -2.22,
-    speedY: -2.66,
-    statusY: -3.18,
-    panelHeight: 7.8
+    left: -2.85,
+    right: 2.55,
+    // The usable strip is not centred on 0, so full-width rows must be centred
+    // here or they hang over the right edge.
+    centerX: -0.15,
+    contentWidth: 5.4,
+    gap: 0.18,
+    helpHeight: 0.3,
+    infoHeight: 0.3,
+    modeHeight: 0.36,
+    rangeHeight: 0.36,
+    tabsHeight: 0.3,
+    referenceRows: 6,
+    rowGap: 0.32,
+    pagerHeight: 0.3,
+    nowShowingHeight: 0.5,
+    progressHeight: 0.26,
+    actionsHeight: 0.4,
+    transportHeight: 0.38,
+    speedHeight: 0.32,
+    timelineBarHeight: 0.3,
+    sparklineHeight: 0.5,
+    statusHeight: 0.3,
+    bottomPadding: 0.34
   };
 
   function doc() { return root.document; }
@@ -105,26 +131,20 @@
     });
   }
 
+  // Buttons come from the shared Git chrome so this panel and the historical
+  // comparison look like the same product; only the marker class stays local.
   function button(label, position, width, onClick, color, options) {
     var config = options || {};
-    var rootEntity = entity('a-plane', {
-      position: position,
-      width: width || 1,
-      height: config.height || 0.36,
-      material: 'color: ' + (color || '#0f3a5f') + '; opacity: 0.95; shader: flat',
-      class: 'babiaxraycasterclass codexr-project-evolution-button',
-      'data-codexr-interactive': 'true'
-    });
-    rootEntity.appendChild(smallText(
+    return root.CodeXRGitRefPickerRuntime.buildButton(
       label,
-      '0 0 0.02',
+      position,
+      width || 1,
+      config.height || 0.36,
+      color || '#0f3a5f',
+      onClick,
       config.textWidth || (width || 1) * 1.55,
-      '#ffffff',
-      'center',
-      config.wrapCount || 22
-    ));
-    rootEntity.addEventListener('click', onClick);
-    return rootEntity;
+      { className: 'codexr-project-evolution-button', wrapCount: config.wrapCount || 22 }
+    );
   }
 
   function modeButton(label, position, onClick, color) {
@@ -143,10 +163,13 @@
     });
   }
 
-  function speedButton(label, position, speed) {
-    return button(label, position, 1.02, function () { setSpeed(speed); }, '#334155', {
+  // `width` narrows the same atom for the controller companion's column
+  // (the panel keeps the default), so both places speak one vocabulary.
+  function speedButton(label, position, speed, width) {
+    var buttonWidth = Number(width) || 1.02;
+    return button(label, position, buttonWidth, function () { setSpeed(speed); }, '#334155', {
       height: 0.32,
-      textWidth: 1.35,
+      textWidth: buttonWidth * 1.32,
       wrapCount: 10
     });
   }

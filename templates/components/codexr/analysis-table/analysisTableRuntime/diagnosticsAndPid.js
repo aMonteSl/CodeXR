@@ -71,7 +71,8 @@
       heightTargets,
       Math.max(0.001, data.yScaleMin),
       Math.max(data.yScaleMin + 0.001, data.yScaleMax),
-      data.hardHeightGuardEnabled !== false
+      data.hardHeightGuardEnabled !== false,
+      data.containmentToleranceRatio
     );
     var yTarget = computeHeightBandTargetScale(
       measurements.peakHeight,
@@ -79,7 +80,8 @@
       heightTargets,
       Math.max(0.001, data.yScaleMin),
       Math.max(data.yScaleMin + 0.001, data.yScaleMax),
-      data.heightUnderflowCorrectionEnabled !== false
+      data.heightUnderflowCorrectionEnabled !== false,
+      data.containmentToleranceRatio
     ) || createNeutralHeightBandTarget(object3D.scale.y, 'height-unavailable');
 
     if (!xTarget || !zTarget) {
@@ -116,6 +118,16 @@
     };
   }
 
+  // Signature of "the fit currently on screen". It deliberately mirrors what the
+  // fit actually uses: the filtered primary/containment bounds, the peak height
+  // and the transform.
+  //
+  // `full` bounds are NOT part of it. They are measured without the auxiliary
+  // filter (legends, tooltips, troika labels), so a legend that follows the
+  // camera or a label that loads late kept changing the signature forever: the
+  // stabilization loop never saw three identical passes, never reached
+  // 'steady-fit', and the maintenance tick kept re-fitting the chart every
+  // 700 ms — charts that resized forever even once correctly contained.
   function buildMeasurementSignature(measurements, object3D) {
     if (!measurements || !measurements.primary || !object3D) {
       return null;
@@ -123,7 +135,6 @@
 
     var primary = measurements.primary;
     var containment = measurements.containment || primary;
-    var full = measurements.full || primary;
     var peakHeight = Number.isFinite(measurements.peakHeight) ? measurements.peakHeight : null;
 
     return [
@@ -133,9 +144,6 @@
       toFixedNumber(containment.size.x),
       toFixedNumber(containment.size.y),
       toFixedNumber(containment.size.z),
-      toFixedNumber(full.size.x),
-      toFixedNumber(full.size.y),
-      toFixedNumber(full.size.z),
       toFixedNumber(peakHeight),
       toFixedNumber(object3D.scale.x),
       toFixedNumber(object3D.scale.y),
@@ -144,19 +152,6 @@
       toFixedNumber(object3D.position.y),
       toFixedNumber(object3D.position.z)
     ].join('|');
-  }
-
-  function softenFactor(factor, damping) {
-    if (!Number.isFinite(factor) || factor <= 0) {
-      return 1;
-    }
-    if (Math.abs(factor - 1) <= 0.0005) {
-      return 1;
-    }
-    if (factor > 1) {
-      return 1 + ((factor - 1) * 0.65);
-    }
-    return 1 - ((1 - factor) * damping);
   }
 
   function createPidAxisState() {
@@ -199,7 +194,12 @@
     }
 
     var error = targetValue - currentValue;
-    if (Math.abs(error) <= profile.epsilon) {
+    // The dead zone is RELATIVE to the current scale (with the absolute value
+    // as a floor): a fixed epsilon meant 0.1 % of a flat chart's scale (hyper
+    // sensitive) but 15 % of boats' 0.01 X scale (numb) — same knob, opposite
+    // behaviour per chart.
+    var epsilon = Math.max(profile.epsilon, Math.abs(currentValue) * PID_PROFILE.relativeEpsilonRatio);
+    if (Math.abs(error) <= epsilon) {
       resetPidAxisState(axisState);
       return {
         nextValue: currentValue,

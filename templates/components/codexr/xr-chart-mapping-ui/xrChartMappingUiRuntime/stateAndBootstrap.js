@@ -13,11 +13,23 @@
       return false;
     }
     var nextContextId = String(contextId || 'default');
+    // Idempotent: re-applying the profile already in force would run
+    // applyMappingRuntimeState → renderRows, which clears and rebuilds every
+    // panel row — the visible controller flash when an entry applies its state
+    // more than once. Only the companion needs re-syncing (attribute-only).
+    if (getMappingProfileKey(nextContextId, getActiveChartId(config)) === state.appliedMappingProfileKey) {
+      state.activeMappingContextId = nextContextId;
+      syncMappingCompanion();
+      return getState();
+    }
     saveActiveMappingProfile();
     state.activeMappingContextId = nextContextId;
     var profileKey = getMappingProfileKey(nextContextId, getActiveChartId(config));
     var profile = state.mappingProfiles[profileKey] || buildDefaultMappingSnapshot(config);
     applyMappingRuntimeState(config, profile, (options && options.reason) || ('mapping-ui-context-' + nextContextId));
+    // The mapping view is context-sensitive: swap in the new context's
+    // companion section (child title + content) if one is registered.
+    syncMappingCompanion();
     return getState();
   }
 
@@ -79,10 +91,36 @@
     getState: getState,
     restoreState: restoreState,
     selectChart: selectChart,
+    // The chart the XR scene was generated with, immune to later selector
+    // switches — the mode machinery restores it when leaving project
+    // evolution (the only mode that selects its own chart).
+    getSceneChartId: function () {
+      getConfig();
+      return state.sceneChartId || null;
+    },
+    // Unsubscribes an entity's Babia chart components from their data producer
+    // before it is dropped or rebuilt. Babia never does it, so a discarded
+    // chart keeps repainting on every data push.
+    releaseChartEntity: releaseChartEntity,
     switchMappingContext: switchMappingContext,
     showView: showControllerView,
-    getModeMemory: getModeMemory,
-    saveModeMemory: saveModeMemory,
+    // Lets other runtimes surface a message on the controller's status line
+    // (e.g. the mode machinery reporting why an analysis could not open).
+    setStatusMessage: setStatusMessage,
+    // Locks the chart/axis controls while an analysis cannot safely accept a
+    // re-mapping (project evolution locks them while its movie is playing).
+    // `reason` is shown so the panel explains why it is not responding.
+    setMappingControlsEnabled: function (enabled, reason) {
+      state.mappingControlsLocked = !enabled;
+      setEntityInteractionEnabled(refs.rowsRoot, !!enabled);
+      setEntityInteractionEnabled(refs.chartRoot, !!enabled);
+      if (!enabled && reason) {
+        setStatusMessage(String(reason), 'info', 0);
+      } else if (enabled && state.statusLevel === 'info') {
+        setStatusMessage('', 'info', 0);
+      }
+      return !state.mappingControlsLocked;
+    },
     getControllerState: function () {
       return {
         mode: state.mode,
@@ -108,7 +146,12 @@
       }
       setVisible(config, visible);
     },
+    // Canonical chart construction (injected by the generator): the evolution
+    // movie and the historical comparison read the boats base and the tree
+    // field contract from here instead of keeping their own copies.
+    getChartBaseConfig: getChartBaseConfig,
     registerPanelView: registerPanelView,
+    registerMappingCompanion: registerMappingCompanion,
     showPanelView: showPanelView,
     setPanelViewTitle: setPanelViewTitle,
     setPanelViewHeight: setPanelViewHeight,
@@ -136,6 +179,12 @@
       clearChartGeneratedChildren: clearChartGeneratedChildren,
       applyChartDefaultTransform: applyChartDefaultTransform,
       getMappingProfileKey: getMappingProfileKey,
+      // The "a chart's mapping always covers its dimensions" invariant is what
+      // keeps Babia from building a chart with a missing axis, so it is tested
+      // directly rather than through a full chart switch.
+      getDefaultMappingForChart: getDefaultMappingForChart,
+      getDimensionsForChart: getDimensionsForChart,
+      sweepOrphanChartChildren: sweepOrphanChartChildren,
       PANEL_LAYOUT: PANEL_LAYOUT,
       getGridButtonWidth: getGridButtonWidth,
       getGridButtonX: getGridButtonX

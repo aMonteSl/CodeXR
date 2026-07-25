@@ -69,61 +69,6 @@
     };
   }
 
-  function computeAxisPlanarBandFactor(primarySize, containmentSize, containmentLimitSize, minRatio, maxRatio, allowUnderflowCorrection) {
-    if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || containmentLimitSize <= 0) {
-      return null;
-    }
-
-    var ratio = primarySize / containmentLimitSize;
-    var minRequiredFactor = ratio < minRatio
-      ? (minRatio / Math.max(ratio, 0.00001))
-      : 1;
-    var maxAllowedByRange = ratio > maxRatio
-      ? (maxRatio / Math.max(ratio, 0.00001))
-      : Number.POSITIVE_INFINITY;
-    var maxAllowedByContainment = containmentLimitSize / containmentSize;
-    var correctUnderflow = allowUnderflowCorrection !== false;
-    var factor = 1;
-    var compromised = false;
-    var reason = 'within-range';
-
-    if (minRequiredFactor > 1.0005 && !correctUnderflow) {
-      reason = 'underflow-accepted';
-    } else if (minRequiredFactor > 1.0005) {
-      factor = Math.min(minRequiredFactor, maxAllowedByContainment);
-      if (factor < minRequiredFactor) {
-        compromised = true;
-        reason = 'containment-overflow';
-      } else {
-        reason = 'upscale-minimum';
-      }
-    } else if (maxAllowedByRange < 0.9995 || maxAllowedByContainment < 0.9995) {
-      factor = Math.min(maxAllowedByRange, maxAllowedByContainment);
-      if (factor === maxAllowedByContainment && factor < maxAllowedByRange) {
-        reason = 'downscale-containment';
-      } else {
-        reason = 'downscale-range';
-      }
-    }
-
-    if (!Number.isFinite(factor) || factor <= 0) {
-      factor = 1;
-      compromised = true;
-      reason = 'invalid-factor';
-    }
-
-    return {
-      factor: factor,
-      compromised: compromised,
-      reason: reason,
-      ratio: ratio,
-      minRequiredFactor: minRequiredFactor,
-      underflowAllowed: minRequiredFactor > 1.0005 && !correctUnderflow,
-      maxAllowedByRange: maxAllowedByRange,
-      maxAllowedByContainment: maxAllowedByContainment
-    };
-  }
-
   function computePlanarAxisTargetScale(primarySize, containmentSize, currentScale, containmentLimitSize, range, toleranceRatio, allowUnderflowCorrection) {
     if (!Number.isFinite(primarySize) || !Number.isFinite(containmentSize) || !Number.isFinite(currentScale) || !Number.isFinite(containmentLimitSize) || primarySize <= 0 || containmentSize <= 0 || currentScale <= 0 || containmentLimitSize <= 0 || !range) {
       return null;
@@ -131,21 +76,28 @@
 
     var ratio = primarySize / containmentLimitSize;
     var setpointRatio = midpoint(range.min, range.max);
-    var containmentTolerance = containmentLimitSize * clamp(
+    var resolvedToleranceRatio = clamp(
       Number.isFinite(toleranceRatio) ? toleranceRatio : DEFAULTS.containmentToleranceRatio,
       0,
       0.25
     );
-    var maxAllowedScale = currentScale * (containmentLimitSize / containmentSize);
+    var containmentTolerance = containmentLimitSize * resolvedToleranceRatio;
+    // The scale ceiling aims INSIDE the limit (half a tolerance of margin), not
+    // at the exact edge: an equilibrium sitting on the edge meant any
+    // measurement noise flipped it across and triggered a correction — the
+    // micro-resizes users saw while simply moving around.
+    var maxAllowedScale = currentScale * ((containmentLimitSize * (1 - resolvedToleranceRatio / 2)) / containmentSize);
     if (!Number.isFinite(maxAllowedScale) || maxAllowedScale <= 0) {
       maxAllowedScale = currentScale;
     }
 
     var correctUnderflow = allowUnderflowCorrection !== false;
-    var underflowing = ratio < range.min;
+    // Hysteresis on the band edges: a chart already accepted as fitted must
+    // leave the band by a real margin (one tolerance) before it is corrected.
+    var underflowing = ratio < range.min * (1 - resolvedToleranceRatio);
     var overflowing = containmentSize > (containmentLimitSize + containmentTolerance);
     var underflowAllowed = underflowing && !correctUnderflow && !overflowing;
-    var withinBand = (ratio >= range.min && ratio <= range.max) || underflowAllowed;
+    var withinBand = (ratio >= range.min * (1 - resolvedToleranceRatio) && ratio <= range.max * (1 + resolvedToleranceRatio)) || underflowAllowed;
     var desiredScale = currentScale;
     var reason = 'within-band';
 
@@ -236,56 +188,6 @@
     };
   }
 
-  function computePlanarBandScale(primaryBounds, containmentBounds, data) {
-    if (!isFiniteBoundsInfo(primaryBounds) || !isFiniteBoundsInfo(containmentBounds) || !data) {
-      return null;
-    }
-
-    var targetWidth = Math.max(data.targetWidth, 0.0001);
-    var targetDepth = Math.max(data.targetDepth, 0.0001);
-    var containmentLimit = computeContainmentPlanarLimit(containmentBounds, data);
-    var containmentWidthLimit = containmentLimit ? containmentLimit.containmentWidthLimit : targetWidth;
-    var containmentDepthLimit = containmentLimit ? containmentLimit.containmentDepthLimit : targetDepth;
-    var steadyRange = resolveSteadyPlanarRange(data);
-    var xResult = computeAxisPlanarBandFactor(
-      primaryBounds.size.x,
-      containmentBounds.size.x,
-      containmentWidthLimit,
-      steadyRange.min,
-      steadyRange.max,
-      data.planarUnderflowCorrectionEnabled !== false
-    );
-    var zResult = computeAxisPlanarBandFactor(
-      primaryBounds.size.z,
-      containmentBounds.size.z,
-      containmentDepthLimit,
-      steadyRange.min,
-      steadyRange.max,
-      data.planarUnderflowCorrectionEnabled !== false
-    );
-
-    if (!xResult || !zResult) {
-      return null;
-    }
-
-    return {
-      xFactor: xResult.factor,
-      zFactor: zResult.factor,
-      factor: Math.min(xResult.factor, zResult.factor),
-      compromised: xResult.compromised || zResult.compromised,
-      reason: xResult.reason === zResult.reason ? xResult.reason : 'axis-mixed',
-      x: xResult,
-      z: zResult,
-      containmentWidthLimit: containmentWidthLimit,
-      containmentDepthLimit: containmentDepthLimit,
-      edgeMargin: containmentLimit ? containmentLimit.edgeMargin : 0,
-      minRatioX: xResult.ratio,
-      minRatioZ: zResult.ratio,
-      minPlanar: steadyRange.min,
-      maxPlanar: steadyRange.max
-    };
-  }
-
   function computeHeightBandScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, allowUnderflowCorrection) {
     if (!Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || !bandTargets) {
       return null;
@@ -308,20 +210,28 @@
     };
   }
 
-  function computeHeightBandTargetScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, allowUnderflowCorrection) {
+  function computeHeightBandTargetScale(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, allowUnderflowCorrection, toleranceRatio) {
     if (!Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || !bandTargets) {
       return null;
     }
 
+    // Same hysteresis as the planar band: an already-fitted height must leave
+    // the band by a real margin before a correction fires (strict edges made
+    // measurement noise flip the withinBand flag back and forth).
+    var bandTolerance = clamp(
+      Number.isFinite(toleranceRatio) ? toleranceRatio : DEFAULTS.containmentToleranceRatio,
+      0,
+      0.25
+    );
     var setpointHeight = midpoint(bandTargets.minHeight, bandTargets.maxHeight);
     var correctUnderflow = allowUnderflowCorrection !== false;
     var targetScale = currentScaleY;
     var desiredScale = currentScaleY;
     var reason = 'within-band';
-    var underflowing = currentHeight < bandTargets.minHeight;
-    var overflowing = currentHeight > bandTargets.maxHeight;
+    var underflowing = currentHeight < bandTargets.minHeight * (1 - bandTolerance);
+    var overflowing = currentHeight > bandTargets.maxHeight * (1 + bandTolerance);
     var underflowAllowed = underflowing && !correctUnderflow;
-    var withinBand = (currentHeight >= bandTargets.minHeight && currentHeight <= bandTargets.maxHeight) || underflowAllowed;
+    var withinBand = (!underflowing && !overflowing) || underflowAllowed;
 
     if (underflowAllowed) {
       reason = 'underflow-accepted';
@@ -345,7 +255,7 @@
     };
   }
 
-  function computeHardHeightGuardTarget(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, enabled) {
+  function computeHardHeightGuardTarget(currentHeight, currentScaleY, bandTargets, yScaleMin, yScaleMax, enabled, toleranceRatio) {
     if (enabled === false || !Number.isFinite(currentHeight) || currentHeight <= 0 || !Number.isFinite(currentScaleY) || currentScaleY <= 0 || !bandTargets || !Number.isFinite(bandTargets.maxHeight) || bandTargets.maxHeight <= 0) {
       return {
         enabled: enabled !== false,
@@ -359,7 +269,15 @@
     }
 
     var heightRatio = currentHeight / bandTargets.maxHeight;
-    var overflowing = heightRatio > 1.0005;
+    // Relative threshold: 1.0005 fired on measurement noise (0.05 % of the
+    // ceiling) — the safety guard only reacts to a REAL overshoot now; the
+    // band correction handles anything smaller, smoothly.
+    var guardTolerance = clamp(
+      Number.isFinite(toleranceRatio) ? toleranceRatio : DEFAULTS.containmentToleranceRatio,
+      0,
+      0.25
+    );
+    var overflowing = heightRatio > 1 + guardTolerance;
     var desiredY = overflowing ? currentScaleY * (bandTargets.maxHeight / currentHeight) : currentScaleY;
     var targetY = clamp(desiredY, yScaleMin, yScaleMax);
 

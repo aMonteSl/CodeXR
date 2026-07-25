@@ -141,7 +141,7 @@ test('active containment diagnostics report missing charts and clear warnings in
             return id === 'codexrAnalysisTable' ? tableEl : null;
         },
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-containment]');
+            assert.ok(selector.startsWith('[codexr-chart-containment]'), selector);
             return [];
         },
     };
@@ -207,7 +207,7 @@ test('a rebuilding chart is graced as pending and only surfaces as a warning whe
             return id === 'codexrAnalysisTable' ? tableEl : null;
         },
         querySelectorAll(selector) {
-            return selector === '[codexr-chart-containment]' ? [chartEl] : [];
+            return selector.startsWith('[codexr-chart-containment]') ? [chartEl] : [];
         },
     };
 
@@ -280,7 +280,7 @@ test('active containment diagnostics recognize dependency graph visuals without 
             return id === 'codexrAnalysisTable' ? tableEl : null;
         },
         querySelectorAll(selector) {
-            if (selector === '[codexr-chart-containment]') {
+            if (selector.startsWith('[codexr-chart-containment]')) {
                 return [];
             }
             if (selector.includes('codexrDependencyGraph')) {
@@ -344,14 +344,37 @@ test('chart containment helper ignores auxiliary content and containment metadat
     const helpers = runtime.__testing;
 
     assert.equal(helpers.matchesIgnoredBoundsMeta({ tagName: 'a-text' }), true);
-    assert.equal(helpers.matchesIgnoredBoundsMeta({ className: 'chart-legend panel' }), true);
+    assert.equal(helpers.matchesIgnoredBoundsMeta({ combined: 'chart-legend panel' }), true);
     assert.equal(helpers.matchesIgnoredBoundsMeta({ nodeName: 'axis-tick-label' }), true);
     assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ nodeName: 'axis-tick-line' }), false);
-    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ className: 'chart-legend panel' }), true);
-    assert.equal(helpers.matchesIgnoredBoundsMeta({ className: 'codexr-boats-primary babiaxraycasterclass', attributeNames: 'title material geometry' }), false);
-    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ className: 'codexr-boats-primary babiaxraycasterclass', attributeNames: 'title material geometry' }), false);
-    assert.equal(helpers.matchesIgnoredBoundsMeta({ id: 'chart-body', className: 'mesh' }), false);
+    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ combined: 'chart-legend panel' }), true);
+    // Camera-facing billboards are measurement noise, never content.
+    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta({ combined: 'babia-lookat position' }), true);
+    assert.equal(helpers.matchesIgnoredBoundsMeta({ combined: 'chart-body mesh' }), false);
+
+    // The meta is the WHOLE ancestor chain: a mesh under an anonymous child of
+    // a `babiaxrLegend` container is excluded even though its own entity says
+    // nothing (the immediate-owner filter let those planes into containment
+    // and a legend_lookat billboard nudged the fit as the camera moved).
+    const legendContainer = { el: makeMetaEntity({ class: 'babiaxrLegend' }) };
+    const anonymousPlane = { el: makeMetaEntity({}), parent: legendContainer };
+    const legendMesh = { name: '', parent: anonymousPlane };
+    const legendMeta = helpers.collectNodeMeta(legendMesh);
+    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta(legendMeta), true);
+
+    const chartMesh = { name: 'bars', parent: { el: makeMetaEntity({ class: 'babiaxrChart' }) } };
+    assert.equal(helpers.matchesIgnoredContainmentBoundsMeta(helpers.collectNodeMeta(chartMesh)), false);
 });
+
+function makeMetaEntity(attributes) {
+    return {
+        tagName: 'A-ENTITY',
+        id: attributes.id || '',
+        getAttribute(name) { return attributes[name] || null; },
+        getAttributeNames() { return Object.keys(attributes); },
+        hasAttribute(name) { return name in attributes; },
+    };
+}
 
 test('bootstrap planar fit only guarantees visibility and containment', () => {
     const { runtime } = loadRuntimeSandbox();
@@ -383,38 +406,6 @@ test('bootstrap planar fit only guarantees visibility and containment', () => {
     assert.equal(bootstrap.reason, 'bootstrap-containment');
 });
 
-test('steady planar fit adjusts X and Z independently for a rectangular table', () => {
-    const { runtime } = loadRuntimeSandbox();
-    const helpers = runtime.__testing;
-
-    const planarBand = helpers.computePlanarBandScale(
-        {
-            size: { x: 3, y: 1, z: 4.6 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -1.5, y: 0, z: -2.3 }, max: { x: 1.5, y: 1, z: 2.3 } },
-        },
-        {
-            size: { x: 3.2, y: 1.2, z: 4.8 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -1.6, y: 0, z: -2.4 }, max: { x: 1.6, y: 1.2, z: 2.4 } },
-        },
-        {
-            targetWidth: 5.614,
-            targetDepth: 3.218,
-            minPlanarOccupancyRatio: 0.78,
-            maxPlanarOccupancyRatio: 0.92,
-            tableTopPadding: 0.9,
-            tableEdgeMargin: 0.18,
-        },
-    );
-
-    assert.ok(planarBand);
-    assert.ok(planarBand.xFactor > 1);
-    assert.ok(planarBand.zFactor < 1);
-    assert.notEqual(planarBand.xFactor, planarBand.zFactor);
-    assert.equal(planarBand.compromised, false);
-});
-
 test('planar underflow can be accepted while preserving overflow containment', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
@@ -438,28 +429,6 @@ test('planar underflow can be accepted while preserving overflow containment', (
         0.018,
         false,
     );
-    const band = helpers.computePlanarBandScale(
-        {
-            size: { x: 2, y: 1, z: 2 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -1, y: 0, z: -1 }, max: { x: 1, y: 1, z: 1 } },
-        },
-        {
-            size: { x: 2, y: 1, z: 2 },
-            center: { x: 0, y: 0, z: 0 },
-            bounds: { min: { x: -1, y: 0, z: -1 }, max: { x: 1, y: 1, z: 1 } },
-        },
-        {
-            targetWidth: 5.614,
-            targetDepth: 3.218,
-            minPlanarOccupancyRatio: 0.78,
-            maxPlanarOccupancyRatio: 0.92,
-            tableTopPadding: 0.9,
-            tableEdgeMargin: 0.18,
-            planarUnderflowCorrectionEnabled: false,
-        },
-    );
-
     assert.equal(accepted.withinBand, true);
     assert.equal(accepted.underflowing, true);
     assert.equal(accepted.underflowAllowed, true);
@@ -467,8 +436,6 @@ test('planar underflow can be accepted while preserving overflow containment', (
     assert.equal(accepted.reason, 'underflow-accepted');
     assert.equal(overflow.overflowing, true);
     assert.ok(overflow.targetScale < 0.5);
-    assert.equal(band.xFactor, 1);
-    assert.equal(band.x.reason, 'underflow-accepted');
 });
 
 test('height band scale remains independent from the planar scale policy', () => {
@@ -570,6 +537,38 @@ test('containment transition policy animates remapping but skips initial and har
     assert.equal(helpers.shouldAnimateContainmentTransform('mapping-ui-change', from, to, { transformTransitionMs: 0 }), false);
 });
 
+test('re-fitting is skipped when the chart is already fitted and unchanged', () => {
+    // Re-fitting is destructive (clears `normalized`, resets the transform and
+    // runs the bootstrap fit again), so an unconditional re-fit made charts
+    // visibly jump whenever anything asked "just in case" — the flash on
+    // entering an analysis. The fit on screen is remembered as a signature and
+    // a matching request becomes a no-op.
+    assert.match(runtimeSource, /this\.normalizedSignature = this\.lastMeasurementSignature;/);
+    assert.match(runtimeSource, /currentSignature === this\.normalizedSignature/);
+    assert.match(runtimeSource, /renormalize-skipped-unchanged/);
+    // A hidden chart keeps its fit: measuring it while invisible produced a
+    // different fit that had to be corrected — visibly — once it came back.
+    assert.match(runtimeSource, /if \(this\.normalized && !isObject3DVisibleInScene\(this\.el\)\)/);
+    assert.match(runtimeSource, /renormalize-deferred-hidden/);
+    // Losing the fit invalidates the signature so the next request re-fits.
+    assert.match(runtimeSource, /this\.normalized = false;\s*\/\/[\s\S]*?this\.normalizedSignature = null;/);
+});
+
+test('scene visibility helper walks the ancestor chain', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const isVisible = runtime.__testing.isObject3DVisibleInScene;
+    const root = { visible: true, parent: null };
+    const parent = { visible: true, parent: root };
+    assert.equal(isVisible({ object3D: { visible: true, parent: parent } }), true);
+    // Hidden by an ancestor (a parked analysis root hides its whole subtree).
+    parent.visible = false;
+    assert.equal(isVisible({ object3D: { visible: true, parent: parent } }), false);
+    parent.visible = true;
+    assert.equal(isVisible({ object3D: { visible: false, parent: parent } }), false);
+    assert.equal(isVisible(null), false);
+    assert.equal(isVisible({}), false);
+});
+
 test('maintenance pass enforces the height band outside steady PID mode', () => {
     assert.match(runtimeSource, /var changedHeight = this\.enforceHeightBand\(source \|\| 'maintenance-height-band'\);/);
     assert.doesNotMatch(runtimeSource, /var changedHeight = false;/);
@@ -650,16 +649,45 @@ test('tabletop anchor lifts geometry that penetrates below the physical table pl
     assert.equal(Number(offset.deltaY.toFixed(6)), 0.324);
 });
 
-test('analysis table runtime exposes tabletop debug plane controls and waits through chart animation', () => {
+test('analysis table runtime exposes tabletop debug plane controls and defers during transitions', () => {
     assert.match(runtimeSource, /showTabletopAnchorPlane = function \(visible\)/);
     assert.match(runtimeSource, /hideTabletopAnchorPlane = function \(\)/);
     assert.match(runtimeSource, /id', 'codexr-analysis-table-anchor-plane'/);
-    assert.match(runtimeSource, /isChartAnimationActive\(this\.el\)/);
-    assert.match(runtimeSource, /reason: animationActive/);
-    assert.match(runtimeSource, /pendingRenormalizeReason/);
-    assert.match(runtimeSource, /if \(isChartAnimationActive\(this\.el\)\) \{/);
-    assert.match(runtimeSource, /this\.el\.addEventListener\('codexr-boats-rendered', this\.onChartRenderedBound\);/);
-    assert.match(runtimeSource, /name === 'codexr-boats'/);
+    // codexr-boats was removed with its runtime: the containment no longer
+    // listens for its render event or its component; a re-fit request during a
+    // containment transition is parked and honoured later.
+    assert.doesNotMatch(runtimeSource, /codexr-boats/);
+    assert.doesNotMatch(runtimeSource, /isChartAnimationActive/);
+    assert.match(runtimeSource, /pendingRenormalizeReason = reason \|\| 'containment-transition-active'/);
+    // The parked request's real consumer: the first periodic pass with the
+    // chart visible again.
+    assert.match(runtimeSource, /if \(this\.pendingRenormalizeReason && isObject3DVisibleInScene\(this\.el\)\) \{/);
+});
+
+test('containment reaches a terminal settled state and only a real drift re-engages it', () => {
+    // Settled = terminal: no per-frame measuring or guarding (that churn was
+    // the micro-resizes users saw while moving), only the periodic watch.
+    assert.match(runtimeSource, /if \(!this\.settled\) \{/);
+    assert.match(runtimeSource, /this\.runSettledWatch\('tick-settled-watch'\);/);
+    assert.match(runtimeSource, /enterSettledState: function \(measurements\)/);
+    assert.match(runtimeSource, /unsettle: function \(reason\)/);
+    assert.match(runtimeSource, /runSettledWatch: function \(source\)/);
+    // Hysteresis: persistent relative drift (2 consecutive samples) or a hard
+    // violation re-engage the controller; single blips do not.
+    assert.match(runtimeSource, /resumeThresholdRatio: 0\.02/);
+    assert.match(runtimeSource, /resumeSamples: 2/);
+    assert.match(runtimeSource, /hardViolationRatio: 1\.05/);
+    assert.match(runtimeSource, /this\.settledDriftStreak \+= 1;/);
+    // Converging maintenance re-engages the closed loop instead of stepping it
+    // open-loop forever, and settling happens where convergence is declared.
+    assert.match(runtimeSource, /this\.enterSettledState\(nextMeasurements \|\| measurements\);/);
+    assert.match(runtimeSource, /this\.activateSteadyController\(\);\s*\}\s*return false;/);
+    // The relative PID dead zone (an absolute epsilon served flat charts and
+    // boats' 0.01 scale with the same knob).
+    assert.match(runtimeSource, /relativeEpsilonRatio: 0\.002/);
+    assert.match(runtimeSource, /Math\.abs\(currentValue\) \* PID_PROFILE\.relativeEpsilonRatio/);
+    // The mutating axis probe is cached per normalization generation.
+    assert.match(runtimeSource, /this\.axisPeakProbeCache\[axis\] = \{ generation: this\.normalizationGeneration, value: contributes \};/);
 });
 
 test('chart status exposes vertical guard and containment transition diagnostics', () => {
@@ -709,7 +737,6 @@ test('containment correction state detects minimum and maximum drift on all axes
             targetHeight: 1.8,
             targetDepth: 3.218,
             anchorY: 1,
-            revealOffsetY: 0.03,
             minPlanarOccupancyRatio: 0.78,
             maxPlanarOccupancyRatio: 0.92,
             heightBandMinRatio: 0.38,
@@ -766,7 +793,6 @@ test('containment correction state detects minimum and maximum drift on all axes
             targetHeight: 1.8,
             targetDepth: 3.218,
             anchorY: 1,
-            revealOffsetY: 0.03,
             minPlanarOccupancyRatio: 0.78,
             maxPlanarOccupancyRatio: 0.92,
             heightBandMinRatio: 0.38,
@@ -820,7 +846,6 @@ test('containment correction state keeps planar correction when height is tempor
             targetHeight: 1.8,
             targetDepth: 3.218,
             anchorY: 1,
-            revealOffsetY: 0.03,
             minPlanarOccupancyRatio: 0.78,
             maxPlanarOccupancyRatio: 0.92,
             heightBandMinRatio: 0.38,
@@ -877,7 +902,6 @@ test('containment correction state treats compromised minimums as explicit non-c
             targetHeight: 1.8,
             targetDepth: 3.218,
             anchorY: 1,
-            revealOffsetY: 0.03,
             minPlanarOccupancyRatio: 0.78,
             maxPlanarOccupancyRatio: 0.92,
             heightBandMinRatio: 0.38,
@@ -1019,11 +1043,11 @@ test('runtime scale commands update planar and vertical policy independently', (
 
     sandbox.document = {
         querySelector(selector) {
-            assert.equal(selector, '[codexr-chart-containment]');
+            assert.ok(selector.startsWith('[codexr-chart-containment]'), selector);
             return chartEl;
         },
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-containment]');
+            assert.ok(selector.startsWith('[codexr-chart-containment]'), selector);
             return [chartEl];
         },
     };
@@ -1100,7 +1124,7 @@ test('getChartStatus falls back to the first active chart when no selector is pr
             return null;
         },
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-containment]');
+            assert.ok(selector.startsWith('[codexr-chart-containment]'), selector);
             return [chartEl];
         },
     };
@@ -1131,7 +1155,7 @@ test('getScaleRange keeps the steady planar range separate from the vertical ban
 
     sandbox.document = {
         querySelectorAll(selector) {
-            assert.equal(selector, '[codexr-chart-containment]');
+            assert.ok(selector.startsWith('[codexr-chart-containment]'), selector);
             return [chartEl];
         },
     };

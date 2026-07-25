@@ -21,34 +21,24 @@
     showSourceSelection();
   }
 
+  // Single entry path: no explicit controllerView/panelViewId — the mode's
+  // resolveControllerView routes (mapping when a comparison is live, source
+  // selector otherwise), so the local transition and the server echo can
+  // never disagree.
   async function enterHistoricalSelection() {
     getClient().sendMessage?.('analysis-mode-activate', {
       mode: 'historical-compare'
     });
     await root.CodeXRAnalysisModeRuntime.transitionTo?.('historical-compare', {
-      reason: 'historical-selection',
-      controllerView: 'historical.selection',
-      panelViewId: 'historical-selection'
+      reason: 'historical-mode-entry'
     });
   }
 
   function selectHistoricalMode() {
-    if (state.result) {
-      root.console?.log?.('[CodeXR.Debug]: Historical comparison mode selected from visualization panel', {
-        hasResult: true,
-        revision: state.result.revision
-      });
-      getClient()?.sendMessage?.('analysis-mode-activate', {
-        mode: 'historical-compare'
-      });
-      void root.CodeXRAnalysisModeRuntime?.transitionTo?.('historical-compare', {
-        reason: 'local-historical-mode-option',
-        controllerView: 'historical.mapping',
-        panelViewId: 'mapping'
-      });
-      return;
-    }
-    root.console?.log?.('[CodeXR.Debug]: Historical comparison selected; opening source selector');
+    root.console?.log?.('[CodeXR.Debug]: Historical comparison mode selected', {
+      hasResult: !!state.result,
+      revision: state.result?.revision || null
+    });
     void enterHistoricalSelection();
   }
 
@@ -61,14 +51,8 @@
         right: activeRequest.rightSourceId
       };
     }
-    state.pageSize = Math.min(5, Number(state.references?.pageSize || 5));
-    state.page = 0;
-    if (!getCategorySources().length) {
-      state.activeCategory = state.references?.sources?.some(function (source) {
-        return source.kind === 'gitRef' && source.refType === 'branch';
-      }) ? 'branch' : 'branch';
-    }
-    renderCategoryTabs();
+    // Category/paging now live inside the shared picker; the panel only feeds
+    // it the references and keeps the selection detail.
     renderReferences();
     setStatus('', 'info');
   }

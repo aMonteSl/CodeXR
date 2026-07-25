@@ -30,7 +30,7 @@
     var componentName = getChartComponentName(chart);
     if (isHierarchicalBoatsComponent(componentName)) {
       var config = getConfig();
-      var pathField = config?.targetType === 'directory' ? 'filePath' : 'treePath';
+      var pathField = comparisonTreeField(config?.targetType);
       var chartData = Object.assign({}, chart.getAttribute(componentName) || {});
       delete chartData.from;
       chartData.data = JSON.stringify(buildComparisonBoatsTree(
@@ -49,11 +49,19 @@
       }
       dataEntity.setAttribute('babia-queryjson', 'url: ' + dataset.url + '?revision=' + result.revision);
     }
-    setText(liveSide === 'left' ? refs.leftLabel : refs.rightLabel, buildSourceLabel(dataset.source), 4.2, liveSide === 'left' ? '#67e8f9' : '#6ee7b7');
-    setText(refs.deltaLabel, buildDeltaText(result.delta, state.selectedMapping, state.payloads), 4.2, '#ffffff');
+    setText(liveSide === 'left' ? refs.leftLabel : refs.rightLabel, buildSideNameplateText(dataset.source), 2.6, liveSide === 'left' ? '#67e8f9' : '#6ee7b7');
+    updateMappingCompanion();
     state.result = result;
+    refs.renderedRevision = result.revision;
     await nextFrame();
-    root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('historical-comparison-live-refresh');
+    // Targeted renormalization: only the refreshed live chart. Renormalizing
+    // every chart reset the untouched immutable side to its 'rebuilding'
+    // containment state, waiting for a Babia build event that never comes —
+    // the chart vanished behind "The chart is still rebuilding its geometry".
+    root.CodeXRAnalysisTableRuntime?.renormalizeCharts?.(
+      [liveSide === 'left' ? 'codexrComparisonChartLeft' : 'codexrComparisonChartRight'],
+      'historical-comparison-live-refresh'
+    );
   }
 
   function normalizePayload(payload) {
@@ -80,47 +88,61 @@
     });
   }
 
-  function buildDeltaText(delta, mapping, payloads) {
-    var text = 'Added ' + Number(delta?.added || 0)
-      + ' | Removed ' + Number(delta?.removed || 0)
-      + ' | Modified ' + Number(delta?.modified || 0)
-      + ' | Unchanged ' + Number(delta?.unchanged || 0);
-    var mappedMetrics = getMappedMetricDeltas(mapping, payloads);
-    var metrics = (mappedMetrics.length ? mappedMetrics : (Array.isArray(delta?.metrics) ? delta.metrics : [])).slice(0, 3);
-    if (metrics.length) {
-      text += '\n' + metrics.map(function (metric) {
-        var sign = Number(metric.delta) > 0 ? '+' : '';
-        return truncate(metric.metric, 14) + ' ' + sign + Number(metric.delta || 0).toFixed(1);
-      }).join(' | ');
-    }
-    return text;
-  }
-
   function handleMappingConfirmed(event) {
+    // The comparison table always mirrors what the user maps to the chart axes:
+    // a changed axis metric re-computes its left/right/delta here.
     state.selectedMapping = Object.assign({}, event?.detail?.selectedByDimension || {});
-    if (state.result && refs.deltaLabel) {
-      setText(
-        refs.deltaLabel,
-        buildDeltaText(state.result.delta, state.selectedMapping, state.payloads),
-        4.2,
-        '#ffffff'
-      );
-    }
+    updateMappingCompanion();
   }
 
-  function disposeComparisonGeometry(clearResult) {
-    if (refs.comparisonRoot?.parentNode) {
-      refs.comparisonRoot.parentNode.removeChild(refs.comparisonRoot);
-    }
-    refs.comparisonRoot = null;
+  // Hands the scene back to the normal charts (raycast + mapping targets)
+  // without touching the comparison geometry.
+  function releaseSceneToNormal() {
     var config = getConfig();
     var original = restoreOriginalChart() || getTemplateChart(config);
     restoreRaycastInteraction(original);
     restoreOriginalChartMapping(config);
+  }
+
+  function disposeComparisonGeometry(clearResult) {
+    // Babia leaves a removed chart component subscribed to its data producer,
+    // so a discarded comparison chart repaints itself on the next push. Release
+    // both before dropping the root.
+    (Array.isArray(refs.comparisonChartIds) ? refs.comparisonChartIds : []).forEach(function (chartId) {
+      var chart = getDocument()?.getElementById?.(chartId);
+      if (chart) {
+        root.CodeXRMappingUiRuntime?.releaseChartEntity?.(chart);
+      }
+    });
+    if (refs.comparisonRoot?.parentNode) {
+      refs.comparisonRoot.parentNode.removeChild(refs.comparisonRoot);
+    }
+    refs.comparisonRoot = null;
+    refs.comparisonChartIds = null;
+    refs.renderedRevision = null;
+    releaseSceneToNormal();
     if (clearResult !== false) {
       state.result = null;
       state.payloads = { left: [], right: [] };
     }
+  }
+
+  // Leaving the mode with a live comparison: SAVE it. The root stays mounted
+  // (the surface preserve pass hides it with its own interaction bookkeeping)
+  // and only the scene is handed back to normal; restoreComparisonScene brings
+  // everything back as left, with no rebuild (and no visible teardown).
+  function parkComparisonGeometry() {
+    root.CodeXRAnalysisSurfaceRuntime?.preserveModeRoots?.('historical-compare');
+    releaseSceneToNormal();
+  }
+
+  function releaseComparisonOnLeave() {
+    state.loadGeneration += 1;
+    if (state.result && refs.comparisonRoot?.isConnected) {
+      parkComparisonGeometry();
+      return;
+    }
+    disposeComparisonGeometry(false);
   }
 
   function registerCollaboration() {
@@ -158,6 +180,24 @@
     state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime?.register?.('historical-compare', {
       activate: function () {
         if (state.result) {
+          // Comparison geometry still mounted (preserved on leave, or a
+          // duplicate activation): restore it in place — no renderComparison,
+          // no re-park/stabilization wait, the scene comes back as left.
+          if (refs.comparisonRoot?.isConnected) {
+            restoreComparisonScene();
+            if (state.result.revision !== refs.renderedRevision) {
+              // The live side moved while the mode was parked (the entity
+              // update only stored state.result): re-sync the charts now.
+              return applySharedState({
+                entityKind: ENTITY_KIND,
+                entityId: ENTITY_ID,
+                mode: 'historical-compare',
+                result: state.result
+              });
+            }
+            closePanel();
+            return true;
+          }
           if (state.payloads.left.length || state.payloads.right.length) {
             return renderComparison(
               state.result,
@@ -177,17 +217,28 @@
         showHistoricalSelectionPanel();
         return true;
       },
+      // Leaving historical SAVES a live comparison (root preserved-and-hidden,
+      // result + payloads kept) so returning restores it as left; with none,
+      // the geometry is disposed and re-entry shows the source selector.
+      // Determinism comes from resolveControllerView below: every route
+      // (local + authoritative echo) agrees on historical.mapping when a
+      // comparison exists, historical.selection otherwise.
       deactivate: function () {
-        state.loadGeneration += 1;
-        disposeComparisonGeometry(false);
+        releaseComparisonOnLeave();
       },
       disposeView: function () {
-        state.loadGeneration += 1;
-        disposeComparisonGeometry(false);
+        releaseComparisonOnLeave();
+      },
+      // Authoritative default view for this mode: with a live comparison the
+      // controller restores it (mapping); otherwise it shows the source
+      // selector. getDefaultControllerViewForMode consults this so the local
+      // transition and the server echo can never disagree on the view.
+      resolveControllerView: function () {
+        return state.result ? 'historical.mapping' : 'historical.selection';
       }
     }) || null;
     registerHistoricalModeOption();
-    mountPanelView(0);
+    mountPanelView();
     state.selectedMapping = Object.assign(
       {},
       root.CodeXRMappingUiRuntime?.getState?.().lastKnownGoodMapping || {}
@@ -209,8 +260,7 @@
       return root.CodeXRAnalysisModeRuntime?.deactivate?.('historical-compare');
     },
     disposeView: function () {
-      state.loadGeneration += 1;
-      disposeComparisonGeometry(false);
+      releaseComparisonOnLeave();
     },
     applySharedState: applySharedState,
     getState: function () {
@@ -231,7 +281,10 @@
       state.unregisterLifecycle = null;
       state.unregisterPanelView?.();
       state.unregisterPanelView = null;
+      state.unregisterMappingCompanion?.();
+      state.unregisterMappingCompanion = null;
       refs.panel = null;
+      refs.companionRoot = null;
       state.initialized = false;
     },
     __testing: {

@@ -1,5 +1,6 @@
 import { VisualizationSettings } from '../../../utils/getVisualizationConfiguration';
 import { generateNonce } from '../../../utils/nonceGenerator';
+import { BOATS_BASE_COMPONENT_ATTRIBUTES, XR_BOATS_TREE_FIELDS } from '../../charts/templateCharts';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -56,6 +57,14 @@ export class CreateStructure {
             // Tree builder - only for hierarchical boats charts in XR analysis
             const treeBuilder = this.getTreeBuilder(analysisType, chartType, isDirectoryAnalysis);
             placeholders.set('TREE_BUILDER', treeBuilder);
+
+            // Canonical chart construction, exposed to the in-scene runtimes
+            // (chart switch, evolution movie) so every babia-boats is built
+            // from the same base as the generated one.
+            placeholders.set('CHART_BASE_CONFIG', JSON.stringify({
+                boats: BOATS_BASE_COMPONENT_ATTRIBUTES,
+                treeFields: XR_BOATS_TREE_FIELDS,
+            }));
 
             // Icon path (optional)
             placeholders.set('ICON_PATH', '');
@@ -132,14 +141,12 @@ export class CreateStructure {
 
         // When the XR mapping UI is enabled users can switch between flat and hierarchical charts live.
         // Keep the tree source available so boats variants can be selected without relaunching analysis.
+        // The field comes from the shared tree contract (the normal-analysis
+        // convention every mode now follows).
         if (analysisType === 'xr') {
-            if (isDirectoryAnalysis) {
-                console.log(`CREATE_STRUCTURE: Adding tree builder for XR hierarchical boats chart (directory analysis)`);
-                return '<a-entity id="tree" babia-treebuilder="field: filePath; split_by: /; from: data"></a-entity>';
-            } else {
-                console.log(`CREATE_STRUCTURE: Adding tree builder for XR hierarchical boats chart (file analysis)`);
-                return '<a-entity id="tree" babia-treebuilder="field: treePath; split_by: /; from: data"></a-entity>';
-            }
+            const field = isDirectoryAnalysis ? XR_BOATS_TREE_FIELDS.directory : XR_BOATS_TREE_FIELDS.file;
+            console.log(`CREATE_STRUCTURE: Adding tree builder for XR hierarchical boats chart (field: ${field})`);
+            return `<a-entity id="tree" babia-treebuilder="field: ${field}; split_by: /; from: data"></a-entity>`;
         }
 
         console.log(`CREATE_STRUCTURE: No tree builder needed for this configuration`);

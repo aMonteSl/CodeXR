@@ -53,6 +53,18 @@ test('project evolution runtime keeps one bridge datasource and chart during pla
     assert.match(runtimeSource, /function ensureEvolutionTreeBuilder\(playbackRoot, targetType\)/);
     assert.match(runtimeSource, /id: 'codexrProjectEvolutionTree'/);
     assert.match(runtimeSource, /var treeAttr = 'field: ' \+ field \+ '; split_by: \/; from: codexrProjectEvolutionData'/);
+    // The git-ref-picker runtime is presentation chrome: every describeSource
+    // use goes through the guarded helper, so a missing picker can no longer
+    // throw inside play() and freeze the movie with `playing` stuck on.
+    assert.match(runtimeSource, /function describeSourceSafe\(source\)/);
+    assert.doesNotMatch(runtimeSource, /root\.CodeXRGitRefPickerRuntime\.describeSource\(/);
+    // Shared boats tree contract (generator-injected config): the movie splits
+    // the same filePath the normal analysis splits — the service rebuilds it
+    // against the ORIGINAL target so temp copies never shape the quarters.
+    assert.match(runtimeSource, /function evolutionTreeField\(targetType\)/);
+    assert.match(runtimeSource, /getChartBaseConfig\?\.\(\)\?\.treeFields/);
+    assert.match(runtimeSource, /treeFields\?\.directory \|\| 'filePath'/);
+    assert.doesNotMatch(runtimeSource, /targetType === 'directory' \? 'filePath'/);
     assert.match(runtimeSource, /function applyBridgeFrameToChart\(frame, appliedBridgeUrl\)/);
     assert.match(runtimeSource, /data\.from = 'codexrProjectEvolutionTree'/);
     assert.match(runtimeSource, /data\.from = 'codexrProjectEvolutionData'/);

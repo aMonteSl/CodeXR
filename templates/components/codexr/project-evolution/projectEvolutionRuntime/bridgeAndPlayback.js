@@ -24,11 +24,6 @@
       setStatus('This evolution movie has no bridge data URL.', 'error');
       return false;
     }
-    var template = getTemplateChart(chartId);
-    if (!template) {
-      setStatus('Project evolution chart is not available.', 'error');
-      return false;
-    }
     var playbackRoot = ensureEvolutionPlaybackRoot(frame);
     var dataSource = ensureEvolutionDataSource(playbackRoot, frameUrl);
     await waitForComponent(dataSource, 'babia-queryjson', 1200);
@@ -39,7 +34,11 @@
       setStatus('Project evolution chart is not available.', 'error');
       return false;
     }
-    prepareChartForEvolution(chart, chartId, { force: true });
+    // Not forced: re-applying the containment profile writes the raw anchor
+    // position back over the fit the containment component had just computed,
+    // which changed the measurement signature and forced a full re-fit on EVERY
+    // frame — the charts that never stopped resizing.
+    prepareChartForEvolution(chart, chartId);
     var current = chart.getAttribute(componentName) || {};
     var data = root.CodeXRMappingUiRuntime?.__testing?.buildRuntimeChartData
       ? root.CodeXRMappingUiRuntime?.__testing.buildRuntimeChartData(chartId, current, mapping)
@@ -58,8 +57,11 @@
     if (chart.parentNode !== playbackRoot) {
       playbackRoot.appendChild(chart);
     }
+    // `hasAttribute` is false for a component applied programmatically, so the
+    // old guard was always true and re-set the component every frame; the live
+    // component map is the honest check.
     var signature = chartId + ':' + JSON.stringify(data);
-    if (state.chartDataSignature !== signature || !chart.hasAttribute?.(componentName)) {
+    if (state.chartDataSignature !== signature || !chart.components?.[componentName]) {
       chart.setAttribute(componentName, data);
       state.chartDataSignature = signature;
       await waitForComponent(chart, componentName, 1200);
@@ -167,14 +169,24 @@
     if (state.frameIndex >= (state.result.frames || []).length - 1) {
       return;
     }
+    // The countdown is mirrored on the companion's own line (attribute-only
+    // repaint, not a full render: this ticks once a second while playing).
+    setCountdownSeconds(0);
     setStatus('Waiting for chart animation to settle...', 'info');
     await waitForFrameStable(generation);
     var seconds = Math.max(1, Math.round((state.settleDelayMs || 2200) / 1000 / Math.max(0.25, state.speed)));
     while (seconds > 0 && state.playing && generation === state.playbackGeneration) {
+      setCountdownSeconds(seconds);
       setStatus('Next frame in ' + seconds + 's...', 'info');
       await waitOneSecond();
       seconds -= 1;
     }
+    setCountdownSeconds(0);
+  }
+
+  function setCountdownSeconds(seconds) {
+    state.nextFrameSeconds = Math.max(0, Number(seconds) || 0);
+    renderMovieCompanion();
   }
 
   async function seek(index) {
@@ -198,6 +210,7 @@
     }
     await applyBridgeFrameToChart(frames[state.frameIndex], applied.bridgeUrl);
     render();
+    updateFrameNameplate(frames[state.frameIndex]);
     updatePlaybackOverlay(frames[state.frameIndex], frames.length, state.playing);
     await waitOneSecond();
     return true;

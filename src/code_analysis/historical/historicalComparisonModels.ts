@@ -26,6 +26,14 @@ export type ComparisonSource =
         commitSha: string;
         label: string;
         description?: string;
+        /** Committer date (YYYY-MM-DD) of the ref's target commit, if known. */
+        date?: string;
+        /**
+         * Committer time (Unix epoch seconds) of the ref's target commit.
+         * `date` is day-granular, so same-day refs are indistinguishable by
+         * it; ordering and range membership need this precise key.
+         */
+        timestamp?: number;
         live: false;
         revisionType: GitRevisionType;
         parentCount: number;
@@ -124,4 +132,22 @@ export interface ProjectEvolutionProgress {
     revision?: number;
     frameIndex?: number;
     frameCount?: number;
+}
+
+/**
+ * Rebuild a file path exactly as the normal analysis publishes it for the
+ * ORIGINAL analyzed target (Python's normalize_path_for_babia: forward
+ * slashes, no drive letter). Evolution and historical analyses run in
+ * per-commit temp copies, so their raw paths would paint a different boats
+ * tree per frame; anchoring the path to the original target keeps the
+ * quarters identical to the normal analysis of the same directory.
+ */
+export function buildBabiaStyleFilePath(originalTargetPath: string, relativePath: string): string {
+    let prefix = String(originalTargetPath || '').replace(/\\/g, '/');
+    if (/^[a-zA-Z]:/.test(prefix)) {
+        prefix = prefix.slice(2);
+    }
+    prefix = prefix.replace(/\/+/g, '/').replace(/\/+$/, '');
+    const suffix = String(relativePath || '').replace(/^\/+/, '');
+    return `${prefix}/${suffix}`.replace(/\/+/g, '/');
 }

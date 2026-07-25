@@ -4,6 +4,10 @@
 
   var AFRAME = root.AFRAME;
   var COMPONENT_NAME = 'codexr-chart-containment';
+  // Plain DOM marker stamped next to the component so runtime-built charts
+  // (whose component is set programmatically and therefore leaves no DOM
+  // attribute) stay discoverable by attribute selectors.
+  var CONTAINMENT_MARKER_ATTRIBUTE = 'data-codexr-chart-containment';
   var TABLE_COMPONENT_NAME = 'codexr-analysis-table';
   var RUNTIME_GLOBAL_NAME = 'CodeXRAnalysisTableRuntime';
   var DEBUG_GLOBAL_NAME = 'CodeXRChartDebugBands';
@@ -23,7 +27,6 @@
     anchorX: 0,
     anchorY: 1,
     anchorZ: -18,
-    revealOffsetY: 0.03,
     tableTopSurfaceOffsetY: -0.08,
     tabletopAnchorEpsilon: 0.004,
     tabletopAnchorDeadbandY: 0.015,
@@ -33,15 +36,12 @@
     bootstrapPlanarMaxRatio: 0.84,
     minPlanarOccupancyRatio: 0.78,
     maxPlanarOccupancyRatio: 0.92,
-    minHeightOccupancyRatio: 0.45,
     heightBandMinRatio: 0.38,
     heightBandMaxRatio: 0.72,
     tableEdgeMargin: 0.18,
-    buildingHeightBandEnabled: false,
     yScaleMin: 0.01,
     yScaleMax: 12,
     containmentToleranceRatio: 0.018,
-    containmentDamping: 0.985,
     containmentMaxIterations: 8,
     containmentCheckMs: 700,
     periodicContainmentEnabled: true,
@@ -149,7 +149,6 @@
       bootstrapPlanarMaxRatio: DEFAULTS.bootstrapPlanarMaxRatio,
       minPlanarOccupancyRatio: DEFAULTS.minPlanarOccupancyRatio,
       maxPlanarOccupancyRatio: DEFAULTS.maxPlanarOccupancyRatio,
-      minHeightOccupancyRatio: DEFAULTS.minHeightOccupancyRatio,
       heightBandMinRatio: DEFAULTS.heightBandMinRatio,
       heightBandMaxRatio: DEFAULTS.heightBandMaxRatio,
       tableEdgeMargin: DEFAULTS.tableEdgeMargin,
@@ -253,9 +252,28 @@
     },
     stableTicks: 8,
     dtMin: 1 / 120,
-    dtMax: 0.08
+    dtMax: 0.08,
+    // Dead zone relative to the axis' CURRENT scale (the per-axis `epsilon`
+    // stays as an absolute floor): boats runs at 0.01 scale and flat charts at
+    // 1.5+, so one absolute number cannot serve both.
+    relativeEpsilonRatio: 0.002
   };
 
-  var CONTENT_AUXILIARY_TOKEN_PATTERN = /(legend|label|title|axis|tick|grid|mapping|debug|tooltip)/i;
-  var CONTAINMENT_AUXILIARY_TOKEN_PATTERN = /(legend|label|title|mapping|debug|tooltip)/i;
+  // `lookat` keeps camera-facing billboards out of the measurements: their
+  // world AABB changes as the user turns, which is measurement noise, never
+  // chart content.
+  var CONTENT_AUXILIARY_TOKEN_PATTERN = /(legend|label|title|axis|tick|grid|mapping|debug|tooltip|lookat)/i;
+  var CONTAINMENT_AUXILIARY_TOKEN_PATTERN = /(legend|label|title|mapping|debug|tooltip|lookat)/i;
+
+  // Terminal-state watchdog. Once a fit converged the component goes settled
+  // and only this periodic check runs: a RELATIVE drift must persist for
+  // `resumeSamples` consecutive checks before the controller re-engages
+  // (one-sample blips are measurement noise), while a hard violation
+  // (occupancy past the physical limit by `hardViolationRatio`) re-engages
+  // immediately.
+  var SETTLED_WATCH = {
+    resumeThresholdRatio: 0.02,
+    resumeSamples: 2,
+    hardViolationRatio: 1.05
+  };
   var TEXT_COMPONENT_KEYS = ['text', 'troika-text'];
