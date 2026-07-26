@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ActiveServer } from '../../../active_servers/model/activeServerModel';
 import { COLLABORATION_AVATARS, ConnectedParticipantSummary } from '../../../collaboration';
 import { NetworkUtils } from '../../../servers/utils/networkUtils';
+import { CollaborationTreeItem } from '../../collaboration/items/collaborationItems';
+import { ServerSettingsManager } from '../../../servers/storage/serverSettingsManager';
 
 export type ActiveServerItemType =
     | 'server-item'
@@ -11,7 +13,10 @@ export type ActiveServerItemType =
     | 'participants-group'
     | 'participant-item'
     | 'actions-group'
-    | 'action-item';
+    | 'action-item'
+    | 'remote-group'
+    | 'collaboration-group'
+    | 'collaboration-item';
 
 /**
  * Active Server tree items for the Active Servers section
@@ -58,6 +63,41 @@ export class ActiveServerItemFactory {
     }
     
     /**
+     * Create the "COLLABORATION" group that hosts the shared identity options
+     * and the remote session entry point inside the Active Servers section.
+     */
+    static createCollaborationGroupItem(): ActiveServerTreeItem {
+        return new ActiveServerTreeItem(
+            'COLLABORATION',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'collaboration-group',
+            undefined,
+            new vscode.ThemeIcon('organization'),
+            'Configure your shared identity and avatar',
+            undefined,
+            'collaborationGroup',
+        );
+    }
+
+    /**
+     * Adapt a collaboration item so it can live inside the Active Servers tree.
+     * The collaboration factory stays the single source of truth for labels,
+     * icons and commands.
+     */
+    static fromCollaborationItem(item: CollaborationTreeItem): ActiveServerTreeItem {
+        return new ActiveServerTreeItem(
+            typeof item.label === 'string' ? item.label : item.label?.label || 'Unknown',
+            vscode.TreeItemCollapsibleState.None,
+            'collaboration-item',
+            item.command,
+            item.iconPath as vscode.ThemeIcon | undefined,
+            typeof item.tooltip === 'string' ? item.tooltip : undefined,
+            typeof item.description === 'string' ? item.description : undefined,
+            item.contextValue,
+        );
+    }
+
+    /**
      * Create "Stop All Servers" control option
      */
     static createStopAllServersItem(runningCount: number): ActiveServerTreeItem {
@@ -81,7 +121,7 @@ export class ActiveServerItemFactory {
     /**
      * Create individual active server item
      */
-    static createServerItem(server: ActiveServer): ActiveServerTreeItem {
+    static createServerItem(server: ActiveServer, expanded = false): ActiveServerTreeItem {
         // Use custom name if provided, otherwise fallback to localhost:port
         const label = server.customName?.trim() || `localhost:${server.port}`;
         console.log(`ACTIVE_SERVERS: Creating server item with label: "${label}" (customName: "${server.customName}", port: ${server.port})`);
@@ -104,7 +144,9 @@ export class ActiveServerItemFactory {
         
         return new ActiveServerTreeItem(
             label,
-            vscode.TreeItemCollapsibleState.Collapsed,
+            expanded
+                ? vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.Collapsed,
             'server-item',
             command,
             icon,
@@ -121,55 +163,56 @@ export class ActiveServerItemFactory {
     ): ActiveServerTreeItem[] {
         const protocol = server.certMode === 'http' ? 'http' : 'https';
         const lanUrl = `${protocol}://${NetworkUtils.getLocalIPAddress()}:${server.port}`;
-        const remoteState = server.remoteAccess?.status || 'stopped';
         const children = [
             this.createCommandItem(
-                'Direccion de red local',
+                'Local network address',
                 lanUrl,
                 'globe',
                 'codeXR.activeServers.copyLanUrl',
                 server,
                 'info-item',
             ),
-            this.createCommandItem(
-                'Conexion remota',
-                this.getRemoteStatusDescription(server),
-                remoteState === 'shared' ? 'radio-tower' : remoteState === 'error' ? 'error' : 'circle-outline',
-                'codeXR.activeServers.showRemoteStatus',
-                server,
-                'info-item',
-            ),
         ];
 
+        // While shared, the invitation URL sits right below the local address:
+        // one click copies the link to hand out.
         if (server.remoteAccess?.status === 'shared' && server.remoteAccess.invitationUrl) {
             children.push(this.createCommandItem(
-                'Copiar invitacion remota',
+                'Cross-network address',
                 server.remoteAccess.invitationUrl,
-                'copy',
+                'radio-tower',
                 'codeXR.activeServers.copyRemoteInvitation',
                 server,
                 'info-item',
+                'Share this link with the people you want to invite. Click to copy.',
             ));
         }
 
+        // The cross-network group exists only when the global setting allows it.
+        // Defensive: a live tunnel is never hidden, even if the setting was
+        // disabled underneath it.
+        if (this.isRemoteAccessRelevant(server)) {
+            children.push(this.createRemoteGroupItem(server));
+        }
+
         children.push(new ActiveServerTreeItem(
-            `Usuarios conectados (${participants.length})`,
+            `Connected users (${participants.length})`,
             vscode.TreeItemCollapsibleState.Expanded,
             'participants-group',
             undefined,
-            new vscode.ThemeIcon('accounts'),
-            `${participants.length} usuario(s) conectado(s)`,
+            new vscode.ThemeIcon('organization'),
+            `${participants.length} connected user(s)`,
             undefined,
             'activeServerParticipants',
             server,
         ));
         children.push(new ActiveServerTreeItem(
-            'Acciones',
+            'Actions',
             vscode.TreeItemCollapsibleState.Collapsed,
             'actions-group',
             undefined,
             new vscode.ThemeIcon('tools'),
-            'Acciones disponibles para este servidor',
+            'Available actions for this server',
             undefined,
             'activeServerActions',
             server,
@@ -183,12 +226,12 @@ export class ActiveServerItemFactory {
     ): ActiveServerTreeItem[] {
         if (participants.length === 0) {
             return [new ActiveServerTreeItem(
-                'Ningun usuario conectado',
+                'No users connected',
                 vscode.TreeItemCollapsibleState.None,
                 'info-item',
                 undefined,
                 new vscode.ThemeIcon('info'),
-                'La lista se actualizara cuando alguien entre en la escena.',
+                'The list updates as soon as somebody enters the scene.',
                 undefined,
                 'activeServerInfo',
                 server,
@@ -197,20 +240,28 @@ export class ActiveServerItemFactory {
 
         return participants.map((participant) => {
             const avatar = COLLABORATION_AVATARS.find((candidate) => candidate.id === participant.avatarId);
-            const client = participant.clientKind === 'codexr' ? 'CodeXR' : 'Navegador';
-            const scope = participant.connectionScope === 'remote' ? 'Remoto' : 'Local';
+            const client = participant.clientKind === 'codexr' ? 'CodeXR' : 'Browser';
+            const scope = participant.connectionScope === 'remote' ? 'Remote' : 'Local';
             const avatarLabel = avatar?.label || participant.avatarId;
             return new ActiveServerTreeItem(
                 participant.displayName,
                 vscode.TreeItemCollapsibleState.None,
                 'participant-item',
-                undefined,
+                {
+                    command: 'codeXR.activeServers.showParticipantDetails',
+                    title: 'Show participant details',
+                    arguments: [server.id, participant.peerId],
+                },
                 new vscode.ThemeIcon('account'),
                 [
-                    `Nombre: ${participant.displayName}`,
+                    `Name: ${participant.displayName}`,
+                    `Role: ${participant.role === 'host' ? 'Host' : 'Guest'}`,
                     `Avatar: ${avatarLabel}`,
-                    `Origen: ${client}`,
-                    `Conexion: ${scope}`,
+                    `Source: ${client}`,
+                    `Connection: ${scope}`,
+                    `IP address: ${participant.remoteAddress}`,
+                    '',
+                    'Click to view details',
                 ].join('\n'),
                 `${avatarLabel} | ${client} | ${scope}`,
                 'activeServerParticipant',
@@ -219,31 +270,132 @@ export class ActiveServerItemFactory {
         });
     }
 
+    /**
+     * Whether the cross-network group should render for this server: the
+     * global setting enables it, or a tunnel is already live/starting/failed.
+     */
+    static isRemoteAccessRelevant(server: ActiveServer): boolean {
+        const status = server.remoteAccess?.status || 'stopped';
+        if (status !== 'stopped') {
+            return true;
+        }
+        try {
+            return ServerSettingsManager.getInstance().getServerSettings().remoteAccess.enabled;
+        } catch {
+            // Settings manager not initialized yet (cannot happen while a
+            // server is running, but never break the tree over it).
+            return false;
+        }
+    }
+
+    /**
+     * Create the "Cross-network connection" group that hosts every remote
+     * access item for a server.
+     */
+    static createRemoteGroupItem(server: ActiveServer): ActiveServerTreeItem {
+        const remoteState = server.remoteAccess?.status || 'stopped';
+        return new ActiveServerTreeItem(
+            'Cross-network connection',
+            remoteState === 'stopped'
+                ? vscode.TreeItemCollapsibleState.Collapsed
+                : vscode.TreeItemCollapsibleState.Expanded,
+            'remote-group',
+            undefined,
+            new vscode.ThemeIcon(
+                remoteState === 'shared' ? 'radio-tower' : remoteState === 'error' ? 'error' : 'circle-outline',
+            ),
+            'Share this server across networks through a Cloudflare Quick Tunnel',
+            this.getRemoteStatusDescription(server),
+            'activeServerRemote',
+            server,
+        );
+    }
+
+    /**
+     * Children of the cross-network group, driven by the tunnel status.
+     */
+    static createRemoteConnectionItems(server: ActiveServer): ActiveServerTreeItem[] {
+        const status = server.remoteAccess?.status || 'stopped';
+
+        if (status === 'shared' || status === 'starting') {
+            const pending = server.remoteAccess?.pendingRequests || 0;
+            const items: ActiveServerTreeItem[] = [];
+            if (status === 'shared' && pending > 0) {
+                items.push(this.createCommandItem(
+                    'Generate new pairing code',
+                    `${pending} waiting`,
+                    'key',
+                    'codeXR.activeServers.regeneratePairingCode',
+                    server,
+                    'action-item',
+                    'Issue a new six-digit code and invalidate the previous one.',
+                ));
+            }
+            items.push(
+                this.createCommandItem(
+                    'View remote status',
+                    undefined,
+                    'info',
+                    'codeXR.activeServers.showRemoteStatus',
+                    server,
+                    'action-item',
+                ),
+                this.createCommandItem(
+                    'Stop remote connection',
+                    undefined,
+                    'debug-stop',
+                    'codeXR.activeServers.stopRemoteAccess',
+                    server,
+                    'action-item',
+                ),
+            );
+            return items;
+        }
+
+        if (status === 'error') {
+            return [
+                this.createCommandItem(
+                    'View remote error',
+                    server.remoteAccess?.error || 'Tunnel error',
+                    'error',
+                    'codeXR.activeServers.showRemoteStatus',
+                    server,
+                    'action-item',
+                ),
+                this.createCommandItem(
+                    'Start remote connection',
+                    undefined,
+                    'radio-tower',
+                    'codeXR.activeServers.startRemoteAccess',
+                    server,
+                    'action-item',
+                ),
+            ];
+        }
+
+        return [
+            this.createCommandItem(
+                'Start remote connection',
+                undefined,
+                'radio-tower',
+                'codeXR.activeServers.startRemoteAccess',
+                server,
+                'action-item',
+            ),
+        ];
+    }
+
     static createActionItems(server: ActiveServer): ActiveServerTreeItem[] {
         const actions: Array<[string, string, string]> = [
-            ['Abrir en navegador', 'codeXR.activeServers.openInBrowser', 'link-external'],
+            ['Open in browser', 'codeXR.activeServers.openInBrowser', 'link-external'],
         ];
         if (server.certMode === 'http') {
-            actions.push(['Abrir en panel', 'codeXR.activeServers.openInPanel', 'open-preview']);
+            actions.push(['Open in panel', 'codeXR.activeServers.openInPanel', 'open-preview']);
         }
-        actions.push(['Copiar direccion', 'codeXR.activeServers.copyUrl', 'copy']);
-
-        if (server.remoteAccess?.status === 'shared' || server.remoteAccess?.status === 'starting') {
-            if (server.remoteAccess.invitationUrl) {
-                actions.push(['Copiar invitacion remota', 'codeXR.activeServers.copyRemoteInvitation', 'copy']);
-            }
-            actions.push(['Ver estado remoto', 'codeXR.activeServers.showRemoteStatus', 'info']);
-            actions.push(['Detener conexion remota', 'codeXR.activeServers.stopRemoteAccess', 'debug-stop']);
-        } else {
-            actions.push(['Iniciar conexion remota', 'codeXR.activeServers.startRemoteAccess', 'radio-tower']);
-            if (server.remoteAccess?.status === 'error') {
-                actions.push(['Ver error remoto', 'codeXR.activeServers.showRemoteStatus', 'error']);
-            }
-        }
-
         actions.push(
-            ['Informacion del servidor', 'codeXR.activeServers.showDetails', 'info'],
-            ['Detener servidor', 'codeXR.activeServers.stopServer', 'stop-circle'],
+            ['Copy address', 'codeXR.activeServers.copyUrl', 'copy'],
+            ['Server information', 'codeXR.activeServers.showDetails', 'info'],
+            ['Stop server', 'codeXR.activeServers.stopServer', 'stop-circle'],
         );
 
         return actions.map(([label, command, icon]) => this.createCommandItem(
@@ -263,6 +415,7 @@ export class ActiveServerItemFactory {
         command: string,
         server: ActiveServer,
         type: ActiveServerItemType,
+        tooltip?: string,
     ): ActiveServerTreeItem {
         return new ActiveServerTreeItem(
             label,
@@ -274,7 +427,7 @@ export class ActiveServerItemFactory {
                 arguments: [server.id],
             },
             new vscode.ThemeIcon(icon),
-            description ? `${label}\n${description}` : label,
+            tooltip || (description ? `${label}\n${description}` : label),
             description,
             'activeServerChild',
             server,
@@ -284,17 +437,20 @@ export class ActiveServerItemFactory {
     private static getRemoteStatusDescription(server: ActiveServer): string {
         const state = server.remoteAccess;
         if (!state || state.status === 'stopped') {
-            return 'No compartido';
+            return 'Not shared';
         }
         if (state.status === 'starting') {
-            return 'Iniciando...';
+            return 'Starting...';
         }
         if (state.status === 'error') {
             return state.error || 'Error';
         }
-        return state.pendingRequests > 0
-            ? `Compartido | ${state.pendingRequests} solicitud(es) pendiente(s)`
-            : 'Compartido';
+        if (state.pendingRequests === 0) {
+            return 'Shared';
+        }
+        return state.pendingRequests === 1
+            ? 'Shared | 1 request waiting'
+            : `Shared | ${state.pendingRequests} requests waiting`;
     }
     
     /**

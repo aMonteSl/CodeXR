@@ -65,6 +65,7 @@ interface CollaborationPeer {
     joinedRoom: boolean;
     roomId: string | null;
     anonymousDisplayName: string;
+    remoteAddress: string;
 }
 
 interface CollaborationRoomState {
@@ -105,7 +106,8 @@ export interface CollaborationApplicationMessageContext {
 }
 
 const DEFAULT_ROOM_ID = 'codexr-session:default';
-const DEFAULT_AVATAR_ID = 'avatar-1';
+/** Sentinel meaning "this room picks a free colour for me". */
+const AUTO_AVATAR_ID = 'auto';
 export const CODEXR_AVATAR_IDS = [
     'avatar-1',
     'avatar-2',
@@ -242,6 +244,11 @@ export class CollaborationRoomServer {
             joinedRoom: false,
             roomId: null,
             anonymousDisplayName: '',
+            // Tunneled peers arrive from local cloudflared; cf-connecting-ip
+            // carries the real client address in that case.
+            remoteAddress: String(
+                request.headers['cf-connecting-ip'] || request.socket.remoteAddress || 'unknown',
+            ).slice(0, 120),
         };
         if (peer.session?.anonymousAlias) {
             peer.anonymousDisplayName = peer.session.anonymousAlias;
@@ -392,7 +399,8 @@ export class CollaborationRoomServer {
             peerId: peer.id,
             displayName: peer.anonymousDisplayName,
             identityMode: 'anonymous' as IdentityMode,
-            avatarId: DEFAULT_AVATAR_ID,
+            // Placeholder only: applyProfileToParticipant resolves the real one.
+            avatarId: AUTO_AVATAR_ID,
             role,
             isPresenter: false,
             connectedAt: new Date().toISOString(),
@@ -405,7 +413,8 @@ export class CollaborationRoomServer {
             peer.session?.profile || {
                 identityMode: 'anonymous',
                 customName: '',
-                avatarId: DEFAULT_AVATAR_ID,
+                // A peer with no session (local browser) never chose a colour.
+                avatarId: AUTO_AVATAR_ID,
             },
         );
 
@@ -890,7 +899,10 @@ export class CollaborationRoomServer {
         participant: ParticipantState,
         profile: CollaborationProfile,
     ): void {
-        const avatarId = this.normalizeAvatarId(profile.avatarId) || DEFAULT_AVATAR_ID;
+        // An explicit colour always wins; `auto` (and anything invalid) gets a
+        // colour nobody else in this room is wearing.
+        const avatarId = this.normalizeAvatarId(profile.avatarId)
+            || this.assignDistinctAvatarId(room, peer.id);
         const customName = profile.identityMode === 'custom'
             ? this.sanitizeDisplayName(profile.customName)
             : '';
@@ -936,6 +948,34 @@ export class CollaborationRoomServer {
     private normalizeAvatarId(value: unknown): string {
         const avatarId = this.normalizeId(value);
         return VALID_AVATAR_IDS.has(avatarId) ? avatarId : '';
+    }
+
+    /**
+     * Pick a palette colour none of the other participants is using, so a room
+     * of players who never chose one still reads as distinct people. Past the
+     * palette size the least-used colour is reused.
+     */
+    private assignDistinctAvatarId(room: CollaborationRoomState, peerId: string): string {
+        const usage = new Map<string, number>(CODEXR_AVATAR_IDS.map((id) => [id, 0]));
+        for (const participant of room.participants.values()) {
+            if (participant.peerId === peerId) {
+                continue;
+            }
+            const current = usage.get(participant.avatarId);
+            if (current !== undefined) {
+                usage.set(participant.avatarId, current + 1);
+            }
+        }
+
+        let chosen = CODEXR_AVATAR_IDS[0] as string;
+        let lowest = Number.POSITIVE_INFINITY;
+        for (const [avatarId, count] of usage) {
+            if (count < lowest) {
+                chosen = avatarId;
+                lowest = count;
+            }
+        }
+        return chosen;
     }
 
     private parseMessage(raw: RawData): CollaborationMessage | null {
@@ -1072,6 +1112,8 @@ export class CollaborationRoomServer {
             clientKind: peer?.session?.clientKind || 'browser',
             connectionScope: peer?.session?.remote ? 'remote' : 'local',
             connectedAt: participant.connectedAt,
+            role: participant.role,
+            remoteAddress: peer?.remoteAddress || 'unknown',
         };
     }
 

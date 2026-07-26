@@ -143,6 +143,27 @@ export class ActiveServersCommands {
                 errorMessage: 'Failed to show active server details'
             },
             {
+                id: 'codeXR.activeServers.regeneratePairingCode',
+                module: 'ACTIVE_SERVER',
+                description: 'Generate a new pairing code',
+                handler: async (treeItem: unknown) => {
+                    const serverId = this.extractServerIdFromTreeItem(treeItem);
+                    if (serverId) {
+                        await ServerActionHandlers.regeneratePairingCode(serverId);
+                    }
+                },
+                errorMessage: 'Failed to generate a new pairing code',
+            },
+            {
+                id: 'codeXR.activeServers.showParticipantDetails',
+                module: 'ACTIVE_SERVER',
+                description: 'Show connected participant details',
+                handler: async (serverId: string, peerId: string) => {
+                    await ServerActionHandlers.showParticipantDetails(serverId, peerId);
+                },
+                errorMessage: 'Failed to show participant details'
+            },
+            {
                 id: 'codeXR.activeServers.stopAllServers',
                 module: 'ACTIVE_SERVER',
                 description: 'Stop all active servers',
@@ -208,8 +229,10 @@ export class ActiveServersCommands {
             copyRemoteInvitation: 'codeXR.activeServers.copyRemoteInvitation',
             stopRemoteAccess: 'codeXR.activeServers.stopRemoteAccess',
             showRemoteStatus: 'codeXR.activeServers.showRemoteStatus',
+            regeneratePairingCode: 'codeXR.activeServers.regeneratePairingCode',
             stopServer: 'codeXR.activeServers.stopServer',
             showDetails: 'codeXR.activeServers.showDetails',
+            showParticipantDetails: 'codeXR.activeServers.showParticipantDetails',
             stopAllServers: 'codeXR.activeServers.stopAllServers',
             refreshServers: 'codeXR.activeServers.refreshServers',
             openView: 'codeXR.activeServers.openView'

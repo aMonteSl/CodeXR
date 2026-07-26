@@ -14,7 +14,7 @@ test('remote access defaults to disabled and is exposed in server configuration'
     const items = readProjectFile('src', 'views', 'servers', 'items', 'serverItems.ts');
     assert.match(settings, /remoteAccess: \{ \.\.\.DEFAULT_REMOTE_ACCESS_SETTINGS \}/);
     assert.match(settings, /version: '1\.2\.0'/);
-    assert.match(items, /Conexiones entre redes/);
+    assert.match(items, /Cross-network connections/);
     assert.match(items, /codexr\.server\.config\.remoteAccess/);
 });
 
@@ -88,8 +88,8 @@ test('active servers exposes expandable information, participants, and condition
         'handleServerActions.ts',
     );
     assert.match(items, /TreeItemCollapsibleState\.Collapsed/);
-    assert.match(items, /Direccion de red local/);
-    assert.match(items, /Usuarios conectados/);
+    assert.match(items, /Local network address/);
+    assert.match(items, /Connected users/);
     assert.match(items, /server\.remoteAccess\?\.status === 'shared'/);
     assert.match(provider, /getConnectedParticipants\(\)/);
     assert.match(provider, /onConnectedParticipantsChanged/);
@@ -97,16 +97,27 @@ test('active servers exposes expandable information, participants, and condition
 });
 
 test('external browser pairing selects identity before requesting the code', () => {
-    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const pairingPage = readProjectFile('src', 'servers', 'runtime', 'remote', 'pairingPage.ts');
     const authority = readProjectFile(
         'src',
         'remote_access',
         'security',
         'remoteSessionAuthority.ts',
     );
-    assert.match(httpServer, /\/api\/remote\/identity/);
-    assert.match(httpServer, /name="identity"/);
-    assert.match(httpServer, /identityToken/);
+    assert.match(pairingPage, /\/api\/remote\/identity/);
+    assert.match(pairingPage, /name="identity"/);
+    assert.match(pairingPage, /identityToken/);
     assert.match(authority, /consumeBrowserIdentity/);
     assert.match(authority, /invalid-browser-identity/);
+});
+
+test('guest pairing pages stay self-contained for the response CSP', () => {
+    const pairingPage = readProjectFile('src', 'servers', 'runtime', 'remote', 'pairingPage.ts');
+    // No img-src directive is sent, and an unpaired guest cannot fetch static
+    // assets, so external references and data: images would break the page.
+    assert.doesNotMatch(pairingPage, /<link\b/);
+    assert.doesNotMatch(pairingPage, /<img\b/);
+    assert.doesNotMatch(pairingPage, /src=["']https?:/);
+    assert.doesNotMatch(pairingPage, /@import/);
+    assert.doesNotMatch(pairingPage, /url\(\s*["']?(https?:|data:)/);
 });

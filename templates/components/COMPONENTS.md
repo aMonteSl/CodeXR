@@ -57,7 +57,8 @@ its parts directory. Manual harnesses load assembled copies from
 - `codexr/collaboration/codexrCollaborationRuntime.js`
   - Owns shared presence, identity, avatars, pointers and collaboration entities.
 - `codexr/avatar/codexrAvatarRuntime.js`
-  - Owns avatar rendering and optional downloaded avatar model assets.
+  - Owns avatar rendering, the bundled glTF avatar asset (auto-fitted to a human
+    height), per-player colour tinting and the billboarded name tags.
 - `codexr/xr-room/codexrRoomRuntime.js`
   - Owns the CodeXR room shell and local room texture assets.
 - `codexr/guide-screen/guideScreenRuntime.js`

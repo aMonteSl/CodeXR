@@ -10,15 +10,30 @@
   'use strict';
 
   const ASSET_MANIFEST = {
-    id: 'quaternius-animated-base-character',
-    label: 'Quaternius Animated Base Character',
-    sourcePage: 'https://poly.pizza/m/cwYvO5UauX',
+    id: 'robot-expressive',
+    label: 'Robot Expressive',
+    sourcePage: 'https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive',
     modelUrl: '/api/collaboration/avatar-model',
-    license: 'CC BY 3.0',
-    licenseUrl: 'https://creativecommons.org/licenses/by/3.0/',
-    bytes: 2266136,
-    triangles: 13744,
+    license: 'CC0 1.0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    bytes: 463988,
+    triangles: 3237,
   };
+  // Eye height the presence data is expressed in: the model root hangs this far
+  // below the tracked head so the feet land on the floor.
+  const EYE_HEIGHT = 1.62;
+  // Downloaded models arrive in wildly different units (this one is authored in
+  // centimetres, ~4.6 units tall), so the runtime fits whatever it loads to a
+  // human height instead of hardcoding a per-model scale.
+  const DEFAULT_AVATAR_HEIGHT = 1.55;
+  // How far the player colour overrides the model's own materials. Low values
+  // leave the robot looking identical for everyone.
+  const DEFAULT_TINT_STRENGTH = 0.55;
+  // Name tags hang this far above the model's own crown, so they stay clear of
+  // tall heads and antennae whatever model is loaded. The default covers the
+  // procedural avatar, which is measured differently.
+  const LABEL_MARGIN = 0.62;
+  const LABEL_HEIGHT = 0.55;
   const SKINS = [
     { id: 'avatar-1', label: 'Azure', color: '#38bdf8' },
     { id: 'avatar-2', label: 'Amber', color: '#f59e0b' },
@@ -162,6 +177,8 @@
         displayName: { type: 'string', default: '' },
         avatarId: { type: 'string', default: 'avatar-1' },
         smoothing: { type: 'number', default: 12 },
+        avatarHeight: { type: 'number', default: DEFAULT_AVATAR_HEIGHT },
+        tintStrength: { type: 'number', default: DEFAULT_TINT_STRENGTH },
         lodDistance: { type: 'number', default: 12 },
         hideDistance: { type: 'number', default: 32 },
       },
@@ -216,7 +233,7 @@
         this.proceduralParts = [torso, head, hips, leftLeg, rightLeg];
         this.proceduralParts.forEach((part) => this.proceduralRoot.appendChild(part));
 
-        this.modelEl.setAttribute('position', '0 -1.62 0');
+        this.modelEl.setAttribute('position', `0 ${-EYE_HEIGHT} 0`);
         this.modelEl.setAttribute('rotation', '0 180 0');
         this.modelEl.addEventListener('model-loaded', (event) => this.handleModelLoaded(event));
         this.modelEl.addEventListener('model-error', () => {
@@ -225,15 +242,29 @@
           this.proceduralRoot.setAttribute('visible', true);
         });
 
+        // The name tag rides above the head and is billboarded per viewer in
+        // tick(), so every client reads every other player's name head-on.
+        this.labelRoot = document.createElement('a-entity');
+        this.labelRoot.setAttribute('position', `0 ${LABEL_HEIGHT} 0`);
+
+        this.labelBackingEl = document.createElement('a-plane');
+        this.labelBackingEl.setAttribute('width', '0.9');
+        this.labelBackingEl.setAttribute('height', '0.18');
+        this.labelBackingEl.setAttribute('material', 'color: #0b1220; opacity: 0.55; transparent: true; shader: flat');
+        this.labelBackingEl.setAttribute('position', '0 0 -0.005');
+
         this.labelEl.setAttribute('align', 'center');
         this.labelEl.setAttribute('color', '#e2e8f0');
         this.labelEl.setAttribute('width', '2.5');
-        this.labelEl.setAttribute('position', '0 0.3 0');
+        this.labelEl.setAttribute('position', '0 0 0');
         this.labelEl.setAttribute('value', this.data.displayName || this.data.peerId.slice(0, 6));
+
+        this.labelRoot.appendChild(this.labelBackingEl);
+        this.labelRoot.appendChild(this.labelEl);
 
         this.bodyRoot.appendChild(this.proceduralRoot);
         this.bodyRoot.appendChild(this.modelEl);
-        this.bodyRoot.appendChild(this.labelEl);
+        this.bodyRoot.appendChild(this.labelRoot);
         this.el.appendChild(this.bodyRoot);
         this.el.appendChild(this.leftHandEl);
         this.el.appendChild(this.rightHandEl);
@@ -266,12 +297,49 @@
           run: resolveAnimationClip(model, ['run', 'jog'], 2),
         };
         this.modelActive = true;
+        this.fitModelToAvatarHeight(model);
         this.applySkinToModel(model);
         this.modelEl.setAttribute('visible', true);
         this.proceduralRoot.setAttribute('visible', false);
         this.leftHandEl.setAttribute('visible', false);
         this.rightHandEl.setAttribute('visible', false);
         this.playAnimation('idle');
+      },
+
+      /**
+       * Scale whatever model was downloaded to a human height and drop its feet
+       * on the floor. Keeps the runtime independent of the asset's authoring
+       * units, so swapping the model never needs a new magic number here.
+       */
+      fitModelToAvatarHeight: function (model) {
+        const THREE = global.THREE;
+        if (!model || !THREE?.Box3 || !this.modelEl?.object3D) {
+          return;
+        }
+        const targetHeight = Number(this.data.avatarHeight) || DEFAULT_AVATAR_HEIGHT;
+
+        // Measure unscaled: a re-load would otherwise compound the previous fit.
+        this.modelEl.setAttribute('scale', '1 1 1');
+        this.modelEl.object3D.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const height = box.max.y - box.min.y;
+        if (!Number.isFinite(height) || height <= 0.001) {
+          return;
+        }
+
+        const scale = targetHeight / height;
+        this.modelEl.setAttribute('scale', `${scale} ${scale} ${scale}`);
+        // Models whose origin is not exactly at the feet get the remainder back.
+        const feetOffset = box.min.y * scale;
+        this.modelEl.setAttribute('position', `0 ${-EYE_HEIGHT - feetOffset} 0`);
+
+        // Park the name tag above this model's crown rather than at a fixed
+        // height, so a taller model can never grow into it.
+        const modelTop = -EYE_HEIGHT + targetHeight;
+        this.labelRoot?.setAttribute(
+          'position',
+          `0 ${Math.max(LABEL_HEIGHT, modelTop + LABEL_MARGIN)} 0`,
+        );
       },
 
       applySkin: function () {
@@ -284,6 +352,9 @@
 
       applySkinToModel: function (model) {
         const skin = getSkin(this.data.avatarId);
+        const strength = Number.isFinite(this.data.tintStrength)
+          ? Math.min(1, Math.max(0, this.data.tintStrength))
+          : DEFAULT_TINT_STRENGTH;
         model?.traverse?.(function (node) {
           if (!node.isMesh || !node.material) {
             return;
@@ -294,7 +365,7 @@
               return material;
             }
             const tinted = material.clone();
-            tinted.color.lerp(new global.THREE.Color(skin.color), 0.22);
+            tinted.color.lerp(new global.THREE.Color(skin.color), strength);
             return tinted;
           });
           node.material = Array.isArray(node.material) ? tintedMaterials : tintedMaterials[0];
@@ -377,6 +448,25 @@
         }
       },
 
+      /**
+       * Turn the name tag toward this client's camera. Yaw only: a full look-at
+       * tilts the text when the viewer crouches or flies above the scene. Each
+       * client runs its own scene, so every viewer reads every name head-on.
+       */
+      faceLabelToCamera: function (camera) {
+        if (!camera || !this.labelRoot?.object3D) {
+          return;
+        }
+        const labelPosition = this.labelRoot.object3D.getWorldPosition(new global.THREE.Vector3());
+        const cameraPosition = camera.getWorldPosition(new global.THREE.Vector3());
+        const yaw = Math.atan2(
+          cameraPosition.x - labelPosition.x,
+          cameraPosition.z - labelPosition.z,
+        );
+        // Undo the parent's yaw so the tag ignores which way the avatar turns.
+        this.labelRoot.object3D.rotation.set(0, yaw - this.bodyRoot.object3D.rotation.y, 0);
+      },
+
       updateLod: function () {
         const camera = this.el.sceneEl?.camera;
         if (!camera) {
@@ -384,6 +474,7 @@
         }
         const distance = camera.getWorldPosition(new global.THREE.Vector3())
           .distanceTo(this.bodyRoot.object3D.position);
+        this.faceLabelToCamera(camera);
         const hidden = distance > this.data.hideDistance;
         this.bodyRoot.setAttribute('visible', !hidden);
         this.leftHandEl.setAttribute('visible', !hidden && !!this.target?.leftHand?.position);
@@ -398,7 +489,7 @@
         this.proceduralRoot.setAttribute('visible', !useModel);
         this.leftHandEl.setAttribute('visible', !useModel && !!this.target?.leftHand?.position);
         this.rightHandEl.setAttribute('visible', !useModel && !!this.target?.rightHand?.position);
-        this.labelEl.setAttribute('visible', distance <= this.data.lodDistance * 1.5);
+        this.labelRoot.setAttribute('visible', distance <= this.data.lodDistance * 1.5);
       },
 
       playAnimation: function (state) {

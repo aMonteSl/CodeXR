@@ -33,7 +33,7 @@ Three analysis modes share this pipeline: **XR** (A-Frame scene in browser/heads
 
 1. `initializeExtensionContext` + `CodeXRLogger.initialize` (`src/core/`).
 2. Singletons initialized: `AnalysisConfigurationStorage`, `CollaborationProfileManager`, `RemoteAccessManager`, `ServerSettingsManager`, `getActiveServerRegistry()`, `ServerControl`.
-3. `ModularTreeDataProvider` (`src/views/ModularTreeDataProvider.ts`) registered as the single tree view `codexrTree` (one activity-bar container hosts all sections: servers, examples, analyses, collaboration, python env, learn more).
+3. `ModularTreeDataProvider` (`src/views/ModularTreeDataProvider.ts`) registered as the single tree view `codexrTree` (one activity-bar container hosts all sections: servers, active servers, examples, visualize data, analyses, python env, visualization settings, learn more). **Collaboration is not a root section**: `CollaborationSectionProvider` is mounted by `ActiveServersSectionProvider` as the nested `COLLABORATION` group (item type `collaboration-group`), so its items — including `Join Remote Session` — render inside `ACTIVE SERVERS`.
 4. `registerAllCommands` (`src/commands/index.ts`) merges command arrays from every feature module and registers them via `CommandBuilder.registerAll`. **`assertUniqueCommandIds` throws on duplicate command IDs** — keep this in mind when adding commands.
 5. `StartupCoordinator` (`src/core/startup/startupCoordinator.ts`, max 3 concurrent) defers heavy work: restore server settings + ensure HTTPS cert pair, init `ServerWatcherIntegration`, init Python env + prefetch XR field schema, clean stale analysis artifacts.
 

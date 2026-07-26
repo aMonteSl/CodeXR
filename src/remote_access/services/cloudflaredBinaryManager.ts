@@ -51,7 +51,7 @@ export class CloudflaredBinaryManager {
         const asset = this.getAsset();
         if (!asset) {
             throw new Error(
-                `No hay una descarga automática de cloudflared para ${process.platform}/${process.arch}. Instálalo en PATH para usar conexiones remotas.`,
+                `There is no automatic cloudflared download for ${process.platform}/${process.arch}. Install it on your PATH to use remote connections.`,
             );
         }
         const managedPath = path.join(this.binaryDirectory, asset.fileName);
@@ -63,11 +63,11 @@ export class CloudflaredBinaryManager {
         }
 
         const answer = await vscode.window.showInformationMessage(
-            `CodeXR necesita cloudflared ${CLOUDFLARED_VERSION} (${asset.sizeLabel}) para crear el enlace temporal. Se descargará una sola vez desde GitHub/Cloudflare, se verificará con SHA-256 y se guardará en el almacenamiento global. Licencia: Apache-2.0.`,
+            `CodeXR needs cloudflared ${CLOUDFLARED_VERSION} (${asset.sizeLabel}) to create the temporary link. It is downloaded once from GitHub/Cloudflare, verified with SHA-256 and stored in global storage. License: Apache-2.0.`,
             { modal: true },
-            'Descargar cloudflared',
+            'Download cloudflared',
         );
-        if (answer !== 'Descargar cloudflared') {
+        if (answer !== 'Download cloudflared') {
             return null;
         }
         await this.download(asset, managedPath);
@@ -134,7 +134,7 @@ export class CloudflaredBinaryManager {
                 });
             });
             if (!await this.matchesChecksum(temporaryPath, asset.sha256)) {
-                throw new Error('La suma SHA-256 de cloudflared no coincide con la versión fijada.');
+                throw new Error('The cloudflared SHA-256 checksum does not match the pinned version.');
             }
             if (process.platform !== 'win32') {
                 await fs.promises.chmod(temporaryPath, 0o755);
@@ -142,7 +142,7 @@ export class CloudflaredBinaryManager {
             await fs.promises.rm(destination, { force: true });
             await fs.promises.rename(temporaryPath, destination);
             if (!await this.isValidBinary(destination)) {
-                throw new Error('El ejecutable descargado de cloudflared no se pudo validar.');
+                throw new Error('The downloaded cloudflared executable could not be validated.');
             }
         } catch (error) {
             await fs.promises.rm(temporaryPath, { force: true });
@@ -172,13 +172,13 @@ export class CloudflaredBinaryManager {
                 }
                 if (status !== 200) {
                     response.resume();
-                    reject(new Error(`Cloudflare respondió con HTTP ${status || 'desconocido'}.`));
+                    reject(new Error(`Cloudflare responded with HTTP ${status || 'unknown'}.`));
                     return;
                 }
                 const total = Number(response.headers['content-length'] || 0);
                 if (total > 100 * 1024 * 1024) {
                     response.resume();
-                    reject(new Error('La descarga de cloudflared supera el límite esperado.'));
+                    reject(new Error('The cloudflared download exceeds the expected size limit.'));
                     return;
                 }
                 let received = 0;
@@ -186,7 +186,7 @@ export class CloudflaredBinaryManager {
                 response.on('data', (chunk: Buffer) => {
                     received += chunk.length;
                     if (received > 100 * 1024 * 1024) {
-                        response.destroy(new Error('La descarga de cloudflared supera el límite esperado.'));
+                        response.destroy(new Error('The cloudflared download exceeds the expected size limit.'));
                         return;
                     }
                     onProgress(received, total);

@@ -165,13 +165,17 @@ export class HttpsCustomServer {
             return;
         }
 
+        // See HTTPServer.stop(): the runtime features own the sockets that
+        // would otherwise keep close() pending forever.
+        this.httpHandler.disposeRuntimeFeatures();
+        this.server.closeAllConnections();
+
         return new Promise((resolve, reject) => {
             this.server!.close((error) => {
                 if (error) {
                     console.error('SERVER: Error stopping HTTPS server:', error);
                     reject(error);
                 } else {
-                    this.httpHandler.disposeRuntimeFeatures();
                     console.log('SERVER: HTTPS server stopped successfully');
                     this.isRunning = false;
                     this.server = null;
@@ -179,6 +183,15 @@ export class HttpsCustomServer {
                 }
             });
         });
+    }
+
+    /**
+     * Drop every open socket without waiting for a graceful close.
+     */
+    public forceStop(): void {
+        this.httpHandler.disposeRuntimeFeatures();
+        this.server?.closeAllConnections();
+        this.isRunning = false;
     }
 
     public getIsRunning(): boolean {

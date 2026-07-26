@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
-import { 
-    SettingFieldType, 
-    PREDEFINED_COLORS, 
-    ENVIRONMENT_PRESETS, 
+import {
+    SettingFieldType,
+    PREDEFINED_COLORS,
+    ENVIRONMENT_PRESETS,
     CHART_PALETTES,
     isValidHexColor,
     EnvironmentPreset,
-    ChartPalette
+    ChartPalette,
+    DEFAULT_VISUALIZATION_SETTINGS
 } from '../../model/settingsModel';
 import { VisualizationSettingsStorage } from '../../storage/settingsStorage';
 import { ColorPickerUtils, ColorPickerOptions } from '../../utils/colorPickerUtils';
@@ -49,6 +50,67 @@ export class VisualizationSettingsInteractionHandler {
             console.error(`VISUALIZATION-SETTINGS: Error configuring ${settingKey}:`, error);
             vscode.window.showErrorMessage(`Failed to configure ${settingKey}: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+
+    /**
+     * Restore every visualization setting to its default value
+     */
+    public async handleResetToDefaults(): Promise<void> {
+        console.log('VISUALIZATION-SETTINGS: Resetting all settings to defaults');
+
+        const current = this.storage.getSettings();
+        const alreadyDefault = (Object.keys(DEFAULT_VISUALIZATION_SETTINGS) as (keyof typeof DEFAULT_VISUALIZATION_SETTINGS)[])
+            .every(key => current[key] === DEFAULT_VISUALIZATION_SETTINGS[key]);
+
+        if (alreadyDefault) {
+            vscode.window.showInformationMessage('Visualization settings already use their default values.');
+            return;
+        }
+
+        const confirmation = await vscode.window.showWarningMessage(
+            'Reset visualization settings to default?',
+            {
+                modal: true,
+                detail: [
+                    `Background Color: ${current.backgroundColor} → ${DEFAULT_VISUALIZATION_SETTINGS.backgroundColor}`,
+                    `Ground Color: ${current.groundColor} → ${DEFAULT_VISUALIZATION_SETTINGS.groundColor}`,
+                    `Environment Preset: ${current.environmentPreset} → ${DEFAULT_VISUALIZATION_SETTINGS.environmentPreset}`,
+                    `Chart Palette: ${current.chartPalette} → ${DEFAULT_VISUALIZATION_SETTINGS.chartPalette}`,
+                ].join('\n'),
+            },
+            'Reset to Default',
+        );
+
+        if (confirmation !== 'Reset to Default') {
+            console.log('VISUALIZATION-SETTINGS: Reset to defaults cancelled');
+            return;
+        }
+
+        await this.storage.resetSettings();
+
+        // Rebuild the swatch icons so the tree shows the default colors immediately.
+        for (const colorKey of ['backgroundColor', 'groundColor'] as const) {
+            const defaultColor = DynamicColorIconGenerator.normalizeHexColor(
+                DEFAULT_VISUALIZATION_SETTINGS[colorKey],
+            );
+            try {
+                await DynamicColorIconGenerator.getOrCreateColorIcon(this.context, colorKey, defaultColor);
+                DynamicColorIconGenerator.cleanupOldColorIcons(this.context, colorKey, defaultColor);
+            } catch (iconError) {
+                console.error(`COLOR-PICKER: Error restoring default icon for ${colorKey}:`, iconError);
+                // The tree regenerates the icon on render, so keep going.
+            }
+        }
+
+        // Refresh the tree view
+        vscode.commands.executeCommand('codexr.servers.refresh');
+
+        vscode.window.showInformationMessage(
+            `Visualization settings reset to default: background ${DEFAULT_VISUALIZATION_SETTINGS.backgroundColor}, `
+            + `ground ${DEFAULT_VISUALIZATION_SETTINGS.groundColor}, `
+            + `environment '${DEFAULT_VISUALIZATION_SETTINGS.environmentPreset}', `
+            + `palette '${DEFAULT_VISUALIZATION_SETTINGS.chartPalette}'.`,
+        );
     }
 
     /**

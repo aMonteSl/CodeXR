@@ -7,7 +7,11 @@ import { ActiveServer } from '../../active_servers/model/activeServerModel';
 import { getActiveServerRegistry } from '../../active_servers/registry/activeServerRegistry';
 import { ServerSettingsManager } from '../../servers/storage/serverSettingsManager';
 import { DEFAULT_REMOTE_ACCESS_STATE, RemoteAccessState } from '../model/remoteAccessModel';
-import { PairingRequestCreatedEvent, RemoteSessionAuthority } from '../security/remoteSessionAuthority';
+import {
+    PairingFailureEvent,
+    PairingRequestCreatedEvent,
+    RemoteSessionAuthority,
+} from '../security/remoteSessionAuthority';
 import { CloudflaredBinaryManager } from './cloudflaredBinaryManager';
 
 interface ShareRecord {
@@ -15,6 +19,7 @@ interface ShareRecord {
     stopping: boolean;
     disposePairingListener: () => void;
     disposePendingListener: () => void;
+    disposeFailureListener: () => void;
 }
 
 interface RemoteCapableServer {
@@ -29,6 +34,9 @@ interface GuestConnection {
     profileSubscription: vscode.Disposable;
 }
 
+/** Mirrors the authority's per-request attempt budget. */
+const MAX_PAIRING_CODE_PROMPTS = 5;
+
 export class RemoteAccessManager implements vscode.Disposable {
     private static instance: RemoteAccessManager | null = null;
     private readonly binaryManager: CloudflaredBinaryManager;
@@ -36,12 +44,19 @@ export class RemoteAccessManager implements vscode.Disposable {
     private readonly guestConnections = new Map<string, GuestConnection>();
     private readonly registrySubscription: vscode.Disposable;
     private disposed = false;
+    private autoStartSuppressed = false;
 
     private constructor(private readonly context: vscode.ExtensionContext) {
         this.binaryManager = new CloudflaredBinaryManager(context);
         this.registrySubscription = getActiveServerRegistry().onRegistryChange((event) => {
             if (event.type === 'serverRemoved' && event.serverId) {
                 void this.stopSharing(event.serverId, false);
+            }
+            // With cross-network connections enabled, a freshly launched server
+            // starts sharing on its own. serverAdded fires exactly once per
+            // server, so this cannot feed back on itself.
+            if (event.type === 'serverAdded' && event.serverId) {
+                void this.autoStartSharing(event.serverId);
             }
         });
     }
@@ -62,12 +77,12 @@ export class RemoteAccessManager implements vscode.Disposable {
         const settings = ServerSettingsManager.getInstance(this.context);
         await settings.ensureInitialized();
         if (!settings.getServerSettings().remoteAccess.enabled) {
-            throw new Error('Habilita primero "Conexiones entre redes" en Server Configuration.');
+            throw new Error('Enable "Cross-network connections" in Server Configuration first.');
         }
         const registry = getActiveServerRegistry();
         const server = registry.getServer(serverId);
         if (!server) {
-            throw new Error('El servidor activo ya no existe.');
+            throw new Error('The active server no longer exists.');
         }
         if (this.shares.has(serverId)) {
             return server.remoteAccess || { ...DEFAULT_REMOTE_ACCESS_STATE };
@@ -110,11 +125,15 @@ export class RemoteAccessManager implements vscode.Disposable {
                 this.updateState(serverId, { ...current, pendingRequests });
             }
         });
+        const disposeFailureListener = authority.onPairingFailed((event) => {
+            this.handlePairingFailure(serverId, event);
+        });
         const record: ShareRecord = {
             process: child,
             stopping: false,
             disposePairingListener,
             disposePendingListener,
+            disposeFailureListener,
         };
         this.shares.set(serverId, record);
 
@@ -125,7 +144,7 @@ export class RemoteAccessManager implements vscode.Disposable {
             if (!record.stopping) {
                 this.failShare(
                     serverId,
-                    `cloudflared se cerró inesperadamente (${signal || code || 'sin código'}).`,
+                    `cloudflared exited unexpectedly (${signal || code || 'no exit code'}).`,
                 );
             }
         });
@@ -152,6 +171,66 @@ export class RemoteAccessManager implements vscode.Disposable {
         }
     }
 
+    /**
+     * Start sharing every running server that is not already shared.
+     * Called when the user enables cross-network connections; runs
+     * sequentially so a cold cloudflared download prompts consent only once.
+     */
+    public async startAllEligible(): Promise<void> {
+        this.autoStartSuppressed = false;
+        const servers = getActiveServerRegistry().getAllServers()
+            .filter((server) => server.status === 'running');
+        for (const server of servers) {
+            await this.autoStartSharing(server.id);
+        }
+    }
+
+    /**
+     * Best-effort automatic share for one server. Never throws: errors are
+     * logged (process failures already surface through failShare's toast),
+     * and a declined cloudflared download suppresses further auto-starts so
+     * every new server launch does not re-prompt.
+     */
+    private async autoStartSharing(serverId: string): Promise<void> {
+        if (this.disposed || this.autoStartSuppressed) {
+            return;
+        }
+        const settings = ServerSettingsManager.getInstance(this.context);
+        await settings.ensureInitialized();
+        if (!settings.getServerSettings().remoteAccess.enabled) {
+            return;
+        }
+        const status = getActiveServerRegistry().getServer(serverId)?.remoteAccess?.status;
+        if (this.shares.has(serverId) || (status && status !== 'stopped')) {
+            return;
+        }
+        try {
+            const state = await this.startSharing(serverId);
+            if (state.status === 'stopped') {
+                // The cloudflared consent modal was declined; a manual
+                // "Start remote connection" re-offers the download.
+                this.autoStartSuppressed = true;
+                return;
+            }
+            if (state.status === 'shared' && state.invitationUrl) {
+                const server = getActiveServerRegistry().getServer(serverId);
+                const label = server?.customName?.trim() || `localhost:${server?.port ?? '?'}`;
+                const invitationUrl = state.invitationUrl;
+                void vscode.window.showInformationMessage(
+                    `Server ${label} is now shared across networks.`,
+                    'Copy invitation link',
+                ).then((answer) => {
+                    if (answer === 'Copy invitation link') {
+                        void vscode.env.clipboard.writeText(invitationUrl);
+                    }
+                });
+            }
+        } catch (error) {
+            // Unsupported servers and tunnel failures must not break a launch.
+            console.error(`REMOTE_ACCESS: Auto-start failed for ${serverId}:`, error);
+        }
+    }
+
     public async stopSharing(serverId: string, notify = true): Promise<void> {
         const share = this.shares.get(serverId);
         const server = getActiveServerRegistry().getServer(serverId);
@@ -159,6 +238,7 @@ export class RemoteAccessManager implements vscode.Disposable {
             share.stopping = true;
             share.disposePairingListener();
             share.disposePendingListener();
+            share.disposeFailureListener();
             this.shares.delete(serverId);
             share.process.kill();
         }
@@ -166,7 +246,7 @@ export class RemoteAccessManager implements vscode.Disposable {
         this.getAuthority(server)?.revokeAll();
         this.updateState(serverId, { ...DEFAULT_REMOTE_ACCESS_STATE });
         if (notify && (share || server?.remoteAccess?.status === 'shared')) {
-            vscode.window.showInformationMessage('La conexión remota se ha detenido y sus sesiones han sido revocadas.');
+            vscode.window.showInformationMessage('The remote connection was stopped and its sessions revoked.');
         }
     }
 
@@ -177,16 +257,16 @@ export class RemoteAccessManager implements vscode.Disposable {
     public async copyInvitation(serverId: string): Promise<void> {
         const state = getActiveServerRegistry().getServer(serverId)?.remoteAccess;
         if (!state?.invitationUrl) {
-            throw new Error('Este servidor no tiene una invitación remota activa.');
+            throw new Error('This server has no active remote invitation.');
         }
         await vscode.env.clipboard.writeText(state.invitationUrl);
-        vscode.window.showInformationMessage('Enlace de invitación remota copiado.');
+        vscode.window.showInformationMessage('Remote invitation link copied.');
     }
 
     public async joinInvitation(value?: string): Promise<void> {
         const invitationValue = value || await vscode.window.showInputBox({
-            title: 'Unirse a sesión remota',
-            prompt: 'Pega el enlace de invitación generado por CodeXR.',
+            title: 'Join Remote Session',
+            prompt: 'Paste the invitation link generated by CodeXR.',
             placeHolder: 'https://...trycloudflare.com/join?invite=...',
             ignoreFocusOut: true,
         });
@@ -196,7 +276,7 @@ export class RemoteAccessManager implements vscode.Disposable {
         const invitationUrl = this.parseInvitationUrl(invitationValue);
         const profileManager = CollaborationProfileManager.getInstance();
         if (!profileManager) {
-            throw new Error('El perfil de colaboración de CodeXR no está disponible.');
+            throw new Error('The CodeXR collaboration profile is not available.');
         }
         const configuration = profileManager.getConfiguration();
         const request = await this.postJson(`${invitationUrl.origin}/api/remote/pair/request`, {
@@ -205,28 +285,62 @@ export class RemoteAccessManager implements vscode.Disposable {
             installationId: profileManager.getInstallationId(),
             profile: configuration.profile,
         });
-        const code = await vscode.window.showInputBox({
-            title: 'Código de emparejamiento',
-            prompt: 'Introduce el código de seis cifras que muestra CodeXR al anfitrión.',
-            placeHolder: '000000',
-            validateInput: (input) => /^\d{6}$/.test(input) ? undefined : 'Introduce exactamente seis cifras.',
-            ignoreFocusOut: true,
-        });
-        if (!code) {
+        // A wrong code burns itself but keeps the request alive, so the host can
+        // hand over a new one without the guest pasting the link again.
+        const paired = await this.confirmPairingWithRetries(
+            invitationUrl.origin,
+            String(request.requestId || ''),
+        );
+        if (!paired) {
             return;
         }
-        const paired = await this.postJson(`${invitationUrl.origin}/api/remote/pair/confirm`, {
-            requestId: request.requestId,
-            code,
-        });
         const extensionToken = String(paired.extensionToken || '');
         const browserUrl = String(paired.browserUrl || '');
         if (!extensionToken || !browserUrl) {
-            throw new Error('La respuesta de emparejamiento no contiene una sesión válida.');
+            throw new Error('The pairing response does not contain a valid session.');
         }
         this.trackGuestConnection(invitationUrl.origin, extensionToken, profileManager);
         await vscode.env.openExternal(vscode.Uri.parse(browserUrl));
-        vscode.window.showInformationMessage('Sesión remota emparejada y abierta con el perfil de este CodeXR.');
+        vscode.window.showInformationMessage('Remote session paired and opened with this CodeXR profile.');
+    }
+
+    /**
+     * Ask for the pairing code until it is accepted, the user cancels, or the
+     * server rejects the request itself (expired / out of attempts).
+     * Returns null when the user cancelled.
+     */
+    private async confirmPairingWithRetries(
+        origin: string,
+        requestId: string,
+    ): Promise<Record<string, unknown> | null> {
+        let prompt = 'Enter the six-digit code that CodeXR shows to the host.';
+
+        for (let attempt = 0; attempt < MAX_PAIRING_CODE_PROMPTS; attempt += 1) {
+            const code = await vscode.window.showInputBox({
+                title: 'Pairing code',
+                prompt,
+                placeHolder: '000000',
+                validateInput: (input) => /^\d{6}$/.test(input) ? undefined : 'Enter exactly six digits.',
+                ignoreFocusOut: true,
+            });
+            if (!code) {
+                return null;
+            }
+
+            try {
+                return await this.postJson(`${origin}/api/remote/pair/confirm`, { requestId, code });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                // Only a rejected code is worth retrying: an expired request or
+                // an exhausted attempt budget cannot be recovered here.
+                if (!/no longer valid|Invalid pairing code/i.test(message)) {
+                    throw error;
+                }
+                prompt = `${message} Ask the host to generate a new code, then enter it here.`;
+            }
+        }
+
+        throw new Error('Too many invalid pairing codes. Ask the host for a new invitation.');
     }
 
     public dispose(): void {
@@ -251,7 +365,7 @@ export class RemoteAccessManager implements vscode.Disposable {
             || typeof instance.getRemoteSessionAuthority !== 'function'
             || typeof instance.setRemotePublicUrl !== 'function'
         ) {
-            throw new Error('Este servidor no soporta acceso remoto.');
+            throw new Error('This server does not support remote access.');
         }
         return instance as RemoteCapableServer;
     }
@@ -296,13 +410,13 @@ export class RemoteAccessManager implements vscode.Disposable {
                 if (!settled) {
                     settled = true;
                     clearTimeout(timer);
-                    reject(new Error('cloudflared se cerró antes de publicar el enlace.'));
+                    reject(new Error('cloudflared exited before publishing the link.'));
                 }
             });
             const timer = setTimeout(() => {
                 if (!settled) {
                     settled = true;
-                    reject(new Error('Cloudflare no publicó un enlace temporal en 30 segundos.'));
+                    reject(new Error('Cloudflare did not publish a temporary link within 30 seconds.'));
                 }
             }, 30_000);
         });
@@ -314,12 +428,46 @@ export class RemoteAccessManager implements vscode.Disposable {
         if (server?.remoteAccess) {
             this.updateState(serverId, { ...server.remoteAccess, pendingRequests });
         }
-        void vscode.window.showInformationMessage(
-            `Solicitud remota de ${event.displayName}. Código temporal: ${event.code}`,
-            'Copiar código',
-        ).then((answer) => {
-            if (answer === 'Copiar código') {
+        const message = event.regenerated
+            ? `New pairing code for ${event.displayName}: ${event.code}`
+            : `Remote request from ${event.displayName}. Temporary code: ${event.code}`;
+        void vscode.window.showInformationMessage(message, 'Copy code').then((answer) => {
+            if (answer === 'Copy code') {
                 void vscode.env.clipboard.writeText(event.code);
+            }
+        });
+    }
+
+    /**
+     * A guest submitted a wrong code: the code is already burnt server-side, so
+     * warn the host and offer to mint a replacement in one click.
+     */
+    private handlePairingFailure(serverId: string, event: PairingFailureEvent): void {
+        const server = getActiveServerRegistry().getServer(serverId);
+        const authority = this.getAuthority(server);
+
+        if (event.reason === 'attempts-exceeded') {
+            void vscode.window.showWarningMessage(
+                `${event.displayName} (${event.remoteAddress}) ran out of pairing attempts. `
+                + 'They need a new invitation to try again.',
+            );
+            return;
+        }
+
+        void vscode.window.showWarningMessage(
+            `Failed pairing attempt from ${event.displayName} (${event.remoteAddress}). `
+            + 'That code is no longer valid.',
+            'Generate new code',
+        ).then((answer) => {
+            if (answer !== 'Generate new code') {
+                return;
+            }
+            try {
+                authority?.regeneratePairingCode(event.requestId);
+            } catch {
+                void vscode.window.showInformationMessage(
+                    `${event.displayName} is no longer waiting to connect.`,
+                );
             }
         });
     }
@@ -328,6 +476,7 @@ export class RemoteAccessManager implements vscode.Disposable {
         const share = this.shares.get(serverId);
         share?.disposePairingListener();
         share?.disposePendingListener();
+        share?.disposeFailureListener();
         this.shares.delete(serverId);
         const server = getActiveServerRegistry().getServer(serverId);
         this.getRemoteServer(server)?.setRemotePublicUrl(null);
@@ -337,7 +486,7 @@ export class RemoteAccessManager implements vscode.Disposable {
             pendingRequests: 0,
             error: message,
         });
-        void vscode.window.showErrorMessage(`Conexión remota cerrada: ${message}`);
+        void vscode.window.showErrorMessage(`Remote connection closed: ${message}`);
     }
 
     private updateState(serverId: string, state: RemoteAccessState): void {
@@ -350,7 +499,7 @@ export class RemoteAccessManager implements vscode.Disposable {
         try {
             parsed = new URL(value.trim());
         } catch {
-            throw new Error('El enlace de invitación no es válido.');
+            throw new Error('The invitation link is not valid.');
         }
         if (
             parsed.protocol !== 'https:'
@@ -358,7 +507,7 @@ export class RemoteAccessManager implements vscode.Disposable {
             || parsed.pathname !== '/join'
             || !/^[a-zA-Z0-9_-]{20,100}$/.test(parsed.searchParams.get('invite') || '')
         ) {
-            throw new Error('El enlace no es una invitación temporal válida de CodeXR.');
+            throw new Error('The link is not a valid CodeXR temporary invitation.');
         }
         return parsed;
     }
@@ -371,7 +520,7 @@ export class RemoteAccessManager implements vscode.Disposable {
         });
         const payload = await response.json() as Record<string, unknown>;
         if (!response.ok) {
-            throw new Error(String(payload.message || `La conexión remota respondió con HTTP ${response.status}.`));
+            throw new Error(String(payload.message || `The remote connection responded with HTTP ${response.status}.`));
         }
         return payload;
     }

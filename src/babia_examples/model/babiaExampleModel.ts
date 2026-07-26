@@ -33,6 +33,53 @@ export interface BabiaExample {
 }
 
 /**
+ * Third-party libraries the bundled example scenes load from public CDNs.
+ *
+ * Single source of truth for the credits dialog and THIRD_PARTY_NOTICES.md.
+ * The versions here are the ones the example HTML actually requests — the XR
+ * runtime templates pin newer A-Frame/BabiaXR releases, so do not assume they
+ * match.
+ */
+export const BABIA_EXAMPLE_LIBRARIES = [
+    {
+        label: 'BabiaXR',
+        name: 'aframe-babia-components',
+        version: 'latest (unpinned)',
+        license: 'GPL-3.0',
+        licenseUrl: 'https://www.gnu.org/licenses/gpl-3.0.html',
+        website: 'https://babiaxr.gitlab.io/aframe-babia-components/',
+        source: 'https://gitlab.com/babiaxr/aframe-babia-components',
+    },
+    {
+        label: 'A-Frame',
+        name: 'aframe',
+        version: '1.0.4',
+        license: 'MIT',
+        licenseUrl: 'https://github.com/aframevr/aframe/blob/master/LICENSE',
+        website: 'https://aframe.io/',
+        source: 'https://github.com/aframevr/aframe',
+    },
+    {
+        label: 'Environment',
+        name: 'aframe-environment-component',
+        version: '1.0.0',
+        license: 'MIT',
+        licenseUrl: 'https://github.com/supermedium/aframe-environment-component/blob/master/LICENSE',
+        website: 'https://github.com/supermedium/aframe-environment-component',
+        source: 'https://github.com/supermedium/aframe-environment-component',
+    },
+    {
+        label: 'Extras',
+        name: 'aframe-extras',
+        version: '6.1.0',
+        license: 'MIT',
+        licenseUrl: 'https://github.com/c-frame/aframe-extras/blob/master/LICENSE',
+        website: 'https://github.com/c-frame/aframe-extras',
+        source: 'https://github.com/c-frame/aframe-extras',
+    },
+] as const;
+
+/**
  * Result of example scanning operation
  */
 export interface ExampleScanResult {

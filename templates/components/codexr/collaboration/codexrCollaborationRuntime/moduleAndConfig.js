@@ -26,7 +26,8 @@
   const DEFAULT_PROFILE = {
     identityMode: 'anonymous',
     customName: '',
-    avatarId: 'avatar-1',
+    // 'auto' asks the room for a colour nobody else there is using.
+    avatarId: 'auto',
   };
   const DEFAULT_CONFIG = {
     enabled: true,

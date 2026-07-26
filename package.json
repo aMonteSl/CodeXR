@@ -29,6 +29,7 @@
     "resources/favicon.ico",
     "resources/icon.png",
     "resources/icon.svg",
+    "resources/avatars/**/*",
     "resources/languages_icons/**/*",
     "README.md",
     "LICENSE",
@@ -57,12 +58,8 @@
         "title": "CodeXR: Select Avatar Color"
       },
       {
-        "command": "codeXR.collaboration.downloadAvatarModel",
-        "title": "CodeXR: Download Avatar Model"
-      },
-      {
-        "command": "codeXR.collaboration.manageAvatarModel",
-        "title": "CodeXR: Manage Avatar Model"
+        "command": "codeXR.collaboration.showAvatarModelInfo",
+        "title": "CodeXR: Show Avatar Model Information"
       },
       {
         "command": "codeXR.collaboration.joinRemote",
@@ -195,6 +192,12 @@
       {
         "command": "codeXR.babiaExamples.showDetails",
         "title": "Show Example Details",
+        "icon": "$(info)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.babiaExamples.showLibraryInfo",
+        "title": "Show BabiaXR Credits and Licenses",
         "icon": "$(info)",
         "enablement": "!codeXR.pythonEnv.uiLocked"
       },

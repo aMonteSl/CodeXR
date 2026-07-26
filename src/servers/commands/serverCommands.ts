@@ -194,18 +194,18 @@ export async function configureRemoteAccess(): Promise<void> {
     const current = settingsManager.getServerSettings().remoteAccess.enabled;
     const selection = await vscode.window.showQuickPick([
         {
-            label: 'Deshabilitadas',
-            description: 'Los servidores solo estarán disponibles en la red local.',
+            label: 'Disabled',
+            description: 'Servers are only reachable on the local network.',
             enabled: false,
         },
         {
-            label: 'Habilitadas',
-            description: 'Permite compartir explícitamente servidores mediante Cloudflare Quick Tunnel.',
+            label: 'Enabled',
+            description: 'Allows explicitly sharing servers through a Cloudflare Quick Tunnel.',
             enabled: true,
         },
     ], {
-        title: 'Conexiones entre redes',
-        placeHolder: current ? 'Actualmente habilitadas' : 'Actualmente deshabilitadas',
+        title: 'Cross-network connections',
+        placeHolder: current ? 'Currently enabled' : 'Currently disabled',
     });
     if (!selection) {
         return;
@@ -216,7 +216,11 @@ export async function configureRemoteAccess(): Promise<void> {
             provider: 'cloudflare-quick',
         },
     });
-    if (!selection.enabled) {
+    if (selection.enabled) {
+        // Fire and forget: each tunnel can take up to 30 s to publish, and the
+        // registry updates repaint the tree as servers move starting → shared.
+        void RemoteAccessManager.getInstance()?.startAllEligible();
+    } else {
         await RemoteAccessManager.getInstance()?.stopAll();
     }
 }

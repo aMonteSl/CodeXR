@@ -4,7 +4,7 @@ import {
     CollaborationProfile,
     DEFAULT_COLLABORATION_PROFILE,
     sanitizeCollaborationName,
-    VALID_AVATAR_IDS,
+    ASSIGNABLE_AVATAR_IDS,
     normalizeCollaborationProfile,
 } from '../../collaboration/model/collaborationProfile';
 import { buildStarWarsDisplayName } from '../../collaboration/model/anonymousName';
@@ -23,6 +23,8 @@ interface PairingRequest {
     invitationHash: string;
     codeHash: string;
     codeSalt: string;
+    codeValid: boolean;
+    displayName: string;
     remoteAddress: string;
     installationId: string;
     profile: CollaborationProfile;
@@ -51,6 +53,24 @@ export interface PairingRequestCreatedEvent {
     code: string;
     installationId: string;
     displayName: string;
+    expiresAt: number;
+    /** True when the code replaces a previous one for the same request. */
+    regenerated?: boolean;
+}
+
+export interface PairingFailureEvent {
+    requestId: string;
+    displayName: string;
+    remoteAddress: string;
+    reason: 'invalid-code' | 'attempts-exceeded';
+}
+
+export interface PairingRequestSummary {
+    requestId: string;
+    displayName: string;
+    remoteAddress: string;
+    clientKind: CollaborationClientKind;
+    codeValid: boolean;
     expiresAt: number;
 }
 
@@ -89,6 +109,11 @@ export class RemoteSessionAuthority {
     public onPendingRequestsChanged(listener: (count: number) => void): () => void {
         this.events.on('pending-changed', listener);
         return () => this.events.off('pending-changed', listener);
+    }
+
+    public onPairingFailed(listener: (event: PairingFailureEvent) => void): () => void {
+        this.events.on('pairing-failed', listener);
+        return () => this.events.off('pairing-failed', listener);
     }
 
     public createInvitation(): string {
@@ -182,7 +207,7 @@ export class RemoteSessionAuthority {
         }
 
         const requestId = this.randomToken(18);
-        const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+        const code = this.createPairingCode();
         const codeSalt = this.randomToken(16);
         const expiresAt = Date.now() + PAIRING_TTL_MS;
         const request: PairingRequest = {
@@ -190,6 +215,10 @@ export class RemoteSessionAuthority {
             invitationHash,
             codeHash: this.hash(`${codeSalt}:${code}`),
             codeSalt,
+            codeValid: true,
+            displayName: profile.identityMode === 'custom'
+                ? profile.customName
+                : anonymousAlias || 'Usuario anonimo de CodeXR',
             remoteAddress: input.remoteAddress,
             installationId: this.normalizeInstallationId(input.installationId),
             profile,
@@ -204,12 +233,59 @@ export class RemoteSessionAuthority {
             requestId,
             code,
             installationId: request.installationId,
-            displayName: request.profile.identityMode === 'custom'
-                ? request.profile.customName
-                : request.anonymousAlias || 'Usuario anonimo de CodeXR',
+            displayName: request.displayName,
             expiresAt,
         } satisfies PairingRequestCreatedEvent);
         return { requestId, expiresAt };
+    }
+
+    /**
+     * Issue a fresh code for a pending request, invalidating the previous one.
+     * Used after a failed attempt burns a code, or when the host lost the
+     * notification that carried it.
+     */
+    public regeneratePairingCode(requestId: string): { code: string; expiresAt: number } {
+        this.cleanup();
+        const request = this.pairingRequests.get(requestId);
+        if (!request || request.expiresAt <= Date.now()) {
+            throw new Error('pairing-expired');
+        }
+
+        const code = this.createPairingCode();
+        request.codeSalt = this.randomToken(16);
+        request.codeHash = this.hash(`${request.codeSalt}:${code}`);
+        request.codeValid = true;
+        request.attempts = 0;
+        request.expiresAt = Date.now() + PAIRING_TTL_MS;
+
+        this.events.emit('pairing-request', {
+            requestId,
+            code,
+            installationId: request.installationId,
+            displayName: request.displayName,
+            expiresAt: request.expiresAt,
+            regenerated: true,
+        } satisfies PairingRequestCreatedEvent);
+        return { code, expiresAt: request.expiresAt };
+    }
+
+    /**
+     * Snapshot of the pending pairing requests, for host-side pickers.
+     */
+    public listPendingPairingRequests(): PairingRequestSummary[] {
+        this.cleanup();
+        return Array.from(this.pairingRequests.values()).map((request) => ({
+            requestId: request.id,
+            displayName: request.displayName,
+            remoteAddress: request.remoteAddress,
+            clientKind: request.clientKind,
+            codeValid: request.codeValid,
+            expiresAt: request.expiresAt,
+        }));
+    }
+
+    private createPairingCode(): string {
+        return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
     }
 
     public confirmPairing(requestId: string, code: string, remoteAddress?: string): PairingResult {
@@ -221,20 +297,31 @@ export class RemoteSessionAuthority {
         if (remoteAddress && request.remoteAddress !== remoteAddress) {
             throw new Error('invalid-pairing-code');
         }
+        // A burnt code stays dead even if the right digits arrive later: the
+        // host must issue a new one.
+        if (!request.codeValid) {
+            throw new Error('pairing-code-revoked');
+        }
         request.attempts += 1;
         if (request.attempts > MAX_PAIRING_ATTEMPTS) {
             this.pairingRequests.delete(requestId);
             this.emitPendingCount();
+            this.emitPairingFailure(request, 'attempts-exceeded');
             throw new Error('pairing-attempts-exceeded');
         }
 
         const candidate = this.hash(`${request.codeSalt}:${String(code || '').trim()}`);
         if (!this.constantTimeEqual(candidate, request.codeHash)) {
+            // One wrong guess burns the code; the request itself survives so
+            // the host can hand over a fresh one.
+            request.codeValid = false;
             if (request.attempts >= MAX_PAIRING_ATTEMPTS) {
                 this.pairingRequests.delete(requestId);
                 this.emitPendingCount();
+                this.emitPairingFailure(request, 'attempts-exceeded');
                 throw new Error('pairing-attempts-exceeded');
             }
+            this.emitPairingFailure(request, 'invalid-code');
             throw new Error('invalid-pairing-code');
         }
 
@@ -411,6 +498,18 @@ export class RemoteSessionAuthority {
         this.events.emit('pending-changed', this.pairingRequests.size);
     }
 
+    private emitPairingFailure(
+        request: PairingRequest,
+        reason: PairingFailureEvent['reason'],
+    ): void {
+        this.events.emit('pairing-failed', {
+            requestId: request.id,
+            displayName: request.displayName,
+            remoteAddress: request.remoteAddress,
+            reason,
+        } satisfies PairingFailureEvent);
+    }
+
     private readCookie(header: string | undefined, name: string): string {
         const prefix = `${name}=`;
         return String(header || '')
@@ -436,7 +535,8 @@ export class RemoteSessionAuthority {
         if (value.identityMode !== 'anonymous' && value.identityMode !== 'custom') {
             throw new Error('invalid-profile');
         }
-        if (!VALID_AVATAR_IDS.has(value.avatarId)) {
+        // `auto` is legitimate: the room resolves it to a free colour on join.
+        if (!ASSIGNABLE_AVATAR_IDS.has(value.avatarId)) {
             throw new Error('invalid-profile');
         }
         if (value.identityMode === 'custom' && !sanitizeCollaborationName(value.customName)) {

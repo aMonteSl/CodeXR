@@ -1,25 +1,36 @@
 import * as fs from 'fs';
-import * as https from 'https';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import {
+    AUTO_AVATAR_ID,
     CollaborationProfile,
     DEFAULT_COLLABORATION_PROFILE,
     normalizeCollaborationProfile,
 } from '../model/collaborationProfile';
 
+/** The colour every profile used to default to before `auto` existed. */
+const LEGACY_DEFAULT_AVATAR_ID = 'avatar-1';
+
+/**
+ * The avatar shipped inside the extension. It is CC0, so it can be
+ * redistributed freely — nothing is ever downloaded for it.
+ */
 export const AVATAR_ASSET = {
-    id: 'quaternius-animated-base-character',
-    fileName: 'quaternius-animated-base-character.glb',
-    label: 'Quaternius Animated Base Character',
-    sourcePage: 'https://poly.pizza/m/cwYvO5UauX',
-    url: 'https://static.poly.pizza/0b65e14d-a349-44cc-836c-efdeb6933d48.glb',
-    license: 'CC BY 3.0',
-    licenseUrl: 'https://creativecommons.org/licenses/by/3.0/',
-    bytes: 2_266_136,
-    maxBytes: 3 * 1024 * 1024,
+    id: 'robot-expressive',
+    fileName: 'robot-expressive.glb',
+    label: 'Robot Expressive',
+    author: 'Tomás Laulhé',
+    modifiedBy: 'Don McCurdy',
+    sourcePage: 'https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive',
+    license: 'CC0 1.0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    bytes: 463_988,
+    triangles: 3_237,
 } as const;
+
+/** Location inside the packaged extension, relative to `extensionPath`. */
+const AVATAR_ASSET_SEGMENTS = ['resources', 'avatars', AVATAR_ASSET.fileName] as const;
 
 export interface CollaborationConfiguration {
     profile: CollaborationProfile;
@@ -44,9 +55,21 @@ export class CollaborationProfileManager implements vscode.Disposable {
         this.configurationDirectory = path.join(context.globalStorageUri.fsPath, 'collaboration');
         this.profilePath = path.join(this.configurationDirectory, 'profile.v1.json');
         this.installationIdPath = path.join(this.configurationDirectory, 'installation-id');
-        this.avatarPath = path.join(this.configurationDirectory, 'assets', AVATAR_ASSET.fileName);
+        this.avatarPath = path.join(context.extensionPath, ...AVATAR_ASSET_SEGMENTS);
         this.installationId = this.readInstallationId();
         this.profile = this.readProfile();
+        this.removeLegacyDownloadedAvatar();
+    }
+
+    /**
+     * Earlier versions downloaded the avatar into global storage. The model now
+     * ships with the extension, so that copy is dead weight.
+     */
+    private removeLegacyDownloadedAvatar(): void {
+        const legacyDirectory = path.join(this.configurationDirectory, 'assets');
+        fs.promises.rm(legacyDirectory, { recursive: true, force: true }).catch(() => {
+            // Nothing to clean up, or it is already gone.
+        });
     }
 
     public static initialize(context: vscode.ExtensionContext): CollaborationProfileManager {
@@ -84,41 +107,6 @@ export class CollaborationProfileManager implements vscode.Disposable {
         this.emitChange();
     }
 
-    public async downloadAvatarModel(): Promise<boolean> {
-        if (this.hasAvatarModel()) {
-            return true;
-        }
-
-        const size = (AVATAR_ASSET.bytes / (1024 * 1024)).toFixed(2);
-        const confirmation = await vscode.window.showInformationMessage(
-            `CodeXR descargara ${size} MiB una sola vez. El modelo se guardara en el almacenamiento global de la extension y se reutilizara en todos los analisis. Fuente: Quaternius. Licencia: ${AVATAR_ASSET.license}.`,
-            { modal: true },
-            'Descargar modelo',
-        );
-        if (confirmation !== 'Descargar modelo') {
-            return false;
-        }
-
-        const targetDirectory = path.dirname(this.avatarPath);
-        const temporaryPath = `${this.avatarPath}.download`;
-        await fs.promises.mkdir(targetDirectory, { recursive: true });
-        try {
-            await this.downloadToFile(AVATAR_ASSET.url, temporaryPath);
-            await fs.promises.rename(temporaryPath, this.avatarPath);
-        } catch (error) {
-            await fs.promises.rm(temporaryPath, { force: true });
-            throw error;
-        }
-
-        this.emitChange();
-        return true;
-    }
-
-    public async removeAvatarModel(): Promise<void> {
-        await fs.promises.rm(this.avatarPath, { force: true });
-        this.emitChange();
-    }
-
     public dispose(): void {
         this.onDidChangeEmitter.dispose();
         CollaborationProfileManager.instance = null;
@@ -127,14 +115,31 @@ export class CollaborationProfileManager implements vscode.Disposable {
     private readProfile(): CollaborationProfile {
         try {
             if (fs.existsSync(this.profilePath)) {
-                return normalizeCollaborationProfile(
+                const stored = normalizeCollaborationProfile(
                     JSON.parse(fs.readFileSync(this.profilePath, 'utf8')),
                 );
+                // 'avatar-1' used to be the default nobody actively picked, so
+                // it becomes automatic; any other colour was a real choice.
+                if (stored.avatarId === LEGACY_DEFAULT_AVATAR_ID) {
+                    const migrated = { ...stored, avatarId: AUTO_AVATAR_ID };
+                    void this.persistProfile(migrated);
+                    return migrated;
+                }
+                return stored;
             }
         } catch {
             // Invalid persisted data is replaced by defaults on the next update.
         }
         return { ...DEFAULT_COLLABORATION_PROFILE };
+    }
+
+    private async persistProfile(profile: CollaborationProfile): Promise<void> {
+        try {
+            await fs.promises.mkdir(this.configurationDirectory, { recursive: true });
+            await fs.promises.writeFile(this.profilePath, JSON.stringify(profile, null, 2), 'utf8');
+        } catch (error) {
+            console.error('COLLABORATION: Failed to persist profile:', error);
+        }
     }
 
     private readInstallationId(): string {
@@ -153,10 +158,14 @@ export class CollaborationProfileManager implements vscode.Disposable {
         return created;
     }
 
+    /**
+     * The model ships with the extension, so this only guards against a broken
+     * install — a missing file degrades to the procedural avatar.
+     */
     private hasAvatarModel(): boolean {
         try {
             const stats = fs.statSync(this.avatarPath);
-            return stats.isFile() && stats.size > 0 && stats.size <= AVATAR_ASSET.maxBytes;
+            return stats.isFile() && stats.size > 0;
         } catch {
             return false;
         }
@@ -165,46 +174,5 @@ export class CollaborationProfileManager implements vscode.Disposable {
     private emitChange(): void {
         this.revision += 1;
         this.onDidChangeEmitter.fire(this.getConfiguration());
-    }
-
-    private downloadToFile(url: string, destination: string, redirects = 0): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const request = https.get(url, (response) => {
-                const status = response.statusCode || 0;
-                const redirect = response.headers.location;
-                if (status >= 300 && status < 400 && redirect && redirects < 4) {
-                    response.resume();
-                    const nextUrl = new URL(redirect, url).toString();
-                    this.downloadToFile(nextUrl, destination, redirects + 1).then(resolve, reject);
-                    return;
-                }
-                if (status !== 200) {
-                    response.resume();
-                    reject(new Error(`El proveedor del avatar respondio con HTTP ${status || 'desconocido'}.`));
-                    return;
-                }
-
-                const declaredLength = Number(response.headers['content-length'] || 0);
-                if (declaredLength > AVATAR_ASSET.maxBytes) {
-                    response.resume();
-                    reject(new Error('El modelo supera el limite de descarga permitido.'));
-                    return;
-                }
-
-                const output = fs.createWriteStream(destination, { flags: 'w' });
-                let received = 0;
-                response.on('data', (chunk: Buffer) => {
-                    received += chunk.length;
-                    if (received > AVATAR_ASSET.maxBytes) {
-                        response.destroy(new Error('El modelo supera el limite de descarga permitido.'));
-                    }
-                });
-                response.pipe(output);
-                output.on('finish', () => output.close(() => resolve()));
-                output.on('error', reject);
-                response.on('error', reject);
-            });
-            request.on('error', reject);
-        });
     }
 }

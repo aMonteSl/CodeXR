@@ -37,6 +37,7 @@ import {
 import { SessionWatcherManager } from '../../code_analysis/engine/watchers/sessionWatcherManager';
 import { UnifiedSessionRegistry } from '../../code_analysis/engine/core/sessionRegistry';
 import { resolveAnalysisServerCapabilities } from './analysisServerCapabilities';
+import { renderInvitationErrorPage, renderPairingPage } from './remote/pairingPage';
 
 /**
  * HTTP Server Configuration
@@ -243,13 +244,20 @@ export class HttpServer {
             return;
         }
 
+        // Release the long-lived connections FIRST: server.close() waits for
+        // every socket to drain, and the sockets that never drain on their own
+        // are exactly the ones these features own (collaboration/broadcast
+        // WebSockets and open SSE responses). Disposing inside the close
+        // callback deadlocks the shutdown.
+        this.disposeRuntimeFeatures();
+        this.server.closeAllConnections();
+
         return new Promise((resolve, reject) => {
             this.server!.close((error) => {
                 if (error) {
                     console.error('SERVER: Error stopping HTTP server:', error);
                     reject(error);
                 } else {
-                    this.disposeRuntimeFeatures();
                     console.log('SERVER: HTTP server stopped successfully');
                     this.isRunning = false;
                     this.server = null;
@@ -257,6 +265,15 @@ export class HttpServer {
                 }
             });
         });
+    }
+
+    /**
+     * Drop every open socket without waiting for a graceful close.
+     */
+    public forceStop(): void {
+        this.disposeRuntimeFeatures();
+        this.server?.closeAllConnections();
+        this.isRunning = false;
     }
 
     /**
@@ -722,7 +739,7 @@ export class HttpServer {
             'Content-Type': 'model/gltf-binary',
             'Content-Length': stats.size,
             'Cache-Control': 'public, max-age=604800, immutable',
-            'X-CodeXR-Asset-Source': 'Quaternius-via-Poly-Pizza',
+            'X-CodeXR-Asset-Source': 'RobotExpressive-by-Tomas-Laulhe-CC0',
         });
         if (req.method === 'HEAD') {
             res.end();
@@ -899,63 +916,22 @@ export class HttpServer {
             !/^[a-zA-Z0-9_-]{20,100}$/.test(invitationToken)
             || !this.remoteSessionAuthority.isInvitationValid(invitationToken)
         ) {
-            this.sendErrorResponse(res, 404, 'Resource not found');
+            // A guest clicking a stale link gets an explanation, not raw JSON.
+            this.sendGuestHtml(res, 404, renderInvitationErrorPage(
+                'This invitation is no longer valid',
+                'Invitation links expire 30 minutes after they are created, and they only work while the host is sharing the server. Ask the host for a new link.',
+            ));
             return;
         }
-        const tokenLiteral = JSON.stringify(invitationToken);
-        const html = `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unirse a CodeXR</title>
-<style>
-body{font-family:system-ui,sans-serif;background:#111827;color:#f9fafb;display:grid;place-items:center;min-height:100vh;margin:0}
-main{width:min(440px,calc(100% - 40px));background:#1f2937;border-radius:12px;padding:24px}
-input,button{box-sizing:border-box;width:100%;padding:12px;margin-top:12px;border-radius:7px;border:1px solid #4b5563}
-button{background:#2563eb;color:white;font-weight:600;cursor:pointer}.error{color:#fca5a5}
-fieldset{border:0;padding:0;margin:16px 0}.choice{display:flex;gap:8px;align-items:center;margin-top:10px}.choice input{width:auto;margin:0}
-.hint{color:#cbd5e1;font-size:.92rem}#code,#confirm{display:none}
-</style>
-</head>
-<body><main>
-<h1>Conectar con CodeXR</h1>
-<section id="identity-step">
-<p>Elige como quieres aparecer antes de solicitar acceso.</p>
-<fieldset>
-<label class="choice"><input type="radio" name="identity" value="anonymous" checked> Continuar como anonimo</label>
-<label class="choice"><input type="radio" name="identity" value="custom"> Usar un nombre personalizado</label>
-</fieldset>
-<label for="name">Nombre visible</label>
-<input id="name" maxlength="32" disabled>
-<p id="identity-hint" class="hint">CodeXR te ha reservado este alias anonimo.</p>
-</section>
-<p>Solicita acceso y pide al anfitrión el código temporal de seis cifras.</p>
-<button id="request">Solicitar acceso</button>
-<input id="code" inputmode="numeric" maxlength="6" placeholder="Código de 6 cifras" disabled>
-<button id="confirm" disabled>Conectar</button>
-<p id="status" aria-live="polite"></p>
-</main>
-<script>
-const invitationToken=${tokenLiteral};let requestId='',identityToken='',anonymousAlias='';
-const status=document.querySelector('#status'),code=document.querySelector('#code'),confirmButton=document.querySelector('#confirm'),nameInput=document.querySelector('#name'),requestButton=document.querySelector('#request');
-function selectedMode(){return document.querySelector('input[name="identity"]:checked').value}
-function updateIdentityMode(){const custom=selectedMode()==='custom';nameInput.disabled=!custom;nameInput.value=custom?'':anonymousAlias;document.querySelector('#identity-hint').textContent=custom?'Escribe entre 2 y 32 caracteres.':'CodeXR te ha reservado este alias anonimo.'}
-document.querySelectorAll('input[name="identity"]').forEach(input=>input.onchange=updateIdentityMode);
-async function prepareIdentity(){requestButton.disabled=true;status.textContent='Preparando identidad...';try{const response=await fetch('/api/remote/identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({invitationToken})});if(!response.ok)throw new Error();const data=await response.json();identityToken=data.identityToken;anonymousAlias=data.anonymousAlias;nameInput.value=anonymousAlias;requestButton.disabled=false;status.textContent='';}catch{status.className='error';status.textContent='La invitacion no es valida o ya no esta disponible.'}}
-document.querySelector('#request').onclick=async()=>{status.textContent='Solicitando acceso...';try{
-const mode=selectedMode(),customName=mode==='custom'?nameInput.value:'';
-const response=await fetch('/api/remote/pair/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({invitationToken,clientKind:'browser',identityToken,identityMode:mode,customName})});
-if(!response.ok)throw new Error();const data=await response.json();requestId=data.requestId;code.disabled=false;confirmButton.disabled=false;status.textContent='Solicitud enviada.';
-}catch{status.className='error';status.textContent='Revisa el nombre o solicita una invitacion nueva.'}};
-const submitIdentity=requestButton.onclick;requestButton.onclick=async()=>{await submitIdentity();if(requestId){document.querySelector('#identity-step').style.display='none';requestButton.style.display='none';code.style.display='block';confirmButton.style.display='block';status.className='';status.textContent='Solicitud enviada. Introduce el codigo que te facilite el anfitrion.';}else{status.className='error';status.textContent='Revisa el nombre o solicita una invitacion nueva.'}};
-confirmButton.onclick=async()=>{status.className='';status.textContent='Verificando...';try{
-const response=await fetch('/api/remote/pair/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({requestId,code:code.value})});
-if(!response.ok)throw new Error();const data=await response.json();location.replace(data.browserUrl);
-}catch{status.className='error';status.textContent='Codigo incorrecto, caducado o sin intentos disponibles.'}};
-prepareIdentity();
-</script></body></html>`;
-        res.writeHead(200, {
+        this.sendGuestHtml(res, 200, renderPairingPage(invitationToken));
+    }
+
+    /**
+     * Send a guest-facing HTML page. Everything the page needs is inlined, so
+     * the policy stays as tight as the pairing flow requires.
+     */
+    private sendGuestHtml(res: http.ServerResponse, statusCode: number, html: string): void {
+        res.writeHead(statusCode, {
             'Content-Type': 'text/html; charset=utf-8',
             'Cache-Control': 'no-store',
             'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'",
@@ -1013,7 +989,11 @@ prepareIdentity();
             return;
         }
         if (code === 'invalid-pairing-code') {
-            this.sendErrorResponse(res, 401, 'Invalid pairing code');
+            this.sendErrorResponse(res, 401, 'Invalid pairing code. Ask the host for a new one.');
+            return;
+        }
+        if (code === 'pairing-code-revoked') {
+            this.sendErrorResponse(res, 401, 'This code is no longer valid. Ask the host for a new one.');
             return;
         }
         if (code === 'pairing-attempts-exceeded') {

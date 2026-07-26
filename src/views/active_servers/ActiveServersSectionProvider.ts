@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SectionProvider } from '../common/baseInterfaces';
 import { ActiveServerTreeItem, ActiveServerItemFactory } from './items/activeServerItems';
 import { ActiveServerClickHandler } from './interactions/handleActiveServerClicks';
+import { CollaborationSectionProvider } from '../collaboration';
 import { getActiveServerRegistry } from '../../active_servers/registry/activeServerRegistry';
 import { ActiveServer } from '../../active_servers/model/activeServerModel';
 import { ConnectedParticipantSummary } from '../../collaboration';
@@ -26,11 +27,18 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
     private clickHandler: ActiveServerClickHandler;
     private readonly participantSubscriptions = new Map<string, () => void>();
     private readonly registrySubscription: vscode.Disposable;
+    private readonly collaborationProvider: CollaborationSectionProvider;
+    private readonly collaborationSubscription: vscode.Disposable;
 
     constructor(private context: vscode.ExtensionContext) {
         console.log('ACTIVE_SERVERS_MODULAR: Initializing Active Servers section provider');
         this.clickHandler = new ActiveServerClickHandler(context);
-        
+
+        // Collaboration lives as a nested group inside this section; its provider
+        // stays the single source of truth for the shared profile items.
+        this.collaborationProvider = new CollaborationSectionProvider(context);
+        this.collaborationSubscription = this.collaborationProvider.onDidChangeTreeData(() => this.refresh());
+
         // Listen to registry changes for active servers
         const registry = getActiveServerRegistry();
         console.log(`ACTIVE_SERVERS_MODULAR: Connected to active server registry, current servers: ${registry.getAllServers().length}`);
@@ -79,6 +87,13 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
      */
     async getChildren(element?: ActiveServerTreeItem): Promise<ActiveServerTreeItem[]> {
         if (element) {
+            // The collaboration group carries no server, so it is resolved before
+            // the server guard below.
+            if (element.activeServerItemType === 'collaboration-group') {
+                const collaborationItems = await this.collaborationProvider.getChildren();
+                return collaborationItems.map(ActiveServerItemFactory.fromCollaborationItem);
+            }
+
             const server = element.activeServer;
             if (!server) {
                 return [];
@@ -89,6 +104,9 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
             }
             if (element.activeServerItemType === 'participants-group') {
                 return ActiveServerItemFactory.createParticipantItems(server, participants);
+            }
+            if (element.activeServerItemType === 'remote-group') {
+                return ActiveServerItemFactory.createRemoteConnectionItems(server);
             }
             if (element.activeServerItemType === 'actions-group') {
                 return ActiveServerItemFactory.createActionItems(server);
@@ -104,13 +122,17 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
 
         console.log(`ACTIVE_SERVERS_MODULAR: Found ${activeServers.length} total servers, ${runningServers.length} running`);
         
-        // Show "No active servers" message if no servers exist
-        if (activeServers.length === 0) {
-            console.log('ACTIVE_SERVERS_MODULAR: No servers found, showing "No active servers" message');
-            return [ActiveServerItemFactory.createNoServersItem()];
+        // The collaboration group is always reachable: joining a remote session
+        // does not require a local server.
+        const collaborationGroup = ActiveServerItemFactory.createCollaborationGroupItem();
+
+        // Only running servers are listed: a stopped one leaves the tree.
+        if (runningServers.length === 0) {
+            console.log('ACTIVE_SERVERS_MODULAR: No running servers, showing "No active servers" message');
+            return [collaborationGroup, ActiveServerItemFactory.createNoServersItem()];
         }
 
-        const children: ActiveServerTreeItem[] = [];
+        const children: ActiveServerTreeItem[] = [collaborationGroup];
 
         // Add "Stop All Servers" option if there are 2 or more running servers
         if (runningServers.length >= 2) {
@@ -118,10 +140,10 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
             children.push(ActiveServerItemFactory.createStopAllServersItem(runningServers.length));
         }
 
-        // Add individual server items
-        console.log(`ACTIVE_SERVERS_MODULAR: Creating ${activeServers.length} individual server items`);
-        const serverItems = activeServers.map(server => 
-            ActiveServerItemFactory.createServerItem(server)
+        // A lone server opens expanded; with several, they stay compact.
+        console.log(`ACTIVE_SERVERS_MODULAR: Creating ${runningServers.length} individual server items`);
+        const serverItems = runningServers.map(server =>
+            ActiveServerItemFactory.createServerItem(server, runningServers.length === 1)
         );
 
         children.push(...serverItems);
@@ -140,6 +162,8 @@ export class ActiveServersSectionProvider implements SectionProvider<ActiveServe
 
     dispose(): void {
         this.registrySubscription.dispose();
+        this.collaborationSubscription.dispose();
+        this.collaborationProvider.dispose();
         for (const dispose of this.participantSubscriptions.values()) {
             dispose();
         }

@@ -7,4 +7,6 @@ export interface ConnectedParticipantSummary {
     clientKind: CollaborationClientKind;
     connectionScope: 'local' | 'remote';
     connectedAt: string;
+    role: 'host' | 'guest';
+    remoteAddress: string;
 }

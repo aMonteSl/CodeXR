@@ -14,15 +14,192 @@ const avatarRuntime = require(path.join(
     'codexrAvatarRuntime.js',
 ));
 
+function loadAvatarComponentDefinition() {
+    const modulePath = path.join(
+        projectRoot, 'templates', 'components', 'codexr', 'avatar', 'codexrAvatarRuntime.js',
+    );
+    const captured = {};
+    const previousAframe = globalThis.AFRAME;
+    globalThis.AFRAME = {
+        components: {},
+        registerComponent(name, definition) {
+            captured[name] = definition;
+        },
+    };
+    delete require.cache[require.resolve(modulePath)];
+    require(modulePath);
+    delete require.cache[require.resolve(modulePath)];
+    globalThis.AFRAME = previousAframe;
+    return captured['codexr-avatar'];
+}
+
+test('avatar models are scaled to a human height whatever units they were authored in', () => {
+    const definition = loadAvatarComponentDefinition();
+    assert.ok(definition, 'codexr-avatar component should be registered');
+    const targetHeight = definition.schema.avatarHeight.default;
+    assert.equal(targetHeight, 1.55);
+    // The player colour has to actually override the model's own materials.
+    assert.ok(definition.schema.tintStrength.default >= 0.5);
+
+    // Robot Expressive is authored in centimetres: ~4.6 units tall, feet at ~0.
+    const bounds = { min: { x: -1, y: -0.02, z: -1 }, max: { x: 1, y: 4.578, z: 1 } };
+    const previousThree = globalThis.THREE;
+    globalThis.THREE = {
+        Box3: class {
+            setFromObject() {
+                this.min = bounds.min;
+                this.max = bounds.max;
+                return this;
+            }
+        },
+    };
+
+    const applied = [];
+    const labelApplied = [];
+    const context = {
+        data: { avatarHeight: targetHeight },
+        modelEl: {
+            object3D: { updateMatrixWorld() {} },
+            setAttribute(name, value) { applied.push([name, value]); },
+        },
+        labelRoot: { setAttribute(name, value) { labelApplied.push([name, value]); } },
+    };
+
+    try {
+        definition.fitModelToAvatarHeight.call(context, {});
+    } finally {
+        globalThis.THREE = previousThree;
+    }
+
+    // The name tag is parked above the fitted model's crown, not at a fixed
+    // height, so a taller model can never grow into it.
+    assert.equal(labelApplied.length, 1);
+    const labelY = Number(labelApplied[0][1].split(' ')[1]);
+    const modelTop = -1.62 + targetHeight;
+    assert.ok(labelY >= 0.55, `label should sit at least 0.55 above the head point, got ${labelY}`);
+    assert.ok(labelY - modelTop >= 0.6, `label should clear the model crown, got ${labelY - modelTop}`);
+
+    // Measured unscaled first, so a reload cannot compound the previous fit.
+    assert.deepEqual(applied[0], ['scale', '1 1 1']);
+
+    const expectedScale = targetHeight / (bounds.max.y - bounds.min.y);
+    const [scaleName, scaleValue] = applied[1];
+    assert.equal(scaleName, 'scale');
+    const scaleParts = scaleValue.split(' ').map(Number);
+    assert.equal(scaleParts.length, 3);
+    scaleParts.forEach((part) => assert.ok(Math.abs(part - expectedScale) < 1e-9));
+
+    // The fitted model stands 1.7 m tall with its feet on the floor.
+    const [positionName, positionValue] = applied[2];
+    assert.equal(positionName, 'position');
+    const y = Number(positionValue.split(' ')[1]);
+    assert.ok(Math.abs(y - (-1.62 - bounds.min.y * expectedScale)) < 1e-9);
+    assert.ok(Math.abs((bounds.max.y - bounds.min.y) * expectedScale - targetHeight) < 1e-9);
+});
+
+test('name tags yaw toward the viewer regardless of which way the avatar faces', () => {
+    const definition = loadAvatarComponentDefinition();
+    const previousThree = globalThis.THREE;
+    globalThis.THREE = {
+        Vector3: class {
+            constructor() { this.x = 0; this.y = 0; this.z = 0; }
+        },
+    };
+
+    const rotation = { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; } };
+    const context = {
+        labelRoot: {
+            object3D: {
+                rotation,
+                getWorldPosition() { return { x: 0, y: 2, z: 0 }; },
+            },
+        },
+        // The avatar itself is turned 90°; the tag must cancel that out.
+        bodyRoot: { object3D: { rotation: { y: Math.PI / 2 } } },
+    };
+    const cameraAt = (x, z) => ({ getWorldPosition() { return { x, y: 1.6, z }; } });
+
+    try {
+        // Camera straight ahead on +Z: world yaw 0, minus the parent's 90°.
+        definition.faceLabelToCamera.call(context, cameraAt(0, 5));
+        assert.ok(Math.abs(rotation.y - (0 - Math.PI / 2)) < 1e-9);
+        assert.equal(rotation.x, 0, 'no pitch: names must not tilt');
+        assert.equal(rotation.z, 0);
+
+        // Camera off to +X: world yaw 90°, cancelling the parent exactly.
+        definition.faceLabelToCamera.call(context, cameraAt(5, 0));
+        assert.ok(Math.abs(rotation.y - 0) < 1e-9);
+
+        // Camera behind on -Z: world yaw 180°.
+        definition.faceLabelToCamera.call(context, cameraAt(0, -5));
+        assert.ok(Math.abs(rotation.y - (Math.PI - Math.PI / 2)) < 1e-9);
+    } finally {
+        globalThis.THREE = previousThree;
+    }
+});
+
+test('avatar fitting leaves the model alone when it cannot be measured', () => {
+    const definition = loadAvatarComponentDefinition();
+    const applied = [];
+    const context = {
+        data: { avatarHeight: 1.7 },
+        modelEl: {
+            object3D: { updateMatrixWorld() {} },
+            setAttribute(name, value) { applied.push([name, value]); },
+        },
+    };
+    const previousThree = globalThis.THREE;
+    globalThis.THREE = {
+        Box3: class {
+            setFromObject() {
+                this.min = { x: 0, y: 0, z: 0 };
+                this.max = { x: 0, y: 0, z: 0 };
+                return this;
+            }
+        },
+    };
+    try {
+        definition.fitModelToAvatarHeight.call(context, {});
+        assert.deepEqual(applied, [['scale', '1 1 1']]);
+        applied.length = 0;
+        definition.fitModelToAvatarHeight.call(context, null);
+        assert.deepEqual(applied, []);
+    } finally {
+        globalThis.THREE = previousThree;
+    }
+});
+
 test('collaboration profile defaults to anonymous and sanitizes custom Unicode names', () => {
     assert.deepEqual(collaborationRuntime.DEFAULT_PROFILE, {
         identityMode: 'anonymous',
         customName: '',
-        avatarId: 'avatar-1',
+        // 'auto' lets each room hand out a colour nobody else there is using.
+        avatarId: 'auto',
     });
     assert.equal(collaborationRuntime.sanitizeDisplayName('  Ayla\u0000  Núñez  '), 'Ayla Núñez');
     assert.equal(collaborationRuntime.sanitizeDisplayName('x'), '');
     assert.equal(collaborationRuntime.sanitizeDisplayName('x'.repeat(33)), '');
+});
+
+test('automatic avatar colour survives profile normalization and validation', () => {
+    const {
+        AUTO_AVATAR_ID,
+        DEFAULT_COLLABORATION_PROFILE,
+        ASSIGNABLE_AVATAR_IDS,
+        VALID_AVATAR_IDS,
+        normalizeCollaborationProfile,
+    } = require(path.join(projectRoot, 'out', 'collaboration', 'model', 'collaborationProfile.js'));
+
+    assert.equal(AUTO_AVATAR_ID, 'auto');
+    assert.equal(DEFAULT_COLLABORATION_PROFILE.avatarId, AUTO_AVATAR_ID);
+    // 'auto' is assignable but is NOT part of the palette rooms allocate from.
+    assert.equal(ASSIGNABLE_AVATAR_IDS.has(AUTO_AVATAR_ID), true);
+    assert.equal(VALID_AVATAR_IDS.has(AUTO_AVATAR_ID), false);
+
+    assert.equal(normalizeCollaborationProfile({ avatarId: 'auto' }).avatarId, 'auto');
+    assert.equal(normalizeCollaborationProfile({ avatarId: 'avatar-4' }).avatarId, 'avatar-4');
+    assert.equal(normalizeCollaborationProfile({ avatarId: 'nope' }).avatarId, 'auto');
+    assert.equal(normalizeCollaborationProfile({}).avatarId, 'auto');
 });
 
 test('avatar assets are enabled only by the extension configuration and load once', async () => {
@@ -48,7 +225,7 @@ test('avatar assets are enabled only by the extension configuration and load onc
     };
     const manager = avatarRuntime.createAssetManager(fakeWindow);
     assert.equal(manager.getState().available, false);
-    assert.equal(manager.getState().sizeLabel, '2.16 MiB');
+    assert.equal(manager.getState().sizeLabel, '0.44 MiB');
     assert.equal(await manager.load(), null);
     assert.equal(fetchCount, 0);
 

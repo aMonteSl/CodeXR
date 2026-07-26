@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { BabiaExample } from '../model/babiaExampleModel';
+import { BABIA_EXAMPLE_LIBRARIES, BabiaExample } from '../model/babiaExampleModel';
 import { ExampleClickHandler } from '../views/interactions/handleExampleClicks';
 import { BabiaExamplesTreeDataProvider } from '../views/babiaExamplesTreeView';
 import { ExtensionCommandRegistration } from '../../commands/shared';
+import { DetailRow, formatDetailSections } from '../../utils/detailDialog';
 
 /**
  * Babia Examples command declarations.
@@ -27,6 +28,51 @@ export class BabiaExamplesCommands {
                     await clickHandler.handleExampleClick(example);
                 },
                 errorMessage: 'Failed to launch Babia example'
+            },
+            {
+                id: 'codeXR.babiaExamples.showLibraryInfo',
+                module: 'EXAMPLES',
+                description: 'Show BabiaXR credits and licenses',
+                handler: async () => {
+                    const exampleCount = (await clickHandler.getExampleLauncher().getExamples()).length;
+                    const detail = formatDetailSections([
+                        BABIA_EXAMPLE_LIBRARIES.map((library) => {
+                            // Skip the package name when it just repeats the label.
+                            const simplify = (value: string) => value.toLowerCase().replace(/[-_]/g, '');
+                            const prefix = simplify(library.name) === simplify(library.label)
+                                ? ''
+                                : `${library.name} `;
+                            return [
+                                library.label,
+                                `${prefix}${library.version} · ${library.license}`,
+                            ] as DetailRow;
+                        }),
+                        [
+                            ['Examples', `${exampleCount} scene(s) bundled with CodeXR`],
+                            ['Data', 'Sample JSON in examples/data'],
+                        ],
+                        [
+                            ['Note', 'Scenes load these libraries from public CDNs when opened.'],
+                        ],
+                    ]);
+
+                    const babia = BABIA_EXAMPLE_LIBRARIES[0];
+                    const answer = await vscode.window.showInformationMessage(
+                        'BabiaXR Examples',
+                        { modal: true, detail },
+                        'Open BabiaXR',
+                        'Open source',
+                        'Open license',
+                    );
+                    if (answer === 'Open BabiaXR') {
+                        await vscode.env.openExternal(vscode.Uri.parse(babia.website));
+                    } else if (answer === 'Open source') {
+                        await vscode.env.openExternal(vscode.Uri.parse(babia.source));
+                    } else if (answer === 'Open license') {
+                        await vscode.env.openExternal(vscode.Uri.parse(babia.licenseUrl));
+                    }
+                },
+                errorMessage: 'Failed to show BabiaXR information'
             },
             {
                 id: 'codeXR.babiaExamples.refresh',

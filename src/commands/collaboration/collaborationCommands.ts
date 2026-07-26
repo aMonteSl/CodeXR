@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
 import {
+    AUTO_AVATAR_ID,
+    AVATAR_ASSET,
     CollaborationProfileManager,
     COLLABORATION_AVATARS,
     sanitizeCollaborationName,
 } from '../../collaboration';
+import { formatDetailSections } from '../../utils/detailDialog';
 import { ExtensionCommandRegistration } from '../shared';
 import { RemoteAccessManager } from '../../remote_access';
 
@@ -16,7 +19,8 @@ export function getCollaborationCommandRegistrations(
     treeDataProvider?: RefreshableTreeProvider,
 ): ExtensionCommandRegistration[] {
     const manager = CollaborationProfileManager.initialize(context);
-    const refresh = () => treeDataProvider?.refreshSection?.('collaboration');
+    // Collaboration is rendered as a group inside the Active Servers section.
+    const refresh = () => treeDataProvider?.refreshSection?.('activeServers');
 
     return [
         {
@@ -37,20 +41,22 @@ export function getCollaborationCommandRegistrations(
                 const current = manager.getConfiguration().profile;
                 const selection = await vscode.window.showQuickPick([
                     {
-                        label: 'Anonimo',
-                        description: 'La sala asignara un alias de Star Wars',
+                        label: 'Anonymous',
+                        description: 'The room will assign a Star Wars alias',
                         mode: 'anonymous' as const,
                     },
                     {
-                        label: 'Nombre personalizado',
-                        description: current.customName || 'Configura un nombre entre 2 y 32 caracteres',
+                        label: 'Custom name',
+                        description: current.customName || 'Set a name between 2 and 32 characters',
                         mode: 'custom' as const,
                     },
-                ], { placeHolder: 'Identidad para las sesiones de colaboracion' });
+                ], { placeHolder: 'Identity for collaboration sessions' });
                 if (!selection) {
                     return;
                 }
-                if (selection.mode === 'custom' && !current.customName) {
+                // Picking a custom name always opens the prompt (pre-filled), so
+                // this single row can also edit a name that already exists.
+                if (selection.mode === 'custom') {
                     await vscode.commands.executeCommand('codeXR.collaboration.setName');
                     return;
                 }
@@ -65,12 +71,12 @@ export function getCollaborationCommandRegistrations(
             handler: async () => {
                 const current = manager.getConfiguration().profile;
                 const value = await vscode.window.showInputBox({
-                    title: 'Nombre de colaboracion',
-                    prompt: 'Entre 2 y 32 caracteres. Los caracteres de control se eliminan.',
+                    title: 'Collaboration name',
+                    prompt: 'Between 2 and 32 characters. Control characters are stripped.',
                     value: current.customName,
                     validateInput: (input) => sanitizeCollaborationName(input)
                         ? undefined
-                        : 'Introduce un nombre valido de entre 2 y 32 caracteres.',
+                        : 'Enter a valid name between 2 and 32 characters.',
                 });
                 if (value === undefined) {
                     return;
@@ -90,12 +96,19 @@ export function getCollaborationCommandRegistrations(
             handler: async () => {
                 const current = manager.getConfiguration().profile;
                 const selection = await vscode.window.showQuickPick(
-                    COLLABORATION_AVATARS.map((avatar) => ({
-                        label: avatar.label,
-                        description: avatar.color,
-                        avatarId: avatar.id,
-                    })),
-                    { placeHolder: 'Color del avatar' },
+                    [
+                        {
+                            label: 'Automatic',
+                            description: 'Each room picks a colour nobody else is using',
+                            avatarId: AUTO_AVATAR_ID,
+                        },
+                        ...COLLABORATION_AVATARS.map((avatar) => ({
+                            label: avatar.label,
+                            description: avatar.color,
+                            avatarId: avatar.id as string,
+                        })),
+                    ],
+                    { placeHolder: 'Avatar color' },
                 );
                 if (!selection) {
                     return;
@@ -105,39 +118,39 @@ export function getCollaborationCommandRegistrations(
             },
         },
         {
-            id: 'codeXR.collaboration.downloadAvatarModel',
+            id: 'codeXR.collaboration.showAvatarModelInfo',
             module: 'COLLABORATION',
-            description: 'Download the shared avatar model',
+            description: 'Show the bundled avatar model attribution',
             handler: async () => {
-                if (await manager.downloadAvatarModel()) {
-                    vscode.window.showInformationMessage(
-                        'Modelo de avatar instalado. Se usara en todos los analisis de CodeXR.',
-                    );
-                    refresh();
-                }
-            },
-        },
-        {
-            id: 'codeXR.collaboration.manageAvatarModel',
-            module: 'COLLABORATION',
-            description: 'Manage the installed avatar model',
-            handler: async () => {
-                const selection = await vscode.window.showQuickPick([
-                    {
-                        label: 'Conservar modelo',
-                        description: 'Seguir usando el modelo 3D en todos los analisis',
-                        action: 'keep',
-                    },
-                    {
-                        label: 'Eliminar modelo descargado',
-                        description: 'Volver al avatar procedural',
-                        action: 'remove',
-                    },
+                const installed = manager.getConfiguration().avatarModelAvailable;
+                const detail = formatDetailSections([
+                    [
+                        ['Model', AVATAR_ASSET.label],
+                        ['Author', AVATAR_ASSET.author],
+                        ['Modified by', AVATAR_ASSET.modifiedBy],
+                        ['License', `${AVATAR_ASSET.license} (public domain dedication)`],
+                    ],
+                    [
+                        ['Geometry', `${AVATAR_ASSET.triangles.toLocaleString()} triangles`],
+                        ['Size', `${(AVATAR_ASSET.bytes / (1024 * 1024)).toFixed(2)} MiB`],
+                    ],
+                    [
+                        ['Status', installed
+                            ? 'Bundled with the CodeXR extension — nothing is downloaded'
+                            : 'Missing from this installation — the procedural avatar is used'],
+                    ],
                 ]);
-                if (selection?.action === 'remove') {
-                    await manager.removeAvatarModel();
-                    vscode.window.showInformationMessage('Modelo eliminado. CodeXR usara el avatar procedural.');
-                    refresh();
+
+                const answer = await vscode.window.showInformationMessage(
+                    `3D Avatar Model — ${AVATAR_ASSET.label}`,
+                    { modal: true, detail },
+                    'Open source page',
+                    'Open license',
+                );
+                if (answer === 'Open source page') {
+                    await vscode.env.openExternal(vscode.Uri.parse(AVATAR_ASSET.sourcePage));
+                } else if (answer === 'Open license') {
+                    await vscode.env.openExternal(vscode.Uri.parse(AVATAR_ASSET.licenseUrl));
                 }
             },
         },

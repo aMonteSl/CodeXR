@@ -4,7 +4,7 @@ import {
     COLLABORATION_AVATARS,
 } from '../../../collaboration';
 
-export type CollaborationItemType = 'identity' | 'name' | 'avatar' | 'asset' | 'session' | 'info';
+export type CollaborationItemType = 'identity' | 'avatar' | 'asset' | 'session' | 'info';
 
 export class CollaborationTreeItem extends vscode.TreeItem {
     constructor(
@@ -27,59 +27,52 @@ export class CollaborationTreeItem extends vscode.TreeItem {
 export class CollaborationItemFactory {
     public static createItems(configuration: CollaborationConfiguration): CollaborationTreeItem[] {
         const profile = configuration.profile;
-        const avatar = COLLABORATION_AVATARS.find((candidate) => candidate.id === profile.avatarId)
-            || COLLABORATION_AVATARS[0];
-        const identityDescription = profile.identityMode === 'custom' ? 'Nombre personalizado' : 'Anonimo';
+        const avatar = COLLABORATION_AVATARS.find((candidate) => candidate.id === profile.avatarId);
+        // One row answers "what am I called?": the custom name, or Anonymous.
         const nameDescription = profile.identityMode === 'custom'
             ? profile.customName
-            : 'Alias de Star Wars al conectar';
+            : 'Anonymous';
 
         return [
             new CollaborationTreeItem(
-                'Unirse a sesión remota',
+                'Join Remote Session',
                 'session',
-                'Pegar enlace',
-                { command: 'codeXR.collaboration.joinRemote', title: 'Unirse a sesión remota' },
+                'Paste invitation link',
+                { command: 'codeXR.collaboration.joinRemote', title: 'Join Remote Session' },
                 new vscode.ThemeIcon('link-external'),
-                'Usa el perfil configurado en esta instalación de CodeXR.',
+                'Uses the profile configured in this CodeXR installation.',
             ),
             new CollaborationTreeItem(
-                'Identidad',
+                'Name',
                 'identity',
-                identityDescription,
-                { command: 'codeXR.collaboration.selectIdentity', title: 'Cambiar identidad' },
-                new vscode.ThemeIcon(profile.identityMode === 'custom' ? 'account' : 'eye-closed'),
-                'Elige entre un nombre personalizado o un alias anonimo generado por la sala.',
-            ),
-            new CollaborationTreeItem(
-                'Nombre',
-                'name',
                 nameDescription,
-                { command: 'codeXR.collaboration.setName', title: 'Cambiar nombre' },
-                new vscode.ThemeIcon('edit'),
+                { command: 'codeXR.collaboration.selectIdentity', title: 'Change name' },
+                new vscode.ThemeIcon(profile.identityMode === 'custom' ? 'account' : 'eye-closed'),
+                'Choose between a custom name and staying anonymous. '
+                + 'While anonymous, each room assigns you a Star Wars alias on connect.',
             ),
             new CollaborationTreeItem(
-                'Color del avatar',
+                'Avatar Color',
                 'avatar',
-                avatar.label,
-                { command: 'codeXR.collaboration.selectAvatar', title: 'Cambiar color del avatar' },
+                avatar ? avatar.label : 'Automatic',
+                { command: 'codeXR.collaboration.selectAvatar', title: 'Change avatar color' },
                 new vscode.ThemeIcon('symbol-color', new vscode.ThemeColor('charts.foreground')),
-                `${avatar.label}: ${avatar.color}`,
+                avatar
+                    ? `${avatar.label}: ${avatar.color}`
+                    : 'Each room gives you a colour nobody else there is using.',
             ),
             new CollaborationTreeItem(
-                'Modelo 3D',
+                '3D Model',
                 'asset',
-                configuration.avatarModelAvailable ? 'Instalado globalmente' : 'Avatar procedural',
+                configuration.avatarModelAvailable ? 'Included' : 'Procedural avatar',
                 {
-                    command: configuration.avatarModelAvailable
-                        ? 'codeXR.collaboration.manageAvatarModel'
-                        : 'codeXR.collaboration.downloadAvatarModel',
-                    title: 'Gestionar modelo 3D',
+                    command: 'codeXR.collaboration.showAvatarModelInfo',
+                    title: 'Show 3D model information',
                 },
-                new vscode.ThemeIcon(configuration.avatarModelAvailable ? 'check' : 'cloud-download'),
+                new vscode.ThemeIcon(configuration.avatarModelAvailable ? 'package' : 'circle-slash'),
                 configuration.avatarModelAvailable
-                    ? 'El modelo descargado se reutiliza en todos los analisis.'
-                    : 'Descarga opcional de 2.16 MiB. Sin ella se usa el avatar procedural.',
+                    ? 'Ships with CodeXR — nothing to download. Click for credits and license.'
+                    : 'Missing from this installation; the procedural avatar is used instead.',
             ),
         ];
     }

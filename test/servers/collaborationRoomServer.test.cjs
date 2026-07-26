@@ -305,6 +305,38 @@ test('collaboration room server uses authoritative sessions and scopes profile u
     }
 });
 
+test('collaboration room server hands every participant a distinct avatar colour', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const first = new WebSocket(url);
+    const second = new WebSocket(url);
+    const third = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(first), waitForOpen(second), waitForOpen(third)]);
+        const firstJoin = await joinRoom(first, 'codexr-session:colours');
+        const secondJoin = await joinRoom(second, 'codexr-session:colours');
+        const thirdJoin = await joinRoom(third, 'codexr-session:colours');
+
+        // Nobody picked a colour, so nobody should share one.
+        const assigned = [firstJoin, secondJoin, thirdJoin]
+            .map((join) => join.joined.payload.participant.avatarId);
+        assert.equal(new Set(assigned).size, 3, `expected distinct colours, got ${assigned.join(', ')}`);
+        assigned.forEach((avatarId) => assert.match(avatarId, /^avatar-[1-6]$/));
+
+        // The room resolves 'auto' rather than leaking the sentinel outwards.
+        const summaries = collaboration.getConnectedParticipants('codexr-session:colours');
+        assert.equal(summaries.length, 3);
+        summaries.forEach((participant) => assert.notEqual(participant.avatarId, 'auto'));
+        assert.equal(new Set(summaries.map((p) => p.avatarId)).size, 3);
+    } finally {
+        first.close();
+        second.close();
+        third.close();
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
 test('collaboration room server restricts administration and promotes the oldest guest', async () => {
     const { server, collaboration, url } = await createCollaborationServer();
     const host = new WebSocket(url);

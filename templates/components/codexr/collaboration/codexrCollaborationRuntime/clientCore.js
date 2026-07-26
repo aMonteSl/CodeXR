@@ -151,7 +151,7 @@
         shared.profile = {
           identityMode: profile.identityMode === 'custom' && customName ? 'custom' : 'anonymous',
           customName,
-          avatarId: /^avatar-[1-6]$/.test(profile.avatarId) ? profile.avatarId : DEFAULT_PROFILE.avatarId,
+          avatarId: /^(avatar-[1-6]|auto)$/.test(profile.avatarId) ? profile.avatarId : DEFAULT_PROFILE.avatarId,
         };
       }
       global.CodeXRAvatarRuntime?.configureAsset?.({

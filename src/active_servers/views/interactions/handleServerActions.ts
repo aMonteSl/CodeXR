@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { ActiveServer } from '../../model/activeServerModel';
 import { getActiveServerRegistry } from '../../registry/activeServerRegistry';
@@ -5,6 +6,17 @@ import { ServerControl } from '../../runtime/serverControl';
 import { PreviewRenderer } from '../../../servers/runtime/previewRenderer';
 import { NetworkUtils } from '../../../servers/utils/networkUtils';
 import { RemoteAccessManager } from '../../../remote_access';
+import { ServerSettingsManager } from '../../../servers/storage/serverSettingsManager';
+import { COLLABORATION_AVATARS, ConnectedParticipantSummary } from '../../../collaboration';
+import type { PairingRequestSummary } from '../../../remote_access/security/remoteSessionAuthority';
+import { DetailRow, formatDetailSections, formatDuration } from '../../../utils/detailDialog';
+
+/** Minimal shape needed to hand out pairing codes; kept structural so the
+ *  handler does not depend on the concrete server runtime class. */
+interface PairingAuthority {
+    listPendingPairingRequests(): PairingRequestSummary[];
+    regeneratePairingCode(requestId: string): { code: string; expiresAt: number };
+}
 
 /**
  * Server Action Handlers
@@ -190,19 +202,19 @@ export class ServerActionHandlers {
         const protocol = server.url.startsWith('https') ? 'https' : 'http';
         const lanUrl = `${protocol}://${NetworkUtils.getLocalIPAddress()}:${server.port}`;
         await vscode.env.clipboard.writeText(lanUrl);
-        vscode.window.showInformationMessage(`Direccion de red copiada: ${lanUrl}`);
+        vscode.window.showInformationMessage(`Network address copied: ${lanUrl}`);
     }
 
     public static async startRemoteAccess(serverId: string): Promise<void> {
         const manager = RemoteAccessManager.getInstance();
         if (!manager) {
-            throw new Error('El gestor de acceso remoto no está inicializado.');
+            throw new Error('The remote access manager is not initialized.');
         }
         const state = await manager.startSharing(serverId);
         if (state.status === 'shared' && state.invitationUrl) {
             await vscode.env.clipboard.writeText(state.invitationUrl);
             vscode.window.showInformationMessage(
-                'Servidor compartido mediante Cloudflare. El enlace de invitación se ha copiado al portapapeles.',
+                'Server shared through Cloudflare. The invitation link has been copied to the clipboard.',
             );
         }
     }
@@ -210,7 +222,7 @@ export class ServerActionHandlers {
     public static async copyRemoteInvitation(serverId: string): Promise<void> {
         const manager = RemoteAccessManager.getInstance();
         if (!manager) {
-            throw new Error('El gestor de acceso remoto no está inicializado.');
+            throw new Error('The remote access manager is not initialized.');
         }
         await manager.copyInvitation(serverId);
     }
@@ -218,22 +230,128 @@ export class ServerActionHandlers {
     public static async stopRemoteAccess(serverId: string): Promise<void> {
         const manager = RemoteAccessManager.getInstance();
         if (!manager) {
-            throw new Error('El gestor de acceso remoto no está inicializado.');
+            throw new Error('The remote access manager is not initialized.');
         }
         await manager.stopSharing(serverId);
     }
 
+    /**
+     * Show a modal with the details of one connected participant
+     */
+    public static async showParticipantDetails(serverId: string, peerId: string): Promise<void> {
+        const server = getActiveServerRegistry().getServer(serverId);
+        const runtime = server?.serverInstance as
+            | { getConnectedParticipants?: () => ConnectedParticipantSummary[] }
+            | undefined;
+        const participants = typeof runtime?.getConnectedParticipants === 'function'
+            ? runtime.getConnectedParticipants()
+            : [];
+        const participant = participants.find((candidate) => candidate.peerId === peerId);
+
+        if (!participant) {
+            vscode.window.showInformationMessage('This participant is no longer connected.');
+            return;
+        }
+
+        const avatar = COLLABORATION_AVATARS.find((candidate) => candidate.id === participant.avatarId);
+        const connectedAt = new Date(participant.connectedAt);
+        const connectedFor = Number.isNaN(connectedAt.getTime())
+            ? participant.connectedAt
+            : `${connectedAt.toLocaleTimeString()} · ${this.formatDuration(Date.now() - connectedAt.getTime())} ago`;
+
+        const detail = this.formatDetailSections([
+            [
+                ['Name', participant.displayName],
+                ['Role', participant.role === 'host' ? 'Host' : 'Guest'],
+                ['Avatar', avatar?.label || participant.avatarId],
+            ],
+            [
+                ['Client', participant.clientKind === 'codexr' ? 'CodeXR' : 'Browser'],
+                ['Connection', participant.connectionScope === 'remote' ? 'Remote (cross-network)' : 'Local network'],
+                ['IP address', participant.remoteAddress],
+                ['Connected', connectedFor],
+            ],
+        ]);
+
+        await vscode.window.showInformationMessage(
+            `Participant — ${participant.displayName}`,
+            { modal: true, detail },
+        );
+    }
+
+    /**
+     * Issue a new pairing code for a waiting guest, invalidating the old one
+     */
+    public static async regeneratePairingCode(serverId: string): Promise<void> {
+        const server = getActiveServerRegistry().getServer(serverId);
+        const runtime = server?.serverInstance as
+            | { getRemoteSessionAuthority?: () => PairingAuthority }
+            | undefined;
+        const authority = typeof runtime?.getRemoteSessionAuthority === 'function'
+            ? runtime.getRemoteSessionAuthority()
+            : undefined;
+
+        if (!authority) {
+            vscode.window.showWarningMessage('This server does not support remote access.');
+            return;
+        }
+
+        const pending = authority.listPendingPairingRequests();
+        if (pending.length === 0) {
+            vscode.window.showInformationMessage('Nobody is waiting to connect right now.');
+            return;
+        }
+
+        let requestId = pending[0].requestId;
+        if (pending.length > 1) {
+            const selection = await vscode.window.showQuickPick(
+                pending.map((request) => ({
+                    label: request.displayName,
+                    description: request.remoteAddress,
+                    detail: request.codeValid
+                        ? 'Waiting for the code'
+                        : 'Their code was invalidated by a failed attempt',
+                    requestId: request.requestId,
+                })),
+                { title: 'Generate new pairing code', placeHolder: 'Who is trying to connect?' },
+            );
+            if (!selection) {
+                return;
+            }
+            requestId = selection.requestId;
+        }
+
+        // The authority emits a pairing-request event, which drives the toast
+        // that shows the new code to the host.
+        authority.regeneratePairingCode(requestId);
+    }
+
     public static async showRemoteStatus(serverId: string): Promise<void> {
-        const state = getActiveServerRegistry().getServer(serverId)?.remoteAccess;
+        const server = getActiveServerRegistry().getServer(serverId);
+        const state = server?.remoteAccess;
+        const title = server
+            ? `Cross-network connection — ${this.getServerLabel(server)}`
+            : 'Cross-network connection';
+
         const detail = state
-            ? [
-                `Estado: ${state.status}`,
-                `Solicitudes pendientes: ${state.pendingRequests}`,
-                state.publicUrl ? `URL pública: ${state.publicUrl}` : '',
-                state.error ? `Error: ${state.error}` : '',
-            ].filter(Boolean).join('\n')
-            : 'Estado: detenido';
-        await vscode.window.showInformationMessage('Acceso remoto de CodeXR', { modal: true, detail });
+            ? this.formatDetailSections([
+                [
+                    ['Status', this.formatRemoteStatus(state, false)],
+                    ['Pending', state.status === 'shared'
+                        ? this.formatPendingRequests(state.pendingRequests)
+                        : undefined],
+                ],
+                [
+                    ['Invitation', state.invitationUrl],
+                    ['Public URL', state.publicUrl],
+                ],
+                [
+                    ['Error', state.error],
+                ],
+            ])
+            : this.formatDetailSections([[['Status', 'Not shared']]]);
+
+        await vscode.window.showInformationMessage(title, { modal: true, detail });
     }
 
     /**
@@ -300,12 +418,17 @@ export class ServerActionHandlers {
         }
 
         const details = this.formatServerDetails(server);
-        
+
         console.log(`ACTIVE_SERVER: Displaying detailed information for server ${serverId}`);
         await vscode.window.showInformationMessage(
-            `Server Information - ${server.url}`,
+            `Server Information — ${this.getServerLabel(server)}`,
             { modal: true, detail: details }
         );
+    }
+
+    /** Friendly server name used as dialog titles. @private */
+    private static getServerLabel(server: ActiveServer): string {
+        return server.customName?.trim() || `localhost:${server.port}`;
     }
 
     /**
@@ -373,7 +496,7 @@ export class ServerActionHandlers {
         action: string;
     }> {
         const isHttp = server.certMode === 'http';
-        
+
         const actions = [
             {
                 label: 'Open in Browser',
@@ -382,37 +505,8 @@ export class ServerActionHandlers {
             }
         ];
 
-        if (server.remoteAccess?.status === 'shared' || server.remoteAccess?.status === 'starting') {
-            actions.push(
-                {
-                    label: 'Copiar invitación remota',
-                    description: 'Copiar el enlace temporal protegido',
-                    action: 'copyRemoteInvitation',
-                },
-                {
-                    label: 'Estado remoto',
-                    description: 'Ver solicitudes pendientes y estado del túnel',
-                    action: 'remoteStatus',
-                },
-                {
-                    label: 'Detener conexión remota',
-                    description: 'Cerrar el túnel y revocar las sesiones remotas',
-                    action: 'stopRemoteAccess',
-                },
-            );
-        } else {
-            actions.push({
-                label: 'Iniciar conexión remota',
-                description: 'Publicar temporalmente mediante Cloudflare Quick Tunnel',
-                action: 'startRemoteAccess',
-            });
-            if (server.remoteAccess?.status === 'error') {
-                actions.push({
-                    label: 'Ver error remoto',
-                    description: server.remoteAccess.error || 'Error de túnel',
-                    action: 'remoteStatus',
-                });
-            }
+        if (this.isRemoteAccessRelevant(server)) {
+            this.appendRemoteActions(actions, server);
         }
 
         // Add lateral panel option only for HTTP servers
@@ -443,6 +537,63 @@ export class ServerActionHandlers {
         );
 
         return actions;
+    }
+
+    /**
+     * Mirror of the tree rule: remote entries appear only when the global
+     * cross-network setting is enabled, or a tunnel is already active.
+     */
+    private static isRemoteAccessRelevant(server: ActiveServer): boolean {
+        const status = server.remoteAccess?.status || 'stopped';
+        if (status !== 'stopped') {
+            return true;
+        }
+        try {
+            return ServerSettingsManager.getInstance().getServerSettings().remoteAccess.enabled;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Append the remote-access QuickPick entries for the server's tunnel state
+     */
+    private static appendRemoteActions(
+        actions: Array<{ label: string; description: string; action: string }>,
+        server: ActiveServer,
+    ): void {
+        if (server.remoteAccess?.status === 'shared' || server.remoteAccess?.status === 'starting') {
+            actions.push(
+                {
+                    label: 'Copy remote invitation',
+                    description: 'Copy the protected temporary link',
+                    action: 'copyRemoteInvitation',
+                },
+                {
+                    label: 'Remote status',
+                    description: 'View pending requests and tunnel status',
+                    action: 'remoteStatus',
+                },
+                {
+                    label: 'Stop remote connection',
+                    description: 'Close the tunnel and revoke the remote sessions',
+                    action: 'stopRemoteAccess',
+                },
+            );
+        } else {
+            actions.push({
+                label: 'Start remote connection',
+                description: 'Publish temporarily through a Cloudflare Quick Tunnel',
+                action: 'startRemoteAccess',
+            });
+            if (server.remoteAccess?.status === 'error') {
+                actions.push({
+                    label: 'View remote error',
+                    description: server.remoteAccess.error || 'Tunnel error',
+                    action: 'remoteStatus',
+                });
+            }
+        }
     }
 
     /**
@@ -491,52 +642,101 @@ export class ServerActionHandlers {
      * @private
      */
     private static formatServerDetails(server: ActiveServer): string {
-        const uptimeMs = Date.now() - server.timestamp;
-        const uptime = this.formatUptime(uptimeMs);
-        
-        let details = '';
-        details += `URL: ${server.url}\\n`;
-        details += `Port: ${server.port}\\n`;
-        details += `Status: ${server.status}\\n`;
-        details += `Security: ${server.certMode.toUpperCase()}\\n`;
-        details += `Launch Mode: ${server.launchMode}\\n`;
-        details += `Uptime: ${uptime}\\n`;
-        
-        if (server.htmlFile) {
-            const fileName = server.htmlFile.split('/').pop() || server.htmlFile;
-            details += `Serving File: ${fileName}\\n`;
+        const metadata = (server.metadata || {}) as Record<string, unknown>;
+        const remote = server.remoteAccess;
+        const protocol = server.certMode === 'http' ? 'http' : 'https';
+        const lanUrl = `${protocol}://${NetworkUtils.getLocalIPAddress()}:${server.port}`;
+
+        return this.formatDetailSections([
+            [
+                ['Status', `${this.formatServerStatus(server)} · up ${this.formatDuration(Date.now() - server.timestamp)}`],
+                ['Address', server.url],
+                ['Network', lanUrl],
+                ['Port', String(server.port)],
+                ['Security', this.formatCertMode(server.certMode)],
+                ['Mode', server.launchMode === 'browser' ? 'Browser' : 'Panel'],
+            ],
+            [
+                ['Serving', server.htmlFile ? path.basename(server.htmlFile) : undefined],
+                ['Folder', this.shortenPath(String(metadata.staticRoot || ''))],
+                ['Type', metadata.serverType ? String(metadata.serverType) : undefined],
+                ['Details', metadata.description ? String(metadata.description) : undefined],
+            ],
+            [
+                ['Cross-network', remote && remote.status !== 'stopped'
+                    ? this.formatRemoteStatus(remote)
+                    : undefined],
+                ['Invitation', remote?.invitationUrl],
+            ],
+        ]);
+    }
+
+    /** @private */
+    private static formatDetailSections(sections: DetailRow[][]): string {
+        return formatDetailSections(sections);
+    }
+
+    /** @private */
+    private static formatServerStatus(server: ActiveServer): string {
+        return server.status.charAt(0).toUpperCase() + server.status.slice(1);
+    }
+
+    /** @private */
+    private static formatCertMode(certMode: ActiveServer['certMode']): string {
+        switch (certMode) {
+            case 'https-default':
+                return 'HTTPS (self-signed)';
+            case 'https-custom':
+                return 'HTTPS (custom certificate)';
+            default:
+                return 'HTTP';
         }
-        
-        if (server.metadata) {
-            if (server.metadata.host) {
-                details += `Host: ${server.metadata.host}\\n`;
-            }
-            if (server.metadata.staticRoot) {
-                details += `Static Root: ${server.metadata.staticRoot}\\n`;
-            }
-            if (server.metadata.description) {
-                details += `Description: ${server.metadata.description}\\n`;
-            }
+    }
+
+    /** @private */
+    private static formatRemoteStatus(
+        state: NonNullable<ActiveServer['remoteAccess']>,
+        withPending = true,
+    ): string {
+        if (state.status === 'error') {
+            return `Error · ${state.error || 'tunnel failed'}`;
         }
-        
-        return details;
+        if (state.status === 'starting') {
+            return 'Starting...';
+        }
+        if (state.status === 'shared') {
+            return withPending && state.pendingRequests > 0
+                ? `Shared · ${this.formatPendingRequests(state.pendingRequests)}`
+                : 'Shared';
+        }
+        return 'Not shared';
+    }
+
+    /** @private */
+    private static formatPendingRequests(count: number): string {
+        if (count === 0) {
+            return 'None';
+        }
+        return count === 1 ? '1 request waiting' : `${count} requests waiting`;
     }
 
     /**
-     * Format uptime duration
+     * Keep long paths readable: leading segments collapse into an ellipsis.
      * @private
      */
-    private static formatUptime(milliseconds: number): string {
-        const seconds = Math.floor(milliseconds / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        } else {
-            return `${seconds}s`;
+    private static shortenPath(value: string, keepSegments = 2): string | undefined {
+        if (!value) {
+            return undefined;
         }
+        const segments = value.split(/[\\/]/).filter(Boolean);
+        if (segments.length <= keepSegments) {
+            return value;
+        }
+        return `…${path.sep}${segments.slice(-keepSegments).join(path.sep)}`;
+    }
+
+    /** @private */
+    private static formatDuration(milliseconds: number): string {
+        return formatDuration(milliseconds);
     }
 }

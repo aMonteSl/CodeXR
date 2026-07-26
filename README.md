@@ -22,12 +22,13 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 [![HTTPS](https://img.shields.io/badge/HTTPS-Supported-green)](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts)
 [![Node.js](https://img.shields.io/badge/Node.js-16%2B-green)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue)](https://www.python.org/)
-[![Documentation](https://img.shields.io/badge/Docs-Official%20Website-blue)](https://amontesl.github.io/code-xr-docs/)
+[![Documentation](https://img.shields.io/badge/Docs-Official%20Website-blue)](https://code-xr.adrianmonteslinares.com/)
+[![Author](https://img.shields.io/badge/Author-adrianmonteslinares.com-lightgrey)](https://adrianmonteslinares.com/)
 [![Support](https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
 
 ## Official Documentation
 
-**Visit our comprehensive documentation website: [https://amontesl.github.io/code-xr-docs/](https://amontesl.github.io/code-xr-docs/)**
+**Visit our comprehensive documentation website: [https://code-xr.adrianmonteslinares.com/](https://code-xr.adrianmonteslinares.com/)**
 
 Our official documentation includes:
 - **Complete Installation Guide** - Step-by-step setup instructions
@@ -655,6 +656,13 @@ This project is licensed under the **GNU General Public License v3.0 (GPLv3)** -
 **Experience your code like never before with CodeXR v1.2.0 - Where comprehensive code analysis meets extended reality!**
 
 Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
+
+## About the Author
+
+CodeXR is created and maintained by **Adrián Montes Linares**.
+
+- Website: [https://adrianmonteslinares.com/](https://adrianmonteslinares.com/)
+- CodeXR site: [https://code-xr.adrianmonteslinares.com/](https://code-xr.adrianmonteslinares.com/)
 
 ## Support CodeXR Development
 

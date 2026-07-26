@@ -62,7 +62,59 @@ test('remote session authority pairs once per code and keeps invitation links re
     ));
 });
 
-test('remote session authority binds pairing attempts to an address and limits failures', () => {
+test('remote session authority binds pairing attempts to an address and burns a code on the first miss', () => {
+    const RemoteSessionAuthority = loadAuthority();
+    const authority = new RemoteSessionAuthority();
+    const invitationToken = authority.createInvitation();
+    const createdEvents = [];
+    const failures = [];
+    authority.onPairingRequest((event) => createdEvents.push(event));
+    authority.onPairingFailed((event) => failures.push(event));
+    const request = authority.createPairingRequest({
+        invitationToken,
+        remoteAddress: '198.51.100.20',
+        installationId: 'installation-secure',
+        profile: profile(),
+    });
+
+    // A correct code from the wrong address is rejected without consuming the code.
+    assert.throws(
+        () => authority.confirmPairing(request.requestId, createdEvents[0].code, '198.51.100.21'),
+        /invalid-pairing-code/,
+    );
+    assert.equal(failures.length, 0);
+
+    // The first wrong guess burns the code and warns the host exactly once.
+    assert.throws(
+        () => authority.confirmPairing(request.requestId, '999999', '198.51.100.20'),
+        /invalid-pairing-code/,
+    );
+    assert.equal(failures.length, 1);
+    assert.equal(failures[0].requestId, request.requestId);
+    assert.equal(failures[0].reason, 'invalid-code');
+    assert.equal(failures[0].remoteAddress, '198.51.100.20');
+
+    // The burnt code stays dead even when the right digits arrive, and repeated
+    // submissions do not spam the host with more warnings.
+    assert.throws(
+        () => authority.confirmPairing(request.requestId, createdEvents[0].code, '198.51.100.20'),
+        /pairing-code-revoked/,
+    );
+    assert.throws(
+        () => authority.confirmPairing(request.requestId, '111111', '198.51.100.20'),
+        /pairing-code-revoked/,
+    );
+    assert.equal(failures.length, 1);
+
+    // The request survives so the host can hand over a replacement.
+    const pending = authority.listPendingPairingRequests();
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0].requestId, request.requestId);
+    assert.equal(pending[0].codeValid, false);
+    assert.equal(pending[0].displayName, 'Host');
+});
+
+test('remote session authority regenerates pairing codes and invalidates the previous one', () => {
     const RemoteSessionAuthority = loadAuthority();
     const authority = new RemoteSessionAuthority();
     const invitationToken = authority.createInvitation();
@@ -70,23 +122,33 @@ test('remote session authority binds pairing attempts to an address and limits f
     authority.onPairingRequest((event) => createdEvents.push(event));
     const request = authority.createPairingRequest({
         invitationToken,
-        remoteAddress: '198.51.100.20',
-        installationId: 'installation-secure',
-        profile: profile(),
+        remoteAddress: '198.51.100.30',
+        installationId: 'installation-regen',
+        profile: profile('Padme'),
     });
+    const originalCode = createdEvents[0].code;
+
+    const regenerated = authority.regeneratePairingCode(request.requestId);
+    assert.equal(createdEvents.length, 2);
+    assert.equal(createdEvents[1].requestId, request.requestId);
+    assert.equal(createdEvents[1].regenerated, true);
+    assert.equal(createdEvents[1].displayName, 'Padme');
+    assert.equal(createdEvents[1].code, regenerated.code);
+    assert.notEqual(regenerated.code, originalCode);
+
+    // The superseded code no longer pairs, the fresh one does.
     assert.throws(
-        () => authority.confirmPairing(request.requestId, createdEvents[0].code, '198.51.100.21'),
+        () => authority.confirmPairing(request.requestId, originalCode, '198.51.100.30'),
         /invalid-pairing-code/,
     );
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-        assert.throws(
-            () => authority.confirmPairing(request.requestId, '999999', '198.51.100.20'),
-            /invalid-pairing-code/,
-        );
-    }
+    const afterBurn = authority.regeneratePairingCode(request.requestId);
+    const paired = authority.confirmPairing(request.requestId, afterBurn.code, '198.51.100.30');
+    assert.ok(paired.extensionToken);
+    assert.equal(authority.listPendingPairingRequests().length, 0);
+
     assert.throws(
-        () => authority.confirmPairing(request.requestId, '999999', '198.51.100.20'),
-        /pairing-attempts-exceeded/,
+        () => authority.regeneratePairingCode('not-a-real-request'),
+        /pairing-expired/,
     );
 });
 

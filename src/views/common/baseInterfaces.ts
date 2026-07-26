@@ -41,7 +41,10 @@ export class ModularTreeItem extends vscode.TreeItem {
         | 'participants-group'
         | 'participant-item'
         | 'actions-group'
-        | 'action-item';
+        | 'action-item'
+        | 'remote-group'
+        | 'collaboration-group'
+        | 'collaboration-item';
     public activeServer?: any;
     
     // Babia Examples-specific properties for compatibility
@@ -57,11 +60,9 @@ export class ModularTreeItem extends vscode.TreeItem {
     public originalAnalysisItem?: any;
     
     // Visualization Settings-specific properties for compatibility
-    public visualizationSettingsItemType?: 'settings-field' | 'error';
+    public visualizationSettingsItemType?: 'settings-field' | 'error' | 'reset-action';
     public originalSettingsItem?: any;
 
-    public collaborationItemType?: 'identity' | 'name' | 'avatar' | 'asset' | 'info';
-    
     constructor(
         label: string,
         collapsibleState: vscode.TreeItemCollapsibleState,

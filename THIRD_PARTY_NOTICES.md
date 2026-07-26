@@ -11,7 +11,8 @@ This project uses third-party software components. This file lists key third-par
 - License: MIT
 
 Usage in this project:
-- Loaded in XR/DOM templates from the official A-Frame CDN releases.
+- Loaded in XR/DOM templates from the official A-Frame CDN releases (1.7.1).
+- Loaded by the bundled example scenes in `examples/charts/*` from the same CDN (1.0.4).
 
 ### 2) aframe-babia-components (BabiaXR components)
 - Project: aframe-babia-components
@@ -20,7 +21,9 @@ Usage in this project:
 - License: GNU General Public License v3.0 (GPL-3.0)
 
 Usage in this project:
-- Loaded in XR/DOM templates from unpkg CDN.
+- Loaded in XR/DOM templates from unpkg CDN (1.3.4).
+- Loaded by the bundled example scenes in `examples/charts/*` from unpkg CDN (unpinned).
+- Credited in-product: the `About BabiaXR` entry in the BABIA EXAMPLES view opens a dialog with these libraries, their licenses and links.
 
 ### 3) Lizard
 - Project: Lizard
@@ -30,18 +33,18 @@ Usage in this project:
 Usage in this project:
 - Used by the analysis tooling for cyclomatic complexity and code metrics.
 
-### 4) Quaternius Animated Base Character
-- Creator: Quaternius
-- Distribution page: https://poly.pizza/m/cwYvO5UauX
-- Asset URL: https://static.poly.pizza/0b65e14d-a349-44cc-836c-efdeb6933d48.glb
-- License: Creative Commons Attribution 3.0 (CC BY 3.0)
-- License terms: https://creativecommons.org/licenses/by/3.0/
+### 4) Robot Expressive
+- Creator: Tomás Laulhé (https://www.patreon.com/quaternius), modified by Don McCurdy
+- Distribution page: https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive
+- Asset URL: https://raw.githubusercontent.com/mrdoob/three.js/b924f0cad4058dc4dde71445c796980c3cd5b5ed/examples/models/gltf/RobotExpressive/RobotExpressive.glb
+- License: Creative Commons Zero 1.0 Universal (CC0 1.0, public domain dedication)
+- License terms: https://creativecommons.org/publicdomain/zero/1.0/
 
 Usage in this project:
-- The model is not included in the CodeXR extension package.
-- CodeXR shows the source, license, and 2.16 MiB download size in VS Code before asking the user for consent.
-- When accepted, the extension stores one animated base model in its global storage and reuses it for every analysis and all six visual skins.
-- When declined or offline, CodeXR uses its own procedural avatar instead.
+- The model **is included** in the CodeXR extension package (`resources/avatars/robot-expressive.glb`, 463,988 bytes). Its CC0 public domain dedication places no restriction on redistribution.
+- Nothing is downloaded for the avatar: the extension serves the bundled file to its own local scenes and reuses it for every analysis and all six visual skins.
+- Credit is surfaced in-product: the `3D Model` entry in the COLLABORATION view opens a dialog with the author, license and links to the source page and licence text.
+- If the file is missing from an installation, CodeXR falls back to its own procedural avatar.
 
 ### 5) cloudflared
 - Project: Cloudflare Tunnel client (`cloudflared`)
@@ -55,6 +58,23 @@ Usage in this project:
 - Otherwise, after explicit consent, CodeXR downloads the pinned `2026.5.2` executable once into VS Code global storage and verifies its platform-specific SHA-256 before execution.
 - It is executed without a shell and with a hidden window to create a temporary Cloudflare Quick Tunnel.
 - CodeXR uses an isolated cloudflared home directory and does not alter the user's existing Cloudflare configuration.
+
+### 6) aframe-environment-component
+- Project: aframe-environment-component
+- Source: https://github.com/supermedium/aframe-environment-component
+- License: MIT
+
+Usage in this project:
+- Loaded by the bundled example scenes in `examples/charts/*` from unpkg CDN (1.0.0), to provide the scene backdrop.
+
+### 7) aframe-extras
+- Project: aframe-extras
+- Creator: Don McCurdy
+- Source: https://github.com/c-frame/aframe-extras
+- License: MIT
+
+Usage in this project:
+- Loaded by the bundled example scenes in `examples/charts/*` from the jsDelivr CDN (v6.1.0), for movement and animation controls.
 
 ### 6) Cloudflare STUN
 - Service: Cloudflare Realtime STUN

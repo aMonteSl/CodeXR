@@ -6,12 +6,19 @@ export interface CollaborationProfile {
     avatarId: string;
 }
 
+/**
+ * "Let the room pick a colour nobody else is using." Rooms resolve it to a
+ * concrete avatar id on join, so participants never collide by default.
+ */
+export const AUTO_AVATAR_ID = 'auto';
+
 export const DEFAULT_COLLABORATION_PROFILE: CollaborationProfile = {
     identityMode: 'anonymous',
     customName: '',
-    avatarId: 'avatar-1',
+    avatarId: AUTO_AVATAR_ID,
 };
 
+/** The palette a room allocates from; `auto` is deliberately not a member. */
 export const COLLABORATION_AVATARS = [
     { id: 'avatar-1', label: 'Azure', color: '#38bdf8' },
     { id: 'avatar-2', label: 'Amber', color: '#f59e0b' },
@@ -24,6 +31,12 @@ export const COLLABORATION_AVATARS = [
 export const VALID_AVATAR_IDS = new Set<string>(
     COLLABORATION_AVATARS.map((avatar) => avatar.id),
 );
+
+/** Ids a profile may legitimately carry, including the automatic sentinel. */
+export const ASSIGNABLE_AVATAR_IDS = new Set<string>([
+    AUTO_AVATAR_ID,
+    ...VALID_AVATAR_IDS,
+]);
 
 export function sanitizeCollaborationName(value: unknown): string {
     if (typeof value !== 'string') {
@@ -45,7 +58,7 @@ export function normalizeCollaborationProfile(value: unknown): CollaborationProf
     return {
         identityMode: profile.identityMode === 'custom' && customName ? 'custom' : 'anonymous',
         customName,
-        avatarId: VALID_AVATAR_IDS.has(profile.avatarId || '')
+        avatarId: ASSIGNABLE_AVATAR_IDS.has(profile.avatarId || '')
             ? profile.avatarId!
             : DEFAULT_COLLABORATION_PROFILE.avatarId,
     };
