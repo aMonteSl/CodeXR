@@ -124,3 +124,62 @@ test('guest pairing pages stay self-contained for the response CSP', () => {
     assert.doesNotMatch(pairingPage, /@import/);
     assert.doesNotMatch(pairingPage, /url\(\s*["']?(https?:|data:)/);
 });
+
+test('the host can remove a guest from the participant modal and the tree context menu', () => {
+    const actions = readProjectFile(
+        'src', 'active_servers', 'views', 'interactions', 'handleServerActions.ts',
+    );
+    const commands = readProjectFile(
+        'src', 'active_servers', 'commands', 'activeServersCommands.ts',
+    );
+    const items = readProjectFile(
+        'src', 'views', 'active_servers', 'items', 'activeServerItems.ts',
+    );
+    const manifest = JSON.parse(readProjectFile('package.json'));
+
+    // The details modal offers the action, but never on the host's own row.
+    assert.match(actions, /const REMOVE_PARTICIPANT_ACTION = 'Remove from Session'/);
+    assert.match(actions, /participant\.role === 'host' \? \[\] : \[REMOVE_PARTICIPANT_ACTION\]/);
+    // Removing always goes through an explicit confirmation...
+    assert.match(actions, /showWarningMessage\(\s*`Remove \$\{participant\.displayName\} from the session\?`/);
+    assert.match(actions, /if \(confirmation !== 'Remove'\) \{\s*return;/);
+    // ...and the guest is told what it costs them, per connection scope.
+    assert.match(actions, /Their remote session will be revoked/);
+    assert.match(actions, /outcome\.sessionRevoked/);
+
+    // Guest rows carry their own context value and the participant payload.
+    assert.match(items, /participant\.role === 'host' \? 'activeServerParticipant' : 'activeServerParticipantGuest'/);
+    assert.match(items, /public readonly participant\?: ConnectedParticipantSummary/);
+
+    // The command accepts both call shapes: modal arguments and a tree item.
+    assert.match(commands, /id: 'codeXR\.activeServers\.removeParticipant'/);
+    assert.match(commands, /extractParticipantFromTreeItem/);
+
+    // Contributed, and shown only on guest rows.
+    const contributed = manifest.contributes.commands
+        .find((command) => command.command === 'codeXR.activeServers.removeParticipant');
+    assert.ok(contributed, 'removeParticipant must be a contributed command');
+    assert.equal(contributed.title, 'Remove from Session');
+    const menuEntry = manifest.contributes.menus['view/item/context']
+        .find((entry) => entry.command === 'codeXR.activeServers.removeParticipant');
+    assert.ok(menuEntry, 'removeParticipant must be in the tree context menu');
+    assert.match(menuEntry.when, /viewItem == activeServerParticipantGuest/);
+});
+
+test('participant removal is server-authoritative and revokes remote sessions', () => {
+    const room = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationRoomServer.ts');
+    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const authority = readProjectFile('src', 'remote_access', 'security', 'remoteSessionAuthority.ts');
+
+    // Both kick paths share one wire format, so browsers cannot tell them apart.
+    assert.match(room, /public removeParticipant\(roomId: string, peerId: string\): ParticipantRemovalResult/);
+    assert.match(room, /private disconnectRemovedPeer\(/);
+    assert.match(room, /type: 'participant-kick'/);
+    assert.match(room, /socket\.close\(4001, 'Removed by room host'\)/);
+
+    // The room reports the session; the server owns revoking it.
+    assert.doesNotMatch(room, /revokeSession/);
+    assert.match(httpServer, /result\.removed && result\.remote && !!result\.sessionId/);
+    assert.match(httpServer, /this\.remoteSessionAuthority\.revokeSession\(result\.sessionId\)/);
+    assert.match(authority, /public revokeSession\(sessionId: string\): boolean/);
+});

@@ -23,6 +23,13 @@ import { ProjectEvolutionBridge } from './analysis/projectEvolutionBridge';
 /**
  * HTTP Server Configuration
  */
+/** What the host learns after removing a participant from the session. */
+export interface ParticipantRemovalOutcome {
+    removed: boolean;
+    /** True when the guest also lost their remote session (re-pairing needed). */
+    sessionRevoked: boolean;
+}
+
 export interface HttpServerConfig {
     port: number;
     host?: string;
@@ -251,6 +258,27 @@ export class HttpServer {
 
     public getConnectedParticipants(): ConnectedParticipantSummary[] {
         return this.collaborationRoomServer?.getConnectedParticipants(this.sessionApi.getCollaborationRoomId()) || [];
+    }
+
+    /**
+     * Disconnect one participant on the host's behalf. A remote guest also
+     * loses their session, so the removal cannot be undone by reloading the
+     * invitation link; local-network guests keep no session to revoke.
+     */
+    public removeParticipant(peerId: string): ParticipantRemovalOutcome {
+        if (!this.collaborationRoomServer) {
+            return { removed: false, sessionRevoked: false };
+        }
+
+        const result = this.collaborationRoomServer.removeParticipant(
+            this.sessionApi.getCollaborationRoomId(),
+            peerId,
+        );
+        const sessionRevoked = result.removed && result.remote && !!result.sessionId
+            ? this.remoteSessionAuthority.revokeSession(result.sessionId)
+            : false;
+
+        return { removed: result.removed, sessionRevoked };
     }
 
     public onConnectedParticipantsChanged(

@@ -164,6 +164,25 @@ export class ActiveServersCommands {
                 errorMessage: 'Failed to show participant details'
             },
             {
+                id: 'codeXR.activeServers.removeParticipant',
+                module: 'ACTIVE_SERVER',
+                description: 'Remove a participant from the session',
+                handler: async (target: unknown, peerIdArgument?: string) => {
+                    // Invoked either from the details modal (serverId, peerId)
+                    // or from the tree context menu (the participant row).
+                    const participantTarget = typeof target === 'string' && peerIdArgument
+                        ? { serverId: target, peerId: peerIdArgument }
+                        : this.extractParticipantFromTreeItem(target);
+                    if (participantTarget) {
+                        await ServerActionHandlers.removeParticipant(
+                            participantTarget.serverId,
+                            participantTarget.peerId,
+                        );
+                    }
+                },
+                errorMessage: 'Failed to remove the participant',
+            },
+            {
                 id: 'codeXR.activeServers.stopAllServers',
                 module: 'ACTIVE_SERVER',
                 description: 'Stop all active servers',
@@ -200,6 +219,26 @@ export class ActiveServersCommands {
         ];
     }
 
+    private static extractParticipantFromTreeItem(
+        treeItem: unknown,
+    ): { serverId: string; peerId: string } | null {
+        if (typeof treeItem !== 'object' || treeItem === null) {
+            return null;
+        }
+        const item = treeItem as {
+            activeServer?: { id?: string };
+            server?: { id?: string };
+            participant?: { peerId?: string };
+        };
+        const serverId = item.activeServer?.id || item.server?.id;
+        const peerId = item.participant?.peerId;
+        if (!serverId || !peerId) {
+            console.error('ACTIVE_SERVER: Could not extract participant from tree item:', treeItem);
+            return null;
+        }
+        return { serverId, peerId };
+    }
+
     private static extractServerIdFromTreeItem(treeItem: unknown): string | null {
         if (typeof treeItem === 'object' && treeItem !== null && 'server' in treeItem) {
             const server = (treeItem as { server?: { id?: string } }).server;
@@ -233,6 +272,7 @@ export class ActiveServersCommands {
             stopServer: 'codeXR.activeServers.stopServer',
             showDetails: 'codeXR.activeServers.showDetails',
             showParticipantDetails: 'codeXR.activeServers.showParticipantDetails',
+            removeParticipant: 'codeXR.activeServers.removeParticipant',
             stopAllServers: 'codeXR.activeServers.stopAllServers',
             refreshServers: 'codeXR.activeServers.refreshServers',
             openView: 'codeXR.activeServers.openView'

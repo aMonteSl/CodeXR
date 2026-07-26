@@ -2,6 +2,12 @@
 
 ## [1.2.0] - Unreleased
 
+### Added — The host can remove a participant from VS Code
+
+- **The participant dialog in ACTIVE SERVERS → Connected users now offers `Remove from Session`**, next to Close, and the same action is on the right-click menu of the participant row. Until now the list was read-only: removing somebody was only possible from the host's own browser scene. The host's own row never offers it.
+- **Removal is confirmed first**, and the dialog says what it costs: a cross-network guest **loses their remote session** and needs a new invitation and pairing code to come back; a local-network guest can reopen the server address, so the dialog says so instead of implying a block.
+- The removed browser shows the "Removed from session" screen and stops reconnecting; their avatar disappears for everyone else and the row leaves the tree on its own.
+
 ### Added — Guests are told when the session ends
 
 - **When the host stops the server, every connected browser now shows a full-page "Session ended — The host closed the session." screen** instead of silently retrying forever: the room server sends a `session-ended` farewell over the collaboration socket before closing each connection (close code 4002), and the client stops its reconnect loop for good. If the viewer is immersed in VR, the scene exits VR first so the message is actually visible.

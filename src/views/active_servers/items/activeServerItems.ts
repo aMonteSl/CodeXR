@@ -31,7 +31,9 @@ export class ActiveServerTreeItem extends vscode.TreeItem {
         tooltip?: string,
         description?: string,
         contextValue?: string,
-        public readonly activeServer?: ActiveServer
+        public readonly activeServer?: ActiveServer,
+        /** Set on participant rows, so context-menu actions know the target. */
+        public readonly participant?: ConnectedParticipantSummary,
     ) {
         super(label, collapsibleState);
         this.command = command;
@@ -264,8 +266,11 @@ export class ActiveServerItemFactory {
                     'Click to view details',
                 ].join('\n'),
                 `${avatarLabel} | ${client} | ${scope}`,
-                'activeServerParticipant',
+                // Guests get their own context value: it is what keeps the
+                // remove action off the host's own row.
+                participant.role === 'host' ? 'activeServerParticipant' : 'activeServerParticipantGuest',
                 server,
+                participant,
             );
         });
     }
