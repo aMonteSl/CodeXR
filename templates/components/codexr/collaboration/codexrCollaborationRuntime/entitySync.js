@@ -35,6 +35,13 @@
           shared.kicked = true;
           shared.socket?.close();
           setError({ code: 'removed', message: 'The room host removed this connection.' });
+          showDisconnectScreen('removed');
+          return;
+        case 'session-ended':
+          shared.sessionEnded = true;
+          shared.socket?.close();
+          setConnectionStatus('ended');
+          showDisconnectScreen('host-closed');
           return;
         case 'presenter-started':
           upsertParticipant(message.payload);

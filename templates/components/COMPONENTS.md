@@ -56,6 +56,8 @@ its parts directory. Manual harnesses load assembled copies from
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`
   - Owns shared presence, identity, avatars, pointers and collaboration entities.
+  - Terminal disconnects show a full-page screen (`disconnectScreen.js` part) and stop
+    the reconnect loop: `session-ended` (host stopped the server) and `participant-kick`.
 - `codexr/avatar/codexrAvatarRuntime.js`
   - Owns avatar rendering, the bundled glTF avatar asset (auto-fitted to a human
     height), per-player colour tinting and the billboarded name tags.

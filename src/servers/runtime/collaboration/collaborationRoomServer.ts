@@ -150,7 +150,15 @@ export class CollaborationRoomServer {
 
         for (const peer of this.peers.values()) {
             try {
-                peer.socket.close();
+                // Tell browsers this is a deliberate shutdown, not a network
+                // drop, so they can show the session-ended screen instead of
+                // reconnecting forever.
+                this.send(peer, {
+                    type: 'session-ended',
+                    roomId: peer.roomId || undefined,
+                    payload: { reason: 'host-closed' },
+                });
+                peer.socket.close(4002, 'Session closed by host');
             } catch {
                 // Best-effort cleanup.
             }

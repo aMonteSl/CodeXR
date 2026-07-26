@@ -462,3 +462,38 @@ test('collaboration room server keeps one presenter and lets the host stop anoth
         await new Promise((resolve) => server.close(resolve));
     }
 });
+
+test('disposing the room server announces session-ended to every peer before closing their sockets', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const guest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest)]);
+        await joinRoom(host, 'codexr-session:alpha');
+        await joinRoom(guest, 'codexr-session:alpha');
+
+        const hostEnded = waitForMessage(host, (payload) => payload.type === 'session-ended');
+        const guestEnded = waitForMessage(guest, (payload) => payload.type === 'session-ended');
+        const guestClosed = new Promise((resolve) => guest.once('close', (code) => resolve(code)));
+
+        collaboration.dispose();
+
+        const [hostMessage, guestMessage] = await Promise.all([hostEnded, guestEnded]);
+        assert.equal(hostMessage.payload.reason, 'host-closed');
+        assert.equal(guestMessage.payload.reason, 'host-closed');
+        assert.equal(hostMessage.roomId, 'codexr-session:alpha');
+        // The deliberate-shutdown close code, distinct from the kick (4001).
+        assert.equal(await guestClosed, 4002);
+    } finally {
+        for (const socket of [host, guest]) {
+            try {
+                socket.close();
+            } catch {
+                // Already closed by the dispose under test.
+            }
+        }
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});

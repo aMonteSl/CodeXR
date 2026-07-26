@@ -238,3 +238,111 @@ test('avatar assets are enabled only by the extension configuration and load onc
     assert.equal(await manager.load(), 'blob:codexr-avatar');
     assert.equal(fetchCount, 1);
 });
+
+test('a session-ended message shows the disconnect screen once and stops the reconnect loop', async () => {
+    const sockets = [];
+    const timeouts = [];
+
+    function createFakeElement(tag) {
+        return {
+            tagName: String(tag || '').toUpperCase(),
+            id: '',
+            style: {},
+            children: [],
+            textContent: '',
+            appendChild(child) {
+                this.children.push(child);
+                return child;
+            },
+            setAttribute() {},
+        };
+    }
+    const body = createFakeElement('body');
+    function findById(node, id) {
+        if (node.id === id) {
+            return node;
+        }
+        for (const child of node.children || []) {
+            const hit = findById(child, id);
+            if (hit) {
+                return hit;
+            }
+        }
+        return null;
+    }
+    function FakeWebSocket(url) {
+        this.url = url;
+        this.readyState = 0;
+        this.closed = false;
+        sockets.push(this);
+    }
+    FakeWebSocket.prototype.send = function () {};
+    FakeWebSocket.prototype.close = function () {
+        this.closed = true;
+    };
+    FakeWebSocket.OPEN = 1;
+    FakeWebSocket.CONNECTING = 0;
+
+    const fakeWindow = {
+        document: {
+            body,
+            readyState: 'complete',
+            createElement: createFakeElement,
+            getElementById(id) {
+                return findById(body, id);
+            },
+            querySelector() {
+                return null;
+            },
+            addEventListener() {},
+            dispatchEvent() {
+                return true;
+            },
+        },
+        location: { protocol: 'http:', host: '127.0.0.1:7777' },
+        WebSocket: FakeWebSocket,
+        CustomEvent: class {
+            constructor(type, init) {
+                this.type = type;
+                this.detail = init && init.detail;
+            }
+        },
+        addEventListener() {},
+        setTimeout(fn, ms) {
+            timeouts.push({ fn, ms });
+            return timeouts.length;
+        },
+        clearTimeout() {},
+        console: { log() {}, warn() {}, error() {} },
+    };
+
+    const client = collaborationRuntime.createClient(fakeWindow);
+    client.connect({ presenceEnabled: false, cursorPresenceEnabled: false });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(sockets.length, 1, 'connect should open one socket');
+    const socket = sockets[0];
+
+    socket.onmessage({ data: JSON.stringify({ type: 'session-ended', payload: { reason: 'host-closed' } }) });
+
+    const state = client.getState();
+    assert.equal(state.sessionEnded, true);
+    assert.equal(state.connectionStatus, 'ended');
+    assert.equal(socket.closed, true, 'the client should close its own socket');
+
+    const screen = findById(body, 'codexrDisconnectScreen');
+    assert.ok(screen, 'the disconnect screen should be on the page');
+    const texts = screen.children.map((child) => child.textContent);
+    assert.ok(texts.includes('Session ended'), `missing title, got: ${texts.join(' | ')}`);
+    assert.ok(texts.includes('The host closed the session.'), `missing message, got: ${texts.join(' | ')}`);
+
+    // The socket close that follows must not schedule a reconnect...
+    socket.onclose({ code: 4002 });
+    assert.equal(timeouts.length, 0, 'no reconnect may be scheduled after session-ended');
+    assert.equal(client.getState().connectionStatus, 'ended');
+
+    // ...and a duplicate message must not stack a second screen.
+    socket.onmessage({ data: JSON.stringify({ type: 'session-ended', payload: { reason: 'host-closed' } }) });
+    const screens = body.children.filter((child) => child.id === 'codexrDisconnectScreen');
+    assert.equal(screens.length, 1);
+});

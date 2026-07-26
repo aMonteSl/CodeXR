@@ -2,6 +2,11 @@
 
 ## [1.2.0] - Unreleased
 
+### Added — Guests are told when the session ends
+
+- **When the host stops the server, every connected browser now shows a full-page "Session ended — The host closed the session." screen** instead of silently retrying forever: the room server sends a `session-ended` farewell over the collaboration socket before closing each connection (close code 4002), and the client stops its reconnect loop for good. If the viewer is immersed in VR, the scene exits VR first so the message is actually visible.
+- **Being removed by the host shows the same screen** ("The room host removed you from this session.") — previously a kick was only visible in the browser console.
+
 ### Changed — Internal: the analysis server was split by responsibility
 
 - **`src/servers/runtime/httpServer.ts` (2,102 lines) was refactored into focused modules** — response helpers and static assets (`http/`), remote pairing and authorization (`remote/`), the collaboration session API (`collaboration/`), and the analysis feature host, bridges and message router (`analysis/`) — with `HttpServer` remaining the façade and composition root. No behavior change: a 39-entry characterization transcript (every route family, the full pairing journey, WebSocket rooms and shutdown) is byte-identical before and after.
