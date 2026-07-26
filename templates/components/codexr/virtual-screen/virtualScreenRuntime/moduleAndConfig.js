@@ -102,6 +102,8 @@
       broadcastUnavailable: 'Live broadcasting requires HTTPS or localhost.',
       broadcastError: 'Unable to connect the live broadcast.',
       iceFailed: 'The shared screen could not cross this network (restrictive NAT). Collaboration remains active.',
+      relayFallback: 'Direct connection unavailable, switching to the server relay...',
+      relayCapacity: 'This shared screen already has the maximum number of remote viewers.',
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
       audioUnlock: 'Enable Audio',
@@ -335,6 +337,12 @@
         sourceKind: '',
       },
       broadcastRegistered: false,
+      // Media relayed through the server, for viewers peer-to-peer cannot
+      // reach (see relayTransport.js). sender: encoders + pumps; receiver:
+      // decoders drawing into a canvas that feeds the usual video texture.
+      relaySender: null,
+      relayReceiver: null,
+      remoteFrameWatchTimer: null,
       destroyed: false,
       sharedTransformTimer: null,
       managerCallbacks: null,

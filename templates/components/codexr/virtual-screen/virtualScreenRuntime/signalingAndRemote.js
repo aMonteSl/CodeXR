@@ -34,8 +34,13 @@
           void startViewerConnection(message.broadcasterId || '');
           return;
         case 'broadcast-stopped':
-          if (state.streamSourceType === 'remote') {
-            detachRemoteBroadcast(refs.config.labels.broadcastStopped, { notifyServer: false });
+          if (state.streamSourceType === 'remote' || message.reason === 'relay-capacity') {
+            detachRemoteBroadcast(
+              message.reason === 'relay-capacity'
+                ? refs.config.labels.relayCapacity
+                : refs.config.labels.broadcastStopped,
+              { notifyServer: false },
+            );
           } else if (state.streamSourceType === 'local') {
             setBroadcastState('sender', 'idle');
           }
@@ -62,6 +67,20 @@
           return;
         case 'viewer-join':
           void handleViewerJoin(message.viewerId || '');
+          return;
+        // Relay control: the server routes viewers it knows peer-to-peer
+        // cannot reach (see relayTransport.js).
+        case 'relay-start':
+          startRelaySender();
+          return;
+        case 'relay-keyframe':
+          requestRelayKeyframe();
+          return;
+        case 'relay-stop':
+          stopRelaySender();
+          return;
+        case 'relay-ready':
+          startRelayReceiver(message);
           return;
         case 'signal-offer':
           void applyRemoteOffer(message.clientId || '', message.description);
@@ -91,6 +110,8 @@
       }
 
       const socket = new win.WebSocket(signalingUrl);
+      // Relayed media arrives on this same socket as binary frames.
+      socket.binaryType = 'arraybuffer';
       refs.signalingSocket = socket;
       refs.broadcastRegistered = false;
 
@@ -104,6 +125,10 @@
       };
 
       socket.onmessage = function (event) {
+        if (event.data instanceof win.ArrayBuffer) {
+          handleRelayFrame(event.data);
+          return;
+        }
         try {
           handleSignalMessage(JSON.parse(event.data));
         } catch (_error) {
@@ -142,6 +167,7 @@
 
       refs.activeBroadcasterId = '';
       closeAllPeerConnections();
+      stopRelayReceiver();
       refs.remoteStream = null;
 
       if (state.streamSourceType === 'remote') {
@@ -190,6 +216,7 @@
         reason: message || refs.config.labels.broadcastStopped,
       });
       closeAllPeerConnections();
+      stopRelaySender();
       const shouldMinimize = options?.minimizeAfterStop === true;
       releaseStream(true);
       state.hasAudio = false;

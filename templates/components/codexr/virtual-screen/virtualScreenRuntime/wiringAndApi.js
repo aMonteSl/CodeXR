@@ -179,6 +179,8 @@
       }
       stopCapture('Virtual screen closed.', { minimizeAfterStop: false });
       closeAllPeerConnections();
+      stopRelaySender();
+      stopRelayReceiver();
       closeSignalingSocket();
       getCollaborationClient()?.unregisterEntityRuntime?.('screen', getScreenId());
       if (refs.root?.parentElement) {

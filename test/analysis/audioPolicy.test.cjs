@@ -106,7 +106,40 @@ test('plugin-owned audio APIs stay scoped to screen sharing broadcast only', () 
     assert.match(runtimeSource, /\bsystemAudio: 'include'/);
     assert.match(runtimeSource, /\bwindowAudio: 'system'/);
     assert.doesNotMatch(runtimeSource, /\bnew\s+(?:win\.)?Audio\s*\(/);
-    assert.doesNotMatch(runtimeSource, /\b(?:webkit)?AudioContext\b/);
     assert.doesNotMatch(runtimeSource, /\b(?:createOscillator|oscillator)\b/);
     assert.doesNotMatch(runtimeSource, /\b(?:speechSynthesis|SpeechSynthesisUtterance)\b/);
+});
+
+test('the Web Audio API is only ever a sink for relayed capture, never a sound source', () => {
+    // The rule this protects is "CodeXR never produces sound of its own": no
+    // synthesis, no bundled clips, only the capture the host chose to share.
+    // Relayed audio arrives as encoded packets, so it has to be decoded and
+    // pushed into a MediaStream before the existing <audio> element can play
+    // it — that sink is the single allowed use of Web Audio, and it lives in
+    // one part file so this stays easy to audit.
+    const partsDirectory = allowedBroadcastAudioDir;
+    const offenders = walkFiles(partsDirectory)
+        .filter((filePath) => path.extname(filePath) === '.js')
+        .filter((filePath) => /\b(?:webkit)?AudioContext\b/.test(fs.readFileSync(filePath, 'utf8')))
+        .map(toProjectRelative);
+
+    assert.deepEqual(
+        offenders,
+        ['templates/components/codexr/virtual-screen/virtualScreenRuntime/relayTransport.js'],
+        'Web Audio may only appear in the relay transport',
+    );
+
+    const relaySource = readProjectFile(
+        'templates', 'components', 'codexr', 'virtual-screen', 'virtualScreenRuntime', 'relayTransport.js',
+    );
+    // A sink: decoded remote samples go out through a MediaStream destination,
+    // which is what the existing remote-audio element plays.
+    assert.match(relaySource, /createMediaStreamDestination\(\)/);
+    assert.match(relaySource, /source\.connect\(destination\)/);
+    // And never a generator.
+    assert.doesNotMatch(relaySource, /\b(?:createOscillator|createConstantSource|speechSynthesis)\b/);
+    assert.doesNotMatch(relaySource, /\bnew\s+(?:win\.)?Audio\s*\(/);
+    // The samples come from the decoder, not from anything the plugin invents.
+    assert.match(relaySource, /function playRelayAudio\(receiver, audioData\)/);
+    assert.match(relaySource, /audioData\.copyTo\(samples, \{ planeIndex: channel, format: 'f32-planar' \}\)/);
 });

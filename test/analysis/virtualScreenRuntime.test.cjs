@@ -426,3 +426,76 @@ test('collision bumpers stop look-at, drag, and resize at walls and screens', ()
     const xrTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
     assert.match(xrTemplate, /"anchoredPosition":\{"x":0,"y":4\.2,"z":-22\}/);
 });
+
+// ── Relay transport: media for viewers peer-to-peer cannot reach ─────────────
+
+test('the relay wire format matches the one the server relays and validates', () => {
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+
+    // Header layout has to agree on both ends or every frame is dropped.
+    assert.match(runtimeSource, /const RELAY_HEADER_BYTES = 12;/);
+    assert.match(serverSource, /const FRAME_HEADER_BYTES = 12;/);
+    assert.match(runtimeSource, /const RELAY_MAGIC_0 = 0x43;/);
+    assert.match(serverSource, /const FRAME_MAGIC_0 = 0x43;/);
+    assert.match(runtimeSource, /const RELAY_MAGIC_1 = 0x58;/);
+    assert.match(serverSource, /const FRAME_MAGIC_1 = 0x58;/);
+    // The server only ever drops delta video under backpressure, and the
+    // runtime must be numbering its kinds the same way for that to be true.
+    assert.match(runtimeSource, /videoDelta: 2,/);
+    assert.match(serverSource, /const FRAME_KIND_VIDEO_DELTA = 2;/);
+    assert.match(serverSource, /frame\[FRAME_KIND_OFFSET\] === FRAME_KIND_VIDEO_DELTA/);
+});
+
+test('the relay picks WebCodecs when available and whole images when not', () => {
+    // Encoded path: VP8 video plus Opus audio, both from track processors.
+    assert.match(runtimeSource, /function hasWebCodecs\(\)/);
+    assert.match(runtimeSource, /typeof win\.VideoEncoder === 'function'/);
+    assert.match(runtimeSource, /typeof win\.MediaStreamTrackProcessor === 'function'/);
+    assert.match(runtimeSource, /codec: 'vp8'/);
+    assert.match(runtimeSource, /codec: 'opus'/);
+    // Fallback path for browsers without WebCodecs.
+    assert.match(runtimeSource, /function startImagePump\(/);
+    assert.match(runtimeSource, /'image\/jpeg', RELAY_IMAGE_QUALITY/);
+    // Latency over fluidity: frames are skipped rather than queued.
+    assert.match(runtimeSource, /if \(encoder\.encodeQueueSize > 2\) \{/);
+    // The decoded picture reaches the existing texture through a canvas stream,
+    // so nothing downstream needs to know the media was relayed.
+    assert.match(runtimeSource, /canvas\.captureStream\(30\)/);
+    assert.match(runtimeSource, /updateVideoSource\(receiver\.stream\)/);
+});
+
+test('a viewer is only live once a real frame arrives, and falls back to the relay if none does', () => {
+    // ontrack no longer declares success by itself: that was the black screen.
+    const ontrack = runtimeSource.match(/connection\.ontrack = function[\s\S]*?\n        \};/)?.[0] || '';
+    assert.ok(ontrack, 'the viewer ontrack handler should still exist');
+    assert.match(ontrack, /setBroadcastState\('viewer', 'connecting'\)/);
+    assert.doesNotMatch(ontrack, /setBroadcastState\('viewer', 'live'\)/);
+    assert.match(ontrack, /watchForFirstRemoteFrame\(\)/);
+
+    // Live is declared by the frame watcher and by the relay painter, nowhere else.
+    assert.match(runtimeSource, /function markPeerBroadcastLive\(\)/);
+    assert.match(runtimeSource, /function markRelayLive\(receiver\)/);
+    assert.match(runtimeSource, /requestVideoFrameCallback/);
+    // Without media, the viewer asks the server to relay instead of waiting forever.
+    assert.match(runtimeSource, /const PEER_FIRST_FRAME_TIMEOUT_MS = 6000;/);
+    assert.match(runtimeSource, /type: 'relay-request'/);
+});
+
+test('relayed media is torn down with the broadcast, on both ends', () => {
+    // Encoders and decoders outliving their broadcast would keep encoding into
+    // the void and hold the capture alive.
+    assert.match(runtimeSource, /function stopRelaySender\(\)/);
+    assert.match(runtimeSource, /function stopRelayReceiver\(\)/);
+    // Viewer leaving a broadcast, and the screen being destroyed.
+    const detach = runtimeSource.match(/function detachRemoteBroadcast[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(detach, /stopRelayReceiver\(\);/);
+    // The sender stops when capture stops.
+    const stopCapture = runtimeSource.match(/function stopCapture[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(stopCapture, /stopRelaySender\(\);/);
+    // The socket carrying the frames must be in binary mode or every frame
+    // arrives as an unparseable string.
+    assert.match(runtimeSource, /socket\.binaryType = 'arraybuffer';/);
+    assert.match(runtimeSource, /if \(event\.data instanceof win\.ArrayBuffer\) \{\s*handleRelayFrame\(event\.data\);/);
+});

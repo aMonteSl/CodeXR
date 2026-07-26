@@ -52,6 +52,11 @@ its parts directory. Manual harnesses load assembled copies from
 - `codexr/virtual-screen/virtualScreenRuntime.js`
   - Owns a shared virtual screen and screen broadcast interaction. Also the base for screen subtypes: `contentKind: 'fixed'` + `registerContentProvider(id, build)` hosts immutable locally-rendered content (no video surface, no share button) while inheriting chrome, drag/resize, follow and the shared `screen` entity.
   - Collision bumpers: look-at, drag and resize stop at the room shell (bounds derived from the `codexr-room` entity, `collisionBounds` override) and at other screens; dragging slides along obstacles. `collisionEnabled: false` opts out.
+  - Media transport is chosen per viewer: same network → direct WebRTC; through the
+    tunnel → frames relayed by the server (`relayTransport.js` part, VP8/Opus via
+    WebCodecs, JPEG images where WebCodecs is missing). A viewer only reports `live`
+    once a real frame is painted, and a direct connection that delivers nothing for
+    6 s falls back to the relay.
 - `codexr/virtual-screen/codexrMultiScreenManagerRuntime.js`
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`

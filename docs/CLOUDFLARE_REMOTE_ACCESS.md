@@ -97,6 +97,33 @@ Esto no convierte Quick Tunnel en infraestructura con garantías:
 La versión pública debe presentar la función como **best effort**. Un fallo del
 túnel no debe afectar al análisis local ni provocar pérdida de datos.
 
+## Pantalla compartida a través del túnel
+
+La pantalla compartida no puede viajar de navegador a navegador cuando los dos
+extremos están en redes distintas: sin un servidor TURN, el emparejamiento
+WebRTC no atraviesa un NAT simétrico o CGNAT. CodeXR no usa servicios de
+terceros para esto, así que **el vídeo y el audio de los invitados remotos los
+retransmite el propio servidor de la extensión** por el WebSocket
+`/codexr-broadcast`, que ya pasa por el túnel.
+
+El transporte se decide por espectador, a partir de su propia petición:
+
+| Espectador | Transporte | Motivo |
+|---|---|---|
+| Misma red | WebRTC directo | Menor latencia, no consume el enlace del anfitrión |
+| Por el túnel | Retransmisión por el servidor | Es la única ruta que siempre le llega |
+
+Codificación: VP8 + Opus mediante WebCodecs donde existe (Chrome, Edge,
+navegador de Quest); donde no, imágenes JPEG a ~8 fps **sin audio**, y la
+pantalla lo indica en su estado.
+
+**Coste de ancho de banda**: cada espectador remoto consume una copia del flujo
+**subiendo desde la máquina del anfitrión** (~1,5 Mbps de vídeo). Por eso el
+número de espectadores retransmitidos simultáneos está limitado a 4: al
+superarlo, el servidor lo dice en lugar de degradar la sesión de todos. Los
+fotogramas delta se descartan si el enlace de un espectador se satura; los
+keyframes y el audio nunca.
+
 ## Evolución recomendada
 
 Para escenarios estables o institucionales se contemplan dos caminos:

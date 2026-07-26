@@ -1,4 +1,7 @@
 // == virtualScreenRuntime.js | webrtcPeers (assembled per manifest.json; see COMPONENTS.md) ==
+    /** How long a peer-to-peer viewer waits for real media before relaying. */
+    const PEER_FIRST_FRAME_TIMEOUT_MS = 6000;
+
     function classifyCaptureError(error) {
       const name = error?.name || '';
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
@@ -142,10 +145,13 @@
           state.hasAudio = typeof stream.getAudioTracks === 'function' && stream.getAudioTracks().length > 0;
           state.currentSourceLabel = refs.config.labels.receiving;
           state.presentationMode = 'expanded';
-          setBroadcastState('viewer', 'live');
           updateVideoSource(stream);
-          setMode('viewing', refs.config.labels.receiving);
-          showChrome();
+          // ontrack only means the track object exists: media has not flowed
+          // yet, and if ICE never connects it never will. Claiming 'live' here
+          // is what used to leave viewers on a silent black screen.
+          setBroadcastState('viewer', 'connecting');
+          updateStatus(refs.config.labels.connecting);
+          watchForFirstRemoteFrame();
         };
       }
 
@@ -172,6 +178,68 @@
       };
 
       return connection;
+    }
+
+    /**
+     * Wait for the first real frame of a peer-to-peer broadcast. If none
+     * arrives — restrictive NAT, blocked UDP — ask the server to relay the
+     * media instead, which is a path every viewer can reach.
+     */
+    function watchForFirstRemoteFrame() {
+      const video = ensureVideoSource();
+      if (!video || refs.remoteFrameWatchTimer) {
+        return;
+      }
+
+      let settled = false;
+      const settle = function (live) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        if (refs.remoteFrameWatchTimer) {
+          win.clearTimeout(refs.remoteFrameWatchTimer);
+          refs.remoteFrameWatchTimer = null;
+        }
+        if (live) {
+          markPeerBroadcastLive();
+        } else if (state.streamSourceType === 'remote' && state.broadcastStatus !== 'live') {
+          requestRelayFallback();
+        }
+      };
+
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        video.requestVideoFrameCallback(function () {
+          settle(true);
+        });
+      } else {
+        video.addEventListener('playing', function onPlaying() {
+          video.removeEventListener('playing', onPlaying);
+          settle(true);
+        });
+      }
+
+      refs.remoteFrameWatchTimer = win.setTimeout(function () {
+        refs.remoteFrameWatchTimer = null;
+        settle(video.currentTime > 0 && video.readyState >= 2);
+      }, PEER_FIRST_FRAME_TIMEOUT_MS);
+    }
+
+    function markPeerBroadcastLive() {
+      if (state.streamSourceType !== 'remote') {
+        return;
+      }
+      setBroadcastState('viewer', 'live');
+      setMode('viewing', refs.config.labels.receiving);
+      showChrome();
+    }
+
+    function requestRelayFallback() {
+      updateStatus(refs.config.labels.relayFallback);
+      sendSignaling({
+        type: 'relay-request',
+        clientId: getOrCreateClientId(),
+      });
     }
 
     function ensureRemoteBroadcastSubscription(sharedBroadcast) {

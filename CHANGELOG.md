@@ -2,6 +2,13 @@
 
 ## [1.2.0] - Unreleased
 
+### Fixed — Screen sharing now reaches cross-network guests instead of showing black
+
+- **A shared screen was a black rectangle for anyone connected through the tunnel.** The media was sent peer-to-peer over WebRTC with only a STUN server, which cannot cross two different NATs — so no frame ever arrived, while the viewer was told it was "receiving". Guests arriving through the tunnel are now served by **the extension's own server**, over the same WebSocket that already carries the session, so the picture (and the shared audio) reaches them like it does on a local network. Viewers on your own network keep the direct peer-to-peer path, which stays faster and costs you no bandwidth.
+- Encoded with VP8 and Opus where the browser supports WebCodecs (Chrome, Edge, the Quest browser); elsewhere it falls back to images at a lower frame rate, and says so rather than pretending there is audio.
+- **A viewer now only reports "receiving" once a real frame has been painted**, and a direct connection that delivers nothing within six seconds switches itself to the relay. Silent black screens are no longer a possible state: either there is a picture or there is a message.
+- Each remote viewer costs the host one upstream copy of the stream, so the number of relayed viewers per screen is capped at 4 and the extra viewer is told, instead of everyone's session degrading. See `docs/CLOUDFLARE_REMOTE_ACCESS.md`.
+
 ### Added — The host can remove a participant from VS Code
 
 - **The participant dialog in ACTIVE SERVERS → Connected users now offers `Remove from Session`**, next to Close, and the same action is on the right-click menu of the participant row. Until now the list was read-only: removing somebody was only possible from the host's own browser scene. The host's own row never offers it.
