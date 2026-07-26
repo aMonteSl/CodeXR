@@ -52,6 +52,20 @@ its parts directory. Manual harnesses load assembled copies from
 - `codexr/virtual-screen/virtualScreenRuntime.js`
   - Owns a shared virtual screen and screen broadcast interaction. Also the base for screen subtypes: `contentKind: 'fixed'` + `registerContentProvider(id, build)` hosts immutable locally-rendered content (no video surface, no share button) while inheriting chrome, drag/resize, follow and the shared `screen` entity.
   - Collision bumpers: look-at, drag and resize stop at the room shell (bounds derived from the `codexr-room` entity, `collisionBounds` override) and at other screens; dragging slides along obstacles. `collisionEnabled: false` opts out.
+  - Media transport is chosen per viewer: same network → direct WebRTC; through the
+    tunnel → frames relayed by the server (`relayTransport.js` part, VP8/Opus via
+    WebCodecs, JPEG images where WebCodecs is missing). A viewer only reports `live`
+    once a real frame is painted, and a direct connection that delivers nothing for
+    6 s falls back to the relay.
+  - The relay encodes **once** for the whole audience: extra viewers only ask for a
+    keyframe. Quality follows the audience size (the same encoder is reconfigured,
+    never duplicated) and three temporal layers let the server thin the stream for a
+    congested viewer alone. There is no viewer cap — see `docs/CLOUDFLARE_REMOTE_ACCESS.md`
+    for what it costs the host's uplink.
+  - Ownership invariant: **only the sender publishes broadcast fields on the room's
+    screen entity**; a viewer's connection failures stay its own. Viewers that join
+    before broadcast-start are parked by the server (`viewer-waiting`) and served the
+    moment it starts; a stuck viewer re-joins itself on a bounded watchdog.
 - `codexr/virtual-screen/codexrMultiScreenManagerRuntime.js`
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`

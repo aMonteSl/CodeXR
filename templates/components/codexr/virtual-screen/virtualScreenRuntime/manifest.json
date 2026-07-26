@@ -6,6 +6,7 @@
     "visibilityAndLayout.js",
     "sharedState.js",
     "webrtcPeers.js",
+    "relayTransport.js",
     "signalingAndRemote.js",
     "followAndTransform.js",
     "pointerAndDrag.js",

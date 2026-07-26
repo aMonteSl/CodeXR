@@ -97,6 +97,58 @@ Esto no convierte Quick Tunnel en infraestructura con garantías:
 La versión pública debe presentar la función como **best effort**. Un fallo del
 túnel no debe afectar al análisis local ni provocar pérdida de datos.
 
+## Pantalla compartida a través del túnel
+
+La pantalla compartida no puede viajar de navegador a navegador cuando los dos
+extremos están en redes distintas: sin un servidor TURN, el emparejamiento
+WebRTC no atraviesa un NAT simétrico o CGNAT. CodeXR no usa servicios de
+terceros para esto, así que **el vídeo y el audio de los invitados remotos los
+retransmite el propio servidor de la extensión** por el WebSocket
+`/codexr-broadcast`, que ya pasa por el túnel.
+
+El transporte se decide por espectador, a partir de su propia petición:
+
+| Espectador | Transporte | Motivo |
+|---|---|---|
+| Misma red | WebRTC directo | Menor latencia, no consume el enlace del anfitrión |
+| Por el túnel | Retransmisión por el servidor | Es la única ruta que siempre le llega |
+
+Codificación: VP8 + Opus mediante WebCodecs donde existe (Chrome, Edge,
+navegador de Quest); donde no, imágenes JPEG a ~8 fps **sin audio**, y la
+pantalla lo indica en su estado.
+
+### Una sola emisión, muchos suscriptores
+
+El navegador que comparte **codifica una vez y sube una sola copia** al
+servidor, por muchos espectadores que haya: el segundo y siguientes solo piden
+un keyframe para engancharse. Lo que sí se multiplica es el reparto: cada
+espectador remoto tiene su propia conexión por el túnel, así que **salen N
+copias por la subida del anfitrión**. Sin un servidor de medios externo esa
+multiplicación es inherente, y CodeXR no usa terceros ni credenciales.
+
+Por eso no hay un tope de espectadores, sino una **calidad que se adapta a la
+audiencia** — el mismo codificador se reconfigura, nunca se duplica:
+
+| Espectadores remotos | Vídeo | Subida aproximada del anfitrión |
+|---|---|---|
+| 1-2 | 1,5 Mbps, 1280 px | 1,5-3 Mbps |
+| 3-6 | 800 kbps, 960 px | 2,4-4,8 Mbps |
+| 7-14 | 500 kbps, 768 px | 3,5-7 Mbps |
+| 15+ | 350 kbps, 640 px, ~12 fps | 5 Mbps y subiendo |
+
+Orden de magnitud realista: con fibra doméstica (≈10 Mbps de subida) caben del
+orden de **15-25 espectadores** en los escalones bajos; con ADSL, unos pocos. El
+anfitrión ve en su pantalla cuántos espectadores hay y cuánta subida están
+costando, así que la decisión de invitar a más gente es informada.
+
+**Degradación por espectador, sin codificar de más**: el vídeo se codifica en
+tres capas temporales (WebCodecs `scalabilityMode`). Si la conexión de alguien
+se satura, el servidor le quita primero la capa superior —ve menos fps— y solo
+si sigue atascado le retiene los demás fotogramas delta. Keyframes, audio y
+configuración nunca se descartan, así que ese espectador se recupera solo y
+**nadie más se entera**. Donde el navegador no soporte capas, el flujo sigue
+siendo válido, simplemente de una sola capa.
+
 ## Evolución recomendada
 
 Para escenarios estables o institucionales se contemplan dos caminos:

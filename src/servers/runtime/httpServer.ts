@@ -564,6 +564,9 @@ export class HttpServer {
             server,
             '/codexr-broadcast',
             (request) => this.policy.isWebSocketAuthorized(request),
+            // Guests arriving through the tunnel cannot be reached peer-to-peer,
+            // so their media is relayed by this server instead.
+            (request) => (this.policy.isRemoteRequest(request) ? 'remote' : 'local'),
         );
     }
 

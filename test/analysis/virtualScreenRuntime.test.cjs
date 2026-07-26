@@ -426,3 +426,184 @@ test('collision bumpers stop look-at, drag, and resize at walls and screens', ()
     const xrTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
     assert.match(xrTemplate, /"anchoredPosition":\{"x":0,"y":4\.2,"z":-22\}/);
 });
+
+// ── Relay transport: media for viewers peer-to-peer cannot reach ─────────────
+
+test('the relay wire format matches the one the server relays and validates', () => {
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+
+    // Header layout has to agree on both ends or every frame is dropped.
+    assert.match(runtimeSource, /const RELAY_HEADER_BYTES = 12;/);
+    assert.match(serverSource, /const FRAME_HEADER_BYTES = 12;/);
+    assert.match(runtimeSource, /const RELAY_MAGIC_0 = 0x43;/);
+    assert.match(serverSource, /const FRAME_MAGIC_0 = 0x43;/);
+    assert.match(runtimeSource, /const RELAY_MAGIC_1 = 0x58;/);
+    assert.match(serverSource, /const FRAME_MAGIC_1 = 0x58;/);
+    // The server only ever drops delta video under backpressure, and the
+    // runtime must be numbering its kinds the same way for that to be true.
+    assert.match(runtimeSource, /videoDelta: 2,/);
+    assert.match(serverSource, /const FRAME_KIND_VIDEO_DELTA = 2;/);
+    assert.match(serverSource, /\(kindByte & FRAME_KIND_MASK\) === FRAME_KIND_VIDEO_DELTA/);
+    // Both ends pack the temporal layer into the same nibble of the same byte.
+    assert.match(runtimeSource, /const RELAY_VERSION = 2;/);
+    assert.match(runtimeSource, /const RELAY_LAYER_SHIFT = 4;/);
+    assert.match(serverSource, /const FRAME_LAYER_SHIFT = 4;/);
+    assert.match(runtimeSource, /\(layer << RELAY_LAYER_SHIFT\) \| \(kind & RELAY_KIND_MASK\)/);
+    assert.match(serverSource, /const temporalLayer = kindByte >> FRAME_LAYER_SHIFT;/);
+});
+
+test('the relay picks WebCodecs when available and whole images when not', () => {
+    // Encoded path: VP8 video plus Opus audio, both from track processors.
+    assert.match(runtimeSource, /function hasWebCodecs\(\)/);
+    assert.match(runtimeSource, /typeof win\.VideoEncoder === 'function'/);
+    assert.match(runtimeSource, /typeof win\.MediaStreamTrackProcessor === 'function'/);
+    assert.match(runtimeSource, /codec: 'vp8'/);
+    assert.match(runtimeSource, /codec: 'opus'/);
+    // Fallback path for browsers without WebCodecs.
+    assert.match(runtimeSource, /function startImagePump\(/);
+    assert.match(runtimeSource, /'image\/jpeg', RELAY_IMAGE_QUALITY/);
+    // Latency over fluidity: frames are skipped rather than queued.
+    assert.match(runtimeSource, /if \(encoder\.encodeQueueSize > 2\) \{/);
+    // The decoded picture reaches the existing texture through a canvas stream,
+    // so nothing downstream needs to know the media was relayed.
+    assert.match(runtimeSource, /canvas\.captureStream\(30\)/);
+    assert.match(runtimeSource, /updateVideoSource\(receiver\.stream\)/);
+});
+
+test('a viewer is only live once a real frame arrives, and falls back to the relay if none does', () => {
+    // ontrack no longer declares success by itself: that was the black screen.
+    const ontrack = runtimeSource.match(/connection\.ontrack = function[\s\S]*?\n        \};/)?.[0] || '';
+    assert.ok(ontrack, 'the viewer ontrack handler should still exist');
+    assert.match(ontrack, /setBroadcastState\('viewer', 'connecting'\)/);
+    assert.doesNotMatch(ontrack, /setBroadcastState\('viewer', 'live'\)/);
+    assert.match(ontrack, /watchForFirstRemoteFrame\(\)/);
+
+    // Live is declared by the frame watcher and by the relay painter, nowhere else.
+    assert.match(runtimeSource, /function markPeerBroadcastLive\(\)/);
+    assert.match(runtimeSource, /function markRelayLive\(receiver\)/);
+    assert.match(runtimeSource, /requestVideoFrameCallback/);
+    // Without media, the viewer asks the server to relay instead of waiting forever.
+    assert.match(runtimeSource, /const PEER_FIRST_FRAME_TIMEOUT_MS = 6000;/);
+    assert.match(runtimeSource, /type: 'relay-request'/);
+});
+
+test('relayed media is torn down with the broadcast, on both ends', () => {
+    // Encoders and decoders outliving their broadcast would keep encoding into
+    // the void and hold the capture alive.
+    assert.match(runtimeSource, /function stopRelaySender\(\)/);
+    assert.match(runtimeSource, /function stopRelayReceiver\(\)/);
+    // Viewer leaving a broadcast, and the screen being destroyed.
+    const detach = runtimeSource.match(/function detachRemoteBroadcast[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(detach, /stopRelayReceiver\(\);/);
+    // The sender stops when capture stops.
+    const stopCapture = runtimeSource.match(/function stopCapture[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(stopCapture, /stopRelaySender\(\);/);
+    // The socket carrying the frames must be in binary mode or every frame
+    // arrives as an unparseable string.
+    assert.match(runtimeSource, /socket\.binaryType = 'arraybuffer';/);
+    assert.match(runtimeSource, /if \(event\.data instanceof win\.ArrayBuffer\) \{\s*handleRelayFrame\(event\.data\);/);
+});
+
+test('one encoder serves the whole audience, reconfigured instead of duplicated', () => {
+    // A second viewer must never start a second encoding.
+    assert.match(runtimeSource, /function startRelaySender\(message\) \{\s*\n\s*\/\/[\s\S]*?\n\s*if \(refs\.relaySender \|\| state\.streamSourceType !== 'local' \|\| !state\.stream\) \{\s*\n\s*return;/);
+    // Audience changes retune that same encoder and resync viewers.
+    assert.match(runtimeSource, /function updateRelayAudience\(message\)/);
+    assert.match(runtimeSource, /sender\.appliedQuality !== sender\.quality/);
+    assert.match(runtimeSource, /encoder\.configure\(buildVideoEncoderConfig\(sender, rawFrame, sender\.temporalLayers\)\);/);
+    assert.match(runtimeSource, /sender\.keyframeRequested = true;/);
+    // Exactly one VideoEncoder is ever constructed.
+    assert.equal((runtimeSource.match(/new win\.VideoEncoder\(/g) || []).length, 1);
+});
+
+test('quality follows the audience down to a floor, because every viewer costs another copy', () => {
+    const tiers = runtimeSource.match(/const RELAY_QUALITY_TIERS = \[[\s\S]*?\];/)?.[0] || '';
+    assert.ok(tiers, 'the quality tiers should exist');
+    // Descending bitrate with a floor, and a widest tier that catches any size.
+    assert.match(tiers, /maxViewers: 2, bitrate: 1500000/);
+    assert.match(tiers, /maxViewers: Infinity, bitrate: 350000/);
+    const bitrates = [...tiers.matchAll(/bitrate: (\d+)/g)].map((match) => Number(match[1]));
+    assert.deepEqual(bitrates, [...bitrates].sort((left, right) => right - left), 'tiers must descend');
+    // The host is told the audience and what it is costing them upstream.
+    assert.match(runtimeSource, /function describeRelayBroadcast\(sender\)/);
+    assert.match(runtimeSource, /Mbps up/);
+});
+
+test('temporal layers are only requested when the browser confirms support', () => {
+    assert.match(runtimeSource, /config\.scalabilityMode = 'L1T3';/);
+    assert.match(runtimeSource, /await win\.VideoEncoder\.isConfigSupported\(layered\)/);
+    assert.match(runtimeSource, /if \(support\?\.supported\) \{\s*\n\s*sender\.temporalLayers = true;/);
+    // Without support the stream is still valid, just single-layer.
+    assert.match(runtimeSource, /sender\.temporalLayers = false;\s*\n\s*return buildVideoEncoderConfig\(sender, rawFrame, false\);/);
+    // The layer of each chunk comes from the encoder, not guessed.
+    assert.match(runtimeSource, /metadata\?\.svc\?\.temporalLayerId \|\| 0/);
+});
+
+test('no viewer is ever refused: the capacity rejection is gone from both ends', () => {
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.doesNotMatch(serverSource, /MAX_RELAY_VIEWERS/);
+    assert.doesNotMatch(serverSource, /relay-capacity/);
+    assert.doesNotMatch(runtimeSource, /relayCapacity/);
+    // Congestion is handled by thinning per viewer instead.
+    assert.match(serverSource, /private shouldThinFrame\(viewer: BroadcastClient, temporalLayer: number\): boolean/);
+    assert.match(serverSource, /const RELAY_THIN_TOP_LAYER_BYTES/);
+    assert.match(serverSource, /const RELAY_THIN_ALL_DELTAS_BYTES/);
+});
+
+test('viewers never publish broadcast state they do not own', () => {
+    // The room's screen entity belongs to the sender. A viewer publishing
+    // active:false from a server message once convinced the whole room a live
+    // broadcast had stopped ("Live sharing stopped" on every guest).
+    const stoppedCase = runtimeSource.match(/case 'broadcast-stopped':[\s\S]*?\n          return;/)?.[0] || '';
+    assert.ok(stoppedCase, 'the broadcast-stopped handler should exist');
+    const publishes = stoppedCase.match(/publishSharedScreenState\(\)/g) || [];
+    assert.equal(publishes.length, 1, 'only one publish, and it belongs to the sender branch');
+    assert.match(stoppedCase, /streamSourceType === 'local'[\s\S]*publishSharedScreenState\(\)/);
+    assert.match(stoppedCase, /skipSharedPublish: true/);
+    // Server-triggered detaches never publish the entity either: both ICE
+    // failure handlers use the exact non-publishing call.
+    assert.equal(
+        (runtimeSource.match(/detachRemoteBroadcast\(message, \{ notifyServer: false, skipSharedPublish: true \}\)/g) || []).length,
+        2,
+    );
+});
+
+test('an early viewer waits instead of giving up, and rejoins are only suppressed per socket', () => {
+    // Parked by the server: still connecting, nothing to tear down.
+    assert.match(runtimeSource, /case 'viewer-waiting':/);
+    // The rejoin guard compares the socket the join went out on, so a
+    // reconnected socket can rejoin instead of hanging on "connecting".
+    assert.match(runtimeSource, /refs\.joinAttemptSocket === refs\.signalingSocket/);
+    assert.match(runtimeSource, /function scheduleViewerJoinWatchdog\(\)/);
+    assert.match(runtimeSource, /const VIEWER_JOIN_RETRY_MS = 5000;/);
+});
+
+test('the relay takes ownership of the session away from the dying direct attempt', () => {
+    // Starting the receiver closes the abandoned peer connections and cancels
+    // the first-frame watchdog...
+    const receiverStart = runtimeSource.match(/function startRelayReceiver[\s\S]*?const canvas = /)?.[0] || '';
+    assert.match(receiverStart, /closeAllPeerConnections\(\);/);
+    assert.match(receiverStart, /refs\.remoteFrameWatchTimer = null;/);
+    // ...and both connection-state handlers stand down once a relay receiver
+    // exists (the guard only appears there, once per handler).
+    assert.equal((runtimeSource.match(/if \(refs\.relayReceiver\) \{\s*\n\s*return;\s*\n\s*\}/g) || []).length, 2);
+});
+
+test('a viewer only reaches live through its own first frame, never the sender snapshot', () => {
+    // The status adoption skips active viewers...
+    assert.match(runtimeSource, /state\.broadcastRole !== 'viewer'\s*\n\s*\) \{\s*\n\s*state\.broadcastStatus = snapshot\.broadcastStatus;/);
+    // ...and applying an active broadcast preserves live only for a viewer
+    // that already earned it.
+    assert.match(runtimeSource, /const alreadyLiveViewer = state\.broadcastRole === 'viewer' && state\.broadcastStatus === 'live';/);
+    // The server, for its part, parks early viewers instead of refusing them.
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.match(serverSource, /private parkViewer\(/);
+    assert.match(serverSource, /type: 'viewer-waiting'/);
+    assert.doesNotMatch(serverSource, /'no-signal'/);
+});

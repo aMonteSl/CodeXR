@@ -2,6 +2,20 @@
 
 ## [1.2.0] - Unreleased
 
+### Fixed — Screen sharing no longer dies with "Live sharing stopped" the moment it starts
+
+- **Starting a share often showed every other participant "connecting…" and then "Live sharing stopped"**, on any network. The screen's state travels over two sockets, and the announcement regularly wins the race: viewers asked to join a broadcast the signaling server hadn't heard of yet, were told it had *stopped*, and — the truly destructive part — one viewer then **published that dead state to the whole room**, knocking every other participant out and preventing any retry.
+- Three structural fixes: **early viewers now wait and are served the moment the broadcast starts** (never told it stopped); **only the sender may publish broadcast state to the room** — a viewer's failures stay its own; and a viewer stuck connecting **re-joins on its own** (bounded retry, and after a socket reconnect the rejoin is no longer suppressed).
+- Also hardened: the fallback to the server relay can no longer be torn down by the dying direct connection it replaces, and a viewer only ever reports "receiving" after its **own** first frame — never because the sender's status said "live".
+
+### Fixed — Screen sharing now reaches cross-network guests instead of showing black
+
+- **A shared screen was a black rectangle for anyone connected through the tunnel.** The media was sent peer-to-peer over WebRTC with only a STUN server, which cannot cross two different NATs — so no frame ever arrived, while the viewer was told it was "receiving". Guests arriving through the tunnel are now served by **the extension's own server**, over the same WebSocket that already carries the session, so the picture (and the shared audio) reaches them like it does on a local network. Viewers on your own network keep the direct peer-to-peer path, which stays faster and costs you no bandwidth.
+- Encoded with VP8 and Opus where the browser supports WebCodecs (Chrome, Edge, the Quest browser); elsewhere it falls back to images at a lower frame rate, and says so rather than pretending there is audio.
+- **A viewer now only reports "receiving" once a real frame has been painted**, and a direct connection that delivers nothing within six seconds switches itself to the relay. Silent black screens are no longer a possible state: either there is a picture or there is a message.
+- **There is no viewer limit.** The browser sharing a screen encodes it **once** and uploads a single copy no matter how many people are watching; extra viewers only ask for a keyframe to join in. What does grow is the fan-out, since every remote viewer has their own connection through the tunnel, so quality follows the audience automatically (1.5 Mbps for one or two people, down to 350 kbps for a crowd) — the same encoder is retuned, never duplicated. The host's screen shows how many people are watching and roughly what it is costing their upload.
+- If one viewer's connection struggles, **only that viewer degrades**: the video carries three temporal layers, so the server thins their stream to a lower frame rate while everyone else keeps the full picture. Keyframes and audio are never dropped, so they recover on their own. See `docs/CLOUDFLARE_REMOTE_ACCESS.md` for the bandwidth table.
+
 ### Added — The host can remove a participant from VS Code
 
 - **The participant dialog in ACTIVE SERVERS → Connected users now offers `Remove from Session`**, next to Close, and the same action is on the right-click menu of the participant row. Until now the list was read-only: removing somebody was only possible from the host's own browser scene. The host's own row never offers it.
