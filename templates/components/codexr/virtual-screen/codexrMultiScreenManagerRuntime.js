@@ -196,9 +196,15 @@
       createWallControls: function () {
         const controlsRoot = document.createElement('a-entity');
         controlsRoot.setAttribute('id', 'codexrWallControls');
-        // Top-anchored at the old panel's top edge (2.2 + 3.8/2).
-        controlsRoot.setAttribute('position', '-8 4.1 -10.5');
-        controlsRoot.setAttribute('rotation', '0 90 0');
+        // Against the back wall, left of the analysis table, facing the
+        // entrance: the panel is in view the moment you walk in, instead of
+        // hanging on the side wall beside the spawn point where you had to
+        // turn to find it. Room is at z=-10 with depth 26, so the back wall
+        // sits at z=-23 and z=-22 keeps the same 1-unit clearance the main
+        // screen uses; the table spans x=-3.3..3.3, so x=-7 clears it.
+        // Top-anchored: refreshPanel grows the panel downwards from here.
+        controlsRoot.setAttribute('position', '-7 4.1 -22');
+        controlsRoot.setAttribute('rotation', '0 0 0');
 
         // Backing plane: refreshPanel resizes it to fit the row count.
         this.panelPlane = document.createElement('a-plane');
