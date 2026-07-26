@@ -49,7 +49,12 @@ const config = {
         {
           from: 'templates',
           to: 'templates',
-          noErrorOnMissing: true
+          noErrorOnMissing: true,
+          // Copied as data, not built: multi-part runtimes under
+          // templates/components/codexr/*/<runtimeBase>/*.js are fragments that
+          // only parse once concatenated per their manifest.json, so the
+          // production minifier must never touch them.
+          info: { minimized: true }
         },
         {
           from: 'examples',

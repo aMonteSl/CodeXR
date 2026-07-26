@@ -2,6 +2,10 @@
 
 ## [1.2.0] - Unreleased
 
+### Fixed — The extension can be packaged again
+
+- **`npm run package:vsix` failed with 29 Terser errors**: the production build minified the multi-part runtime *fragments* copied from `templates/components/codexr/*/`, which only parse once concatenated per their `manifest.json`. Copied templates are now marked as data (`info: { minimized: true }` in the webpack copy pattern), so the minifier skips them while the extension bundle itself stays minified. Verified on the produced `.vsix`: fragments ship byte-identical to their sources, the bundled avatar model is included intact, and `dist/extension.js` remains minified.
+
 ### Changed — CodeXR moves to its own domain, and the author gets a link
 
 - **The documentation link now points at the custom domain** `https://code-xr.adrianmonteslinares.com/` instead of the old GitHub Pages URL — in the LEARN MORE & SUPPORT view, in the README badge and body, and in the `pages/` redirect stub, which would otherwise have kept sending visitors to the previous address.
