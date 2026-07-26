@@ -8,27 +8,64 @@ CodeXR 1.2.0 turns the extension into a shared XR workspace. Three new ways to l
 
 #### Added
 
-**Three new XR analyses.** The analysis table is no longer a single view: an in-scene selector switches between the classic analysis, the **dependency graph**, the **historical comparison** (two versions of the same target side by side on a dual table, with per-metric deltas and added/removed/modified/unchanged counts) and **Project Evolution** (the project as a movie, replaying its own history commit by commit with play/pause, previous/next, speed and a clickable timeline). All three read local Git only — no GitHub or GitLab APIs, no branch switching, no writes to your repository.
+##### Dependency graph — see the architecture, not just the files
 
-**Dependency graph in XR.** A CodeXR component (BabiaXR untouched) that resolves dependencies for the 23 languages of the metric contract: imports, includes, requires, inheritance, implementation and calls, each edge carrying an explicit confidence level. Three layouts computed in a Web Worker — `force-3d`, `hierarchical` and `metric-space` — plus cycle detection, an aggregated portal for external dependencies, per-mode edge encodings with their own legends, and a settings panel whose flow size and speed are shared with everyone in the room.
+The classic analysis answers *how complex is each file*. The dependency graph answers a different question: **what depends on what, and what happens if I touch this**. It is the third mode of the analysis table and it renders the project as a navigable 3D graph.
 
-**New graph metrics**, available to the mapping like any other field: `fanIn`, `fanOut`, `degree`, `dependentCount`, `cycleSize`, `relationCount` and `totalLines` — map them to size, height, colour or position.
+- **How it works.** Language adapters statically extract the relations present in your working directory — imports, includes, requires, inheritance, implementation and calls — across the 23 languages of the metric contract. Each relation declares its own quality: `exact` when the syntax states the dependency outright, `best-effort` when the syntax is there but name resolution may be partial, and `unsupported` when that adapter cannot provide it. Nothing is inferred from complexity metrics, nothing is fetched from GitHub or GitLab, and BabiaXR is left untouched — this is a CodeXR component with its own nodes, edges and layout worker.
+- **Three layouts**, computed in a Web Worker so a large graph never freezes the scene: `force-3d` (a bounded spatial distribution), `hierarchical` (directed levels by incoming dependencies) and `metric-space` (X and Z derived from the metrics you choose, with real axes and readable tick steps).
+- **It stays usable on big projects.** A rendered view is capped at 600 nodes and 2,000 edges; beyond that the graph opens in **group view**, aggregating by the first path segment — summing metrics, merging equivalent edges and dropping the self-edges aggregation would create — and you drill into a group to reach its files. Cycles are detected with strongly connected components and only between internal files, so an external package never invents a cycle in your project.
+- **What you can do in it.** Point at a node to see its path, language and metrics, or at an edge to see its kind, confidence and how many times it occurs; click to pin that card and its highlight. Selecting a node dims everything unrelated so its dependency neighbourhood stands out. Detail cards always face you, in desktop, mobile and immersive XR alike. Hovering and pinning are deliberately local: they never overwrite what another participant is inspecting.
 
-**LivePanel gains two sections.** *Dependency Summary* (node, edge, external and cycle counts, top fan-in/fan-out rankings, external dependencies, cycle groupings, and confidence/capability breakdowns) and *Historical Comparison* (pick any two versions — the live working copy and/or any local branch, tag or commit — and get counts, a metric totals chart and a searchable table of per-item deltas). A comparison with a working-copy side stays live: every incremental re-analysis refreshes it. File comparisons are strictly file-scoped and compare function by function. Every list in both panels now shares one searchable, sortable `DataTable`, and the file panel was modernized to the directory panel's standard.
+##### Graph metrics — what they are for
 
-**Collaboration 2.0 — the people in the room.** Persistent identities (anonymous with a stable alias, or a custom Unicode name), authoritative host/guest roles with automatic promotion and host transfer, and a **bundled animated glTF avatar** (CC0, 0.44 MiB — nothing is downloaded, it works offline from the moment you install). Every participant gets their own colour over the model and a name tag above their head that always turns to face you. The host can inspect any connected participant from VS Code and remove them from the session; guests are told when the host closes it instead of being left staring at a dead scene.
+The graph publishes a metric set per node, and any of them can drive **size, height, colour or X/Z position**. That is the point: mapped to geometry, *"the thing that breaks the most if you touch it"* becomes something you see across the room instead of something you find by reading a table.
 
-**Cross-network sessions.** Any running server can be shared through a per-server Cloudflare Quick Tunnel — off by default, no account and no router configuration. Access is gated by an invitation token plus a six-digit pairing code shown to the host, with expiry, limited attempts, one-use browser tokens, an `HttpOnly` session cookie, per-address rate limits and complete revocation when sharing stops. A wrong code burns itself and warns the host, who can issue a new one in one click. `cloudflared` is pinned to 2026.5.2, downloaded only with consent and verified by SHA-256 before it ever runs.
+- `fanIn` — how many files depend on this one. High fan-in means expensive to change: everyone will feel it.
+- `fanOut` — how many files this one depends on. High fan-out means fragile: it breaks when any of them moves.
+- `degree` and `relationCount` — total coupling and how dense its relations are.
+- `dependentCount` — the direct blast radius of a change.
+- `cycleSize` — the size of the strongly connected component this file belongs to; anything above 1 is a dependency cycle worth untangling.
+- `totalLines` — size, so you can cross it with the rest: a small file with huge fan-in is a very different problem from a large one nobody imports.
 
-**Screen sharing that survives the trip.** Peer-to-peer video cannot cross two different NATs without a TURN server, so guests arriving through the tunnel are served **by your own CodeXR server** over the connection they already have. The browser encodes once for the whole audience (VP8 + Opus via WebCodecs, images where WebCodecs is missing), quality follows the audience size automatically, and temporal layers let one congested viewer degrade alone. There is no viewer limit; the screen tells the host how many people are watching and roughly what it costs their upload.
+##### Historical comparison — what changed between two points in time
 
-**Screen controls with roles.** Each screen offers *Share* when it is free, a green *Join · name* when someone is broadcasting on it and you are not watching, and *Stop/Leave* according to your role. One screen has one broadcaster (enforced by the server, with a clear message naming who holds it) while one person may broadcast different content on several screens.
+Two states of the same target, side by side on one dual table. **Objective:** answer *what did this refactor actually do to the code* without leaving XR and without disturbing your repository.
 
-**An in-room guide screen** — the CodeXR user guide as a fixed-content screen inside the scene, also served as a `guide.html` page — and **collision bumpers**, so screens stop at the room walls and at each other instead of passing through.
+- **How it works.** Pick two sources — the live working copy, a local branch, a remote branch you already have, a tag, or one of the 50 most recent commits. CodeXR materializes temporary snapshots and analyses them: it never runs `checkout` or `fetch`, and never writes inside `.git`, so your active branch, your index and your files are exactly where you left them. It talks to the local `git` binary, not to a hosting provider's API, so GitHub, GitLab, Bitbucket, Gitea or a self-hosted server all work the same — the only requirement is a normal local clone.
+- **What you get.** Both sides keep the chart type and the metric mapping of the original analysis, so the comparison is visually honest instead of two charts drawn by different rules. Alongside them, a comparison card reports added / removed / modified / unchanged counts and a per-metric table with signed deltas. Changing a mapping applies to both sides at once.
 
-**A reorganized VS Code sidebar.** `COLLABORATION` now lives inside `ACTIVE SERVERS` — the servers you host and the session you join in one place. Server rows are organized around the cross-network setting (local address, remote connection, connected users, actions), a click on any connected user opens their details, and every server dialog is a readable native dialog. New entries elsewhere: `Reset to Default` in VISUALIZATION SETTINGS, `About BabiaXR` in BABIA EXAMPLES, a 3D-model attribution card, and `Meet the Creator` in LEARN MORE & SUPPORT.
+##### Project Evolution — the trend, not two snapshots
 
-**A new setting in SERVERS** to enable or disable cross-network connections, which governs whether the tunnel actions appear on your servers at all.
+Where the comparison shows two photographs, Project Evolution plays **the film**: a single full-size chart whose data source walks the project's own history from older commits to recent ones.
+
+- **How it works.** By default CodeXR builds the timeline automatically from local Git history, sampling it **evenly in time** rather than every Nth commit (so a busy week does not eat the whole movie), preferring a merge or a tag when one falls inside a slot, and always anchoring the ends — the first revision, and the current state of the branch as the final frame. You can also pick a **range** between two points, or select frames **manually** in your own order. Long histories are sampled to a bounded number of frames so playback stays usable in a headset.
+- **What you can do.** Play and pause, step to the previous or next frame, change speed, and click anywhere on the timeline to jump. Each frame swaps the chart's data source and waits for the table to settle before advancing, so the result reads as a sequence of stable scenes instead of a flicker of numbers. An overlay above the table names the revision, date and frame you are looking at. The Field Mapping panel stays available while you watch, so you can change chart or metric mid-review, and `Clear movie` resets the mode for everyone in the shared room without touching the normal analysis' data.
+
+##### Cross-network sessions — optional, and never required for VR
+
+**Your headset does not need any of this.** A VR session over your own network is the complete experience: the analysis server already speaks HTTPS for WebXR, and a headset on the same Wi-Fi opens the scene directly. Cross-network exists for the other case — someone who is *not* on your network — and it stays **off by default**.
+
+- **How you connect someone.** Enable cross-network connections in `SERVERS`, then start remote access on the server you want to share. `cloudflared` opens an **outbound** tunnel to Cloudflare — your router never has to accept a new inbound connection, and CodeXR does not publish your IP — and the invitation link lands on your clipboard. Your guest opens it, picks the name they will appear with, and CodeXR shows **you**, in VS Code, a temporary six-digit code with a *Copy code* button. You pass that code to them however you already talk; they type it and they are in.
+- **The code is the gate.** It expires, it allows a limited number of attempts, and a wrong one **burns itself immediately** and warns you — with a one-click action to issue a replacement. Behind it: one-use browser tokens, an `HttpOnly` session cookie, per-address rate limits, and complete revocation of invitations, sessions and credentials the moment you stop sharing (the random URL simply ceases to exist). `cloudflared` itself is pinned to 2026.5.2, downloaded only with your consent and verified by SHA-256 before it is ever executed.
+- Another VS Code running CodeXR can join from `Join Remote Session` using its own configured profile, instead of pasting a link into a browser.
+
+##### Screen sharing that survives the trip
+
+Peer-to-peer video cannot cross two different NATs without a TURN server, so guests arriving through the tunnel are served **by your own CodeXR server**, over the connection they already have. The browser encodes once for the whole audience (VP8 + Opus through WebCodecs, images where WebCodecs is missing), quality follows the audience size automatically, and temporal layers let a single congested viewer degrade on their own. There is no viewer limit; the screen tells the host how many people are watching and roughly what it is costing their upload.
+
+##### An in-room user guide
+
+A guide screen lives inside the scene, so the answer to *what am I looking at* never requires taking the headset off. It has **six tabs** — Start, Normal, Deps, History, Evolution and Tips — each carrying the accent colour of the mode it explains, and four of them include a **glossary of the metrics involved** (24 terms in total, with definitions taken from the real analysis contracts rather than written separately, so they cannot drift from what the charts actually show). The same guide is also served as a `guide.html` page next to the scene, for reading it outside XR. It behaves like any other screen: drag it by its edges, resize from the corners, minimize it when you are done.
+
+##### The rest
+
+- **Collaboration 2.0 — the people in the room.** Persistent identities (anonymous with a stable alias, or a custom Unicode name), authoritative host/guest roles with automatic promotion and host transfer, and a **bundled animated glTF avatar** (CC0, 0.44 MiB — nothing is downloaded, it works offline from the moment you install). Every participant gets their own colour over the model and a name tag above their head that always turns to face you. The host can inspect any connected participant from VS Code and remove them from the session; guests are told when the host closes it instead of being left staring at a dead scene.
+- **Screen controls with roles.** Each screen offers *Share* when it is free, a green *Join · name* when someone is broadcasting on it and you are not watching, and *Stop/Leave* according to your role. One screen has one broadcaster (enforced by the server, with a clear message naming who holds it) while one person may broadcast different content on several screens.
+- **Collision bumpers**, so screens stop at the room walls and at each other instead of passing through.
+- **LivePanel gains two sections.** *Dependency Summary* (node, edge, external and cycle counts, top fan-in/fan-out rankings, external dependencies, cycle groupings, and confidence/capability breakdowns) and *Historical Comparison* (the same comparator engine, in 2D: pick two versions and get counts, a metric totals chart and a searchable table of per-item deltas). A comparison with a working-copy side stays live — every incremental re-analysis refreshes it. File comparisons are strictly file-scoped and compare function by function. Every list in both panels now shares one searchable, sortable table component, and the file panel was modernized to the directory panel's standard.
+- **A reorganized VS Code sidebar.** `COLLABORATION` now lives inside `ACTIVE SERVERS` — the servers you host and the session you join in one place. Server rows are organized around the cross-network setting (local address, remote connection, connected users, actions), a click on any connected user opens their details, and every server dialog is a readable native dialog. New entries elsewhere: `Reset to Default` in VISUALIZATION SETTINGS, `About BabiaXR` in BABIA EXAMPLES, a 3D-model attribution card, and `Meet the Creator` in LEARN MORE & SUPPORT.
+- **A new setting in SERVERS** to enable or disable cross-network connections, which governs whether the tunnel actions appear on your servers at all.
 
 #### Changed
 
@@ -37,7 +74,6 @@ CodeXR 1.2.0 turns the extension into a shared XR workspace. Three new ways to l
 - **The chart type can be changed live** from CodeXR Field Mapping, applying that chart's own default axes; a change that produces invalid geometry reverts itself with a message.
 - **Every axis now offers every field BabiaXR really accepts.** Categorical dimensions were typed too strictly — the bars X axis grows from 4 candidate fields to all 27 — while `size` and `area` are declared numeric-positive, since negatives break pie/donut angles. File analysis' preferred defaults no longer name fields that do not exist in its schema.
 - **Legends** render as multiple non-overlapping cards in a compact, richer style, and billboard to your face rather than to an idle controller.
-- **Charts are self-contained: the Chart.js CDN is gone.** LivePanel pages used to fetch a script from `cdn.jsdelivr.net`, which broke offline use and contradicted the project's no-network-without-consent principle. Donut, bar and comparison charts are now dependency-free components with light/dark theming.
 - **Product identity**: visible references are `CodeXR` (the extension identifier stays the compatible `code-xr`), documentation points at the project's own domain, the README and LEARN MORE credit the author, and the guest pairing page wears the CodeXR identity. The whole sidebar, its dialogs and the remote-access messages are now in English.
 
 #### Fixed
@@ -47,11 +83,6 @@ CodeXR 1.2.0 turns the extension into a shared XR workspace. Three new ways to l
 - **Dragging a screen no longer "slices"** everything it passes in front of, and invisible screen chrome no longer swallows clicks meant for what is behind it.
 - **Screen sharing is reliable.** Starting a share no longer leaves the other participants on "connecting…" and then *Live sharing stopped*, remote guests no longer get a black rectangle, and clicking the content someone else is sharing no longer detaches you from it — it just tells you who is sharing.
 - **Servers really stop and leave the list**, even when a shutdown fails (you are told, and the close is forced), and server information dialogs are legible instead of printing raw escape characters.
-
-#### Removed
-
-- The dormant `code-xr-boats` runtime (~2,300 lines plus textures): generated scenes use `babia-boats`, and existing configurations migrate on their own.
-- The Chart.js CDN dependency, and the avatar download flow — the model ships with the extension now.
 
 #### Internal
 
