@@ -607,3 +607,98 @@ test('a viewer only reaches live through its own first frame, never the sender s
     assert.match(serverSource, /type: 'viewer-waiting'/);
     assert.doesNotMatch(serverSource, /'no-signal'/);
 });
+
+// ── Role-aware screen controls: join / share / leave, without accidents ──────
+
+test('sharing over someone else\'s live broadcast is refused up front, with no detach', () => {
+    const startCaptureBlock = runtimeSource.match(/async function startCapture\(intent\) \{[\s\S]*?\n    \}/)?.[0] || '';
+    assert.ok(startCaptureBlock, 'startCapture should exist');
+    // The old accident: detaching the viewer from the stream they were
+    // watching before even opening the native picker.
+    assert.doesNotMatch(startCaptureBlock, /detachRemoteBroadcast/);
+    assert.match(startCaptureBlock, /if \(isForeignBroadcastActive\(\)\) \{/);
+    assert.match(startCaptureBlock, /labels\.screenBusy/);
+    // And the server guarantees it even if two clients race: the denied share
+    // rolls back and returns to being a viewer.
+    assert.match(runtimeSource, /case 'broadcast-denied':/);
+    assert.doesNotMatch(runtimeSource, /broadcast-replaced/);
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.match(serverSource, /type: 'broadcast-denied'/);
+    assert.doesNotMatch(serverSource, /broadcast-replaced/);
+    assert.match(serverSource, /previousBroadcaster\.socket\.readyState === WebSocket\.OPEN/);
+});
+
+test('leaving is explicit, local, and sticks until the viewer presses Join', () => {
+    // Any non-sender pressing stop takes the leave path: opt-out plus a
+    // detach that never publishes the room entity (it belongs to the sender).
+    const stopBlock = runtimeSource.match(/function stopCapture\(message, options\) \{[\s\S]*?function attachTrackEndedListener/)?.[0] || '';
+    assert.match(stopBlock, /state\.streamSourceType !== 'local'/);
+    assert.match(stopBlock, /state\.viewerOptOut = true;/);
+    assert.match(stopBlock, /skipSharedPublish: true/);
+    // Every auto-join path respects the opt-out...
+    assert.match(runtimeSource, /function ensureRemoteBroadcastSubscription[\s\S]*?if \(state\.viewerOptOut\) \{\s*\n\s*return;/);
+    assert.match(runtimeSource, /\|\| state\.viewerOptOut\s*\|\| state\.broadcastRole !== 'viewer'/);
+    // ...and only Join clears it (plus the broadcast ending or changing hands).
+    assert.match(runtimeSource, /function joinBroadcast\(\) \{\s*\n\s*state\.viewerOptOut = false;/);
+    assert.match(runtimeSource, /state\.viewerOptOut = false;\s*\n\s*\}\s*\n\s*if \(state\.streamSourceType !== 'local'\) \{/);
+});
+
+test('the center slot alternates Share and Join, and clicking content only shows who is sharing', () => {
+    // Mutually exclusive predicates on the same slot: share needs a free
+    // screen, join needs a live broadcast you are not watching.
+    assert.match(runtimeSource, /const showShareButton = !fixedContent && state\.mode === 'idle' && !foreignBroadcast;/);
+    assert.match(runtimeSource, /const showJoinButton = !fixedContent && expanded && foreignBroadcast && !watchingBroadcast;/);
+    // The join button names the broadcaster, resolved from the room.
+    assert.match(runtimeSource, /getBroadcasterDisplayName\(\)/);
+    assert.match(runtimeSource, /getParticipant\?\.\(peerId\)/);
+    // Clicking the content surface is wired to the info overlay and nothing else.
+    assert.match(runtimeSource, /refs\.interactionPlane\.addEventListener\('click', function \(\) \{\s*\n[\s\S]{0,220}?showSharingInfoOverlay\(\);/);
+    // The overlay is display-only: visible, never raycastable.
+    assert.match(runtimeSource, /setEntityVisible\(refs\.infoOverlay, showInfoOverlay\);/);
+    assert.doesNotMatch(runtimeSource, /setInteractive\(refs\.infoOverlay/);
+    // And it fades on its own.
+    assert.match(runtimeSource, /refs\.infoOverlayTimer = win\.setTimeout/);
+});
+
+test('a viewer auto-joins by default and settles to idle when the broadcast ends', () => {
+    const runtime = runtimeModule.createRuntime({
+        document: null,
+        location: { protocol: 'https:', host: 'localhost:8443', hostname: 'localhost' },
+        isSecureContext: true,
+        WebSocket: undefined,
+        setTimeout: () => 0,
+        clearTimeout: () => undefined,
+        __CODEXR_VIRTUAL_SCREEN_CONFIG__: { screenId: 'default', broadcastEnabled: true },
+    });
+
+    const activeEntity = {
+        entityKind: 'screen',
+        entityId: 'default',
+        screenId: 'default',
+        broadcastStatus: 'live',
+        hasAudio: false,
+        broadcast: { active: true, broadcasterPeerId: 'peer-sender', hasAudio: false, sourceKind: 'screen' },
+    };
+
+    // Default: an active broadcast pulls the viewer in (connecting), and
+    // 'live' is never adopted from the sender's own status.
+    runtime.applySharedScreenState(activeEntity);
+    assert.equal(runtime.getState().broadcastRole, 'viewer');
+    assert.equal(runtime.getState().broadcastStatus, 'connecting');
+    assert.equal(runtime.getState().viewerOptOut, false);
+
+    // The broadcast ends: back to idle, opt-out stays clear.
+    runtime.applySharedScreenState({
+        ...activeEntity,
+        broadcastStatus: 'idle',
+        broadcast: { active: false, broadcasterPeerId: '', hasAudio: false, sourceKind: 'screen' },
+    });
+    assert.equal(runtime.getState().broadcastStatus, 'idle');
+    assert.equal(runtime.getState().viewerOptOut, false);
+
+    // A new broadcast pulls them in again.
+    runtime.applySharedScreenState(activeEntity);
+    assert.equal(runtime.getState().broadcastStatus, 'connecting');
+});

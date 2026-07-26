@@ -66,6 +66,11 @@ its parts directory. Manual harnesses load assembled copies from
     screen entity**; a viewer's connection failures stay its own. Viewers that join
     before broadcast-start are parked by the server (`viewer-waiting`) and served the
     moment it starts; a stuck viewer re-joins itself on a bounded watchdog.
+  - **One screen, one broadcaster** (server-enforced: `broadcast-denied`). Role-aware
+    chrome: Share only on a free screen, a green `Join · name` button on screens with
+    a broadcast you are not watching, × leaves/stops per role. A leave sets a local
+    `viewerOptOut` that sticks until Join (or the broadcast ends/changes hands);
+    clicking shared content only shows a transient "who is sharing" note.
 - `codexr/virtual-screen/codexrMultiScreenManagerRuntime.js`
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`

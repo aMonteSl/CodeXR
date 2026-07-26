@@ -2,6 +2,13 @@
 
 ## [1.2.0] - Unreleased
 
+### Added — The virtual screen gained explicit join/share/leave controls
+
+- **One screen, one broadcaster, enforced by the server.** Trying to share on a screen somebody else is already broadcasting on is refused up front with "«name» is already sharing on this screen" — use another screen or ask them to stop. One person can still broadcast different content on several screens.
+- **A green `Join · name` button** appears on any screen with a live broadcast you are not watching, so leaving is no longer a one-way door. Everyone still auto-joins every broadcasting screen when they connect — the button exists for coming back.
+- **Leaving is explicit and it sticks**: the × on a screen you are watching stops only *your* view (the broadcast continues for everyone else), and the screen will not drag you back in on the next update — only pressing Join does.
+- **Clicking shared content is now harmless**: it shows a brief "«name» is sharing this screen" note and nothing else. Previously that click could detach you from the stream you were watching before even opening the share picker — losing the content even if you cancelled.
+
 ### Fixed — Screen sharing no longer dies with "Live sharing stopped" the moment it starts
 
 - **Starting a share often showed every other participant "connecting…" and then "Live sharing stopped"**, on any network. The screen's state travels over two sockets, and the announcement regularly wins the race: viewers asked to join a broadcast the signaling server hadn't heard of yet, were told it had *stopped*, and — the truly destructive part — one viewer then **published that dead state to the whole room**, knocking every other participant out and preventing any retry.

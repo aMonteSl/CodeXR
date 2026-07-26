@@ -105,6 +105,10 @@
       relayFallback: 'Direct connection unavailable, switching to the server relay...',
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
+      join: 'Join',
+      screenBusy: 'is already sharing on this screen. Use another screen or ask them to stop.',
+      sharedBy: 'is sharing this screen.',
+      someone: 'Another participant',
       audioUnlock: 'Enable Audio',
     },
   };
@@ -275,6 +279,11 @@
       streamSourceType: null,
       hasAudio: false,
       audioUnlockRequired: false,
+      // The viewer chose to leave this screen's broadcast: nothing may
+      // auto-rejoin them until they press Join, the broadcast ends, or the
+      // broadcaster changes. Local preference — never travels in the entity.
+      viewerOptOut: false,
+      infoOverlayVisible: false,
       screenWidth: DEFAULT_CONFIG.sizeSteps[DEFAULT_CONFIG.defaultSizeIndex],
       sizeIndex: DEFAULT_CONFIG.defaultSizeIndex,
       lastIntent: 'screen',
@@ -315,6 +324,9 @@
       legendText: null,
       legendToggle: null,
       shareButton: null,
+      joinButton: null,
+      infoOverlay: null,
+      infoOverlayTimer: null,
       audioUnlockButton: null,
       headerButtons: {},
       cornerHandles: {},

@@ -255,23 +255,22 @@ export class ScreenBroadcastSignalingServer {
 
         if (previousBroadcasterId && previousBroadcasterId !== client.id) {
             const previousBroadcaster = this.clients.get(previousBroadcasterId);
+            // One screen, one broadcaster: a live broadcast cannot be taken
+            // over. The screen only frees up if its holder's socket is dead
+            // (a half-finished reconnect must not lock the screen forever).
+            if (previousBroadcaster && previousBroadcaster.socket.readyState === WebSocket.OPEN) {
+                this.send(client, {
+                    type: 'broadcast-denied',
+                    roomId,
+                    screenId,
+                    broadcasterId: previousBroadcasterId,
+                });
+                return;
+            }
             if (previousBroadcaster) {
                 previousBroadcaster.role = 'none';
                 previousBroadcaster.hasAudio = false;
-                this.send(previousBroadcaster, {
-                    type: 'broadcast-replaced',
-                    roomId,
-                    screenId,
-                });
             }
-            for (const viewerId of [...screen.viewers, ...screen.relayViewers]) {
-                const viewer = this.clients.get(viewerId);
-                if (viewer) {
-                    viewer.role = 'none';
-                }
-            }
-            screen.viewers.clear();
-            screen.relayViewers.clear();
         }
 
         client.role = 'sender';
