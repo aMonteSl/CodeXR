@@ -1,7 +1,6 @@
 import * as http from 'http';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import { sseManager } from './sse/SSEManager';
 import { fileToServerMap } from '../../utils/fileToServerMap';
@@ -14,7 +13,6 @@ import {
 } from './collaboration/collaborationRoomServer';
 import {
     CollaborationConfiguration,
-    CollaborationProfile,
     CollaborationProfileManager,
     ConnectedParticipantSummary,
     DEFAULT_COLLABORATION_PROFILE,
@@ -37,16 +35,15 @@ import {
 import { SessionWatcherManager } from '../../code_analysis/engine/watchers/sessionWatcherManager';
 import { UnifiedSessionRegistry } from '../../code_analysis/engine/core/sessionRegistry';
 import { resolveAnalysisServerCapabilities } from './analysisServerCapabilities';
-import { renderInvitationErrorPage, renderPairingPage } from './remote/pairingPage';
 import {
     addCorsHeaders,
-    getRemoteAddress,
-    readBearerToken,
     readJsonBody,
     sendErrorResponse,
     sendJsonResponse,
 } from './http/httpRespond';
 import { StaticAssetServer } from './http/staticAssets';
+import { RemoteAccessPolicy } from './remote/remoteAccessPolicy';
+import { RemotePairingApi } from './remote/remotePairingApi';
 
 /**
  * HTTP Server Configuration
@@ -69,6 +66,8 @@ export interface HttpServerConfig {
 export class HttpServer {
     private server: http.Server | null = null;
     private readonly staticAssets: StaticAssetServer;
+    private readonly policy: RemoteAccessPolicy;
+    private readonly pairingApi: RemotePairingApi;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
     private upgradeAttached = false;
@@ -106,6 +105,13 @@ export class HttpServer {
             mainFile: this.config.mainFile,
             port: this.config.port,
             host: this.config.host,
+        });
+        this.policy = new RemoteAccessPolicy(this.remoteSessionAuthority);
+        this.pairingApi = new RemotePairingApi({
+            authority: this.remoteSessionAuthority,
+            getOrigin: (req) => this.getRequestOrigin(req),
+            isRemoteRequest: (req) => this.policy.isRemoteRequest(req),
+            getRoom: () => this.collaborationRoomServer,
         });
 
         if (this.config.extensionContext && this.config.analysisSessionId && this.config.staticRoot) {
@@ -404,7 +410,7 @@ export class HttpServer {
         
         console.log(`SERVER: ${method} ${safeRequestUrl} - Processing request`);
 
-        if (!this.isRequestAuthorized(req, requestUrl)) {
+        if (!this.policy.isRequestAuthorized(req, requestUrl)) {
             sendErrorResponse(res, 404, 'Resource not found');
             return;
         }
@@ -451,7 +457,7 @@ export class HttpServer {
         }
 
         if (url.startsWith('/join')) {
-            this.servePairingPage(res, url);
+            this.pairingApi.servePairingPage(res, url);
             return;
         }
 
@@ -523,23 +529,23 @@ export class HttpServer {
                 break;
 
             case '/remote/pair/request':
-                await this.handlePairingRequest(req, res);
+                await this.pairingApi.handlePairingRequest(req, res);
                 break;
 
             case '/remote/identity':
-                await this.handleBrowserIdentity(req, res);
+                await this.pairingApi.handleBrowserIdentity(req, res);
                 break;
 
             case '/remote/pair/confirm':
-                await this.handlePairingConfirmation(req, res);
+                await this.pairingApi.handlePairingConfirmation(req, res);
                 break;
 
             case '/remote/browser':
-                this.handleBrowserTokenExchange(req, res, url);
+                this.pairingApi.handleBrowserTokenExchange(req, res, url);
                 break;
 
             case '/remote/profile':
-                await this.handleRemoteProfileUpdate(req, res);
+                await this.pairingApi.handleRemoteProfileUpdate(req, res);
                 break;
 
             case '/dependency-graph/summary':
@@ -719,235 +725,13 @@ export class HttpServer {
             .pipe(res);
     }
 
-    private isRequestAuthorized(req: http.IncomingMessage, requestUrl: string): boolean {
-        if (!this.isRemoteRequest(req)) {
-            return true;
-        }
-        const pathname = new URL(requestUrl, 'https://codexr.local').pathname;
-        if (
-            pathname === '/join'
-            || pathname === '/api/remote/identity'
-            || pathname === '/api/remote/pair/request'
-            || pathname === '/api/remote/pair/confirm'
-            || pathname === '/api/remote/browser'
-            || pathname === '/api/remote/profile'
-        ) {
-            return true;
-        }
-        return !!this.remoteSessionAuthority.resolveCookie(req.headers.cookie);
-    }
-
-    private isWebSocketAuthorized(req: http.IncomingMessage): boolean {
-        return !this.isRemoteRequest(req)
-            || !!this.remoteSessionAuthority.resolveCookie(req.headers.cookie);
-    }
-
-    private isRemoteRequest(req: http.IncomingMessage): boolean {
-        const hostname = String(req.headers.host || '').split(':')[0].toLowerCase();
-        return hostname.endsWith('.trycloudflare.com')
-            || typeof req.headers['cf-connecting-ip'] === 'string';
-    }
-
-    private async handlePairingRequest(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-    ): Promise<void> {
-        if (req.method !== 'POST') {
-            sendErrorResponse(res, 405, 'Method not allowed');
-            return;
-        }
-        try {
-            const payload = await readJsonBody(req);
-            const isCodeXR = payload.clientKind === 'codexr';
-            const browserProfile = {
-                identityMode: payload.identityMode === 'custom' ? 'custom' : 'anonymous',
-                customName: String(payload.customName || ''),
-                avatarId: DEFAULT_COLLABORATION_PROFILE.avatarId,
-            } satisfies CollaborationProfile;
-            const result = this.remoteSessionAuthority.createPairingRequest({
-                invitationToken: String(payload.invitationToken || ''),
-                remoteAddress: getRemoteAddress(req),
-                installationId: isCodeXR
-                    ? String(payload.installationId || '')
-                    : `browser-${crypto.randomUUID()}`,
-                profile: isCodeXR
-                    ? payload.profile as CollaborationProfile
-                    : browserProfile,
-                clientKind: isCodeXR ? 'codexr' : 'browser',
-                identityToken: isCodeXR ? undefined : String(payload.identityToken || ''),
-            });
-            sendJsonResponse(res, 202, result);
-        } catch (error) {
-            this.sendPairingError(res, error);
-        }
-    }
-
-    private async handleBrowserIdentity(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-    ): Promise<void> {
-        if (req.method !== 'POST') {
-            sendErrorResponse(res, 405, 'Method not allowed');
-            return;
-        }
-        try {
-            const payload = await readJsonBody(req);
-            const result = this.remoteSessionAuthority.createBrowserIdentity({
-                invitationToken: String(payload.invitationToken || ''),
-                remoteAddress: getRemoteAddress(req),
-            });
-            sendJsonResponse(res, 200, result);
-        } catch (error) {
-            this.sendPairingError(res, error);
-        }
-    }
-
-    private async handlePairingConfirmation(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-    ): Promise<void> {
-        if (req.method !== 'POST') {
-            sendErrorResponse(res, 405, 'Method not allowed');
-            return;
-        }
-        try {
-            const payload = await readJsonBody(req);
-            const result = this.remoteSessionAuthority.confirmPairing(
-                String(payload.requestId || ''),
-                String(payload.code || ''),
-                getRemoteAddress(req),
-            );
-            const origin = this.getRequestOrigin(req);
-            const browserUrl = new URL('/api/remote/browser', origin);
-            browserUrl.searchParams.set('token', result.browserToken);
-            sendJsonResponse(res, 200, {
-                extensionToken: result.extensionToken,
-                browserUrl: browserUrl.toString(),
-                expiresAt: result.expiresAt,
-            });
-        } catch (error) {
-            this.sendPairingError(res, error);
-        }
-    }
-
-    private handleBrowserTokenExchange(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-        requestUrl: string,
-    ): void {
-        if (req.method !== 'GET') {
-            sendErrorResponse(res, 405, 'Method not allowed');
-            return;
-        }
-        const token = new URL(requestUrl, 'https://codexr.local').searchParams.get('token') || '';
-        const session = this.remoteSessionAuthority.exchangeBrowserToken(token);
-        if (!session) {
-            sendErrorResponse(res, 404, 'Resource not found');
-            return;
-        }
-        const secure = this.isRemoteRequest(req) ? '; Secure' : '';
-        res.writeHead(303, {
-            Location: '/',
-            'Cache-Control': 'no-store',
-            'Set-Cookie': `codexr_session=${session.sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200${secure}`,
-        });
-        res.end();
-    }
-
-    private async handleRemoteProfileUpdate(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-    ): Promise<void> {
-        if (req.method !== 'PUT') {
-            sendErrorResponse(res, 405, 'Method not allowed');
-            return;
-        }
-        try {
-            const token = readBearerToken(req);
-            const payload = await readJsonBody(req);
-            const sessions = this.remoteSessionAuthority.updateExtensionProfile(
-                token,
-                payload.profile as CollaborationProfile,
-            );
-            for (const session of sessions) {
-                this.collaborationRoomServer?.updateSessionProfile(session.sessionId, session.profile);
-            }
-            sendJsonResponse(res, 200, { profile: sessions[0]?.profile });
-        } catch {
-            sendErrorResponse(res, 404, 'Resource not found');
-        }
-    }
-
-    private servePairingPage(res: http.ServerResponse, requestUrl: string): void {
-        const invitationToken = new URL(requestUrl, 'https://codexr.local')
-            .searchParams.get('invite') || '';
-        if (
-            !/^[a-zA-Z0-9_-]{20,100}$/.test(invitationToken)
-            || !this.remoteSessionAuthority.isInvitationValid(invitationToken)
-        ) {
-            // A guest clicking a stale link gets an explanation, not raw JSON.
-            this.sendGuestHtml(res, 404, renderInvitationErrorPage(
-                'This invitation is no longer valid',
-                'Invitation links expire 30 minutes after they are created, and they only work while the host is sharing the server. Ask the host for a new link.',
-            ));
-            return;
-        }
-        this.sendGuestHtml(res, 200, renderPairingPage(invitationToken));
-    }
-
-    /**
-     * Send a guest-facing HTML page. Everything the page needs is inlined, so
-     * the policy stays as tight as the pairing flow requires.
-     */
-    private sendGuestHtml(res: http.ServerResponse, statusCode: number, html: string): void {
-        res.writeHead(statusCode, {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'no-store',
-            'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'",
-        });
-        res.end(html);
-    }
-
     private getRequestOrigin(req: http.IncomingMessage): string {
-        if (this.isRemoteRequest(req) && this.remotePublicUrl) {
+        if (this.policy.isRemoteRequest(req) && this.remotePublicUrl) {
             return this.remotePublicUrl;
         }
         const forwardedProtocol = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
-        const protocol = forwardedProtocol || (this.isRemoteRequest(req) ? 'https' : 'http');
+        const protocol = forwardedProtocol || (this.policy.isRemoteRequest(req) ? 'https' : 'http');
         return `${protocol}://${req.headers.host || `localhost:${this.config.port}`}`;
-    }
-
-    private sendPairingError(res: http.ServerResponse, error: unknown): void {
-        const code = error instanceof Error ? error.message : '';
-        if (code === 'too-many-pairing-requests') {
-            sendErrorResponse(res, 429, 'Too many pending requests');
-            return;
-        }
-        if (code === 'invalid-pairing-code') {
-            sendErrorResponse(res, 401, 'Invalid pairing code. Ask the host for a new one.');
-            return;
-        }
-        if (code === 'pairing-code-revoked') {
-            sendErrorResponse(res, 401, 'This code is no longer valid. Ask the host for a new one.');
-            return;
-        }
-        if (code === 'pairing-attempts-exceeded') {
-            sendErrorResponse(res, 429, 'Pairing attempts exceeded');
-            return;
-        }
-        if (code === 'pairing-expired') {
-            sendErrorResponse(res, 410, 'Pairing request expired');
-            return;
-        }
-        if (code === 'invalid-profile') {
-            sendErrorResponse(res, 400, 'Invalid collaboration profile');
-            return;
-        }
-        if (code === 'invalid-browser-identity') {
-            sendErrorResponse(res, 401, 'Invalid browser identity');
-            return;
-        }
-        sendErrorResponse(res, 404, 'Resource not found');
     }
 
     /**
@@ -988,7 +772,7 @@ export class HttpServer {
         }
         this.upgradeAttached = true;
         this.collaborationRoomServer = new CollaborationRoomServer(server, '/codexr-room', {
-            authorizeUpgrade: (request) => this.isWebSocketAuthorized(request),
+            authorizeUpgrade: (request) => this.policy.isWebSocketAuthorized(request),
             resolveSession: (request) => this.remoteSessionAuthority.resolveCookie(request.headers.cookie),
             handleApplicationMessage: (messageContext, message) =>
                 this.handleCollaborationMessage(messageContext, message),
@@ -1009,7 +793,7 @@ export class HttpServer {
         this.broadcastSignalingServer = new ScreenBroadcastSignalingServer(
             server,
             '/codexr-broadcast',
-            (request) => this.isWebSocketAuthorized(request),
+            (request) => this.policy.isWebSocketAuthorized(request),
         );
     }
 

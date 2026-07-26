@@ -20,6 +20,9 @@ test('remote access defaults to disabled and is exposed in server configuration'
 
 test('remote HTTP and WebSocket access require server-issued sessions', () => {
     const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    // Cookie policy and the pairing endpoints live in the extracted remote/ modules.
+    const accessPolicy = readProjectFile('src', 'servers', 'runtime', 'remote', 'remoteAccessPolicy.ts');
+    const pairingApi = readProjectFile('src', 'servers', 'runtime', 'remote', 'remotePairingApi.ts');
     const roomServer = readProjectFile(
         'src',
         'servers',
@@ -34,8 +37,8 @@ test('remote HTTP and WebSocket access require server-issued sessions', () => {
         'broadcast',
         'screenBroadcastSignalingServer.ts',
     );
-    assert.match(httpServer, /resolveCookie\(req\.headers\.cookie\)/);
-    assert.match(httpServer, /HttpOnly; SameSite=Lax/);
+    assert.match(accessPolicy, /resolveCookie\(req\.headers\.cookie\)/);
+    assert.match(pairingApi, /HttpOnly; SameSite=Lax/);
     assert.match(httpServer, /Resource not found/);
     assert.match(httpServer, /safeRequestUrl/);
     assert.match(roomServer, /authorizeUpgrade/);
