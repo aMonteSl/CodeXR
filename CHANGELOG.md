@@ -2,7 +2,9 @@
 
 ## [1.2.0] - Unreleased
 
-### Collaborative XR Workspace — new analyses, people in the room, and sessions across networks
+### CodeXR 1.2.0 — "Threads, Timelines & Global Networks"
+
+**Threads** are the new dependency graph: the lines that tie your codebase together. **Timelines** are the two Git analyses — compare two points in your project's history, or replay the whole thing as a film. **Global Networks** are the sessions you can now open to someone who is not on your network at all.
 
 CodeXR 1.2.0 turns the extension into a shared XR workspace. Three new ways to look at a codebase join the classic analysis, the people you work with now have a name and a face inside the scene, and a session can be opened to someone on a different network without touching your router.
 
