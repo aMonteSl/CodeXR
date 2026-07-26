@@ -29,6 +29,16 @@
       refs.shareButton?.addEventListener('click', function () {
         void startCapture('screen');
       });
+      refs.joinButton?.addEventListener('click', function () {
+        // Joining is the only thing that clears the viewer's opt-out.
+        joinBroadcast();
+        showChrome();
+      });
+      refs.interactionPlane.addEventListener('click', function () {
+        // Clicking shared content is never destructive: it only surfaces who
+        // is sharing on this screen, for a moment.
+        showSharingInfoOverlay();
+      });
       refs.audioUnlockButton.addEventListener('click', function () {
         if (!state.stream || state.streamSourceType !== 'remote') {
           return;
@@ -181,6 +191,10 @@
       closeAllPeerConnections();
       stopRelaySender();
       stopRelayReceiver();
+      if (refs.infoOverlayTimer) {
+        win.clearTimeout(refs.infoOverlayTimer);
+        refs.infoOverlayTimer = null;
+      }
       closeSignalingSocket();
       getCollaborationClient()?.unregisterEntityRuntime?.('screen', getScreenId());
       if (refs.root?.parentElement) {
@@ -208,6 +222,7 @@
       startCapture,
       stopCapture,
       switchSource,
+      joinBroadcast,
       minimize,
       expand,
       toggleLookAtCamera,
@@ -249,6 +264,7 @@
           broadcastRole: state.broadcastRole,
           broadcastStatus: state.broadcastStatus,
           hasAudio: state.hasAudio,
+          viewerOptOut: state.viewerOptOut,
           audioUnlockRequired: state.audioUnlockRequired,
           gestureOwnerPeerId: state.gestureOwnerPeerId,
           activeBroadcasterId: refs.activeBroadcasterId || null,

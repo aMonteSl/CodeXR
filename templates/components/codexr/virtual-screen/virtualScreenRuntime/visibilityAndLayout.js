@@ -167,6 +167,20 @@
       refs.shareButton = isFixedContent(refs.config)
         ? null
         : createButton('codexrShareSource', '▣', 0.86, 0.86, 1.6, 4);
+      // Join shares the share button's center slot: they are mutually
+      // exclusive (share needs a free screen, join needs a live broadcast).
+      refs.joinButton = isFixedContent(refs.config)
+        ? null
+        : createButton('codexrJoinBroadcast', refs.config.labels.join, 1.9, 0.42, 3.4, 22);
+      refs.infoOverlay = createEntity('a-text', {
+        id: getScopedId('codexrVirtualScreenSharingInfo'),
+        align: 'center',
+        color: '#F8FAFC',
+        width: '6',
+        value: '',
+        position: '0 -0.95 0.05',
+        visible: 'false',
+      });
       refs.audioUnlockButton = createButton('codexrEnableAudio', refs.config.labels.audioUnlock, 1.52, 0.34, 3.1, 18);
       refs.headerButtons.lookAt = createButton(HEADER_BUTTONS.lookAt, '◈', 0.24, 0.24, 0.65, 3);
       refs.headerButtons.follow = createButton(HEADER_BUTTONS.follow, '◎', 0.24, 0.24, 0.65, 3);
@@ -198,6 +212,10 @@
       if (refs.shareButton) {
         refs.root.appendChild(refs.shareButton);
       }
+      if (refs.joinButton) {
+        refs.root.appendChild(refs.joinButton);
+      }
+      refs.root.appendChild(refs.infoOverlay);
       refs.root.appendChild(refs.audioUnlockButton);
       Object.values(refs.headerButtons).forEach((button) => refs.root.appendChild(button));
       Object.values(refs.cornerHandles).forEach((handle) => refs.root.appendChild(handle));
@@ -220,6 +238,7 @@
         refs.legendText,
         refs.legendToggle,
         refs.shareButton,
+        refs.joinButton,
         refs.audioUnlockButton,
         ...Object.values(refs.headerButtons),
         ...Object.values(refs.cornerHandles),
@@ -305,6 +324,7 @@
         ? '0 0.28 0.04'
         : (isFixedContent(refs.config) ? `0 ${halfHeight + 0.34} 0.04` : '0 0.95 0.04'));
       refs.shareButton?.setAttribute('position', '0 0 0.04');
+      refs.joinButton?.setAttribute('position', '0 0 0.04');
       refs.audioUnlockButton.setAttribute('position', minimized ? '0 -0.06 0.04' : `0 ${-(halfHeight - 0.28)} 0.04`);
       refs.legendRoot.setAttribute('position', `${legendOffsetX} ${legendOffsetY} 0.05`);
       refs.legendPanel.setAttribute('width', String(legendWidth));
@@ -347,7 +367,15 @@
       const expanded = !minimized;
       const chromeVisible = state.chromeVisible || !!state.drag;
       const headerVisible = minimized || chromeVisible;
-      const showShareButton = !fixedContent && state.mode === 'idle';
+      const foreignBroadcast = isForeignBroadcastActive();
+      const watchingBroadcast = state.streamSourceType === 'remote'
+        || (state.broadcastRole === 'viewer' && state.broadcastStatus === 'connecting');
+      // Share needs a free screen; Join needs a live broadcast you are not
+      // watching. They alternate in the same center slot, so the old accident
+      // (share stealing the stream you were watching) has no surface left.
+      const showShareButton = !fixedContent && state.mode === 'idle' && !foreignBroadcast;
+      const showJoinButton = !fixedContent && expanded && foreignBroadcast && !watchingBroadcast;
+      const showInfoOverlay = state.infoOverlayVisible && expanded && (foreignBroadcast || watchingBroadcast);
       const showStatus = !active && !minimized && !!getDisplayedStatusText();
       const showAudioUnlock = state.audioUnlockRequired && state.streamSourceType === 'remote' && state.hasAudio;
       const showLegend = (active || minimized || fixedContent) && chromeVisible;
@@ -367,6 +395,8 @@
       setEntityVisible(refs.legendText, showLegend && !state.legendCollapsed);
       setInteractive(refs.legendToggle, showLegend);
       setInteractive(refs.shareButton, showShareButton);
+      setInteractive(refs.joinButton, showJoinButton);
+      setEntityVisible(refs.infoOverlay, showInfoOverlay);
       setInteractive(refs.audioUnlockButton, showAudioUnlock);
       Object.values(refs.headerButtons).forEach((button) => setInteractive(button, headerVisible));
       Object.values(refs.cornerHandles).forEach((handle) => setInteractive(handle, expanded && chromeVisible));
@@ -380,8 +410,15 @@
       refs.headerButtons.minimize.__codexrGlyph = minimized ? '□' : '—';
       refs.headerButtons.stop.__codexrGlyph = '×';
       refs.audioUnlockButton.__codexrGlyph = refs.config.labels.audioUnlock;
+      if (refs.joinButton) {
+        refs.joinButton.__codexrGlyph = `▶ ${refs.config.labels.join} · ${getBroadcasterDisplayName()}`;
+      }
+      refs.infoOverlay.setAttribute('value', showInfoOverlay
+        ? `${getBroadcasterDisplayName()} ${refs.config.labels.sharedBy}`
+        : '');
 
       setButtonStyle(refs.shareButton, 0.20, '#F8FAFC', '#0F172A');
+      setButtonStyle(refs.joinButton, showJoinButton ? 0.92 : 0.0, '#16A34A', '#F8FAFC');
       setButtonStyle(refs.audioUnlockButton, showAudioUnlock ? 0.92 : 0.0, '#0EA5E9', '#F8FAFC');
       setMaterial(refs.legendPanel, `color: #020617; opacity: ${showLegend && !state.legendCollapsed ? 0.84 : 0.0}; transparent: true; shader: flat;`);
       setButtonStyle(refs.legendToggle, showLegend ? 0.88 : 0.0, state.legendCollapsed ? '#16A34A' : '#F59E0B', '#111827');

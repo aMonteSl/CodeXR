@@ -260,6 +260,10 @@
       if (state.streamSourceType === 'local' || sharedBroadcast?.active !== true) {
         return;
       }
+      // An explicit leave sticks until the viewer presses Join.
+      if (state.viewerOptOut) {
+        return;
+      }
       connectSignaling();
       if (!refs.signalingSocket || refs.signalingSocket.readyState !== win.WebSocket.OPEN || refs.broadcastRegistered !== true) {
         return;
@@ -326,6 +330,7 @@
         if (
           refs.destroyed
           || refs.relayReceiver
+          || state.viewerOptOut
           || state.broadcastRole !== 'viewer'
           || state.broadcastStatus !== 'connecting'
         ) {

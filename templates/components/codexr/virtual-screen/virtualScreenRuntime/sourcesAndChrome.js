@@ -309,6 +309,39 @@
       target.setAttribute('text', `value: ${label}; color: ${color}; align: center; width: ${width}; wrapCount: ${wrapCount};`);
     }
 
+    /** Someone else's broadcast is live on this screen (never my own). */
+    function isForeignBroadcastActive() {
+      return refs.broadcastState?.active === true && state.streamSourceType !== 'local';
+    }
+
+    function getBroadcasterDisplayName() {
+      const peerId = refs.broadcastState?.broadcasterPeerId || '';
+      const participant = peerId ? getCollaborationClient()?.getParticipant?.(peerId) : null;
+      const name = String(participant?.displayName || '').trim();
+      return name || refs.config.labels.someone;
+    }
+
+    /**
+     * Transient "who is sharing here" box: clicking shared content shows this
+     * and nothing else — leaving, stopping or sharing all have their own
+     * explicit buttons, so a stray click can never cost anyone their stream.
+     */
+    function showSharingInfoOverlay() {
+      if (!isForeignBroadcastActive() && state.streamSourceType !== 'remote') {
+        return;
+      }
+      state.infoOverlayVisible = true;
+      refreshUi();
+      if (refs.infoOverlayTimer) {
+        win.clearTimeout(refs.infoOverlayTimer);
+      }
+      refs.infoOverlayTimer = win.setTimeout(function () {
+        refs.infoOverlayTimer = null;
+        state.infoOverlayVisible = false;
+        refreshUi();
+      }, 2500);
+    }
+
     function createButton(id, glyph, width, height, textWidth, wrapCount) {
       const button = createEntity('a-plane', {
         id: getScopedId(id),

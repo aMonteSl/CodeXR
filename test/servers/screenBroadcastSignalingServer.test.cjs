@@ -644,3 +644,88 @@ test('a relay-request before any broadcast parks the viewer on the relay side', 
         await new Promise((resolve) => server.close(resolve));
     }
 });
+
+// ── One screen, one broadcaster ──────────────────────────────────────────────
+
+test('a live screen cannot be taken over: the intruder is denied and nobody else notices', async () => {
+    const { server, signaling, url } = await createRelayServer();
+    const holder = connectScoped(url, 'local');
+    const intruder = connectScoped(url, 'local');
+    const remoteViewer = connectScoped(url, 'remote');
+
+    try {
+        await Promise.all([waitForOpen(holder), waitForOpen(intruder), waitForOpen(remoteViewer)]);
+        await registerClient(holder, 'holder-1', 'codexr-session:alpha', 'default');
+        await registerClient(intruder, 'intruder-1', 'codexr-session:alpha', 'default');
+        await registerClient(remoteViewer, 'watcher-1', 'codexr-session:alpha', 'default');
+
+        const live = waitForMessage(holder, (payload) => payload.type === 'broadcast-live');
+        holder.send(JSON.stringify({ type: 'broadcast-start', clientId: 'holder-1', hasAudio: true }));
+        await live;
+
+        const ready = waitForMessage(remoteViewer, (payload) => payload.type === 'relay-ready');
+        remoteViewer.send(JSON.stringify({ type: 'viewer-join', clientId: 'watcher-1' }));
+        await ready;
+
+        // The intruder is refused, told who holds the screen, and the holder
+        // hears nothing at all about the attempt.
+        const denied = waitForMessage(intruder, (payload) => payload.type === 'broadcast-denied');
+        const holderSilence = waitForSilence(
+            holder,
+            400,
+            (payload) => ['broadcast-replaced', 'broadcast-stopped', 'broadcast-denied'].includes(payload.type),
+        );
+        intruder.send(JSON.stringify({ type: 'broadcast-start', clientId: 'intruder-1' }));
+        assert.equal((await denied).broadcasterId, 'holder-1');
+        await holderSilence;
+
+        // The holder's stream keeps flowing to its viewers, untouched.
+        const relayed = waitForBinary(remoteViewer);
+        const frame = relayFrame(1, 'still-the-holders-screen');
+        holder.send(frame);
+        assert.deepEqual(await relayed, frame);
+    } finally {
+        [holder, intruder, remoteViewer].forEach((socket) => socket.close());
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('a screen whose holder socket died mid-reconnect frees up for the next broadcaster', async () => {
+    const { server, signaling, url } = await createRelayServer();
+    const holder = connectScoped(url, 'local');
+    const successor = connectScoped(url, 'local');
+
+    try {
+        await Promise.all([waitForOpen(holder), waitForOpen(successor)]);
+        await registerClient(holder, 'holder-1', 'codexr-session:alpha', 'default');
+        await registerClient(successor, 'successor-1', 'codexr-session:alpha', 'default');
+
+        const live = waitForMessage(holder, (payload) => payload.type === 'broadcast-live');
+        holder.send(JSON.stringify({ type: 'broadcast-start', clientId: 'holder-1' }));
+        await live;
+
+        // A half-finished reconnect: the holder's server-side socket is no
+        // longer OPEN but its close has not been processed yet. The screen
+        // must not stay locked forever.
+        const holderClient = [...signaling.clients.values()].find((client) => client.id === 'holder-1');
+        Object.defineProperty(holderClient.socket, 'readyState', {
+            configurable: true,
+            get: () => 3, // CLOSED
+        });
+
+        const successorLive = waitForMessage(successor, (payload) => payload.type === 'broadcast-live');
+        successor.send(JSON.stringify({ type: 'broadcast-start', clientId: 'successor-1' }));
+        await successorLive;
+
+        // Remove the readyState override (an own property shadowing the ws
+        // prototype getter) so teardown can actually close the socket —
+        // otherwise server.close stalls for its whole timeout.
+        delete holderClient.socket.readyState;
+        holderClient.socket.terminate();
+    } finally {
+        [holder, successor].forEach((socket) => socket.close());
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
