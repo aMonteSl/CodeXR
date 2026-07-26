@@ -106,7 +106,6 @@
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
       audioUnlock: 'Enable Audio',
-      audioUnlockPrompt: 'Tap to enable this shared screen audio.',
     },
   };
 
