@@ -570,3 +570,77 @@ test('a congested viewer loses its top temporal layer while the others keep the 
         await new Promise((resolve) => server.close(resolve));
     }
 });
+
+test('viewers that join before the broadcast starts are parked and served, never told it stopped', async () => {
+    const { server, signaling, url } = await createRelayServer();
+    const broadcaster = connectScoped(url, 'local');
+    const earlyLocal = connectScoped(url, 'local');
+    const earlyRemote = connectScoped(url, 'remote');
+
+    try {
+        await Promise.all([waitForOpen(broadcaster), waitForOpen(earlyLocal), waitForOpen(earlyRemote)]);
+        await registerClient(broadcaster, 'sender-1', 'codexr-session:alpha', 'default');
+        await registerClient(earlyLocal, 'early-local', 'codexr-session:alpha', 'default');
+        await registerClient(earlyRemote, 'early-remote', 'codexr-session:alpha', 'default');
+
+        // The race that used to kill the whole room: the screen entity travels
+        // over the room socket and viewers join before broadcast-start lands.
+        const localWaiting = waitForMessage(earlyLocal, (payload) => payload.type === 'viewer-waiting');
+        const remoteWaiting = waitForMessage(earlyRemote, (payload) => payload.type === 'viewer-waiting');
+        const noStoppedForLocal = waitForSilence(earlyLocal, 400, (payload) => payload.type === 'broadcast-stopped');
+        const noStoppedForRemote = waitForSilence(earlyRemote, 400, (payload) => payload.type === 'broadcast-stopped');
+        earlyLocal.send(JSON.stringify({ type: 'viewer-join', clientId: 'early-local' }));
+        earlyRemote.send(JSON.stringify({ type: 'viewer-join', clientId: 'early-remote' }));
+        await Promise.all([localWaiting, remoteWaiting, noStoppedForLocal, noStoppedForRemote]);
+
+        // The broadcast starts: the parked direct viewer produces a deferred
+        // viewer-join on the broadcaster, the parked relay viewer gets its
+        // relay-ready, and the encoder is asked to start.
+        const deferredJoin = waitForMessage(
+            broadcaster,
+            (payload) => payload.type === 'viewer-join' && payload.viewerId === 'early-local',
+        );
+        const relayStart = waitForMessage(broadcaster, (payload) => payload.type === 'relay-start');
+        const relayReady = waitForMessage(earlyRemote, (payload) => payload.type === 'relay-ready');
+        broadcaster.send(JSON.stringify({ type: 'broadcast-start', clientId: 'sender-1', hasAudio: true }));
+        const ready = await relayReady;
+        assert.equal(ready.broadcasterId, 'sender-1');
+        assert.equal(ready.hasAudio, true);
+        await Promise.all([deferredJoin, relayStart]);
+
+        // And the relayed media flows to the parked remote viewer.
+        const relayed = waitForBinary(earlyRemote);
+        const frame = relayFrame(1, 'parked-then-served');
+        broadcaster.send(frame);
+        assert.deepEqual(await relayed, frame);
+    } finally {
+        [broadcaster, earlyLocal, earlyRemote].forEach((socket) => socket.close());
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('a relay-request before any broadcast parks the viewer on the relay side', async () => {
+    const { server, signaling, url } = await createRelayServer();
+    const broadcaster = connectScoped(url, 'local');
+    const viewer = connectScoped(url, 'local');
+
+    try {
+        await Promise.all([waitForOpen(broadcaster), waitForOpen(viewer)]);
+        await registerClient(broadcaster, 'sender-1', 'codexr-session:alpha', 'default');
+        await registerClient(viewer, 'viewer-1', 'codexr-session:alpha', 'default');
+
+        const waiting = waitForMessage(viewer, (payload) => payload.type === 'viewer-waiting');
+        viewer.send(JSON.stringify({ type: 'relay-request', clientId: 'viewer-1' }));
+        await waiting;
+
+        const relayStart = waitForMessage(broadcaster, (payload) => payload.type === 'relay-start');
+        const relayReady = waitForMessage(viewer, (payload) => payload.type === 'relay-ready');
+        broadcaster.send(JSON.stringify({ type: 'broadcast-start', clientId: 'sender-1' }));
+        await Promise.all([relayStart, relayReady]);
+    } finally {
+        [broadcaster, viewer].forEach((socket) => socket.close());
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});

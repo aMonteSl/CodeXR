@@ -2,6 +2,12 @@
 
 ## [1.2.0] - Unreleased
 
+### Fixed — Screen sharing no longer dies with "Live sharing stopped" the moment it starts
+
+- **Starting a share often showed every other participant "connecting…" and then "Live sharing stopped"**, on any network. The screen's state travels over two sockets, and the announcement regularly wins the race: viewers asked to join a broadcast the signaling server hadn't heard of yet, were told it had *stopped*, and — the truly destructive part — one viewer then **published that dead state to the whole room**, knocking every other participant out and preventing any retry.
+- Three structural fixes: **early viewers now wait and are served the moment the broadcast starts** (never told it stopped); **only the sender may publish broadcast state to the room** — a viewer's failures stay its own; and a viewer stuck connecting **re-joins on its own** (bounded retry, and after a socket reconnect the rejoin is no longer suppressed).
+- Also hardened: the fallback to the server relay can no longer be torn down by the dying direct connection it replaces, and a viewer only ever reports "receiving" after its **own** first frame — never because the sender's status said "live".
+
 ### Fixed — Screen sharing now reaches cross-network guests instead of showing black
 
 - **A shared screen was a black rectangle for anyone connected through the tunnel.** The media was sent peer-to-peer over WebRTC with only a STUN server, which cannot cross two different NATs — so no frame ever arrived, while the viewer was told it was "receiving". Guests arriving through the tunnel are now served by **the extension's own server**, over the same WebSocket that already carries the session, so the picture (and the shared audio) reaches them like it does on a local network. Viewers on your own network keep the direct peer-to-peer path, which stays faster and costs you no bandwidth.

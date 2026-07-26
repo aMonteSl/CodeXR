@@ -34,18 +34,36 @@
           void startViewerConnection(message.broadcasterId || '');
           return;
         case 'broadcast-stopped':
+          // Ownership invariant: the room's screen entity belongs to the
+          // sender. A viewer updates only itself — publishing active:false
+          // from here once poisoned the whole room out of a live broadcast.
           if (state.streamSourceType === 'remote') {
-            detachRemoteBroadcast(refs.config.labels.broadcastStopped, { notifyServer: false });
+            detachRemoteBroadcast(refs.config.labels.broadcastStopped, {
+              notifyServer: false,
+              skipSharedPublish: true,
+            });
+            setSharedBroadcastState({
+              active: false,
+              broadcasterPeerId: '',
+              hasAudio: false,
+              sourceKind: refs.broadcastState?.sourceKind || '',
+            });
           } else if (state.streamSourceType === 'local') {
             setBroadcastState('sender', 'idle');
+            setSharedBroadcastState({
+              active: false,
+              broadcasterPeerId: '',
+              hasAudio: false,
+              sourceKind: refs.broadcastState?.sourceKind || '',
+            });
+            publishSharedScreenState();
           }
-          setSharedBroadcastState({
-            active: false,
-            broadcasterPeerId: '',
-            hasAudio: false,
-            sourceKind: refs.broadcastState?.sourceKind || '',
-          });
-          publishSharedScreenState();
+          return;
+        case 'viewer-waiting':
+          // Parked by the server until the broadcast starts: still connecting.
+          if (state.streamSourceType !== 'local') {
+            updateStatus(refs.config.labels.connecting);
+          }
           return;
         case 'broadcast-replaced':
           if (state.streamSourceType === 'local') {
@@ -167,6 +185,15 @@
       closeAllPeerConnections();
       stopRelayReceiver();
       refs.remoteStream = null;
+      refs.joinAttemptSocket = null;
+      if (refs.viewerJoinWatchdogTimer) {
+        win.clearTimeout(refs.viewerJoinWatchdogTimer);
+        refs.viewerJoinWatchdogTimer = null;
+      }
+      if (refs.remoteFrameWatchTimer) {
+        win.clearTimeout(refs.remoteFrameWatchTimer);
+        refs.remoteFrameWatchTimer = null;
+      }
 
       if (state.streamSourceType === 'remote') {
         releaseStream(false);

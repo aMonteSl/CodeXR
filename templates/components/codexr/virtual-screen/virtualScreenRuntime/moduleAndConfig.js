@@ -342,6 +342,10 @@
       relaySender: null,
       relayReceiver: null,
       remoteFrameWatchTimer: null,
+      // Which socket the current viewer-join went out on: duplicates are only
+      // suppressed for the same socket, so reconnects can rejoin.
+      joinAttemptSocket: null,
+      viewerJoinWatchdogTimer: null,
       destroyed: false,
       sharedTransformTimer: null,
       managerCallbacks: null,

@@ -286,8 +286,20 @@ export class ScreenBroadcastSignalingServer {
             hasAudio: client.hasAudio,
         });
 
-        // Remote viewers that were already waiting need the encoder now: they
-        // asked to join before this broadcast existed.
+        // Serve the viewers that were parked before this broadcast existed.
+        // Direct-path viewers get the deferred viewer-join the broadcaster
+        // never saw; relay viewers need the encoder started AND their own
+        // relay-ready, or their receivers never come up.
+        for (const viewerId of screen.viewers) {
+            if (viewerId !== client.id) {
+                this.send(client, {
+                    type: 'viewer-join',
+                    roomId,
+                    screenId,
+                    viewerId,
+                });
+            }
+        }
         if (screen.relayViewers.size > 0) {
             this.send(client, {
                 type: 'relay-start',
@@ -295,6 +307,19 @@ export class ScreenBroadcastSignalingServer {
                 screenId,
                 relayViewerCount: screen.relayViewers.size,
             });
+            for (const viewerId of screen.relayViewers) {
+                const relayViewer = this.clients.get(viewerId);
+                if (relayViewer) {
+                    this.send(relayViewer, {
+                        type: 'relay-ready',
+                        roomId,
+                        screenId,
+                        broadcasterId: client.id,
+                        hasAudio: client.hasAudio,
+                    });
+                }
+            }
+            this.publishRelayAudience(screen);
         }
 
         for (const candidate of this.clients.values()) {
@@ -360,18 +385,18 @@ export class ScreenBroadcastSignalingServer {
             return;
         }
 
-        const screen = this.getScreenState(roomId, screenId);
-        if (!screen?.broadcasterId) {
-            this.send(client, {
-                type: 'broadcast-stopped',
-                roomId,
-                screenId,
-                reason: 'no-signal',
-            });
+        const screen = this.ensureScreenState(roomId, screenId);
+        client.role = 'viewer';
+
+        if (!screen.broadcasterId) {
+            // The screen entity travels over the room socket and routinely
+            // announces the broadcast before broadcast-start reaches this
+            // socket. An early viewer waits to be served, instead of being
+            // told a broadcast that is about to exist has stopped.
+            this.parkViewer(screen, client);
             return;
         }
 
-        client.role = 'viewer';
         const broadcaster = this.clients.get(screen.broadcasterId);
 
         // Viewers on this network get direct WebRTC; the ones arriving through
@@ -414,10 +439,40 @@ export class ScreenBroadcastSignalingServer {
         }
     }
 
+    /** Park a viewer that arrived before the broadcast it is waiting for. */
+    private parkViewer(screen: BroadcastScreenState, client: BroadcastClient): void {
+        if (client.scope === 'remote') {
+            screen.relayViewers.add(client.id);
+        } else {
+            screen.viewers.add(client.id);
+        }
+        this.send(client, {
+            type: 'viewer-waiting',
+            roomId: screen.roomId,
+            screenId: screen.screenId,
+        });
+    }
+
     /** Move a viewer off the direct path and onto the relay. */
     private promoteViewerToRelay(client: BroadcastClient): void {
-        const screen = this.getScreenState(client.roomId, client.screenId);
-        if (!screen?.broadcasterId || screen.relayViewers.has(client.id)) {
+        if (!client.roomId || !client.screenId) {
+            return;
+        }
+        const screen = this.ensureScreenState(client.roomId, client.screenId);
+        if (screen.relayViewers.has(client.id)) {
+            return;
+        }
+        if (!screen.broadcasterId) {
+            // No broadcast yet: the viewer asked for the relay, so it waits on
+            // the relay side (whatever its scope) rather than vanishing.
+            screen.viewers.delete(client.id);
+            screen.relayViewers.add(client.id);
+            client.role = 'viewer';
+            this.send(client, {
+                type: 'viewer-waiting',
+                roomId: screen.roomId,
+                screenId: screen.screenId,
+            });
             return;
         }
 

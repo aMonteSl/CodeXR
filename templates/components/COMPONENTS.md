@@ -62,6 +62,10 @@ its parts directory. Manual harnesses load assembled copies from
     never duplicated) and three temporal layers let the server thin the stream for a
     congested viewer alone. There is no viewer cap — see `docs/CLOUDFLARE_REMOTE_ACCESS.md`
     for what it costs the host's uplink.
+  - Ownership invariant: **only the sender publishes broadcast fields on the room's
+    screen entity**; a viewer's connection failures stay its own. Viewers that join
+    before broadcast-start are parked by the server (`viewer-waiting`) and served the
+    moment it starts; a stuck viewer re-joins itself on a bounded watchdog.
 - `codexr/virtual-screen/codexrMultiScreenManagerRuntime.js`
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`

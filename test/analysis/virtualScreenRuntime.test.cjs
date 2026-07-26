@@ -553,3 +553,57 @@ test('no viewer is ever refused: the capacity rejection is gone from both ends',
     assert.match(serverSource, /const RELAY_THIN_TOP_LAYER_BYTES/);
     assert.match(serverSource, /const RELAY_THIN_ALL_DELTAS_BYTES/);
 });
+
+test('viewers never publish broadcast state they do not own', () => {
+    // The room's screen entity belongs to the sender. A viewer publishing
+    // active:false from a server message once convinced the whole room a live
+    // broadcast had stopped ("Live sharing stopped" on every guest).
+    const stoppedCase = runtimeSource.match(/case 'broadcast-stopped':[\s\S]*?\n          return;/)?.[0] || '';
+    assert.ok(stoppedCase, 'the broadcast-stopped handler should exist');
+    const publishes = stoppedCase.match(/publishSharedScreenState\(\)/g) || [];
+    assert.equal(publishes.length, 1, 'only one publish, and it belongs to the sender branch');
+    assert.match(stoppedCase, /streamSourceType === 'local'[\s\S]*publishSharedScreenState\(\)/);
+    assert.match(stoppedCase, /skipSharedPublish: true/);
+    // Server-triggered detaches never publish the entity either: both ICE
+    // failure handlers use the exact non-publishing call.
+    assert.equal(
+        (runtimeSource.match(/detachRemoteBroadcast\(message, \{ notifyServer: false, skipSharedPublish: true \}\)/g) || []).length,
+        2,
+    );
+});
+
+test('an early viewer waits instead of giving up, and rejoins are only suppressed per socket', () => {
+    // Parked by the server: still connecting, nothing to tear down.
+    assert.match(runtimeSource, /case 'viewer-waiting':/);
+    // The rejoin guard compares the socket the join went out on, so a
+    // reconnected socket can rejoin instead of hanging on "connecting".
+    assert.match(runtimeSource, /refs\.joinAttemptSocket === refs\.signalingSocket/);
+    assert.match(runtimeSource, /function scheduleViewerJoinWatchdog\(\)/);
+    assert.match(runtimeSource, /const VIEWER_JOIN_RETRY_MS = 5000;/);
+});
+
+test('the relay takes ownership of the session away from the dying direct attempt', () => {
+    // Starting the receiver closes the abandoned peer connections and cancels
+    // the first-frame watchdog...
+    const receiverStart = runtimeSource.match(/function startRelayReceiver[\s\S]*?const canvas = /)?.[0] || '';
+    assert.match(receiverStart, /closeAllPeerConnections\(\);/);
+    assert.match(receiverStart, /refs\.remoteFrameWatchTimer = null;/);
+    // ...and both connection-state handlers stand down once a relay receiver
+    // exists (the guard only appears there, once per handler).
+    assert.equal((runtimeSource.match(/if \(refs\.relayReceiver\) \{\s*\n\s*return;\s*\n\s*\}/g) || []).length, 2);
+});
+
+test('a viewer only reaches live through its own first frame, never the sender snapshot', () => {
+    // The status adoption skips active viewers...
+    assert.match(runtimeSource, /state\.broadcastRole !== 'viewer'\s*\n\s*\) \{\s*\n\s*state\.broadcastStatus = snapshot\.broadcastStatus;/);
+    // ...and applying an active broadcast preserves live only for a viewer
+    // that already earned it.
+    assert.match(runtimeSource, /const alreadyLiveViewer = state\.broadcastRole === 'viewer' && state\.broadcastStatus === 'live';/);
+    // The server, for its part, parks early viewers instead of refusing them.
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.match(serverSource, /private parkViewer\(/);
+    assert.match(serverSource, /type: 'viewer-waiting'/);
+    assert.doesNotMatch(serverSource, /'no-signal'/);
+});

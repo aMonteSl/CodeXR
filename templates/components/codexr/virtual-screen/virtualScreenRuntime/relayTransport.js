@@ -427,6 +427,22 @@
         return;
       }
 
+      // The relay owns the session from here: the abandoned direct attempt
+      // must not linger (its dying ICE handlers would tear this down), and
+      // the first-frame watchdogs have been answered.
+      closeAllPeerConnections();
+      if (refs.remoteFrameWatchTimer) {
+        win.clearTimeout(refs.remoteFrameWatchTimer);
+        refs.remoteFrameWatchTimer = null;
+      }
+      if (refs.viewerJoinWatchdogTimer) {
+        win.clearTimeout(refs.viewerJoinWatchdogTimer);
+        refs.viewerJoinWatchdogTimer = null;
+      }
+      if (message?.broadcasterId) {
+        refs.activeBroadcasterId = message.broadcasterId;
+      }
+
       const canvas = document.createElement('canvas');
       canvas.width = 1280;
       canvas.height = 720;
