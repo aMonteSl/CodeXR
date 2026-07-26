@@ -34,13 +34,8 @@
           void startViewerConnection(message.broadcasterId || '');
           return;
         case 'broadcast-stopped':
-          if (state.streamSourceType === 'remote' || message.reason === 'relay-capacity') {
-            detachRemoteBroadcast(
-              message.reason === 'relay-capacity'
-                ? refs.config.labels.relayCapacity
-                : refs.config.labels.broadcastStopped,
-              { notifyServer: false },
-            );
+          if (state.streamSourceType === 'remote') {
+            detachRemoteBroadcast(refs.config.labels.broadcastStopped, { notifyServer: false });
           } else if (state.streamSourceType === 'local') {
             setBroadcastState('sender', 'idle');
           }
@@ -71,10 +66,13 @@
         // Relay control: the server routes viewers it knows peer-to-peer
         // cannot reach (see relayTransport.js).
         case 'relay-start':
-          startRelaySender();
+          startRelaySender(message);
           return;
         case 'relay-keyframe':
           requestRelayKeyframe();
+          return;
+        case 'relay-audience':
+          updateRelayAudience(message);
           return;
         case 'relay-stop':
           stopRelaySender();

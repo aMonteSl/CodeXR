@@ -103,7 +103,6 @@
       broadcastError: 'Unable to connect the live broadcast.',
       iceFailed: 'The shared screen could not cross this network (restrictive NAT). Collaboration remains active.',
       relayFallback: 'Direct connection unavailable, switching to the server relay...',
-      relayCapacity: 'This shared screen already has the maximum number of remote viewers.',
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
       audioUnlock: 'Enable Audio',

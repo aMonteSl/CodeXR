@@ -248,13 +248,15 @@ test('screen broadcast signaling isolates active broadcasts across rooms', async
 
 const RELAY_HEADER_BYTES = 12;
 
-function relayFrame(kind, payloadText) {
+function relayFrame(kind, payloadText, temporalLayer = 0) {
     const payload = Buffer.from(payloadText, 'utf8');
     const frame = Buffer.alloc(RELAY_HEADER_BYTES + payload.length);
     frame[0] = 0x43; // 'C'
     frame[1] = 0x58; // 'X'
-    frame[2] = 1;    // version
-    frame[3] = kind;
+    frame[2] = 2;    // version
+    // The kind byte carries the temporal layer in its high nibble, which is
+    // what lets the server thin one encoding per viewer.
+    frame[3] = (temporalLayer << 4) | (kind & 0x0f);
     frame.writeBigUInt64BE(123n, 4);
     payload.copy(frame, RELAY_HEADER_BYTES);
     return frame;
@@ -450,6 +452,120 @@ test('the relay refuses malformed frames and frames from anyone but the broadcas
         assert.deepEqual(await relayed, frame);
     } finally {
         [broadcaster, remoteViewer].forEach((socket) => socket.close());
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('one encoding serves any number of remote viewers, and the audience size is published', async () => {
+    const { server, signaling, url } = await createRelayServer();
+    const broadcaster = connectScoped(url, 'local');
+    const viewers = [];
+
+    try {
+        await waitForOpen(broadcaster);
+        await registerClient(broadcaster, 'sender-1', 'codexr-session:alpha', 'default');
+        const live = waitForMessage(broadcaster, (payload) => payload.type === 'broadcast-live');
+        broadcaster.send(JSON.stringify({ type: 'broadcast-start', clientId: 'sender-1' }));
+        await live;
+
+        // Six viewers: two more than the old hard cap, which no longer exists.
+        let relayStarts = 0;
+        broadcaster.on('message', (raw, isBinary) => {
+            if (isBinary) {
+                return;
+            }
+            if (JSON.parse(raw.toString('utf8')).type === 'relay-start') {
+                relayStarts += 1;
+            }
+        });
+
+        for (let index = 0; index < 6; index += 1) {
+            const viewer = connectScoped(url, 'remote');
+            viewers.push(viewer);
+            await waitForOpen(viewer);
+            await registerClient(viewer, `remote-${index}`, 'codexr-session:alpha', 'default');
+            const audience = waitForMessage(
+                broadcaster,
+                (payload) => payload.type === 'relay-audience' && payload.relayViewerCount === index + 1,
+            );
+            const ready = waitForMessage(viewer, (payload) => payload.type === 'relay-ready');
+            viewer.send(JSON.stringify({ type: 'viewer-join', clientId: `remote-${index}` }));
+            await Promise.all([audience, ready]);
+        }
+
+        // The whole point: one encoder for the whole audience.
+        assert.equal(relayStarts, 1, 'the broadcaster must only be asked to encode once');
+
+        // Every viewer receives the same frame.
+        const deliveries = viewers.map((viewer) => waitForBinary(viewer));
+        const frame = relayFrame(1, 'one-signal-many-subscribers');
+        broadcaster.send(frame);
+        for (const delivered of await Promise.all(deliveries)) {
+            assert.deepEqual(delivered, frame);
+        }
+
+        // Leaving republishes a smaller audience, so quality can recover.
+        const shrunk = waitForMessage(
+            broadcaster,
+            (payload) => payload.type === 'relay-audience' && payload.relayViewerCount === 5,
+        );
+        viewers[0].send(JSON.stringify({ type: 'viewer-leave', clientId: 'remote-0' }));
+        await shrunk;
+    } finally {
+        [broadcaster, ...viewers].forEach((socket) => socket.close());
+        signaling.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('a congested viewer loses its top temporal layer while the others keep the full stream', async () => {
+    const { server, signaling, url } = await createRelayServer();
+    const broadcaster = connectScoped(url, 'local');
+    const healthy = connectScoped(url, 'remote');
+    const congested = connectScoped(url, 'remote');
+
+    try {
+        await Promise.all([waitForOpen(broadcaster), waitForOpen(healthy), waitForOpen(congested)]);
+        await registerClient(broadcaster, 'sender-1', 'codexr-session:alpha', 'default');
+        await registerClient(healthy, 'healthy', 'codexr-session:alpha', 'default');
+        await registerClient(congested, 'congested', 'codexr-session:alpha', 'default');
+
+        const live = waitForMessage(broadcaster, (payload) => payload.type === 'broadcast-live');
+        broadcaster.send(JSON.stringify({ type: 'broadcast-start', clientId: 'sender-1' }));
+        await live;
+
+        for (const [viewer, id] of [[healthy, 'healthy'], [congested, 'congested']]) {
+            const ready = waitForMessage(viewer, (payload) => payload.type === 'relay-ready');
+            viewer.send(JSON.stringify({ type: 'viewer-join', clientId: id }));
+            await ready;
+        }
+
+        // Simulate a viewer whose socket is badly backed up. The server reads
+        // bufferedAmount, so faking it is what isolates the thinning policy.
+        const congestedClient = [...signaling.clients.values()].find((client) => client.id === 'congested');
+        Object.defineProperty(congestedClient.socket, 'bufferedAmount', {
+            configurable: true,
+            get: () => 1024 * 1024, // past the top-layer threshold, below the all-deltas one
+        });
+
+        // A top-layer delta: only the healthy viewer should see it.
+        const healthyGetsTopLayer = waitForBinary(healthy);
+        const congestedSilence = expectNoBinary(congested, 300);
+        broadcaster.send(relayFrame(2, 'top-layer-delta', 2));
+        await Promise.all([healthyGetsTopLayer, congestedSilence]);
+
+        // Base-layer delta and keyframe still reach the congested viewer, so it
+        // keeps a moving picture and can always resync.
+        const baseDelta = waitForBinary(congested);
+        broadcaster.send(relayFrame(2, 'base-layer-delta', 0));
+        assert.deepEqual(await baseDelta, relayFrame(2, 'base-layer-delta', 0));
+
+        const keyframe = waitForBinary(congested);
+        broadcaster.send(relayFrame(1, 'keyframe', 0));
+        assert.deepEqual(await keyframe, relayFrame(1, 'keyframe', 0));
+    } finally {
+        [broadcaster, healthy, congested].forEach((socket) => socket.close());
         signaling.dispose();
         await new Promise((resolve) => server.close(resolve));
     }

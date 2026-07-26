@@ -445,7 +445,13 @@ test('the relay wire format matches the one the server relays and validates', ()
     // runtime must be numbering its kinds the same way for that to be true.
     assert.match(runtimeSource, /videoDelta: 2,/);
     assert.match(serverSource, /const FRAME_KIND_VIDEO_DELTA = 2;/);
-    assert.match(serverSource, /frame\[FRAME_KIND_OFFSET\] === FRAME_KIND_VIDEO_DELTA/);
+    assert.match(serverSource, /\(kindByte & FRAME_KIND_MASK\) === FRAME_KIND_VIDEO_DELTA/);
+    // Both ends pack the temporal layer into the same nibble of the same byte.
+    assert.match(runtimeSource, /const RELAY_VERSION = 2;/);
+    assert.match(runtimeSource, /const RELAY_LAYER_SHIFT = 4;/);
+    assert.match(serverSource, /const FRAME_LAYER_SHIFT = 4;/);
+    assert.match(runtimeSource, /\(layer << RELAY_LAYER_SHIFT\) \| \(kind & RELAY_KIND_MASK\)/);
+    assert.match(serverSource, /const temporalLayer = kindByte >> FRAME_LAYER_SHIFT;/);
 });
 
 test('the relay picks WebCodecs when available and whole images when not', () => {
@@ -498,4 +504,52 @@ test('relayed media is torn down with the broadcast, on both ends', () => {
     // arrives as an unparseable string.
     assert.match(runtimeSource, /socket\.binaryType = 'arraybuffer';/);
     assert.match(runtimeSource, /if \(event\.data instanceof win\.ArrayBuffer\) \{\s*handleRelayFrame\(event\.data\);/);
+});
+
+test('one encoder serves the whole audience, reconfigured instead of duplicated', () => {
+    // A second viewer must never start a second encoding.
+    assert.match(runtimeSource, /function startRelaySender\(message\) \{\s*\n\s*\/\/[\s\S]*?\n\s*if \(refs\.relaySender \|\| state\.streamSourceType !== 'local' \|\| !state\.stream\) \{\s*\n\s*return;/);
+    // Audience changes retune that same encoder and resync viewers.
+    assert.match(runtimeSource, /function updateRelayAudience\(message\)/);
+    assert.match(runtimeSource, /sender\.appliedQuality !== sender\.quality/);
+    assert.match(runtimeSource, /encoder\.configure\(buildVideoEncoderConfig\(sender, rawFrame, sender\.temporalLayers\)\);/);
+    assert.match(runtimeSource, /sender\.keyframeRequested = true;/);
+    // Exactly one VideoEncoder is ever constructed.
+    assert.equal((runtimeSource.match(/new win\.VideoEncoder\(/g) || []).length, 1);
+});
+
+test('quality follows the audience down to a floor, because every viewer costs another copy', () => {
+    const tiers = runtimeSource.match(/const RELAY_QUALITY_TIERS = \[[\s\S]*?\];/)?.[0] || '';
+    assert.ok(tiers, 'the quality tiers should exist');
+    // Descending bitrate with a floor, and a widest tier that catches any size.
+    assert.match(tiers, /maxViewers: 2, bitrate: 1500000/);
+    assert.match(tiers, /maxViewers: Infinity, bitrate: 350000/);
+    const bitrates = [...tiers.matchAll(/bitrate: (\d+)/g)].map((match) => Number(match[1]));
+    assert.deepEqual(bitrates, [...bitrates].sort((left, right) => right - left), 'tiers must descend');
+    // The host is told the audience and what it is costing them upstream.
+    assert.match(runtimeSource, /function describeRelayBroadcast\(sender\)/);
+    assert.match(runtimeSource, /Mbps up/);
+});
+
+test('temporal layers are only requested when the browser confirms support', () => {
+    assert.match(runtimeSource, /config\.scalabilityMode = 'L1T3';/);
+    assert.match(runtimeSource, /await win\.VideoEncoder\.isConfigSupported\(layered\)/);
+    assert.match(runtimeSource, /if \(support\?\.supported\) \{\s*\n\s*sender\.temporalLayers = true;/);
+    // Without support the stream is still valid, just single-layer.
+    assert.match(runtimeSource, /sender\.temporalLayers = false;\s*\n\s*return buildVideoEncoderConfig\(sender, rawFrame, false\);/);
+    // The layer of each chunk comes from the encoder, not guessed.
+    assert.match(runtimeSource, /metadata\?\.svc\?\.temporalLayerId \|\| 0/);
+});
+
+test('no viewer is ever refused: the capacity rejection is gone from both ends', () => {
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.doesNotMatch(serverSource, /MAX_RELAY_VIEWERS/);
+    assert.doesNotMatch(serverSource, /relay-capacity/);
+    assert.doesNotMatch(runtimeSource, /relayCapacity/);
+    // Congestion is handled by thinning per viewer instead.
+    assert.match(serverSource, /private shouldThinFrame\(viewer: BroadcastClient, temporalLayer: number\): boolean/);
+    assert.match(serverSource, /const RELAY_THIN_TOP_LAYER_BYTES/);
+    assert.match(serverSource, /const RELAY_THIN_ALL_DELTAS_BYTES/);
 });

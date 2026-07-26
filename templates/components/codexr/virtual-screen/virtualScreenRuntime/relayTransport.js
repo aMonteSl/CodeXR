@@ -5,12 +5,17 @@
     // WebSocket, which every guest can already reach through the tunnel.
     //
     // Wire format (mirrored by screenBroadcastSignalingServer.ts):
-    //   byte 0-1  magic 'CX'      byte 2  version      byte 3  kind
+    //   byte 0-1  magic 'CX'   byte 2  version
+    //   byte 3    (temporalLayer << 4) | kind
     //   byte 4-11 timestamp (microseconds, big-endian)  then payload
+    // The layer rides in the spare nibble so the server can thin the stream
+    // per viewer without the frame growing or being decoded.
     const RELAY_HEADER_BYTES = 12;
     const RELAY_MAGIC_0 = 0x43;
     const RELAY_MAGIC_1 = 0x58;
-    const RELAY_VERSION = 1;
+    const RELAY_VERSION = 2;
+    const RELAY_KIND_MASK = 0x0f;
+    const RELAY_LAYER_SHIFT = 4;
     const RELAY_KIND = {
       videoKey: 1,
       videoDelta: 2,
@@ -18,12 +23,29 @@
       videoImage: 4,
       audioConfig: 5,
     };
-    const RELAY_MAX_WIDTH = 1280;
-    const RELAY_VIDEO_BITRATE = 1500000;
     const RELAY_AUDIO_BITRATE = 64000;
     const RELAY_KEYFRAME_INTERVAL_MS = 2000;
     const RELAY_IMAGE_FPS = 8;
     const RELAY_IMAGE_QUALITY = 0.6;
+    /**
+     * One encoding serves every viewer, so its quality has to fit what the
+     * host's uplink can carry for the whole audience: each remote viewer costs
+     * another copy of this bitrate. Descending tiers, with a floor — below it
+     * the picture stops being useful, so the status warns instead.
+     */
+    const RELAY_QUALITY_TIERS = [
+      { maxViewers: 2, bitrate: 1500000, width: 1280, framerate: 24 },
+      { maxViewers: 6, bitrate: 800000, width: 960, framerate: 24 },
+      { maxViewers: 14, bitrate: 500000, width: 768, framerate: 18 },
+      { maxViewers: Infinity, bitrate: 350000, width: 640, framerate: 12 },
+    ];
+
+    function relayQualityForAudience(viewerCount) {
+      const audience = Math.max(1, viewerCount || 1);
+      return RELAY_QUALITY_TIERS.find(function (tier) {
+        return audience <= tier.maxViewers;
+      }) || RELAY_QUALITY_TIERS[RELAY_QUALITY_TIERS.length - 1];
+    }
 
     function hasWebCodecs() {
       return typeof win.VideoEncoder === 'function'
@@ -35,14 +57,15 @@
       return typeof win.AudioEncoder === 'function' && typeof win.AudioDecoder === 'function';
     }
 
-    function buildRelayFrame(kind, timestamp, payload) {
+    function buildRelayFrame(kind, timestamp, payload, temporalLayer) {
       const body = payload instanceof Uint8Array ? payload : new Uint8Array(payload);
       const frame = new Uint8Array(RELAY_HEADER_BYTES + body.byteLength);
       const view = new DataView(frame.buffer);
+      const layer = Math.min(15, Math.max(0, temporalLayer || 0));
       frame[0] = RELAY_MAGIC_0;
       frame[1] = RELAY_MAGIC_1;
       frame[2] = RELAY_VERSION;
-      frame[3] = kind;
+      frame[3] = (layer << RELAY_LAYER_SHIFT) | (kind & RELAY_KIND_MASK);
       view.setBigUint64(4, BigInt(Math.max(0, Math.round(timestamp || 0))));
       frame.set(body, RELAY_HEADER_BYTES);
       return frame;
@@ -58,24 +81,27 @@
       }
       const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       return {
-        kind: bytes[3],
+        kind: bytes[3] & RELAY_KIND_MASK,
+        temporalLayer: bytes[3] >> RELAY_LAYER_SHIFT,
         timestamp: Number(view.getBigUint64(4)),
         payload: bytes.subarray(RELAY_HEADER_BYTES),
       };
     }
 
-    function sendRelayFrame(kind, timestamp, payload) {
+    function sendRelayFrame(kind, timestamp, payload, temporalLayer) {
       const socket = refs.signalingSocket;
       if (!socket || socket.readyState !== win.WebSocket.OPEN) {
         return false;
       }
-      socket.send(buildRelayFrame(kind, timestamp, payload));
+      socket.send(buildRelayFrame(kind, timestamp, payload, temporalLayer));
       return true;
     }
 
     // ── Sender ───────────────────────────────────────────────────────────────
 
-    function startRelaySender() {
+    function startRelaySender(message) {
+      // One encoder serves the whole audience: a second viewer never starts a
+      // second encoding, it only asks for a keyframe.
       if (refs.relaySender || state.streamSourceType !== 'local' || !state.stream) {
         return;
       }
@@ -93,8 +119,12 @@
         scaleCanvas: null,
         lastKeyframeAt: 0,
         keyframeRequested: true,
+        audience: Math.max(1, message?.relayViewerCount || 1),
+        quality: null,
+        temporalLayers: false,
       };
       refs.relaySender = sender;
+      sender.quality = relayQualityForAudience(sender.audience);
 
       if (hasWebCodecs()) {
         startEncodedVideoPump(sender, videoTrack);
@@ -107,6 +137,8 @@
         // cannot ride this path, and the status says so rather than pretending.
         startImagePump(sender);
       }
+
+      updateStatus(describeRelayBroadcast(sender));
     }
 
     function stopRelaySender() {
@@ -143,13 +175,39 @@
       }
     }
 
+    /**
+     * The audience changed. One encoding still serves everybody; what changes
+     * is the quality it is worth encoding at, because every remote viewer costs
+     * the host another copy of this bitrate.
+     */
+    function updateRelayAudience(message) {
+      const sender = refs.relaySender;
+      if (!sender) {
+        return;
+      }
+      sender.audience = Math.max(1, message?.relayViewerCount || 1);
+      sender.quality = relayQualityForAudience(sender.audience);
+      updateStatus(describeRelayBroadcast(sender));
+    }
+
+    function describeRelayBroadcast(sender) {
+      const viewers = sender.audience;
+      const audio = sender.audioEncoder ? sender.quality.bitrate + RELAY_AUDIO_BITRATE : sender.quality.bitrate;
+      const upstreamMbps = (audio * viewers) / 1000000;
+      const people = viewers === 1 ? '1 remote viewer' : `${viewers} remote viewers`;
+      const cost = `~${upstreamMbps.toFixed(1)} Mbps up`;
+      const quality = sender.temporalLayers ? '' : ' · single layer';
+      return `${refs.config.labels.broadcasting} · ${people} · ${cost}${quality}`;
+    }
+
     function scaleFrameIfNeeded(sender, frame) {
+      const maxWidth = sender.quality.width;
       const width = frame.displayWidth || frame.codedWidth || 0;
-      if (!width || width <= RELAY_MAX_WIDTH || typeof win.OffscreenCanvas !== 'function') {
+      if (!width || width <= maxWidth || typeof win.OffscreenCanvas !== 'function') {
         return { frame, scaled: false };
       }
       const height = frame.displayHeight || frame.codedHeight || 0;
-      const targetWidth = RELAY_MAX_WIDTH - (RELAY_MAX_WIDTH % 2);
+      const targetWidth = maxWidth - (maxWidth % 2);
       const targetHeight = Math.max(2, Math.round((height * targetWidth) / width) & ~1);
       if (!sender.scaleCanvas
         || sender.scaleCanvas.width !== targetWidth
@@ -162,15 +220,55 @@
       return { frame: scaledFrame, scaled: true };
     }
 
+    function buildVideoEncoderConfig(sender, rawFrame, withTemporalLayers) {
+      const maxWidth = sender.quality.width;
+      const sourceWidth = rawFrame.displayWidth || maxWidth;
+      const width = Math.min(sourceWidth, maxWidth) & ~1;
+      const height = Math.max(2, Math.round(
+        ((rawFrame.displayHeight || 720) * width) / sourceWidth,
+      ) & ~1);
+      const config = {
+        codec: 'vp8',
+        width,
+        height,
+        bitrate: sender.quality.bitrate,
+        framerate: sender.quality.framerate,
+        latencyMode: 'realtime',
+      };
+      if (withTemporalLayers) {
+        // Three temporal layers from a single encoding: the server can drop
+        // the top ones for a viewer that falls behind, and only that viewer
+        // loses frame rate.
+        config.scalabilityMode = 'L1T3';
+      }
+      return config;
+    }
+
+    async function resolveVideoEncoderConfig(sender, rawFrame) {
+      const layered = buildVideoEncoderConfig(sender, rawFrame, true);
+      try {
+        const support = await win.VideoEncoder.isConfigSupported(layered);
+        if (support?.supported) {
+          sender.temporalLayers = true;
+          return layered;
+        }
+      } catch (_error) {
+        // Older implementations reject unknown scalability modes outright.
+      }
+      sender.temporalLayers = false;
+      return buildVideoEncoderConfig(sender, rawFrame, false);
+    }
+
     function startEncodedVideoPump(sender, videoTrack) {
       const encoder = new win.VideoEncoder({
-        output: function (chunk) {
+        output: function (chunk, metadata) {
           const payload = new Uint8Array(chunk.byteLength);
           chunk.copyTo(payload);
           sendRelayFrame(
             chunk.type === 'key' ? RELAY_KIND.videoKey : RELAY_KIND.videoDelta,
             chunk.timestamp,
             payload,
+            metadata?.svc?.temporalLayerId || 0,
           );
         },
         error: function () {
@@ -183,7 +281,6 @@
       const reader = processor.readable.getReader();
       sender.readers.push(reader);
 
-      let configured = false;
       void (async function pump() {
         while (!sender.stopped) {
           const { value: rawFrame, done } = await reader.read();
@@ -191,20 +288,15 @@
             break;
           }
           try {
-            if (encoder.state !== 'configured' && !configured) {
-              const width = Math.min(rawFrame.displayWidth || RELAY_MAX_WIDTH, RELAY_MAX_WIDTH) & ~1;
-              const height = Math.max(2, Math.round(
-                ((rawFrame.displayHeight || 720) * width) / (rawFrame.displayWidth || width),
-              ) & ~1);
-              encoder.configure({
-                codec: 'vp8',
-                width,
-                height,
-                bitrate: RELAY_VIDEO_BITRATE,
-                framerate: 24,
-                latencyMode: 'realtime',
-              });
-              configured = true;
+            if (encoder.state !== 'configured') {
+              encoder.configure(await resolveVideoEncoderConfig(sender, rawFrame));
+              sender.appliedQuality = sender.quality;
+            } else if (sender.appliedQuality !== sender.quality) {
+              // The audience changed: reconfigure this same encoder instead of
+              // starting another one, and resync viewers with a keyframe.
+              encoder.configure(buildVideoEncoderConfig(sender, rawFrame, sender.temporalLayers));
+              sender.appliedQuality = sender.quality;
+              sender.keyframeRequested = true;
             }
             // Encoding is the slow part: skip frames instead of queueing them,
             // so a busy machine falls behind in fluidity, never in latency.
@@ -304,7 +396,9 @@
         if (sender.stopped || !video.videoWidth) {
           return;
         }
-        const width = Math.min(video.videoWidth, RELAY_MAX_WIDTH);
+        // The image path has no layers to thin, so the audience tier is the
+        // only lever it has: a bigger audience gets a smaller picture.
+        const width = Math.min(video.videoWidth, sender.quality.width);
         const height = Math.round((video.videoHeight * width) / video.videoWidth);
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;

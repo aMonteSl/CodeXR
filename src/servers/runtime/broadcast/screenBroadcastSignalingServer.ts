@@ -49,22 +49,30 @@ interface BroadcastMessage {
 
 const DEFAULT_ROOM_ID = 'codexr-session:default';
 
-/** Media frame wire format, mirrored by the runtime relay transport. */
+/**
+ * Media frame wire format, mirrored by the runtime relay transport. The kind
+ * byte packs both values: low nibble the frame kind, high nibble the temporal
+ * layer the encoder put it in, so one encoded stream can be thinned per viewer
+ * without ever encoding it twice.
+ */
 const FRAME_HEADER_BYTES = 12;
 const FRAME_MAGIC_0 = 0x43; // 'C'
 const FRAME_MAGIC_1 = 0x58; // 'X'
 const FRAME_KIND_OFFSET = 3;
-/** Delta video frames are droppable; keyframes and audio never are. */
+const FRAME_KIND_MASK = 0x0f;
+const FRAME_LAYER_SHIFT = 4;
+/** Delta video frames are droppable; keyframes, audio and config never are. */
 const FRAME_KIND_VIDEO_DELTA = 2;
 /** A single frame larger than this is a bug or an attack, not a screen. */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 /**
- * Every relay viewer costs the host one upstream copy through the tunnel, so
- * the fan-out is capped instead of quietly degrading the whole session.
+ * Backlog thresholds per viewer socket. A viewer that falls behind loses the
+ * top temporal layer first (fewer frames per second, still a moving picture)
+ * and only then every delta, until its next keyframe puts it back together.
+ * Nobody else is affected, and nobody is ever refused.
  */
-const MAX_RELAY_VIEWERS = 4;
-/** Above this backlog the socket is losing; drop deltas until it catches up. */
-const RELAY_BACKPRESSURE_BYTES = 2 * 1024 * 1024;
+const RELAY_THIN_TOP_LAYER_BYTES = 512 * 1024;
+const RELAY_THIN_ALL_DELTAS_BYTES = 2 * 1024 * 1024;
 
 export class ScreenBroadcastSignalingServer {
     private readonly path: string;
@@ -370,17 +378,6 @@ export class ScreenBroadcastSignalingServer {
         // the tunnel get the media relayed, because peer-to-peer cannot reach
         // them and they would otherwise sit on a black screen.
         if (client.scope === 'remote') {
-            if (screen.relayViewers.size >= MAX_RELAY_VIEWERS) {
-                this.send(client, {
-                    type: 'broadcast-stopped',
-                    roomId,
-                    screenId,
-                    reason: 'relay-capacity',
-                });
-                client.role = 'none';
-                return;
-            }
-
             const wasIdle = screen.relayViewers.size === 0;
             screen.relayViewers.add(client.id);
             this.send(client, {
@@ -402,6 +399,7 @@ export class ScreenBroadcastSignalingServer {
                     relayViewerCount: screen.relayViewers.size,
                 });
             }
+            this.publishRelayAudience(screen);
             return;
         }
 
@@ -420,15 +418,6 @@ export class ScreenBroadcastSignalingServer {
     private promoteViewerToRelay(client: BroadcastClient): void {
         const screen = this.getScreenState(client.roomId, client.screenId);
         if (!screen?.broadcasterId || screen.relayViewers.has(client.id)) {
-            return;
-        }
-        if (screen.relayViewers.size >= MAX_RELAY_VIEWERS) {
-            this.send(client, {
-                type: 'broadcast-stopped',
-                roomId: screen.roomId,
-                screenId: screen.screenId,
-                reason: 'relay-capacity',
-            });
             return;
         }
 
@@ -455,6 +444,25 @@ export class ScreenBroadcastSignalingServer {
                 relayViewerCount: screen.relayViewers.size,
             });
         }
+        this.publishRelayAudience(screen);
+    }
+
+    /**
+     * Tell the broadcaster how many viewers it is feeding, so it can pick a
+     * quality the host's uplink can actually carry. One encoding serves them
+     * all — the audience only changes how that single encoding is configured.
+     */
+    private publishRelayAudience(screen: BroadcastScreenState): void {
+        const broadcaster = screen.broadcasterId ? this.clients.get(screen.broadcasterId) : null;
+        if (!broadcaster) {
+            return;
+        }
+        this.send(broadcaster, {
+            type: 'relay-audience',
+            roomId: screen.roomId,
+            screenId: screen.screenId,
+            relayViewerCount: screen.relayViewers.size,
+        });
     }
 
     /**
@@ -473,19 +481,33 @@ export class ScreenBroadcastSignalingServer {
             return;
         }
 
-        const droppable = frame[FRAME_KIND_OFFSET] === FRAME_KIND_VIDEO_DELTA;
+        const kindByte = frame[FRAME_KIND_OFFSET];
+        const droppable = (kindByte & FRAME_KIND_MASK) === FRAME_KIND_VIDEO_DELTA;
+        const temporalLayer = kindByte >> FRAME_LAYER_SHIFT;
+
         for (const viewerId of screen.relayViewers) {
             const viewer = this.clients.get(viewerId);
             if (!viewer || viewer.socket.readyState !== WebSocket.OPEN) {
                 continue;
             }
-            // A saturated viewer loses deltas rather than the whole session;
-            // keyframes and audio always go through so it can recover.
-            if (droppable && viewer.socket.bufferedAmount > RELAY_BACKPRESSURE_BYTES) {
+            if (droppable && this.shouldThinFrame(viewer, temporalLayer)) {
                 continue;
             }
             viewer.socket.send(frame, { binary: true });
         }
+    }
+
+    /**
+     * Whether this viewer is far enough behind to skip this frame. Thinning is
+     * per viewer and per layer: one congested guest drops to a lower frame rate
+     * while everybody else keeps the full stream from the same encoding.
+     */
+    private shouldThinFrame(viewer: BroadcastClient, temporalLayer: number): boolean {
+        const backlog = viewer.socket.bufferedAmount;
+        if (backlog > RELAY_THIN_ALL_DELTAS_BYTES) {
+            return true;
+        }
+        return backlog > RELAY_THIN_TOP_LAYER_BYTES && temporalLayer > 0;
     }
 
     private toFrameBuffer(raw: RawData): Buffer | null {
@@ -505,7 +527,12 @@ export class ScreenBroadcastSignalingServer {
     }
 
     private removeRelayViewer(screen: BroadcastScreenState, clientId: string): void {
-        if (!screen.relayViewers.delete(clientId) || screen.relayViewers.size > 0) {
+        if (!screen.relayViewers.delete(clientId)) {
+            return;
+        }
+        if (screen.relayViewers.size > 0) {
+            // A smaller audience may allow better quality again.
+            this.publishRelayAudience(screen);
             return;
         }
         // Nobody left to relay to: tell the broadcaster to shut the encoder

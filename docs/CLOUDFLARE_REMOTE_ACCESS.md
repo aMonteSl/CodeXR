@@ -117,12 +117,37 @@ Codificación: VP8 + Opus mediante WebCodecs donde existe (Chrome, Edge,
 navegador de Quest); donde no, imágenes JPEG a ~8 fps **sin audio**, y la
 pantalla lo indica en su estado.
 
-**Coste de ancho de banda**: cada espectador remoto consume una copia del flujo
-**subiendo desde la máquina del anfitrión** (~1,5 Mbps de vídeo). Por eso el
-número de espectadores retransmitidos simultáneos está limitado a 4: al
-superarlo, el servidor lo dice en lugar de degradar la sesión de todos. Los
-fotogramas delta se descartan si el enlace de un espectador se satura; los
-keyframes y el audio nunca.
+### Una sola emisión, muchos suscriptores
+
+El navegador que comparte **codifica una vez y sube una sola copia** al
+servidor, por muchos espectadores que haya: el segundo y siguientes solo piden
+un keyframe para engancharse. Lo que sí se multiplica es el reparto: cada
+espectador remoto tiene su propia conexión por el túnel, así que **salen N
+copias por la subida del anfitrión**. Sin un servidor de medios externo esa
+multiplicación es inherente, y CodeXR no usa terceros ni credenciales.
+
+Por eso no hay un tope de espectadores, sino una **calidad que se adapta a la
+audiencia** — el mismo codificador se reconfigura, nunca se duplica:
+
+| Espectadores remotos | Vídeo | Subida aproximada del anfitrión |
+|---|---|---|
+| 1-2 | 1,5 Mbps, 1280 px | 1,5-3 Mbps |
+| 3-6 | 800 kbps, 960 px | 2,4-4,8 Mbps |
+| 7-14 | 500 kbps, 768 px | 3,5-7 Mbps |
+| 15+ | 350 kbps, 640 px, ~12 fps | 5 Mbps y subiendo |
+
+Orden de magnitud realista: con fibra doméstica (≈10 Mbps de subida) caben del
+orden de **15-25 espectadores** en los escalones bajos; con ADSL, unos pocos. El
+anfitrión ve en su pantalla cuántos espectadores hay y cuánta subida están
+costando, así que la decisión de invitar a más gente es informada.
+
+**Degradación por espectador, sin codificar de más**: el vídeo se codifica en
+tres capas temporales (WebCodecs `scalabilityMode`). Si la conexión de alguien
+se satura, el servidor le quita primero la capa superior —ve menos fps— y solo
+si sigue atascado le retiene los demás fotogramas delta. Keyframes, audio y
+configuración nunca se descartan, así que ese espectador se recupera solo y
+**nadie más se entera**. Donde el navegador no soporte capas, el flujo sigue
+siendo válido, simplemente de una sola capa.
 
 ## Evolución recomendada
 

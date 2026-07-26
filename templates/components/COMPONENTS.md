@@ -57,6 +57,11 @@ its parts directory. Manual harnesses load assembled copies from
     WebCodecs, JPEG images where WebCodecs is missing). A viewer only reports `live`
     once a real frame is painted, and a direct connection that delivers nothing for
     6 s falls back to the relay.
+  - The relay encodes **once** for the whole audience: extra viewers only ask for a
+    keyframe. Quality follows the audience size (the same encoder is reconfigured,
+    never duplicated) and three temporal layers let the server thin the stream for a
+    congested viewer alone. There is no viewer cap — see `docs/CLOUDFLARE_REMOTE_ACCESS.md`
+    for what it costs the host's uplink.
 - `codexr/virtual-screen/codexrMultiScreenManagerRuntime.js`
   - Owns screen creation, placement and multi-screen controls.
 - `codexr/collaboration/codexrCollaborationRuntime.js`
