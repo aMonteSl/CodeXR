@@ -160,6 +160,26 @@ function upsertDataTable(mountId, options, rows) {
   return dataTables[mountId];
 }
 
+/**
+ * Metric value as the panels display it. Metrics arrive from the backend
+ * already rounded, but anything derived from them (a delta, an average) is a
+ * raw float: `5.44 - 8.86` is `-3.419999999999999`, and printing that verbatim
+ * is how the comparison table ended up showing sixteen decimals. Integers keep
+ * their exact form; everything else is shown at the same precision the metrics
+ * themselves use.
+ */
+function formatMetricValue(value, decimals = 2) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return '0';
+  }
+  if (Number.isInteger(number)) {
+    return String(number);
+  }
+  // Number() drops the trailing zeros toFixed() adds: 5.40 → "5.4".
+  return String(Number(number.toFixed(decimals)));
+}
+
 function formatRatio(value) {
   return `${((value || 0) * 100).toFixed(1)}%`;
 }

@@ -109,3 +109,47 @@ test('LivePanel dependency seeding covers file sessions as well as directories',
     assert.doesNotMatch(server, /this\.analysisMode === 'LivePanel' && session\?\.targetType === 'directory'/);
     assert.match(server, /if \(this\.analysisMode === 'LivePanel'\) \{[\s\S]*?setBackgroundRefresh\(livePanelSessionId, 'dependency-graph', true\)/);
 });
+
+test('derived metric values are shown at the precision the metrics themselves use', () => {
+    // formatMetricValue is executed for real: a regex over the source would not
+    // catch the float noise this exists to remove.
+    const shell = readProjectFile('templates', 'components', 'livepanel', 'panelShell.js');
+    const source = shell.match(/function formatMetricValue[\s\S]*?\n\}/)?.[0];
+    assert.ok(source, 'panelShell must define formatMetricValue');
+    const formatMetricValue = new Function(`${source}; return formatMetricValue;`)();
+
+    // The exact case seen in the comparison table: 5.44 - 8.86.
+    assert.equal(formatMetricValue(5.44 - 8.86), '-3.42');
+    assert.equal(formatMetricValue(4.82 - 5.51), '-0.69');
+    // Integers keep their exact form — no ".00" tail on counts.
+    assert.equal(formatMetricValue(3548), '3548');
+    assert.equal(formatMetricValue(0), '0');
+    assert.equal(formatMetricValue(-7), '-7');
+    // Trailing zeros are dropped rather than padded.
+    assert.equal(formatMetricValue(5.4), '5.4');
+    assert.equal(formatMetricValue(5.401), '5.4');
+    // Junk never reaches the DOM as "NaN"/"undefined".
+    assert.equal(formatMetricValue(undefined), '0');
+    assert.equal(formatMetricValue(null), '0');
+    assert.equal(formatMetricValue(Number.NaN), '0');
+    assert.equal(formatMetricValue(Number.POSITIVE_INFINITY), '0');
+});
+
+test('the comparison delta cell formats every number and never signs a rounded-away change', () => {
+    const panel = readProjectFile('templates', 'components', 'livepanel', 'historicalPanel.js');
+    const cell = panel.match(/key: `delta:\$\{metric\}`[\s\S]*?\n        \},/)?.[0] || '';
+    assert.ok(cell, 'the delta column renderer should exist');
+
+    // All three numbers go through the formatter — printing any of them raw is
+    // what produced "8.86 → 5.44 (-3.419999999999999)".
+    assert.equal((cell.match(/formatMetricValue\(/g) || []).length, 3);
+    for (const side of ['left', 'right', 'delta']) {
+        assert.match(
+            cell,
+            new RegExp(`const ${side} = formatMetricValue\\(row\\[\`${side}:`),
+            `${side} must be formatted before it reaches the cell`,
+        );
+    }
+    // The sign is decided from the displayed value, so "+0" cannot happen.
+    assert.match(cell, /const sign = Number\(delta\) > 0 \? '\+' : '';/);
+});

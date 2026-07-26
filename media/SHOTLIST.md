@@ -81,9 +81,15 @@ Status: `pending` → `captured` → `optimized` → `published`.
 
 | ID | File | Type | Where | What it must show | Status |
 |---|---|---|---|---|---|
-| L1 | `livepanel-deps.png` | PNG | both | Dependency Summary: counters, fan-in/fan-out rankings, cycles. | pending |
-| L2 | `livepanel-history.png` | PNG | both | Historical Comparison in 2D with its delta table. | pending |
-| L3 | `livepanel-file.png` | PNG | web | The modernized file panel (optional). | pending |
+| L1 | `livepanel-deps.png` | PNG | both | Dependency Summary: counters, fan-in/fan-out rankings, cycles. | captured |
+| L2 | `livepanel-history.png` | PNG | both | Historical Comparison in 2D with its delta table. | captured |
+| L3 | `livepanel-file.png` | PNG | web | The modernized file panel (optional). | captured |
+
+**Capture conditions (2026-07-26).** Project: `aframe-babia-components` (77 files), dark theme, 1200 px panel at DPR 1.25 → 1500 px wide.
+
+- **L1** — 1255 nodes / 3475 edges / 1178 external / 0 cycles. Framed to *counters + Top Fan-In + Top Fan-Out*: the full section is 2932 px tall, and External / Confidence / Capability / Warnings fall outside what the shot asks for. **Cycles is not in the shot because this project has none** — it renders "No dependency cycles detected". A project with a real cycle would be needed to satisfy that part of the spec. The artifact had to be produced via `POST /api/dependency-graph/summary`; see the bug recorded in `.claude/docs/V1.2.0_STATUS.md` (2026-07-26).
+- **L2** — a real comparison: `ac84f71e — Release 1.3.0 (2025-06-23)` vs `master (live)`, 2 added / 77 modified, 79 rows in the delta table.
+- **L3** — file `babia-range-selector.js`. Framed to end at the density section: the Dependency Summary below it can never populate for a file-scope analysis (see the same status entry) and Historical Comparison was an empty state. **Weak data**: 15 functions, all in the `Simple (1-5)` band, max CCN 4 — the panel renders perfectly but has nothing interesting to show. Worth retaking on a genuinely complex file.
 
 ### VS Code UI
 
