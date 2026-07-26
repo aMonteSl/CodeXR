@@ -2,6 +2,10 @@
 
 ## [1.2.0] - Unreleased
 
+### Changed — Internal: the analysis server was split by responsibility
+
+- **`src/servers/runtime/httpServer.ts` (2,102 lines) was refactored into focused modules** — response helpers and static assets (`http/`), remote pairing and authorization (`remote/`), the collaboration session API (`collaboration/`), and the analysis feature host, bridges and message router (`analysis/`) — with `HttpServer` remaining the façade and composition root. No behavior change: a 39-entry characterization transcript (every route family, the full pairing journey, WebSocket rooms and shutdown) is byte-identical before and after.
+
 ### Fixed — The extension can be packaged again
 
 - **`npm run package:vsix` failed with 29 Terser errors**: the production build minified the multi-part runtime *fragments* copied from `templates/components/codexr/*/`, which only parse once concatenated per their `manifest.json`. Copied templates are now marked as data (`info: { minimized: true }` in the webpack copy pattern), so the minifier skips them while the extension bundle itself stays minified. Verified on the produced `.vsix`: fragments ship byte-identical to their sources, the bundled avatar model is included intact, and `dist/extension.js` remains minified.
