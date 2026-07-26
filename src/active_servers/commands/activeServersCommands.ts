@@ -173,12 +173,18 @@ export class ActiveServersCommands {
                     const participantTarget = typeof target === 'string' && peerIdArgument
                         ? { serverId: target, peerId: peerIdArgument }
                         : this.extractParticipantFromTreeItem(target);
-                    if (participantTarget) {
-                        await ServerActionHandlers.removeParticipant(
-                            participantTarget.serverId,
-                            participantTarget.peerId,
+                    if (!participantTarget) {
+                        // Never fail silently: an unresolvable target used to
+                        // look exactly like a command that did nothing.
+                        vscode.window.showWarningMessage(
+                            'Could not tell which participant to remove. Refresh the view and try again.',
                         );
+                        return;
                     }
+                    await ServerActionHandlers.removeParticipant(
+                        participantTarget.serverId,
+                        participantTarget.peerId,
+                    );
                 },
                 errorMessage: 'Failed to remove the participant',
             },

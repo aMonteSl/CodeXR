@@ -151,9 +151,18 @@ test('the host can remove a guest from the participant modal and the tree contex
     assert.match(items, /participant\.role === 'host' \? 'activeServerParticipant' : 'activeServerParticipantGuest'/);
     assert.match(items, /public readonly participant\?: ConnectedParticipantSummary/);
 
-    // The command accepts both call shapes: modal arguments and a tree item.
+    // The command accepts both call shapes: modal arguments and a tree item,
+    // and never fails silently when the target cannot be resolved.
     assert.match(commands, /id: 'codeXR\.activeServers\.removeParticipant'/);
     assert.match(commands, /extractParticipantFromTreeItem/);
+    assert.match(commands, /Could not tell which participant to remove/);
+
+    // The rendered item is rebuilt twice by the modular tree; the participant
+    // must survive both conversions or the context menu has no target at all
+    // (this is exactly what broke the right-click path once).
+    const modularTree = readProjectFile('src', 'views', 'ModularTreeDataProvider.ts');
+    assert.match(modularTree, /\(modularItem as any\)\.participant = child\.participant;/);
+    assert.match(modularTree, /\(element as any\)\.activeServer,\s*\n\s*\(element as any\)\.participant,/);
 
     // Contributed, and shown only on guest rows.
     const contributed = manifest.contributes.commands
