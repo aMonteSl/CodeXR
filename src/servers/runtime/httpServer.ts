@@ -38,6 +38,15 @@ import { SessionWatcherManager } from '../../code_analysis/engine/watchers/sessi
 import { UnifiedSessionRegistry } from '../../code_analysis/engine/core/sessionRegistry';
 import { resolveAnalysisServerCapabilities } from './analysisServerCapabilities';
 import { renderInvitationErrorPage, renderPairingPage } from './remote/pairingPage';
+import {
+    addCorsHeaders,
+    getRemoteAddress,
+    readBearerToken,
+    readJsonBody,
+    sendErrorResponse,
+    sendJsonResponse,
+} from './http/httpRespond';
+import { StaticAssetServer } from './http/staticAssets';
 
 /**
  * HTTP Server Configuration
@@ -59,6 +68,7 @@ export interface HttpServerConfig {
  */
 export class HttpServer {
     private server: http.Server | null = null;
+    private readonly staticAssets: StaticAssetServer;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
     private upgradeAttached = false;
@@ -90,6 +100,13 @@ export class HttpServer {
             allowedOrigins: ['*'],
             ...cleanConfig
         };
+
+        this.staticAssets = new StaticAssetServer({
+            staticRoot: this.config.staticRoot!,
+            mainFile: this.config.mainFile,
+            port: this.config.port,
+            host: this.config.host,
+        });
 
         if (this.config.extensionContext && this.config.analysisSessionId && this.config.staticRoot) {
             // Every analysis mode shares this launch path; a mode's declared
@@ -388,13 +405,13 @@ export class HttpServer {
         console.log(`SERVER: ${method} ${safeRequestUrl} - Processing request`);
 
         if (!this.isRequestAuthorized(req, requestUrl)) {
-            this.sendErrorResponse(res, 404, 'Resource not found');
+            sendErrorResponse(res, 404, 'Resource not found');
             return;
         }
 
         // Add CORS headers if enabled
         if (this.config.enableCors) {
-            this.addCorsHeaders(res);
+            addCorsHeaders(res, this.config.allowedOrigins);
         }
 
         // Handle preflight requests
@@ -412,7 +429,7 @@ export class HttpServer {
             })
             .catch((error) => {
                 console.error(`SERVER: ${method} ${safeRequestUrl} - Error:`, error);
-                this.sendErrorResponse(res, 500, 'Internal Server Error');
+                sendErrorResponse(res, 500, 'Internal Server Error');
             });
     }
 
@@ -429,7 +446,7 @@ export class HttpServer {
     ): Promise<void> {
         // Root path - serve main page
         if (url === '/' || url === '/index.html') {
-            await this.serveMainPage(res);
+            await this.staticAssets.serveMainPage(res);
             return;
         }
 
@@ -440,7 +457,7 @@ export class HttpServer {
 
         // Health check endpoint
         if (url === '/health') {
-            this.sendJsonResponse(res, 200, {
+            sendJsonResponse(res, 200, {
                 status: 'healthy',
                 timestamp: new Date().toISOString(),
                 server: 'CodeXR HTTP Server'
@@ -461,55 +478,7 @@ export class HttpServer {
         }
 
         // Static files
-        await this.serveStaticFile(req, res, url);
-    }
-
-    /**
-     * Serve the main CodeXR page
-     * @param res - HTTP response
-     */
-    private async serveMainPage(res: http.ServerResponse): Promise<void> {
-        let mainPagePath: string;
-        
-        if (this.config.mainFile) {
-            // If a specific main file is configured, use it
-            if (path.isAbsolute(this.config.mainFile)) {
-                mainPagePath = this.config.mainFile;
-            } else {
-                mainPagePath = path.join(this.config.staticRoot!, this.config.mainFile);
-            }
-            console.log(`SERVER: Attempting to serve configured main file: ${mainPagePath}`);
-            console.log(`SERVER: Static root: ${this.config.staticRoot}`);
-            console.log(`SERVER: Main file: ${this.config.mainFile}`);
-        } else {
-            // Default to xr-visualization.html
-            mainPagePath = path.join(this.config.staticRoot!, 'xr', 'xr-visualization.html');
-            console.log(`SERVER: Serving default main file: ${mainPagePath}`);
-        }
-        
-        // Check if file exists and serve it
-        if (fs.existsSync(mainPagePath)) {
-            console.log(`SERVER: Successfully found main file, serving: ${mainPagePath}`);
-            await this.serveFile(res, mainPagePath, 'text/html');
-        } else {
-            console.error(`SERVER: Main file not found: ${mainPagePath}`);
-            console.error(`SERVER: Current working directory: ${process.cwd()}`);
-            console.error(`SERVER: Static root exists: ${fs.existsSync(this.config.staticRoot!)}`);
-            if (this.config.staticRoot) {
-                try {
-                    const files = fs.readdirSync(this.config.staticRoot);
-                    console.error(`SERVER: Files in static root: ${files.join(', ')}`);
-                } catch (e) {
-                    console.error(`SERVER: Cannot read static root directory: ${e}`);
-                }
-            }
-            
-            // Fallback to a basic HTML page
-            console.warn(`SERVER: Serving fallback HTML instead of selected file`);
-            const fallbackHtml = this.generateFallbackHtml();
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(fallbackHtml);
-        }
+        await this.staticAssets.serveStaticFile(req, res, url);
     }
 
     /**
@@ -527,7 +496,7 @@ export class HttpServer {
 
         switch (apiPath) {
             case '/status':
-                this.sendJsonResponse(res, 200, {
+                sendJsonResponse(res, 200, {
                     server: 'CodeXR HTTP Server',
                     mode: 'HTTP',
                     port: this.config.port,
@@ -537,7 +506,7 @@ export class HttpServer {
                 break;
 
             case '/config':
-                this.sendJsonResponse(res, 200, {
+                sendJsonResponse(res, 200, {
                     mode: 'HTTP',
                     host: this.config.host,
                     port: this.config.port,
@@ -546,7 +515,7 @@ export class HttpServer {
                 break;
 
             case '/collaboration/session':
-                this.sendJsonResponse(res, 200, await this.buildCollaborationSessionDescriptor(req));
+                sendJsonResponse(res, 200, await this.buildCollaborationSessionDescriptor(req));
                 break;
 
             case '/collaboration/avatar-model':
@@ -586,7 +555,7 @@ export class HttpServer {
                 break;
 
             default:
-                this.sendErrorResponse(res, 404, 'API endpoint not found');
+                sendErrorResponse(res, 404, 'API endpoint not found');
         }
     }
 
@@ -600,23 +569,23 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'GET') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         if (!this.historicalComparisonService) {
-            this.sendErrorResponse(res, 404, 'Historical comparison is not available for this session.');
+            sendErrorResponse(res, 404, 'Historical comparison is not available for this session.');
             return;
         }
         const availability = await this.historicalComparisonService.getAvailability();
         if (!availability.enabled) {
-            this.sendJsonResponse(res, 200, { enabled: false, reason: availability.reason });
+            sendJsonResponse(res, 200, { enabled: false, reason: availability.reason });
             return;
         }
         try {
             const references = await this.historicalComparisonService.getReferences();
-            this.sendJsonResponse(res, 200, { enabled: true, reason: null, references });
+            sendJsonResponse(res, 200, { enabled: true, reason: null, references });
         } catch (error) {
-            this.sendErrorResponse(
+            sendErrorResponse(
                 res,
                 500,
                 error instanceof Error ? error.message : 'Failed to list Git references.',
@@ -637,29 +606,29 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'POST') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         if (!this.historicalComparisonService) {
-            this.sendErrorResponse(res, 404, 'Historical comparison is not available for this session.');
+            sendErrorResponse(res, 404, 'Historical comparison is not available for this session.');
             return;
         }
         if (this.historicalComparisonService.isBusy()) {
-            this.sendErrorResponse(res, 409, 'A historical comparison is already running.');
+            sendErrorResponse(res, 409, 'A historical comparison is already running.');
             return;
         }
         let request: HistoricalComparisonRequest;
         try {
-            const payload = await this.readJsonBody(req);
+            const payload = await readJsonBody(req);
             request = {
                 leftSourceId: String(payload.leftSourceId || ''),
                 rightSourceId: String(payload.rightSourceId || ''),
             };
         } catch {
-            this.sendErrorResponse(res, 400, 'Invalid request body');
+            sendErrorResponse(res, 400, 'Invalid request body');
             return;
         }
-        this.sendJsonResponse(res, 202, { accepted: true });
+        sendJsonResponse(res, 202, { accepted: true });
         void (async () => {
             try {
                 await SessionWatcherManager.reconcileSession(this.config.analysisSessionId!);
@@ -686,21 +655,21 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'POST') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         if (!this.dependencyGraphService) {
-            this.sendErrorResponse(res, 404, 'Dependency graph service is not available for this session.');
+            sendErrorResponse(res, 404, 'Dependency graph service is not available for this session.');
             return;
         }
         const availability = this.dependencyGraphService.getAvailability();
         if (!availability.enabled) {
-            this.sendErrorResponse(res, 400, availability.reason || 'Dependency graph is not available.');
+            sendErrorResponse(res, 400, availability.reason || 'Dependency graph is not available.');
             return;
         }
         const scope = this.dependencyGraphService.getInitialScope();
         if (scope.kind !== 'directory') {
-            this.sendErrorResponse(
+            sendErrorResponse(
                 res,
                 400,
                 'Dependency graph summary is only available for directory or project LivePanel analyses.',
@@ -708,14 +677,14 @@ export class HttpServer {
             return;
         }
         if (this.dependencyGraphService.isBusy()) {
-            this.sendErrorResponse(res, 409, 'A dependency analysis is already running.');
+            sendErrorResponse(res, 409, 'A dependency analysis is already running.');
             return;
         }
         try {
             const dataset = await this.dependencyGraphService.analyze();
-            this.sendJsonResponse(res, 200, dataset);
+            sendJsonResponse(res, 200, dataset);
         } catch (error) {
-            this.sendErrorResponse(
+            sendErrorResponse(
                 res,
                 500,
                 error instanceof Error ? error.message : 'Dependency graph analysis failed.',
@@ -725,13 +694,13 @@ export class HttpServer {
 
     private async serveAvatarModel(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
         if (req.method !== 'GET' && req.method !== 'HEAD') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
 
         const modelPath = CollaborationProfileManager.getInstance()?.getAvatarModelPath();
         if (!modelPath) {
-            this.sendErrorResponse(res, 404, 'Avatar model is not installed');
+            sendErrorResponse(res, 404, 'Avatar model is not installed');
             return;
         }
         const stats = await fs.promises.stat(modelPath);
@@ -746,7 +715,7 @@ export class HttpServer {
             return;
         }
         fs.createReadStream(modelPath)
-            .on('error', () => this.sendErrorResponse(res, 500, 'Unable to read avatar model'))
+            .on('error', () => sendErrorResponse(res, 500, 'Unable to read avatar model'))
             .pipe(res);
     }
 
@@ -784,11 +753,11 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'POST') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         try {
-            const payload = await this.readJsonBody(req);
+            const payload = await readJsonBody(req);
             const isCodeXR = payload.clientKind === 'codexr';
             const browserProfile = {
                 identityMode: payload.identityMode === 'custom' ? 'custom' : 'anonymous',
@@ -797,7 +766,7 @@ export class HttpServer {
             } satisfies CollaborationProfile;
             const result = this.remoteSessionAuthority.createPairingRequest({
                 invitationToken: String(payload.invitationToken || ''),
-                remoteAddress: this.getRemoteAddress(req),
+                remoteAddress: getRemoteAddress(req),
                 installationId: isCodeXR
                     ? String(payload.installationId || '')
                     : `browser-${crypto.randomUUID()}`,
@@ -807,7 +776,7 @@ export class HttpServer {
                 clientKind: isCodeXR ? 'codexr' : 'browser',
                 identityToken: isCodeXR ? undefined : String(payload.identityToken || ''),
             });
-            this.sendJsonResponse(res, 202, result);
+            sendJsonResponse(res, 202, result);
         } catch (error) {
             this.sendPairingError(res, error);
         }
@@ -818,16 +787,16 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'POST') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         try {
-            const payload = await this.readJsonBody(req);
+            const payload = await readJsonBody(req);
             const result = this.remoteSessionAuthority.createBrowserIdentity({
                 invitationToken: String(payload.invitationToken || ''),
-                remoteAddress: this.getRemoteAddress(req),
+                remoteAddress: getRemoteAddress(req),
             });
-            this.sendJsonResponse(res, 200, result);
+            sendJsonResponse(res, 200, result);
         } catch (error) {
             this.sendPairingError(res, error);
         }
@@ -838,20 +807,20 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'POST') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         try {
-            const payload = await this.readJsonBody(req);
+            const payload = await readJsonBody(req);
             const result = this.remoteSessionAuthority.confirmPairing(
                 String(payload.requestId || ''),
                 String(payload.code || ''),
-                this.getRemoteAddress(req),
+                getRemoteAddress(req),
             );
             const origin = this.getRequestOrigin(req);
             const browserUrl = new URL('/api/remote/browser', origin);
             browserUrl.searchParams.set('token', result.browserToken);
-            this.sendJsonResponse(res, 200, {
+            sendJsonResponse(res, 200, {
                 extensionToken: result.extensionToken,
                 browserUrl: browserUrl.toString(),
                 expiresAt: result.expiresAt,
@@ -867,13 +836,13 @@ export class HttpServer {
         requestUrl: string,
     ): void {
         if (req.method !== 'GET') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         const token = new URL(requestUrl, 'https://codexr.local').searchParams.get('token') || '';
         const session = this.remoteSessionAuthority.exchangeBrowserToken(token);
         if (!session) {
-            this.sendErrorResponse(res, 404, 'Resource not found');
+            sendErrorResponse(res, 404, 'Resource not found');
             return;
         }
         const secure = this.isRemoteRequest(req) ? '; Secure' : '';
@@ -890,12 +859,12 @@ export class HttpServer {
         res: http.ServerResponse,
     ): Promise<void> {
         if (req.method !== 'PUT') {
-            this.sendErrorResponse(res, 405, 'Method not allowed');
+            sendErrorResponse(res, 405, 'Method not allowed');
             return;
         }
         try {
-            const token = this.readBearerToken(req);
-            const payload = await this.readJsonBody(req);
+            const token = readBearerToken(req);
+            const payload = await readJsonBody(req);
             const sessions = this.remoteSessionAuthority.updateExtensionProfile(
                 token,
                 payload.profile as CollaborationProfile,
@@ -903,9 +872,9 @@ export class HttpServer {
             for (const session of sessions) {
                 this.collaborationRoomServer?.updateSessionProfile(session.sessionId, session.profile);
             }
-            this.sendJsonResponse(res, 200, { profile: sessions[0]?.profile });
+            sendJsonResponse(res, 200, { profile: sessions[0]?.profile });
         } catch {
-            this.sendErrorResponse(res, 404, 'Resource not found');
+            sendErrorResponse(res, 404, 'Resource not found');
         }
     }
 
@@ -939,31 +908,6 @@ export class HttpServer {
         res.end(html);
     }
 
-    private readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
-        return new Promise((resolve, reject) => {
-            const chunks: Buffer[] = [];
-            let size = 0;
-            req.on('data', (chunk: Buffer) => {
-                size += chunk.length;
-                if (size > 16 * 1024) {
-                    reject(new Error('request-too-large'));
-                    req.destroy();
-                    return;
-                }
-                chunks.push(chunk);
-            });
-            req.on('end', () => {
-                try {
-                    const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
-                    resolve(parsed && typeof parsed === 'object' ? parsed : {});
-                } catch {
-                    reject(new Error('invalid-json'));
-                }
-            });
-            req.on('error', reject);
-        });
-    }
-
     private getRequestOrigin(req: http.IncomingMessage): string {
         if (this.isRemoteRequest(req) && this.remotePublicUrl) {
             return this.remotePublicUrl;
@@ -973,165 +917,37 @@ export class HttpServer {
         return `${protocol}://${req.headers.host || `localhost:${this.config.port}`}`;
     }
 
-    private getRemoteAddress(req: http.IncomingMessage): string {
-        return String(req.headers['cf-connecting-ip'] || req.socket.remoteAddress || 'unknown').slice(0, 120);
-    }
-
-    private readBearerToken(req: http.IncomingMessage): string {
-        const authorization = String(req.headers.authorization || '');
-        return authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-    }
-
     private sendPairingError(res: http.ServerResponse, error: unknown): void {
         const code = error instanceof Error ? error.message : '';
         if (code === 'too-many-pairing-requests') {
-            this.sendErrorResponse(res, 429, 'Too many pending requests');
+            sendErrorResponse(res, 429, 'Too many pending requests');
             return;
         }
         if (code === 'invalid-pairing-code') {
-            this.sendErrorResponse(res, 401, 'Invalid pairing code. Ask the host for a new one.');
+            sendErrorResponse(res, 401, 'Invalid pairing code. Ask the host for a new one.');
             return;
         }
         if (code === 'pairing-code-revoked') {
-            this.sendErrorResponse(res, 401, 'This code is no longer valid. Ask the host for a new one.');
+            sendErrorResponse(res, 401, 'This code is no longer valid. Ask the host for a new one.');
             return;
         }
         if (code === 'pairing-attempts-exceeded') {
-            this.sendErrorResponse(res, 429, 'Pairing attempts exceeded');
+            sendErrorResponse(res, 429, 'Pairing attempts exceeded');
             return;
         }
         if (code === 'pairing-expired') {
-            this.sendErrorResponse(res, 410, 'Pairing request expired');
+            sendErrorResponse(res, 410, 'Pairing request expired');
             return;
         }
         if (code === 'invalid-profile') {
-            this.sendErrorResponse(res, 400, 'Invalid collaboration profile');
+            sendErrorResponse(res, 400, 'Invalid collaboration profile');
             return;
         }
         if (code === 'invalid-browser-identity') {
-            this.sendErrorResponse(res, 401, 'Invalid browser identity');
+            sendErrorResponse(res, 401, 'Invalid browser identity');
             return;
         }
-        this.sendErrorResponse(res, 404, 'Resource not found');
-    }
-
-    /**
-     * Serve static files
-     * @param req - HTTP request
-     * @param res - HTTP response
-     * @param url - Request URL
-     */
-    private async serveStaticFile(
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
-        url: string
-    ): Promise<void> {
-        // Parse URL to extract pathname without query string (WHATWG parser:
-        // the legacy url.parse() emits DEP0169 in the extension host).
-        const pathname = decodeURIComponent(new URL(url, 'http://codexr.local').pathname) || '/';
-        
-        const filePath = path.join(this.config.staticRoot!, pathname);
-        const normalizedPath = path.normalize(filePath);
-
-        console.log(`SERVER_DEBUG: Request for static file: ${url}`);
-        console.log(`SERVER_DEBUG: Parsed pathname: ${pathname}`);
-        console.log(`SERVER_DEBUG: Query string removed: ${url} -> ${pathname}`);
-        console.log(`SERVER_DEBUG: Static root: ${this.config.staticRoot}`);
-        console.log(`SERVER_DEBUG: Full file path: ${normalizedPath}`);
-        console.log(`SERVER_DEBUG: File exists: ${fs.existsSync(normalizedPath)}`);
-
-        // Security check: ensure the file is within the static root
-        if (!normalizedPath.startsWith(path.normalize(this.config.staticRoot!))) {
-            console.log(`SERVER_DEBUG: Access denied - path outside static root`);
-            this.sendErrorResponse(res, 403, 'Access denied');
-            return;
-        }
-
-        if (fs.existsSync(normalizedPath) && fs.statSync(normalizedPath).isFile()) {
-            console.log(`SERVER_DEBUG: Serving file: ${normalizedPath}`);
-            await this.serveFile(res, normalizedPath);
-        } else {
-            console.log(`SERVER_DEBUG: File not found: ${normalizedPath}`);
-            // List directory contents for debugging
-            try {
-                const dirPath = path.dirname(normalizedPath);
-                const dirContents = fs.readdirSync(dirPath);
-                console.log(`SERVER_DEBUG: Directory contents of ${dirPath}:`, dirContents);
-            } catch (dirError) {
-                console.log(`SERVER_DEBUG: Could not read directory: ${dirError}`);
-            }
-            this.sendErrorResponse(res, 404, 'File not found');
-        }
-    }
-
-    /**
-     * Serve a file
-     * @param res - HTTP response
-     * @param filePath - Path to the file
-     * @param contentType - Content type (optional, will be detected)
-     */
-    private async serveFile(
-        res: http.ServerResponse,
-        filePath: string,
-        contentType?: string
-    ): Promise<void> {
-        try {
-            const content = await fs.promises.readFile(filePath);
-            const detectedContentType = contentType || this.getContentType(filePath);
-            const headers: Record<string, string> = { 'Content-Type': detectedContentType };
-            if (/\.(:html|js|mjs|json|map)$/i.test(filePath)) {
-                headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
-                headers.Pragma = 'no-cache';
-                headers.Expires = '0';
-            }
-
-            res.writeHead(200, headers);
-            res.end(content);
-        } catch (error) {
-            console.error('SERVER: Error serving file:', error);
-            this.sendErrorResponse(res, 500, 'Error reading file');
-        }
-    }
-
-    /**
-     * Add CORS headers to response
-     * @param res - HTTP response
-     */
-    private addCorsHeaders(res: http.ServerResponse): void {
-        const allowedOrigins = this.config.allowedOrigins?.join(', ') || '*';
-        
-        res.setHeader('Access-Control-Allow-Origin', allowedOrigins);
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    }
-
-    /**
-     * Send JSON response
-     * @param res - HTTP response
-     * @param statusCode - HTTP status code
-     * @param data - Data to send
-     */
-    private sendJsonResponse(res: http.ServerResponse, statusCode: number, data: any): void {
-        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(data, null, 2));
-    }
-
-    /**
-     * Send error response
-     * @param res - HTTP response
-     * @param statusCode - HTTP status code
-     * @param message - Error message
-     */
-    private sendErrorResponse(res: http.ServerResponse, statusCode: number, message: string): void {
-        const errorData = {
-            error: true,
-            status: statusCode,
-            message: message,
-            timestamp: new Date().toISOString()
-        };
-        
-        this.sendJsonResponse(res, statusCode, errorData);
+        sendErrorResponse(res, 404, 'Resource not found');
     }
 
     /**
@@ -1164,69 +980,6 @@ export class HttpServer {
         sseManager.registerClient(fileUri, res);
         
         console.log(`REQUEST_UPDATE: SSE client registration completed for ${fileUri}`);
-    }
-
-    /**
-     * Get content type based on file extension
-     * @param filePath - Path to the file
-     * @returns string - Content type
-     */
-    private getContentType(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-        
-        const contentTypes: Record<string, string> = {
-            '.html': 'text/html',
-            '.css': 'text/css',
-            '.js': 'application/javascript',
-            '.json': 'application/json',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.svg': 'image/svg+xml',
-            '.ico': 'image/x-icon',
-            '.txt': 'text/plain'
-        };
-        
-        return contentTypes[ext] || 'application/octet-stream';
-    }
-
-    /**
-     * Generate fallback HTML when main file is not found
-     * @returns string - HTML content
-     */
-    private generateFallbackHtml(): string {
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <title>CodeXR Server - File Not Found</title>
-    <style>
-        body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
-        .error { background: #dc2626; color: white; padding: 15px; margin: 20px 0; }
-        .info { background: #374151; padding: 15px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <h1>CodeXR Server - File Not Found</h1>
-    <div class="error">
-        <h3>Selected HTML File Not Found</h3>
-        <p>The HTML file you selected could not be located.</p>
-        <p><strong>Attempted File:</strong> ${this.config.mainFile || 'Not specified'}</p>
-        <p><strong>Static Root:</strong> ${this.config.staticRoot}</p>
-    </div>
-    <div class="info">
-        <h3>Server Information</h3>
-        <p><strong>Port:</strong> ${this.config.port}</p>
-        <p><strong>Host:</strong> ${this.config.host}</p>
-    </div>
-    <div class="info">
-        <h3>Troubleshooting</h3>
-        <p>1. Check that the file still exists</p>
-        <p>2. Verify file permissions</p>
-        <p>3. Try restarting the server</p>
-    </div>
-</body>
-</html>`;
     }
 
     public attachToNodeServer(server: http.Server): void {
