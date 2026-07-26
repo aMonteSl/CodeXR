@@ -30,6 +30,13 @@ Ask the user to:
 
 Confirm the URL answers before doing anything else. If they cannot give a URL, the fallback is the analysis output on disk (`<workspaceStorage>/<hash>/amonteSl.code-xr/analysis/`), served statically — good enough for the classic panel, **not** for historical comparison.
 
+Two things that will waste a round trip if you forget them:
+
+- **The server is HTTPS**, with a self-signed certificate — that is the default mode. Probing it over plain HTTP answers `ECONNRESET`, which looks exactly like "the server is down". Use `https://` and `ignoreHTTPSErrors: true` in the browser context.
+- **Playwright must be resolved from the project**, since the capture script lives in the scratchpad and Node will not find `playwright` from there: `require('C:/Users/Admin/Desktop/Desarrollo/CodeXR/node_modules/playwright')`.
+
+Before framing anything, collect `console` and `pageerror` from the page for a second. A LivePanel that renders its empty state with no visible error is usually a bundle that failed to parse — the panel is served as one concatenated `main.js`, so a single syntax error anywhere kills every handler silently. `npm test` covers that now (`livePanelBundle.test.cjs`), but read the console anyway: a screenshot of a dead panel looks like a screenshot of an empty project.
+
 ## Capture loop — one shot at a time
 
 Write the capture script under the **scratchpad**, never in the repo: this is a tool, not project code. Use the repo's own Playwright (`require('playwright')` from the project root).
