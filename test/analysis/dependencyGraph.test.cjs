@@ -558,7 +558,10 @@ test('XR SSE signals normal analysis readiness after Babia stabilization', () =>
 });
 
 test('dependency server preserves cached datasets and no longer accepts granularity', () => {
-  const server = read('src/servers/runtime/httpServer.ts');
+  const server = read('src/servers/runtime/analysis/analysisMessageRouter.ts')
+    + read('src/servers/runtime/analysis/dependencyGraphBridge.ts')
+    + read('src/servers/runtime/analysis/analysisFeatureHost.ts')
+    + read('src/servers/runtime/httpServer.ts');
   const service = read('src/code_analysis/dependencies/dependencyGraphService.ts');
   const models = read('src/code_analysis/dependencies/dependencyGraphModels.ts');
   assert.match(server, /hasCachedDataset/);
@@ -589,9 +592,12 @@ test('dependency graph availability gate allows LivePanel directory/project anal
 });
 
 test('LivePanel dependency graph summary REST endpoint is thin and reuses the existing service', () => {
-  const server = read('src/servers/runtime/httpServer.ts');
+  const server = read('src/servers/runtime/analysis/analysisMessageRouter.ts')
+    + read('src/servers/runtime/analysis/dependencyGraphBridge.ts')
+    + read('src/servers/runtime/analysis/analysisFeatureHost.ts')
+    + read('src/servers/runtime/httpServer.ts');
   assert.match(server, /case '\/dependency-graph\/summary':/);
-  assert.match(server, /private async handleDependencyGraphSummary\(/);
+  assert.match(server, /public async handleDependencyGraphSummary\(/);
   assert.match(server, /this\.dependencyGraphService\.getAvailability\(\)/);
   assert.match(server, /scope\.kind !== 'directory'/);
   assert.match(server, /this\.dependencyGraphService\.isBusy\(\)/);
@@ -599,7 +605,10 @@ test('LivePanel dependency graph summary REST endpoint is thin and reuses the ex
 });
 
 test('LivePanel ties the dependency graph into the re-analysis chain as a background mode and pushes updates over SSE', () => {
-  const server = read('src/servers/runtime/httpServer.ts');
+  const server = read('src/servers/runtime/analysis/analysisMessageRouter.ts')
+    + read('src/servers/runtime/analysis/dependencyGraphBridge.ts')
+    + read('src/servers/runtime/analysis/analysisFeatureHost.ts')
+    + read('src/servers/runtime/httpServer.ts');
   // Background refresh: recompute the dependency graph on every source change,
   // seed the initial dataset, and clean up on dispose.
   assert.match(server, /setBackgroundRefresh\(livePanelSessionId, 'dependency-graph', true\)/);
@@ -623,7 +632,10 @@ test('the dependency service consumes an incremental change batch (changed files
   // The incremental request feeds the Python analyzer the change batch + a cache.
   assert.match(service, /const requestPath = path\.join\(requestDirectory, 'refresh-request\.json'\)/);
   assert.match(service, /this\.extractionCachePath/);
-  const server = read('src/servers/runtime/httpServer.ts');
+  const server = read('src/servers/runtime/analysis/analysisMessageRouter.ts')
+    + read('src/servers/runtime/analysis/dependencyGraphBridge.ts')
+    + read('src/servers/runtime/analysis/analysisFeatureHost.ts')
+    + read('src/servers/runtime/httpServer.ts');
   // The handler builds the request from the coordinator batch (first run full, then incremental).
   assert.match(server, /changedFiles: batch\.changedFiles/);
   assert.match(server, /forceFullScan: batch\.forceRefresh \|\| !this\.dependencyGraphService\.hasGeneratedDataset\(\)/);
@@ -833,7 +845,10 @@ test('flow size and speed are a room-shared catalogue rendered in the panel', ()
   assert.match(source, /publishState\(\{ flowSpeed: cycleValue\(currentFlowSpeed, flowSpeedIds, 1\) \}\)/);
 
   // The analysis server validates and persists the same contract.
-  const server = read('src/servers/runtime/httpServer.ts');
+  const server = read('src/servers/runtime/analysis/analysisMessageRouter.ts')
+    + read('src/servers/runtime/analysis/dependencyGraphBridge.ts')
+    + read('src/servers/runtime/analysis/analysisFeatureHost.ts')
+    + read('src/servers/runtime/httpServer.ts');
   assert.match(server, /allowedFlowSizes = new Set\(\['s', 'm', 'l', 'xl'\]\)/);
   assert.match(server, /allowedFlowSpeeds = new Set\(\['x05', 'x1', 'x2', 'x3'\]\)/);
   assert.match(server, /flowSize: existingDependencyState\?\.flowSize \|\| 'm'/);

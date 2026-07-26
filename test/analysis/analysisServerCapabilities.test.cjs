@@ -101,11 +101,11 @@ test('resolveAnalysisServerCapabilities returns an independent object per call (
     assert.equal(second.dependencyGraph, true, 'a mutated result must not leak into later resolutions');
 });
 
-test('HttpServer resolves capabilities from the session mode and gates every optional service behind them', () => {
-    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+test('the analysis host resolves capabilities from the session mode and gates every optional service behind them', () => {
+    const httpServer = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
 
     // Uses the single shared capability resolver, keyed off the real session mode.
-    assert.match(httpServer, /import \{ resolveAnalysisServerCapabilities \} from '\.\/analysisServerCapabilities';/);
+    assert.match(httpServer, /import \{ resolveAnalysisServerCapabilities \} from '\.\.\/analysisServerCapabilities';/);
     assert.match(httpServer, /UnifiedSessionRegistry[\s\S]*\.getSession\(this\.config\.analysisSessionId\)/);
     assert.match(httpServer, /const capabilities = resolveAnalysisServerCapabilities\(session\?\.analysisMode\);/);
 
@@ -115,8 +115,8 @@ test('HttpServer resolves capabilities from the session mode and gates every opt
     assert.match(httpServer, /if \(capabilities\.projectEvolution\) \{[\s\S]*new ProjectEvolutionService\(/);
 });
 
-test('HttpServer no longer constructs the XR-only feature services unconditionally', () => {
-    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+test('the analysis host no longer constructs the XR-only feature services unconditionally', () => {
+    const httpServer = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
 
     // The historical/project-evolution services must never be reachable without
     // first passing their capability gate — otherwise a non-XR launch throws.
