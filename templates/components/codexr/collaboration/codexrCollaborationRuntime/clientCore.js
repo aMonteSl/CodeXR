@@ -16,6 +16,7 @@
       connectionStatus: 'disconnected',
       error: null,
       kicked: false,
+      sessionEnded: false,
       profile: { ...DEFAULT_PROFILE },
       participants: new Map(),
       remotePresence: new Map(),
@@ -64,6 +65,7 @@
         presenterPeerId: shared.presenterPeerId,
         profile: { ...shared.profile },
         kicked: shared.kicked,
+        sessionEnded: shared.sessionEnded,
       };
     }
 
@@ -161,7 +163,13 @@
     }
 
     function scheduleReconnect() {
-      if (shared.destroyed || shared.kicked || shared.reconnectTimer || !shared.config.collaborationEnabled) {
+      if (
+        shared.destroyed
+        || shared.kicked
+        || shared.sessionEnded
+        || shared.reconnectTimer
+        || !shared.config.collaborationEnabled
+      ) {
         return;
       }
       shared.reconnectTimer = win.setTimeout(function () {
@@ -174,6 +182,7 @@
       if (
         shared.destroyed
         || shared.kicked
+        || shared.sessionEnded
         || !shared.config.collaborationEnabled
         || typeof win.WebSocket !== 'function'
       ) {
@@ -216,7 +225,7 @@
         if (shared.socket === socket) {
           shared.socket = null;
         }
-        setConnectionStatus(shared.kicked ? 'removed' : 'disconnected');
+        setConnectionStatus(shared.kicked ? 'removed' : shared.sessionEnded ? 'ended' : 'disconnected');
         scheduleReconnect();
       };
       socket.onerror = function () {

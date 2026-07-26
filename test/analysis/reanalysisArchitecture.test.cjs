@@ -75,7 +75,12 @@ test('coding-agent integration surfaces are removed', () => {
         'commands',
         'activeAnalysesCommands.ts',
     );
-    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const httpServer = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisMessageRouter.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'dependencyGraphBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'projectEvolutionBridge.ts');
     const camelName = 'agent' + 'Context';
     const titleName = 'Agent' + ' Context';
     const commandPrefix = ['codeXR', camelName].join('.');
@@ -150,7 +155,9 @@ test('mode activation reconciles watcher hashes without forcing a full analysis'
     const directoryWatcher = readProjectFile(
         'src', 'code_analysis', 'engine', 'watchers', 'directoryWatcherOrchestrator.ts',
     );
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'projectEvolutionBridge.ts');
     const coordinator = readProjectFile(
         'src', 'code_analysis', 'refresh', 'analysisRefreshCoordinator.ts',
     );

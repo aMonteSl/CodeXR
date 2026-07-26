@@ -462,3 +462,91 @@ test('collaboration room server keeps one presenter and lets the host stop anoth
         await new Promise((resolve) => server.close(resolve));
     }
 });
+
+test('disposing the room server announces session-ended to every peer before closing their sockets', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const guest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest)]);
+        await joinRoom(host, 'codexr-session:alpha');
+        await joinRoom(guest, 'codexr-session:alpha');
+
+        const hostEnded = waitForMessage(host, (payload) => payload.type === 'session-ended');
+        const guestEnded = waitForMessage(guest, (payload) => payload.type === 'session-ended');
+        const guestClosed = new Promise((resolve) => guest.once('close', (code) => resolve(code)));
+
+        collaboration.dispose();
+
+        const [hostMessage, guestMessage] = await Promise.all([hostEnded, guestEnded]);
+        assert.equal(hostMessage.payload.reason, 'host-closed');
+        assert.equal(guestMessage.payload.reason, 'host-closed');
+        assert.equal(hostMessage.roomId, 'codexr-session:alpha');
+        // The deliberate-shutdown close code, distinct from the kick (4001).
+        assert.equal(await guestClosed, 4002);
+    } finally {
+        for (const socket of [host, guest]) {
+            try {
+                socket.close();
+            } catch {
+                // Already closed by the dispose under test.
+            }
+        }
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('the extension can remove a participant: kick message, 4001 close, list update and presence-left', async () => {
+    const { server, collaboration, url } = await createCollaborationServer();
+    const host = new WebSocket(url);
+    const guest = new WebSocket(url);
+
+    try {
+        await Promise.all([waitForOpen(host), waitForOpen(guest)]);
+        const hostJoin = await joinRoom(host, 'codexr-session:alpha');
+        const guestJoin = await joinRoom(guest, 'codexr-session:alpha');
+        const hostPeerId = hostJoin.joined.peerId;
+        const guestPeerId = guestJoin.joined.peerId;
+
+        assert.equal(collaboration.getConnectedParticipants('codexr-session:alpha').length, 2);
+
+        const guestKicked = waitForMessage(guest, (payload) => payload.type === 'participant-kick');
+        const guestClosed = new Promise((resolve) => guest.once('close', (code) => resolve(code)));
+        const hostSawLeave = waitForMessage(
+            host,
+            (payload) => payload.type === 'presence-left' && payload.payload?.peerId === guestPeerId,
+        );
+
+        const result = collaboration.removeParticipant('codexr-session:alpha', guestPeerId);
+        assert.equal(result.removed, true);
+        // A local guest carries no authenticated session to revoke.
+        assert.equal(result.sessionId, null);
+        assert.equal(result.remote, false);
+
+        const kick = await guestKicked;
+        assert.equal(kick.payload.peerId, guestPeerId);
+        // The removal close code stays distinct from the session-ended one (4002).
+        assert.equal(await guestClosed, 4001);
+        await hostSawLeave;
+
+        const remaining = collaboration.getConnectedParticipants('codexr-session:alpha');
+        assert.deepEqual(remaining.map((participant) => participant.peerId), [hostPeerId]);
+
+        // Removing somebody who is not there changes nothing.
+        const missing = collaboration.removeParticipant('codexr-session:alpha', 'peer-does-not-exist');
+        assert.deepEqual(missing, { removed: false, sessionId: null, remote: false });
+        assert.equal(collaboration.getConnectedParticipants('codexr-session:alpha').length, 1);
+    } finally {
+        for (const socket of [host, guest]) {
+            try {
+                socket.close();
+            } catch {
+                // Already closed by the removal under test.
+            }
+        }
+        collaboration.dispose();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});

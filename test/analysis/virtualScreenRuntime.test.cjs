@@ -52,6 +52,7 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     const collaborationRuntimeSource = readAssembledRuntime('collaboration', 'codexrCollaborationRuntime.js');
     const avatarRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'avatar', 'codexrAvatarRuntime.js');
     const httpServerSource = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const sessionApiSource = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts');
     const broadcastServerSource = readProjectFile('src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts');
     const runtimeIndexSource = readProjectFile('src', 'servers', 'runtime', 'index.ts');
 
@@ -146,8 +147,10 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(httpServerSource, /CollaborationRoomServer/);
     assert.match(httpServerSource, /case '\/collaboration\/session'/);
     assert.match(httpServerSource, /case '\/collaboration\/avatar-model'/);
-    assert.match(httpServerSource, /CollaborationProfileManager/);
-    assert.match(httpServerSource, /roomId: `codexr-session:\$\{activeServerId\}`/);
+    // The session descriptor and room-id derivation live in the extracted
+    // CollaborationSessionApi module.
+    assert.match(sessionApiSource, /CollaborationProfileManager/);
+    assert.match(sessionApiSource, /roomId: `codexr-session:\$\{activeServerId\}`/);
     assert.match(httpServerSource, /new CollaborationRoomServer\(server, '\/codexr-room'/);
     assert.match(httpServerSource, /ScreenBroadcastSignalingServer/);
     assert.match(httpServerSource, /new ScreenBroadcastSignalingServer\(/);

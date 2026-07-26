@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { X509Certificate } from 'crypto';
 import * as vscode from 'vscode';
-import { HttpServer, HttpServerConfig } from './httpServer';
+import { HttpServer, HttpServerConfig, ParticipantRemovalOutcome } from './httpServer';
 import { ConnectedParticipantSummary } from '../../collaboration';
 import { NetworkUtils } from '../utils/networkUtils';
 import { PortManager } from './portManager';
@@ -235,6 +235,10 @@ export class HttpsCustomServer {
 
     public getConnectedParticipants(): ConnectedParticipantSummary[] {
         return this.httpHandler.getConnectedParticipants();
+    }
+
+    public removeParticipant(peerId: string): ParticipantRemovalOutcome {
+        return this.httpHandler.removeParticipant(peerId);
     }
 
     public onConnectedParticipantsChanged(

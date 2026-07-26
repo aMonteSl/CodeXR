@@ -60,7 +60,8 @@ test('XR mapping UI config includes live chart selector metadata', () => {
 });
 
 test('local XR server prevents stale runtime script caching', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    // Static serving lives in the extracted StaticAssetServer module.
+    const server = readProjectFile('src', 'servers', 'runtime', 'http', 'staticAssets.ts');
 
     assert.ok(server.includes('/\\.(:html|js|mjs|json|map)$/i.test(filePath)'));
     assert.match(server, /Cache-Control'\] = 'no-store, no-cache, must-revalidate, max-age=0'/);

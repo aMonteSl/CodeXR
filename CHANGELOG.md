@@ -2,6 +2,21 @@
 
 ## [1.2.0] - Unreleased
 
+### Added — The host can remove a participant from VS Code
+
+- **The participant dialog in ACTIVE SERVERS → Connected users now offers `Remove from Session`**, next to Close, and the same action is on the right-click menu of the participant row. Until now the list was read-only: removing somebody was only possible from the host's own browser scene. The host's own row never offers it.
+- **Removal is confirmed first**, and the dialog says what it costs: a cross-network guest **loses their remote session** and needs a new invitation and pairing code to come back; a local-network guest can reopen the server address, so the dialog says so instead of implying a block.
+- The removed browser shows the "Removed from session" screen and stops reconnecting; their avatar disappears for everyone else and the row leaves the tree on its own.
+
+### Added — Guests are told when the session ends
+
+- **When the host stops the server, every connected browser now shows a full-page "Session ended — The host closed the session." screen** instead of silently retrying forever: the room server sends a `session-ended` farewell over the collaboration socket before closing each connection (close code 4002), and the client stops its reconnect loop for good. If the viewer is immersed in VR, the scene exits VR first so the message is actually visible.
+- **Being removed by the host shows the same screen** ("The room host removed you from this session.") — previously a kick was only visible in the browser console.
+
+### Changed — Internal: the analysis server was split by responsibility
+
+- **`src/servers/runtime/httpServer.ts` (2,102 lines) was refactored into focused modules** — response helpers and static assets (`http/`), remote pairing and authorization (`remote/`), the collaboration session API (`collaboration/`), and the analysis feature host, bridges and message router (`analysis/`) — with `HttpServer` remaining the façade and composition root. No behavior change: a 39-entry characterization transcript (every route family, the full pairing journey, WebSocket rooms and shutdown) is byte-identical before and after.
+
 ### Fixed — The extension can be packaged again
 
 - **`npm run package:vsix` failed with 29 Terser errors**: the production build minified the multi-part runtime *fragments* copied from `templates/components/codexr/*/`, which only parse once concatenated per their `manifest.json`. Copied templates are now marked as data (`info: { minimized: true }` in the webpack copy pattern), so the minifier skips them while the extension bundle itself stays minified. Verified on the produced `.vsix`: fragments ship byte-identical to their sources, the bundled avatar model is included intact, and `dist/extension.js` remains minified.
@@ -18,7 +33,7 @@
 
 ### Changed — The 3D avatar ships with the extension; no download, no consent prompt
 
-- **The avatar model is now bundled** (`resources/avatars/robot-expressive.glb`, 0.44 MiB). Nothing is fetched at runtime: no download prompt, no global-storage copy, and the avatar is there the moment the extension is installed — including offline. This is possible because the model is **CC0 1.0**, which places no restriction on redistribution. A copy downloaded by an earlier version is cleaned out of global storage on first run.
+- **The avatar model is now bundled** (`resources/avatars/robot-expressive.glb`, 0.44 MiB). Nothing is fetched at runtime: no download prompt, no global-storage copy, and the avatar is there the moment the extension is installed — including offline. This is possible because the model is **CC0 1.0**, which places no restriction on redistribution.
 - With it go the download machinery and its consent modal, and the `Download Avatar Model` / `Manage Avatar Model` commands. The extension no longer performs *any* unsolicited download for collaboration.
 - **`3D Model` is now an information row.** It reads `Included` and opens a dialog crediting Tomás Laulhé (modified by Don McCurdy) with the CC0 licence, geometry and size, plus buttons to open the source page and the licence text. It uses the same formatter as the server dialogs — extracted to a shared module so the two can no longer drift apart.
 - **Name tags sit higher and adapt to the model.** They were pinned at a fixed height and the robot's head could occlude them from a close, low camera; they now hang a fixed margin above the *fitted* model's crown (0.55 m for the current avatar), so a future model can't grow into them.

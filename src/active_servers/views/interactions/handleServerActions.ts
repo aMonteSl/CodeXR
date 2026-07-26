@@ -18,6 +18,14 @@ interface PairingAuthority {
     regeneratePairingCode(requestId: string): { code: string; expiresAt: number };
 }
 
+/** Minimal shape of a server runtime that hosts collaboration participants. */
+interface ParticipantHostRuntime {
+    getConnectedParticipants?: () => ConnectedParticipantSummary[];
+    removeParticipant?: (peerId: string) => { removed: boolean; sessionRevoked: boolean };
+}
+
+const REMOVE_PARTICIPANT_ACTION = 'Remove from Session';
+
 /**
  * Server Action Handlers
  * Handle user interactions with active servers
@@ -239,14 +247,7 @@ export class ServerActionHandlers {
      * Show a modal with the details of one connected participant
      */
     public static async showParticipantDetails(serverId: string, peerId: string): Promise<void> {
-        const server = getActiveServerRegistry().getServer(serverId);
-        const runtime = server?.serverInstance as
-            | { getConnectedParticipants?: () => ConnectedParticipantSummary[] }
-            | undefined;
-        const participants = typeof runtime?.getConnectedParticipants === 'function'
-            ? runtime.getConnectedParticipants()
-            : [];
-        const participant = participants.find((candidate) => candidate.peerId === peerId);
+        const participant = this.findConnectedParticipant(serverId, peerId);
 
         if (!participant) {
             vscode.window.showInformationMessage('This participant is no longer connected.');
@@ -273,10 +274,82 @@ export class ServerActionHandlers {
             ],
         ]);
 
-        await vscode.window.showInformationMessage(
+        // The host cannot remove themselves, so their own row keeps only Close.
+        const actions = participant.role === 'host' ? [] : [REMOVE_PARTICIPANT_ACTION];
+        const choice = await vscode.window.showInformationMessage(
             `Participant — ${participant.displayName}`,
             { modal: true, detail },
+            ...actions,
         );
+
+        if (choice === REMOVE_PARTICIPANT_ACTION) {
+            await this.removeParticipant(serverId, peerId);
+        }
+    }
+
+    /**
+     * Disconnect a participant from the session, after confirmation. A remote
+     * guest also loses their session, so they need a new invitation to return.
+     */
+    public static async removeParticipant(serverId: string, peerId: string): Promise<void> {
+        const participant = this.findConnectedParticipant(serverId, peerId);
+        if (!participant) {
+            vscode.window.showInformationMessage('This participant is no longer connected.');
+            return;
+        }
+        if (participant.role === 'host') {
+            vscode.window.showWarningMessage('The host of the session cannot be removed.');
+            return;
+        }
+
+        const isRemote = participant.connectionScope === 'remote';
+        const consequence = isRemote
+            ? 'Their remote session will be revoked: they will need a new invitation and pairing code to join again.'
+            : 'They are on the local network, so they can open the server address again unless you stop the server.';
+        const confirmation = await vscode.window.showWarningMessage(
+            `Remove ${participant.displayName} from the session?`,
+            { modal: true, detail: `${consequence}\n\nThey will see a message explaining they were removed.` },
+            'Remove',
+        );
+        if (confirmation !== 'Remove') {
+            return;
+        }
+
+        const runtime = this.getParticipantHostRuntime(serverId);
+        if (typeof runtime?.removeParticipant !== 'function') {
+            vscode.window.showWarningMessage('This server does not support removing participants.');
+            return;
+        }
+
+        const outcome = runtime.removeParticipant(peerId);
+        if (!outcome.removed) {
+            vscode.window.showInformationMessage(
+                `${participant.displayName} had already left the session.`,
+            );
+            return;
+        }
+
+        vscode.window.showInformationMessage(
+            outcome.sessionRevoked
+                ? `${participant.displayName} was removed. Their remote session was revoked.`
+                : `${participant.displayName} was removed from the session.`,
+        );
+    }
+
+    private static getParticipantHostRuntime(serverId: string): ParticipantHostRuntime | undefined {
+        const server = getActiveServerRegistry().getServer(serverId);
+        return server?.serverInstance as ParticipantHostRuntime | undefined;
+    }
+
+    private static findConnectedParticipant(
+        serverId: string,
+        peerId: string,
+    ): ConnectedParticipantSummary | undefined {
+        const runtime = this.getParticipantHostRuntime(serverId);
+        const participants = typeof runtime?.getConnectedParticipants === 'function'
+            ? runtime.getConnectedParticipants()
+            : [];
+        return participants.find((candidate) => candidate.peerId === peerId);
     }
 
     /**

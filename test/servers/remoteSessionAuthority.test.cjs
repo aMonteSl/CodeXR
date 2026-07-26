@@ -299,3 +299,65 @@ test('remote browser identity accepts a validated custom Unicode name', () => {
     assert.equal(session.profile.customName, 'Álvaro Ω');
     assert.equal(session.clientKind, 'browser');
 });
+
+test('revoking one session kills only that guest credentials, leaving the rest of the room intact', () => {
+    const RemoteSessionAuthority = loadAuthority();
+    const authority = new RemoteSessionAuthority();
+    const invitationToken = authority.createInvitation();
+    const codes = new Map();
+    authority.onPairingRequest((event) => codes.set(event.requestId, event.code));
+
+    function pairGuest(address, installationId, name) {
+        const request = authority.createPairingRequest({
+            invitationToken,
+            remoteAddress: address,
+            installationId,
+            profile: profile(name),
+        });
+        const result = authority.confirmPairing(request.requestId, codes.get(request.requestId), address);
+        return { result, session: authority.exchangeBrowserToken(result.browserToken) };
+    }
+
+    const removed = pairGuest('198.51.100.5', 'installation-removed', 'Jyn');
+    const kept = pairGuest('198.51.100.6', 'installation-kept', 'Cassian');
+
+    assert.equal(authority.revokeSession(removed.session.sessionId), true);
+
+    // The removed guest can no longer prove who they are, by cookie or token.
+    assert.equal(authority.resolveCookie(`codexr_session=${removed.session.sessionId}`), null);
+    assert.equal(authority.resolveExtensionToken(removed.result.extensionToken), null);
+    // Everyone else keeps their access.
+    assert.equal(
+        authority.resolveCookie(`codexr_session=${kept.session.sessionId}`).sessionId,
+        kept.session.sessionId,
+    );
+    assert.equal(
+        authority.resolveExtensionToken(kept.result.extensionToken).sessionId,
+        kept.session.sessionId,
+    );
+    // The invitation itself survives: the host can still admit new guests.
+    assert.equal(authority.isInvitationValid(invitationToken), true);
+    // Revoking twice is a no-op, not an error.
+    assert.equal(authority.revokeSession(removed.session.sessionId), false);
+});
+
+test('a revoked session cannot be resurrected through an unspent browser token', () => {
+    const RemoteSessionAuthority = loadAuthority();
+    const authority = new RemoteSessionAuthority();
+    const invitationToken = authority.createInvitation();
+    const codes = new Map();
+    authority.onPairingRequest((event) => codes.set(event.requestId, event.code));
+
+    const request = authority.createPairingRequest({
+        invitationToken,
+        remoteAddress: '198.51.100.9',
+        installationId: 'installation-pending',
+        profile: profile('Bodhi'),
+    });
+    const paired = authority.confirmPairing(request.requestId, codes.get(request.requestId), '198.51.100.9');
+    // The extension token reveals the session without spending the browser one.
+    const sessionId = authority.resolveExtensionToken(paired.extensionToken).sessionId;
+
+    assert.equal(authority.revokeSession(sessionId), true);
+    assert.equal(authority.exchangeBrowserToken(paired.browserToken), null);
+});

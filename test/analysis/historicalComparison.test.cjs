@@ -347,7 +347,10 @@ test('historical snapshots use private extension storage and publish only immuta
 });
 
 test('historical comparison is authoritative, shared per room, and rejects concurrent work', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisMessageRouter.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'projectEvolutionBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
     const service = readProjectFile(
         'src',
         'code_analysis',
@@ -366,12 +369,16 @@ test('historical comparison is authoritative, shared per room, and rejects concu
     assert.match(server, /message\.type === 'historical-comparison-start'/);
     assert.match(server, /allowsEmptyShell = mode === 'historical-compare'[\s\S]*\|\| mode === 'project-evolution'/);
     assert.match(server, /if \(!available && !allowsEmptyShell\)/);
-    assert.match(server, /this\.setAnalysisViewMode\('historical-compare', 'historical.selection'\);/);
-    assert.match(server, /this\.setAnalysisViewMode\('historical-compare', 'historical.mapping'\);/);
+    assert.match(server, /setAnalysisViewMode\('historical-compare', 'historical.selection'\);/);
+    assert.match(server, /setAnalysisViewMode\('historical-compare', 'historical.mapping'\);/);
     assert.doesNotMatch(server, /message\.type === 'historical-comparison-reset'/);
     assert.match(server, /historicalComparisonService\.isBusy\(\)/);
     assert.match(server, /await this\.historicalComparisonService\.getAvailability\(\)/);
-    assert.match(server, /historicalComparisonReason: historicalComparison\.reason/);
+    // The capability payload is built by the extracted CollaborationSessionApi.
+    assert.match(
+        readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts'),
+        /historicalComparisonReason: historicalComparison\.reason/,
+    );
     assert.match(server, /entityKind: 'historical-comparison'/);
     assert.match(server, /messageContext\.upsertSharedEntity/);
     assert.match(service, /activeRequest: this\.activeRequest \? \{ \.\.\.this\.activeRequest \} : null/);
@@ -382,7 +389,10 @@ test('historical comparison is authoritative, shared per room, and rejects concu
 });
 
 test('project evolution builds a chronological Git movie and publishes shared XR state', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisMessageRouter.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'projectEvolutionBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
     const service = readProjectFile(
         'src',
         'code_analysis',
@@ -462,8 +472,10 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(sampler, /function sampleByPosition/);
     assert.match(server, /new ProjectEvolutionService/);
     assert.match(server, /projectEvolutionService\.getAvailability/);
-    assert.match(server, /projectEvolution: projectEvolution\.enabled/);
-    assert.match(server, /projectEvolutionReason: projectEvolution\.reason/);
+    // The capability payload is built by the extracted CollaborationSessionApi.
+    const sessionApi = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts');
+    assert.match(sessionApi, /projectEvolution: projectEvolution\.enabled/);
+    assert.match(sessionApi, /projectEvolutionReason: projectEvolution\.reason/);
     assert.match(server, /message\.type === 'project-evolution-references-request'/);
     assert.match(server, /message\.type === 'project-evolution-clear'/);
     assert.match(server, /removeSharedEntity\('project-evolution', 'main'\)/);
@@ -472,7 +484,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(server, /projectEvolutionService\.applyFrameToBridge/);
     assert.match(server, /type: 'project-evolution-frame-applied'/);
     assert.match(server, /message\.type === 'project-evolution-start'/);
-    assert.match(server, /this\.setAnalysisViewMode\('project-evolution', 'project-evolution'\);/);
+    assert.match(server, /setAnalysisViewMode\('project-evolution', 'project-evolution'\);/);
     assert.match(server, /projectEvolutionService\.isBusy\(\)/);
     assert.match(server, /entityKind: 'project-evolution'/);
     assert.match(server, /mode: 'project-evolution'/);
