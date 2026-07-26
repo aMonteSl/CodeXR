@@ -116,11 +116,7 @@ export class CollaborationSessionApi {
 
     private getDefaultCollaborationConfiguration(): CollaborationConfiguration {
         return {
-            profile: {
-                identityMode: 'anonymous',
-                customName: '',
-                avatarId: 'avatar-1',
-            },
+            profile: { ...DEFAULT_COLLABORATION_PROFILE },
             avatarModelAvailable: false,
             revision: 0,
         };

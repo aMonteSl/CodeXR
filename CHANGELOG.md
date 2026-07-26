@@ -22,7 +22,7 @@
 
 ### Changed — The 3D avatar ships with the extension; no download, no consent prompt
 
-- **The avatar model is now bundled** (`resources/avatars/robot-expressive.glb`, 0.44 MiB). Nothing is fetched at runtime: no download prompt, no global-storage copy, and the avatar is there the moment the extension is installed — including offline. This is possible because the model is **CC0 1.0**, which places no restriction on redistribution. A copy downloaded by an earlier version is cleaned out of global storage on first run.
+- **The avatar model is now bundled** (`resources/avatars/robot-expressive.glb`, 0.44 MiB). Nothing is fetched at runtime: no download prompt, no global-storage copy, and the avatar is there the moment the extension is installed — including offline. This is possible because the model is **CC0 1.0**, which places no restriction on redistribution.
 - With it go the download machinery and its consent modal, and the `Download Avatar Model` / `Manage Avatar Model` commands. The extension no longer performs *any* unsolicited download for collaboration.
 - **`3D Model` is now an information row.** It reads `Included` and opens a dialog crediting Tomás Laulhé (modified by Don McCurdy) with the CC0 licence, geometry and size, plus buttons to open the source page and the licence text. It uses the same formatter as the server dialogs — extracted to a shared module so the two can no longer drift apart.
 - **Name tags sit higher and adapt to the model.** They were pinned at a fixed height and the robot's head could occlude them from a close, low camera; they now hang a fixed margin above the *fitted* model's crown (0.55 m for the current avatar), so a future model can't grow into them.
