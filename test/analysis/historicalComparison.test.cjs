@@ -371,7 +371,11 @@ test('historical comparison is authoritative, shared per room, and rejects concu
     assert.doesNotMatch(server, /message\.type === 'historical-comparison-reset'/);
     assert.match(server, /historicalComparisonService\.isBusy\(\)/);
     assert.match(server, /await this\.historicalComparisonService\.getAvailability\(\)/);
-    assert.match(server, /historicalComparisonReason: historicalComparison\.reason/);
+    // The capability payload is built by the extracted CollaborationSessionApi.
+    assert.match(
+        readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts'),
+        /historicalComparisonReason: historicalComparison\.reason/,
+    );
     assert.match(server, /entityKind: 'historical-comparison'/);
     assert.match(server, /messageContext\.upsertSharedEntity/);
     assert.match(service, /activeRequest: this\.activeRequest \? \{ \.\.\.this\.activeRequest \} : null/);
@@ -462,8 +466,10 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(sampler, /function sampleByPosition/);
     assert.match(server, /new ProjectEvolutionService/);
     assert.match(server, /projectEvolutionService\.getAvailability/);
-    assert.match(server, /projectEvolution: projectEvolution\.enabled/);
-    assert.match(server, /projectEvolutionReason: projectEvolution\.reason/);
+    // The capability payload is built by the extracted CollaborationSessionApi.
+    const sessionApi = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts');
+    assert.match(sessionApi, /projectEvolution: projectEvolution\.enabled/);
+    assert.match(sessionApi, /projectEvolutionReason: projectEvolution\.reason/);
     assert.match(server, /message\.type === 'project-evolution-references-request'/);
     assert.match(server, /message\.type === 'project-evolution-clear'/);
     assert.match(server, /removeSharedEntity\('project-evolution', 'main'\)/);

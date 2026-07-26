@@ -44,6 +44,7 @@ import {
 import { StaticAssetServer } from './http/staticAssets';
 import { RemoteAccessPolicy } from './remote/remoteAccessPolicy';
 import { RemotePairingApi } from './remote/remotePairingApi';
+import { CollaborationSessionApi } from './collaboration/collaborationSessionApi';
 
 /**
  * HTTP Server Configuration
@@ -68,6 +69,7 @@ export class HttpServer {
     private readonly staticAssets: StaticAssetServer;
     private readonly policy: RemoteAccessPolicy;
     private readonly pairingApi: RemotePairingApi;
+    private readonly sessionApi: CollaborationSessionApi;
     private config: HttpServerConfig;
     private isRunning: boolean = false;
     private upgradeAttached = false;
@@ -112,6 +114,28 @@ export class HttpServer {
             getOrigin: (req) => this.getRequestOrigin(req),
             isRemoteRequest: (req) => this.policy.isRemoteRequest(req),
             getRoom: () => this.collaborationRoomServer,
+        });
+        this.sessionApi = new CollaborationSessionApi({
+            port: this.config.port,
+            authority: this.remoteSessionAuthority,
+            getAnalysisAvailability: async () => ({
+                historicalComparison: this.historicalComparisonService
+                    ? await this.historicalComparisonService.getAvailability()
+                    : {
+                        enabled: false,
+                        reason: 'Historical comparison is not available for this server.',
+                    },
+                projectEvolution: this.projectEvolutionService
+                    ? await this.projectEvolutionService.getAvailability()
+                    : {
+                        enabled: false,
+                        reason: 'Project evolution is not available for this server.',
+                    },
+                dependencyGraph: this.dependencyGraphService?.getAvailability() || {
+                    enabled: false,
+                    reason: 'Dependency analysis is not available for this server.',
+                },
+            }),
         });
 
         if (this.config.extensionContext && this.config.analysisSessionId && this.config.staticRoot) {
@@ -331,7 +355,7 @@ export class HttpServer {
     }
 
     public getConnectedParticipants(): ConnectedParticipantSummary[] {
-        return this.collaborationRoomServer?.getConnectedParticipants(this.getCollaborationRoomId()) || [];
+        return this.collaborationRoomServer?.getConnectedParticipants(this.sessionApi.getCollaborationRoomId()) || [];
     }
 
     public onConnectedParticipantsChanged(
@@ -341,7 +365,7 @@ export class HttpServer {
             return () => undefined;
         }
         return this.collaborationRoomServer.onParticipantsChanged((changedRoomId, participants) => {
-            if (changedRoomId === this.getCollaborationRoomId()) {
+            if (changedRoomId === this.sessionApi.getCollaborationRoomId()) {
                 listener(participants);
             }
         });
@@ -521,11 +545,11 @@ export class HttpServer {
                 break;
 
             case '/collaboration/session':
-                sendJsonResponse(res, 200, await this.buildCollaborationSessionDescriptor(req));
+                await this.sessionApi.handleSessionDescriptor(req, res);
                 break;
 
             case '/collaboration/avatar-model':
-                await this.serveAvatarModel(req, res);
+                await this.sessionApi.serveAvatarModel(req, res);
                 break;
 
             case '/remote/pair/request':
@@ -698,33 +722,6 @@ export class HttpServer {
         }
     }
 
-    private async serveAvatarModel(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-        if (req.method !== 'GET' && req.method !== 'HEAD') {
-            sendErrorResponse(res, 405, 'Method not allowed');
-            return;
-        }
-
-        const modelPath = CollaborationProfileManager.getInstance()?.getAvatarModelPath();
-        if (!modelPath) {
-            sendErrorResponse(res, 404, 'Avatar model is not installed');
-            return;
-        }
-        const stats = await fs.promises.stat(modelPath);
-        res.writeHead(200, {
-            'Content-Type': 'model/gltf-binary',
-            'Content-Length': stats.size,
-            'Cache-Control': 'public, max-age=604800, immutable',
-            'X-CodeXR-Asset-Source': 'RobotExpressive-by-Tomas-Laulhe-CC0',
-        });
-        if (req.method === 'HEAD') {
-            res.end();
-            return;
-        }
-        fs.createReadStream(modelPath)
-            .on('error', () => sendErrorResponse(res, 500, 'Unable to read avatar model'))
-            .pipe(res);
-    }
-
     private getRequestOrigin(req: http.IncomingMessage): string {
         if (this.policy.isRemoteRequest(req) && this.remotePublicUrl) {
             return this.remotePublicUrl;
@@ -866,7 +863,7 @@ export class HttpServer {
                         ? 'project-evolution'
                         : 'dependency-graph';
                 const snapshot = this.collaborationRoomServer?.getServerEntity(
-                    this.getCollaborationRoomId(),
+                    this.sessionApi.getCollaborationRoomId(),
                     entityKind,
                     'main',
                 );
@@ -1029,7 +1026,7 @@ export class HttpServer {
             return true;
         }
         const existingDependencyState = this.collaborationRoomServer?.getServerEntity(
-            this.getCollaborationRoomId(),
+            this.sessionApi.getCollaborationRoomId(),
             'dependency-graph',
             'main',
         );
@@ -1352,63 +1349,6 @@ export class HttpServer {
         return true;
     }
 
-    private async buildCollaborationSessionDescriptor(
-        req: http.IncomingMessage,
-    ): Promise<Record<string, unknown>> {
-        const fileUri = fileToServerMap.findFileByPort(this.config.port);
-        const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
-        const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
-        const collaborationConfiguration = CollaborationProfileManager.getInstance()?.getConfiguration()
-            || this.getDefaultCollaborationConfiguration();
-        const session = this.remoteSessionAuthority.resolveCookie(req.headers.cookie);
-        const profile = session?.profile || DEFAULT_COLLABORATION_PROFILE;
-        const historicalComparison = this.historicalComparisonService
-            ? await this.historicalComparisonService.getAvailability()
-            : {
-                enabled: false,
-                reason: 'Historical comparison is not available for this server.',
-            };
-        const projectEvolution = this.projectEvolutionService
-            ? await this.projectEvolutionService.getAvailability()
-            : {
-                enabled: false,
-                reason: 'Project evolution is not available for this server.',
-            };
-        const dependencyGraph = this.dependencyGraphService?.getAvailability() || {
-            enabled: false,
-            reason: 'Dependency analysis is not available for this server.',
-        };
-
-        return {
-            roomId: `codexr-session:${activeServerId}`,
-            activeServerId,
-            fileUri: fileUri || null,
-            capabilities: {
-                collaboration: true,
-                presence: true,
-                media: true,
-                historicalComparison: historicalComparison.enabled,
-                historicalComparisonReason: historicalComparison.reason,
-                projectEvolution: projectEvolution.enabled,
-                projectEvolutionReason: projectEvolution.reason,
-                dependencyGraph: dependencyGraph.enabled,
-                dependencyGraphReason: dependencyGraph.reason,
-            },
-            roomSocketPath: '/codexr-room',
-            broadcastSocketPath: '/codexr-broadcast',
-            collaborationProfile: profile,
-            avatarModelAvailable: collaborationConfiguration.avatarModelAvailable,
-            profileRevision: collaborationConfiguration.revision,
-        };
-    }
-
-    private getCollaborationRoomId(): string {
-        const fileUri = fileToServerMap.findFileByPort(this.config.port);
-        const mapping = fileUri ? fileToServerMap.getServerInfo(fileUri) : null;
-        const activeServerId = mapping?.activeServerId || `port-${this.config.port}`;
-        return `codexr-session:${activeServerId}`;
-    }
-
     private scheduleHistoricalComparisonRefresh(): void {
         if (!this.historicalComparisonService?.hasLiveSource()) {
             return;
@@ -1429,7 +1369,7 @@ export class HttpServer {
         }
         console.log('[Code-XR Fix][Server] dependency analysis starting (revision', batch.sourceRevision, ')');
         try {
-            this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+            this.collaborationRoomServer?.upsertServerEntity(this.sessionApi.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
                 entityId: 'main',
                 status: 'analyzing',
@@ -1442,13 +1382,13 @@ export class HttpServer {
                 removedFiles: batch.removedFiles,
                 forceFullScan: batch.forceRefresh || !this.dependencyGraphService.hasGeneratedDataset(),
             }, (message) => {
-                this.collaborationRoomServer?.broadcastServerMessage(this.getCollaborationRoomId(), {
+                this.collaborationRoomServer?.broadcastServerMessage(this.sessionApi.getCollaborationRoomId(), {
                     type: 'dependency-graph-progress',
                     payload: { message },
                 });
             });
             const currentEntity = this.collaborationRoomServer?.getServerEntity(
-                this.getCollaborationRoomId(),
+                this.sessionApi.getCollaborationRoomId(),
                 'dependency-graph',
                 'main',
             );
@@ -1463,7 +1403,7 @@ export class HttpServer {
                 const fileDataset = await this.dependencyGraphService.analyzeFileScope(
                     currentScope.relativePath,
                 );
-                this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                this.collaborationRoomServer?.upsertServerEntity(this.sessionApi.getCollaborationRoomId(), {
                     entityKind: 'dependency-graph',
                     entityId: 'main',
                     mode: 'dependency-graph',
@@ -1480,7 +1420,7 @@ export class HttpServer {
                 });
                 return;
             }
-            this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+            this.collaborationRoomServer?.upsertServerEntity(this.sessionApi.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
                 entityId: 'main',
                 mode: 'dependency-graph',
@@ -1493,13 +1433,13 @@ export class HttpServer {
             this.notifyLivePanelDependencyUpdated(dataset.revision);
         } catch (error) {
             console.error('[Code-XR Fix][Server] dependency analysis failed:', error);
-            this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+            this.collaborationRoomServer?.upsertServerEntity(this.sessionApi.getCollaborationRoomId(), {
                 entityKind: 'dependency-graph',
                 entityId: 'main',
                 status: 'error',
                 message: error instanceof Error ? error.message : String(error),
             });
-            this.collaborationRoomServer?.broadcastServerMessage(this.getCollaborationRoomId(), {
+            this.collaborationRoomServer?.broadcastServerMessage(this.sessionApi.getCollaborationRoomId(), {
                 type: 'dependency-graph-error',
                 payload: { message: error instanceof Error ? error.message : String(error) },
             });
@@ -1588,7 +1528,7 @@ export class HttpServer {
             return;
         }
         this.collaborationRoomServer.upsertServerEntity(
-            this.getCollaborationRoomId(),
+            this.sessionApi.getCollaborationRoomId(),
             analysisRefreshCoordinator.getViewState(this.config.analysisSessionId),
         );
     }
@@ -1604,13 +1544,13 @@ export class HttpServer {
         }
         try {
             const result = await this.historicalComparisonService.refreshActiveComparison((progress) => {
-                this.collaborationRoomServer?.broadcastServerMessage(this.getCollaborationRoomId(), {
+                this.collaborationRoomServer?.broadcastServerMessage(this.sessionApi.getCollaborationRoomId(), {
                     type: 'historical-comparison-progress',
                     payload: progress,
                 });
             });
             if (result) {
-                this.collaborationRoomServer?.upsertServerEntity(this.getCollaborationRoomId(), {
+                this.collaborationRoomServer?.upsertServerEntity(this.sessionApi.getCollaborationRoomId(), {
                     entityKind: 'historical-comparison',
                     entityId: 'main',
                     mode: 'historical-compare',
@@ -1624,15 +1564,4 @@ export class HttpServer {
         }
     }
 
-    private getDefaultCollaborationConfiguration(): CollaborationConfiguration {
-        return {
-            profile: {
-                identityMode: 'anonymous',
-                customName: '',
-                avatarId: 'avatar-1',
-            },
-            avatarModelAvailable: false,
-            revision: 0,
-        };
-    }
 }
