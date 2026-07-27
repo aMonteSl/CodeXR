@@ -25,6 +25,8 @@ import {
     GUIDE_PAGE_OUTPUT_NAME,
     readGuideScreenRuntimeContent,
     readGuidePageContent,
+    LOGO_RUNTIME_OUTPUT_NAME,
+    readLogoRuntimeContent,
     RENDER_BUDGET_RUNTIME_OUTPUT_NAME,
     DEPENDENCY_VISUAL_BUDGET_RUNTIME_OUTPUT_NAME,
     CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
@@ -154,6 +156,7 @@ export class DirectoryXRParser {
             const dependencyGraphRuntimeContent = await readDependencyGraphRuntimeContent(context.extensionPath);
             const guideScreenRuntimeContent = await readGuideScreenRuntimeContent(context.extensionPath);
             const guidePageContent = await readGuidePageContent(context.extensionPath);
+            const logoRuntimeContent = await readLogoRuntimeContent(context.extensionPath);
             const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
             const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
             const pointerPolicyRuntimeContent = await readPointerPolicyRuntimeContent(context.extensionPath);
@@ -183,6 +186,7 @@ export class DirectoryXRParser {
             generatedFiles.set(DEPENDENCY_GRAPH_RUNTIME_OUTPUT_NAME, dependencyGraphRuntimeContent);
             generatedFiles.set(GUIDE_SCREEN_RUNTIME_OUTPUT_NAME, guideScreenRuntimeContent);
             generatedFiles.set(GUIDE_PAGE_OUTPUT_NAME, guidePageContent);
+            generatedFiles.set(LOGO_RUNTIME_OUTPUT_NAME, logoRuntimeContent);
             generatedFiles.set(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME, codexrDebugRuntimeContent);
             generatedFiles.set('data.json', dataJsonContent);
             codexrRoomTextures.forEach((asset) => {

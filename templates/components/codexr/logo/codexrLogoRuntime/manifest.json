@@ -1,0 +1,7 @@
+{
+  "output": "codexrLogoRuntime.js",
+  "parts": [
+    "logoContours.js",
+    "codexrLogo.js"
+  ]
+}

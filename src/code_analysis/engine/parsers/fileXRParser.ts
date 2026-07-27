@@ -49,6 +49,8 @@ import {
     copyGuidePageToOutput,
     GUIDE_SCREEN_RUNTIME_OUTPUT_NAME,
     GUIDE_PAGE_OUTPUT_NAME,
+    copyLogoRuntimeToOutput,
+    LOGO_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 interface FileXRSharedBootstrap {
@@ -140,6 +142,7 @@ export class FileXRParser {
             await copyProjectEvolutionRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyGuideScreenRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyGuidePageToOutput(this.context.extensionPath, session.outputPath);
+            await copyLogoRuntimeToOutput(this.context.extensionPath, session.outputPath);
 
             const title = `XR Analysis: ${session.targetName || 'analysis'}`;
             const outputPath = path.join(session.outputPath, 'index.html');
@@ -187,6 +190,7 @@ export class FileXRParser {
                 || !loadedFiles.has(PROJECT_EVOLUTION_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(GUIDE_SCREEN_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(GUIDE_PAGE_OUTPUT_NAME)
+                || !loadedFiles.has(LOGO_RUNTIME_OUTPUT_NAME)
             ) {
                 throw new Error('XR file bootstrap did not generate the required files.');
             }

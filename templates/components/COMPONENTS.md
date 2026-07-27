@@ -87,6 +87,9 @@ its parts directory. Manual harnesses load assembled copies from
 - `codexr/guide-screen/guideScreenRuntime.js`
   - Owns the in-room user guide: a fixed-content SUBTYPE of the virtual screen (well-known id `guide`, content provider `codexr-guide`). The parent contributes chrome, drag/resize, follow/look-at, minimize and the room-shared `screen` entity; this runtime contributes the immutable guide content (the same declarative model rendered as the served `guide.html`) plus its own interactions (tabs, Guide/Data glossary toggle, pagination — local per participant).
   - Must load after `virtual-screen/virtualScreenRuntime.js` and the multi-screen manager.
+- `codexr/logo/codexrLogoRuntime.js`
+  - Owns the 3D CodeXR mark floating over the analysis table while it is EMPTY (table mode `selection`, which is also the transit hop while an analysis is being prepared). Extrudes contours generated offline from `resources/icon.svg` (`logoContours.js`; regenerate rather than hand-edit — `AFRAME.THREE` ships no `SVGLoader`), assembles the frame and the X/R letters on entry and takes them apart on exit.
+  - Decoration only: no raycaster class (it must never swallow a click) and it lives outside `#codexrAnalysisSurface`, so the selection sweep does not own it. It reads the table's mode from `componentchanged` on `#codexrAnalysisTable` and goes completely still when `CodeXRRenderBudgetRuntime` reports `static` (also how reduced-motion arrives).
 - `codexr/render-budget/renderBudgetRuntime.js`
   - Owns local FPS/render quality monitoring.
 - `codexr/dependency-visual-budget/dependencyVisualBudgetRuntime.js`
@@ -100,7 +103,7 @@ its parts directory. Manual harnesses load assembled copies from
 
 ## Recommended Load Order
 
-1. Room, collaboration, avatars and virtual screens; the `guide-screen` runtime right after the virtual screen + manager (it is a virtual-screen subtype).
+1. Room, collaboration, avatars and virtual screens; the `guide-screen` runtime right after the virtual screen + manager (it is a virtual-screen subtype); `codexr/logo` with the room (scene decoration, no dependencies of its own).
 2. `common/codexrCommonRuntime.js`, then `common/codexrGitRefPickerRuntime.js` (before the Git analyses that embed it).
 3. `codexr/pointer-policy/codexrPointerPolicyRuntime.js` (scene-level pointer arbitration, before anything that assumes pointers).
 4. CodeXR charts, mapping UI, chart debug and analysis table.
