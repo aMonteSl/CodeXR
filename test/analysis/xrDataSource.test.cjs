@@ -203,12 +203,15 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /codexr-multi-screen-manager="maxScreens: 5; wall: west"/);
     assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
-    // The rig line now spans two attributes: desktop pose + the immersive
-    // adapter that floor-aligns it in VR/AR and recenters it in AR.
+    // The rig stands on the floor and the eye offset lives on the camera:
+    // look-controls zeroes the CAMERA for a real headset session, so an offset
+    // parked on the rig would either stack on the local-floor pose or, once
+    // compensated, drop the user's eyes to ground level.
     assert.match(
         template,
-        /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75"\s+codexr-immersive-rig="arPosition: 0\.07 0 -15\.6">/,
+        /<a-entity id="rig" movement-controls="fly: false" position="0\.07 0 -10\.75"\s+codexr-immersive-rig="arPosition: 0\.07 0 -14\.7">/,
     );
+    assert.match(template, /<a-entity id="head" camera position="0 1\.75 0" look-controls>/);
     assert.match(template, /src="\.\/codexrImmersiveRigRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/codexrCommonRuntime\.js(?:\?v=\$\{nonce\})?"/);

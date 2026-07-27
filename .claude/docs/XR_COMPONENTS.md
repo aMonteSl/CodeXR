@@ -17,7 +17,7 @@
 
 - `common/codexrCommonRuntime.js` — shared A-Frame helpers (entity creation, tooltips, text, model normalization). Added in v1.2.0; tested by `test/analysis/codexrCommonRuntime.test.cjs`.
 - `common/codexrVisualStyleRuntime.js` — shared visual styling (v1.2.0 work in progress).
-- `codexr/<component>/` — per-feature runtimes: pointer-policy (single-active-pointer arbitration: mouse / gaze / laser), immersive-rig (rig pose adapter: floor-align on any immersive entry since `local-floor` already carries the user's real height, AR recenter in front of the pedestal, desktop pose restored on exit), analysis-table, chart containment, mapping UI, dependency-graph, historical-comparison, project-evolution, virtual-screen, collaboration, avatar, xr-room, render budget, debug.
+- `codexr/<component>/` — per-feature runtimes: pointer-policy (single-active-pointer arbitration: mouse / gaze / laser), immersive-rig (AR recenter in front of the pedestal, desktop pose restored on exit; never touches y — the rig sits on the floor and the eye offset lives on the camera entity, which `look-controls` zeroes for a real headset session so the `local-floor` pose replaces it), analysis-table, chart containment, mapping UI, dependency-graph, historical-comparison, project-evolution, virtual-screen, collaboration, avatar, xr-room, render budget, debug.
 - Runtime `.cjs` tests in `test/analysis/` exercise these browser runtimes directly with Node's test runner.
 
 ## The `codexr-analysis-table` modes

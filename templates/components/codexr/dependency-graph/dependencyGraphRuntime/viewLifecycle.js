@@ -36,7 +36,8 @@
     if (state.transitionLocked) { return; }
     refs.graph?.components?.[COMPONENT]?.resetView?.();
     var rig = doc()?.getElementById('rig');
-    rig?.setAttribute?.('position', '0.07 1.75 -10.75');
+    // The rig stands on the floor; eye height lives on the camera entity.
+    rig?.setAttribute?.('position', '0.07 0 -10.75');
     rig?.setAttribute?.('rotation', '0 0 0');
     setStatus('View reset.', false);
   }

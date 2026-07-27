@@ -97,15 +97,18 @@
         <!-- Babia UI panel and toggle (optional) -->
         ${BABIA_UI_COMPONENT}
 
-        <!-- Rig: y=1.75 is DESKTOP eye height (camera sits at the rig origin).
-             In immersive WebXR the headset brings the user's real height over
-             local-floor, so codexr-immersive-rig drops y to 0 on entry (VR and
-             AR), recenters the rig in front of the pedestal in AR, and
-             restores this exact pose on exit. -->
-        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
-        codexr-immersive-rig="arPosition: 0.07 0 -15.6">
+        <!-- The rig stands ON THE FLOOR (y=0) and the eye height lives on the
+             camera. That split is what A-Frame expects: look-controls zeroes
+             the camera's local position when a real headset session starts
+             (and restores it on exit), so the local-floor pose — which already
+             carries the user's real height — replaces the desktop offset
+             instead of stacking on top of it. Put the offset on the rig
+             instead and you end up either floating or standing on the floor
+             with your eyes at ankle height. -->
+        <a-entity id="rig" movement-controls="fly: false" position="0.07 0 -10.75"
+        codexr-immersive-rig="arPosition: 0.07 0 -14.7">
         <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy) -->
-        <a-entity id="head" camera position="0 0 0" look-controls>
+        <a-entity id="head" camera position="0 1.75 0" look-controls>
             <a-entity
             id="gazeCursor"
             visible="false"

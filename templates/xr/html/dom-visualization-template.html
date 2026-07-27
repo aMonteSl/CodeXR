@@ -48,15 +48,16 @@
                 rotation="0 0 0" text="value: Expand; color: white; align: center; width: 3;"></a-plane>
         </a-entity>
 
-        <!-- Rig: y=1.6 is DESKTOP eye height. In immersive WebXR the headset
-             brings the user's real height over local-floor, so
-             codexr-immersive-rig drops y to 0 on entry and restores the pose
-             on exit. No AR recenter here: the DOM tree already sits ~3 m away. -->
-        <a-entity id="cameraRig" movement-controls="fly: true; speed: 0.1" position="0 1.6 3"
+        <!-- Rig on the floor, eye height on the camera: look-controls zeroes
+             the camera's local position for a real headset session (the
+             local-floor pose already carries the user's height) and restores
+             it on exit. No AR recenter here: the DOM tree already sits ~3 m
+             away. -->
+        <a-entity id="cameraRig" movement-controls="fly: true; speed: 0.1" position="0 0 3"
             codexr-immersive-rig="arRecenter: false">
             <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy).
                  Sin babia-camera: creaba un segundo cursor de ratón y raycasters de mano duplicados. -->
-            <a-entity id="head" camera look-controls>
+            <a-entity id="head" camera position="0 1.6 0" look-controls>
                 <a-entity
                     id="gazeCursor"
                     visible="false"
