@@ -195,6 +195,39 @@
     return hudEnabled;
   }
   function toggleHud() { return hud(!hudEnabled); }
+
+  // Immersive simulation, for checking AR/VR layout on a plain desktop
+  // browser. These set the very states and events A-Frame sets around a real
+  // session, so everything that keys off them runs for real: hide-on-enter-ar
+  // clears the room, the rig recenters for AR, and the pointer policy hands
+  // over. What they canNOT give you is a WebXR session — no headset pose, no
+  // stereo, no camera passthrough — so use them to answer "what is hidden and
+  // where do I end up", and an emulator or a real headset for the rest.
+  function simulateImmersive(mode) {
+    var currentScene = scene();
+    if (!currentScene?.emit) {
+      root.console?.warn?.('[CodeXR][Debug] No scene to simulate on.');
+      return false;
+    }
+    currentScene.removeState?.('ar-mode');
+    currentScene.removeState?.('vr-mode');
+    currentScene.addState?.(mode);
+    currentScene.emit('enter-vr');
+    root.console?.log?.('[CodeXR][Debug] Simulated ' + mode + ' (no WebXR session: no headset pose, no stereo, no passthrough).');
+    return true;
+  }
+  function simulateAR() { return simulateImmersive('ar-mode'); }
+  function simulateVR() { return simulateImmersive('vr-mode'); }
+  function exitSimulated() {
+    var currentScene = scene();
+    if (!currentScene?.emit) { return false; }
+    currentScene.emit('exit-vr');
+    currentScene.removeState?.('ar-mode');
+    currentScene.removeState?.('vr-mode');
+    root.console?.log?.('[CodeXR][Debug] Left simulated immersive mode.');
+    return true;
+  }
+
   function help() {
     var commands = [
       'CodeXRDebug.status()',
@@ -202,6 +235,9 @@
       'CodeXRDebug.stopWatch()',
       'CodeXRDebug.hud(true)',
       'CodeXRDebug.toggleHud()',
+      'CodeXRDebug.simulateAR()',
+      'CodeXRDebug.simulateVR()',
+      'CodeXRDebug.exitSimulated()',
       'CodeXRDebug.help()'
     ];
     root.console?.log?.('[CodeXR][Debug] Commands\n  ' + commands.join('\n  '));
@@ -313,6 +349,9 @@
       { command: 'CodeXRDebug.stopWatch()', description: 'Stop the periodic status monitor.' },
       { command: 'CodeXRDebug.hud(true)', description: 'Show or hide the desktop diagnostics HUD.' },
       { command: 'CodeXRDebug.toggleHud()', description: 'Toggle the desktop diagnostics HUD.' },
+      { command: 'CodeXRDebug.simulateAR()', description: 'Simulate entering AR (hides room and environment, recenters you at the pedestal). No WebXR session: no headset pose, stereo or passthrough.' },
+      { command: 'CodeXRDebug.simulateVR()', description: 'Simulate entering VR (nothing is hidden). No WebXR session: no headset pose, stereo or passthrough.' },
+      { command: 'CodeXRDebug.exitSimulated()', description: 'Leave the simulated AR/VR mode and restore the desktop view.' },
       { command: 'CodeXRDebug.help()', description: 'List the diagnostics-only commands.' },
       {
         command: 'CodeXRAnalysisSurfaceRuntime.getSnapshot()',
@@ -351,6 +390,9 @@
     stopWatch: stopWatch,
     hud: hud,
     toggleHud: toggleHud,
+    simulateAR: simulateAR,
+    simulateVR: simulateVR,
+    exitSimulated: exitSimulated,
     help: help,
     getStatus: collectStatus,
     isWatching: function () { return watchHandle !== null; },

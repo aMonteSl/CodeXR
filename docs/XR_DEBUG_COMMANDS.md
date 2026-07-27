@@ -25,6 +25,33 @@ CodeXRDependencyGraphRuntime.openFile("src/tools/parser.ts");
 Paths are project-relative and are validated by the server before file
 analysis. Console navigation changes the same shared scope as the XR panel.
 
+## Previewing AR and VR from a desktop browser
+
+You do not need a headset to check how a scene is laid out in each immersive
+mode:
+
+```js
+CodeXRDebug.simulateAR();      // hides the room and the environment, brings you to the pedestal
+CodeXRDebug.simulateVR();      // keeps the full room, exactly as a headset would show it
+CodeXRDebug.exitSimulated();   // back to the desktop view
+```
+
+These set the same scene states and fire the same events A-Frame uses around a
+real session, so everything that reacts to them really runs: the room and
+environment disappear in AR while the pedestal, charts, panels and screens
+stay, the rig recenters in front of the table, and the pointer policy hands
+over between mouse, gaze and controller lasers.
+
+**What they cannot show you.** There is no WebXR session behind them, so there
+is no headset pose, no stereo rendering and no camera passthrough — in AR the
+background is simply empty instead of your room. Use them to answer *what is
+hidden and where do I end up*; for the rest use a WebXR emulator (Chrome
+DevTools' **WebXR** panel, or the *Immersive Web Emulator* extension, which
+also emulates controller thumbsticks) or a real device.
+
+`CodeXRDebug.status()` reports the active mode (`ar`, `vr` or `desktop`) while
+you are in there.
+
 ## Visualization status
 
 Every generated XR chart exposes `window.CodeXRDebug` in the browser console.

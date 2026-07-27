@@ -80,10 +80,11 @@
     <a-plane id="panelStandIn" class="babiaxraycasterclass"
       position="4 2.6 -15" width="2.4" height="3" color="#0b1526"></a-plane>
 
-    <!-- Rig copied from the template (same offsets, same controls) -->
-    <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
-      codexr-immersive-rig="arPosition: 0.07 0 -15.6">
-      <a-entity id="head" camera position="0 0 0" look-controls>
+    <!-- Rig copied from the template: floor-level rig, eye height on the
+         camera. The runner asserts the real templates still match. -->
+    <a-entity id="rig" movement-controls="fly: false" position="0.07 0 -10.75"
+      codexr-immersive-rig="arPosition: 0.07 0 -14.7">
+      <a-entity id="head" camera position="0 1.75 0" look-controls>
         <a-entity
           id="gazeCursor"
           visible="false"
@@ -158,6 +159,45 @@
         return { x: p.x, y: p.y, z: p.z, yaw: r.y };
       }
 
+      function worldPosition(id) {
+        const el = document.getElementById(id);
+        if (!el || !el.object3D) { return null; }
+        el.object3D.updateMatrixWorld(true);
+        const out = new AFRAME.THREE.Vector3();
+        el.object3D.getWorldPosition(out);
+        return out;
+      }
+
+      // What the USER perceives, not what any component wrote into a variable:
+      // how high the eye actually sits, and whether it clears the tabletop.
+      // The previous harness asserted the rig's own y — the value the rig
+      // component itself had just written — and happily passed while the eye
+      // was on the floor and the pedestal overhead.
+      function geometry() {
+        const eye = worldPosition('head');
+        const rig = worldPosition('rig');
+        const tableEl = document.getElementById('codexrAnalysisTable');
+        let tableTopY = null;
+        let tableCentre = null;
+        if (tableEl && tableEl.object3D) {
+          const box = new AFRAME.THREE.Box3().setFromObject(tableEl.object3D);
+          if (Number.isFinite(box.max.y) && box.max.y > -Infinity) {
+            tableTopY = box.max.y;
+            tableCentre = box.getCenter(new AFRAME.THREE.Vector3());
+          }
+        }
+        const horizontalToTable = (eye && tableCentre)
+          ? Math.hypot(eye.x - tableCentre.x, eye.z - tableCentre.z)
+          : null;
+        return {
+          eyeWorldY: eye ? eye.y : null,
+          rigWorldY: rig ? rig.y : null,
+          tableTopY,
+          eyeAboveTable: (eye && tableTopY !== null) ? eye.y > tableTopY : null,
+          horizontalToTable,
+        };
+      }
+
       root.CodeXRImmersiveHarness = {
         clicks,
         // A-Frame's own enterVR() needs a real WebXR session; the states +
@@ -183,6 +223,22 @@
         click(id) {
           document.getElementById(id).dispatchEvent(new Event('click', { bubbles: false }));
         },
+        // A real headset makes look-controls take its zeroing path
+        // (checkHeadsetConnected gates it), which is what lets the local-floor
+        // pose replace the camera's desktop offset instead of adding to it.
+        setHeadsetConnected(connected) {
+          scene().checkHeadsetConnected = () => !!connected;
+        },
+        // Stand in for what three.js writes into the camera entity from the
+        // XR viewer pose: a height above the physical floor.
+        fakeHeadsetPose(y) {
+          const head = document.getElementById('head');
+          head.object3D.position.set(0, y, 0);
+          // look-controls sets matrixAutoUpdate = false under WebXR, so the
+          // matrices have to be refreshed by hand here.
+          head.object3D.updateMatrix();
+          head.object3D.updateMatrixWorld(true);
+        },
         snapshot() {
           return {
             states: { ar: scene().is('ar-mode'), vr: scene().is('vr-mode') },
@@ -202,6 +258,7 @@
               right: pointer('rightController'),
             },
             rig: rigPose(),
+            geometry: geometry(),
             movement: {
               attached: !!document.getElementById('rig').components['movement-controls'],
               gamepadRegistered: !!AFRAME.components['gamepad-controls'],
@@ -216,11 +273,14 @@
         const status = document.getElementById('test-status');
         if (!status || !scene() || !scene().hasLoaded) { return; }
         const snap = root.CodeXRImmersiveHarness.snapshot();
+        const g = snap.geometry;
         status.textContent = 'mode: ' + (snap.states.ar ? 'AR' : snap.states.vr ? 'VR' : 'desktop')
           + ' | env hidden: ' + snap.hidden.env
           + ' | room hidden: ' + snap.hidden.room
-          + '\nrig: ' + snap.rig.x.toFixed(2) + ' ' + snap.rig.y.toFixed(2) + ' ' + snap.rig.z.toFixed(2)
-          + ' | pointers m/g/l/r: '
+          + '\neye height: ' + (g.eyeWorldY === null ? '?' : g.eyeWorldY.toFixed(2))
+          + ' | above table: ' + g.eyeAboveTable
+          + ' | rig y: ' + (g.rigWorldY === null ? '?' : g.rigWorldY.toFixed(2))
+          + '\npointers m/g/l/r: '
           + [snap.pointers.mouse, snap.pointers.gaze, snap.pointers.left, snap.pointers.right]
             .map((p) => (p && p.enabled ? 'ON' : 'off')).join('/');
       }, 400);
