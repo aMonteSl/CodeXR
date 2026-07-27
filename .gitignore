@@ -21,3 +21,8 @@ dist/
 !.vscode/extensions.json
 *.vsix
 test/manual/assembled/
+
+# Raw screen recordings: 168-439 MB each, above GitHub's 100 MB per-file limit.
+# They are local masters — what travels is the GIF next to them and the narrated
+# cut on YouTube. See media/SHOTLIST.md.
+media/**/*.mp4

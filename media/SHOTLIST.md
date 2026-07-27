@@ -1,111 +1,145 @@
 # CodeXR — Launch media
 
-Screenshots, GIFs and video stills for the README and the website. **Nothing here ships inside the VSIX**: `package.json`'s `files` allowlist only picks `resources/favicon.ico`, `resources/icon.*`, `resources/avatars/**` and `resources/languages_icons/**`, so `media/` can never be packaged by accident. `resources/` means "assets the extension uses at runtime"; `media/` means "assets that explain the extension".
+Screenshots, GIFs and videos for the README and the website. **Nothing here ships inside the VSIX**: `package.json`'s `files` allowlist only picks `resources/favicon.ico`, `resources/icon.*`, `resources/avatars/**` and `resources/languages_icons/**`, so `media/` can never be packaged by accident. `resources/` means "assets the extension uses at runtime"; `media/` means "assets that explain the extension".
+
+This file is the inventory of what is actually here, not a wish list. When you add or retake something, update the table it belongs to.
 
 ```
 media/
-├── SHOTLIST.md     this file
-├── v1.1.0/         assets of the previous release (moved from resources/, history preserved)
-└── v1.2.0/         "Threads, Timelines & Global Networks"
+├── SHOTLIST.md                 this file
+├── v1.1.0/                     assets of the previous release (history preserved)
+└── v1.2.0/                     "Threads, Timelines & Global Networks"
+    ├── hero.png                cover shot
+    ├── analysis/               what each analysis looks like
+    │   ├── live_panel/         the 2D panels
+    │   └── xr/                 the XR scene, one folder per analysis
+    ├── controllers/xr/         the in-scene control panels, one folder per analysis
+    ├── guide/                  the in-room guide screen and its browser twin
+    ├── ui/                     the VS Code side of the product
+    └── videos/                 one folder per analysis (see the rule below)
 ```
+
+The four analyses keep the same folder name everywhere they appear — `normal`, `dependency`, `historical`, `project_evolution` — so a shot, a controller close-up and a video of the same analysis sit at the same path segment in three different trees.
 
 ## Rules
 
-**Weight budget.** This is not a style preference — the current 1.1.0 GIFs are 30-44 MB each, which GitHub's image proxy and the Marketplace will not serve at a usable speed, so they are effectively invisible to visitors today.
+**Weight budget.** Not a style preference: the 1.1.0 GIFs are 30-44 MB each, which GitHub's image proxy and the Marketplace will not serve at a usable speed, so they are effectively invisible to visitors.
 
 | Format | Used in | Hard limit | Target |
 |---|---|---|---|
 | PNG | README + web | 500 KB | ~250 KB, max 1600 px wide |
-| GIF | README | **5 MB** | 2-3 MB · ≤15 s · ~1000 px · 12-15 fps |
+| GIF | README | **5 MB** | 10 fps, 64 colours, width traded against length (see below) |
 | Video | web | — | YouTube; in the README use a PNG thumbnail linking to it |
 
 **Marketplace constraints.** README images need **absolute HTTPS URLs**; **SVG is not rendered**; **video cannot be embedded**. That is why videos live on YouTube and appear here as a linked thumbnail.
 
-**Referencing.** `https://raw.githubusercontent.com/aMonteSl/CodeXR/<ref>/media/v1.2.0/<file>`. Use the release **tag** once it exists (`v1.0.0`, `v1.0.1` and `v1.1.0` already do) — a tag is immutable, so a published listing can never lose its images. Until then the `v1.2.0` branch is the ref in use.
+**Referencing.** `https://raw.githubusercontent.com/aMonteSl/CodeXR/<ref>/media/v1.2.0/<file>`. Use the release **tag** once it exists — a tag is immutable, so a published listing can never lose its images.
 
-**Naming.** `<block>-<subject>.<ext>`, lowercase, hyphens: `deps-metrics.png`, `net-flow.png`.
+**Videos: three files per analysis.** Every folder under `videos/` holds the same trio, all three named after the same subject, and each one has exactly one destination:
 
-**Capture setup.** Same theme, same window size and the same demo project across every shot, so the README does not look assembled from different eras. Prefer a project big enough for the dependency graph to look interesting but small enough to stay readable.
+| File | What it is | Where it goes |
+|---|---|---|
+| `<subject>_explanation.mp4` | the narrated take (AI voice-over) | **YouTube**, embedded on the website |
+| `<subject>_demo.mp4` | the same recording without narration | stays here, as the master |
+| `<subject>_demo.gif` | the raw take, whole, sped up | **README**, inside the 5 MB budget |
 
-## Shot list — v1.2.0
+The GIF is made from the raw take, never from the narrated one: without a voice the loop has to work in silence.
 
-Status: `pending` → `captured` → `optimized` → `published`.
+**One speed-up factor for every GIF: ×8.** Each GIF covers its whole recording, nothing is cut, so the four share the same GIF-second-per-video-second ratio and a longer analysis reads as a longer loop — the 4:11 movie should not be squeezed into the same seconds as the 1:16 one.
+
+Time is the fixed constraint, **pixels are the slack**: ×8, 10 fps, 64 colours and two-pass palette are identical for all four, and the width is stepped down per video until the file fits the 5 MB budget. That is why the long ones are narrower. Recipe (`W` = the width in the table below):
+
+```bash
+ffmpeg -y -i <subject>_demo.mp4 -vf "setpts=PTS/8,fps=10,scale=W:-2:flags=lanczos,palettegen=max_colors=64:stats_mode=diff" palette.png
+```
+```bash
+ffmpeg -y -i <subject>_demo.mp4 -i palette.png -lavfi "setpts=PTS/8,fps=10,scale=W:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" -loop 0 <subject>_demo.gif
+```
+
+## v1.2.0 — what is here
 
 ### Cover
 
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| H1 | `hero.png` | PNG | README + web | The room with the pedestal table, the dependency graph behind it and two avatars. The header image under the release name. | pending |
-
-### The three new analyses
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| A1 | `deps-graph.gif` | GIF | both | Enter the mode from the selector, the graph builds, orbit it, select a node (everything unrelated dims), open its detail card. | pending |
-| A2 | `deps-metrics.png` | PNG | both | Metrics mapped to geometry — size = `fanIn`, height = `fanOut`, colour — with 2-3 annotations. **The single most important shot of the release**: it is the proof of "what breaks most if you touch it is visible across the room". | pending |
-| A3 | `deps-layouts.png` | PNG | both | One image, three panels: `force-3d`, `hierarchical`, `metric-space`. | pending |
-| A4 | `history-compare.gif` | GIF | both | Pick the two sources → the dual table appears → the per-metric delta table. | pending |
-| A5 | `evolution-movie.gif` | GIF | both | The player advancing several frames with the revision overlay. Long version → video V1. | pending |
-| A6 | `chart-switch.gif` | GIF | both | Changing the chart type in the classic analysis from Field Mapping. | pending |
-
-### Collaboration
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| C1 | `avatars.png` | PNG | both | The avatars with their own colour and the floating name above each head. | pending |
-| C2 | `session.png` | PNG | both | Two or more people around the same table with their pointers — the room *working*, not just the models. Replaces 1.1.0's `collaborativeWorkspace.png`. | pending |
-
-### Cross-network
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| N1 | `net-flow.png` | PNG | README + web | Annotated diagram: host → `cloudflared` (outbound) → Cloudflare → guest, with the six-digit code. One image that tells the whole process — what actually works in a README. | pending |
-| N2 | `net-step-1..5.png` | PNG ×5 | **web** | Carousel: enable the setting in SERVERS → Start Remote Access → the notification with the code → the guest picks their name → the guest inside the scene. Five dialog screenshots tire a README; on the website a carousel is the right shape. | pending |
-| N3 | `net-join.gif` | GIF | README | The real flow condensed (optional if N1 + N2 suffice). | pending |
-
-### Screens
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| S1 | `screen-controls.png` | PNG | both | The new chrome with Join / Share / Stop — the 1.2.0 equivalent of `v1.1.0/screen/virtualScreenAndControler-v.1.1.0.png`. | pending |
-| S2 | `screen-remote.png` | PNG | both | Someone broadcasting and a **remote** guest watching it: the visual proof that it crosses networks. S1 shows the buttons, this shows that it works. | pending |
-
-### In-room guide
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| G1 | `guide-screen.png` | PNG | both | The guide screen in the scene with its tabs visible (or a short GIF paging through them). | pending |
-| G2 | `guide-html.png` | PNG | web | The same guide served as `guide.html`, for reading outside XR. Nearly free to capture. | pending |
-
-### LivePanel
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| L1 | `livepanel-deps.png` | PNG | both | Dependency Summary: counters, fan-in/fan-out rankings, cycles. | captured |
-| L2 | `livepanel-history.png` | PNG | both | Historical Comparison in 2D with its delta table. | captured |
-| L3 | `livepanel-file.png` | PNG | web | The modernized file panel (optional). | captured |
-
-**Capture conditions (2026-07-26).** Project: `aframe-babia-components` (77 files), dark theme, 1200 px panel at DPR 1.25 → 1500 px wide.
-
-- **L1** — 1255 nodes / 3475 edges / 1178 external / 0 cycles. Framed to *counters + Top Fan-In + Top Fan-Out*: the full section is 2932 px tall, and External / Confidence / Capability / Warnings fall outside what the shot asks for. **Cycles is not in the shot because this project has none** — it renders "No dependency cycles detected". A project with a real cycle would be needed to satisfy that part of the spec. The artifact had to be produced via `POST /api/dependency-graph/summary`; see the bug recorded in `.claude/docs/V1.2.0_STATUS.md` (2026-07-26).
-- **L2** — a real comparison: `ac84f71e — Release 1.3.0 (2025-06-23)` vs `master (live)`, 2 added / 77 modified, 79 rows in the delta table.
-- **L3** — file `babia-range-selector.js`. Framed to end at the density section: the Dependency Summary below it can never populate for a file-scope analysis (see the same status entry) and Historical Comparison was an empty state. **Weak data**: 15 functions, all in the `Simple (1-5)` band, max CCN 4 — the panel renders perfectly but has nothing interesting to show. Worth retaking on a genuinely complex file.
-
-### VS Code UI
-
-| ID | File | Type | Where | What it must show | Status |
-|---|---|---|---|---|---|
-| V1 | `sidebar.png` | PNG | both | ACTIVE SERVERS with COLLABORATION inside, connected users and the actions. For a VS Code extension the sidebar is the first thing a user recognizes, and it is a whole CHANGELOG block with no other visual. | pending |
-| V2 | `participant-details.png` | PNG | web | The participant detail dialog with *Remove from Session* (optional). | pending |
-
-### Videos (YouTube, embedded on the website)
-
-| ID | Subject | Status |
+| File | Size | What it shows |
 |---|---|---|
-| V-1 | Full walkthrough of an analysis: launch → table → Field Mapping → mode selector. | pending |
-| V-2 | Collaborative session with two people, avatars and a shared screen. | pending |
-| V-3 | Cross-network end to end: enable, share, pair with the code, guest inside. | pending |
+| `hero.png` | 1.5 MB | The room: pedestal table with the dependency graph, two avatars with name tags (Leia and Luke), the guide screen, a shared virtual screen with the editor, and the dependency controller. Covers the whole product in one frame. |
 
-## Pending decision
+### Analyses — XR (`analysis/xr/`)
 
-The 1.1.0 GIFs in `v1.1.0/gifts/` (30-44 MB each) are almost certainly not rendering for visitors. Either re-export them within the budget above or drop them from the new README. Worth resolving in the README pass.
+| File | Size | What it shows |
+|---|---|---|
+| `normal/normal.png` | 2.9 MB | Classic analysis: the boats city on the cyan table, Field Mapping on the right, the guide open on its Normal tab. |
+| `dependency/dependency_force-3d.png` | 3.0 MB | The graph in the `force-3d` layout. |
+| `dependency/dependency_hierarchical.png` | 3.0 MB | The same graph in `hierarchical`. |
+| `dependency/dependency_metric-space.png` | 3.0 MB | The same graph in `metric-space`, with real axes. |
+| `dependency/dependency_example.png` | 328 KB | Close crop of the graph scoped to a folder (`Folder: tests`). |
+| `dependency/dependency_example_1.png` | 1.0 MB | Second graph example. |
+| `dependency/dependency_node_card.png` | 1.1 MB | The pinned node card — Fan-in, Fan-out, Degree, Relations, Cycle, Lines and Instability for a directory, with `Open folder` and the selection halo. The best single shot of what the metrics are. |
+| `historical/historical_comparison.png` | 2.8 MB | The dual table in crimson, `master (live) (modified) — Working copy` against `origin/boros — 2021-02-12`, guide on its History tab. |
+| `historical/historical_comparison_example.png` | 1.1 MB | Second comparison example. |
+| `project_evolution/project_evolution.png` | 2.8 MB | The movie on the amber table with the frame overlay (`210ad275 — 2021-10-27`) and the player panel. |
+| `project_evolution/project_evolution_example_1.png` | 985 KB | Second movie example. |
+
+### Analyses — LivePanel (`analysis/live_panel/`)
+
+| File | Size | What it shows |
+|---|---|---|
+| `livepanel-deps.png` | 94 KB | Dependency Summary: counters and the top fan-in / fan-out rankings. |
+| `livepanel-history.png` | 117 KB | Historical Comparison in 2D with its delta table. |
+| `livepanel-file.png` | 226 KB | The modernized file panel. |
+
+### Controllers (`controllers/xr/`)
+
+One folder per analysis, plus the shared chrome. These are the close-ups of the floating panel.
+
+| File | Size | What it shows |
+|---|---|---|
+| `analysis_selector/analysis_selector.png` | 257 KB | The `Visualization mode` panel with the four colour-coded analyses. |
+| `normal/codexr_field_mapping.png` | 866 KB | Field Mapping: chart picker plus Area / Height / Color. |
+| `dependency/dependency_controller.png` | 503 KB | The dependency panel: layout, metric mapping, relation filters, edges, detail, flow. |
+| `historical/historical_comparison_main.png` | 464 KB | The comparison panel: source selection and actions. |
+| `historical/historical_comparison_field_mapping.png` | 1.2 MB | Field Mapping in comparison context. |
+| `project_evolution/project_evolution_controller.png` | 566 KB | The player: timeline mode, generate, transport and speeds. |
+| `project_evolution/project_evolution_field_mapping.png` | 1.2 MB | Field Mapping in movie context. |
+| `new_virtual_screens_controllers/virtual_controller.png` | 598 KB | The virtual-screen chrome and the Virtual screens panel. |
+
+### Guide (`guide/`)
+
+The in-room guide screen, tab by tab, in its two projections: `*_guide.png` is the Guide text, `*_data.png` the Data glossary.
+
+`landing.png` (Start) · `normal_guide.png` / `normal_data.png` · `deps_guide.png` / `deps_guide_2.png` / `deps_data.png` · `history_guide.png` / `history_data.png` · `evolution_guide.png` / `evolution_data.png` · `tips.png` · `guide-html.png` (the same guide served as `guide.html`, for reading outside XR).
+
+All around 0.9-1.0 MB each.
+
+### VS Code UI (`ui/`)
+
+| File | Size | What it shows |
+|---|---|---|
+| `new_active_servers.png` | 39 KB | ACTIVE SERVERS with COLLABORATION inside it. |
+| `new_server_configuration.png` | 12 KB | The server configuration dialog. |
+
+### Videos (`videos/`)
+
+All recorded at 1920×1080. The raw takes are near-lossless masters — they are big on purpose; only the GIF and the YouTube upload are meant to travel.
+
+| Folder | Narrated (→ YouTube) | Raw master | Length | GIF (×8, 10 fps) |
+|---|---|---|---|---|
+| `normal/` | [`youtu.be/76p1ibPaf3I`](https://youtu.be/76p1ibPaf3I) (172 MB) | `normal_analysis_demo.mp4` (168 MB) | 1:16 | `normal_analysis_demo.gif` — 3.90 MB, 720×406, 9.5 s |
+| `historical/` | [`youtu.be/b37qDCQeZg0`](https://youtu.be/b37qDCQeZg0) (175 MB) | `historical_comparison_demo.mp4` (169 MB) | 1:19 | `historical_comparison_demo.gif` — 4.07 MB, 660×372, 9.8 s |
+| `dependency/` | [`youtu.be/42hIQTUD0-g`](https://youtu.be/42hIQTUD0-g) (219 MB) | `dependency_analysis_demo.mp4` (214 MB) | 1:48 | `dependency_analysis_demo.gif` — 4.25 MB, 656×370, 13.5 s |
+| `project_evolution/` | [`youtu.be/Qs1OHWCqXSs`](https://youtu.be/Qs1OHWCqXSs) (439 MB) | `project_evolution_demo.mp4` (417 MB) | 4:11 | `project_evolution_demo.gif` — 4.34 MB, 530×298, 31.4 s |
+
+The `<subject>_explanation.mp4` files are uploaded (links above); like the demos they are over GitHub's 100 MB limit and stay out of git.
+
+**The `.mp4` files are not in git** (`.gitignore`: `media/**/*.mp4`). Each one is 168-439 MB, and GitHub refuses any file over 100 MB, so the masters could not be pushed even if we wanted them to be — they live on the recording machine, and what leaves is the GIF beside them plus the narrated cut on YouTube. If they ever need to be in the repo, that means Git LFS, deliberately.
+
+The voice-over scripts for the four narrated takes were written per video and follow the same five-to-eight block structure: what it is · what you see · what you control · what else it does · closing.
+
+## Open items
+
+- **Not covered yet**: cross-network access (the tunnel flow and the pairing code), a collaborative session with two people working, and the participant detail dialog. `hero.png` shows two avatars, which covers part of the collaboration story.
+- `v1.2.0/.gitkeep` can go: the folder has content now.
+
+## v1.1.0 (legacy)
+
+`analysis-table/`, `collaborative/`, `comparison/`, `gifts/` and `screen/`. The four GIFs in `gifts/` are 30-44 MB — almost certainly not rendering for anyone. Either re-export them within the budget or drop them from the new README.
