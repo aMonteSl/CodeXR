@@ -182,8 +182,31 @@
     return Object.assign({}, preservedData, mappingSnapshot || {});
   }
 
+  // The chart the entity is actually WEARING, which is not always the chart
+  // the selector points at: `selectChart(id, { applyToEntities: false })`
+  // moves the selector alone (every mode change does it, so a mode can own its
+  // own entity), leaving the scene chart on the previous type until something
+  // re-applies the mapping.
+  function getEntityChartId(chartEntity) {
+    return chartEntity && typeof chartEntity.getAttribute === 'function'
+      ? String(chartEntity.getAttribute('data-codexr-active-chart-id') || '')
+      : '';
+  }
+
   function applyMappingToCharts(chartEntities, componentName, mappingSnapshot) {
+    var activeChartId = state.activeChartId;
     chartEntities.forEach(function (chartEntity) {
+      var entityChartId = getEntityChartId(chartEntity);
+      // Stamping the new component onto an entity still wearing the previous
+      // one left it half converted: both babia components alive, the previous
+      // chart's rotation still applied (a boats arriving after a pie stayed
+      // rotated 90°) and a stale chart-id marker, which also mis-routes the
+      // containment's fit strategy and surface lift. Converting it properly is
+      // what applyChartTypeToEntity already does.
+      if (activeChartId && entityChartId && entityChartId !== activeChartId) {
+        applyChartTypeToEntity(chartEntity, activeChartId, mappingSnapshot);
+        return;
+      }
       chartEntity.setAttribute(
         componentName,
         buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot)

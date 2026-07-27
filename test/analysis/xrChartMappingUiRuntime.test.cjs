@@ -582,6 +582,44 @@ test('mapping UI chart switch stands pie and donut upright and resets flat chart
     assert.equal(barsChart.getAttribute('babia-bars').x_axis, 'fileName');
 });
 
+test('applying a mapping converts an entity still wearing the previous chart', () => {
+    // The selector can move without touching the entity — every mode change
+    // does `selectChart(id, { applyToEntities: false })` so a mode can own its
+    // own chart. Re-activating the normal analysis then re-applies the mapping,
+    // and stamping the new component on top used to leave the entity half
+    // converted: both babia components alive, the PREVIOUS chart's rotation
+    // still on it (a boats arriving after a pie stayed rotated 90°) and a stale
+    // chart-id marker, which also mis-routes the table's fit strategy.
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-pie': { from: 'data', key: 'fileName', size: 'functionCount' },
+        'data-codexr-active-chart-id': 'pie',
+        rotation: '90 0 0',
+    });
+
+    runtime.__testing.setActiveChartIdForTests('boats');
+    runtime.__testing.applyMappingToCharts([chart], 'babia-boats', {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber',
+    });
+
+    assert.equal(chart.getAttribute('rotation'), '0 0 0', 'boats is not left standing on its side');
+    assert.equal(chart.getAttribute('babia-pie'), undefined, 'the previous chart component is gone');
+    assert.equal(chart.getAttribute('data-codexr-active-chart-id'), 'boats');
+    assert.equal(chart.getAttribute('babia-boats').area, 'functionCount');
+    // Reconciling means a full build, so the chart's base attributes come too.
+    assert.equal(chart.getAttribute('babia-boats').extra, 1);
+
+    // An entity already wearing the active chart keeps the cheap path: the
+    // mapping is merged into the live component, nothing is rebuilt.
+    const previousComponent = chart.getAttribute('babia-boats');
+    runtime.__testing.applyMappingToCharts([chart], 'babia-boats', { height: 'codeLines' });
+    assert.equal(chart.getAttribute('babia-boats').height, 'codeLines');
+    assert.equal(chart.getAttribute('babia-boats').area, previousComponent.area);
+});
+
 test('bubbles chart switch always carries its normalization caps', () => {
     // babia-bubbles declares heightMax/radiusMax WITHOUT schema defaults:
     // losing them on a live switch rendered bubbles at raw metric scale

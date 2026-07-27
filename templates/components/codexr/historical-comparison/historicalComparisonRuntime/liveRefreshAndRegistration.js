@@ -289,7 +289,11 @@
     },
     __testing: {
       buildComparisonBoatsTree: buildComparisonBoatsTree,
-      selectHistoricalMode: selectHistoricalMode
+      selectHistoricalMode: selectHistoricalMode,
+      // The comparison clones borrow decoration from the scene chart, so what
+      // they must NOT borrow (orientation, a foreign chart component) is
+      // asserted by running the builder.
+      createChartFromTemplate: createChartFromTemplate
     }
   };
 

@@ -205,7 +205,12 @@
       bridgeUrl: bridgeUrl,
       projectEvolutionContainmentProfile: projectEvolutionContainmentProfile,
       getActiveMappingForChart: getActiveMappingForChart,
-      getSuggestedAutoOrderById: getSuggestedAutoOrderById
+      getSuggestedAutoOrderById: getSuggestedAutoOrderById,
+      // The movie borrows decoration from the scene chart: what it must NOT
+      // borrow (orientation, another chart's component) is asserted by running
+      // the builder, not by reading its source.
+      buildEvolutionChart: buildEvolutionChart,
+      getDefaultChartId: getDefaultChartId
     },
     getState: function () {
       return {

@@ -3,6 +3,19 @@
     if (!chart) {
       return '';
     }
+    // The chart-id marker is the authoritative statement of which chart the
+    // entity carries. Scanning the component list first picked by DECLARATION
+    // ORDER, so an entity still holding a leftover component could be read as
+    // the wrong chart — and then cloned with the wrong orientation.
+    var markedChartId = String(chart.getAttribute?.('data-codexr-active-chart-id') || '');
+    if (markedChartId) {
+      var markedComponent = CHART_COMPONENT_NAMES.find(function (name) {
+        return CHART_ID_BY_COMPONENT[name] === markedChartId && chart.hasAttribute?.(name);
+      });
+      if (markedComponent) {
+        return markedComponent;
+      }
+    }
     return CHART_COMPONENT_NAMES.find(function (name) {
       return chart.hasAttribute?.(name);
     }) || chart.getAttributeNames().find(function (name) {
@@ -14,6 +27,17 @@
 
   function isHierarchicalBoatsComponent(componentName) {
     return componentName === 'babia-boats';
+  }
+
+  // Orientation comes from the canonical presentation profile of the chart the
+  // clone actually carries — never inherited from the original entity, which
+  // may still be wearing a previous chart's rotation.
+  function getChartRotationForComponent(componentName) {
+    var chartId = CHART_ID_BY_COMPONENT[componentName] || '';
+    var presentation = chartId
+      ? root.CodeXRMappingUiRuntime?.getChartPresentation?.(chartId)
+      : null;
+    return (presentation && presentation.rotation) || '0 0 0';
   }
 
   // Shared boats tree contract (generator-injected via the mapping runtime):
@@ -87,14 +111,23 @@
         || attributeName === 'visible'
         || attributeName === 'position'
         || attributeName === 'scale'
+        // Orientation and the chart marker are derived below from the chart
+        // this clone actually carries, not copied from an entity that may be
+        // wearing a previous chart's rotation.
+        || attributeName === 'rotation'
+        || attributeName === 'data-codexr-active-chart-id'
         || attributeName === 'codexr-chart-containment'
-        || attributeName === componentName
+        || CHART_COMPONENT_NAMES.indexOf(attributeName) !== -1
       ) {
         return;
       }
       clone.setAttribute(attributeName, original.getAttribute(attributeName));
     });
     clone.setAttribute('id', id);
+    clone.setAttribute('rotation', getChartRotationForComponent(componentName));
+    if (CHART_ID_BY_COMPONENT[componentName]) {
+      clone.setAttribute('data-codexr-active-chart-id', CHART_ID_BY_COMPONENT[componentName]);
+    }
     if (componentName) {
       var chartData = Object.assign({}, original.getAttribute(componentName) || {});
       if (options?.inlineData) {

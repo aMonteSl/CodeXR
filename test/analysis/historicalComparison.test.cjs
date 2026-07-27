@@ -979,3 +979,83 @@ test('historical comparison documentation explains provider-neutral Git behavior
     assert.match(docs, /working-copy/);
     assert.match(docs, /Cloudflare Quick Tunnel/);
 });
+
+// The comparison clones borrow decoration from the scene chart. Running the
+// builder is the only way to prove what they must NOT borrow.
+function createComparisonFakeEntity(attributes) {
+    const bag = Object.assign({}, attributes);
+    return {
+        dataset: {},
+        getAttributeNames() { return Object.keys(bag); },
+        getAttribute(name) { return Object.prototype.hasOwnProperty.call(bag, name) ? bag[name] : null; },
+        setAttribute(name, value) { bag[name] = value; },
+        hasAttribute(name) { return Object.prototype.hasOwnProperty.call(bag, name); },
+    };
+}
+
+function loadHistoricalRuntime() {
+    const vm = require('node:vm');
+    const runtimeSource = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
+    const sandbox = {
+        window: null,
+        // readyState 'loading' keeps autoInit parked on DOMContentLoaded.
+        document: {
+            readyState: 'loading',
+            addEventListener() {},
+            getElementById() { return null; },
+            querySelector() { return null; },
+            querySelectorAll() { return []; },
+            createElement() { return createComparisonFakeEntity({}); },
+        },
+        console: { log() {}, warn() {}, error() {} },
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        CodeXRAnalysisTableRuntime: {
+            getContainmentProfile() { return null; },
+        },
+        CodeXRMappingUiRuntime: {
+            getChartPresentation(chartId) {
+                return { rotation: chartId === 'pie' || chartId === 'donut' ? '90 0 0' : '0 0 0' };
+            },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'historicalComparisonRuntime.js' });
+    return sandbox.CodeXRHistoricalComparisonRuntime;
+}
+
+test('comparison clones take their orientation from the chart they carry, not from the original entity', () => {
+    const runtime = loadHistoricalRuntime();
+    // A scene chart left rotated by a previous pie, now wearing boats: the
+    // clone must not inherit that rotation, and must not carry the stale
+    // marker either.
+    const original = createComparisonFakeEntity({
+        'babia-boats': { from: 'tree', area: 'functionCount' },
+        // A leftover component and a rotation from an earlier chart.
+        'babia-bars': { from: 'data', x_axis: 'fileName' },
+        'data-codexr-active-chart-id': 'boats',
+        rotation: '90 0 0',
+        palette: 'ubuntu',
+    });
+    const zone = { id: 'left', anchorX: -1.4, anchorZ: -18, width: 2.6, depth: 3.2 };
+
+    const clone = runtime.__testing.createChartFromTemplate(
+        original, 'codexrHistoricalLeftChart', 'codexrComparisonLeft', zone, 'directory',
+    );
+
+    assert.equal(clone.getAttribute('rotation'), '0 0 0', 'boats is cloned upright');
+    assert.equal(clone.getAttribute('babia-bars'), null, 'no foreign chart component is cloned');
+    assert.equal(clone.getAttribute('data-codexr-active-chart-id'), 'boats');
+    assert.equal(clone.getAttribute('babia-boats').from, 'codexrComparisonLeft');
+    assert.equal(clone.getAttribute('palette'), 'ubuntu', 'decoration still travels');
+
+    // A circular chart is cloned standing, from the same profile.
+    const pieOriginal = createComparisonFakeEntity({
+        'babia-pie': { from: 'data', key: 'fileName', size: 'functionCount' },
+        rotation: '0 0 0',
+    });
+    const pieClone = runtime.__testing.createChartFromTemplate(
+        pieOriginal, 'codexrHistoricalRightChart', 'codexrComparisonRight', zone, 'directory',
+    );
+    assert.equal(pieClone.getAttribute('rotation'), '90 0 0');
+});
