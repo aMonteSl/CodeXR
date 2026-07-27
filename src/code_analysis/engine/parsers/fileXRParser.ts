@@ -37,6 +37,8 @@ import {
     XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
     copyPointerPolicyRuntimeToOutput,
     POINTER_POLICY_RUNTIME_OUTPUT_NAME,
+    copyImmersiveRigRuntimeToOutput,
+    IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME,
     copyCodeXrDebugRuntimeToOutput,
     CODEXR_DEBUG_RUNTIME_OUTPUT_NAME,
     copyRenderBudgetRuntimeToOutput,
@@ -130,6 +132,7 @@ export class FileXRParser {
             await copyCodeXrCollaborationRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyCodeXrRoomAssetsToOutput(this.context.extensionPath, session.outputPath);
             await copyPointerPolicyRuntimeToOutput(this.context.extensionPath, session.outputPath);
+            await copyImmersiveRigRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartMappingUiRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyXrChartDebugRuntimeToOutput(this.context.extensionPath, session.outputPath);
             await copyRenderBudgetRuntimeToOutput(this.context.extensionPath, session.outputPath);
@@ -178,6 +181,7 @@ export class FileXRParser {
                 || !loadedFiles.has(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_ROOM_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(POINTER_POLICY_RUNTIME_OUTPUT_NAME)
+                || !loadedFiles.has(IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME)
                 || !loadedFiles.has(CODEXR_DEBUG_RUNTIME_OUTPUT_NAME)

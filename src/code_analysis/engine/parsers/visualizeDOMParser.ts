@@ -14,6 +14,8 @@ import {
     VIRTUAL_SCREEN_RUNTIME_OUTPUT_NAME,
     readPointerPolicyRuntimeContent,
     POINTER_POLICY_RUNTIME_OUTPUT_NAME,
+    readImmersiveRigRuntimeContent,
+    IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 /**
@@ -131,6 +133,9 @@ export class VisualizeDOMParser {
             const pointerPolicyRuntime = await readPointerPolicyRuntimeContent(this.context.extensionPath);
             resultFiles.set(POINTER_POLICY_RUNTIME_OUTPUT_NAME, pointerPolicyRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${POINTER_POLICY_RUNTIME_OUTPUT_NAME} (${pointerPolicyRuntime.length} chars)`);
+            const immersiveRigRuntime = await readImmersiveRigRuntimeContent(this.context.extensionPath);
+            resultFiles.set(IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME, immersiveRigRuntime);
+            console.log(`VISUALIZE_DOM_PARSER:  Added ${IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME} (${immersiveRigRuntime.length} chars)`);
 
             // FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);
