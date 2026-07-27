@@ -210,7 +210,8 @@
       // borrow (orientation, another chart's component) is asserted by running
       // the builder, not by reading its source.
       buildEvolutionChart: buildEvolutionChart,
-      getDefaultChartId: getDefaultChartId
+      getDefaultChartId: getDefaultChartId,
+      resetChartRedrawState: resetChartRedrawState
     },
     getState: function () {
       return {

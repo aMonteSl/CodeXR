@@ -220,6 +220,39 @@ test('boats is the identity chart of the movie whatever the scene was generated 
     assert.equal(boatlessScene.__testing.getDefaultChartId(), 'bars');
 });
 
+test('every frame puts the boats chart back on its full-redraw path', () => {
+    // Babia's boats only wipes and redraws while it has no previous figures
+    // (`if (this.figures_old.length == 0)`); otherwise it morphs the old tree
+    // into the new one. A movie frame is a different revision with different
+    // files, so the morph dropped geometry it never restored and the chart
+    // decayed frame after frame.
+    const runtime = loadRuntime();
+    const reset = runtime.__testing.resetChartRedrawState;
+    const boats = {
+        figures: [{ name: 'stale' }],
+        figures_old: [{ name: 'older' }],
+        figures_del: [{ name: 'pending-delete' }],
+        figures_in: [{ name: 'pending-insert' }],
+        animation: true,
+    };
+    const chart = { components: { 'babia-boats': boats } };
+
+    assert.equal(reset(chart, 'babia-boats'), true);
+    assert.deepEqual([...boats.figures], []);
+    assert.deepEqual([...boats.figures_old], [], 'an empty figure list is what triggers the redraw');
+    assert.deepEqual([...boats.figures_del], []);
+    assert.deepEqual([...boats.figures_in], []);
+    assert.equal(boats.animation, false);
+
+    // Only boats keeps that morph state; the flat charts rebuild themselves on
+    // every data push, so nothing is poked for them.
+    const bars = { bar_array: [1, 2, 3] };
+    assert.equal(reset({ components: { 'babia-bars': bars } }, 'babia-bars'), false);
+    assert.deepEqual([...bars.bar_array], [1, 2, 3]);
+    assert.equal(reset({ components: {} }, 'babia-boats'), false, 'a chart without the component is a no-op');
+    assert.equal(reset(null, 'babia-boats'), false);
+});
+
 test('suggested auto order tolerates never-loaded references (dependency-start regression)', () => {
     const runtime = loadRuntime();
 

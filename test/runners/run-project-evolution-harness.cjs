@@ -10,28 +10,34 @@ const outputRoot = path.join(projectRoot, 'output', 'project-evolution-harness')
 const revisionRoot = path.join(outputRoot, 'evolution', 'revision-1');
 const screenshotRoot = path.join(outputRoot, 'screenshots');
 
+// Frames must differ in SHAPE and in SIZE, the way real revisions do: a
+// handful of hand-written files never exercised Babia's incremental redraw,
+// which is why this harness missed a chart that decayed frame after frame.
+// Frame 2 triples the tree and deepens it (plus a vendored monster); frame 3
+// collapses it into different packages again.
+function generateFrame(fileCount, lineScale, maxDepth, packagePrefix) {
+  const rows = [];
+  for (let index = 0; index < fileCount; index += 1) {
+    const depth = 1 + (index % maxDepth);
+    const segments = [];
+    for (let level = 0; level < depth; level += 1) {
+      segments.push(`${packagePrefix}${(index + level) % 6}`);
+    }
+    segments.push(`module_${index}.py`);
+    rows.push(file(
+      segments.join('/'),
+      1 + (index % 10),
+      Math.round((40 + ((index * 37) % 320)) * lineScale),
+      1 + (index % 8),
+    ));
+  }
+  return rows;
+}
+
 const framePayloads = [
-  [
-    file('src/app.py', 3, 80, 2),
-    file('src/core/parser.py', 2, 45, 4),
-    file('README.md', 1, 12, 1),
-  ],
-  [
-    file('src/app.py', 5, 130, 3),
-    file('src/core/parser.py', 3, 86, 7),
-    file('src/core/export.py', 2, 54, 5),
-    file('tests/test_app.py', 2, 77, 2),
-    file('README.md', 1, 22, 1),
-  ],
-  [
-    file('src/app.py', 7, 220, 4),
-    file('src/core/parser.py', 6, 160, 9),
-    file('src/core/export.py', 4, 112, 6),
-    file('src/ui/panel.py', 3, 95, 5),
-    file('src/ui/theme.py', 2, 60, 3),
-    file('tests/test_app.py', 4, 142, 3),
-    file('README.md', 1, 28, 1),
-  ],
+  generateFrame(40, 1, 2, 'pkg'),
+  generateFrame(120, 4, 4, 'pkg').concat([file('vendor/bundle/legacy.js', 60, 4200, 38)]),
+  generateFrame(25, 2, 2, 'core'),
 ];
 
 function file(filePath, functionCount, totalLines, complexity) {
@@ -184,12 +190,40 @@ async function runScenario(browser, port) {
   assert.ok(metrics.chartChildren > 0, 'expected chart geometry after frame 1');
   assert.match(JSON.stringify(metrics.dataUrl), /data\.json/);
 
+  const frameOneMeshes = metrics.chartMeshes;
+  assert.ok(frameOneMeshes > 0, 'expected chart meshes after frame 1');
+
   await page.click('[data-testid="frame-2"]');
   await page.waitForTimeout(4500);
   await page.screenshot({ path: path.join(screenshotRoot, 'frame-2.png') });
   metrics = await page.evaluate(() => window.CodeXRProjectEvolutionHarness.updateStatus());
   assert.equal(metrics.runtime.frameIndex, 1);
   assert.ok(metrics.chartChildren > 0, 'expected chart geometry after frame 2');
+  // Frame 2 carries three times the files: the chart must actually grow.
+  assert.ok(
+    metrics.chartMeshes > frameOneMeshes,
+    `expected frame 2 to add geometry (frame 1: ${frameOneMeshes}, frame 2: ${metrics.chartMeshes})`,
+  );
+
+  // The regression this harness missed for a long time: Babia's boats only
+  // redraws from scratch while it has no previous figures, and otherwise
+  // morphs — which loses geometry between revisions that are shaped
+  // differently. Frame by frame the chart decayed and never recovered, so
+  // returning to a frame must reproduce that frame exactly.
+  await page.click('[data-testid="frame-3"]');
+  await page.waitForTimeout(4500);
+  await page.click('[data-testid="frame-1"]');
+  await page.waitForTimeout(4500);
+  metrics = await page.evaluate(() => window.CodeXRProjectEvolutionHarness.updateStatus());
+  assert.equal(metrics.runtime.frameIndex, 0);
+  assert.equal(
+    metrics.chartMeshes,
+    frameOneMeshes,
+    `returning to frame 1 must rebuild its geometry (was ${frameOneMeshes}, got ${metrics.chartMeshes})`,
+  );
+
+  await page.click('[data-testid="frame-2"]');
+  await page.waitForTimeout(4500);
 
   await page.click('[data-testid="play-movie"]');
   await page.waitForTimeout(15000);

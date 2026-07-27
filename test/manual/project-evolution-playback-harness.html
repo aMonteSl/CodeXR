@@ -125,7 +125,7 @@
               }
               if (type === 'project-evolution-apply-frame') {
                 var frameIndex = Math.max(0, Math.min(frames.length - 1, Number(payload.frameIndex) || 0));
-                fetch('/__project_evolution_apply_framerevision=' + revision + '&frameIndex=' + frameIndex)
+                fetch('/__project_evolution_apply_frame?revision=' + revision + '&frameIndex=' + frameIndex)
                   .then(function (response) { return response.ok ? response.json() : Promise.reject(new Error('apply-frame failed')); })
                   .catch(function () {
                     return { revision: revision, frameIndex: frameIndex, bridgeUrl: bridgeUrl };
@@ -219,6 +219,16 @@
             hasTreeComponent: !!(tree && tree.components && tree.components['babia-treebuilder']),
             hasChartComponent: !!(chart && chart.components && chart.components['babia-boats']),
             chartChildren: chart ? chart.children.length : 0,
+            // Boats keeps a handful of top-level children whatever the data,
+            // so only the mesh count reveals whether the frame actually
+            // redrew — the number that used to shrink frame after frame.
+            chartMeshes: (function () {
+              var meshes = 0;
+              if (chart && chart.object3D) {
+                chart.object3D.traverse(function (node) { if (node.isMesh) { meshes += 1; } });
+              }
+              return meshes;
+            }()),
             chartVisible: chart ? chart.getAttribute('visible') : null,
             chartScale: chart ? chart.getAttribute('scale') : null,
             tableDiagnostics: window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics('#codexrProjectEvolutionChart')

@@ -223,6 +223,30 @@
     return refs.evolutionDataSource;
   }
 
+  // babia-boats only redraws from scratch when it has no previous figures
+  // (babia-boats.js: `if (this.figures_old.length == 0)` → wipe children and
+  // draw); on any later data push it takes a morph animation path instead,
+  // which assumes the two trees are shaped alike. A movie frame is the exact
+  // opposite: a different revision with different files and directories, and
+  // the morph loses geometry it never restores — the chart degraded frame by
+  // frame until it was unrecognizable. Emptying its figure list before the
+  // frame lands puts it back on the redraw path.
+  function resetChartRedrawState(chart, componentName) {
+    if (componentName !== 'babia-boats') {
+      return false;
+    }
+    var component = chart?.components?.[componentName];
+    if (!component) {
+      return false;
+    }
+    component.figures = [];
+    component.figures_old = [];
+    component.figures_del = [];
+    component.figures_in = [];
+    component.animation = false;
+    return true;
+  }
+
   function refreshEvolutionDataSource(frameUrl) {
     if (!refs.evolutionDataSource || !frameUrl) {
       return false;
