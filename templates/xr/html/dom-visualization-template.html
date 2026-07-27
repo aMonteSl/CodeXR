@@ -53,8 +53,9 @@
              local-floor pose already carries the user's height) and restores
              it on exit. No AR recenter here: the DOM tree already sits ~3 m
              away. -->
-        <a-entity id="cameraRig" movement-controls="fly: true; speed: 0.1" position="0 0 3"
-            codexr-immersive-rig="arRecenter: false">
+        <a-entity id="cameraRig" movement-controls="fly: true; speed: 0.1; controls: keyboard, touch" position="0 0 3"
+            codexr-immersive-rig="arRecenter: false"
+            codexr-xr-locomotion>
             <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy).
                  Sin babia-camera: creaba un segundo cursor de ratón y raycasters de mano duplicados. -->
             <a-entity id="head" camera position="0 1.6 0" look-controls>
@@ -71,39 +72,11 @@
                 </a-entity>
             </a-entity>
 
-            <a-entity
-                id="leftController"
-                laser-controls="hand: left"
-                meta-touch-controls="hand: left; model: true"
-                daydream-controls="hand: left"
-                gearvr-controls="hand: left"
-                hp-mixed-reality-controls="hand: left"
-                magicleap-controls="hand: left"
-                oculus-go-controls="hand: left"
-                valve-index-controls="hand: left"
-                vive-controls="hand: left"
-                vive-focus-controls="hand: left"
-                windows-motion-controls="hand: left"
-                generic-tracked-controller-controls="hand: left">
-            </a-entity>
-
-            <a-entity
-                id="rightController"
-                laser-controls="hand: right"
-                meta-touch-controls="hand: right; model: true"
-                daydream-controls="hand: right"
-                gearvr-controls="hand: right"
-                hp-mixed-reality-controls="hand: right"
-                magicleap-controls="hand: right"
-                oculus-go-controls="hand: right"
-                valve-index-controls="hand: right"
-                vive-controls="hand: right"
-                vive-focus-controls="hand: right"
-                windows-motion-controls="hand: right"
-                generic-tracked-controller-controls="hand: right"
-                cursor="rayOrigin: entity; fuse: false"
-                raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
-            </a-entity>
+            <!-- laser-controls alone: it adds the per-device component itself
+                 and owns the raycaster origin/direction (Touch controllers
+                 point at an angle to the grip). See the analysis template. -->
+            <a-entity id="leftController" laser-controls="hand: left"></a-entity>
+            <a-entity id="rightController" laser-controls="hand: right"></a-entity>
 
             <a-entity
                 id="mouseCursor"
@@ -209,6 +182,7 @@
 <script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js"></script>
 <script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js"></script>
 <script nonce="${nonce}" src="./codexrImmersiveRigRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrXrLocomotionRuntime.js"></script>
 <script nonce="${nonce}" src="./codexrDomSceneCollaborationRuntime.js"></script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

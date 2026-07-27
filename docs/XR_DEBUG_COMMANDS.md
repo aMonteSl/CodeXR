@@ -52,6 +52,23 @@ also emulates controller thumbsticks) or a real device.
 `CodeXRDebug.status()` reports the active mode (`ar`, `vr` or `desktop`) while
 you are in there.
 
+### Controller input
+
+Locomotion and pointing are driven by A-Frame's own controller events, so both
+can be exercised from the console without a device:
+
+```js
+// Walk: either controller, thumbstick forward (y is -1 when pushed forward)
+document.querySelector('#leftController').emit('thumbstickmoved', {x: 0, y: -1});
+document.querySelector('#leftController').emit('thumbstickmoved', {x: 0, y: 0});
+
+// Turn 30 degrees: sideways on either stick
+document.querySelector('#rightController').emit('thumbstickmoved', {x: 1, y: 0});
+
+// Hand the pointer to a controller (it also happens on any real use of it)
+document.querySelector('#leftController').emit('triggerdown');
+```
+
 ## Visualization status
 
 Every generated XR chart exposes `window.CodeXRDebug` in the browser console.

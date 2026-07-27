@@ -57,6 +57,25 @@ for (const [name, html] of [['file', fileTemplate], ['dom', domTemplate]]) {
     assert.match(html, /id="rightController"[\s\S]*?laser-controls="hand: right"/, `${name}: right laser`);
     assert.match(html, /movement-controls/, `${name}: rig locomotion`);
     assert.match(html, /codexrImmersiveRigRuntime\.js/, `${name}: immersive-rig runtime loaded`);
+    assert.match(html, /codexrXrLocomotionRuntime\.js/, `${name}: locomotion runtime loaded`);
+    assert.match(html, /codexr-xr-locomotion/, `${name}: locomotion on the rig`);
+
+    // THE controller contract. laser-controls owns each controller entirely:
+    // it adds the per-device component itself AND supplies the raycaster's
+    // origin/direction. Touch controllers are held at an angle to where they
+    // point (A-Frame pivots their model ~40°), so a hand-written raycaster
+    // with no direction fires the ray well above the visible aim — that was
+    // the "the laser points upward" bug. Both hands must be declared alike.
+    for (const side of ['left', 'right']) {
+        const tag = html.match(new RegExp(`<a-entity id="${side}Controller"[^>]*>`));
+        assert.ok(tag, `${name}: ${side} controller entity`);
+        assert.doesNotMatch(tag[0], /raycaster=/,
+            `${name}: ${side} controller must NOT hand-author a raycaster — laser-controls owns origin/direction`);
+        assert.doesNotMatch(tag[0], /cursor=/,
+            `${name}: ${side} controller must NOT hand-author a cursor — laser-controls owns it`);
+        assert.doesNotMatch(tag[0], /(meta-touch|vive|windows-motion|generic-tracked-controller|valve-index|oculus-go|daydream|gearvr|magicleap|hp-mixed-reality|vive-focus)-controls=/,
+            `${name}: ${side} controller must not re-declare what laser-controls already adds`);
+    }
 }
 
 // Rig adapter: AR recenter in the analysis scene, none in DOM.
@@ -297,6 +316,66 @@ async function runScenario(browser) {
     state = await snap();
     assertStanding(state, 'after headset VR');
     await run('CodeXRImmersiveHarness.setHeadsetConnected(false)');
+
+    // --- Controllers: both hands are equal --------------------------------
+    await run('CodeXRImmersiveHarness.enterVR()');
+    await run('CodeXRImmersiveHarness.connect("left")');
+    await run('CodeXRImmersiveHarness.connect("right")');
+    await settle();
+
+    const rigOf = (s) => ({ x: s.rig.x, z: s.rig.z, yaw: s.rig.yaw });
+    const active = () => page.evaluate(() => window.CodeXRImmersiveHarness.activePointer());
+
+    // Walking with the LEFT stick.
+    let before = rigOf(await snap());
+    await run('CodeXRImmersiveHarness.stick("left", 0, -1)');
+    await page.waitForTimeout(300);
+    await run('CodeXRImmersiveHarness.stick("left", 0, 0)');
+    let after = rigOf(await snap());
+    const leftWalk = before.z - after.z;
+    assert.ok(leftWalk > 0.1, `left stick must walk forward (z ${before.z} -> ${after.z})`);
+
+    // Walking with the RIGHT stick — the user asked for both hands to be equal.
+    before = rigOf(await snap());
+    await run('CodeXRImmersiveHarness.stick("right", 0, -1)');
+    await page.waitForTimeout(300);
+    await run('CodeXRImmersiveHarness.stick("right", 0, 0)');
+    after = rigOf(await snap());
+    const rightWalk = before.z - after.z;
+    assert.ok(rightWalk > 0.1, `right stick must walk forward (z ${before.z} -> ${after.z})`);
+    assert.ok(
+        Math.abs(leftWalk - rightWalk) < leftWalk * 0.5,
+        `both sticks must walk at the same rate (left ${leftWalk}, right ${rightWalk})`,
+    );
+
+    // Snap turn, from either hand.
+    before = rigOf(await snap());
+    await run('CodeXRImmersiveHarness.stick("left", 1, 0)');
+    await page.waitForTimeout(200);
+    await run('CodeXRImmersiveHarness.stick("left", 0, 0)');
+    after = rigOf(await snap());
+    assert.ok(
+        Math.abs(Math.abs(after.yaw - before.yaw) - (30 * Math.PI / 180)) < 0.01,
+        `sideways must snap-turn 30 degrees (yaw ${before.yaw} -> ${after.yaw})`,
+    );
+
+    // Pointer handover: the hand you use is the hand that points.
+    assert.equal(await active(), 'left', 'using the left stick handed it the pointer');
+    await run('CodeXRImmersiveHarness.trigger("right")');
+    await settle();
+    assert.equal(await active(), 'right', 'pulling the right trigger hands it back');
+    await run('CodeXRImmersiveHarness.trigger("left")');
+    await settle();
+    assert.equal(await active(), 'left', 'and to the left again — neither hand is privileged');
+
+    // A click still reaches its target after the handover.
+    const clicksBefore = (await snap()).clicks.panelStandIn;
+    await run('CodeXRImmersiveHarness.click("panelStandIn")');
+    state = await snap();
+    assert.equal(state.clicks.panelStandIn, clicksBefore + 1, 'clicks land after a handover');
+
+    await run('CodeXRImmersiveHarness.exit()');
+    await settle();
 }
 
 runPlaywrightIfAvailable().catch((error) => {

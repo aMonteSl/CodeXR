@@ -231,6 +231,72 @@ test('single-controller headset: left becomes the pointer when right disconnects
     assertSingleActivePointer(pointers, 'gaze');
 });
 
+test('using the left controller hands it the pointer, and back again', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // Pull the trigger on the idle hand: it takes over, so the click that
+    // follows on triggerup lands with the controller the user actually used.
+    pointers.left.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'left');
+
+    // And back — neither hand is privileged.
+    pointers.right.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+});
+
+test('any deliberate use counts: buttons and a pushed thumbstick', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+
+    pointers.left.emit('buttondown');
+    flush();
+    assertSingleActivePointer(pointers, 'left');
+
+    pointers.right.emit('thumbstickmoved', { x: 0, y: -1 });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // Stick noise must not steal the pointer mid-gesture.
+    pointers.left.emit('thumbstickmoved', { x: 0.05, y: -0.02 });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+});
+
+test('the hand you last used keeps the pointer through a laser-controls re-injection', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+
+    pointers.left.emit('triggerdown');
+    flush();
+
+    // laser-controls re-injects an unfiltered raycaster on model load.
+    simulateLaserControlsInjection(pointers.right);
+    pointers.right.emit('controllermodelready');
+    flush();
+
+    assertSingleActivePointer(pointers, 'left');
+    assert.equal(pointers.left.attrs.raycaster.objects, '.babiaxraycasterclass');
+});
+
 test('exit-vr hands the pointer back to the mouse', () => {
     const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
     sceneEl.emit('enter-vr');

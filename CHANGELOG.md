@@ -71,6 +71,7 @@ A guide screen lives inside the scene, so the answer to *what am I looking at* n
 - **The CodeXR mark, in 3D, while the table is empty.** Between analyses — and while a heavy one is being prepared — the table used to sit blank. The logo now assembles itself over it, letters sliding into the visor, turns slowly, and takes itself apart when your analysis arrives. It is decoration and behaves like it: it never intercepts a click, and it holds perfectly still if your frame rate is under pressure or your system asks for reduced motion.
 - **AR brings the pedestal to you.** Entering AR hides the virtual room and environment (that part already worked) and now also recenters you: the pedestal, its controller and the screens appear a step in front of you, on your own floor, instead of seven virtual metres away — possibly behind a real wall. Exiting restores your exact previous position. VR is untouched: the full room stays visible.
 - **Preview AR and VR without a headset.** `CodeXRDebug.simulateAR()`, `simulateVR()` and `exitSimulated()` in any generated scene's browser console show what each immersive mode hides, keeps and where it places you. They are not a WebXR session — no headset pose, stereo or passthrough — and say so; see `docs/XR_DEBUG_COMMANDS.md`.
+- **Walk and turn with the thumbsticks, from either hand.** Push either stick forward to walk where you are looking, push it sideways to turn 30° at a time. Both controllers do exactly the same thing — nothing is reserved for one hand.
 
 #### Changed
 
@@ -84,6 +85,8 @@ A guide screen lives inside the scene, so the answer to *what am I looking at* n
 
 #### Fixed
 
+- **The laser points where the controller points.** Touch controllers are held at an angle to the direction they aim, and A-Frame compensates for that when it sets up the ray — but the scene overrode it with a hand-written raycaster, so the beam left the controller some 40° high and you aimed at the ceiling instead of the table. The controllers are now declared the way A-Frame expects, both hands identically.
+- **Either controller points and clicks.** The left one used to be inert. The pointer now follows whichever controller you last used — pull its trigger, press a button or push its stick and it takes over — so you can work with either hand without thinking about it. Only one pointer is ever live at a time, which is what keeps chart legends from tearing.
 - **One active pointer at a time.** Chart legends respond to the mouse in a browser, to your gaze in VR without controllers, or to the laser once controllers connect. Scenes shipped with the mouse cursor still live inside VR and the second controller acting as an unfiltered third pointer, which corrupted the legends' show/hide cycle and left orphan legends behind. Gazing at a chart in VR now works at all — there was no gaze cursor before.
 - **A fitted chart stops resizing.** The containment system had no terminal state, so charts kept micro-resizing while you simply walked around them; a converged chart now settles and stays put until its content really changes.
 - **Dragging a screen no longer "slices"** everything it passes in front of, and invisible screen chrome no longer swallows clicks meant for what is behind it.
