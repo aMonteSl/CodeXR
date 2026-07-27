@@ -31,6 +31,15 @@
   // otherwise), so load order and scene timing cannot strand a view.
   // To add a new analysis surface: register its panel view, then map its
   // controller view(s) here so mode transitions can address it.
+  //
+  // A view that asks for `headerButton: true` also gets a say in how that
+  // button reads: `buttonLabel` (a word, not a letter), `buttonWidth` (the
+  // 0.34 square is the default; widen it to fit the label) and `buttonColor`
+  // — a declared colour outranks the open/closed default, so the button can
+  // mean something. `setPanelViewButtonColor(viewId, color)` changes it while
+  // the scene runs, which is how the analysis selector wears the colour of the
+  // analysis you are in. Labels must stay ASCII: the SDF font ships no bullet,
+  // arrow or icon glyph.
   var PANEL_READY_CALLBACKS = [];
 
   var CONTROLLER_PANEL_BY_VIEW = {
@@ -123,6 +132,17 @@
     rowsRootHeightOffset: 1.72,
     panelHeightPadding: 2.95
   };
+
+  // Header controls (the view buttons and the +/- toggle). The panel renders
+  // at 0.2 world scale, so 0.34 is a ~7 cm square: enough for one glyph, which
+  // is why a button that needs a word asks for a wider plate.
+  var HEADER_BUTTON_HEIGHT = 0.34;
+  var HEADER_BUTTON_MIN_WIDTH = 0.34;
+  var HEADER_BUTTON_GAP = 0.08;
+  var HEADER_BUTTON_MAX_LABEL = 16;
+  // Text width relative to the plate, the same ratio the panel's option
+  // buttons use — at the inherited `width: 1` a label was ~5 mm tall.
+  var HEADER_BUTTON_TEXT_RATIO = 1.9;
 
   function getPanelContentWidth() {
     return PANEL_LAYOUT.right - PANEL_LAYOUT.left;

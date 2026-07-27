@@ -582,6 +582,44 @@ test('mapping UI chart switch stands pie and donut upright and resets flat chart
     assert.equal(barsChart.getAttribute('babia-bars').x_axis, 'fileName');
 });
 
+test('applying a mapping converts an entity still wearing the previous chart', () => {
+    // The selector can move without touching the entity — every mode change
+    // does `selectChart(id, { applyToEntities: false })` so a mode can own its
+    // own chart. Re-activating the normal analysis then re-applies the mapping,
+    // and stamping the new component on top used to leave the entity half
+    // converted: both babia components alive, the PREVIOUS chart's rotation
+    // still on it (a boats arriving after a pie stayed rotated 90°) and a stale
+    // chart-id marker, which also mis-routes the table's fit strategy.
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-pie': { from: 'data', key: 'fileName', size: 'functionCount' },
+        'data-codexr-active-chart-id': 'pie',
+        rotation: '90 0 0',
+    });
+
+    runtime.__testing.setActiveChartIdForTests('boats');
+    runtime.__testing.applyMappingToCharts([chart], 'babia-boats', {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber',
+    });
+
+    assert.equal(chart.getAttribute('rotation'), '0 0 0', 'boats is not left standing on its side');
+    assert.equal(chart.getAttribute('babia-pie'), undefined, 'the previous chart component is gone');
+    assert.equal(chart.getAttribute('data-codexr-active-chart-id'), 'boats');
+    assert.equal(chart.getAttribute('babia-boats').area, 'functionCount');
+    // Reconciling means a full build, so the chart's base attributes come too.
+    assert.equal(chart.getAttribute('babia-boats').extra, 1);
+
+    // An entity already wearing the active chart keeps the cheap path: the
+    // mapping is merged into the live component, nothing is rebuilt.
+    const previousComponent = chart.getAttribute('babia-boats');
+    runtime.__testing.applyMappingToCharts([chart], 'babia-boats', { height: 'codeLines' });
+    assert.equal(chart.getAttribute('babia-boats').height, 'codeLines');
+    assert.equal(chart.getAttribute('babia-boats').area, previousComponent.area);
+});
+
 test('bubbles chart switch always carries its normalization caps', () => {
     // babia-bubbles declares heightMax/radiusMax WITHOUT schema defaults:
     // losing them on a live switch rendered bubbles at raw metric scale
@@ -866,6 +904,102 @@ test('mapping UI disables interactive controls added to hidden panel views after
 
     runtime.showPanelView('mapping');
     assert.equal(lateButton.classList.contains('babiaxraycasterclass'), false);
+});
+
+// The fake document only indexes ids handed to createElement, and the runtime
+// stamps the id afterwards — so header buttons are found by walking the scene.
+function findEntityById(document, id) {
+    const seen = new Set();
+    const queue = [document.querySelector('#scene')].filter(Boolean);
+    while (queue.length) {
+        const node = queue.shift();
+        if (!node || seen.has(node)) { continue; }
+        seen.add(node);
+        if (node.getAttribute && node.getAttribute('id') === id) { return node; }
+        (node.children || []).forEach((child) => queue.push(child));
+    }
+    return null;
+}
+
+test('a header button carries a word, sizes its text and can mean something', () => {
+    // The analysis selector used to be a 0.34 square with the letter 'V' — at
+    // the panel's 0.2 world scale that is a ~7 cm plate holding a ~5 mm glyph
+    // that says nothing about where it leads.
+    const { runtime, document } = loadRuntimeWithFakeDom();
+
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        buttonLabel: 'Analyses',
+        buttonWidth: 0.9,
+        buttonColor: '#0e7490',
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+    const button = findEntityById(document, 'codexrMappingUiView-visualization-mode');
+
+    assert.ok(button, 'the header button keeps its id — the mode harness clicks it');
+    assert.equal(button.getAttribute('width'), 0.9);
+    assert.equal(button.getAttribute('text').value, 'Analyses', 'the label is not truncated to one letter');
+    // Text scales with the plate instead of the inherited width: 1.
+    assert.equal(button.getAttribute('text').width, 0.9 * 1.9);
+    assert.equal(button.getAttribute('material').color, '#0e7490');
+
+    // A declared colour outranks the open/closed default, and can be changed
+    // while the scene runs: that is how the button follows the active analysis.
+    runtime.showPanelView('visualization-mode');
+    assert.equal(button.getAttribute('material').color, '#0e7490', 'the declared colour survives opening the view');
+    assert.equal(runtime.setPanelViewButtonColor('visualization-mode', '#7c3aed'), true);
+    assert.equal(button.getAttribute('material').color, '#7c3aed');
+    assert.equal(runtime.setPanelViewButtonColor('not-a-view', '#000000'), false);
+
+    // Without a declared colour the button still reports whether its view is
+    // open, so any future header button keeps the old behaviour.
+    const { runtime: plainRuntime, document: plainDocument } = loadRuntimeWithFakeDom();
+    plainRuntime.registerPanelView({
+        id: 'plain-view',
+        title: 'Plain view',
+        content: plainDocument.createElement('a-entity'),
+        headerButton: true,
+    });
+    const plainButton = findEntityById(plainDocument, 'codexrMappingUiView-plain-view');
+    assert.equal(plainButton.getAttribute('width'), 0.34, 'the square plate stays the default');
+    assert.equal(plainButton.getAttribute('text').value, 'Plain view', 'the title is the fallback label');
+    assert.equal(plainButton.getAttribute('material').color, '#0e7490');
+    plainRuntime.showPanelView('plain-view');
+    assert.equal(plainButton.getAttribute('material').color, '#be123c');
+});
+
+test('header buttons are laid out by width, clear of the toggle and the title', () => {
+    // The old layout stepped by a fixed 0.42 pitch, which only works while
+    // every button is the same 0.34 square.
+    const { runtime, document } = loadRuntimeWithFakeDom();
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        buttonLabel: 'Analyses',
+        buttonWidth: 0.9,
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+    runtime.registerPanelView({
+        id: 'second-view',
+        title: 'Second',
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+
+    const readX = (id) => Number(String(findEntityById(document, id).getAttribute('position')).split(' ')[0]);
+    const wide = readX('codexrMappingUiView-visualization-mode');
+    const square = readX('codexrMappingUiView-second-view');
+    const toggleLeft = 3.1 - 0.15 - 0.17;
+
+    // Right edge of the wide button sits one gap left of the +/- toggle.
+    assert.ok(Math.abs((wide + 0.45) - (toggleLeft - 0.08)) < 0.0001);
+    // The square one follows it, still one gap apart, and neither reaches the
+    // title backdrop (which ends at x = 1.35).
+    assert.ok(Math.abs((square + 0.17) - (wide - 0.45 - 0.08)) < 0.0001);
+    assert.ok((square - 0.17) > 1.35, 'header buttons never overlap the panel title');
 });
 
 test('mapping UI emits confirmed mappings for local and collaborative updates', () => {

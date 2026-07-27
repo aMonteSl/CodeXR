@@ -17,11 +17,19 @@
     return refs.evolutionRoot;
   }
 
+  // Orientation comes from the canonical presentation profile — the same
+  // source the generator and the chart switch use — so the movie can never
+  // disagree with the rest of the scene about how a chart stands.
+  function getChartRotation(chartId) {
+    var presentation = root.CodeXRMappingUiRuntime?.getChartPresentation?.(chartId);
+    return (presentation && presentation.rotation) || '0 0 0';
+  }
+
   // Builds the movie's chart entity from scratch. Everything it NEEDS is known
-  // here (id, markers, the babia component name); a scene chart, when present,
-  // only contributes decorative attributes. Cloning a DOM template used to be
-  // mandatory, which made the whole movie depend on an attribute the mapping UI
-  // removes on the first chart switch.
+  // here (id, markers, orientation, the babia component name); a scene chart,
+  // when present, only contributes decorative attributes. Cloning a DOM
+  // template used to be mandatory, which made the whole movie depend on an
+  // attribute the mapping UI removes on the first chart switch.
   function buildEvolutionChart(chartId) {
     var componentName = COMPONENT_BY_CHART[chartId];
     if (!componentName) { return null; }
@@ -33,10 +41,14 @@
         || attributeName === 'visible'
         || attributeName === 'position'
         || attributeName === 'scale'
+        // Orientation belongs to the chart the movie is building, never to the
+        // scene chart we borrow decoration from: inheriting it stood a boats
+        // movie on its side after the scene had been switched to pie/donut.
+        || attributeName === 'rotation'
         || attributeName === 'codexr-chart-containment'
         || attributeName === 'data-codexr-chart-containment'
-        || COMPONENT_BY_CHART[attributeName.replace('babia-', '')] === attributeName
-        || attributeName === componentName
+        || attributeName === 'data-codexr-active-chart-id'
+        || CHART_COMPONENT_NAMES.indexOf(attributeName) !== -1
       ) {
         return;
       }
@@ -45,6 +57,7 @@
     chart.setAttribute('id', 'codexrProjectEvolutionChart');
     chart.setAttribute('data-codexr-project-evolution-chart', 'true');
     chart.setAttribute('data-codexr-project-evolution-chart-id', chartId);
+    chart.setAttribute('rotation', getChartRotation(chartId));
     return chart;
   }
 

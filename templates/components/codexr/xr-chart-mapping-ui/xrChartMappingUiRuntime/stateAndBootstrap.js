@@ -165,6 +165,9 @@
     showPanelView: showPanelView,
     setPanelViewTitle: setPanelViewTitle,
     setPanelViewHeight: setPanelViewHeight,
+    // Lets a view keep its header button meaningful — the analysis selector
+    // repaints it with the colour of the analysis currently on the table.
+    setPanelViewButtonColor: setPanelViewButtonColor,
     getActivePanelView: function () {
       return state.activePanelView;
     },
@@ -183,6 +186,13 @@
       getInvalidOptionReason: getInvalidOptionReason,
       buildChartComponentUpdate: buildChartComponentUpdate,
       buildRuntimeChartData: buildRuntimeChartData,
+      // Applying a mapping must also RECONCILE an entity still wearing a
+      // previous chart type — the path that used to leave a pie's rotation on
+      // a boats — so it is exercised directly.
+      applyMappingToCharts: applyMappingToCharts,
+      setActiveChartIdForTests: function (chartId) {
+        state.activeChartId = chartId;
+      },
       applyChartTypeToEntity: applyChartTypeToEntity,
       applyChartTypeToEntities: applyChartTypeToEntities,
       isHierarchicalChart: isHierarchicalChart,
