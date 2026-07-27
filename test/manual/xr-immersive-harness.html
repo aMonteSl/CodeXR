@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CodeXR immersive (AR/VR) semantics harness</title>
+  <!-- The REAL libraries the generated scenes load: the point of this harness
+       is to run CodeXR's immersive contract against actual A-Frame internals
+       (hide-on-enter-ar, laser-controls injection, movement-controls), not
+       against mocks of them. -->
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.4/dist/aframe-extras.min.js"></script>
+  <script src="https://unpkg.com/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
+  <style>
+    body { margin: 0; }
+    #test-status {
+      position: fixed; left: 12px; bottom: 12px; z-index: 10;
+      padding: 8px 12px; color: #dff7ff; background: rgba(5, 15, 30, .82);
+      font: 13px/1.35 monospace; white-space: pre;
+    }
+    #test-controls {
+      position: fixed; right: 12px; bottom: 12px; z-index: 10;
+      display: flex; gap: 6px;
+    }
+    #test-controls button {
+      padding: 7px 10px; color: white; border: 1px solid #67e8f9;
+      background: #0f3a5a; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="test-status">CodeXR immersive harness</div>
+  <div id="test-controls">
+    <button onclick="CodeXRImmersiveHarness.enterAR()">Enter AR</button>
+    <button onclick="CodeXRImmersiveHarness.enterVR()">Enter VR</button>
+    <button onclick="CodeXRImmersiveHarness.exit()">Exit</button>
+    <button onclick="CodeXRImmersiveHarness.connect('right')">Right ctrl</button>
+    <button onclick="CodeXRImmersiveHarness.connect('left')">Left ctrl</button>
+    <button onclick="CodeXRImmersiveHarness.disconnect('right')">Drop right</button>
+  </div>
+
+  <!-- Scene skeleton mirrors templates/xr/file/xr-visualization.html: the same
+       ids, the same hide-on-enter-ar placement (env + room, nothing else), the
+       same pointer trio and controller entities, the same rig line. The runner
+       separately asserts the REAL template still matches this contract. -->
+  <a-scene id="scene"
+    light="defaultLightsEnabled: false"
+    background="color: #223"
+    codexr-pointer-policy
+    device-orientation-permission-ui>
+
+    <a-entity id="env" environment="preset: forest" hide-on-enter-ar></a-entity>
+
+    <!-- Room stand-in: the real codexr-room needs texture assets; what this
+         harness verifies is what hide-on-enter-ar DOES to the entity. -->
+    <a-entity id="codexrRoom" position="0 0 -10" hide-on-enter-ar>
+      <a-box position="0 5.5 -13" width="22" height="11" depth="0.3" color="#8899aa"></a-box>
+      <a-box position="-11 5.5 0" width="0.3" height="11" depth="26" color="#8899aa"></a-box>
+    </a-entity>
+
+    <a-entity light="color: #fff; type: ambient; intensity: 0.85"></a-entity>
+
+    <!-- Kept-in-AR set: pedestal (real runtime), chart, logo, screens, panel -->
+    <a-entity
+      id="codexrAnalysisTable"
+      codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
+    </a-entity>
+    <a-entity id="codexrBrandLogo" position="0 1.62 -18">
+      <a-box width="1.8" height="0.4" depth="0.2" color="#06b6d4"></a-box>
+    </a-entity>
+    <a-entity id="codexrAnalysisSurface" data-codexr-analysis-surface="true">
+      <a-entity id="codexrNormalAnalysisRoot" data-codexr-analysis-root="true">
+        <a-box id="chartStandIn" class="babiaxraycasterclass"
+          position="0 1.6 -18" width="1" height="1" depth="1" color="#f97316"></a-box>
+      </a-entity>
+    </a-entity>
+    <a-entity id="codexrScreenManager" position="0 0 0">
+      <a-plane id="screenStandIn" class="babiaxraycasterclass"
+        position="-6 3 -14" width="3" height="1.8" color="#111827"></a-plane>
+    </a-entity>
+    <a-plane id="panelStandIn" class="babiaxraycasterclass"
+      position="4 2.6 -15" width="2.4" height="3" color="#0b1526"></a-plane>
+
+    <!-- Rig copied from the template (same offsets, same controls) -->
+    <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
+      codexr-immersive-rig="arPosition: 0.07 0 -15.6">
+      <a-entity id="head" camera position="0 0 0" look-controls>
+        <a-entity
+          id="gazeCursor"
+          visible="false"
+          cursor="rayOrigin: entity; fuse: false"
+          raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
+          <a-ring position="0 0 -0.6" radius-inner="0.008" radius-outer="0.014"
+            material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
+        </a-entity>
+      </a-entity>
+
+      <a-entity
+        id="leftController"
+        laser-controls="hand: left"
+        meta-touch-controls="hand: left; model: true"
+        generic-tracked-controller-controls="hand: left">
+      </a-entity>
+
+      <a-entity
+        id="rightController"
+        laser-controls="hand: right"
+        meta-touch-controls="hand: right; model: true"
+        generic-tracked-controller-controls="hand: right"
+        cursor="rayOrigin: entity; fuse: false"
+        raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
+      </a-entity>
+
+      <a-entity
+        id="mouseCursor"
+        cursor="rayOrigin: mouse"
+        raycaster="objects: .babiaxraycasterclass; far: 100">
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script src="../../templates/components/codexr/pointer-policy/codexrPointerPolicyRuntime.js?v=immersive1"></script>
+  <script src="../../templates/components/codexr/immersive-rig/codexrImmersiveRigRuntime.js?v=immersive1"></script>
+  <script src="assembled/analysisTableRuntime.js"></script>
+
+  <script>
+    (function (root) {
+      'use strict';
+
+      const scene = () => document.getElementById('scene');
+      const clicks = { chartStandIn: 0, screenStandIn: 0, panelStandIn: 0 };
+      ['chartStandIn', 'screenStandIn', 'panelStandIn'].forEach(function (id) {
+        document.getElementById(id).addEventListener('click', function () {
+          clicks[id] += 1;
+        });
+      });
+
+      function visible(id) {
+        const el = document.getElementById(id);
+        return !!(el && el.object3D && el.object3D.visible);
+      }
+
+      function pointer(id) {
+        const el = document.getElementById(id);
+        if (!el) { return null; }
+        const raycaster = el.getAttribute('raycaster');
+        return {
+          enabled: !!(raycaster && raycaster.enabled !== false),
+          objects: raycaster ? raycaster.objects : null,
+          hasCursor: !!el.getAttribute('cursor'),
+          visible: el.getAttribute('visible') !== false,
+        };
+      }
+
+      function rigPose() {
+        const rig = document.getElementById('rig');
+        const p = rig.object3D.position;
+        const r = rig.object3D.rotation;
+        return { x: p.x, y: p.y, z: p.z, yaw: r.y };
+      }
+
+      root.CodeXRImmersiveHarness = {
+        clicks,
+        // A-Frame's own enterVR() needs a real WebXR session; the states +
+        // events below are exactly what it sets/emits around one, which is
+        // the surface every CodeXR component and A-Frame's hide-on-enter-ar
+        // subscribe to.
+        enterAR() { scene().addState('ar-mode'); scene().emit('enter-vr'); },
+        enterVR() { scene().addState('vr-mode'); scene().emit('enter-vr'); },
+        exit() {
+          const el = scene();
+          el.emit('exit-vr');
+          el.removeState('ar-mode');
+          el.removeState('vr-mode');
+        },
+        connect(side) {
+          document.getElementById(side + 'Controller')
+            .emit('controllerconnected', { name: 'generic-tracked-controller-controls' });
+        },
+        disconnect(side) {
+          document.getElementById(side + 'Controller')
+            .emit('controllerdisconnected', { name: 'generic-tracked-controller-controls' });
+        },
+        click(id) {
+          document.getElementById(id).dispatchEvent(new Event('click', { bubbles: false }));
+        },
+        snapshot() {
+          return {
+            states: { ar: scene().is('ar-mode'), vr: scene().is('vr-mode') },
+            hidden: { env: !visible('env'), room: !visible('codexrRoom') },
+            kept: {
+              table: visible('codexrAnalysisTable'),
+              chart: visible('chartStandIn'),
+              logo: visible('codexrBrandLogo'),
+              screens: visible('screenStandIn'),
+              panel: visible('panelStandIn'),
+              rig: visible('rig'),
+            },
+            pointers: {
+              mouse: pointer('mouseCursor'),
+              gaze: pointer('gazeCursor'),
+              left: pointer('leftController'),
+              right: pointer('rightController'),
+            },
+            rig: rigPose(),
+            movement: {
+              attached: !!document.getElementById('rig').components['movement-controls'],
+              gamepadRegistered: !!AFRAME.components['gamepad-controls'],
+              keyboardRegistered: !!AFRAME.components['keyboard-controls'],
+            },
+            clicks: Object.assign({}, clicks),
+          };
+        },
+      };
+
+      setInterval(function () {
+        const status = document.getElementById('test-status');
+        if (!status || !scene() || !scene().hasLoaded) { return; }
+        const snap = root.CodeXRImmersiveHarness.snapshot();
+        status.textContent = 'mode: ' + (snap.states.ar ? 'AR' : snap.states.vr ? 'VR' : 'desktop')
+          + ' | env hidden: ' + snap.hidden.env
+          + ' | room hidden: ' + snap.hidden.room
+          + '\nrig: ' + snap.rig.x.toFixed(2) + ' ' + snap.rig.y.toFixed(2) + ' ' + snap.rig.z.toFixed(2)
+          + ' | pointers m/g/l/r: '
+          + [snap.pointers.mouse, snap.pointers.gaze, snap.pointers.left, snap.pointers.right]
+            .map((p) => (p && p.enabled ? 'ON' : 'off')).join('/');
+      }, 400);
+    })(window);
+  </script>
+</body>
+</html>

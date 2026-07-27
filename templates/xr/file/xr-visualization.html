@@ -97,7 +97,13 @@
         <!-- Babia UI panel and toggle (optional) -->
         ${BABIA_UI_COMPONENT}
 
-        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75">
+        <!-- Rig: y=1.75 is DESKTOP eye height (camera sits at the rig origin).
+             In immersive WebXR the headset brings the user's real height over
+             local-floor, so codexr-immersive-rig drops y to 0 on entry (VR and
+             AR), recenters the rig in front of the pedestal in AR, and
+             restores this exact pose on exit. -->
+        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
+        codexr-immersive-rig="arPosition: 0.07 0 -15.6">
         <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy) -->
         <a-entity id="head" camera position="0 0 0" look-controls>
             <a-entity
@@ -170,6 +176,7 @@
 <script nonce="${nonce}" src="./codexrCommonRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrGitRefPickerRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrImmersiveRigRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartMappingUiRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartDebugRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./analysisTableRuntime.js?v=${nonce}"></script>

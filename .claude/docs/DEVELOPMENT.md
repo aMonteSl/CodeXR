@@ -27,6 +27,7 @@
 | `npm run test:htmlanalysis` | HTML/DOM analysis tests | After touching `python/html/html_dom_parser.py` or DOM mode |
 | `npm run test:xr-harness` | `test/runners/run-xr-containment-harness.cjs` (browser harness, uses Playwright) | After touching table/containment runtimes |
 | `npm run test:project-evolution-harness` | Project Evolution playback harness | After touching project-evolution runtime |
+| `npm run test:xr-immersive-harness` | `test/runners/run-xr-immersive-harness.cjs` — AR/VR semantics against real A-Frame: AR hide/keep sets, rig floor-align + AR recenter, pointer handover; plus a static contract over both scene templates | After touching the scene templates, pointer-policy or immersive-rig |
 | `npm run package` | Production webpack build (hidden source maps) | Pre-packaging |
 | `npm run package:vsix` | `package` + `scripts/package-vsix.mjs` → builds the `.vsix` | Release preparation |
 | `npm run test:integration` | `@vscode/test-cli` — **currently targets `out/test/**/*.test.js`, which doesn't exist; the integration layer is unpopulated** | Don't rely on it (needs verification/setup) |

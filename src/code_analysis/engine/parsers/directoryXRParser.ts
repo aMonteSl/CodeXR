@@ -59,6 +59,8 @@ import {
     XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME,
     readPointerPolicyRuntimeContent,
     POINTER_POLICY_RUNTIME_OUTPUT_NAME,
+    readImmersiveRigRuntimeContent,
+    IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 export interface DirectoryXRParsingResult {
@@ -160,6 +162,7 @@ export class DirectoryXRParser {
             const renderBudgetRuntimeContent = await readRenderBudgetRuntimeContent(context.extensionPath);
             const dependencyVisualBudgetRuntimeContent = await readDependencyVisualBudgetRuntimeContent(context.extensionPath);
             const pointerPolicyRuntimeContent = await readPointerPolicyRuntimeContent(context.extensionPath);
+            const immersiveRigRuntimeContent = await readImmersiveRigRuntimeContent(context.extensionPath);
             const codexrDebugRuntimeContent = await readCodeXrDebugRuntimeContent(context.extensionPath);
             const codexrRoomTextures = await readCodeXrRoomTextureContents(context.extensionPath);
             const dataJsonContent = JSON.stringify(payload, null, 2);
@@ -175,6 +178,7 @@ export class DirectoryXRParser {
             generatedFiles.set(VIRTUAL_SCREEN_MANAGER_RUNTIME_OUTPUT_NAME, virtualScreenManagerRuntimeContent);
             generatedFiles.set(CODEXR_ROOM_RUNTIME_OUTPUT_NAME, codexrRoomRuntimeContent);
             generatedFiles.set(POINTER_POLICY_RUNTIME_OUTPUT_NAME, pointerPolicyRuntimeContent);
+            generatedFiles.set(IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME, immersiveRigRuntimeContent);
             generatedFiles.set(XR_CHART_MAPPING_UI_RUNTIME_OUTPUT_NAME, xrChartMappingUiRuntimeContent);
             generatedFiles.set(XR_CHART_DEBUG_RUNTIME_OUTPUT_NAME, xrChartDebugRuntimeContent);
             generatedFiles.set(ANALYSIS_TABLE_RUNTIME_OUTPUT_NAME, analysisTableRuntimeContent);

@@ -37,6 +37,8 @@ its parts directory. Manual harnesses load assembled copies from
 
 - `codexr/pointer-policy/codexrPointerPolicyRuntime.js`
   - Scene-level `codexr-pointer-policy` component: guarantees exactly ONE pointer raycaster is enabled at a time — mouse cursor on desktop, gaze cursor (`#gazeCursor` under `#head`) in VR without controllers, the right laser (left as fallback) when controllers connect. Babia's legend show/hide shares one implicit global, so a second live pointer corrupts it; this policy is what keeps legends hover-only and single-sourced. Re-neutralizes the inactive controller after every `laser-controls` cursor/raycaster injection.
+- `codexr/immersive-rig/codexrImmersiveRigRuntime.js`
+  - Rig-level `codexr-immersive-rig` component: adapts the camera rig's pose for immersive sessions. The rig's y is desktop eye height, but A-Frame's default `local-floor` reference space already carries the user's real height, so on any immersive entry the rig drops to floor level (y = 0); entering AR it additionally recenters at `arPosition` facing −Z, putting the pedestal, controller and screens in the user's own room instead of metres away. Restores the exact desktop pose on exit.
   - Both scene templates declare it on `<a-scene>` and provide the pointer entities by id (`#mouseCursor`, `#gazeCursor`, `#leftController`, `#rightController`).
 - `codexr/analysis-table/analysisTableRuntime.js`
   - Owns the XR table, visual surface, table modes and chart containment.
@@ -105,7 +107,7 @@ its parts directory. Manual harnesses load assembled copies from
 
 1. Room, collaboration, avatars and virtual screens; the `guide-screen` runtime right after the virtual screen + manager (it is a virtual-screen subtype); `codexr/logo` with the room (scene decoration, no dependencies of its own).
 2. `common/codexrCommonRuntime.js`, then `common/codexrGitRefPickerRuntime.js` (before the Git analyses that embed it).
-3. `codexr/pointer-policy/codexrPointerPolicyRuntime.js` (scene-level pointer arbitration, before anything that assumes pointers).
+3. `codexr/pointer-policy/codexrPointerPolicyRuntime.js` (scene-level pointer arbitration, before anything that assumes pointers), then `codexr/immersive-rig/codexrImmersiveRigRuntime.js` (rig pose adapter; independent, but it must be registered before the user can enter an immersive session).
 4. CodeXR charts, mapping UI, chart debug and analysis table.
 5. Analysis mode and mode-specific runtimes.
 6. Render budgets before visualizations that consume them.
