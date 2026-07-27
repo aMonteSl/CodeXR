@@ -85,6 +85,8 @@ A guide screen lives inside the scene, so the answer to *what am I looking at* n
 - **Dragging a screen no longer "slices"** everything it passes in front of, and invisible screen chrome no longer swallows clicks meant for what is behind it.
 - **Screen sharing is reliable.** Starting a share no longer leaves the other participants on "connecting…" and then *Live sharing stopped*, remote guests no longer get a black rectangle, and clicking the content someone else is sharing no longer detaches you from it — it just tells you who is sharing.
 - **Servers really stop and leave the list**, even when a shutdown fails (you are told, and the close is forced), and server information dialogs are legible instead of printing raw escape characters.
+- **Every chart type now presents properly on the table** — not just Boats. Pie and Donut stand upright (they rendered lying flat like a plate) and keep their circular shape while fitting the table. Cylsmap loads instead of being rejected with "invalid axes" whenever a file had zero functions mapped to the radius. Bubbles is contained instead of towering out of the room at raw metric scale after a chart switch. Bars and Cyls no longer flood the room floor with giant axis labels.
+- **Charts stay readable on large projects.** Bar, cylinder, bubble, pie and donut charts show the top files by the mapped metric (BabiaXR draws one element per row and cannot aggregate, so hundreds of rows became an unreadable wall shrunk to nothing), and files sharing a name no longer overwrite each other's bar or pie slice.
 
 #### Internal
 
