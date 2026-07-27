@@ -56,14 +56,19 @@
       observer.observe(content, { childList: true, subtree: true });
       state.panelViewObservers[viewId] = observer;
     }
+    // A header button used to be a single uppercase letter on a square plate,
+    // which said nothing about where it led. A view can now ask for a wider
+    // plate and carry a real word; the square stays the default so nothing
+    // else has to change.
+    var buttonWidth = Math.max(HEADER_BUTTON_MIN_WIDTH, Number(options.buttonWidth) || HEADER_BUTTON_MIN_WIDTH);
     var button = null;
     if (options.headerButton === true) {
       button = createEntity('a-plane', {
         id: 'codexrMappingUiView-' + viewId,
         class: 'babiaxraycasterclass codexr-mapping-ui-view-toggle',
         'data-codexr-interactive': 'true',
-        width: 0.34,
-        height: 0.34
+        width: buttonWidth,
+        height: HEADER_BUTTON_HEIGHT
       });
       refs.panel.appendChild(button);
     }
@@ -71,7 +76,12 @@
     state.panelViews[viewId] = {
       id: viewId,
       title: String(options.title || viewId),
-      buttonLabel: String(options.buttonLabel || 'V').slice(0, 1).toUpperCase(),
+      buttonLabel: String(options.buttonLabel || options.title || viewId).slice(0, HEADER_BUTTON_MAX_LABEL),
+      buttonWidth: buttonWidth,
+      // Declared colour wins over the active/idle default, so a view can make
+      // its button mean something (the analysis selector paints it with the
+      // colour of the analysis you are in).
+      buttonColor: options.buttonColor ? String(options.buttonColor) : '',
       panelHeight: Math.max(2.45, Number(options.panelHeight) || 2.45),
       content: content,
       button: button,

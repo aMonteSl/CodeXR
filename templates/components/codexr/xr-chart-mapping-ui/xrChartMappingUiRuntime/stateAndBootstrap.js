@@ -165,6 +165,9 @@
     showPanelView: showPanelView,
     setPanelViewTitle: setPanelViewTitle,
     setPanelViewHeight: setPanelViewHeight,
+    // Lets a view keep its header button meaningful — the analysis selector
+    // repaints it with the colour of the analysis currently on the table.
+    setPanelViewButtonColor: setPanelViewButtonColor,
     getActivePanelView: function () {
       return state.activePanelView;
     },

@@ -20,6 +20,12 @@
       }
     }
     setTableMode(nextMode);
+    // The selector's header button carries the accent of the analysis you are
+    // in, so the panel tells you where you are before you open anything.
+    root.CodeXRMappingUiRuntime?.setPanelViewButtonColor?.(
+      'visualization-mode',
+      MODE_ACCENT_BY_ID[nextMode] || MODE_ACCENT_BY_ID.single
+    );
     var panelViewId = resolveModePanelView(nextMode, context || null);
     applyControllerView(nextMode, controllerView, panelViewId, context || null);
     return nextMode;

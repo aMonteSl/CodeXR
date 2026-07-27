@@ -10,6 +10,18 @@
     'dependency-graph': 'dependency-graph',
     'project-evolution': 'project-evolution'
   };
+  // The header button that opens this selector is painted with the colour of
+  // the analysis you are in — the same hexes that already tint the table
+  // (MODE_THEME_BY_ID in the analysis-table runtime) and the selector's own
+  // option plates. `selection` is the neutral one: while the selector is open
+  // you are, precisely, between analyses.
+  var MODE_ACCENT_BY_ID = {
+    selection: '#64748b',
+    single: '#0e7490',
+    'historical-compare': '#be123c',
+    'dependency-graph': '#7c3aed',
+    'project-evolution': '#f59e0b'
+  };
   var MODE_CONTROLLER_VIEW_BY_ID = {
     selection: 'visualization-menu',
     single: 'single.mapping',

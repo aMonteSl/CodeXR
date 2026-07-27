@@ -11,7 +11,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
 }
 
-test('XR mode panel exposes one neutral V button and no dependency header button', () => {
+test('XR mode panel exposes one labelled Analyses button and no dependency header button', () => {
   const modeRuntime = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
   const tableRuntime = readAssembledRuntime('analysis-table', 'analysisTableRuntime.js');
   const dependencyRuntime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
@@ -20,7 +20,9 @@ test('XR mode panel exposes one neutral V button and no dependency header button
   const mappingRuntime = readAssembledRuntime('xr-chart-mapping-ui', 'xrChartMappingUiRuntime.js');
 
   assert.match(modeRuntime, /id: 'visualization-mode'/);
-  assert.match(modeRuntime, /buttonLabel: 'V'/);
+  // The old single-letter 'V' said nothing about where the button led.
+  assert.match(modeRuntime, /buttonLabel: 'Analyses'/);
+  assert.doesNotMatch(modeRuntime, /buttonLabel: 'V'/);
   assert.match(modeRuntime, /headerButton: true/);
   assert.match(modeRuntime, /data-codexr-disabled/);
   assert.match(modeRuntime, /data-codexr-mode-disabled-tooltip/);

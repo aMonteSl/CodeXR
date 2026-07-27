@@ -906,6 +906,102 @@ test('mapping UI disables interactive controls added to hidden panel views after
     assert.equal(lateButton.classList.contains('babiaxraycasterclass'), false);
 });
 
+// The fake document only indexes ids handed to createElement, and the runtime
+// stamps the id afterwards — so header buttons are found by walking the scene.
+function findEntityById(document, id) {
+    const seen = new Set();
+    const queue = [document.querySelector('#scene')].filter(Boolean);
+    while (queue.length) {
+        const node = queue.shift();
+        if (!node || seen.has(node)) { continue; }
+        seen.add(node);
+        if (node.getAttribute && node.getAttribute('id') === id) { return node; }
+        (node.children || []).forEach((child) => queue.push(child));
+    }
+    return null;
+}
+
+test('a header button carries a word, sizes its text and can mean something', () => {
+    // The analysis selector used to be a 0.34 square with the letter 'V' — at
+    // the panel's 0.2 world scale that is a ~7 cm plate holding a ~5 mm glyph
+    // that says nothing about where it leads.
+    const { runtime, document } = loadRuntimeWithFakeDom();
+
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        buttonLabel: 'Analyses',
+        buttonWidth: 0.9,
+        buttonColor: '#0e7490',
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+    const button = findEntityById(document, 'codexrMappingUiView-visualization-mode');
+
+    assert.ok(button, 'the header button keeps its id — the mode harness clicks it');
+    assert.equal(button.getAttribute('width'), 0.9);
+    assert.equal(button.getAttribute('text').value, 'Analyses', 'the label is not truncated to one letter');
+    // Text scales with the plate instead of the inherited width: 1.
+    assert.equal(button.getAttribute('text').width, 0.9 * 1.9);
+    assert.equal(button.getAttribute('material').color, '#0e7490');
+
+    // A declared colour outranks the open/closed default, and can be changed
+    // while the scene runs: that is how the button follows the active analysis.
+    runtime.showPanelView('visualization-mode');
+    assert.equal(button.getAttribute('material').color, '#0e7490', 'the declared colour survives opening the view');
+    assert.equal(runtime.setPanelViewButtonColor('visualization-mode', '#7c3aed'), true);
+    assert.equal(button.getAttribute('material').color, '#7c3aed');
+    assert.equal(runtime.setPanelViewButtonColor('not-a-view', '#000000'), false);
+
+    // Without a declared colour the button still reports whether its view is
+    // open, so any future header button keeps the old behaviour.
+    const { runtime: plainRuntime, document: plainDocument } = loadRuntimeWithFakeDom();
+    plainRuntime.registerPanelView({
+        id: 'plain-view',
+        title: 'Plain view',
+        content: plainDocument.createElement('a-entity'),
+        headerButton: true,
+    });
+    const plainButton = findEntityById(plainDocument, 'codexrMappingUiView-plain-view');
+    assert.equal(plainButton.getAttribute('width'), 0.34, 'the square plate stays the default');
+    assert.equal(plainButton.getAttribute('text').value, 'Plain view', 'the title is the fallback label');
+    assert.equal(plainButton.getAttribute('material').color, '#0e7490');
+    plainRuntime.showPanelView('plain-view');
+    assert.equal(plainButton.getAttribute('material').color, '#be123c');
+});
+
+test('header buttons are laid out by width, clear of the toggle and the title', () => {
+    // The old layout stepped by a fixed 0.42 pitch, which only works while
+    // every button is the same 0.34 square.
+    const { runtime, document } = loadRuntimeWithFakeDom();
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        buttonLabel: 'Analyses',
+        buttonWidth: 0.9,
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+    runtime.registerPanelView({
+        id: 'second-view',
+        title: 'Second',
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+
+    const readX = (id) => Number(String(findEntityById(document, id).getAttribute('position')).split(' ')[0]);
+    const wide = readX('codexrMappingUiView-visualization-mode');
+    const square = readX('codexrMappingUiView-second-view');
+    const toggleLeft = 3.1 - 0.15 - 0.17;
+
+    // Right edge of the wide button sits one gap left of the +/- toggle.
+    assert.ok(Math.abs((wide + 0.45) - (toggleLeft - 0.08)) < 0.0001);
+    // The square one follows it, still one gap apart, and neither reaches the
+    // title backdrop (which ends at x = 1.35).
+    assert.ok(Math.abs((square + 0.17) - (wide - 0.45 - 0.08)) < 0.0001);
+    assert.ok((square - 0.17) > 1.35, 'header buttons never overlap the panel title');
+});
+
 test('mapping UI emits confirmed mappings for local and collaborative updates', () => {
     assert.match(runtimeSource, /function notifyMappingConfirmed\(mapping\)/);
     assert.match(runtimeSource, /new root\.CustomEvent\('codexr-mapping-confirmed'/);
