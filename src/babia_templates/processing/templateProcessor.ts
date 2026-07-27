@@ -338,8 +338,15 @@ export class TemplateProcessor {
                     color: ['cyclomaticComplexityNumber', 'language', 'fileName', 'relativePath'],
                     x_axis: ['fileName', 'relativePath', 'language'],
                     y_axis: ['totalLines', 'codeLines', 'functionCount'],
-                    z_axis: ['cyclomaticComplexityNumber', 'functionCount', 'totalLines'],
-                    radius: ['functionCount', 'totalLines', 'fileSizeBytes'],
+                    // z prefers a LOW-cardinality category: babia allots every
+                    // distinct z label its own grid row, and 40+ rows of
+                    // near-empty depth shrank the map charts to nothing.
+                    z_axis: ['language', 'cyclomaticComplexityNumber', 'functionCount'],
+                    // Radius prefers average complexity: per-file counts are
+                    // Zipf-distributed (one vendored file dwarfs the rest) and
+                    // babia maps radius linearly, so count-based radii render
+                    // every typical file as an invisible speck.
+                    radius: ['cyclomaticComplexityNumber', 'functionCount', 'totalLines'],
                     size: ['functionCount', 'totalLines', 'fileSizeBytes'],
                     heightmap: ['totalLines', 'codeLines', 'functionCount'],
                     key: ['fileName', 'relativePath', 'language'],

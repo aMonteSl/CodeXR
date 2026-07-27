@@ -148,13 +148,15 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     bubbles: {
         rotation: '0 0 0',
-        fit: 'planar-uniform',
-        rowBudget: 30,
+        // Bubbles are SPHERES: any anisotropy (even planar-uniform's free y
+        // axis) stretches them into ellipsoids — one factor on all axes.
+        fit: 'uniform',
+        rowBudget: 12,
         orderBy: 'height',
         keyBy: ['x_axis', 'z_axis'],
         // babia-bubbles has NO defaults for these: without them every bubble
         // is drawn at raw metric scale and the chart towers out of the room.
-        baseAttributes: { heightMax: 5, radiusMax: 1 },
+        baseAttributes: { heightMax: 5, radiusMax: 1.5 },
     },
     boats: {
         rotation: '0 0 0',

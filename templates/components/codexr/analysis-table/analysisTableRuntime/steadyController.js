@@ -5,6 +5,33 @@
     // steady loop, so a circular chart never goes through per-axis scaling.
     applyUniformFitStep: function (measurements, source) {
       var object3D = this.el && this.el.object3D;
+
+      // A chart switch inherits the PREVIOUS chart's fitted scale, which is
+      // usually anisotropic (boats ships y ~7x its planar axes). A purely
+      // multiplicative uniform step preserves that ratio forever — spheres
+      // stayed stretched into lozenges. Collapse to the smallest axis first
+      // (safe against every cap); the cap factor then grows the chart
+      // uniformly from true proportions.
+      if (object3D && object3D.scale) {
+        var minAxis = Math.min(object3D.scale.x, object3D.scale.y, object3D.scale.z);
+        var maxAxis = Math.max(object3D.scale.x, object3D.scale.y, object3D.scale.z);
+        if (Number.isFinite(minAxis) && minAxis > 0 && (maxAxis - minAxis) > minAxis * 0.02) {
+          var equalizedY = clamp(minAxis, Math.max(0.001, this.data.yScaleMin), Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax));
+          object3D.scale.set(minAxis, equalizedY, minAxis);
+          object3D.updateMatrixWorld(true);
+          var equalizedMeasurements = this.measureBounds();
+          if (equalizedMeasurements) {
+            this.applyAnchorPlacement(equalizedMeasurements);
+          }
+          this.syncTransformAttributes();
+          debugLog('uniform-fit-equalized', {
+            source: source || 'uniform-fit',
+            scale: toFixedNumber(minAxis)
+          });
+          return { converged: false, changed: true, equalized: true };
+        }
+      }
+
       var fit = computeUniformFitState(measurements, object3D, this.data);
       if (!fit) {
         return null;

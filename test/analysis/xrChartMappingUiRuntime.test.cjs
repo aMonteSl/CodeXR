@@ -599,7 +599,35 @@ test('bubbles chart switch always carries its normalization caps', () => {
     }), true);
     const bubbles = chart.getAttribute('babia-bubbles');
     assert.equal(bubbles.heightMax, 5);
-    assert.equal(bubbles.radiusMax, 1);
+    assert.equal(bubbles.radiusMax, 1.5);
+});
+
+test('orphan sweep never deletes a chart whose live component claims no root (boats)', () => {
+    // babia-boats appends its figures DIRECTLY to the entity and exposes no
+    // chartEl/titleEl/legendEl: the sweep cannot tell its children from
+    // residue, and sweeping deleted the freshly built boats — the table
+    // stayed empty until the next data push rebuilt it.
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({ 'codexr-chart-containment': 'preset: table' });
+    chart.components = { 'babia-boats': { /* no chartEl/titleEl/legendEl */ } };
+    const figure = createFakeElement('a-entity', () => {});
+    chart.appendChild(figure);
+
+    assert.equal(runtime.__testing.sweepOrphanChartChildren(chart), 0);
+    assert.equal(chart.children.length, 1);
+
+    // With a root-claiming component (bars-style), unclaimed children are
+    // still swept — the ghost-chart defence stays in force.
+    const claimedRoot = createFakeElement('a-entity', () => {});
+    const orphan = createFakeElement('a-entity', () => {});
+    const barsChart = createChartEntityForSwitchTest({ 'codexr-chart-containment': 'preset: table' });
+    barsChart.components = { 'babia-bars': { chartEl: claimedRoot } };
+    barsChart.appendChild(claimedRoot);
+    barsChart.appendChild(orphan);
+
+    assert.equal(runtime.__testing.sweepOrphanChartChildren(barsChart), 1);
+    assert.equal(barsChart.children.length, 1);
+    assert.equal(barsChart.children[0], claimedRoot);
 });
 
 test('chart data slice ranks, filters and de-duplicates rows for budgeted charts', () => {

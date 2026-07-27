@@ -27,18 +27,18 @@
   var FIT_MODE_BY_CHART_ID = {
     pie: 'uniform',
     donut: 'uniform',
+    bubbles: 'uniform',
     bars: 'planar-uniform',
     cyls: 'planar-uniform',
-    cylsmap: 'planar-uniform',
-    bubbles: 'planar-uniform'
+    cylsmap: 'planar-uniform'
   };
   var FIT_MODE_BY_COMPONENT_NAME = {
     'babia-pie': 'uniform',
     'babia-doughnut': 'uniform',
+    'babia-bubbles': 'uniform',
     'babia-bars': 'planar-uniform',
     'babia-cyls': 'planar-uniform',
-    'babia-cylsmap': 'planar-uniform',
-    'babia-bubbles': 'planar-uniform'
+    'babia-cylsmap': 'planar-uniform'
   };
   var KNOWN_FIT_MODES = { uniform: true, 'planar-uniform': true };
   var UNIFORM_FIT_MARGIN = 0.98;
@@ -176,13 +176,19 @@
     var heightRatio = fit.heightTargets && fit.heightTargets.maxHeight > 0
       ? fit.peakHeight / fit.heightTargets.maxHeight
       : null;
+    // Axes still unequal (inherited from a previous chart's fit) mean the
+    // equalization step has not landed yet: the chart is not done correcting.
+    var minAxisScale = Math.min(object3D.scale.x, object3D.scale.y, object3D.scale.z);
+    var maxAxisScale = Math.max(object3D.scale.x, object3D.scale.y, object3D.scale.z);
+    var anisotropic = Number.isFinite(minAxisScale) && minAxisScale > 0
+      && (maxAxisScale - minAxisScale) > minAxisScale * 0.02;
     return {
       fitMode: 'uniform',
       x: axis(size.x, fit.limits.containmentWidthLimit),
       y: axis(fit.peakHeight, fit.heightTargets ? fit.heightTargets.maxHeight : 0),
       z: axis(size.z, fit.limits.containmentDepthLimit),
       axes: null,
-      needsCorrection: !fit.converged,
+      needsCorrection: !fit.converged || anisotropic,
       compromised: false,
       outOfBand: fit.overflowing,
       containmentWidthLimit: fit.limits.containmentWidthLimit,
