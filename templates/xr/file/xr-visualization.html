@@ -70,6 +70,14 @@
             id="codexrAnalysisTable"
             codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
         </a-entity>
+        <!-- Brand mark over the table while no analysis is loaded. Decoration
+             only: it carries no raycaster class, and it lives outside the
+             analysis surface so the selection sweep never owns it. -->
+        <a-entity
+            id="codexrBrandLogo"
+            data-codexr-role="brand-logo auxiliary"
+            codexr-logo="anchorX: 0; anchorY: 1.62; anchorZ: -18; width: 1.8">
+        </a-entity>
         <a-entity
             id="codexrAnalysisSurface"
             data-codexr-analysis-surface="true">
@@ -158,6 +166,7 @@
 <script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./guideScreenRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrRoomRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrLogoRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrCommonRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrGitRefPickerRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js?v=${nonce}"></script>

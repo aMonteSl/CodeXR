@@ -39,6 +39,12 @@ The analysis table is the central XR surface; the old "pedestal" was split into 
 - **Validation**: `processing/dimensionValidator.ts` validates mappings against the Python-derived field schema (see `PYTHON_ANALYSIS.md` → field-schema contract) before launch. The in-scene Mapping UI performs transactional mapping changes with safe recovery.
 - **Default hierarchical chart is Babia Boats.** The custom `code-xr-boats` ("Code City") prototype was **deleted on `fix/gitcontroller` (2026-07-25)** — nothing injected it, generated scenes use `babia-boats`, and old configs migrate (see V1.2.0_STATUS.md).
 
+## Scene decoration
+
+- **Brand logo** (`templates/components/codexr/logo/`, component `codexr-logo`): the CodeXR mark extruded in 3D over the analysis table while the table is empty — mode `selection`, which is both the between-analyses state and the transit hop while a heavy analysis is prepared. Its contours are generated **offline** from `resources/icon.svg` into `logoContours.js` (`AFRAME.THREE` has no `SVGLoader`, so the conversion cannot happen in the browser); regenerate that part rather than editing it.
+- The contract it relies on: `CodeXRAnalysisTableRuntime.setMode` writes the mode onto `#codexrAnalysisTable` **only on a real change**, so A-Frame's `componentchanged` is a precise, poll-free trigger. It must NOT register a `selection` lifecycle with `CodeXRAnalysisModeRuntime` (registration overwrites by key and would clobber the built-in `clearVisualizationsForSelection`), and it must NOT live inside `#codexrAnalysisSurface` (whose selection sweep would own it).
+- Rules any future decoration should copy: no raycaster class (decoration must never swallow a click), subscribe to `CodeXRRenderBudgetRuntime` and go still on `static` (which is also how `prefers-reduced-motion` arrives), one-shot `animation__codexr_*` removed on teardown, idle motion in `tick` with a clamped frame delta.
+
 ## Debugging XR scenes
 
 Browser-console APIs (`CodeXR.help()`, `CodeXRDebug`, `CodeXRChartDebug`, `CodeXRDependencyGraphRuntime`) are fully documented in `docs/XR_DEBUG_COMMANDS.md`. Manual browser harnesses live in `test/manual/` (`npm run test:xr-harness`, `npm run test:project-evolution-harness`).
