@@ -100,6 +100,11 @@ A guide screen lives inside the scene, so the answer to *what am I looking at* n
 - `HttpServer` was split by responsibility (HTTP helpers and static assets, remote pairing and authorization, the collaboration session API, and the analysis feature host with its bridges), with the façade keeping its public surface; the XR/DOM template layer was refactored with no behaviour change.
 - The automated gate grew to more than 400 tests — Node unit tests, the Python analysis suites, and Playwright harnesses for chart containment, analysis-mode cycling and project-evolution playback — plus a per-language end-to-end metrics matrix.
 
+#### Validation & feedback
+
+- **XR hardware validation status**: like 1.1.0, this release was validated on desktop browsers and through the automated gate above, **not on physical VR headsets or real VR controllers**. The controller-facing paths are built on standard A-Frame/WebXR bindings and verified statically, but if anything misbehaves on real hardware — or anywhere else — **please report it** at [GitHub Issues](https://github.com/aMonteSl/CodeXR/issues) so it can be fixed; a device name and a short description are enough.
+- If CodeXR is useful to you, a ⭐ on [GitHub](https://github.com/aMonteSl/CodeXR) or a review on the [Marketplace](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr) helps the project reach more people, and ideas or improvement proposals are genuinely welcome in Issues.
+
 ## [1.1.0] - 2026-03-21
 
 ### Plugin Optimization Update - Enhanced Performance, Stability, and Collaborative Immersion

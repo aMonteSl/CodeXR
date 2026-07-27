@@ -1,8 +1,25 @@
 {
   "name": "code-xr",
   "displayName": "CodeXR",
-  "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
+  "description": "Analyze your code and walk through it as a 3D city in your browser — metrics, dependency graph, Git history and collaboration, all local. VR optional.",
   "version": "1.2.0",
+  "keywords": [
+    "code visualization",
+    "code metrics",
+    "dependency graph",
+    "cyclomatic complexity",
+    "git history",
+    "code city",
+    "code analysis",
+    "static analysis",
+    "3D",
+    "WebXR",
+    "VR",
+    "A-Frame",
+    "BabiaXR",
+    "collaboration",
+    "lizard"
+  ],
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",

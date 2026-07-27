@@ -1,15 +1,12 @@
-# CodeXR - Code Visualization in Extended Reality (v1.2.0)
+# CodeXR — Code analysis you can walk through
 
-> La colaboración entre redes usa Cloudflare Quick Tunnel como servicio temporal
-> sin SLA. Consulta [cómo funciona, sus límites y consideraciones de
-> privacidad](docs/CLOUDFLARE_REMOTE_ACCESS.md).
->
-> La arquitectura y el funcionamiento del comparador entre revisiones se
-> documentan en [Comparador histórico XR](docs/HISTORICAL_COMPARISON_XR.md).
+![The CodeXR room: the dependency graph on the pedestal table, two participants with name tags, the in-room guide and a shared virtual screen](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/hero.png)
 
-A revolutionary Visual Studio Code extension that transforms your code analysis into immersive XR visualizations. Experience your code metrics (complexity, lines, parameters) in both traditional VS Code panels and breathtaking XR/VR environments powered by BabiaXR and A-Frame. Dive deep into your codebase with comprehensive file analysis, directory scanning, and interactive DOM visualization.
+CodeXR is a Visual Studio Code extension that analyzes your code — complexity, size, structure, dependencies, history — and turns the numbers into something you can actually look at: a 3D scene served locally and opened **in the browser you already have**. Walk around your codebase like a city, watch it update live as you edit, compare two points of its Git history side by side, or replay its whole evolution as a film.
 
-**Gain unprecedented insights into your codebase by stepping into an XR representation of your code structure that updates in real-time as you work.**
+**No VR headset required.** Everything works on a normal desktop with mouse and keyboard, and the 2D LivePanel mode doesn't even leave VS Code. If you do have a headset, the same scene becomes immersive — that's the XR in CodeXR: an extra dimension when you want it, never a requirement.
+
+Everything runs on your machine: local analysis, local servers, no telemetry, no account, and nothing is downloaded without asking you first.
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/aMonteSl.code-xr)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
@@ -32,7 +29,7 @@ A revolutionary Visual Studio Code extension that transforms your code analysis 
 
 Our official documentation includes:
 - **Complete Installation Guide** - Step-by-step setup instructions
-- **Interactive Tutorials** - Hands-on learning experiences  
+- **Interactive Tutorials** - Hands-on learning experiences
 - **API Reference** - Detailed technical documentation
 - **Video Guides** - Visual walkthroughs of key features
 - **Troubleshooting** - Solutions to common issues
@@ -40,185 +37,104 @@ Our official documentation includes:
 
 *You can also access the documentation directly from VS Code through the CodeXR tree view → "Learn More" section.*
 
-## What's New in v1.1.0
+## What's New in v1.2.0 — "Threads, Timelines & Global Networks"
 
-> The current `v1.2.0` work is tracked in [`docs/ROADMAP_V1.2.0.md`](docs/ROADMAP_V1.2.0.md), including per-installation identity, shared avatars, an optional one-time glTF download, and protected cross-network sessions through Cloudflare Quick Tunnel.
+**Threads** are the new dependency graph: the lines that tie your codebase together. **Timelines** are the two Git analyses — compare two points in your project's history, or replay the whole thing as a film. **Global Networks** are the sessions you can now open to someone who is not on your network at all.
 
-- **Unified analysis engine**: XR, LivePanel, and DOM now share the same modernized analysis bootstrap and payload contract.
-- **Richer real metrics**: File and directory analysis expose corrected ratios, nesting, parameter, complexity-band, and aggregate metrics.
-- **Stable DOM XR visualization**: HTML DOM analysis now feeds BabiaXR with the full stringified HTML contract expected by `babia-html`.
-- **Shared virtual screens for XR/DOM**: Immersive scenes now include collaborative virtual screens plus a control panel to create, bring, and remove shared screens across connected clients.
-- **Live shared screen broadcasting**: Shared screens can project a screen, window, or browser tab with synchronized layout updates and real-time video/audio playback across connected devices.
-- **XR analysis table auto-scaling**: XR charts use a shared containment engine that recenters and rescales them in `X`, `Y`, and `Z` within stable viewing bands.
-- **In-scene Mapping UI with recovery**: XR scenes now expose a Mapping UI next to the chart so users can remap dimensions live, detect invalid BabiaXR rebuilds, restore the last valid mapping, and disable the failing option for the session.
-- **Real-time collaborative XR/DOM sessions**: Connected users can now see shared mapping changes, shared chart updates, shared screen interactions, and remote presence markers with server-assigned display names in the same live session.
+One analysis table now serves **four analyses**, and you switch between them from inside the scene without losing the state of any of them.
 
-## Version Comparison/Improvements v1.0.0 -> v1.1.0
+### Classic analysis, sharper and live
 
-Explore the major visual and functional improvements introduced in CodeXR v1.1.0.
+The city you know — one building per file, sized and coloured by the metrics you choose — on a rebuilt table. Every chart type (bars, cylinders, pie, donut, bubbles, boats and more) now presents correctly and can be changed live from the Field Mapping panel, big projects stay readable by showing the top files per metric, and any change you save in the editor updates the scene by itself.
 
-### Visual Scene Enhancements
-From a simple A-Frame scenario to a complete immersive room with custom components and textures.
+![Classic analysis demo: the boats city, live chart switching from the Field Mapping panel](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/normal/normal_analysis_demo.gif)
 
-| v1.0.0 | v1.1.0 |
+▶ **[Watch the full demo on YouTube](https://youtu.be/76p1ibPaf3I)**
+
+### Dependency graph — see the architecture, not just the files
+
+A new analysis that answers *what depends on what, and what happens if I touch this*. Relations are extracted statically from your working directory across the supported languages, and rendered as a navigable 3D graph with three layouts — `force-3d`, `hierarchical` and `metric-space` with real axes. Any node metric (fan-in, fan-out, cycle size, blast radius…) can drive size, height, colour or position, so *"the thing that breaks the most if you touch it"* becomes something you see across the room. Click a node to pin its metric card; large projects open in group view and you drill in.
+
+![Dependency graph demo: three layouts, node cards and relation filters](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/dependency/dependency_analysis_demo.gif)
+
+![The pinned node card: fan-in, fan-out, degree, relations, cycle, lines and instability for a directory](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/analysis/xr/dependency/dependency_node_card.png)
+
+▶ **[Watch the full demo on YouTube](https://youtu.be/42hIQTUD0-g)**
+
+### Historical comparison — what changed between two points in time
+
+Pick two sources — working copy, branch, tag or commit — and CodeXR puts both states on one dual table, same chart, same mapping, same scale, so a height difference is a real difference. A comparison card reports added / removed / modified counts and per-metric deltas. It never runs `checkout` or `fetch` and never writes inside `.git`: your branch, index and files stay exactly where you left them.
+
+![Historical comparison demo: two revisions of the same project, side by side](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/historical/historical_comparison_demo.gif)
+
+▶ **[Watch the full demo on YouTube](https://youtu.be/b37qDCQeZg0)**
+
+### Project Evolution — your Git history as a film
+
+Where the comparison shows two photographs, Project Evolution plays the movie: the chart walks the project's own history, commit by commit, from the first revision to the current state of the branch. The timeline is sampled evenly in time (favouring merges and tags), or you pick a range, or exactly the commits you want. Play, pause, step, change speed, jump anywhere — every frame is a full analysis, labelled with its commit and date.
+
+![Project Evolution demo: the city rising and reorganising through the project's commits](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/project_evolution/project_evolution_demo.gif)
+
+▶ **[Watch the full demo on YouTube](https://youtu.be/Qs1OHWCqXSs)**
+
+### And the rest of 1.2.0
+
+- **Collaboration 2.0** — persistent identities, host/guest roles with automatic promotion, and a bundled animated avatar (CC0, works offline) with a per-participant colour and a name tag that always faces you.
+- **Cross-network sessions, optional and off by default** — share a session with someone outside your network through an outbound Cloudflare tunnel: no router changes, no published IP, a six-digit pairing code that expires and burns itself on a wrong attempt, and full revocation the moment you stop sharing.
+- **Screen sharing that survives the trip** — guests arriving through the tunnel are served by your own CodeXR server; one encode for the whole audience, quality that follows the audience size.
+- **An in-room user guide** — six colour-coded tabs plus a 24-term metric glossary generated from the real analysis contracts, also served as `guide.html` for reading outside XR.
+- **LivePanel grows two sections** — *Dependency Summary* (counters, top fan-in/fan-out, cycles) and *Historical Comparison* in 2D with a searchable delta table.
+- **A reorganized sidebar** — servers, collaboration and remote access in one place, readable native dialogs, and the whole UI in English.
+- **The in-scene analysis selector** — a proper `Analyses` button that wears the colour of the analysis you are in:
+
+![The analysis selector panel with the four colour-coded analyses](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/controllers/xr/analysis_selector/analysis_selector.png)
+
+The complete list — including a long round of chart, containment and collaboration fixes — is in the [CHANGELOG](CHANGELOG.md).
+
+## Video walkthroughs — v1.2.0
+
+Four narrated videos, one per analysis:
+
+| | |
 |:---:|:---:|
-| ![v1.0.0 Scene](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/comparison/scene-v1.0.0.png) | ![v1.1.0 Scene](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/comparison/scene-v1.1.0.png) |
-| *Simple A-Frame scene* | *Immersive room with custom assets and textures* |
+| [![Classic analysis walkthrough](https://img.youtube.com/vi/76p1ibPaf3I/hqdefault.jpg)](https://youtu.be/76p1ibPaf3I) | [![Dependency graph walkthrough](https://img.youtube.com/vi/42hIQTUD0-g/hqdefault.jpg)](https://youtu.be/42hIQTUD0-g) |
+| **[Classic analysis](https://youtu.be/76p1ibPaf3I)** — the 3D city, Field Mapping and live updates | **[Dependency graph](https://youtu.be/42hIQTUD0-g)** — layouts, node cards, filters and flow |
+| [![Historical comparison walkthrough](https://img.youtube.com/vi/b37qDCQeZg0/hqdefault.jpg)](https://youtu.be/b37qDCQeZg0) | [![Project Evolution walkthrough](https://img.youtube.com/vi/Qs1OHWCqXSs/hqdefault.jpg)](https://youtu.be/Qs1OHWCqXSs) |
+| **[Historical comparison](https://youtu.be/b37qDCQeZg0)** — two revisions, one table | **[Project Evolution](https://youtu.be/Qs1OHWCqXSs)** — your repository as a film |
 
-### Analysis Speed & Performance
-For the same analysis workflow, execution time drops from **54 seconds** to **3 seconds**.
-This means **18x faster execution** and a **94.44% reduction in analysis time**.
+## Base tutorials
 
-| v1.0.0 | v1.1.0 |
+Everything above builds on the workflows introduced up to v1.1.0 — the UI, the analysis commands, LivePanel and the XR scene basics. These tutorials still describe that foundation accurately:
+
+### Core interface
+
+| | |
 |:---:|:---:|
-| ![v1.0.0 Speed](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/comparison/performance-v1.0.0.gif) | ![v1.1.0 Speed](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/comparison/performance-v1.1.0.gif) |
-| *54s runtime for the same analysis* | *3s runtime with optimized pipeline* |
+| [![Complete UI tutorial](https://img.youtube.com/vi/KRgLdLZJXHA/hqdefault.jpg)](https://youtu.be/KRgLdLZJXHA) | [![File XR analysis workflow](https://img.youtube.com/vi/j8dgZtmjNks/hqdefault.jpg)](https://youtu.be/j8dgZtmjNks) |
+| **[Complete UI tutorial](https://youtu.be/KRgLdLZJXHA)** — the entire CodeXR interface and workflow | **[File XR analysis workflow](https://youtu.be/j8dgZtmjNks)** — single-file analysis in XR |
 
-### New Virtual Screen Component & Controler
-Project any screen, tab, or window from any connected device and broadcast it in real time inside the XR environment, including both video and audio.
+### File analysis
 
-<div align="center">
-
-![Virtual Screen and Controler](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/screen/virtualScreenAndControler-v.1.1.0.png)
-
-</div>
-
-### New Pedestal/Table Layout componentes & Mapping UI
-Includes an analysis table that rescales charts to maintain a stable approximate size and a Mapping UI to change represented data in real time without re-running analysis.
-
-<div align="center">
-
-![Analysis table and Mapping UI](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/analysis-table/analysisTableAndMappingUI.png)
-
-</div>
-
-### Interactive Collaborative Workspace
-The collaborative server is interactive: users are identified and assigned random names, and every interaction is synchronized so all participants see it live (moving screens, projecting content, changing chart values, and more).
-
-<div align="center">
-
-![Collaborative Workspace](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/collaborative/collaborativeWorkspace.png)
-
-</div>
-
-## Visual Demonstrations
-
-### Live Examples - See CodeXR in Action
-
-Experience CodeXR's powerful analysis capabilities through these real-world demonstrations:
-
-#### Project Analysis Examples
-<div align="center">
-
-| **BabiaXR Project Analysis** | **Express.js Project Analysis** |
+| | |
 |:---:|:---:|
-| ![BabiaXR Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/gifts/analysis_babiaXR.gif) | ![Express Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/gifts/analysis_express.gif) |
-| *Directory analysis of BabiaXR project (77 files)* | *Directory analysis of Express.js project (142 files)* |
+| [![File analysis in LivePanel](https://img.youtube.com/vi/n5ZcjlR4pPc/hqdefault.jpg)](https://youtu.be/n5ZcjlR4pPc) | [![File analysis in XR](https://img.youtube.com/vi/38jGwFGORvc/hqdefault.jpg)](https://youtu.be/38jGwFGORvc) |
+| **[LivePanel mode](https://youtu.be/n5ZcjlR4pPc)** — right-click & UI methods | **[XR mode](https://youtu.be/38jGwFGORvc)** — immersive 3D file analysis |
 
-| **JetUML Project Analysis** | **Single File Analysis** |
+### Directory & project analysis
+
+| | |
 |:---:|:---:|
-| ![JetUML Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/gifts/analysis_jetuml.gif) | ![File Analysis](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.1.0/gifts/analysis_file.gif) |
-| *Directory analysis of JetUML project (338 files)* | *Simple file analysis demonstration* |
+| [![Directory analysis in LivePanel](https://img.youtube.com/vi/sPWjcgV-gZQ/hqdefault.jpg)](https://youtu.be/sPWjcgV-gZQ) | [![Directory analysis in XR](https://img.youtube.com/vi/TnfS2SevtWU/hqdefault.jpg)](https://youtu.be/TnfS2SevtWU) |
+| **[Directory — LivePanel](https://youtu.be/sPWjcgV-gZQ)** — detailed directory metrics | **[Directory — XR](https://youtu.be/TnfS2SevtWU)** — 3D directory visualization |
+| [![Directory and project XR workflow](https://img.youtube.com/vi/m6FHpENUvtU/hqdefault.jpg)](https://youtu.be/m6FHpENUvtU) | [![Project analysis](https://img.youtube.com/vi/NluAHe3BQu8/hqdefault.jpg)](https://youtu.be/NluAHe3BQu8) |
+| **[Directory/project XR workflow](https://youtu.be/m6FHpENUvtU)** — the updated XR flow | **[Project analysis](https://youtu.be/NluAHe3BQu8)** — LivePanel and XR modes |
 
-</div>
+### DOM & AR
 
-### Video Tutorials - Complete Learning Experience
-
-Comprehensive video guides to master every aspect of CodeXR.
-
-#### Latest Updates
-<div align="center">
-
-**Newest XR Analysis Workflows**
-
-<table>
-<tr>
-<td align="center" width="50%">
-<b>New File XR Analysis Workflow</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/j8dgZtmjNks" title="New File XR Analysis Workflow" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Explore the updated XR workflow for single-file analysis.</i>
-</td>
-<td align="center" width="50%">
-<b>New Directory/Project XR Analysis Workflow</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/m6FHpENUvtU" title="New Directory and Project XR Analysis Workflow" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Discover the new XR workflow for directory and project analysis.</i>
-</td>
-</tr>
-</table>
-
-</div>
-
-#### Core Interface & Features
-<div align="center">
-
-**Complete UI Tutorial - Master the entire CodeXR interface and workflow**
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/KRgLdLZJXHA" title="Complete UI Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
-
-#### File Analysis Workflows
-<div align="center">
-
-**File Analysis - LivePanel Mode & XR Mode**
-
-<table>
-<tr>
-<td align="center" width="50%">
-<b>LivePanel Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/n5ZcjlR4pPc" title="File Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Analyze files using LivePanel (right-click & UI methods)</i>
-</td>
-<td align="center" width="50%">
-<b>XR Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/38jGwFGORvc" title="File Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Immersive 3D file analysis in extended reality</i>
-</td>
-</tr>
-</table>
-
-**DOM Visualization - Interactive HTML structure analysis**
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/110b-AergdU" title="DOM Visualization" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
-
-#### Directory & Project Analysis
-<div align="center">
-
-**Directory Analysis - LivePanel & XR Mode**
-
-<table>
-<tr>
-<td align="center" width="50%">
-<b>LivePanel Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/sPWjcgV-gZQ" title="Directory Analysis - LivePanel" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>Comprehensive directory analysis with detailed metrics</i>
-</td>
-<td align="center" width="50%">
-<b>XR Mode</b><br/>
-<iframe width="280" height="157" src="https://www.youtube.com/embed/TnfS2SevtWU" title="Directory Analysis - XR" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><br/>
-<i>3D directory visualization in immersive environments</i>
-</td>
-</tr>
-</table>
-
-**Project Analysis - Both LivePanel and XR Modes**
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/NluAHe3BQu8" title="Project Analysis" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
-
-#### Advanced AR/VR Experiences
-<div align="center">
-
-**AR Programming Experience - Real-world augmented reality coding**
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/d7fojpP90Dk" title="AR Programming Experience" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-</div>
-
-*These video tutorials provide hands-on demonstrations of every CodeXR feature, including AR experiences.*
+| | |
+|:---:|:---:|
+| [![DOM visualization](https://img.youtube.com/vi/110b-AergdU/hqdefault.jpg)](https://youtu.be/110b-AergdU) | [![AR programming experience](https://img.youtube.com/vi/d7fojpP90Dk/hqdefault.jpg)](https://youtu.be/d7fojpP90Dk) |
+| **[DOM visualization](https://youtu.be/110b-AergdU)** — interactive HTML structure analysis | **[AR programming experience](https://youtu.be/d7fojpP90Dk)** — real-world augmented reality coding |
 
 ## Quick Start Guide
 
@@ -259,15 +175,18 @@ Comprehensive video guides to master every aspect of CodeXR.
 - **Cyclomatic Density**: Advanced complexity metrics per function
 - **Drill-down Details**: Click any function for detailed analysis and code navigation
 - **Aggregated Metrics**: Directory and project-level summaries
+- **Dependency Summary**: Node, edge, external and cycle counters with top fan-in / fan-out rankings
+- **Historical Comparison**: Pick two versions and get counts, a metric totals chart and a searchable delta table
 - **Export Capabilities**: Save analysis results for documentation and reporting
 
 ### XR Visualization Features
-- **3D Charts**: Bars, cylinders, bubbles showing function metrics in immersive 3D space
-- **Interactive Navigation**: Mouse/keyboard controls plus runtime bindings for A-Frame/WebXR controllers; physical-headset validation is still pending for v1.1.0
+- **Four analyses on one table**: The classic chart, the dependency graph, the historical dual table and the evolution movie — switch between them in-scene, each keeps its state
+- **3D Charts**: Bars, cylinders, bubbles, pie, donut, boats and more, showing your metrics in 3D space
+- **Runs in your browser**: Mouse/keyboard navigation on any desktop; the same scene works with WebXR controllers when a headset is present
 - **Real-time Updates**: Changes in your code immediately reflect in the visualization
-- **Customizable Mapping**: Choose what metrics map to X, Y, Z dimensions and colors
+- **Customizable Mapping**: Choose what metrics map to each dimension and colour, live, from inside the scene
 - **Spatial Understanding**: Visualize code complexity relationships in 3D space
-- **Multi-file Visualization**: See entire directories and projects in XR
+- **Multi-file Visualization**: See entire directories and projects at once
 
 ### DOM Visualization Features
 - **Interactive Tree**: Click to expand/collapse DOM elements
@@ -279,28 +198,29 @@ Comprehensive video guides to master every aspect of CodeXR.
 
 CodeXR offers powerful analysis modes, each optimized for different file types and use cases. **All analysis modes support 24 code languages plus HTML DOM visualization** with comprehensive file, directory, and project analysis capabilities.
 
-### LivePanel Analysis Mode (Formerly Static Analysis)
-**Best for:** Detailed metrics review, reporting, and comprehensive code analysis
+### LivePanel Analysis Mode
+**Best for:** Detailed metrics review, reporting, and comprehensive code analysis without leaving VS Code
 
 **Features:**
 - Comprehensive function-level analysis with accurate metrics
 - Enhanced complexity distribution charts with improved layout
 - Cyclomatic density calculations and complexity metrics
 - Interactive drill-down panels for detailed function analysis
+- Dependency Summary and 2D Historical Comparison sections
 - Real-time updates as you edit code, directories, and projects
 - Export capabilities for reporting and documentation
 - Support for both standard and deep analysis modes
 
 ### XR Analysis Mode
-**Best for:** Immersive code exploration in VR/AR environments
+**Best for:** Spatial exploration of a codebase — in your desktop browser, and optionally in VR/AR
 
 **Features:**
-- Immersive 3D visualizations with bars, cylinders, bubbles, and boats
-- Real-time updates as you edit code, directories, and projects without exiting VR/AR mode
-- Runtime bindings for mouse plus A-Frame/WebXR controllers, pending validation on physical VR headset hardware in v1.1.0
-- Multi-dimensional metric mapping (complexity, LOC, parameters, file size)
+- Four analyses served by one table: classic metrics city, dependency graph, historical comparison and Project Evolution
+- Immersive 3D visualizations with bars, cylinders, bubbles, boats, and more
+- Real-time updates as you edit code, directories, and projects without leaving the scene
+- Full mouse + keyboard support in any desktop browser; A-Frame/WebXR controller bindings when a headset is connected
+- Multi-dimensional metric mapping (complexity, LOC, parameters, file size), changeable live from the in-scene Field Mapping panel
 - Customizable environments and color palettes for optimal viewing
-- Spatial representation of code complexity and structure
 - Support for both standard and deep analysis modes
 
 ### DOM Visualization Mode
@@ -408,19 +328,21 @@ CodeXR provides comprehensive analysis for 24 code languages, plus HTML DOM visu
 - **File Organization**: Smart sorting and filtering by language in the tree view
 
 
-## VR/AR Navigation Controls
+## Navigation Controls
 
-### VR Controllers
-- **Left Joystick**: Move forward/backward/left/right in 3D space
-- **Right Joystick**: Rotate view smoothly for comfortable navigation
-- **Hand Tracking**: Natural gesture-based interaction (supported devices)
-- **Controller Runtime Hooks**: The extension includes bindings for controller rays and thumbsticks through A-Frame/WebXR components, but v1.1.0 has not been validated yet on physical headset/controller hardware
-
-### Desktop Controls
+### Desktop (no headset needed)
 - **Mouse**: Click and drag to rotate view around code visualizations
 - **WASD Keys**: Navigate through the 3D space like a first-person game
 - **Scroll Wheel**: Zoom in and out for detailed or overview perspectives
 - **Arrow Keys**: Alternative navigation for fine-tuned movement
+
+### VR Controllers (optional)
+- **Left Joystick**: Move forward/backward/left/right in 3D space
+- **Right Joystick**: Rotate view smoothly for comfortable navigation
+- **Laser + Gaze**: Point at charts, legends and panels with the controller ray, or with your gaze before controllers connect
+- **Hand Tracking**: Natural gesture-based interaction (supported devices)
+
+> Controller support is implemented through standard A-Frame/WebXR bindings, but this release has not been validated on physical headset hardware — see [Feedback](#support-feedback--community) below.
 
 ## Managing Active Analyses
 
@@ -444,23 +366,24 @@ Access settings directly from the tree view or VS Code preferences:
 - **Debounce Timing**: Adjust how quickly analysis responds to code changes
 - **Auto-analysis**: Enable/disable automatic re-analysis on file save
 - **File Filtering**: Configure which file types to include/exclude from analysis
+- **Cross-network Connections**: Enable or disable remote-access actions on your servers (off by default)
 
 ### XR Environment Settings
-Customize your immersive experience:
+Customize your scene:
 
 - **Chart Types**: Bars, cylinders, bubbles, boats, and more visualization options
 - **Color Palettes**: Business, Blues, Commerce, Flat, Foxy, and other professional themes
 - **Environment Themes**: Forest, Dream, City, Space, and more immersive backgrounds
 - **Dimension Mapping**: Customize what metrics map to 3D dimensions and colors
-- **Performance Settings**: Adjust rendering quality for optimal VR/AR experience
+- **Performance Settings**: Adjust rendering quality for your hardware
 
 ## Installation & Setup
 
 ### Prerequisites
 - **VS Code**: Version 1.98.0 or higher
 - **Python**: Automatically configured on Windows, Linux, and macOS (isolated virtual environment created if needed)
-- **WebXR Browser**: Chrome, Edge, or Firefox Reality for VR/AR features (optional)
-- **Modern Hardware**: Recommended for optimal XR experience
+- **A modern browser**: Chrome, Edge or Firefox for the 3D scenes; a WebXR-capable browser only if you want the immersive mode
+- **VR/AR hardware**: Entirely optional
 
 ### Quick Installation
 1. Open **Visual Studio Code**
@@ -480,15 +403,15 @@ Customize your immersive experience:
 ### Code Quality Assessment
 - **Before Code Reviews**: Quickly identify complex functions that need attention
 - **Refactoring Planning**: Visualize complexity hotspots across your entire codebase
-- **Technical Debt**: Track complexity trends over time with repeated analysis
+- **Impact Analysis**: Use the dependency graph to see what a change will touch before you make it
+- **Technical Debt**: Track complexity trends over time with Historical Comparison and Project Evolution
 - **Code Standards**: Ensure code meets complexity and quality standards
 
 ### Team Collaboration
-- **Architecture Discussions**: Share 3D visualizations in team meetings
-- **Onboarding**: Help new team members understand codebase structure
-- **AR Presentations**: Use AR mode for immersive code walkthroughs
+- **Architecture Discussions**: Share 3D visualizations in team meetings — locally or across networks
+- **Onboarding**: Help new team members understand codebase structure, with the in-room guide answering "what am I looking at"
 - **Code Reviews**: Enhanced visual context for reviewing complex code
-- **Shared Working Sessions**: Create or move shared virtual screens, remap charts, and watch other participants interact with the same live XR/DOM room in real time
+- **Shared Working Sessions**: Create or move shared virtual screens, remap charts, and watch other participants interact with the same live room in real time
 
 ### Educational Purposes
 - **Learning Patterns**: Visualize how different programming patterns affect complexity
@@ -504,15 +427,15 @@ Customize your immersive experience:
 - **Directory Analysis**: Use standard mode first, then deep mode for comprehensive analysis
 - **Multiple Projects**: Use LivePanel mode for quick analysis, XR for deep exploration
 
-### VR/AR Best Practices
+### VR/AR Best Practices (if you use a headset)
 - **AR Mode**: Use on mobile devices or AR headsets for best experience
 - **VR Navigation**: Take breaks during long analysis sessions to prevent fatigue
-- **Controller Setup**: Ensure controllers are charged before starting VR sessions; note that v1.1.0 controller interactions have not yet been validated on physical headset hardware
+- **Controller Setup**: Ensure controllers are charged before starting VR sessions — and please report any controller issue you hit, since this release could not be validated on physical hardware
 - **Lighting**: Ensure adequate room lighting for AR tracking
 
 ### Analysis Workflow
 1. **Start with LivePanel**: Get overview with LivePanel analysis
-2. **Explore in XR**: Use XR mode for immersive exploration of complex code
+2. **Explore in 3D**: Open the XR mode in your browser for spatial exploration of complex code
 3. **Use Active Analyses**: Monitor all open visualizations from tree view
 4. **Configure Settings**: Adjust debounce timing based on your coding style
 5. **Directory Analysis**: Start with standard mode, use deep mode for comprehensive coverage
@@ -523,11 +446,14 @@ Customize your immersive experience:
 - **Python-based Coordinators**: Redesigned Python-based analysis coordinators for better accuracy
 - **Multi-language Parsing**: Advanced parsing capabilities for 24 code languages plus HTML DOM visualization
 - **Lizard Integration**: Industry-standard complexity analysis using Lizard tool
+- **Dependency Extraction**: Static relation analysis (imports, includes, inheritance, calls) with per-relation confidence
+- **Git Snapshots**: Historical analyses materialize temporary snapshots without ever touching your working tree or `.git`
 - **Performance Optimization**: Optimized for handling large codebases efficiently
 
 ### Visualization Engine
 - **BabiaXR Integration**: Powerful 3D rendering using BabiaXR framework
 - **A-Frame 1.7.1**: Latest WebXR framework for immersive experiences
+- **CodeXR Components**: The dependency graph, containment engine, guide screen and evolution player are CodeXR's own A-Frame components
 - **Interactive Panels**: Responsive web panels for LivePanel analysis
 - **Real-time Data Binding**: Live updates between code changes and visualizations
 
@@ -561,9 +487,10 @@ CodeXR automatically manages the following dependencies:
 - [XR browser diagnostics](docs/XR_DEBUG_COMMANDS.md)
 
 ### Optional Dependencies
-- **WebXR Browser**: For full VR/AR experience
+- **WebXR Browser**: For the immersive VR/AR experience
 - **VR Headset**: Oculus, Valve Index, HTC Vive, etc. (optional)
 - **AR Device**: ARCore/ARKit compatible device (optional)
+- **cloudflared**: Only for cross-network sessions; version-pinned, downloaded with your consent and SHA-256 verified
 
 ## Development
 
@@ -621,17 +548,21 @@ We welcome contributions! Here's how you can help:
 - **Documentation**: Improve guides and examples
 - **Testing**: Expand test coverage
 
-## Support & Community
+## Support, Feedback & Community
+
+### A note on VR hardware
+
+This release was validated on desktop browsers and through CodeXR's automated test suites (unit tests, Python analysis suites and browser harnesses), **but it could not be tested on a physical VR headset**. Everything is built on standard WebXR/A-Frame bindings and should work — if you run CodeXR on real hardware and anything misbehaves, **please [open an issue](https://github.com/aMonteSl/CodeXR/issues)**: a device name and a couple of lines about what went wrong are enough, and every report directly improves the next release.
 
 ### Getting Help
 - **GitHub Issues**: Report bugs and request features at [GitHub Issues](https://github.com/aMonteSl/CodeXR/issues)
-- **Documentation**: Comprehensive guides and examples
+- **Documentation**: Comprehensive guides and examples at the [official website](https://code-xr.adrianmonteslinares.com/)
 - **Community**: Share your visualizations and use cases
 
-### Feature Requests
-- Submit through VS Code Marketplace reviews
-- Create detailed GitHub issues with use cases
-- Join community discussions about new features
+### Enjoying CodeXR? It helps more than you think
+- ⭐ **Star the project** on [GitHub](https://github.com/aMonteSl/CodeXR)
+- **Leave a review** on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr&ssr=false#review-details)
+- **Share your ideas**: feature proposals and improvement suggestions are genuinely welcome in [Issues](https://github.com/aMonteSl/CodeXR/issues) — several v1.2.0 features started as user feedback
 
 ## License
 
@@ -653,9 +584,7 @@ This project is licensed under the **GNU General Public License v3.0 (GPLv3)** -
 
 ---
 
-**Experience your code like never before with CodeXR v1.2.0 - Where comprehensive code analysis meets extended reality!**
-
-Transform your development workflow with immersive visualizations, comprehensive analysis, and real-time insights into your codebase structure and complexity.
+**CodeXR v1.2.0 — understand your code by standing in it.** Metrics, architecture and history as places you can visit: from your editor, in your browser and — when you want it — in a headset.
 
 ## About the Author
 
@@ -674,8 +603,3 @@ Your support helps me:
 - Add new features and improvements
 - Fix bugs and maintain compatibility
 - Provide better support and documentation
-
-
-
-
-
