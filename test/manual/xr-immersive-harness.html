@@ -82,8 +82,9 @@
 
     <!-- Rig copied from the template: floor-level rig, eye height on the
          camera. The runner asserts the real templates still match. -->
-    <a-entity id="rig" movement-controls="fly: false" position="0.07 0 -10.75"
-      codexr-immersive-rig="arPosition: 0.07 0 -14.7">
+    <a-entity id="rig" movement-controls="fly: false; controls: keyboard, touch" position="0.07 0 -10.75"
+      codexr-immersive-rig="arPosition: 0.07 0 -14.7"
+      codexr-xr-locomotion>
       <a-entity id="head" camera position="0 1.75 0" look-controls>
         <a-entity
           id="gazeCursor"
@@ -95,21 +96,10 @@
         </a-entity>
       </a-entity>
 
-      <a-entity
-        id="leftController"
-        laser-controls="hand: left"
-        meta-touch-controls="hand: left; model: true"
-        generic-tracked-controller-controls="hand: left">
-      </a-entity>
-
-      <a-entity
-        id="rightController"
-        laser-controls="hand: right"
-        meta-touch-controls="hand: right; model: true"
-        generic-tracked-controller-controls="hand: right"
-        cursor="rayOrigin: entity; fuse: false"
-        raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
-      </a-entity>
+      <!-- Declared exactly like the real templates: laser-controls and nothing
+           else, both hands alike. -->
+      <a-entity id="leftController" laser-controls="hand: left"></a-entity>
+      <a-entity id="rightController" laser-controls="hand: right"></a-entity>
 
       <a-entity
         id="mouseCursor"
@@ -121,6 +111,7 @@
 
   <script src="../../templates/components/codexr/pointer-policy/codexrPointerPolicyRuntime.js?v=immersive1"></script>
   <script src="../../templates/components/codexr/immersive-rig/codexrImmersiveRigRuntime.js?v=immersive1"></script>
+  <script src="../../templates/components/codexr/xr-locomotion/codexrXrLocomotionRuntime.js?v=immersive1"></script>
   <script src="assembled/analysisTableRuntime.js"></script>
 
   <script>
@@ -215,6 +206,24 @@
         connect(side) {
           document.getElementById(side + 'Controller')
             .emit('controllerconnected', { name: 'generic-tracked-controller-controls' });
+        },
+        // Exactly what A-Frame's controller components publish from the
+        // gamepad's thumbstick axes.
+        stick(side, x, y) {
+          document.getElementById(side + 'Controller')
+            .emit('thumbstickmoved', { x: x, y: y });
+        },
+        trigger(side) {
+          document.getElementById(side + 'Controller').emit('triggerdown');
+        },
+        activePointer() {
+          const names = ['mouse', 'gaze', 'left', 'right'];
+          const ids = ['mouseCursor', 'gazeCursor', 'leftController', 'rightController'];
+          const live = ids
+            .map((id, index) => ({ name: names[index], state: pointer(id) }))
+            .filter((entry) => entry.state && entry.state.enabled);
+          // More than one live pointer is the bug this policy exists to stop.
+          return live.length === 1 ? live[0].name : live.map((e) => e.name).join('+') || 'none';
         },
         disconnect(side) {
           document.getElementById(side + 'Controller')

@@ -37,6 +37,8 @@ its parts directory. Manual harnesses load assembled copies from
 
 - `codexr/pointer-policy/codexrPointerPolicyRuntime.js`
   - Scene-level `codexr-pointer-policy` component: guarantees exactly ONE pointer raycaster is enabled at a time — mouse cursor on desktop, gaze cursor (`#gazeCursor` under `#head`) in VR without controllers, the right laser (left as fallback) when controllers connect. Babia's legend show/hide shares one implicit global, so a second live pointer corrupts it; this policy is what keeps legends hover-only and single-sourced. Re-neutralizes the inactive controller after every `laser-controls` cursor/raycaster injection.
+- `codexr/xr-locomotion/codexrXrLocomotionRuntime.js`
+  - Rig-level `codexr-xr-locomotion` component: thumbstick movement in immersive sessions, driven by A-Frame's own `thumbstickmoved` (with `axismove` axes 2/3 as a fallback) rather than aframe-extras' gamepad path, which never delivered XR axes here. **Both controllers behave identically** — either stick walks (camera-relative, on the floor plane, never touching the rig's y) and either stick snap-turns sideways; `strafe: true` swaps turning for sidestepping.
 - `codexr/immersive-rig/codexrImmersiveRigRuntime.js`
   - Rig-level `codexr-immersive-rig` component: on entering **AR** it recenters the rig at `arPosition` facing −Z, so the pedestal, controller and screens land in the user's own room instead of metres away; the desktop pose is restored on exit, and VR is left alone. It deliberately never touches y — **eye height is not its business**. The scene templates put the rig on the floor (`y = 0`) and the eye offset on the camera entity, because A-Frame's `look-controls` zeroes the *camera* when a real headset session starts (and restores it on exit), letting the `local-floor` pose replace the desktop offset instead of stacking on it. An offset parked on the rig leaves the user floating; a rig moved down to compensate leaves their eyes on the floor. Both were shipped once.
   - Both scene templates declare it on `<a-scene>` and provide the pointer entities by id (`#mouseCursor`, `#gazeCursor`, `#leftController`, `#rightController`).
@@ -107,7 +109,7 @@ its parts directory. Manual harnesses load assembled copies from
 
 1. Room, collaboration, avatars and virtual screens; the `guide-screen` runtime right after the virtual screen + manager (it is a virtual-screen subtype); `codexr/logo` with the room (scene decoration, no dependencies of its own).
 2. `common/codexrCommonRuntime.js`, then `common/codexrGitRefPickerRuntime.js` (before the Git analyses that embed it).
-3. `codexr/pointer-policy/codexrPointerPolicyRuntime.js` (scene-level pointer arbitration, before anything that assumes pointers), then `codexr/immersive-rig/codexrImmersiveRigRuntime.js` (rig pose adapter; independent, but it must be registered before the user can enter an immersive session).
+3. `codexr/pointer-policy/codexrPointerPolicyRuntime.js` (scene-level pointer arbitration, before anything that assumes pointers), then `codexr/immersive-rig/codexrImmersiveRigRuntime.js` and `codexr/xr-locomotion/codexrXrLocomotionRuntime.js` (rig pose and rig movement; independent of each other, but both must be registered before the user can enter an immersive session).
 4. CodeXR charts, mapping UI, chart debug and analysis table.
 5. Analysis mode and mode-specific runtimes.
 6. Render budgets before visualizations that consume them.

@@ -209,10 +209,16 @@ test('XR template includes local CodeXR room component while preserving configur
     // compensated, drop the user's eyes to ground level.
     assert.match(
         template,
-        /<a-entity id="rig" movement-controls="fly: false" position="0\.07 0 -10\.75"\s+codexr-immersive-rig="arPosition: 0\.07 0 -14\.7">/,
+        /<a-entity id="rig" movement-controls="fly: false; controls: keyboard, touch" position="0\.07 0 -10\.75"\s+codexr-immersive-rig="arPosition: 0\.07 0 -14\.7"\s+codexr-xr-locomotion>/,
     );
     assert.match(template, /<a-entity id="head" camera position="0 1\.75 0" look-controls>/);
     assert.match(template, /src="\.\/codexrImmersiveRigRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    assert.match(template, /src="\.\/codexrXrLocomotionRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    // laser-controls owns each controller: it adds the per-device component
+    // itself and supplies the raycaster origin/direction a Touch controller
+    // needs. Hand-authoring either is what made the ray point above the aim.
+    assert.match(template, /<a-entity id="leftController" laser-controls="hand: left"><\/a-entity>/);
+    assert.match(template, /<a-entity id="rightController" laser-controls="hand: right"><\/a-entity>/);
     assert.match(template, /src="\.\/analysisTableRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.match(template, /src="\.\/codexrCommonRuntime\.js(?:\?v=\$\{nonce\})?"/);
     assert.doesNotMatch(template, /src="\.\/codexrVisualStyleRuntime\.js(?:\?v=\$\{nonce\})?"/);

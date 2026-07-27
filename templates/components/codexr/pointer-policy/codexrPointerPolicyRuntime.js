@@ -19,7 +19,19 @@
   // guarantees exactly ONE pointer raycaster is enabled at a time:
   //   - desktop (not in VR): the mouse cursor;
   //   - VR without controllers: the gaze cursor on the camera;
-  //   - VR with controllers: the right laser (left if only left is connected).
+  //   - VR with controllers: whichever controller you used last.
+  //
+  // That last rule is what makes both hands equal without breaking the
+  // invariant. Any activity on a controller — trigger, any button, or a
+  // thumbstick push — hands it the pointer. Because promotion happens on
+  // `triggerdown` and the cursor's click lands on `triggerup`, pulling the
+  // trigger on the idle controller both promotes it and clicks with it. The
+  // right hand is only the initial default, not a privilege.
+  //
+  // The raycaster is never REPLACED here, only toggled property by property:
+  // laser-controls owns its origin and direction, and those matter — a Touch
+  // controller is held at an angle to the direction it points, so a raycaster
+  // written from scratch fires the ray well above the visible aim.
   //
   // laser-controls re-injects `cursor` + an UNFILTERED raycaster (objects: '')
   // on every controllerconnected/controllermodelready, and its
@@ -28,6 +40,16 @@
   // rather than configured once. Disabling a raycaster fires its pending
   // intersection-cleared/mouseleave events (A-Frame clears intersections on
   // enabled → false), so open legends close on pointer handover.
+
+  // Events that count as "this hand is the one being used right now".
+  const ACTIVITY_EVENTS = ['triggerdown', 'buttondown', 'gripdown', 'thumbstickmoved'];
+  const THUMBSTICK_ACTIVITY = 0.5;
+
+  function isThumbstickPushed(event) {
+    const detail = (event && event.detail) || {};
+    return Math.abs(Number(detail.x) || 0) > THUMBSTICK_ACTIVITY
+      || Math.abs(Number(detail.y) || 0) > THUMBSTICK_ACTIVITY;
+  }
 
   function registerComponent(AFRAME) {
     if (!AFRAME || AFRAME.components['codexr-pointer-policy']) {
@@ -45,6 +67,9 @@
 
       init: function () {
         this.connected = { left: false, right: false };
+        // The hand that acted most recently owns the pointer; 'right' is only
+        // the starting default.
+        this.lastUsed = 'right';
         this.inVR = false;
         this.pointerEls = { mouse: null, gaze: null, left: null, right: null };
         this.applyTimer = null;
@@ -111,11 +136,29 @@
           self.connected[side] = false;
           self.scheduleApply();
         });
+        // Any deliberate use of this controller hands it the pointer, so the
+        // user never has to think about which hand is "the" pointer.
+        ACTIVITY_EVENTS.forEach(function (eventName) {
+          self.listen(el, eventName, function (event) {
+            if (eventName === 'thumbstickmoved' && !isThumbstickPushed(event)) {
+              return;
+            }
+            self.markUsed(side);
+          });
+        });
         // laser-controls re-injects cursor + raycaster when the model loads,
         // after controllerconnected already ran — re-neutralize then too.
         this.listen(el, 'controllermodelready', function () {
           self.scheduleApply();
         });
+      },
+
+      markUsed: function (side) {
+        if (this.lastUsed === side) {
+          return;
+        }
+        this.lastUsed = side;
+        this.scheduleApply();
       },
 
       onEnterVR: function () {
@@ -145,11 +188,14 @@
         if (!this.inVR) {
           return 'mouse';
         }
-        if (this.connected.right) {
-          return 'right';
+        // The hand you used last wins; the other one only steps in when the
+        // preferred hand is not connected.
+        const other = this.lastUsed === 'right' ? 'left' : 'right';
+        if (this.connected[this.lastUsed]) {
+          return this.lastUsed;
         }
-        if (this.connected.left) {
-          return 'left';
+        if (this.connected[other]) {
+          return other;
         }
         return 'gaze';
       },

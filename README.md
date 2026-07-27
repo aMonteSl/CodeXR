@@ -337,10 +337,11 @@ CodeXR provides comprehensive analysis for 24 code languages, plus HTML DOM visu
 - **Arrow Keys**: Alternative navigation for fine-tuned movement
 
 ### VR Controllers (optional)
-- **Left Joystick**: Move forward/backward/left/right in 3D space
-- **Right Joystick**: Rotate view smoothly for comfortable navigation
-- **Laser + Gaze**: Point at charts, legends and panels with the controller ray, or with your gaze before controllers connect
-- **Hand Tracking**: Natural gesture-based interaction (supported devices)
+**Both controllers do exactly the same thing** — nothing is reserved for one hand:
+- **Thumbstick forward/back**: Walk in the direction you are looking
+- **Thumbstick sideways**: Turn 30° at a time
+- **Trigger**: Point and click. The pointer follows whichever controller you last used, so either hand just works
+- **Gaze**: Before any controller connects, a reticle lets you point with your head
 
 > Controller support is implemented through standard A-Frame/WebXR bindings, but this release has not been validated on physical headset hardware — see [Feedback](#support-feedback--community) below.
 
