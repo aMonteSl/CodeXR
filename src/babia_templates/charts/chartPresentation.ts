@@ -91,6 +91,18 @@ export interface ChartPresentationProfile {
      */
     keyBy?: string[];
     /**
+     * Extra world-units of clearance above the table's anchor plane.
+     *
+     * The anchor plane sits at the tabletop SLAB, ~1.7 cm below the glass
+     * surface drawn over it. Flat-bottomed charts (bars, boats, cylinders)
+     * hide that offset inside the glass, but geometry with a rounded bottom
+     * gets visibly sliced by the surface at grazing angles — the half-buried
+     * bubbles. Charts that need to REST ON the visible surface declare the
+     * clearance here. Note the containment anchor has a ~1.5 cm deadband
+     * against jitter, so a lift only takes effect above that.
+     */
+    surfaceLift?: number;
+    /**
      * Component attributes the chart always needs beyond the mapped fields
      * (normalization caps, title placement, boats construction). Merged under
      * the mapping on every build — generated scene and live switch alike.
@@ -154,6 +166,8 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
         rowBudget: 12,
         orderBy: 'height',
         keyBy: ['x_axis', 'z_axis'],
+        // Spheres are the one geometry the glass surface cuts visibly.
+        surfaceLift: 0.03,
         // babia-bubbles has NO defaults for these: without them every bubble
         // is drawn at raw metric scale and the chart towers out of the room.
         baseAttributes: { heightMax: 5, radiusMax: 1.5 },

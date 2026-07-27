@@ -301,7 +301,7 @@
           zRatio: correctionState ? toFixedNumber(correctionState.z.ratio) : null,
           needsCorrection: needsCorrection,
           compromised: correctionState ? !!correctionState.compromised : false,
-          tabletopAnchor: buildTabletopAnchorDiagnostics(measurements, this.data),
+          tabletopAnchor: buildTabletopAnchorDiagnostics(measurements, this.data, resolveChartSurfaceLift(this.el)),
           minPlanar: correctionState ? toFixedNumber(resolveSteadyPlanarRange(this.data).min) : null,
           maxPlanar: correctionState ? toFixedNumber(resolveSteadyPlanarRange(this.data).max) : null,
           minHeight: correctionState ? toFixedNumber(correctionState.minHeight) : null,

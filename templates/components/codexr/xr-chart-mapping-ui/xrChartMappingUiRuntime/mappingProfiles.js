@@ -234,7 +234,7 @@
       cylsmap: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: { radiusMax: 1 } },
       pie: { rotation: '90 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
       donut: { rotation: '90 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
-      bubbles: { rotation: '0 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: { heightMax: 5, radiusMax: 1.5 } },
+      bubbles: { rotation: '0 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], surfaceLift: 0.03, baseAttributes: { heightMax: 5, radiusMax: 1.5 } },
       boats: { rotation: '0 0 0', baseAttributes: BOATS_BASE_ATTRIBUTES_FALLBACK }
     },
     treeFields: { directory: 'filePath', file: 'treePath' }

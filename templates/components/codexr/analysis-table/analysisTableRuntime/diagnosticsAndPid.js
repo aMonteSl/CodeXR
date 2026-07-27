@@ -245,11 +245,12 @@
     };
   }
 
-  function computeAnchorOffset(measurements, data) {
+  function computeAnchorOffset(measurements, data, surfaceLift) {
     if (!measurements || !isFiniteBoundsInfo(measurements.full) || !isFiniteBoundsInfo(measurements.primary) || !data) {
       return null;
     }
-    var tableTopY = getTableTopY(data);
+    var lift = Number.isFinite(surfaceLift) ? Math.max(0, surfaceLift) : 0;
+    var tableTopY = getTableTopY(data) + lift;
 
     return {
       deltaX: data.anchorX - measurements.primary.center.x,
@@ -258,14 +259,18 @@
     };
   }
 
-  function buildTabletopAnchorDiagnostics(measurements, data) {
+  function buildTabletopAnchorDiagnostics(measurements, data, surfaceLift) {
     if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !data) {
       return null;
     }
-    var tableTopY = getTableTopY(data);
+    var lift = Number.isFinite(surfaceLift) ? Math.max(0, surfaceLift) : 0;
+    // Report against the chart's OWN anchor target: a chart that declares a
+    // surface lift is correctly placed above the plane, not misaligned.
+    var tableTopY = getTableTopY(data) + lift;
     var primaryMinY = measurements.primary.bounds.min.y;
     return {
       tableTopY: toFixedNumber(tableTopY),
+      surfaceLift: toFixedNumber(lift),
       primaryMinY: toFixedNumber(primaryMinY),
       deltaY: toFixedNumber(tableTopY - primaryMinY),
       epsilon: toFixedNumber(Number.isFinite(data.tabletopAnchorEpsilon) ? data.tabletopAnchorEpsilon : DEFAULTS.tabletopAnchorEpsilon),

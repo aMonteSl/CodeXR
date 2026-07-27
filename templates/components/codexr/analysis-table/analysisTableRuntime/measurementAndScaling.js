@@ -63,7 +63,7 @@
         return false;
       }
 
-      var offset = computeAnchorOffset(measurements, this.data);
+      var offset = computeAnchorOffset(measurements, this.data, resolveChartSurfaceLift(this.el));
       if (!offset) {
         return false;
       }

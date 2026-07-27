@@ -43,6 +43,38 @@
   var KNOWN_FIT_MODES = { uniform: true, 'planar-uniform': true };
   var UNIFORM_FIT_MARGIN = 0.98;
 
+  // Clearance above the anchor plane, per chart. The anchor plane sits at the
+  // tabletop slab, ~1.7 cm under the glass drawn over it: flat-bottomed
+  // charts hide that inside the glass, spheres get sliced by it. Mirrors
+  // chartPresentation.ts (surfaceLift) for scenes generated before it.
+  var SURFACE_LIFT_BY_CHART_ID = { bubbles: 0.03 };
+  var SURFACE_LIFT_BY_COMPONENT_NAME = { 'babia-bubbles': 0.03 };
+
+  function resolveChartSurfaceLift(el) {
+    if (!el) {
+      return 0;
+    }
+    var chartId = (typeof el.getAttribute === 'function' && el.getAttribute('data-codexr-active-chart-id')) || '';
+    var mappingRuntime = root.CodeXRMappingUiRuntime;
+    if (chartId && mappingRuntime && typeof mappingRuntime.getChartPresentation === 'function') {
+      var profile = mappingRuntime.getChartPresentation(chartId);
+      if (profile && Number.isFinite(profile.surfaceLift)) {
+        return Math.max(0, profile.surfaceLift);
+      }
+    }
+    if (chartId) {
+      return SURFACE_LIFT_BY_CHART_ID[chartId] || 0;
+    }
+    var componentNames = Object.keys(SURFACE_LIFT_BY_COMPONENT_NAME);
+    for (var i = 0; i < componentNames.length; i += 1) {
+      if ((el.components && el.components[componentNames[i]])
+        || (typeof el.hasAttribute === 'function' && el.hasAttribute(componentNames[i]))) {
+        return SURFACE_LIFT_BY_COMPONENT_NAME[componentNames[i]];
+      }
+    }
+    return 0;
+  }
+
   function resolveChartFitMode(el) {
     if (!el) {
       return 'per-axis';
