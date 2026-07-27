@@ -1,49 +1,25 @@
 import { ChartMetadata } from '../models/chartModels';
+import {
+    BOATS_BASE_COMPONENT_ATTRIBUTES,
+    DEFAULT_BOATS_LEGEND_TEXT,
+    XR_BOATS_TREE_FIELDS,
+    getChartPresentationProfile,
+    serializeComponentAttributes,
+} from './chartPresentation';
 
 /**
  * BabiaXR Chart Templates
- * Defines all available chart types with their metadata and simplified HTML templates
+ * Defines all available chart types with their metadata and simplified HTML templates.
+ * Orientation and base component attributes come from the canonical
+ * per-chart presentation profile (chartPresentation.ts) so the generated
+ * scene and the in-scene chart switch can never drift apart.
  */
-export const DEFAULT_BOATS_LEGEND_TEXT = `{name}
-{fheight} (height): {height}
-{farea} (area): {area}
-{fcolor} (color): {color}`;
-
-// One tree convention for every babia-boats — the one the normal analysis
-// always used: directory quarters split the FULL analyzed path (filePath),
-// file mode the synthetic treePath (fileName/functionName). Evolution and
-// historical analyses run in per-commit temp copies, so their services
-// REBUILD filePath against the original target (buildBabiaStyleFilePath) —
-// same field, same shape, identical quarters. Every treebuilder and inline
-// boats tree — template, movie, historical — must read this map; the scene
-// exposes it to runtimes via the codexr-chart-base-config script.
-export const XR_BOATS_TREE_FIELDS = {
-    directory: 'filePath',
-    file: 'treePath',
-} as const;
-
-// Canonical babia-boats base construction. The HTML template below is built
-// FROM this object and the scene injects it as JSON, so the in-scene builders
-// (chart switch, evolution movie) cannot drift from the generator again.
-export const BOATS_BASE_COMPONENT_ATTRIBUTES: Record<string, string | number | boolean> = {
-    legend: true,
-    legend_text: DEFAULT_BOATS_LEGEND_TEXT,
-    height_building_legend: -0.5,
-    legend_scale: 0.25,
-    legend_lookat: '[camera]',
-    axis_name: true,
-    extra: 1,
-    separation: 0.5,
-    zone_elevation: 0.01,
-    height_quarter_legend_box: 0.01,
-    height_quarter_legend_title: 2.5,
+export {
+    BOATS_BASE_COMPONENT_ATTRIBUTES,
+    DEFAULT_BOATS_LEGEND_TEXT,
+    XR_BOATS_TREE_FIELDS,
+    serializeComponentAttributes,
 };
-
-export function serializeComponentAttributes(attributes: Record<string, string | number | boolean>): string {
-    return Object.entries(attributes)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(';\n                                 ');
-}
 
 export const XR_TABLE_BOOTSTRAP_PLANAR_MAX = 0.84;
 export const XR_TABLE_STEADY_PLANAR_MIN = 0.78;
@@ -75,6 +51,35 @@ export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;
                                            transformTransitionMs: 650;
                                            hardHeightGuardEnabled: true`;
 
+/**
+ * Every chart shares the same table entity: containment settings, anchor
+ * position and — from the presentation profile — rotation and base component
+ * attributes. Only the babia component name, its mapping placeholders and the
+ * initial scale differ per chart.
+ */
+function buildChartEntityHtml(options: {
+    comment: string;
+    chartId: string;
+    componentName: string;
+    componentBody: string;
+    scale?: string;
+}): string {
+    const profile = getChartPresentationProfile(options.chartId);
+    const baseAttributes = serializeComponentAttributes(profile.baseAttributes);
+    const componentValue = baseAttributes
+        ? `${options.componentBody};\n                                 ${baseAttributes}`
+        : options.componentBody;
+    return `<!-- ${options.comment} -->
+                <a-entity id="chart"
+                    data-codexr-active-chart-id="${options.chartId}"
+                    ${options.componentName}="${componentValue}"
+                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
+                    position="0 1 -18"
+                    rotation="${profile.rotation}"
+                    scale="${options.scale ?? '1.5 1.5 1.5'}">
+                </a-entity>`;
+}
+
 export const chartTemplates: ChartMetadata[] = [
     // Bar Chart Template
     {
@@ -99,20 +104,18 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field containing numeric values for bar heights'
             }
         ],
-        htmlTemplate: `<!-- Bar Chart -->
-                <a-entity id="chart"
-                    babia-bars="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Bar Chart',
+            chartId: 'bars',
+            componentName: 'babia-bars',
+            componentBody: `from: data;
                                 title: {{TITLE}};
                                 legend: true;
                                 palette: {{PALETTE}};
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
-                                axis_name: true"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                                axis_name: true`,
+        })
     },
 
     // Barsmap Chart Template
@@ -145,21 +148,19 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field containing numeric values for bar heights'
             }
         ],
-        htmlTemplate: `<!-- Barsmap Chart -->
-                <a-entity id="chart"
-                    babia-barsmap="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Barsmap Chart',
+            chartId: 'barsmap',
+            componentName: 'babia-barsmap',
+            componentBody: `from: data;
                                    title: {{TITLE}};
                                    legend: true;
                                    palette: {{PALETTE}};
                                    x_axis: {{X_AXIS_FIELD}};
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
-                                   axis_name: true"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                                   axis_name: true`,
+        })
     },
 
     // Cyls Chart Template
@@ -193,22 +194,19 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field containing numeric values for cylinder radius'
             }
         ],
-        htmlTemplate: `<!-- Cyls Chart -->
-                <a-entity id="chart"
-                    babia-cyls="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Cyls Chart',
+            chartId: 'cyls',
+            componentName: 'babia-cyls',
+            componentBody: `from: data;
                                 title: {{TITLE}};
                                 legend: true;
                                 palette: {{PALETTE}};
                                 x_axis: {{X_AXIS_FIELD}};
                                 height: {{HEIGHT_FIELD}};
                                 radius: {{RADIUS_FIELD}};
-                                axis_name: true;
-                                radiusMax: 1;"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                                axis_name: true`,
+        })
     },
 
     // Cylsmap Chart Template
@@ -249,9 +247,11 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field containing numeric values for cylinder radius'
             }
         ],
-        htmlTemplate: `<!-- Cylsmap Chart -->
-                <a-entity id="chart"
-                    babia-cylsmap="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Cylsmap Chart',
+            chartId: 'cylsmap',
+            componentName: 'babia-cylsmap',
+            componentBody: `from: data;
                                    title: {{TITLE}};
                                    legend: true;
                                    palette: {{PALETTE}};
@@ -259,13 +259,8 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    radius: {{RADIUS_FIELD}};
-                                   axis_name: true;
-                                   radiusMax: 1;"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                                   axis_name: true`,
+        })
     },
 
     // Donut Chart Template
@@ -284,28 +279,25 @@ export const chartTemplates: ChartMetadata[] = [
             },
             {
                 name: 'size',
-                label: 'Size', 
+                label: 'Size',
                 dataType: 'numeric',
                 valueRule: 'numeric-positive',
                 required: true,
                 description: 'Field containing numeric values for each category'
             }
         ],
-        htmlTemplate: `<!-- Donut Chart -->
-                <a-entity id="chart"
-                    babia-doughnut="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Donut Chart',
+            chartId: 'donut',
+            componentName: 'babia-doughnut',
+            componentBody: `from: data;
                                  title: {{TITLE}};
-                                titlePosition: 2.5 0 -3;
                                  legend: true;
                                  palette: {{PALETTE}};
                                  key: {{KEY_FIELD}};
                                  size: {{SIZE_FIELD}};
-                                 axis_name: true"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                                 axis_name: true`,
+        })
     },
 
     // Pie Chart Template
@@ -331,21 +323,18 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field containing numeric values for each sector'
             }
         ],
-        htmlTemplate: `<!-- Pie Chart -->
-                <a-entity id="chart"
-                    babia-pie="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Pie Chart',
+            chartId: 'pie',
+            componentName: 'babia-pie',
+            componentBody: `from: data;
                                title: {{TITLE}};
-                                titlePosition: 2.5 0 -3;
                                legend: true;
                                palette: {{PALETTE}};
                                key: {{KEY_FIELD}};
                                size: {{SIZE_FIELD}};
-                               axis_name: true"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                               axis_name: true`,
+        })
     },
 
     // Bubbles Chart Template
@@ -386,9 +375,11 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field containing numeric values for bubble radius/size'
             }
         ],
-        htmlTemplate: `<!-- Bubbles Chart -->
-                <a-entity id="chart"
-                    babia-bubbles="from: data;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Bubbles Chart',
+            chartId: 'bubbles',
+            componentName: 'babia-bubbles',
+            componentBody: `from: data;
                                    title: {{TITLE}};
                                    legend: true;
                                    palette: {{PALETTE}};
@@ -396,15 +387,8 @@ export const chartTemplates: ChartMetadata[] = [
                                    z_axis: {{Z_AXIS_FIELD}};
                                    height: {{HEIGHT_FIELD}};
                                    radius: {{RADIUS_FIELD}};
-                                   axis_name: true;
-                                   heightMax: 5;
-                                   radiusMax: 1;"
-
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="1.5 1.5 1.5">
-                </a-entity>`
+                                   axis_name: true`,
+        })
     },
 
     // Babia Boats Chart Template
@@ -438,21 +422,17 @@ export const chartTemplates: ChartMetadata[] = [
                 description: 'Field used for boat color grouping (supports numeric or text values)'
             }
         ],
-        htmlTemplate: `<!-- Boats Chart -->
-                <a-entity id="chart"
-                    babia-boats="from: tree;
+        htmlTemplate: buildChartEntityHtml({
+            comment: 'Boats Chart',
+            chartId: 'boats',
+            componentName: 'babia-boats',
+            componentBody: `from: tree;
                                  title: {{TITLE}};
                                  palette: {{PALETTE}};
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
-                                 color: {{COLOR_FIELD}};
-                                 ${serializeComponentAttributes(BOATS_BASE_COMPONENT_ATTRIBUTES)}"
-                    codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
-                    position="0 1 -18"
-                    rotation="0 0 0"
-                    scale="0.01 0.05 0.01">
-                </a-entity>`
+                                 color: {{COLOR_FIELD}}`,
+            scale: '0.01 0.05 0.01',
+        })
     }
 ];
-
-

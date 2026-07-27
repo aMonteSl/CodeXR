@@ -1,6 +1,10 @@
 import { VisualizationSettings } from '../../../utils/getVisualizationConfiguration';
 import { generateNonce } from '../../../utils/nonceGenerator';
-import { BOATS_BASE_COMPONENT_ATTRIBUTES, XR_BOATS_TREE_FIELDS } from '../../charts/templateCharts';
+import {
+    BOATS_BASE_COMPONENT_ATTRIBUTES,
+    CHART_PRESENTATION_PROFILES,
+    XR_BOATS_TREE_FIELDS,
+} from '../../charts/chartPresentation';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -59,10 +63,13 @@ export class CreateStructure {
             placeholders.set('TREE_BUILDER', treeBuilder);
 
             // Canonical chart construction, exposed to the in-scene runtimes
-            // (chart switch, evolution movie) so every babia-boats is built
-            // from the same base as the generated one.
+            // (chart switch, historical duals, evolution movie) so every chart
+            // is built from the same base as the generated one: rotation,
+            // base component attributes and row budget per chart. The legacy
+            // `boats` key is kept for older consumers of the injected config.
             placeholders.set('CHART_BASE_CONFIG', JSON.stringify({
                 boats: BOATS_BASE_COMPONENT_ATTRIBUTES,
+                presentation: CHART_PRESENTATION_PROFILES,
                 treeFields: XR_BOATS_TREE_FIELDS,
             }));
 

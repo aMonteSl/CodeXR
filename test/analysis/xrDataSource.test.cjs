@@ -25,7 +25,7 @@ test('directory XR parser keeps using data.json for standard and deep XR analysi
 
 test('XR boats tree builder follows the shared tree contract (normal-analysis convention in every mode)', () => {
     const source = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createStructure.ts');
-    const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
+    const chartPresentation = readProjectFile('src', 'babia_templates', 'charts', 'chartPresentation.ts');
     const sceneTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
 
     // One canonical contract — the normal analysis' original one: directory
@@ -33,7 +33,7 @@ test('XR boats tree builder follows the shared tree contract (normal-analysis co
     // rebuild it against the original target), file mode the synthetic
     // treePath.
     assert.match(
-        templateCharts,
+        chartPresentation,
         /export const XR_BOATS_TREE_FIELDS = \{\s*directory: 'filePath',\s*file: 'treePath',\s*\} as const;/,
     );
     assert.match(
@@ -42,9 +42,10 @@ test('XR boats tree builder follows the shared tree contract (normal-analysis co
     );
     assert.match(source, /babia-treebuilder="field: \$\{field\}; split_by: \/; from: data"/);
 
-    // The generator publishes the contract (plus the boats base) to the
-    // in-scene runtimes through the injected chart-base config.
-    assert.match(source, /placeholders\.set\('CHART_BASE_CONFIG', JSON\.stringify\(\{\s*boats: BOATS_BASE_COMPONENT_ATTRIBUTES,\s*treeFields: XR_BOATS_TREE_FIELDS,\s*\}\)\)/);
+    // The generator publishes the contract (plus the boats base and the
+    // per-chart presentation profiles) to the in-scene runtimes through the
+    // injected chart-base config.
+    assert.match(source, /placeholders\.set\('CHART_BASE_CONFIG', JSON\.stringify\(\{\s*boats: BOATS_BASE_COMPONENT_ATTRIBUTES,\s*presentation: CHART_PRESENTATION_PROFILES,\s*treeFields: XR_BOATS_TREE_FIELDS,\s*\}\)\)/);
     assert.match(sceneTemplate, /<script id="codexr-chart-base-config" type="application\/json">\$\{CHART_BASE_CONFIG\}<\/script>/);
 });
 
@@ -91,17 +92,17 @@ test('Babia Boats is the default XR file and directory chart while CodeXR Boats 
 });
 
 test('boats base construction is canonical: one object feeds the template, no duplicate remains', () => {
-    const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
+    const chartPresentation = readProjectFile('src', 'babia_templates', 'charts', 'chartPresentation.ts');
     const createChart = readProjectFile('src', 'babia_templates', 'processing', 'placeholders', 'createChart.ts');
 
     assert.match(
-        templateCharts,
+        chartPresentation,
         /export const DEFAULT_BOATS_LEGEND_TEXT = `\{name\}\r?\n\{fheight\} \(height\): \{height\}\r?\n\{farea\} \(area\): \{area\}\r?\n\{fcolor\} \(color\): \{color\}`;/,
     );
-    assert.equal(templateCharts.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
+    assert.equal(chartPresentation.includes("export const DEFAULT_BOATS_LEGEND_TEXT = '{name}\\\\n"), false);
 
     // The canonical base object carries the full boats construction.
-    const baseBlock = templateCharts.match(/export const BOATS_BASE_COMPONENT_ATTRIBUTES[\s\S]*?\n\};/);
+    const baseBlock = chartPresentation.match(/export const BOATS_BASE_COMPONENT_ATTRIBUTES[\s\S]*?\n\};/);
     assert.ok(baseBlock);
     assert.match(baseBlock[0], /legend: true,/);
     assert.match(baseBlock[0], /legend_text: DEFAULT_BOATS_LEGEND_TEXT,/);
@@ -116,15 +117,19 @@ test('boats base construction is canonical: one object feeds the template, no du
     assert.match(baseBlock[0], /height_quarter_legend_title: 2\.5,/);
     assert.doesNotMatch(baseBlock[0], /\{fwidth\}|\{fdepth\}|\{width\}|\{depth\}/);
 
-    // The HTML template is BUILT from the object — it cannot drift.
-    const boatsBlock = templateCharts.match(/babia-boats="from: tree;[\s\S]*?scale="0\.01 0\.05 0\.01">/);
-    assert.ok(boatsBlock);
-    assert.match(boatsBlock[0], /\$\{serializeComponentAttributes\(BOATS_BASE_COMPONENT_ATTRIBUTES\)\}/);
-    assert.doesNotMatch(boatsBlock[0], /legend_text: \$\{DEFAULT_BOATS_LEGEND_TEXT\};/);
+    // The rendered template is BUILT from the profile object — assert on the
+    // compiled output, where drift would actually surface.
+    const { chartTemplates } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'templateCharts.js'));
+    const boats = chartTemplates.find((chart) => chart.id === 'boats');
+    assert.ok(boats);
+    assert.match(boats.htmlTemplate, /babia-boats="from: tree;/);
+    assert.match(boats.htmlTemplate, /legend_text: \{name\}/);
+    assert.match(boats.htmlTemplate, /height_quarter_legend_title: 2\.5/);
+    assert.match(boats.htmlTemplate, /scale="0\.01 0\.05 0\.01"/);
 
-    const donutBlock = templateCharts.match(/babia-doughnut="from: data;[\s\S]*?axis_name: true"/);
-    assert.ok(donutBlock);
-    assert.equal(donutBlock[0].includes('legend_text'), false);
+    const donut = chartTemplates.find((chart) => chart.id === 'donut');
+    assert.ok(donut);
+    assert.equal(donut.htmlTemplate.includes('legend_text'), false);
 
     // The dead boats duplicate is gone from createChart: every chart comes
     // from the canonical template list.
@@ -133,18 +138,30 @@ test('boats base construction is canonical: one object feeds the template, no du
 });
 
 test('pie and donut XR chart templates render upright on the analysis table', () => {
-    const templateCharts = readProjectFile('src', 'babia_templates', 'charts', 'templateCharts.ts');
-    const donutBlock = templateCharts.match(/id: 'donut'[\s\S]*htmlTemplate: `<!-- Donut Chart -->[\s\S]*<\/a-entity>`/);
-    const pieBlock = templateCharts.match(/id: 'pie'[\s\S]*htmlTemplate: `<!-- Pie Chart -->[\s\S]*<\/a-entity>`/);
+    // Pie slices and doughnut toruses are flat by construction: Babia's own
+    // demos stand them with rotation 90 0 0 on the entity, and the profile is
+    // the single source of that rotation for the generator AND the live
+    // chart switch.
+    const { CHART_PRESENTATION_PROFILES } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'chartPresentation.js'));
+    assert.equal(CHART_PRESENTATION_PROFILES.pie.rotation, '90 0 0');
+    assert.equal(CHART_PRESENTATION_PROFILES.donut.rotation, '90 0 0');
+    assert.equal(CHART_PRESENTATION_PROFILES.pie.fit, 'uniform');
+    assert.equal(CHART_PRESENTATION_PROFILES.donut.fit, 'uniform');
 
-    assert.ok(donutBlock);
-    assert.ok(pieBlock);
-    assert.match(donutBlock[0], /babia-doughnut=/);
-    assert.match(donutBlock[0], /rotation="0 0 0"/);
-    assert.doesNotMatch(donutBlock[0], /rotation="90 0 0"/);
-    assert.match(pieBlock[0], /babia-pie=/);
-    assert.match(pieBlock[0], /rotation="0 0 0"/);
-    assert.doesNotMatch(pieBlock[0], /rotation="90 0 0"/);
+    const { chartTemplates } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'templateCharts.js'));
+    const donut = chartTemplates.find((chart) => chart.id === 'donut');
+    const pie = chartTemplates.find((chart) => chart.id === 'pie');
+    assert.ok(donut);
+    assert.ok(pie);
+    assert.match(donut.htmlTemplate, /babia-doughnut=/);
+    assert.match(donut.htmlTemplate, /rotation="90 0 0"/);
+    assert.match(pie.htmlTemplate, /babia-pie=/);
+    assert.match(pie.htmlTemplate, /rotation="90 0 0"/);
+    for (const chart of chartTemplates) {
+        if (chart.id !== 'pie' && chart.id !== 'donut') {
+            assert.match(chart.htmlTemplate, /rotation="0 0 0"/, `${chart.id} stays unrotated`);
+        }
+    }
 });
 
 test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeholder', () => {
@@ -254,8 +271,17 @@ test('all XR charts share the containment preset', () => {
     assert.match(templateCharts, /export const XR_TABLE_STEADY_PLANAR_MAX = 0\.92;/);
     assert.match(templateCharts, /export const UNIVERSAL_XR_TABLE_SETTINGS = `enabled: true;[\s\S]*targetWidth: 5\.614;[\s\S]*bootstrapPlanarMaxRatio: \$\{XR_TABLE_BOOTSTRAP_PLANAR_MAX\};[\s\S]*minPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MIN\};[\s\S]*maxPlanarOccupancyRatio: \$\{XR_TABLE_STEADY_PLANAR_MAX\};[\s\S]*heightBandMinRatio: \$\{XR_TABLE_HEIGHT_BAND_MIN\};[\s\S]*heightBandMaxRatio: \$\{XR_TABLE_HEIGHT_BAND_MAX\};[\s\S]*tableEdgeMargin: 0\.18;[\s\S]*periodicContainmentEnabled: true;[\s\S]*stabilizationStablePasses: 3;[\s\S]*transformTransitionMs: 650;[\s\S]*hardHeightGuardEnabled: true`;/);
 
-    const matches = templateCharts.match(/codexr-chart-containment="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
-    assert.equal(matches.length, 8);
+    // Every template is emitted by the shared entity builder, so the preset
+    // appears once in the source and eight times in the rendered output.
+    assert.match(templateCharts, /function buildChartEntityHtml\(/);
+    const sourceMatches = templateCharts.match(/codexr-chart-containment="\$\{UNIVERSAL_XR_TABLE_SETTINGS\}"/g) || [];
+    assert.equal(sourceMatches.length, 1);
+    const { chartTemplates } = require(path.join(projectRoot, 'out', 'babia_templates', 'charts', 'templateCharts.js'));
+    assert.equal(chartTemplates.length, 8);
+    for (const chart of chartTemplates) {
+        assert.ok(chart.htmlTemplate.includes('codexr-chart-containment="enabled: true;'), `${chart.id} carries the containment preset`);
+        assert.ok(chart.htmlTemplate.includes(`data-codexr-active-chart-id="${chart.id}"`), `${chart.id} declares its chart id for the fit profiles`);
+    }
     assert.doesNotMatch(templateCharts, /id: 'codexr-boats'/);
     assert.match(templateCharts, /id: 'boats'[\s\S]*name: 'Babia Boats'/);
 });

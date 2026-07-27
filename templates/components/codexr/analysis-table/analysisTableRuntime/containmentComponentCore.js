@@ -258,15 +258,23 @@
         };
       }
 
-      var correctionState = buildContainmentCorrectionState(measurements, this.el && this.el.object3D, this.data);
+      var chartFitMode = resolveChartFitMode(this.el);
+      var correctionState = chartFitMode === 'uniform'
+        ? buildUniformCorrectionState(measurements, this.el && this.el.object3D, this.data)
+        : buildContainmentCorrectionState(measurements, this.el && this.el.object3D, this.data, chartFitMode);
       var needsCorrection = !!(correctionState && correctionState.needsCorrection);
       var transitionActive = !!(this.containmentTransition && this.containmentTransition.active);
       var heightOverflow = !!(correctionState && correctionState.heightOverflow);
-      var stabilized = this.renderPhase === 'steady-fit'
-        && (!this.pidController || !this.pidController.active)
-        && !needsCorrection
-        && !transitionActive
-        && !heightOverflow;
+      // Settled is the controller's TERMINAL verdict: the watch already
+      // guarantees no hard violation and no persistent drift, so a residual
+      // sub-tolerance correction wish must not keep reporting a settled
+      // chart as "still correcting".
+      var stabilized = (this.settled === true && !transitionActive && !heightOverflow)
+        || (this.renderPhase === 'steady-fit'
+          && (!this.pidController || !this.pidController.active)
+          && !needsCorrection
+          && !transitionActive
+          && !heightOverflow);
       return {
         ready: true,
         valid: true,
@@ -276,6 +284,8 @@
           ? 'containment-transition-active'
           : heightOverflow
           ? 'height-overflow'
+          : stabilized
+          ? 'ok'
           : needsCorrection
           ? 'containment-correcting'
           : (this.renderPhase === 'steady-fit' ? 'ok' : this.renderPhase),

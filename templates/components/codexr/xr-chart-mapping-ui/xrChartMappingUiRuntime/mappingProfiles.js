@@ -189,6 +189,14 @@
         buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot)
       );
     });
+    // A re-mapping changes the fields that rank and filter the top-N slice:
+    // recompute slice content for every entity reading from one.
+    refreshChartDataSlicesForMapping(
+      chartEntities,
+      componentName,
+      state.activeChartId,
+      mappingSnapshot
+    );
   }
 
   function isHierarchicalChart(chartId) {
@@ -197,21 +205,37 @@
 
   // Canonical chart construction, injected by the generator as JSON
   // (#codexr-chart-base-config). The fallback mirrors the generator's values
-  // for scenes generated before the config existed and for harnesses; the
-  // injected config always wins so the generator stays the single source.
+  // (chartPresentation.ts) for scenes generated before the config existed and
+  // for harnesses; the injected config always wins so the generator stays the
+  // single source.
+  var BOATS_BASE_ATTRIBUTES_FALLBACK = {
+    legend: true,
+    legend_text: '{name}\n{fheight} (height): {height}\n{farea} (area): {area}\n{fcolor} (color): {color}',
+    height_building_legend: -0.5,
+    legend_scale: 0.25,
+    legend_lookat: '[camera]',
+    axis_name: true,
+    extra: 1,
+    separation: 0.5,
+    zone_elevation: 0.01,
+    height_quarter_legend_box: 0.01,
+    height_quarter_legend_title: 2.5
+  };
   var CHART_BASE_CONFIG_FALLBACK = {
-    boats: {
-      legend: true,
-      legend_text: '{name}\n{fheight} (height): {height}\n{farea} (area): {area}\n{fcolor} (color): {color}',
-      height_building_legend: -0.5,
-      legend_scale: 0.25,
-      legend_lookat: '[camera]',
-      axis_name: true,
-      extra: 1,
-      separation: 0.5,
-      zone_elevation: 0.01,
-      height_quarter_legend_box: 0.01,
-      height_quarter_legend_title: 2.5
+    boats: BOATS_BASE_ATTRIBUTES_FALLBACK,
+    // Mirror of CHART_PRESENTATION_PROFILES (chartPresentation.ts): rotation
+    // the chart needs to stand as Babia designed it, base component
+    // attributes beyond the mapped fields, and how many data rows the chart
+    // can express legibly (applied as a top-N slice by chartDataSlice.js).
+    presentation: {
+      bars: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 20, orderBy: 'height', keyBy: ['x_axis'], baseAttributes: {} },
+      barsmap: { rotation: '0 0 0', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: {} },
+      cyls: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 20, orderBy: 'height', keyBy: ['x_axis'], baseAttributes: { radiusMax: 1 } },
+      cylsmap: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: { radiusMax: 1 } },
+      pie: { rotation: '90 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
+      donut: { rotation: '90 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
+      bubbles: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: { heightMax: 5, radiusMax: 1 } },
+      boats: { rotation: '0 0 0', baseAttributes: BOATS_BASE_ATTRIBUTES_FALLBACK }
     },
     treeFields: { directory: 'filePath', file: 'treePath' }
   };
@@ -230,11 +254,33 @@
         console.warn('CODEXR_MAPPING_UI: invalid codexr-chart-base-config JSON', error);
       }
     }
+    var presentation = {};
+    Object.keys(CHART_BASE_CONFIG_FALLBACK.presentation).forEach(function (chartId) {
+      var fallbackProfile = CHART_BASE_CONFIG_FALLBACK.presentation[chartId];
+      var injectedProfile = (parsed && parsed.presentation && parsed.presentation[chartId]) || {};
+      // Scenes generated before the presentation profile existed inject only
+      // the legacy `boats` key: it must keep overriding the boats base.
+      var legacyBoatsOverride = chartId === 'boats' ? (parsed?.boats || {}) : {};
+      presentation[chartId] = Object.assign({}, fallbackProfile, injectedProfile, {
+        baseAttributes: Object.assign(
+          {},
+          fallbackProfile.baseAttributes,
+          legacyBoatsOverride,
+          injectedProfile.baseAttributes || {}
+        )
+      });
+    });
     chartBaseConfigCache = {
       boats: Object.assign({}, CHART_BASE_CONFIG_FALLBACK.boats, parsed?.boats || {}),
+      presentation: presentation,
       treeFields: Object.assign({}, CHART_BASE_CONFIG_FALLBACK.treeFields, parsed?.treeFields || {})
     };
     return chartBaseConfigCache;
+  }
+
+  function getChartPresentation(chartId) {
+    var presentation = getChartBaseConfig().presentation;
+    return presentation[chartId] || { rotation: '0 0 0', baseAttributes: {} };
   }
 
   function getChartFromSource(chartId, existingData) {
@@ -256,17 +302,19 @@
   function buildRuntimeChartData(chartId, existingData, mappingSnapshot) {
     var data = Object.assign({}, mappingSnapshot || {});
     var source = getChartFromSource(chartId, existingData);
-    data.from = source;
+    // Budgeted charts read from the CodeXR-maintained top-N slice instead of
+    // the full dataset (chartDataSlice.js); boats keeps its tree source.
+    data.from = resolveChartDataSourceId(chartId, source, mappingSnapshot);
     data.legend = true;
     data.palette = existingData.palette || 'ubuntu';
     data.title = existingData.title || 'CodeXR Analysis';
     data.axis_name = true;
 
-    if (chartId === 'boats') {
-      return Object.assign({}, getChartBaseConfig().boats, data);
-    }
-
-    return data;
+    // Every chart carries its canonical base attributes (normalization caps,
+    // title placement, boats construction) under the mapping — the live
+    // switch used to drop them for everything but boats, which is how
+    // bubbles lost heightMax/radiusMax and exploded to raw metric scale.
+    return Object.assign({}, getChartPresentation(chartId).baseAttributes, data);
   }
 
   function readCurrentChartData(chartEntity) {
@@ -394,8 +442,9 @@
     if (!chartEntity || typeof chartEntity.setAttribute !== 'function') {
       return;
     }
-    var rotation = DEFAULT_ROTATION_BY_CHART[chartId] || '0 0 0';
-    chartEntity.setAttribute('rotation', rotation);
+    // Canonical orientation from the presentation profile: pie/donut lie flat
+    // by construction and Babia's own demos stand them with 90 0 0.
+    chartEntity.setAttribute('rotation', getChartPresentation(chartId).rotation);
   }
 
   function applyChartTypeToEntity(chartEntity, chartId, mappingSnapshot) {
