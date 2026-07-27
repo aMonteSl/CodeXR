@@ -40,8 +40,10 @@ its parts directory. Manual harnesses load assembled copies from
   - Both scene templates declare it on `<a-scene>` and provide the pointer entities by id (`#mouseCursor`, `#gazeCursor`, `#leftController`, `#rightController`).
 - `codexr/analysis-table/analysisTableRuntime.js`
   - Owns the XR table, visual surface, table modes and chart containment.
+  - Containment applies a per-chart fit strategy (`chartFitProfiles.js` part): `uniform` for circular charts (pie/doughnut stand rotated 90° — one factor on all axes so the disk stays circular), `planar-uniform` for row charts with flat axis labels or round geometry (x/z converge to the same scale value), per-axis for everything else.
 - `codexr/xr-chart-mapping-ui/xrChartMappingUiRuntime.js`
   - Owns Field Mapping, live chart switching, contextual panel views and transactional metric mapping.
+  - Feeds row-budgeted charts (everything except boats) from a top-N sliced `babia-queryjson` datasource (`chartDataSlice.js` part): ranked by the mapped magnitude, rows violating `numeric-positive` value rules filtered out, one row per Babia element key. Chart construction (rotation, base attributes, budgets) follows the generator-injected presentation profile (`#codexr-chart-base-config`), with a fallback mirror in `mappingProfiles.js`.
 - `codexr/analysis-mode/analysisModeRuntime.js`
   - Owns mode switching between normal analysis, historical comparison and dependency graph.
 - `codexr/dependency-graph/dependencyGraphRuntime.js`

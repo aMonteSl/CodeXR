@@ -439,9 +439,9 @@ test('boats runtime base comes from the injected chart-base config, with a faith
     assert.equal(injectedData.separation, 0.5);
 
     // Drift guard: the runtime fallback must spell out the SAME construction
-    // the generator publishes (templateCharts.BOATS_BASE_COMPONENT_ATTRIBUTES).
-    const templateCharts = fs.readFileSync(
-        path.join(projectRoot, 'src', 'babia_templates', 'charts', 'templateCharts.ts'),
+    // the generator publishes (chartPresentation.BOATS_BASE_COMPONENT_ATTRIBUTES).
+    const chartPresentation = fs.readFileSync(
+        path.join(projectRoot, 'src', 'babia_templates', 'charts', 'chartPresentation.ts'),
         'utf8',
     );
     for (const fragment of [
@@ -454,8 +454,26 @@ test('boats runtime base comes from the injected chart-base config, with a faith
         'height_quarter_legend_box: 0.01',
         'height_quarter_legend_title: 2.5',
     ]) {
-        assert.ok(templateCharts.includes(fragment), `templateCharts must declare ${fragment}`);
+        assert.ok(chartPresentation.includes(fragment), `chartPresentation must declare ${fragment}`);
         assert.ok(runtimeSource.includes(fragment), `runtime fallback must mirror ${fragment}`);
+    }
+});
+
+test('runtime presentation fallback mirrors the generator profiles field by field', () => {
+    // The compiled generator profile is the single source; the runtime carries
+    // a fallback mirror for scenes generated before the config existed. Any
+    // drift between the two is a bug.
+    const { CHART_PRESENTATION_PROFILES } = require(path.join(
+        projectRoot, 'out', 'babia_templates', 'charts', 'chartPresentation.js',
+    ));
+    const runtime = loadRuntime();
+    for (const [chartId, profile] of Object.entries(CHART_PRESENTATION_PROFILES)) {
+        const mirrored = plain(runtime.getChartPresentation(chartId));
+        assert.deepEqual(
+            mirrored,
+            JSON.parse(JSON.stringify(profile)),
+            `runtime presentation fallback for ${chartId} must equal the generator profile`,
+        );
     }
 });
 
@@ -520,7 +538,11 @@ test('mapping UI chart switch removes stale Babia-rendered children before creat
     assert.equal(chart.getAttribute('codexr-chart-containment'), 'preset: table');
 });
 
-test('mapping UI chart switch keeps pie and donut upright instead of inheriting a flat rotation', () => {
+test('mapping UI chart switch stands pie and donut upright and resets flat charts', () => {
+    // Pie slices and doughnut toruses lie flat by construction; Babia's own
+    // demos stand them with rotation 90 0 0. The switch applies the profile
+    // rotation in BOTH directions: circular charts stand up, and a chart
+    // switched away from them returns to 0 0 0.
     const runtime = loadRuntime();
     const donutChart = createChartEntityForSwitchTest({
         'codexr-chart-containment': 'preset: table',
@@ -529,15 +551,14 @@ test('mapping UI chart switch keeps pie and donut upright instead of inheriting 
             x_axis: 'fileName',
             height: 'totalLines',
         },
-        rotation: '90 0 0',
+        rotation: '0 0 0',
     });
-    const pieChart = createChartEntityForSwitchTest({
+    const barsChart = createChartEntityForSwitchTest({
         'codexr-chart-containment': 'preset: table',
-        'babia-bubbles': {
+        'babia-pie': {
             from: 'data',
-            x_axis: 'fileName',
-            height: 'totalLines',
-            radius: 'functionCount',
+            key: 'fileName',
+            size: 'totalLines',
         },
         rotation: '90 0 0',
     });
@@ -546,17 +567,99 @@ test('mapping UI chart switch keeps pie and donut upright instead of inheriting 
         key: 'language',
         size: 'totalLines',
     }), true);
-    assert.equal(runtime.__testing.applyChartTypeToEntity(pieChart, 'pie', {
-        key: 'language',
-        size: 'totalLines',
+    assert.equal(runtime.__testing.applyChartTypeToEntity(barsChart, 'bars', {
+        x_axis: 'fileName',
+        height: 'totalLines',
     }), true);
 
-    assert.equal(donutChart.getAttribute('rotation'), '0 0 0');
+    assert.equal(donutChart.getAttribute('rotation'), '90 0 0');
     assert.equal(donutChart.getAttribute('babia-bars'), undefined);
     assert.equal(donutChart.getAttribute('babia-doughnut').key, 'language');
-    assert.equal(pieChart.getAttribute('rotation'), '0 0 0');
-    assert.equal(pieChart.getAttribute('babia-bubbles'), undefined);
-    assert.equal(pieChart.getAttribute('babia-pie').size, 'totalLines');
+    // Base attributes travel with the switch for every chart, not just boats.
+    assert.equal(donutChart.getAttribute('babia-doughnut').titlePosition, '2.5 0 -3');
+    assert.equal(barsChart.getAttribute('rotation'), '0 0 0');
+    assert.equal(barsChart.getAttribute('babia-pie'), undefined);
+    assert.equal(barsChart.getAttribute('babia-bars').x_axis, 'fileName');
+});
+
+test('bubbles chart switch always carries its normalization caps', () => {
+    // babia-bubbles declares heightMax/radiusMax WITHOUT schema defaults:
+    // losing them on a live switch rendered bubbles at raw metric scale
+    // (a 12k-line file became a 12k-unit column).
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-bars': { from: 'data', x_axis: 'fileName', height: 'totalLines' },
+    });
+    assert.equal(runtime.__testing.applyChartTypeToEntity(chart, 'bubbles', {
+        x_axis: 'fileName',
+        z_axis: 'cyclomaticComplexityNumber',
+        height: 'totalLines',
+        radius: 'functionCount',
+    }), true);
+    const bubbles = chart.getAttribute('babia-bubbles');
+    assert.equal(bubbles.heightMax, 5);
+    assert.equal(bubbles.radiusMax, 1.5);
+});
+
+test('orphan sweep never deletes a chart whose live component claims no root (boats)', () => {
+    // babia-boats appends its figures DIRECTLY to the entity and exposes no
+    // chartEl/titleEl/legendEl: the sweep cannot tell its children from
+    // residue, and sweeping deleted the freshly built boats — the table
+    // stayed empty until the next data push rebuilt it.
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({ 'codexr-chart-containment': 'preset: table' });
+    chart.components = { 'babia-boats': { /* no chartEl/titleEl/legendEl */ } };
+    const figure = createFakeElement('a-entity', () => {});
+    chart.appendChild(figure);
+
+    assert.equal(runtime.__testing.sweepOrphanChartChildren(chart), 0);
+    assert.equal(chart.children.length, 1);
+
+    // With a root-claiming component (bars-style), unclaimed children are
+    // still swept — the ghost-chart defence stays in force.
+    const claimedRoot = createFakeElement('a-entity', () => {});
+    const orphan = createFakeElement('a-entity', () => {});
+    const barsChart = createChartEntityForSwitchTest({ 'codexr-chart-containment': 'preset: table' });
+    barsChart.components = { 'babia-bars': { chartEl: claimedRoot } };
+    barsChart.appendChild(claimedRoot);
+    barsChart.appendChild(orphan);
+
+    assert.equal(runtime.__testing.sweepOrphanChartChildren(barsChart), 1);
+    assert.equal(barsChart.children.length, 1);
+    assert.equal(barsChart.children[0], claimedRoot);
+});
+
+test('chart data slice ranks, filters and de-duplicates rows for budgeted charts', () => {
+    const runtime = loadRuntime();
+    const compute = runtime.__testing.computeChartDataSlice;
+    const rows = [];
+    for (let i = 0; i < 40; i += 1) {
+        rows.push({ fileName: `file-${i}.js`, totalLines: 10 + i, functionCount: 1 + (i % 7) });
+    }
+    // Zero radius breaks babia-cylsmap (Math.max over `o != ''`-filtered radii
+    // yields -Infinity axis lengths) — the numeric-positive rule filters it.
+    rows.push({ fileName: 'zero-radius.js', totalLines: 9999, functionCount: 0 });
+    // Duplicate labels collapse onto one babia element: only the highest
+    // ranked duplicate may survive.
+    rows.push({ fileName: 'file-39.js', totalLines: 5000, functionCount: 3 });
+
+    const mapping = { x_axis: 'fileName', height: 'totalLines', radius: 'functionCount' };
+    const slice = compute('cyls', rows, mapping);
+
+    assert.equal(slice.length, 20, 'cyls row budget is 20');
+    assert.equal(slice.some((row) => row.fileName === 'zero-radius.js'), false, 'zero radius rows are dropped');
+    const top = slice[0];
+    assert.equal(top.fileName, 'file-39.js');
+    assert.equal(top.totalLines, 5000, 'the highest-ranked duplicate wins');
+    const names = slice.map((row) => row.fileName);
+    assert.equal(new Set(names).size, names.length, 'labels are unique after the slice');
+    for (let i = 1; i < slice.length; i += 1) {
+        assert.ok(slice[i - 1].totalLines >= slice[i].totalLines, 'slice is ordered by the height field, descending');
+    }
+
+    // Boats has no budget: the slice machinery leaves the dataset alone.
+    assert.equal(compute('boats', rows, mapping).length, rows.length);
 });
 
 test('mapping UI chart selector and dimension grids share safe panel margins', () => {

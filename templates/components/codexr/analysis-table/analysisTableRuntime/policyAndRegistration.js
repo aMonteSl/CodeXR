@@ -394,6 +394,8 @@
     isObject3DVisibleInScene: isObject3DVisibleInScene,
     computeAnchorOffset: computeAnchorOffset,
     getTableTopY: getTableTopY,
+    resolveChartFitMode: resolveChartFitMode,
+    resolveChartSurfaceLift: resolveChartSurfaceLift,
     buildTabletopAnchorDiagnostics: buildTabletopAnchorDiagnostics,
     getAnalysisTableZonesForMode: getAnalysisTableZonesForMode,
     getVisibleDependencyGraphRoots: getVisibleDependencyGraphRoots,

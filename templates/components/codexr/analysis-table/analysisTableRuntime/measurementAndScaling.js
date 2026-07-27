@@ -63,7 +63,7 @@
         return false;
       }
 
-      var offset = computeAnchorOffset(measurements, this.data);
+      var offset = computeAnchorOffset(measurements, this.data, resolveChartSurfaceLift(this.el));
       if (!offset) {
         return false;
       }
@@ -131,6 +131,38 @@
       var object3D = this.el && this.el.object3D;
       if (!object3D || !this.data.hardHeightGuardEnabled || !hasUsableMeasurements(measurements)) {
         return false;
+      }
+
+      // A y-only emergency squash would distort a uniform-fit chart (and, on
+      // a rotated one, would not even act on world height): shrink all three
+      // axes by the same factor instead.
+      if (resolveChartFitMode(this.el) === 'uniform') {
+        var uniformState = computeUniformFitState(measurements, object3D, this.data);
+        if (!uniformState || !uniformState.heightOverflow) {
+          return false;
+        }
+        if (this.containmentTransition && this.containmentTransition.active) {
+          this.cancelContainmentTransition();
+        }
+        var applied = this.applyScaleFactors(uniformState.factor, uniformState.factor, uniformState.factor);
+        if (!applied) {
+          return false;
+        }
+        var uniformMeasurements = this.measureBounds();
+        if (uniformMeasurements) {
+          this.applyAnchorPlacement(uniformMeasurements);
+        }
+        this.syncTransformAttributes();
+        this.lastHardHeightGuardAt = Date.now();
+        if (this.pidController) {
+          this.pidController.stableTicks = 0;
+        }
+        debugLog('hard-height-guard-uniform', {
+          source: source || 'height-guard',
+          factor: toFixedNumber(uniformState.factor),
+          peakHeight: toFixedNumber(measurements.peakHeight)
+        });
+        return true;
       }
 
       var bandTargets = resolveHeightBandTargets(this.data);

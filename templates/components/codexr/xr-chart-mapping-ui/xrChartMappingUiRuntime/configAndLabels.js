@@ -22,11 +22,6 @@
     boats: 'babia-boats'
   };
 
-  var DEFAULT_ROTATION_BY_CHART = {
-    donut: '0 0 0',
-    pie: '0 0 0'
-  };
-
   // ── Controller contract ─────────────────────────────────────────────
   // This runtime is the table's controller: one shared panel hosting one
   // "panel view" per analysis surface. Feature runtimes contribute views via

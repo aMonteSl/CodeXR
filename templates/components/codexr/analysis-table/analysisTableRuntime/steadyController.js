@@ -1,8 +1,100 @@
 // == analysisTableRuntime.js | steadyController (assembled per manifest.json; see COMPONENTS.md) ==
+    // Single-factor actuation for uniform-fit charts (see chartFitProfiles.js):
+    // applies the computed factor to all three local axes, re-anchors, and
+    // reports whether anything changed. Used by both the bootstrap fit and the
+    // steady loop, so a circular chart never goes through per-axis scaling.
+    applyUniformFitStep: function (measurements, source) {
+      var object3D = this.el && this.el.object3D;
+
+      // A chart switch inherits the PREVIOUS chart's fitted scale, which is
+      // usually anisotropic (boats ships y ~7x its planar axes). A purely
+      // multiplicative uniform step preserves that ratio forever — spheres
+      // stayed stretched into lozenges. Collapse to the smallest axis first
+      // (safe against every cap); the cap factor then grows the chart
+      // uniformly from true proportions.
+      if (object3D && object3D.scale) {
+        var minAxis = Math.min(object3D.scale.x, object3D.scale.y, object3D.scale.z);
+        var maxAxis = Math.max(object3D.scale.x, object3D.scale.y, object3D.scale.z);
+        if (Number.isFinite(minAxis) && minAxis > 0 && (maxAxis - minAxis) > minAxis * 0.02) {
+          var equalizedY = clamp(minAxis, Math.max(0.001, this.data.yScaleMin), Math.max(this.data.yScaleMin + 0.001, this.data.yScaleMax));
+          object3D.scale.set(minAxis, equalizedY, minAxis);
+          object3D.updateMatrixWorld(true);
+          var equalizedMeasurements = this.measureBounds();
+          if (equalizedMeasurements) {
+            this.applyAnchorPlacement(equalizedMeasurements);
+          }
+          this.syncTransformAttributes();
+          debugLog('uniform-fit-equalized', {
+            source: source || 'uniform-fit',
+            scale: toFixedNumber(minAxis)
+          });
+          return { converged: false, changed: true, equalized: true };
+        }
+      }
+
+      var fit = computeUniformFitState(measurements, object3D, this.data);
+      if (!fit) {
+        return null;
+      }
+      if (!fit.converged) {
+        var applied = this.applyScaleFactors(fit.factor, fit.factor, fit.factor);
+        var nextMeasurements = this.measureBounds();
+        var moved = nextMeasurements ? this.applyAnchorPlacement(nextMeasurements) : false;
+        if (applied || moved) {
+          this.syncTransformAttributes();
+          this.captureStableTransform();
+        }
+        debugLog('uniform-fit-step', {
+          source: source || 'uniform-fit',
+          factor: toFixedNumber(fit.factor),
+          widthCap: toFixedNumber(fit.widthCap),
+          depthCap: toFixedNumber(fit.depthCap),
+          heightCap: toFixedNumber(fit.heightCap)
+        });
+        fit.changed = applied || moved;
+        return fit;
+      }
+      var anchorMeasurements = this.measureBounds();
+      var anchored = anchorMeasurements ? this.applyAnchorPlacement(anchorMeasurements) : false;
+      if (anchored) {
+        this.syncTransformAttributes();
+        this.captureStableTransform();
+      }
+      fit.changed = anchored;
+      return fit;
+    },
+
+    runUniformSteadyStep: function (source) {
+      var fit = this.applyUniformFitStep(this.measureBounds(), source || 'steady-fit');
+      if (!fit) {
+        this.markWaitingGeometry('waiting-geometry', this.normalizationGeneration, {
+          source: source || 'steady-fit',
+          phase: this.renderPhase
+        });
+        return false;
+      }
+      if (fit.converged && !fit.changed) {
+        this.pidController.stableTicks += 1;
+      } else {
+        this.pidController.stableTicks = 0;
+      }
+      if (this.pidController.stableTicks >= PID_PROFILE.stableTicks) {
+        this.deactivateSteadyController();
+        this.enterSettledState(this.measureBounds());
+      } else {
+        this.scheduleSteadyControllerStep(source || 'steady-fit');
+      }
+      return !!fit.changed;
+    },
+
     runSteadyControllerStep: function (source, dtMs) {
       var object3D = this.el && this.el.object3D;
       if (!object3D) {
         return false;
+      }
+
+      if (resolveChartFitMode(this.el) === 'uniform') {
+        return this.runUniformSteadyStep(source);
       }
 
       var measurements = this.measureBounds();
@@ -56,6 +148,12 @@
 
       xTarget = this.constrainPlanarTargetForMeasuredHeight('x', xTarget, object3D.scale.x, yTarget, measurements, heightTargets);
       zTarget = this.constrainPlanarTargetForMeasuredHeight('z', zTarget, object3D.scale.z, yTarget, measurements, heightTargets);
+
+      if (resolveChartFitMode(this.el) === 'planar-uniform') {
+        var unified = unifyPlanarTargets(xTarget, zTarget);
+        xTarget = unified.x;
+        zTarget = unified.z;
+      }
 
       if (this.applyEmergencyContainment(measurements, xTarget, yTarget, zTarget, source || 'steady-fit')) {
         this.scheduleSteadyControllerStep(source || 'steady-fit');
@@ -142,17 +240,36 @@
         return false;
       }
 
+      var fitMode = resolveChartFitMode(this.el);
+      if (fitMode === 'uniform') {
+        var uniformFit = this.applyUniformFitStep(measurements, source || 'bootstrap-uniform');
+        return !!(uniformFit && uniformFit.changed);
+      }
+
       var bootstrapScale = computeBootstrapPlanarScale(measurements.primary, measurements.containment, this.data);
       if (!bootstrapScale) {
         return false;
       }
 
+      var xFactor = bootstrapScale.xFactor;
+      var zFactor = bootstrapScale.zFactor;
+      if (fitMode === 'planar-uniform') {
+        // Both planar axes bootstrap to the same SCALE VALUE: the flat axis
+        // labels along z and any round geometry follow the binding axis.
+        var object3D = this.el && this.el.object3D;
+        if (object3D && object3D.scale && object3D.scale.x > 0 && object3D.scale.z > 0) {
+          var sharedScale = Math.min(object3D.scale.x * xFactor, object3D.scale.z * zFactor);
+          xFactor = sharedScale / object3D.scale.x;
+          zFactor = sharedScale / object3D.scale.z;
+        }
+      }
+
       var changed = false;
-      if (Math.abs(bootstrapScale.xFactor - 1) > 0.0005 || Math.abs(bootstrapScale.zFactor - 1) > 0.0005) {
+      if (Math.abs(xFactor - 1) > 0.0005 || Math.abs(zFactor - 1) > 0.0005) {
         changed = this.applyScaleFactors(
-          clamp(bootstrapScale.xFactor, 0.2, 4),
+          clamp(xFactor, fitMode === 'planar-uniform' ? 0.05 : 0.2, fitMode === 'planar-uniform' ? 8 : 4),
           1,
-          clamp(bootstrapScale.zFactor, 0.2, 4)
+          clamp(zFactor, fitMode === 'planar-uniform' ? 0.05 : 0.2, fitMode === 'planar-uniform' ? 8 : 4)
         );
       }
 
@@ -171,6 +288,13 @@
     enforceHeightBand: function (source) {
       var object3D = this.el && this.el.object3D;
       if (!object3D) {
+        return false;
+      }
+
+      // Uniform-fit charts never take a y-only correction: the uniform pass
+      // (already run by enforceEnvelope via applyBootstrapPlanarFit) owns the
+      // height budget without distorting the aspect ratio.
+      if (resolveChartFitMode(this.el) === 'uniform') {
         return false;
       }
 

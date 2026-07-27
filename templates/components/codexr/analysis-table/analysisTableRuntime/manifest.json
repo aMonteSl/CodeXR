@@ -4,6 +4,7 @@
     "zonesAndProfiles.js",
     "geometryUtils.js",
     "containmentLimits.js",
+    "chartFitProfiles.js",
     "diagnosticsAndPid.js",
     "containmentComponentCore.js",
     "measurementAndScaling.js",
