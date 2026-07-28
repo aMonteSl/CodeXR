@@ -135,6 +135,23 @@ The `<subject>_explanation.mp4` files are uploaded (links above); like the demos
 
 The voice-over scripts for the four narrated takes were written per video and follow the same five-to-eight block structure: what it is · what you see · what you control · what else it does · closing.
 
+### XR experiences (`v1.2.0/xr_experiences/`)
+
+Captured live inside **real emulated WebXR sessions** (Meta Immersive Web
+Emulator driven over its MCP bridge — the same rig described in
+`docs/TUTORIAL_EMULADOR_WEBXR.md` §9), against the deep analysis of
+`aframe-babia-components`. They deliberately include the emulator's own
+overlay where it appears: these document how CodeXR is tested and debugged in
+XR, not just how it looks. JPEG ~1600 px, 115-152 KB each.
+
+| Shot | File | Status | What it shows |
+|---|---|---|---|
+| X1 | `vr-testing-cockpit.jpeg` | captured | VR session with the emulator's controller panels and gizmos around the scene — the XR debugging cockpit |
+| X2 | `vr-city-at-the-table.jpeg` | captured | Standing at the table edge in VR, the boats city across the pedestal |
+| X3 | `vr-flying-over-the-city.jpeg` | captured | Flying above the codebase city, whole platform below |
+| X4 | `ar-recentered-pedestal.jpeg` | captured | AR entry: recentered a step from the pedestal, room/environment gone, charts lit by the AR fill light, hover legend visible |
+| X5 | `ar-hover-legend-passthrough.jpeg` | captured | AR close-up: highlighted building with its metrics legend (easyrtc.js) floating in passthrough |
+
 ## Open items
 
 - **Not covered yet**: cross-network access (the tunnel flow and the pairing code), a collaborative session with two people working, and the participant detail dialog. `hero.png` shows two avatars, which covers part of the collaboration story.
