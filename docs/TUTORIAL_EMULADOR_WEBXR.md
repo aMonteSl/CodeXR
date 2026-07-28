@@ -152,6 +152,47 @@ la versión del emulador (o el modelo de gafas).
   divergencia que encuentres en gafas reales es exactamente el tipo de
   reporte que pedimos en el CHANGELOG.
 
+## 9. Puente MCP para agentes
+
+Todo lo anterior lo puede ejecutar también un agente de IA (Claude Code,
+Cursor, Copilot…) sin tocar tu ratón, mediante el puente MCP oficial del
+emulador: [`@iwer/extension-bridge`](https://www.npmjs.com/package/@iwer/extension-bridge).
+
+```json
+{
+  "mcpServers": {
+    "iwer": { "command": "npx", "args": ["-y", "@iwer/extension-bridge"] }
+  }
+}
+```
+
+El flujo: el agente arranca el daemon por stdio, la extensión del emulador
+marca a `ws://127.0.0.1:8723` (puerto fijo), y **la primera vez que el agente
+actúa sobre la pestaña aparece un aviso "Allow" en la página** — nada llega a
+la escena sin ese consentimiento. Desde ahí el agente dispone de ~20
+herramientas: aceptar/terminar la sesión ofrecida, mover casco y mandos
+(`xr_set_transform`, `xr_look_at`), sticks y botones (`xr_set_gamepad_state`,
+`xr_select`) y capturas de la pestaña (`browser_screenshot`).
+
+Con ese puente se validó de punta a punta el checklist de esta guía en una
+sesión real del emulador (entrada/salida de VR y AR, altura, ocultación de AR,
+recolocado, sticks, vuelo, giro y click sobre los gráficos, con captura en
+cada paso) — y así se encontraron los bugs de sticks muertos, rayo
+descompensado tras cambiar de mano y restauración incompleta al salir de VR
+que se arreglaron en 1.2.0.
+
+Limitaciones que conviene saber:
+
+- **La ventana del navegador debe estar visible**: si pierde el foco o queda
+  tapada, Chrome congela el bucle de render XR y las acciones caducan con
+  "no frame processing the queue". Trae la ventana al frente y reintenta.
+- **`xr_accept_session` solo acepta la sesión ofrecida** (el botón "Enter XR"
+  del emulador, que ofrece `immersive-vr`). El botón **AR** de la escena usa
+  `requestSession` y exige un clic humano en la página.
+- El emulador reporta los gamepads como `connected: false` (bug de IWER; las
+  escenas de CodeXR lo compensan desde 1.2.0). Si con otra app los sticks no
+  responden, `xr_set_connected` con `connected: true` los despierta.
+
 ## Referencias
 
 - Comandos de diagnóstico de las escenas XR: [`XR_DEBUG_COMMANDS.md`](XR_DEBUG_COMMANDS.md)

@@ -11,7 +11,7 @@
 })(function (root) {
   'use strict';
 
-  // Immersive-entry adapter for CodeXR scenes: three small, independent jobs.
+  // Immersive-entry adapter for CodeXR scenes: four small, independent jobs.
   //
   // 1. Fly automatically in VR and AR. Desktop stays ground-based (WASD via
   //    movement-controls' own keyboard behaviour); entering any immersive
@@ -19,15 +19,22 @@
   //    left stick walks, right stick turns, both by quaternion), and exiting
   //    restores whatever `fly` was before.
   //
-  // 2. Recenter in AR only. The virtual room is far bigger than a physical
+  // 2. Restore the desktop pose on exit — for EVERY immersive entry, VR and
+  //    AR alike. Flying can leave the user mid-air or outside the room, and
+  //    desktop mode (fly off, no way up or through walls) cannot recover from
+  //    there; the tutorial's contract is "exit returns you to the desktop
+  //    spot". The pose is saved once per entry (enter-vr re-fires on headset
+  //    visibility blips; the saved pose must stay the PRE-entry one).
+  //
+  // 3. Recenter in AR only. The virtual room is far bigger than a physical
   //    one, and the desktop spawn point sits several metres from the
   //    pedestal — in AR that lands the table across, or through, a real
   //    wall. Entering AR moves the rig to (arX, arZ) facing it (`local-floor`
   //    orients -Z to wherever the user is looking when the session starts, so
   //    yaw 0 means "in front of me"); exiting restores the exact desktop
-  //    pose. VR is untouched: the whole room is the point there.
+  //    pose via job 2. VR is untouched: the whole room is the point there.
   //
-  // 3. Floor-align the rig — but ONLY for a real WebXR session. Eye height
+  // 4. Floor-align the rig — but ONLY for a real WebXR session. Eye height
   //    lives on the rig (desktop needs it there: the camera sits at the rig
   //    origin). In a real session, three.js writes the device's local-floor
   //    pose — which already contains the user's height above their physical
@@ -35,7 +42,7 @@
   //    the rig at 1.75 and the user enters at 1.75 + ~1.6 ≈ 3.35 m, floating
   //    over the room (first thing the WebXR emulator showed). So on a real
   //    session the rig's y drops to 0 and the pose supplies the height; on
-  //    exit the desktop height comes back.
+  //    exit the desktop height comes back with the rest of the saved pose.
   //
   //    The reliable "is this real?" signal: A-Frame assigns
   //    `sceneEl.xrSession` BEFORE emitting enter-vr for a real session
@@ -53,10 +60,47 @@
   //    would enter at floor level. Quest and the WebXR emulator both provide
   //    `local-floor`, which A-Frame requests by default.
 
+  // aframe-extras' gamepad-controls (the stick path of movement-controls)
+  // gates ALL stick input on `gamepad.connected`. Per the WebXR Gamepads
+  // Module, the gamepad of an input source the session lists is connected by
+  // definition — but Meta's Immersive Web Emulator (IWER) initialises its
+  // Gamepad with `connected: false` and only syncs the flag inside the
+  // XRTrackedInput `connected` SETTER, which nothing invokes on session
+  // start. Result: trigger and laser work (A-Frame's tracked-controls never
+  // reads the flag) while both sticks are silently dead in the emulator.
+  // Trusting the session's input list — exactly what the spec promises —
+  // makes the same build work on the emulator and on real headsets alike.
+  function patchGamepadControlsConnected(AFRAME) {
+    const record = AFRAME.components && AFRAME.components['gamepad-controls'];
+    const proto = record
+      ? (record.Component ? record.Component.prototype : record.prototype)
+      : null;
+    if (!proto || typeof proto.isConnected !== 'function'
+      || proto.__codexrTrustsSessionInputs) {
+      return;
+    }
+    proto.__codexrTrustsSessionInputs = true;
+    const original = proto.isConnected;
+    proto.isConnected = function () {
+      if (original.call(this)) {
+        return true;
+      }
+      const controllers = (this.system && this.system.controllers) || [];
+      for (let i = 0; i < controllers.length; i++) {
+        if (controllers[i] && controllers[i].gamepad) {
+          return true;
+        }
+      }
+      return false;
+    };
+  }
+
   function registerComponent(AFRAME) {
     if (!AFRAME || AFRAME.components['codexr-immersive-rig']) {
       return;
     }
+
+    patchGamepadControlsConnected(AFRAME);
 
     AFRAME.registerComponent('codexr-immersive-rig', {
       schema: {
@@ -69,7 +113,6 @@
       init: function () {
         this.savedPose = null;
         this.savedFly = null;
-        this.savedHeight = null;
         this.onEnterVR = this.onEnterVR.bind(this);
         this.onExitVR = this.onExitVR.bind(this);
         const sceneEl = this.el.sceneEl;
@@ -99,26 +142,29 @@
         // Guard against a second enter-vr without an exit in between (headset
         // visibility blips re-fire it): saved state must stay whatever it was
         // BEFORE entering, never an already-adapted one.
+        if (!this.savedPose) {
+          this.savedPose = {
+            position: object3D.position.clone(),
+            rotation: object3D.rotation.clone(),
+          };
+        }
+
         if (this.data.autoFly && this.savedFly === null) {
           const movement = this.el.getAttribute('movement-controls') || {};
           this.savedFly = !!movement.fly;
           this.el.setAttribute('movement-controls', 'fly', true);
         }
 
-        if (inAR && this.data.arRecenter && !this.savedPose) {
-          this.savedPose = {
-            position: object3D.position.clone(),
-            rotation: object3D.rotation.clone(),
-          };
+        // Idempotent, so a re-fired enter-vr is harmless.
+        if (inAR && this.data.arRecenter) {
           object3D.position.set(this.data.arX, object3D.position.y, this.data.arZ);
           object3D.rotation.set(0, 0, 0);
         }
 
         // Real WebXR session: the device pose supplies the eye height, so the
-        // rig must stop supplying it too (see job 3 in the header). Simulated
+        // rig must stop supplying it too (see job 4 in the header). Simulated
         // entries have no sceneEl.xrSession and keep the desktop height.
-        if (sceneEl.xrSession && this.savedHeight === null) {
-          this.savedHeight = object3D.position.y;
+        if (sceneEl.xrSession) {
           object3D.position.y = 0;
         }
       },
@@ -135,13 +181,6 @@
           object3D.position.copy(this.savedPose.position);
           object3D.rotation.copy(this.savedPose.rotation);
           this.savedPose = null;
-        }
-
-        // The AR-recenter restore above already brings the full position back;
-        // this covers the VR case (no savedPose) and is a no-op after it.
-        if (object3D && this.savedHeight !== null) {
-          object3D.position.y = this.savedHeight;
-          this.savedHeight = null;
         }
       },
     });

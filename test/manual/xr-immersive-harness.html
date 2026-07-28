@@ -139,16 +139,24 @@
         return sceneEl.systems['tracked-controls'];
       })();
 
+      // Gamepads modelled on what IWER (the Immersive Web Emulator's runtime)
+      // actually exposes — including its bug: `connected` starts FALSE and is
+      // only synced by a setter nothing invokes on session start, even though
+      // the WebXR Gamepads Module says a listed input source's gamepad is
+      // connected by definition. aframe-extras' gamepad-controls gates all
+      // stick input on that flag, so a `connected: true` fake here would hide
+      // the exact way the emulator kills locomotion (it did, once).
       function fakeGamepad(hand) {
         let entry = trackedControlsSystem.controllers.find((c) => c.handedness === hand);
         if (!entry) {
           entry = {
             handedness: hand,
             gamepad: {
-              axes: [0, 0, 0, 0],
+              // IWER's Quest layout: axes [null, null, stick-x, stick-y].
+              axes: [null, null, 0, 0],
               buttons: [],
               mapping: 'xr-standard',
-              connected: true,
+              connected: false,
               hand: hand,
             },
           };
@@ -172,9 +180,12 @@
         const el = document.getElementById(id);
         if (!el) { return null; }
         const raycaster = el.getAttribute('raycaster');
+        const direction = raycaster && raycaster.direction ? raycaster.direction : null;
         return {
           enabled: !!(raycaster && raycaster.enabled !== false),
+          showLine: !!(raycaster && raycaster.showLine === true),
           objects: raycaster ? raycaster.objects : null,
+          direction: direction ? { x: direction.x, y: direction.y, z: direction.z } : null,
           hasCursor: !!el.getAttribute('cursor'),
           visible: el.getAttribute('visible') !== false,
         };
@@ -243,6 +254,38 @@
         connect(side) {
           document.getElementById(side + 'Controller')
             .emit('controllerconnected', { name: 'generic-tracked-controller-controls' });
+        },
+        // The REAL Quest/emulator event sequence: laser-controls reacts to
+        // controllerconnected with a default raycaster, then meta-touch's
+        // model load emits controllermodelready carrying the model-specific
+        // rayOrigin — the ~40°-down direction that maps the grip axis onto
+        // where the controller actually points (verbatim payload from
+        // A-Frame 1.7.1's meta-touch-controls for the touch-plus models).
+        // Everything downstream (laser-controls createRay, cursor injection,
+        // codexr-pointer-policy) is the real library code reacting.
+        metaRayOrigin(side) {
+          const sx = side === 'left' ? 1 : -1;
+          return {
+            origin: { x: sx * 0.0065, y: -0.0186, z: -0.05 },
+            direction: { x: sx * 0.12394785839500175, y: -0.5944043672340157, z: -0.7945567170519814 },
+          };
+        },
+        connectMeta(side) {
+          const el = document.getElementById(side + 'Controller');
+          el.emit('controllerconnected', { name: 'meta-touch-controls' });
+          el.emit('controllermodelready', {
+            name: 'meta-touch-controls',
+            model: true,
+            rayOrigin: this.metaRayOrigin(side),
+          });
+        },
+        // IWER re-announces input sources (visibility blips, remote
+        // set_connected calls): every re-fire makes laser-controls re-apply
+        // `showLine: true` on that controller. The policy must win each time
+        // or a second laser stays lit.
+        reannounce(side) {
+          document.getElementById(side + 'Controller')
+            .emit('controllerconnected', { name: 'meta-touch-controls' });
         },
         // The DOM event A-Frame's controller components publish from the
         // gamepad's thumbstick — drives codexr-pointer-policy's handover,

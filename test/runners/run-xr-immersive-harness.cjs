@@ -297,7 +297,11 @@ async function runScenario(browser) {
     state = await snap();
     assert.equal(state.pointers.right.enabled, true, 'VR: right controller takes preference');
     assert.equal(state.pointers.left.enabled, false, 'VR: left demoted with both connected');
-    assert.equal(state.pointers.left.hasCursor, false, 'VR: demoted laser loses its cursor');
+    assert.equal(state.pointers.left.showLine, false, 'VR: demoted laser hides its line');
+    // The demoted hand KEEPS its cursor: with the raycaster disabled it is
+    // inert, and re-creating a cursor is what used to wipe the raycaster
+    // direction laser-controls installed (cursor.resetRaycaster on init).
+    assert.equal(state.pointers.left.hasCursor, true, 'VR: demoted laser keeps its inert cursor');
 
     await run('CodeXRImmersiveHarness.disconnect("right")');
     await run('CodeXRImmersiveHarness.disconnect("left")');
@@ -367,15 +371,23 @@ async function runScenario(browser) {
 
     await run('CodeXRImmersiveHarness.pitchCamera(0)');
     await run('CodeXRImmersiveHarness.clearStickAxes()');
-    await run('document.getElementById("rig").object3D.position.set(0.07, 1.75, -10.75)');
-    await run('document.getElementById("rig").object3D.rotation.set(0, 0, 0)');
 
+    // No manual rig reset here ON PURPOSE: the user just walked, turned and
+    // flew — exiting must bring the desktop pose back by itself. (Flying can
+    // strand you mid-air or outside the room, and desktop mode cannot recover
+    // from there; an earlier runner reset the rig by hand right here, which
+    // is exactly how the missing restore shipped unnoticed.)
     await run('CodeXRImmersiveHarness.exit()');
     await settle();
     state = await snap();
     assert.equal(state.pointers.mouse.enabled, true, 'after VR: mouse pointer back');
     assert.equal(state.movement.fly, false, 'after VR: grounded again on desktop');
     assertStanding(state, 'after VR');
+    assert.deepEqual(
+        { x: state.rig.x, z: state.rig.z, yaw: state.rig.yaw },
+        { x: desktopPose.x, z: desktopPose.z, yaw: desktopPose.yaw },
+        'after VR: the full desktop pose is restored, however far the user flew',
+    );
 
     // --- The debug simulate commands run the exact same real components ---
     for (const [command, label] of [['simulateAR', 'AR'], ['simulateVR', 'VR']]) {
@@ -454,6 +466,99 @@ async function runScenario(browser) {
         { x: state.rig.x, z: state.rig.z },
         { x: 0.07, z: -10.75 },
         'after real AR: desktop spot restored',
+    );
+
+    // --- Real session, controllers the way the emulator delivers them ------
+    // Three regressions found LIVE through the IWER MCP bridge, all three of
+    // which the previous harness could not see:
+    //  1. IWER gamepads report connected:false (this page's fakes now do
+    //     too) — sticks must still work, because an input source the session
+    //     lists is connected by definition (the WebXR Gamepads Module), and
+    //     the rig runtime teaches aframe-extras to trust that list.
+    //  2. The controllermodelready rayOrigin (the ~40°-down direction that
+    //     maps the grip axis onto where a Touch controller points) must
+    //     SURVIVE pointer handovers — recreating the cursor used to reset it.
+    //  3. Exactly one laser may stay lit through handovers and IWER's
+    //     re-announcements of already-connected controllers.
+    const compensated = (side, p) =>
+        p.direction !== null && p.direction.y < -0.5 &&
+        (side === 'left' ? p.direction.x > 0 : p.direction.x < 0);
+
+    await run('CodeXRImmersiveHarness.setRealSession(true)');
+    await run('CodeXRImmersiveHarness.enterVR()');
+    await settle();
+    await run('CodeXRImmersiveHarness.connectMeta("left")');
+    await run('CodeXRImmersiveHarness.connectMeta("right")');
+    await settle();
+    state = await snap();
+    assert.equal(await active(), 'right', 'real VR: last-used hand (right) is the pointer');
+    assert.ok(compensated('right', state.pointers.right),
+        `real VR: the active laser carries the model rayOrigin direction, got ${JSON.stringify(state.pointers.right.direction)}`);
+
+    // Handover to the idle hand — its direction must still be the model one.
+    await run('CodeXRImmersiveHarness.trigger("left")');
+    await settle();
+    state = await snap();
+    assert.equal(await active(), 'left', 'real VR: trigger hands the pointer to the left');
+    assert.ok(compensated('left', state.pointers.left),
+        `real VR: the handed-over laser must keep the model rayOrigin direction — `
+        + `(0,0,-1) here means a recreated cursor reset it (the "laser aims 40° high" bug), `
+        + `got ${JSON.stringify(state.pointers.left.direction)}`);
+    assert.equal(state.pointers.right.showLine, false, 'real VR: only one laser line (right off)');
+
+    // And back.
+    await run('CodeXRImmersiveHarness.trigger("right")');
+    await settle();
+    state = await snap();
+    assert.ok(compensated('right', state.pointers.right),
+        `real VR: direction survives the handover back, got ${JSON.stringify(state.pointers.right.direction)}`);
+    assert.equal(state.pointers.left.showLine, false, 'real VR: only one laser line (left off)');
+
+    // IWER re-announces input sources (visibility blips, remote toggles);
+    // each re-fire makes laser-controls force showLine back on. The policy
+    // must re-neutralize every time or a second laser stays lit — the
+    // two-laser state screenshots from the live emulator session showed.
+    await run('CodeXRImmersiveHarness.reannounce("left")');
+    await settle();
+    state = await snap();
+    assert.equal(await active(), 'right', 'real VR: a re-announcement steals nothing');
+    assert.equal(state.pointers.left.showLine, false,
+        'real VR: left line stays off after IWER re-announces the controller');
+    assert.equal(state.pointers.right.showLine, true, 'real VR: the active line stays on');
+
+    // Sticks, exactly as IWER exposes them (gamepad.connected === false):
+    // locomotion must work anyway.
+    await run('CodeXRImmersiveHarness.clearStickAxes()');
+    let realBefore = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, -1)');
+    await page.waitForTimeout(300);
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, 0)');
+    let realAfter = (await snap()).rig;
+    assert.ok(
+        realBefore.z - realAfter.z > 0.3,
+        `real VR: left stick must walk even though IWER reports connected:false `
+        + `(z ${realBefore.z} -> ${realAfter.z})`,
+    );
+
+    realBefore = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("right", 1, 0)');
+    await page.waitForTimeout(250);
+    await run('CodeXRImmersiveHarness.setStickAxes("right", 0, 0)');
+    realAfter = (await snap()).rig;
+    assert.ok(realAfter.yaw - realBefore.yaw < -0.15,
+        `real VR: right stick must turn with connected:false gamepads (Δyaw ${realAfter.yaw - realBefore.yaw})`);
+
+    // Exit: the desktop pose comes back on its own, wherever the user went.
+    await run('CodeXRImmersiveHarness.exit()');
+    await run('CodeXRImmersiveHarness.fakeHeadsetPose(0)');
+    await run('CodeXRImmersiveHarness.setRealSession(false)');
+    await settle();
+    state = await snap();
+    assertStanding(state, 'after real VR with controllers');
+    assert.deepEqual(
+        { x: state.rig.x, z: state.rig.z, yaw: state.rig.yaw },
+        { x: 0.07, z: -10.75, yaw: 0 },
+        'after real VR with controllers: full desktop pose restored',
     );
 }
 

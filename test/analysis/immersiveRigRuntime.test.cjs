@@ -245,6 +245,43 @@ test('a REAL session drops the rig to the floor and restores it on exit', () => 
     assert.equal(rigEl.object3D.position.y, 1.75, 'desktop height back on exit');
 });
 
+test('exiting VR restores the desktop pose after flying — not just the height', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.xrSession = {};
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+
+    // The user walked with the sticks, turned, and flew out of the room —
+    // all of it moves the RIG (movement-controls), and desktop mode (fly
+    // off, walls solid to the eye) cannot recover from out there.
+    rigEl.object3D.position.set(9.4, 3.1, 4.2);
+    rigEl.object3D.rotation.set(0, 2.4, 0);
+
+    sceneEl.states.delete('vr-mode');
+    sceneEl.xrSession = undefined;
+    sceneEl.emit('exit-vr');
+
+    assert.deepEqual(
+        { x: rigEl.object3D.position.x, y: rigEl.object3D.position.y, z: rigEl.object3D.position.z },
+        { x: 0.07, y: 1.75, z: -10.75 },
+        'the desktop spot comes back, however far the user flew',
+    );
+    assert.equal(rigEl.object3D.rotation.y, 0.35, 'desktop yaw restored too');
+});
+
+test('a SIMULATED VR exit also restores the pose (CodeXRDebug parity)', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.states.add('vr-mode'); // no xrSession: simulateVR path
+    sceneEl.emit('enter-vr');
+    rigEl.object3D.position.set(2, 1.75, -3);
+
+    sceneEl.states.delete('vr-mode');
+    sceneEl.emit('exit-vr');
+    assert.equal(rigEl.object3D.position.z, -10.75, 'simulated exits restore the same way');
+});
+
 test('a SIMULATED entry keeps the desktop height — no pose will replace it', () => {
     const { sceneEl, rigEl } = createHarness();
 
@@ -287,4 +324,88 @@ test('a double enter-vr in a real session keeps the ORIGINAL height saved', () =
 
     sceneEl.emit('exit-vr');
     assert.equal(rigEl.object3D.position.y, 1.75, 'restored to 1.75, not to the adapted 0');
+});
+
+// --- The gamepad-controls compatibility patch: aframe-extras gates ALL stick
+// input on `gamepad.connected`, and Meta's Immersive Web Emulator leaves that
+// flag false on session start (its runtime only syncs it inside a setter
+// nothing invokes). Per the WebXR Gamepads Module an input source the session
+// lists is connected by definition, so the runtime teaches isConnected to
+// trust the tracked-controls system's list. Found live: lasers and triggers
+// worked while both sticks were dead in the emulator. ---
+
+function gamepadPatchContext() {
+    // A-Frame's real shape: AFRAME.components[name].Component.prototype.
+    function GamepadControls() {}
+    GamepadControls.prototype.isConnected = function () {
+        const gamepad = this.getGamepad();
+        return !!(gamepad && gamepad.connected);
+    };
+    GamepadControls.prototype.getGamepad = function () {
+        const controllers = (this.system && this.system.controllers) || [];
+        const entry = controllers.find((c) => c && c.handedness === 'left') || controllers[0];
+        return entry ? entry.gamepad : null;
+    };
+
+    const context = {
+        AFRAME: {
+            components: { 'gamepad-controls': { Component: GamepadControls } },
+            registerComponent(name, definition) {
+                this.components[name] = definition;
+            },
+        },
+    };
+    context.window = context;
+    context.globalThis = context;
+    vm.runInNewContext(runtimeSource, context, { filename: runtimePath });
+    return { GamepadControls };
+}
+
+test('IWER-shaped gamepads (connected:false) still count as connected', () => {
+    const { GamepadControls } = gamepadPatchContext();
+    const instance = new GamepadControls();
+    instance.system = {
+        controllers: [
+            { handedness: 'left', gamepad: { connected: false, axes: [null, null, 0, 0] } },
+            { handedness: 'right', gamepad: { connected: false, axes: [null, null, 0, 0] } },
+        ],
+    };
+    assert.equal(instance.isConnected(), true,
+        'an input source the session lists is connected by definition');
+});
+
+test('no controllers listed: isConnected stays false', () => {
+    const { GamepadControls } = gamepadPatchContext();
+    const instance = new GamepadControls();
+    instance.system = { controllers: [] };
+    assert.equal(instance.isConnected(), false);
+});
+
+test('a well-behaved gamepad (connected:true) still passes through the original check', () => {
+    const { GamepadControls } = gamepadPatchContext();
+    const instance = new GamepadControls();
+    instance.system = {
+        controllers: [{ handedness: 'left', gamepad: { connected: true } }],
+    };
+    assert.equal(instance.isConnected(), true);
+});
+
+test('the patch is applied exactly once', () => {
+    function GamepadControls() {}
+    GamepadControls.prototype.isConnected = function () { return false; };
+    const context = {
+        AFRAME: {
+            components: { 'gamepad-controls': { Component: GamepadControls } },
+            registerComponent(name, definition) { this.components[name] = definition; },
+        },
+    };
+    context.window = context;
+    context.globalThis = context;
+    vm.runInNewContext(runtimeSource, context, { filename: runtimePath });
+    const patched = GamepadControls.prototype.isConnected;
+    // A second component registration (another scene, a re-injected script)
+    // must not wrap the wrapper.
+    delete context.AFRAME.components['codexr-immersive-rig'];
+    vm.runInNewContext(runtimeSource, context, { filename: runtimePath });
+    assert.equal(GamepadControls.prototype.isConnected, patched, 'no double wrap');
 });
