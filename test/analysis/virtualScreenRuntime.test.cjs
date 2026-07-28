@@ -427,6 +427,47 @@ test('collision bumpers stop look-at, drag, and resize at walls and screens', ()
     assert.match(xrTemplate, /"anchoredPosition":\{"x":0,"y":4\.2,"z":-22\}/);
 });
 
+test('grab-and-reach: the grabbing hand\'s stick pushes/pulls the screen per frame', () => {
+    // The handler only RECORDS the deflection — thumbstickmoved fires on axis
+    // CHANGE, so applying per event froze the screen while the stick was held
+    // (the shipped behaviour the emulator exposed). Motion happens per frame.
+    assert.match(runtimeSource, /state\.drag\.depthStickY = Math\.abs\(axisY\) < 0\.15 \? 0 : axisY/);
+    assert.doesNotMatch(runtimeSource, /adjustDragDepth\(axisY/);
+    assert.match(runtimeSource, /function applyStickDepth/);
+    assert.match(runtimeSource, /applyStickDepth\(\);\s*\n\s*updateDragDepthSmoothing\(\)/);
+    // Stick forward (negative y) pushes AWAY (Quest convention), scaled by
+    // time, not by event count.
+    assert.match(runtimeSource, /adjustDragDepth\(-deflection \* speed \* dtSeconds\)/);
+    assert.match(runtimeSource, /controllerDepthSpeed: 1\.8/);
+    assert.doesNotMatch(runtimeSource, /controllerDepthStep/);
+    // The depth target is clamped: bounded lead (the collision bumper is a
+    // physical stop — unbounded accumulation made reversing dead) and a
+    // minimum pull distance so the screen stops before the user's head.
+    assert.match(runtimeSource, /dragDepthMaxLead: 1\.2/);
+    assert.match(runtimeSource, /dragDepthMinDistance: 0\.6/);
+    assert.match(runtimeSource, /Math\.min\(Math\.max\(target, current - maxLead\), current \+ maxLead\)/);
+    assert.match(runtimeSource, /minDistance - state\.drag\.startDepthDistance/);
+    // The per-frame depth log died with the per-event step: adjustDragDepth
+    // now runs every frame and must not spam the console.
+    assert.doesNotMatch(runtimeSource, /VIRTUAL_SCREEN: depth update/);
+});
+
+test('a controller drag claims its stick and owns the pointer for its duration', () => {
+    // The grabbing hand's stick is claimed away from aframe-extras locomotion
+    // (the gate lives in codexr-immersive-rig; lazy global lookup because
+    // screens load before the rig runtime) and the scene is marked so
+    // codexr-pointer-policy does not hand the laser away mid-grab.
+    assert.match(runtimeSource, /CodeXRStickGateRuntime\?\.claim\?\.\(state\.drag\.gateHand\)/);
+    assert.match(runtimeSource, /CodeXRStickGateRuntime\?\.release\?\.\(state\.drag\.gateHand\)/);
+    assert.match(runtimeSource, /addState\('codexr-screen-drag'\)/);
+    assert.match(runtimeSource, /removeState\?\.\('codexr-screen-drag'\)/);
+    // Claim/release and state add/remove are paired through endDrag, which
+    // runs on every drag-end path (handle/scene/window mouseup and blur).
+    assert.match(runtimeSource, /ownsSceneDragState/);
+    // Only the two known controller ids map to a claimable hand.
+    assert.match(runtimeSource, /'leftController'\s*\n?\s*\? 'left'/);
+});
+
 // ── Relay transport: media for viewers peer-to-peer cannot reach ─────────────
 
 test('the relay wire format matches the one the server relays and validates', () => {

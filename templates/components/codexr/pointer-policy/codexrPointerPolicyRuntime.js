@@ -168,6 +168,15 @@
         if (this.lastUsed === side) {
           return;
         }
+        // An active controller drag OWNS the pointer: while a screen is
+        // grabbed (virtual-screen sets this scene state), no activity on the
+        // other hand may steal the laser — disabling the dragging hand's
+        // raycaster mid-grab freezes the drag (its pointer ray goes null).
+        // Walking with the other stick during a grab is expressly supported.
+        const sceneEl = this.el.sceneEl || this.el;
+        if (typeof sceneEl.is === 'function' && sceneEl.is('codexr-screen-drag')) {
+          return;
+        }
         this.lastUsed = side;
         this.scheduleApply();
       },
@@ -246,6 +255,24 @@
           // put on purpose — recreating it later would run A-Frame's cursor
           // resetRaycaster() and wipe the pointing direction laser-controls
           // installed from the controller model (see the header).
+          //
+          // The line needs one extra sweep: A-Frame's raycaster queues its
+          // updateLine with setTimeout on EVERY intersecting tick, and that
+          // callback redraws the line WITHOUT re-checking showLine — so a
+          // redraw queued just before this demotion resurrects the line right
+          // after it, and with the raycaster now disabled nothing ever clears
+          // it again. That ghost is the steady "two lasers" state the WebXR
+          // emulator showed. Sweeping one macrotask later runs after any
+          // already-queued redraw; the guard keeps a re-promoted laser safe.
+          setTimeout(function () {
+            if (typeof el.getAttribute !== 'function' || typeof el.removeAttribute !== 'function') {
+              return;
+            }
+            const ray = el.getAttribute('raycaster');
+            if (ray && ray.showLine !== true && el.getAttribute('line')) {
+              el.removeAttribute('line');
+            }
+          }, 0);
           return;
         }
         // laser-controls injects raycasters with objects: '' (the whole

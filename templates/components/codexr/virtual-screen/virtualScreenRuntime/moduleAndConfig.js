@@ -56,7 +56,17 @@
     minimizedWidth: 2.1,
     minimizedHeight: 0.42,
     dragDepthStep: 0.45,
-    controllerDepthStep: 0.08,
+    // Push/pull while dragging with a controller: metres per second at full
+    // thumbstick deflection, applied per frame (thumbstickmoved only fires on
+    // CHANGE, so a per-event step froze the screen while the stick was held).
+    controllerDepthSpeed: 1.8,
+    // How far the smoothed depth target may run ahead of the applied offset.
+    // Unbounded, it kept accumulating while a collision bumper pinned the
+    // screen, and reversing the stick had to unwind it all before anything
+    // moved again.
+    dragDepthMaxLead: 1.2,
+    // Pulling stops before the screen reaches the user's head.
+    dragDepthMinDistance: 0.6,
     instanceId: '',
     screenId: '',
     ownerPeerId: '',

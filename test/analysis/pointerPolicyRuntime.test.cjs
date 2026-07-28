@@ -351,6 +351,56 @@ test('the hand you last used keeps the pointer through a laser-controls re-injec
     assert.equal(pointers.left.attrs.raycaster.objects, '.babiaxraycasterclass');
 });
 
+test('an active screen drag owns the pointer: no handover until it ends', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // virtual-screen marks the scene while a controller drag is live:
+    // stealing the laser mid-grab would disable the dragging hand's raycaster
+    // and freeze the drag. Walking with the other stick stays possible, so
+    // its activity events MUST NOT promote it.
+    sceneEl.states.add('codexr-screen-drag');
+    pointers.left.emit('thumbstickmoved', { x: 0, y: -1 });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+    pointers.left.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // Drag released: the next activity hands over normally again.
+    sceneEl.states.delete('codexr-screen-drag');
+    pointers.left.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'left');
+});
+
+test('demotion sweeps the ghost line A-Frame\'s queued redraw resurrects', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // A-Frame's raycaster queues updateLine with setTimeout on every
+    // intersecting tick and redraws WITHOUT re-checking showLine — model the
+    // resurrected line component on the hand about to be demoted.
+    pointers.right.attrs.line = { start: {}, end: {} };
+    pointers.left.emit('triggerdown');
+    flush(); // applyPolicy demotes right… and its sweep timer runs too
+    assertSingleActivePointer(pointers, 'left');
+    assert.equal('line' in pointers.right.attrs, false,
+        'the demoted hand must not keep a rendered line component');
+});
+
 test('exit-vr hands the pointer back to the mouse', () => {
     const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
     sceneEl.emit('enter-vr');

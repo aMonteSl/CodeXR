@@ -390,6 +390,73 @@ test('a well-behaved gamepad (connected:true) still passes through the original 
     assert.equal(instance.isConnected(), true);
 });
 
+// --- The per-hand stick gate: while a controller drags a virtual screen its
+// thumbstick pushes/pulls the screen, so that hand's locomotion function must
+// go quiet — aframe-extras polls the gamepads directly (events cannot stop
+// it), so the claim is honoured inside a getJoystick patch. The scheme is
+// fixed upstream: joystick 1 (MOVEMENT) reads the LEFT gamepad, joystick 2
+// (ROTATION) reads the RIGHT one, so a claim silences only its own hand. ---
+
+function stickGateContext() {
+    function GamepadControls() {}
+    GamepadControls.prototype.isConnected = function () { return true; };
+    GamepadControls.prototype.getJoystick = function (index, target) {
+        // Stand-in for the real read: full deflection on whatever is asked.
+        target.set(1, 1);
+        return target;
+    };
+    const context = {
+        AFRAME: {
+            components: { 'gamepad-controls': { Component: GamepadControls } },
+            registerComponent(name, definition) { this.components[name] = definition; },
+        },
+    };
+    context.window = context;
+    context.globalThis = context;
+    vm.runInNewContext(runtimeSource, context, { filename: runtimePath });
+    const target = {
+        x: null, y: null,
+        set(x, y) { this.x = x; this.y = y; return this; },
+    };
+    return { gate: context.CodeXRStickGateRuntime, instance: new GamepadControls(), target };
+}
+
+test('the stick gate silences MOVEMENT while the left hand is claimed', () => {
+    const { gate, instance, target } = stickGateContext();
+    assert.ok(gate, 'rig runtime must expose CodeXRStickGateRuntime');
+
+    gate.claim('left');
+    instance.getJoystick(1, target); // MOVEMENT reads the left gamepad
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 0, y: 0 }, 'left claimed: no walking');
+    instance.getJoystick(2, target); // ROTATION reads the right gamepad
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 }, 'left claimed: turning still works');
+
+    gate.release('left');
+    instance.getJoystick(1, target);
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 }, 'released: walking is back');
+});
+
+test('the stick gate silences ROTATION while the right hand is claimed', () => {
+    const { gate, instance, target } = stickGateContext();
+    gate.claim('right');
+    instance.getJoystick(2, target);
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 0, y: 0 }, 'right claimed: no turning');
+    instance.getJoystick(1, target);
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 }, 'right claimed: walking still works');
+    gate.release('right');
+    instance.getJoystick(2, target);
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 }, 'released: turning is back');
+});
+
+test('the stick gate ignores unknown hands and stays a passthrough by default', () => {
+    const { gate, instance, target } = stickGateContext();
+    gate.claim('head'); // nonsense claims must not wedge anything
+    instance.getJoystick(1, target);
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 });
+    instance.getJoystick(2, target);
+    assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 });
+});
+
 test('the patch is applied exactly once', () => {
     function GamepadControls() {}
     GamepadControls.prototype.isConnected = function () { return false; };

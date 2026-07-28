@@ -182,12 +182,43 @@
       if (!state.drag || state.drag.kind !== 'move' || !state.drag.depthAxis?.clone) {
         return;
       }
-      state.drag.targetDepthOffset += delta;
-      console.log('VIRTUAL_SCREEN: depth update', {
-        delta,
-        target: state.drag.targetDepthOffset,
-        current: state.drag.currentDepthOffset,
-      });
+      let target = state.drag.targetDepthOffset + delta;
+      // The collision bumper is a physical stop, not a clamp: without a lead
+      // limit the target kept growing while the screen sat pinned against a
+      // wall, and reversing the input had to unwind it all before the screen
+      // moved again.
+      const maxLead = refs.config.dragDepthMaxLead ?? 1.2;
+      const current = state.drag.currentDepthOffset;
+      target = Math.min(Math.max(target, current - maxLead), current + maxLead);
+      // Pulling stops before the screen reaches the user's head. The grab
+      // distance is measured once at startDrag; close enough, since the depth
+      // axis is frozen there too.
+      if (typeof state.drag.startDepthDistance === 'number') {
+        const minDistance = refs.config.dragDepthMinDistance ?? 0.6;
+        target = Math.max(target, minDistance - state.drag.startDepthDistance);
+      }
+      state.drag.targetDepthOffset = target;
+    }
+
+    // Depth from the grabbing controller's thumbstick, applied every frame of
+    // the drag loop: thumbstickmoved only fires when the axis CHANGES, so the
+    // handler merely records the deflection and this converts it into motion
+    // for as long as the stick is held. Stick forward (negative y) pushes the
+    // screen away — the Quest convention.
+    function applyStickDepth() {
+      if (!state.drag) {
+        return;
+      }
+      const now = global.performance?.now ? global.performance.now() : Date.now();
+      const last = state.drag.lastDepthTick ?? now;
+      state.drag.lastDepthTick = now;
+      const deflection = state.drag.depthStickY || 0;
+      if (!deflection) {
+        return;
+      }
+      const dtSeconds = Math.min(Math.max(now - last, 0), 50) / 1000;
+      const speed = refs.config.controllerDepthSpeed ?? 1.8;
+      adjustDragDepth(-deflection * speed * dtSeconds);
     }
 
     function updateDragDepthSmoothing() {
@@ -223,6 +254,8 @@
       if (!state.drag || state.drag.kind !== 'move' || state.drag.pointerType !== 'controller') {
         return;
       }
+      // Only the stick of the hand that GRABBED drives the depth; the other
+      // hand keeps its locomotion role.
       const pointerEl = state.drag.pointerEl;
       if (pointerEl?.id && evt.currentTarget?.id && evt.currentTarget.id !== pointerEl.id) {
         return;
@@ -232,12 +265,13 @@
         : Array.isArray(evt.detail?.axis) && typeof evt.detail.axis[1] === 'number'
           ? evt.detail.axis[1]
           : null;
-      if (typeof axisY !== 'number' || Math.abs(axisY) < 0.15) {
+      if (typeof axisY !== 'number') {
         return;
       }
-      evt.preventDefault?.();
-      evt.stopPropagation?.();
-      adjustDragDepth(axisY * refs.config.controllerDepthStep);
+      // Record only — applyStickDepth turns this into per-frame motion.
+      // Recording is idempotent, so the double listener (scene + controller,
+      // see wireDepthInputHandlers) needs no stopPropagation games.
+      state.drag.depthStickY = Math.abs(axisY) < 0.15 ? 0 : axisY;
     }
 
     function updateDrag() {
@@ -245,6 +279,7 @@
         state.dragLoopActive = false;
         return;
       }
+      applyStickDepth();
       updateDragDepthSmoothing();
       const intersectionPoint = getSurfaceIntersection(state.drag.pointerEl);
       if (!intersectionPoint) {
@@ -290,7 +325,35 @@
         depthAxis: kind === 'move' ? getDragDepthAxis(rootWorldPosition) : null,
         currentDepthOffset: 0,
         targetDepthOffset: 0,
+        depthStickY: 0,
+        lastDepthTick: null,
+        startDepthDistance: null,
+        gateHand: null,
+        ownsSceneDragState: false,
       };
+      if (state.drag.depthAxis) {
+        const cameraWorldPosition = getCameraWorldPosition();
+        if (cameraWorldPosition?.clone) {
+          state.drag.startDepthDistance = rootWorldPosition.clone().sub(cameraWorldPosition).length();
+        }
+      }
+      if (state.drag.pointerType === 'controller') {
+        // The grabbing hand's thumbstick belongs to the drag now: claim it so
+        // aframe-extras' gamepad locomotion ignores that stick (the OTHER
+        // hand keeps walking/turning), and mark the scene so
+        // codexr-pointer-policy does not hand the laser away mid-grab.
+        state.drag.gateHand = pointerEl?.id === 'leftController'
+          ? 'left'
+          : pointerEl?.id === 'rightController' ? 'right' : null;
+        if (state.drag.gateHand) {
+          global.CodeXRStickGateRuntime?.claim?.(state.drag.gateHand);
+        }
+        const sceneEl = getScene();
+        if (sceneEl?.addState) {
+          sceneEl.addState('codexr-screen-drag');
+          state.drag.ownsSceneDragState = true;
+        }
+      }
       console.log('VIRTUAL_SCREEN: drag start', {
         kind,
         handleKey,
@@ -311,6 +374,15 @@
         return;
       }
       console.log('VIRTUAL_SCREEN: drag end');
+      // Give the sticks back: release the locomotion claim and the
+      // pointer-hold scene state this drag took (and only if THIS instance
+      // took them — endDrag also fires globally on window mouseup/blur).
+      if (state.drag.gateHand) {
+        global.CodeXRStickGateRuntime?.release?.(state.drag.gateHand);
+      }
+      if (state.drag.ownsSceneDragState) {
+        getScene()?.removeState?.('codexr-screen-drag');
+      }
       state.drag = null;
       setInteractive(refs.dragPlane, false);
       if (!state.follow && state.lookAtCameraEnabled) {

@@ -187,6 +187,11 @@
           objects: raycaster ? raycaster.objects : null,
           direction: direction ? { x: direction.x, y: direction.y, z: direction.z } : null,
           hasCursor: !!el.getAttribute('cursor'),
+          // The VISUAL truth, distinct from showLine: A-Frame's raycaster
+          // queues its line redraw with setTimeout and redraws without
+          // re-checking showLine, so a demoted laser can keep a rendered
+          // line while its attributes look correct (the "second laser").
+          hasLine: !!el.getAttribute('line'),
           visible: el.getAttribute('visible') !== false,
         };
       }
