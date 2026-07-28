@@ -43,6 +43,13 @@ export interface ExportManifestOptions {
     serverCapabilities: ExportServerCapabilities;
     /** Set when the pre-export dependency analysis failed or timed out. */
     dependencyGraphFailureReason?: string;
+    /**
+     * The analysis view active when the user exported, straight from the
+     * refresh coordinator. Deliberately an opaque mode string: whatever modes
+     * exist now or in the future, the export lands the scene exactly where
+     * the user left it.
+     */
+    viewState?: { mode: string; controllerView?: string };
 }
 
 interface ComparisonReplayEntry {
@@ -259,6 +266,23 @@ export async function buildExportManifest(
             entityId: 'main',
             mode: 'project-evolution',
             resultUrl: `./evolution/revision-${evolutionRevisions[0]}/manifest.json`,
+        });
+    }
+
+    // The active mode is itself a shared entity (`analysis-view`): the live
+    // server publishes it and the mode runtime obeys it. Exporting it is what
+    // makes the copy open in the mode the user was actually in — the mode-data
+    // entities above are passive by contract and never change the view.
+    if (options.viewState?.mode) {
+        entities.push({
+            entityKind: 'analysis-view',
+            entityId: 'main',
+            mode: options.viewState.mode,
+            ...(options.viewState.controllerView
+                ? { controllerView: options.viewState.controllerView }
+                : {}),
+            status: 'ready',
+            hasUsableSnapshot: true,
         });
     }
 

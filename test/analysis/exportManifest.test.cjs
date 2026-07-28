@@ -207,3 +207,37 @@ test('writeExportReadme documents serving and the replay-only limits', async () 
     assert.match(readme, /replay of what was computed before export/);
     assert.match(readme, /live CodeXR session/);
 });
+
+test('the manifest carries the active analysis view, whatever the mode is called', async () => {
+    const folder = buildFullFixture();
+    await relativizeExportArtifacts(folder);
+
+    // Deliberately a mode this codebase has never heard of: the export must
+    // carry it verbatim, so adding modes never touches this code path.
+    const manifest = await buildExportManifest(folder, {
+        target: { name: 'demo-project', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        viewState: { mode: 'time-travel', controllerView: 'time-travel.mapping' },
+    });
+
+    const view = manifest.entities.find((entity) => entity.entityKind === 'analysis-view');
+    assert.equal(view.entityId, 'main');
+    assert.equal(view.mode, 'time-travel');
+    assert.equal(view.controllerView, 'time-travel.mapping');
+    assert.equal(view.status, 'ready');
+
+    // The view entity comes after the data entities, but ordering must not
+    // matter: the mode runtimes are passive, so this is belt and braces.
+    const kinds = manifest.entities.map((entity) => entity.entityKind);
+    assert.equal(kinds[kinds.length - 1], 'analysis-view');
+
+    // Without a view state (defensive path) no analysis-view entity appears
+    // and the scene keeps its default mode.
+    const folderB = buildFullFixture();
+    await relativizeExportArtifacts(folderB);
+    const manifestB = await buildExportManifest(folderB, {
+        target: { name: 'demo-project', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+    });
+    assert.equal(manifestB.entities.some((entity) => entity.entityKind === 'analysis-view'), false);
+});

@@ -211,7 +211,11 @@
       // the builder, not by reading its source.
       buildEvolutionChart: buildEvolutionChart,
       getDefaultChartId: getDefaultChartId,
-      resetChartRedrawState: resetChartRedrawState
+      resetChartRedrawState: resetChartRedrawState,
+      // The passive-entity contract (a movie snapshot must never steal the
+      // table from another mode) is asserted by CALLING this, not by reading
+      // its source.
+      applySharedState: applySharedState
     },
     getState: function () {
       return {

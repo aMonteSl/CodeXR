@@ -888,3 +888,25 @@ test('dependency runtime is read-only in a self-contained export', () => {
   assert.match(source, /getSessionInfoAsync\?\.\(\)/);
   assert.match(source, /capabilities\?\.dependencyGraph === true/);
 });
+
+test('every mode runtime keeps its shared-state application passive (mode-entity contract)', () => {
+  // The invariant that keeps mode switching honest as modes are added: a mode
+  // runtime's applySharedState stores its data and renders ONLY if its mode is
+  // already active or activating; the authoritative analysis-view entity is
+  // the single thing that changes the active mode. Each runtime must gate on
+  // its own active-check helper.
+  const dependency = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  assert.match(dependency, /function isDependencyModeActiveOrActivating\(\)/);
+  assert.match(dependency, /if \(!isDependencyModeActiveOrActivating\(\)\) \{\s*renderControls\(\);\s*return;/);
+
+  const historical = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
+  assert.match(historical, /function isHistoricalModeActiveOrActivating\(\)/);
+  assert.match(historical, /if \(!isHistoricalModeActiveOrActivating\(\)\) \{\s*state\.result = snapshot\.result;\s*return;/);
+
+  const evolutionPart = read('templates/components/codexr/project-evolution/projectEvolutionRuntime/frameApplication.js');
+  assert.match(evolutionPart, /function isEvolutionModeActiveOrActivating\(\)/);
+  assert.match(evolutionPart, /if \(!isEvolutionModeActiveOrActivating\(\)\) \{\s*return;/);
+  // The old hijack: an unconditional activate pushed the whole room (and any
+  // exported copy) into evolution the moment the entity arrived.
+  assert.doesNotMatch(evolutionPart, /sendMessage\?\.\('analysis-mode-activate'/);
+});
