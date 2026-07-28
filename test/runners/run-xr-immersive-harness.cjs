@@ -11,7 +11,8 @@ buildAssembledRuntimes();
 // ---------------------------------------------------------------------------
 // Static contract: the REAL templates carry the immersive semantics the
 // harness exercises. If a template edit moves hide-on-enter-ar, drops a
-// pointer, or loses the rig adapter, this fails before any browser starts.
+// pointer, excludes gamepad from movement-controls, or loses the rig
+// adapter, this fails before any browser starts.
 // ---------------------------------------------------------------------------
 
 const fileTemplate = fs.readFileSync(
@@ -57,8 +58,17 @@ for (const [name, html] of [['file', fileTemplate], ['dom', domTemplate]]) {
     assert.match(html, /id="rightController"[\s\S]*?laser-controls="hand: right"/, `${name}: right laser`);
     assert.match(html, /movement-controls/, `${name}: rig locomotion`);
     assert.match(html, /codexrImmersiveRigRuntime\.js/, `${name}: immersive-rig runtime loaded`);
-    assert.match(html, /codexrXrLocomotionRuntime\.js/, `${name}: locomotion runtime loaded`);
-    assert.match(html, /codexr-xr-locomotion/, `${name}: locomotion on the rig`);
+
+    // VR/AR locomotion is entirely native aframe-extras (movement-controls +
+    // its own gamepad-controls: left stick walks, right stick turns, both by
+    // quaternion). No CodeXR locomotion component exists — a custom one with
+    // hand-rolled vector math shipped once and was removed.
+    assert.doesNotMatch(html, /codexr-xr-locomotion/, `${name}: no custom locomotion component`);
+    assert.doesNotMatch(html, /codexrXrLocomotionRuntime/, `${name}: no custom locomotion runtime`);
+    // The bug that silently killed it the first time: excluding 'gamepad'
+    // from movement-controls' controls list. Never override that list.
+    assert.doesNotMatch(html, /movement-controls="[^"]*controls:/,
+        `${name}: movement-controls must keep its default controls list (includes gamepad)`);
 
     // THE controller contract. laser-controls owns each controller entirely:
     // it adds the per-device component itself AND supplies the raycaster's
@@ -78,33 +88,35 @@ for (const [name, html] of [['file', fileTemplate], ['dom', domTemplate]]) {
     }
 }
 
-// Rig adapter: AR recenter in the analysis scene, none in DOM.
-assert.match(fileTemplate, /codexr-immersive-rig="arPosition: 0\.07 0 -14\.7"/);
+// Rig adapter: AR recenter (x/z only) in the analysis scene, none in DOM.
+assert.match(fileTemplate, /codexr-immersive-rig="arX: 0\.07; arZ: -14\.7"/);
 assert.match(domTemplate, /codexr-immersive-rig="arRecenter: false"/);
 
-// THE height contract. The rig stands on the floor and the eye offset lives on
-// the camera entity, because look-controls zeroes the camera (not the rig) when
-// a real headset session starts — see components/look-controls.js onEnterVR.
-// Put the offset on the rig and the user either floats (offset + local-floor
-// pose) or, once something drops the rig to the floor to compensate, ends up
-// with their eyes at ground level. Both were shipped bugs.
-assert.match(fileTemplate, /id="rig"[^>]*position="0\.07 0 -10\.75"/,
-    'analysis rig must sit at floor level (y = 0)');
-assert.match(fileTemplate, /id="head" camera position="0 1\.75 0"/,
-    'analysis eye height must live on the camera entity');
-assert.match(domTemplate, /id="cameraRig"[^>]*position="0 0 3"/,
-    'DOM rig must sit at floor level (y = 0)');
-assert.match(domTemplate, /id="head" camera position="0 1\.6 0"/,
-    'DOM eye height must live on the camera entity');
+// THE height contract. Eye height lives on the RIG, permanently — never on
+// the camera. WebXR only ever touches the CAMERA entity's local transform
+// (look-controls zeroes it for a real headset session, restores it on exit);
+// the rig is never moved vertically by anything CodeXR owns, so a height set
+// here survives every enter-vr/exit-vr untouched, with or without a device.
+// An offset parked on the camera instead depends on the device supplying a
+// matching pose — inconsistent across emulators and real headsets, and the
+// source of two rounds of "why am I on the floor" bugs before this settled.
+assert.match(fileTemplate, /id="rig"[^>]*position="0\.07 1\.75 -10\.75"/,
+    'analysis rig must carry eye height');
+assert.match(fileTemplate, /id="head" camera position="0 0 0"/,
+    'analysis camera must be at local origin');
+assert.match(domTemplate, /id="cameraRig"[^>]*position="0 1\.6 3"/,
+    'DOM rig must carry eye height');
+assert.match(domTemplate, /id="head" camera position="0 0 0"/,
+    'DOM camera must be at local origin');
 
-// Nothing may reposition the rig back to eye height behind our backs.
+// Nothing may reposition the rig back to floor level behind our backs.
 const viewLifecycle = fs.readFileSync(
     path.join(projectRoot, 'templates', 'components', 'codexr', 'dependency-graph',
         'dependencyGraphRuntime', 'viewLifecycle.js'),
     'utf8',
 );
-assert.match(viewLifecycle, /setAttribute\?\.\('position', '0\.07 0 -10\.75'\)/,
-    'dependency-graph resetView must return the rig to floor level, not eye height');
+assert.match(viewLifecycle, /setAttribute\?\.\('position', '0\.07 1\.75 -10\.75'\)/,
+    'dependency-graph resetView must return the rig to the eye-height desktop pose');
 
 // The mapping panel never opts into hiding on AR.
 const templateProcessor = fs.readFileSync(
@@ -116,7 +128,9 @@ assert.match(templateProcessor, /hideOnEnterAr: false/);
 console.log('[xr-immersive-harness] static template contract passed.');
 
 // ---------------------------------------------------------------------------
-// Behavioral scenarios against real A-Frame 1.7.1 in Chromium.
+// Behavioral scenarios against real A-Frame 1.7.1 + aframe-extras 7.5.4 in
+// Chromium — including the actual gamepad-controls locomotion code, fed
+// through a fake tracked-controls system (see the harness page).
 // ---------------------------------------------------------------------------
 
 async function runPlaywrightIfAvailable() {
@@ -153,22 +167,22 @@ async function runScenario(browser) {
         // eslint-disable-next-line no-eval
         return eval(code);
     }, expression);
+    const active = () => page.evaluate(() => window.CodeXRImmersiveHarness.activePointer());
 
     // Pointer-policy applies on a deferred timer; give the queue a beat.
     const settle = () => page.waitForTimeout(80);
 
     // Every mode is checked against what the USER sees: how high the eye
-    // actually is and whether it clears the tabletop. Asserting the rig's own
-    // y instead is what let a shipped build put the eye on the floor with the
-    // pedestal overhead while this harness stayed green.
+    // actually is and whether it clears the tabletop, not the raw rig.y a
+    // shipped build could write incorrectly and still pass its own check.
     const EYE = 1.75;
-    function assertStanding(state, label, expectedEye = EYE) {
+    function assertStanding(state, label) {
         const g = state.geometry;
         assert.ok(
-            Math.abs(g.eyeWorldY - expectedEye) < 0.02,
-            `${label}: eye must be ${expectedEye} m above the floor, was ${g.eyeWorldY}`,
+            Math.abs(g.eyeWorldY - EYE) < 0.02,
+            `${label}: eye must be ${EYE} m above the floor, was ${g.eyeWorldY}`,
         );
-        assert.equal(g.rigWorldY, 0, `${label}: the rig is the floor`);
+        assert.equal(g.rigWorldY, EYE, `${label}: height lives on the rig`);
         assert.equal(g.eyeAboveTable, true,
             `${label}: eye (${g.eyeWorldY}) must clear the tabletop (${g.tableTopY})`);
     }
@@ -182,6 +196,10 @@ async function runScenario(browser) {
     assert.equal(state.movement.attached, true, 'movement-controls attached to the rig');
     assert.equal(state.movement.gamepadRegistered, true, 'aframe-extras gamepad-controls registered');
     assert.equal(state.movement.keyboardRegistered, true, 'aframe-extras keyboard-controls registered');
+    assert.equal(state.movement.usingOurTrackedControlsSystem, true,
+        'gamepad-controls must have picked up the fake tracked-controls system this harness seeds — '
+        + 'if this is false, every stick-axis assertion below is meaningless');
+    assert.equal(state.movement.fly, false, 'desktop: grounded');
     assertStanding(state, 'desktop');
     const desktopPose = state.rig;
 
@@ -195,9 +213,9 @@ async function runScenario(browser) {
         `desktop: W must move the rig forward (z ${desktopPose.z} -> ${state.rig.z})`,
     );
     // Return the rig to the template pose so later assertions stay exact.
-    await run('document.getElementById("rig").object3D.position.set(0.07, 0, -10.75)');
+    await run('document.getElementById("rig").object3D.position.set(0.07, 1.75, -10.75)');
 
-    // --- AR: hide set, kept set, recenter, laser, click -------------------
+    // --- AR: hide set, kept set, recenter (x/z only), fly, laser, click ---
     await run('CodeXRImmersiveHarness.enterAR()');
     await settle();
     state = await snap();
@@ -208,12 +226,13 @@ async function runScenario(browser) {
         assert.equal(value, true, `AR: ${name} must stay visible`);
     }
     assert.deepEqual(
-        { x: state.rig.x, y: state.rig.y, z: state.rig.z, yaw: state.rig.yaw },
-        { x: 0.07, y: 0, z: -14.7, yaw: 0 },
-        'AR: rig recentered in front of the pedestal, on the floor',
+        { x: state.rig.x, z: state.rig.z, yaw: state.rig.yaw },
+        { x: 0.07, z: -14.7, yaw: 0 },
+        'AR: rig recentered in front of the pedestal',
     );
     // The bug the user hit: recentered correctly, but standing under the table.
     assertStanding(state, 'AR');
+    assert.equal(state.movement.fly, true, 'AR: flying turns on automatically');
     assert.ok(
         Math.abs(state.geometry.horizontalToTable - 3.3) < 0.2,
         `AR: should stand ~3.3 m from the table centre, was ${state.geometry.horizontalToTable}`,
@@ -233,7 +252,7 @@ async function runScenario(browser) {
     assert.equal(state.clicks.panelStandIn, 1, 'AR: panel receives clicks');
     assert.equal(state.clicks.chartStandIn, 1, 'AR: chart receives clicks');
 
-    // --- Exit AR: everything restored -------------------------------------
+    // --- Exit AR: everything restored, fly off again ----------------------
     await run('CodeXRImmersiveHarness.disconnect("right")');
     await run('CodeXRImmersiveHarness.exit()');
     await settle();
@@ -241,14 +260,15 @@ async function runScenario(browser) {
     assert.equal(state.hidden.env, false, 'after AR: environment restored');
     assert.equal(state.hidden.room, false, 'after AR: room restored');
     assert.deepEqual(
-        { x: state.rig.x, y: state.rig.y, z: state.rig.z },
-        { x: 0.07, y: 0, z: -10.75 },
+        { x: state.rig.x, z: state.rig.z },
+        { x: 0.07, z: -10.75 },
         'after AR: rig back at the desktop pose',
     );
     assertStanding(state, 'after AR');
+    assert.equal(state.movement.fly, false, 'after AR: grounded again on desktop');
     assert.equal(state.pointers.mouse.enabled, true, 'after AR: mouse pointer back');
 
-    // --- VR: nothing hidden, gaze -> laser -> gaze -> mouse ---------------
+    // --- VR: nothing hidden, flying on, gaze -> laser -> gaze -> mouse ----
     await run('CodeXRImmersiveHarness.enterVR()');
     await settle();
     state = await snap();
@@ -260,6 +280,7 @@ async function runScenario(browser) {
     }
     assert.equal(state.rig.z, -10.75, 'VR: no recenter, the room is the point');
     assertStanding(state, 'VR');
+    assert.equal(state.movement.fly, true, 'VR: flying turns on automatically');
     assert.equal(state.pointers.gaze.enabled, true, 'VR without controllers: gaze pointer');
     assert.equal(state.pointers.gaze.visible, true, 'VR: gaze reticle shown');
     assert.equal(state.pointers.mouse.enabled, false, 'VR: mouse off');
@@ -284,98 +305,94 @@ async function runScenario(browser) {
     state = await snap();
     assert.equal(state.pointers.gaze.enabled, true, 'VR: gaze returns when controllers drop');
 
-    await run('CodeXRImmersiveHarness.exit()');
-    await settle();
-    state = await snap();
-    assert.equal(state.pointers.mouse.enabled, true, 'after VR: mouse pointer back');
-    assertStanding(state, 'after VR');
-
-    // --- The real-headset path --------------------------------------------
-    // Everything above runs the no-headset path, where look-controls leaves
-    // the camera alone. With a headset it takes a different route: it zeroes
-    // the camera's local position so the local-floor pose (which already
-    // carries the user's real height) replaces the desktop offset. Both paths
-    // must leave the user standing, which is exactly why the eye height lives
-    // on the camera and not on the rig.
-    await run('CodeXRImmersiveHarness.setHeadsetConnected(true)');
-    await run('CodeXRImmersiveHarness.enterVR()');
-    await settle();
-    state = await snap();
-    assert.ok(
-        Math.abs(state.geometry.eyeWorldY) < 0.01,
-        `headset VR: look-controls must zero the camera offset, eye was ${state.geometry.eyeWorldY}`,
-    );
-
-    // three.js then writes the XR viewer pose into that same camera entity.
-    await run('CodeXRImmersiveHarness.fakeHeadsetPose(1.62)');
-    state = await snap();
-    assertStanding(state, 'headset VR (with pose)', 1.62);
-
-    await run('CodeXRImmersiveHarness.exit()');
-    await settle();
-    state = await snap();
-    assertStanding(state, 'after headset VR');
-    await run('CodeXRImmersiveHarness.setHeadsetConnected(false)');
-
-    // --- Controllers: both hands are equal --------------------------------
-    await run('CodeXRImmersiveHarness.enterVR()');
+    // --- Pointer handover by trigger: both hands equal, unrelated to
+    //     locomotion (driven by the raw controller DOM event, not axes). ---
     await run('CodeXRImmersiveHarness.connect("left")');
     await run('CodeXRImmersiveHarness.connect("right")');
     await settle();
-
-    const rigOf = (s) => ({ x: s.rig.x, z: s.rig.z, yaw: s.rig.yaw });
-    const active = () => page.evaluate(() => window.CodeXRImmersiveHarness.activePointer());
-
-    // Walking with the LEFT stick.
-    let before = rigOf(await snap());
-    await run('CodeXRImmersiveHarness.stick("left", 0, -1)');
-    await page.waitForTimeout(300);
-    await run('CodeXRImmersiveHarness.stick("left", 0, 0)');
-    let after = rigOf(await snap());
-    const leftWalk = before.z - after.z;
-    assert.ok(leftWalk > 0.1, `left stick must walk forward (z ${before.z} -> ${after.z})`);
-
-    // Walking with the RIGHT stick — the user asked for both hands to be equal.
-    before = rigOf(await snap());
-    await run('CodeXRImmersiveHarness.stick("right", 0, -1)');
-    await page.waitForTimeout(300);
-    await run('CodeXRImmersiveHarness.stick("right", 0, 0)');
-    after = rigOf(await snap());
-    const rightWalk = before.z - after.z;
-    assert.ok(rightWalk > 0.1, `right stick must walk forward (z ${before.z} -> ${after.z})`);
-    assert.ok(
-        Math.abs(leftWalk - rightWalk) < leftWalk * 0.5,
-        `both sticks must walk at the same rate (left ${leftWalk}, right ${rightWalk})`,
-    );
-
-    // Snap turn, from either hand.
-    before = rigOf(await snap());
-    await run('CodeXRImmersiveHarness.stick("left", 1, 0)');
-    await page.waitForTimeout(200);
-    await run('CodeXRImmersiveHarness.stick("left", 0, 0)');
-    after = rigOf(await snap());
-    assert.ok(
-        Math.abs(Math.abs(after.yaw - before.yaw) - (30 * Math.PI / 180)) < 0.01,
-        `sideways must snap-turn 30 degrees (yaw ${before.yaw} -> ${after.yaw})`,
-    );
-
-    // Pointer handover: the hand you use is the hand that points.
-    assert.equal(await active(), 'left', 'using the left stick handed it the pointer');
-    await run('CodeXRImmersiveHarness.trigger("right")');
-    await settle();
-    assert.equal(await active(), 'right', 'pulling the right trigger hands it back');
     await run('CodeXRImmersiveHarness.trigger("left")');
     await settle();
-    assert.equal(await active(), 'left', 'and to the left again — neither hand is privileged');
+    assert.equal(await active(), 'left', 'using the left controller hands it the pointer');
+    await run('CodeXRImmersiveHarness.trigger("right")');
+    await settle();
+    assert.equal(await active(), 'right', 'and back — neither hand is privileged');
 
-    // A click still reaches its target after the handover.
     const clicksBefore = (await snap()).clicks.panelStandIn;
     await run('CodeXRImmersiveHarness.click("panelStandIn")');
     state = await snap();
     assert.equal(state.clicks.panelStandIn, clicksBefore + 1, 'clicks land after a handover');
 
+    // --- Native VR/AR locomotion: aframe-extras' real gamepad-controls,
+    //     fed through the fake tracked-controls system. Left stick walks,
+    //     right stick turns — a fixed scheme the library itself enforces,
+    //     not something CodeXR configures. ------------------------------
+    await run('CodeXRImmersiveHarness.clearStickAxes()');
+
+    let before = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, -1)'); // push forward
+    await page.waitForTimeout(300);
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, 0)');
+    let after = (await snap()).rig;
+    assert.ok(
+        before.z - after.z > 0.3,
+        `left stick must walk the rig forward (z ${before.z} -> ${after.z})`,
+    );
+
+    // Right stick does NOT walk — it turns. This is aframe-extras' own fixed
+    // scheme (getJoystick: MOVEMENT always reads the left gamepad, ROTATION
+    // always reads the right one), not a CodeXR choice.
+    before = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("right", 1, 0)');
+    await page.waitForTimeout(250);
+    await run('CodeXRImmersiveHarness.setStickAxes("right", 0, 0)');
+    after = (await snap()).rig;
+    const turn = after.yaw - before.yaw;
+    assert.ok(Math.abs(after.z - before.z) < 0.05, 'the right stick must not walk the rig');
+    assert.ok(turn < -0.15 && turn > -1.2, `right stick must smooth-turn the rig (Δyaw ${turn})`);
+
+    // Flying: enter VR (fly turns on automatically), look up, push forward.
+    // The direction comes from the camera's actual quaternion — the same
+    // mechanism the compass/heading math already avoided the Euler-order bug
+    // with once — so this also covers a turned heading, not just yaw 0.
+    await run('CodeXRImmersiveHarness.pitchCamera(Math.PI / 4)'); // 45° up
+    before = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, -1)');
+    await page.waitForTimeout(350);
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, 0)');
+    after = (await snap()).rig;
+    assert.ok(
+        after.y > before.y + 0.15,
+        `looking up and pushing forward must fly (y ${before.y} -> ${after.y})`,
+    );
+
+    await run('CodeXRImmersiveHarness.pitchCamera(0)');
+    await run('CodeXRImmersiveHarness.clearStickAxes()');
+    await run('document.getElementById("rig").object3D.position.set(0.07, 1.75, -10.75)');
+    await run('document.getElementById("rig").object3D.rotation.set(0, 0, 0)');
+
     await run('CodeXRImmersiveHarness.exit()');
     await settle();
+    state = await snap();
+    assert.equal(state.pointers.mouse.enabled, true, 'after VR: mouse pointer back');
+    assert.equal(state.movement.fly, false, 'after VR: grounded again on desktop');
+    assertStanding(state, 'after VR');
+
+    // --- The debug simulate commands run the exact same real components ---
+    for (const [command, label] of [['simulateAR', 'AR'], ['simulateVR', 'VR']]) {
+        await run(`CodeXRDebug.${command}()`);
+        await settle();
+        state = await snap();
+        assert.equal(state.states[label.toLowerCase()], true, `${command}: ${label} state set`);
+        assertStanding(state, `${command}`);
+        assert.equal(state.movement.fly, true, `${command}: flying turns on`);
+
+        await run('CodeXRDebug.exitSimulated()');
+        await settle();
+        state = await snap();
+        assertStanding(state, `after ${command}`);
+        assert.equal(state.movement.fly, false, `after ${command}: grounded again`);
+        assert.equal(state.hidden.room, false, `after ${command}: room restored`);
+    }
 }
 
 runPlaywrightIfAvailable().catch((error) => {

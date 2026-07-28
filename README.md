@@ -337,10 +337,10 @@ CodeXR provides comprehensive analysis for 24 code languages, plus HTML DOM visu
 - **Arrow Keys**: Alternative navigation for fine-tuned movement
 
 ### VR Controllers (optional)
-**Both controllers do exactly the same thing** — nothing is reserved for one hand:
-- **Thumbstick forward/back**: Walk in the direction you are looking
-- **Thumbstick sideways**: Turn 30° at a time
-- **Trigger**: Point and click. The pointer follows whichever controller you last used, so either hand just works
+The standard VR scheme, driven by A-Frame's native controls:
+- **Left thumbstick**: Move — fluidly, toward where you are looking. In VR and AR you fly: look up and push forward to rise over the city, look down to descend
+- **Right thumbstick**: Turn smoothly
+- **Trigger**: Point and click, with either hand — the pointer follows whichever controller you last used
 - **Gaze**: Before any controller connects, a reticle lets you point with your head
 
 > Controller support is implemented through standard A-Frame/WebXR bindings, but this release has not been validated on physical headset hardware — see [Feedback](#support-feedback--community) below.

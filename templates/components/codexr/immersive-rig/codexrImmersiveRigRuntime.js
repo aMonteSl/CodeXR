@@ -11,27 +11,28 @@
 })(function (root) {
   'use strict';
 
-  // AR recenter for CodeXR scenes.
+  // Immersive-entry adapter for CodeXR scenes: two small, independent jobs.
   //
-  // Eye height is NOT this component's business: the scene templates put the
-  // rig on the floor (y = 0) and the eye offset on the camera entity, which is
-  // the split A-Frame is built around — look-controls zeroes the camera's
-  // local position when a real headset session starts and restores it on exit
-  // (components/look-controls.js), so the `local-floor` pose, which already
-  // carries the user's real height, replaces the desktop offset instead of
-  // stacking on top of it. Nothing here needs to touch y, and it must not:
-  // moving the rig vertically is what puts the user's eyes on the floor.
+  // 1. Fly automatically in VR and AR. Desktop stays ground-based (WASD via
+  //    movement-controls' own keyboard behaviour); entering any immersive
+  //    session turns `fly` on for movement-controls (native aframe-extras:
+  //    left stick walks, right stick turns, both by quaternion), and exiting
+  //    restores whatever `fly` was before.
   //
-  // What DOES need help is where you stand in AR. The virtual room is far
-  // bigger than a physical one, and the desktop spawn sits ~7 m from the
-  // pedestal — in AR that lands the table across (or through) a real wall.
-  // On entering AR the rig moves next to the pedestal and faces it; the
-  // `local-floor` space orients -Z to wherever the user is looking when the
-  // session starts, so yaw 0 means "in front of me". Exiting restores the
-  // desktop pose exactly. VR is left alone: the whole room is the point there.
+  // 2. Recenter in AR only. The virtual room is far bigger than a physical
+  //    one, and the desktop spawn point sits several metres from the
+  //    pedestal — in AR that lands the table across, or through, a real
+  //    wall. Entering AR moves the rig to (arX, arZ) facing it (`local-floor`
+  //    orients -Z to wherever the user is looking when the session starts, so
+  //    yaw 0 means "in front of me"); exiting restores the exact desktop
+  //    pose. VR is untouched: the whole room is the point there.
   //
-  // movement-controls stays live throughout — this only chooses the entry
-  // pose, the thumbstick still adjusts it.
+  // Eye height is deliberately NOT this component's concern, or anyone's at
+  // runtime: the scene template puts it on the rig once, and nothing here —
+  // or in A-Frame — ever moves the rig vertically. WebXR only ever touches
+  // the CAMERA entity's local transform (look-controls zeroes it for a real
+  // session and restores it on exit), so a height set on the RIG survives
+  // every enter-vr/exit-vr untouched.
 
   function registerComponent(AFRAME) {
     if (!AFRAME || AFRAME.components['codexr-immersive-rig']) {
@@ -40,14 +41,15 @@
 
     AFRAME.registerComponent('codexr-immersive-rig', {
       schema: {
-        // Rig pose while an AR session is active. y stays 0: the rig IS the
-        // floor, and the headset supplies the height above it.
-        arPosition: { type: 'vec3', default: { x: 0, y: 0, z: 0 } },
+        arX: { type: 'number', default: 0 },
+        arZ: { type: 'number', default: 0 },
         arRecenter: { type: 'boolean', default: true },
+        autoFly: { type: 'boolean', default: true },
       },
 
       init: function () {
         this.savedPose = null;
+        this.savedFly = null;
         this.onEnterVR = this.onEnterVR.bind(this);
         this.onExitVR = this.onExitVR.bind(this);
         const sceneEl = this.el.sceneEl;
@@ -69,33 +71,43 @@
       onEnterVR: function () {
         const sceneEl = this.el.sceneEl;
         const object3D = this.el.object3D;
-        if (!sceneEl || !object3D || !this.data.arRecenter) {
+        if (!sceneEl || !object3D) {
           return;
         }
-        if (typeof sceneEl.is !== 'function' || !sceneEl.is('ar-mode')) {
-          return;
-        }
+        const inAR = typeof sceneEl.is === 'function' && sceneEl.is('ar-mode');
+
         // Guard against a second enter-vr without an exit in between (headset
-        // visibility blips re-fire it): the saved pose must stay the DESKTOP
-        // pose, never an already-recentered one.
-        if (!this.savedPose) {
+        // visibility blips re-fire it): saved state must stay whatever it was
+        // BEFORE entering, never an already-adapted one.
+        if (this.data.autoFly && this.savedFly === null) {
+          const movement = this.el.getAttribute('movement-controls') || {};
+          this.savedFly = !!movement.fly;
+          this.el.setAttribute('movement-controls', 'fly', true);
+        }
+
+        if (inAR && this.data.arRecenter && !this.savedPose) {
           this.savedPose = {
             position: object3D.position.clone(),
             rotation: object3D.rotation.clone(),
           };
+          object3D.position.set(this.data.arX, object3D.position.y, this.data.arZ);
+          object3D.rotation.set(0, 0, 0);
         }
-        object3D.position.set(this.data.arPosition.x, 0, this.data.arPosition.z);
-        object3D.rotation.set(0, 0, 0);
       },
 
       onExitVR: function () {
         const object3D = this.el.object3D;
-        if (!object3D || !this.savedPose) {
-          return;
+
+        if (this.savedFly !== null) {
+          this.el.setAttribute('movement-controls', 'fly', this.savedFly);
+          this.savedFly = null;
         }
-        object3D.position.copy(this.savedPose.position);
-        object3D.rotation.copy(this.savedPose.rotation);
-        this.savedPose = null;
+
+        if (object3D && this.savedPose) {
+          object3D.position.copy(this.savedPose.position);
+          object3D.rotation.copy(this.savedPose.rotation);
+          this.savedPose = null;
+        }
       },
     });
   }

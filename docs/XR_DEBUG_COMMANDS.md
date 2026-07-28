@@ -54,17 +54,15 @@ you are in there.
 
 ### Controller input
 
-Locomotion and pointing are driven by A-Frame's own controller events, so both
-can be exercised from the console without a device:
+Locomotion is A-Frame's native `movement-controls`/`gamepad-controls` (from
+aframe-extras): the **left** stick moves — flying toward wherever the camera
+looks while a VR/AR session is active — and the **right** stick turns. It
+polls the WebXR gamepads directly, so exercising it needs an emulator (or a
+headset); there is no console event to fake a stick.
+
+Pointing is event-driven and CAN be exercised from the console:
 
 ```js
-// Walk: either controller, thumbstick forward (y is -1 when pushed forward)
-document.querySelector('#leftController').emit('thumbstickmoved', {x: 0, y: -1});
-document.querySelector('#leftController').emit('thumbstickmoved', {x: 0, y: 0});
-
-// Turn 30 degrees: sideways on either stick
-document.querySelector('#rightController').emit('thumbstickmoved', {x: 1, y: 0});
-
 // Hand the pointer to a controller (it also happens on any real use of it)
 document.querySelector('#leftController').emit('triggerdown');
 ```

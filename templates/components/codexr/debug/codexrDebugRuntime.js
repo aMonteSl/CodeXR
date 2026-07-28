@@ -199,10 +199,16 @@
   // Immersive simulation, for checking AR/VR layout on a plain desktop
   // browser. These set the very states and events A-Frame sets around a real
   // session, so everything that keys off them runs for real: hide-on-enter-ar
-  // clears the room, the rig recenters for AR, and the pointer policy hands
-  // over. What they canNOT give you is a WebXR session — no headset pose, no
-  // stereo, no camera passthrough — so use them to answer "what is hidden and
-  // where do I end up", and an emulator or a real headset for the rest.
+  // clears the room, the rig recenters and starts flying for AR, and the
+  // pointer policy hands over. What they canNOT give you is a WebXR session —
+  // no headset pose, no stereo, no camera passthrough — so use them to answer
+  // "what is hidden and where do I end up", and an emulator or a real headset
+  // for the rest.
+  //
+  // Eye height needs no special handling here: it lives on the rig, which
+  // look-controls never touches (it only ever zeroes the CAMERA entity, and
+  // that entity's local position is already 0,0,0 by design) — so simulating
+  // enter-vr/exit-vr is a plain emit, with or without an XR emulator present.
   function simulateImmersive(mode) {
     var currentScene = scene();
     if (!currentScene?.emit) {

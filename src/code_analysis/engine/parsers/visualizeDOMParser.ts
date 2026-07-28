@@ -16,8 +16,6 @@ import {
     POINTER_POLICY_RUNTIME_OUTPUT_NAME,
     readImmersiveRigRuntimeContent,
     IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME,
-    readXrLocomotionRuntimeContent,
-    XR_LOCOMOTION_RUNTIME_OUTPUT_NAME,
 } from '../components/customComponents';
 
 /**
@@ -138,9 +136,6 @@ export class VisualizeDOMParser {
             const immersiveRigRuntime = await readImmersiveRigRuntimeContent(this.context.extensionPath);
             resultFiles.set(IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME, immersiveRigRuntime);
             console.log(`VISUALIZE_DOM_PARSER:  Added ${IMMERSIVE_RIG_RUNTIME_OUTPUT_NAME} (${immersiveRigRuntime.length} chars)`);
-            const xrLocomotionRuntime = await readXrLocomotionRuntimeContent(this.context.extensionPath);
-            resultFiles.set(XR_LOCOMOTION_RUNTIME_OUTPUT_NAME, xrLocomotionRuntime);
-            console.log(`VISUALIZE_DOM_PARSER:  Added ${XR_LOCOMOTION_RUNTIME_OUTPUT_NAME} (${xrLocomotionRuntime.length} chars)`);
 
             // FINAL DEBUG: Verify the result Map
             console.log(`VISUALIZE_DOM_PARSER:  FINAL DEBUG - Result Map verification:`);
