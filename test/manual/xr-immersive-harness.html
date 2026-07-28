@@ -80,12 +80,13 @@
     <a-plane id="panelStandIn" class="babiaxraycasterclass"
       position="4 2.6 -15" width="2.4" height="3" color="#0b1526"></a-plane>
 
-    <!-- Rig copied from the template: floor-level rig, eye height on the
-         camera. The runner asserts the real templates still match. -->
-    <a-entity id="rig" movement-controls="fly: false; controls: keyboard, touch" position="0.07 0 -10.75"
-      codexr-immersive-rig="arPosition: 0.07 0 -14.7"
-      codexr-xr-locomotion>
-      <a-entity id="head" camera position="0 1.75 0" look-controls>
+    <!-- Rig copied from the template: eye height lives on the rig, camera at
+         local origin, movement-controls with its default `controls` (gamepad
+         included — excluding it is what silently killed VR movement once).
+         The runner asserts the real templates still match. -->
+    <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
+      codexr-immersive-rig="arX: 0.07; arZ: -14.7">
+      <a-entity id="head" camera position="0 0 0" look-controls>
         <a-entity
           id="gazeCursor"
           visible="false"
@@ -111,7 +112,9 @@
 
   <script src="../../templates/components/codexr/pointer-policy/codexrPointerPolicyRuntime.js?v=immersive1"></script>
   <script src="../../templates/components/codexr/immersive-rig/codexrImmersiveRigRuntime.js?v=immersive1"></script>
-  <script src="../../templates/components/codexr/xr-locomotion/codexrXrLocomotionRuntime.js?v=immersive1"></script>
+  <!-- The real debug runtime, so CodeXRDebug.simulateAR()/simulateVR() are
+       exercised here exactly as a user runs them in a generated scene. -->
+  <script src="../../templates/components/codexr/debug/codexrDebugRuntime.js?v=immersive1"></script>
   <script src="assembled/analysisTableRuntime.js"></script>
 
   <script>
@@ -119,6 +122,40 @@
       'use strict';
 
       const scene = () => document.getElementById('scene');
+
+      // A fake `tracked-controls` SYSTEM, seeded as early as possible (this
+      // script runs right after the <a-scene> element exists, well before its
+      // 'loaded' event — which is when movement-controls attaches its
+      // gamepad-controls behaviour and captures a reference to whatever this
+      // system is at that moment). Locomotion in VR/AR is 100% native
+      // aframe-extras: gamepad-controls reads real controllers through this
+      // exact system/shape (`system.controllers[i].gamepad`, matched by
+      // `.handedness`) — feeding it fake entries here exercises the REAL
+      // library code, not a stand-in for it.
+      const trackedControlsSystem = (function () {
+        const sceneEl = scene();
+        sceneEl.systems = sceneEl.systems || {};
+        sceneEl.systems['tracked-controls'] = sceneEl.systems['tracked-controls'] || { controllers: [] };
+        return sceneEl.systems['tracked-controls'];
+      })();
+
+      function fakeGamepad(hand) {
+        let entry = trackedControlsSystem.controllers.find((c) => c.handedness === hand);
+        if (!entry) {
+          entry = {
+            handedness: hand,
+            gamepad: {
+              axes: [0, 0, 0, 0],
+              buttons: [],
+              mapping: 'xr-standard',
+              connected: true,
+              hand: hand,
+            },
+          };
+          trackedControlsSystem.controllers.push(entry);
+        }
+        return entry.gamepad;
+      }
       const clicks = { chartStandIn: 0, screenStandIn: 0, panelStandIn: 0 };
       ['chartStandIn', 'screenStandIn', 'panelStandIn'].forEach(function (id) {
         document.getElementById(id).addEventListener('click', function () {
@@ -207,11 +244,35 @@
           document.getElementById(side + 'Controller')
             .emit('controllerconnected', { name: 'generic-tracked-controller-controls' });
         },
-        // Exactly what A-Frame's controller components publish from the
-        // gamepad's thumbstick axes.
+        // The DOM event A-Frame's controller components publish from the
+        // gamepad's thumbstick — drives codexr-pointer-policy's handover,
+        // which is independent of locomotion.
         stick(side, x, y) {
           document.getElementById(side + 'Controller')
             .emit('thumbstickmoved', { x: x, y: y });
+        },
+        // The actual input path for VR/AR locomotion: aframe-extras'
+        // gamepad-controls polls `system.controllers[i].gamepad.axes` every
+        // tick — it does not listen for thumbstickmoved at all. Movement
+        // always reads the LEFT-handed gamepad's axes[2]/[3]; turning always
+        // reads the RIGHT-handed gamepad's axes[2] (verbatim from
+        // aframe-extras' getJoystick(), which is a fixed, not configurable,
+        // scheme).
+        setStickAxes(hand, x, y) {
+          const gamepad = fakeGamepad(hand);
+          gamepad.axes[2] = x;
+          gamepad.axes[3] = y;
+        },
+        clearStickAxes() {
+          ['left', 'right'].forEach((hand) => {
+            const gamepad = fakeGamepad(hand);
+            gamepad.axes[2] = 0;
+            gamepad.axes[3] = 0;
+          });
+        },
+        movementControlsFly() {
+          const attr = document.getElementById('rig').getAttribute('movement-controls');
+          return !!(attr && attr.fly);
         },
         trigger(side) {
           document.getElementById(side + 'Controller').emit('triggerdown');
@@ -232,19 +293,20 @@
         click(id) {
           document.getElementById(id).dispatchEvent(new Event('click', { bubbles: false }));
         },
-        // A real headset makes look-controls take its zeroing path
-        // (checkHeadsetConnected gates it), which is what lets the local-floor
-        // pose replace the camera's desktop offset instead of adding to it.
-        setHeadsetConnected(connected) {
-          scene().checkHeadsetConnected = () => !!connected;
-        },
-        // Stand in for what three.js writes into the camera entity from the
-        // XR viewer pose: a height above the physical floor.
-        fakeHeadsetPose(y) {
+        // look-controls rewrites the camera's rotation from its own pitch/yaw
+        // objects every tick (that is what a mouse drag does), so tilting the
+        // head means telling IT — poking object3D.rotation directly would be
+        // undone on the next tick. This is also exactly what gamepad-controls'
+        // updateVelocity reads (cameraEl.object3D.quaternion) to fly toward
+        // wherever the camera is looking, pitch included.
+        pitchCamera(radians) {
           const head = document.getElementById('head');
-          head.object3D.position.set(0, y, 0);
-          // look-controls sets matrixAutoUpdate = false under WebXR, so the
-          // matrices have to be refreshed by hand here.
+          const look = head.components && head.components['look-controls'];
+          if (look && look.pitchObject) {
+            look.pitchObject.rotation.x = radians;
+            return;
+          }
+          head.object3D.rotation.x = radians;
           head.object3D.updateMatrix();
           head.object3D.updateMatrixWorld(true);
         },
@@ -272,6 +334,15 @@
               attached: !!document.getElementById('rig').components['movement-controls'],
               gamepadRegistered: !!AFRAME.components['gamepad-controls'],
               keyboardRegistered: !!AFRAME.components['keyboard-controls'],
+              fly: this.movementControlsFly(),
+              // Diagnostic: did gamepad-controls actually pick up OUR fake
+              // system, or did it initialize before this script seeded it and
+              // fall back to a disconnected local one? If this is ever false,
+              // the axes we set are being read by nobody.
+              usingOurTrackedControlsSystem: (function () {
+                const gp = document.getElementById('rig').components['gamepad-controls'];
+                return !!gp && gp.system === trackedControlsSystem;
+              })(),
             },
             clicks: Object.assign({}, clicks),
           };
@@ -289,6 +360,7 @@
           + '\neye height: ' + (g.eyeWorldY === null ? '?' : g.eyeWorldY.toFixed(2))
           + ' | above table: ' + g.eyeAboveTable
           + ' | rig y: ' + (g.rigWorldY === null ? '?' : g.rigWorldY.toFixed(2))
+          + ' | fly: ' + snap.movement.fly
           + '\npointers m/g/l/r: '
           + [snap.pointers.mouse, snap.pointers.gaze, snap.pointers.left, snap.pointers.right]
             .map((p) => (p && p.enabled ? 'ON' : 'off')).join('/');

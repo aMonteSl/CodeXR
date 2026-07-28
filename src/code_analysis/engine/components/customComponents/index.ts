@@ -6,7 +6,6 @@ export * from './avatarComponentAsset';
 export * from './codexrRoomComponentAsset';
 export * from './pointerPolicyComponentAsset';
 export * from './immersiveRigComponentAsset';
-export * from './xrLocomotionComponentAsset';
 export * from './xrChartMappingUiComponentAsset';
 export * from './xrChartDebugComponentAsset';
 export * from './analysisTableComponentAsset';

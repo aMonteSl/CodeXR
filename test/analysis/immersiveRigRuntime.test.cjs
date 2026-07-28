@@ -16,7 +16,7 @@ const runtimePath = path.join(
 const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
 
 // Minimal three.js-shaped vector/euler stand-ins: the component only uses
-// clone/copy/set and direct x/y/z (and rotation y) access.
+// clone/copy/set and direct x/y/z access.
 function vec3(x, y, z) {
     return {
         x, y, z,
@@ -26,7 +26,7 @@ function vec3(x, y, z) {
     };
 }
 
-function createHarness({ arPosition, arRecenter = true } = {}) {
+function createHarness({ arX = 0.07, arZ = -14.7, arRecenter = true, autoFly = true } = {}) {
     const context = {
         AFRAME: {
             components: {},
@@ -56,29 +56,38 @@ function createHarness({ arPosition, arRecenter = true } = {}) {
         },
     };
 
-    // The rig stands on the floor: eye height lives on the camera entity,
-    // which A-Frame's look-controls owns during an immersive session.
+    // Height lives on the rig's own y — this harness never touches it, which
+    // is exactly the point: nothing in this component should either.
     const rigEl = {
         sceneEl,
+        attrs: { 'movement-controls': { fly: false } },
         object3D: {
-            position: vec3(0.07, 0, -10.75),
+            position: vec3(0.07, 1.75, -10.75),
             rotation: vec3(0, 0.35, 0), // desktop yaw from movement-controls
+        },
+        getAttribute(name) {
+            return this.attrs[name];
+        },
+        setAttribute(name, keyOrValue, value) {
+            if (arguments.length === 3) {
+                const current = this.attrs[name] || {};
+                this.attrs[name] = Object.assign({}, current, { [keyOrValue]: value });
+                return;
+            }
+            this.attrs[name] = keyOrValue;
         },
     };
 
     const definition = context.AFRAME.components['codexr-immersive-rig'];
     const component = Object.create(definition);
     component.el = rigEl;
-    component.data = {
-        arPosition: arPosition || { x: 0.07, y: 0, z: -14.7 },
-        arRecenter,
-    };
+    component.data = { arX, arZ, arRecenter, autoFly };
     component.init();
 
     return { component, sceneEl, rigEl };
 }
 
-test('entering AR recenters the rig at arPosition on the floor, facing -Z', () => {
+test('entering AR recenters the rig at (arX, arZ), facing -Z, height untouched', () => {
     const { sceneEl, rigEl } = createHarness();
 
     sceneEl.states.add('ar-mode');
@@ -86,23 +95,12 @@ test('entering AR recenters the rig at arPosition on the floor, facing -Z', () =
 
     assert.deepEqual(
         { x: rigEl.object3D.position.x, y: rigEl.object3D.position.y, z: rigEl.object3D.position.z },
-        { x: 0.07, y: 0, z: -14.7 },
+        { x: 0.07, y: 1.75, z: -14.7 },
     );
     assert.equal(rigEl.object3D.rotation.y, 0, 'AR entry resets yaw so the table is in front');
 });
 
-test('the AR recenter never lifts the rig off the floor', () => {
-    // Eye height belongs to the camera entity. A rig moved vertically is what
-    // put a shipped build's user on the floor with the pedestal overhead.
-    const { sceneEl, rigEl } = createHarness({ arPosition: { x: 1, y: 1.75, z: -14 } });
-
-    sceneEl.states.add('ar-mode');
-    sceneEl.emit('enter-vr');
-
-    assert.equal(rigEl.object3D.position.y, 0, 'a y in arPosition is ignored on purpose');
-});
-
-test('entering VR leaves the rig exactly where it was', () => {
+test('entering VR leaves the rig position exactly where it was', () => {
     const { sceneEl, rigEl } = createHarness();
 
     sceneEl.states.add('vr-mode');
@@ -110,7 +108,7 @@ test('entering VR leaves the rig exactly where it was', () => {
 
     assert.deepEqual(
         { x: rigEl.object3D.position.x, y: rigEl.object3D.position.y, z: rigEl.object3D.position.z },
-        { x: 0.07, y: 0, z: -10.75 },
+        { x: 0.07, y: 1.75, z: -10.75 },
         'VR shows the whole room from where you already stood',
     );
     assert.equal(rigEl.object3D.rotation.y, 0.35, 'VR keeps the desktop yaw');
@@ -121,15 +119,15 @@ test('exiting restores the exact desktop pose after AR', () => {
 
     sceneEl.states.add('ar-mode');
     sceneEl.emit('enter-vr');
-    // The user moved with the thumbstick while inside.
-    rigEl.object3D.position.set(3, 0, -14);
+    // The user flew around while inside.
+    rigEl.object3D.position.set(3, 2.4, -14);
 
     sceneEl.states.delete('ar-mode');
     sceneEl.emit('exit-vr');
 
     assert.deepEqual(
         { x: rigEl.object3D.position.x, y: rigEl.object3D.position.y, z: rigEl.object3D.position.z },
-        { x: 0.07, y: 0, z: -10.75 },
+        { x: 0.07, y: 1.75, z: -10.75 },
     );
     assert.equal(rigEl.object3D.rotation.y, 0.35, 'desktop yaw restored');
 });
@@ -145,7 +143,7 @@ test('a second enter-vr without exit keeps the ORIGINAL desktop pose saved', () 
     assert.equal(rigEl.object3D.position.z, -10.75, 'restored to the desktop spot, not the AR one');
 });
 
-test('arRecenter: false leaves the rig completely alone in AR', () => {
+test('arRecenter: false leaves the rig position completely alone in AR', () => {
     const { sceneEl, rigEl } = createHarness({ arRecenter: false });
 
     sceneEl.states.add('ar-mode');
@@ -168,4 +166,58 @@ test('remove() detaches the scene listeners', () => {
     sceneEl.states.add('ar-mode');
     sceneEl.emit('enter-vr');
     assert.equal(rigEl.object3D.position.z, -10.75, 'no reaction after remove');
+});
+
+// --- autoFly: the whole point of flying in VR/AR without any custom vector
+// math is that movement-controls already knows how, once `fly` is true. ---
+
+test('entering VR turns movement-controls fly on', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+
+    assert.equal(rigEl.getAttribute('movement-controls').fly, true);
+});
+
+test('entering AR also turns fly on', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.states.add('ar-mode');
+    sceneEl.emit('enter-vr');
+
+    assert.equal(rigEl.getAttribute('movement-controls').fly, true);
+});
+
+test('exiting restores whatever fly was before entering', () => {
+    const { sceneEl, rigEl } = createHarness();
+    rigEl.setAttribute('movement-controls', 'fly', false); // desktop baseline
+
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+    assert.equal(rigEl.getAttribute('movement-controls').fly, true);
+
+    sceneEl.states.delete('vr-mode');
+    sceneEl.emit('exit-vr');
+    assert.equal(rigEl.getAttribute('movement-controls').fly, false, 'back to grounded on desktop');
+});
+
+test('autoFly: false never touches movement-controls', () => {
+    const { sceneEl, rigEl } = createHarness({ autoFly: false });
+
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+
+    assert.equal(rigEl.getAttribute('movement-controls').fly, false, 'left exactly as configured');
+});
+
+test('a double enter-vr does not clobber the saved fly value with "true"', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+    sceneEl.emit('enter-vr'); // visibility blip
+
+    sceneEl.emit('exit-vr');
+    assert.equal(rigEl.getAttribute('movement-controls').fly, false, 'restored to the real desktop baseline');
 });

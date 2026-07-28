@@ -97,19 +97,21 @@
         <!-- Babia UI panel and toggle (optional) -->
         ${BABIA_UI_COMPONENT}
 
-        <!-- The rig stands ON THE FLOOR (y=0) and the eye height lives on the
-             camera. That split is what A-Frame expects: look-controls zeroes
-             the camera's local position when a real headset session starts
-             (and restores it on exit), so the local-floor pose — which already
-             carries the user's real height — replaces the desktop offset
-             instead of stacking on top of it. Put the offset on the rig
-             instead and you end up either floating or standing on the floor
-             with your eyes at ankle height. -->
-        <a-entity id="rig" movement-controls="fly: false; controls: keyboard, touch" position="0.07 0 -10.75"
-        codexr-immersive-rig="arPosition: 0.07 0 -14.7"
-        codexr-xr-locomotion>
+        <!-- Eye height lives on the RIG, never on the camera. WebXR only ever
+             touches the CAMERA entity's local transform (look-controls zeroes
+             it when a real session starts, restores it on exit) — the rig's
+             position is its own and survives any enter-vr/exit-vr untouched.
+             That is what keeps you standing at the same height in the browser,
+             in VR and in AR alike. movement-controls drives the rig with its
+             native gamepad support: left stick walks, right stick turns —
+             both by quaternion, so there is no Euler-angle math to get wrong.
+             codexr-immersive-rig turns on `fly` for the duration of any
+             immersive session (see requirement below) and, in AR only,
+             recenters the rig next to the pedestal. -->
+        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
+        codexr-immersive-rig="arX: 0.07; arZ: -14.7">
         <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy) -->
-        <a-entity id="head" camera position="0 1.75 0" look-controls>
+        <a-entity id="head" camera position="0 0 0" look-controls>
             <a-entity
             id="gazeCursor"
             visible="false"
@@ -157,7 +159,6 @@
 <script nonce="${nonce}" src="./codexrGitRefPickerRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrImmersiveRigRuntime.js?v=${nonce}"></script>
-<script nonce="${nonce}" src="./codexrXrLocomotionRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartMappingUiRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartDebugRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./analysisTableRuntime.js?v=${nonce}"></script>

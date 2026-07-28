@@ -203,17 +203,23 @@ test('XR template includes local CodeXR room component while preserving configur
     assert.match(template, /codexr-multi-screen-manager="maxScreens: 5; wall: west"/);
     assert.match(template, /codexr-room="[\s\S]*openSide: south;/);
     assert.match(template, /\.\/assets\/codexr\/xr-room\/textures\/wall\.svg/);
-    // The rig stands on the floor and the eye offset lives on the camera:
-    // look-controls zeroes the CAMERA for a real headset session, so an offset
-    // parked on the rig would either stack on the local-floor pose or, once
-    // compensated, drop the user's eyes to ground level.
+    // Eye height lives on the RIG, permanently — never on the camera. WebXR
+    // only ever touches the camera entity's local transform (look-controls
+    // zeroes it for a real session, restores it on exit); the rig is never
+    // moved vertically by anything, so a height set here survives every
+    // enter-vr/exit-vr untouched, in the browser, the emulator or a headset.
     assert.match(
         template,
-        /<a-entity id="rig" movement-controls="fly: false; controls: keyboard, touch" position="0\.07 0 -10\.75"\s+codexr-immersive-rig="arPosition: 0\.07 0 -14\.7"\s+codexr-xr-locomotion>/,
+        /<a-entity id="rig" movement-controls="fly: false" position="0\.07 1\.75 -10\.75"\s+codexr-immersive-rig="arX: 0\.07; arZ: -14\.7">/,
     );
-    assert.match(template, /<a-entity id="head" camera position="0 1\.75 0" look-controls>/);
+    assert.match(template, /<a-entity id="head" camera position="0 0 0" look-controls>/);
     assert.match(template, /src="\.\/codexrImmersiveRigRuntime\.js(?:\?v=\$\{nonce\})?"/);
-    assert.match(template, /src="\.\/codexrXrLocomotionRuntime\.js(?:\?v=\$\{nonce\})?"/);
+    // Locomotion in VR/AR is entirely native movement-controls/gamepad-controls
+    // (left stick walks, right stick turns) — it needs 'gamepad' left IN the
+    // default controls list. Excluding it silently killed all VR movement once.
+    assert.doesNotMatch(template, /movement-controls="[^"]*controls:\s*keyboard/);
+    assert.doesNotMatch(template, /codexrXrLocomotionRuntime\.js/);
+    assert.doesNotMatch(template, /codexr-xr-locomotion/);
     // laser-controls owns each controller: it adds the per-device component
     // itself and supplies the raycaster origin/direction a Touch controller
     // needs. Hand-authoring either is what made the ray point above the aim.
