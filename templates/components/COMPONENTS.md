@@ -65,7 +65,7 @@ its parts directory. Manual harnesses load assembled copies from
   - The relay encodes **once** for the whole audience: extra viewers only ask for a
     keyframe. Quality follows the audience size (the same encoder is reconfigured,
     never duplicated) and three temporal layers let the server thin the stream for a
-    congested viewer alone. There is no viewer cap — see `docs/CLOUDFLARE_REMOTE_ACCESS.md`
+    congested viewer alone. There is no viewer cap — see `docs/features/CLOUDFLARE_REMOTE_ACCESS.md`
     for what it costs the host's uplink.
   - Ownership invariant: **only the sender publishes broadcast fields on the room's
     screen entity**; a viewer's connection failures stay its own. Viewers that join

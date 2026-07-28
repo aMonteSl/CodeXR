@@ -1,6 +1,6 @@
 # CodeXR — Launch media
 
-Screenshots, GIFs and videos for the README and the website. **Nothing here ships inside the VSIX**: `package.json`'s `files` allowlist only picks `resources/favicon.ico`, `resources/icon.*`, `resources/avatars/**` and `resources/languages_icons/**`, so `media/` can never be packaged by accident. `resources/` means "assets the extension uses at runtime"; `media/` means "assets that explain the extension".
+Screenshots, GIFs and videos for the README and the website. **Nothing here ships inside the VSIX**: `package.json`'s `files` allowlist only picks `resources/favicon.ico`, `resources/icon.*`, `resources/avatars/**` and `resources/languages_icons/color/**` (the SVGs the tree actually uses — the unused `no_color/` PNGs are excluded), so `media/` can never be packaged by accident. `resources/` means "assets the extension uses at runtime"; `media/` means "assets that explain the extension".
 
 This file is the inventory of what is actually here, not a wish list. When you add or retake something, update the table it belongs to.
 
@@ -139,7 +139,7 @@ The voice-over scripts for the four narrated takes were written per video and fo
 
 Captured live inside **real emulated WebXR sessions** (Meta Immersive Web
 Emulator driven over its MCP bridge — the same rig described in
-`docs/TUTORIAL_EMULADOR_WEBXR.md` §9), against the deep analysis of
+`docs/xr-testing/WEBXR_EMULATOR_TUTORIAL.md` §9), against the deep analysis of
 `aframe-babia-components`. They deliberately include the emulator's own
 overlay where it appears: these document how CodeXR is tested and debugged in
 XR, not just how it looks. JPEG ~1600 px, 115-152 KB each.

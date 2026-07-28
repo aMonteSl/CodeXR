@@ -268,7 +268,7 @@ Per-item changed-list table (sortable, existing file-table idiom)
 
 ### Roadmap Check
 
-`docs/ROADMAP_V1.2.0.md` already correctly marks:
+`docs/project/ROADMAP_V1.2.0.md` already correctly marks:
 - Workspace multi-station
 - AI assistance
 - TURN

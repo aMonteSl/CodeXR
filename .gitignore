@@ -22,7 +22,14 @@ dist/
 *.vsix
 test/manual/assembled/
 
+# Claude Code: shared config (CLAUDE.md, .claude/, .mcp.json) is committed on
+# purpose — team tooling, no secrets. Only personal overrides stay local.
+.claude/settings.local.json
+.claude/*.local.*
+
 # Raw screen recordings: 168-439 MB each, above GitHub's 100 MB per-file limit.
 # They are local masters — what travels is the GIF next to them and the narrated
 # cut on YouTube. See media/SHOTLIST.md.
 media/**/*.mp4
+# Local PNG master of the user-taken AR shot; the tracked JPEG is the deliverable.
+media/v1.2.0/xr_experiences/ar-development.png

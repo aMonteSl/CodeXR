@@ -412,7 +412,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
         'gitRepositoryService.ts',
     );
     const runtime = readAssembledRuntime('project-evolution', 'projectEvolutionRuntime.js');
-    const docs = readProjectFile('docs', 'PROJECT_EVOLUTION_XR.md');
+    const docs = readProjectFile('docs', 'features', 'PROJECT_EVOLUTION_XR.md');
 
     assert.match(models, /\| 'project-evolution'/);
     assert.match(models, /export interface ProjectEvolutionRequest/);
@@ -953,29 +953,29 @@ test('historical source selector keeps commit cards compact and identifies live 
 });
 
 test('Cloudflare remote access documentation states the official Quick Tunnel operating limits', () => {
-    const docs = readProjectFile('docs', 'CLOUDFLARE_REMOTE_ACCESS.md');
+    const docs = readProjectFile('docs', 'features', 'CLOUDFLARE_REMOTE_ACCESS.md');
 
-    assert.match(docs, /200 solicitudes simultáneas en curso por túnel/i);
+    assert.match(docs, /200 concurrent in-flight requests per tunnel/i);
     assert.match(docs, /HTTP `429`/);
-    assert.match(docs, /no se admite Server-Sent Events \(SSE\)/i);
-    assert.match(docs, /sin SLA/i);
+    assert.match(docs, /Server-Sent Events \(SSE\) are not supported/i);
+    assert.match(docs, /no SLA/i);
     assert.match(docs, /best effort/i);
     assert.match(docs, /Named Tunnels/i);
-    assert.match(docs, /relay propio de CodeXR/i);
+    assert.match(docs, /CodeXR-owned relay/i);
     assert.match(docs, /trycloudflare/i);
 });
 
 test('historical comparison documentation explains provider-neutral Git behavior and XR architecture', () => {
-    const docs = readProjectFile('docs', 'HISTORICAL_COMPARISON_XR.md');
+    const docs = readProjectFile('docs', 'features', 'HISTORICAL_COMPARISON_XR.md');
 
-    assert.match(docs, /depende de \*\*Git\*\*, no de la API de un proveedor concreto/i);
-    assert.match(docs, /\| GitHub \| Sí \|/);
-    assert.match(docs, /\| GitLab \| Sí \|/);
-    assert.match(docs, /CodeXR no ejecuta `git fetch` automáticamente/i);
+    assert.match(docs, /depends on \*\*Git\*\*, not on any provider's API/i);
+    assert.match(docs, /\| GitHub \| Yes \|/);
+    assert.match(docs, /\| GitLab \| Yes \|/);
+    assert.match(docs, /CodeXR never runs `git fetch` automatically/i);
     assert.match(docs, /`codexr-analysis-table`/);
     assert.match(docs, /`codexr-chart-containment`/);
     assert.match(docs, /CodeXRMappingUiRuntime/);
-    assert.match(docs, /`codexr-left:` o `codexr-right:`/);
+    assert.match(docs, /`codexr-left:` or `codexr-right:`/);
     assert.match(docs, /working-copy/);
     assert.match(docs, /Cloudflare Quick Tunnel/);
 });

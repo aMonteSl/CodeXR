@@ -27,9 +27,9 @@ The analysis table is the central XR surface; the old "pedestal" was split into 
 | Mode | What it shows | Deep doc |
 |---|---|---|
 | `single` | One analysis (file/directory/project) as a BabiaXR chart on the table | — (default mode) |
-| `historical-compare` | Side-by-side working copy vs branch/tag/commit, read-only Git access, `codexr-left:`/`codexr-right:` babia-boats ID isolation | `docs/HISTORICAL_COMPARISON_XR.md` (Spanish) |
-| `dependency-graph` | CodeXR-owned 3D dependency graph: 23 languages, fanIn/fanOut/cycles, 3 layouts in a Web Worker, render budget (600 nodes / 2,000 edges) | `docs/DEPENDENCY_GRAPH_XR.md` (English) |
-| `project-evolution` | Chronological "movie" of git history on one full-table chart with player controls (**in progress for v1.2.0**) | `docs/PROJECT_EVOLUTION_XR.md` (English) |
+| `historical-compare` | Side-by-side working copy vs branch/tag/commit, read-only Git access, `codexr-left:`/`codexr-right:` babia-boats ID isolation | `docs/features/HISTORICAL_COMPARISON_XR.md` (Spanish) |
+| `dependency-graph` | CodeXR-owned 3D dependency graph: 23 languages, fanIn/fanOut/cycles, 3 layouts in a Web Worker, render budget (600 nodes / 2,000 edges) | `docs/features/DEPENDENCY_GRAPH_XR.md` (English) |
+| `project-evolution` | Chronological "movie" of git history on one full-table chart with player controls (**in progress for v1.2.0**) | `docs/features/PROJECT_EVOLUTION_XR.md` (English) |
 
 ## Chart system
 
@@ -48,12 +48,12 @@ The analysis table is the central XR surface; the old "pedestal" was split into 
 
 ## Debugging XR scenes
 
-Browser-console APIs (`CodeXR.help()`, `CodeXRDebug`, `CodeXRChartDebug`, `CodeXRDependencyGraphRuntime`) are fully documented in `docs/XR_DEBUG_COMMANDS.md`. Manual browser harnesses live in `test/manual/` (`npm run test:xr-harness`, `npm run test:project-evolution-harness`).
+Browser-console APIs (`CodeXR.help()`, `CodeXRDebug`, `CodeXRChartDebug`, `CodeXRDependencyGraphRuntime`) are fully documented in `docs/xr-testing/XR_DEBUG_COMMANDS.md`. Manual browser harnesses live in `test/manual/` (`npm run test:xr-harness`, `npm run test:project-evolution-harness`).
 
 ## Collaboration & remote layer (summary only)
 
 - Collaborative rooms: WebSocket signaling in `src/servers/runtime/collaboration/collaborationRoomServer.ts` + broadcast signaling for virtual screens; server-authoritative admin operations (host/guest roles, host transfer) — v1.2.0's "Collaboration 2.0".
-- Cross-network access: opt-in Cloudflare Quick Tunnel per server (pinned `cloudflared`, token invites, pairing codes, revocation) — see `docs/CLOUDFLARE_REMOTE_ACCESS.md` (Spanish) for limits and the authorization flow.
+- Cross-network access: opt-in Cloudflare Quick Tunnel per server (pinned `cloudflared`, token invites, pairing codes, revocation) — see `docs/features/CLOUDFLARE_REMOTE_ACCESS.md` (Spanish) for limits and the authorization flow.
 
 ## How future agents should use this document
 
