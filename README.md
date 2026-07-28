@@ -102,6 +102,21 @@ Four narrated videos, one per analysis:
 | [![Historical comparison walkthrough](https://img.youtube.com/vi/b37qDCQeZg0/hqdefault.jpg)](https://youtu.be/b37qDCQeZg0) | [![Project Evolution walkthrough](https://img.youtube.com/vi/Qs1OHWCqXSs/hqdefault.jpg)](https://youtu.be/Qs1OHWCqXSs) |
 | **[Historical comparison](https://youtu.be/b37qDCQeZg0)** — two revisions, one table | **[Project Evolution](https://youtu.be/Qs1OHWCqXSs)** — your repository as a film |
 
+## Tested in real XR sessions
+
+You don't have to take the immersive mode on faith. This release's VR and AR experience was driven and debugged **end to end inside real WebXR sessions**, emulated from a desktop browser with Meta's [Immersive Web Emulator](https://github.com/meta-quest/immersive-web-emulator): entry height and positioning, stick locomotion and flight, laser aim and hand switching, what AR hides and keeps, AR lighting, and grabbing screens with the controller. The screenshots below come straight from those test sessions — where you see extra panels and RGB gizmos around the controllers, that is the emulator's own tooling, not CodeXR.
+
+Want to reproduce it (or validate on your own headset)? The [WebXR emulator tutorial](docs/TUTORIAL_EMULADOR_WEBXR.md) explains the setup and the [manual VR/AR checklist](docs/XR_MANUAL_CHECKLIST.md) is the validation script.
+
+| | |
+|:---:|:---:|
+| ![VR testing cockpit: the scene surrounded by the emulator's controller panels](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/vr-testing-cockpit.jpeg) | ![Standing at the table edge in VR, the code city across the pedestal](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/vr-city-at-the-table.jpeg) |
+| **The XR testing cockpit** — a live VR session with the emulator's controller panels and gizmos around the scene | **At the table** — standing in VR at the pedestal's edge, the city one step away |
+| ![Flying over the code city in VR](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/vr-flying-over-the-city.jpeg) | ![AR entry: the pedestal recentered into your own space, room and environment gone](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/ar-recentered-pedestal.jpeg) |
+| **Flying over the codebase** — look up, push the stick, and read the skyline of your project | **AR brings the table to you** — recentered a step away, virtual room gone, charts fully lit |
+| ![AR close-up: a highlighted building with its metrics legend floating in passthrough](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/ar-hover-legend-passthrough.jpeg) | |
+| **Point and read, in your own room** — a hovered building shows its file, lines, functions and complexity in passthrough | |
+
 ## Base tutorials
 
 Everything above builds on the workflows introduced up to v1.1.0 — the UI, the analysis commands, LivePanel and the XR scene basics. These tutorials still describe that foundation accurately:
@@ -583,6 +598,7 @@ This project is licensed under the **GNU General Public License v3.0 (GPLv3)** -
 - **BabiaXR Team**: For the powerful visualization framework
 - **A-Frame Community**: For WebXR support and immersive web technologies
 - **Lizard Tool**: For reliable code complexity analysis
+- **Meta's Immersive Web Emulator & IWER**: For making real WebXR sessions drivable from a desktop browser — the tooling behind this release's XR validation
 - **VS Code Extension API**: For the extensible platform
 - **Open Source Community**: For continuous feedback and contributions
 
