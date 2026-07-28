@@ -24,7 +24,7 @@ export class ActiveAnalysesSubsectionProvider {
         // Get the session registry and server watcher for commands
         const sessionRegistry = UnifiedSessionRegistry.getInstance(this.context);
         const serverWatcher = ServerWatcherIntegration.getInstance(this.context);
-        this.commands = ActiveAnalysesCommands.getInstance(sessionRegistry, serverWatcher);
+        this.commands = ActiveAnalysesCommands.getInstance(sessionRegistry, serverWatcher, this.context);
         
         // Note: Commands are registered elsewhere in the nested dolls pattern
         // to avoid duplicate registration. See activeAnalysesCommands.ts

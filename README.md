@@ -461,7 +461,7 @@ The **"Active Analyses"** section in the tree view provides comprehensive sessio
 - **Easy Cleanup**: Close analyses you no longer need to free system resources
 - **Session Details**: View detailed information about each active analysis
 - **Browser Integration**: Open analyses directly in your browser
-- **Export a self-contained copy**: Copy the full generated analysis folder to any location. Serve it with any static HTTP server (`npx serve`) and the scene works outside VS Code: the classic analysis fully, the dependency graph (generated during export if you never opened it), and every historical comparison and evolution movie you computed, as replays. A `README-EXPORT.md` inside the copy explains the details. Still handy for debugging and manual inspection, too
+- **Export a self-contained copy**: Exporting opens a selector where you choose what travels: the normal analysis (always included), the dependency graph (generated during export if you never opened it), and the two git analyses. Picking those pre-analyzes the whole git timeline (up to 240 revisions, shared between both modes, cancellable; it can take a while on big repositories) so the copy is fully interactive offline: serve it with any static HTTP server (`npx serve`) and you can compare ANY two exported revisions and generate ANY movie (Auto, Range or Manual) without CodeXR behind it. A `README-EXPORT.md` inside the copy explains the details
 
 ## Configuration and Customization
 

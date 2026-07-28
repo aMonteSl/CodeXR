@@ -288,3 +288,58 @@ test('both Git services delegate availability to GitRepositoryService', () => {
     assert.doesNotMatch(historical, /await this\.gitService\.resolveRepositoryRoot\(\)/);
     assert.doesNotMatch(evolution, /await this\.gitService\.resolveRepositoryRoot\(\)/);
 });
+
+test('the browser sampler is a faithful port of the extension sampler', () => {
+    const browserSampler = require(path.join(
+        projectRoot, 'templates', 'components', 'common', 'codexrGitRefPickerRuntime.js',
+    )).sampleTimeline;
+    const extensionSampler = require(path.join(
+        projectRoot, 'out', 'code_analysis', 'historical', 'gitTimelineSampler.js',
+    )).sampleTimeline;
+
+    const day = 24 * 60 * 60;
+    const commit = (id, timestamp, extras) => ({
+        id, kind: 'gitRef', refType: 'commit', commitSha: id, label: id,
+        date: '', timestamp, revisionType: 'commit', live: false, ...extras,
+    });
+    const workingCopy = { id: 'working-copy', kind: 'workingCopy', label: 'Working copy', live: true };
+
+    // A dated timeline with milestones, an undated one, one that already
+    // fits, and a pseudo-random spread: identical picks expected everywhere.
+    const fixtures = [
+        {
+            timeline: Array.from({ length: 30 }, (_, i) => commit(`c${i}`, 1_600_000_000 + i * day, i === 12
+                ? { revisionType: 'merge' }
+                : i === 20 ? { refType: 'tag' } : {})),
+            maxFrames: 8,
+            endAnchor: workingCopy,
+        },
+        {
+            timeline: Array.from({ length: 15 }, (_, i) => commit(`u${i}`, undefined)),
+            maxFrames: 5,
+            endAnchor: workingCopy,
+        },
+        {
+            timeline: Array.from({ length: 4 }, (_, i) => commit(`s${i}`, 1_600_000_000 + i * day)),
+            maxFrames: 10,
+            endAnchor: null,
+        },
+        {
+            timeline: Array.from({ length: 50 }, (_, i) => commit(
+                `r${i}`,
+                1_500_000_000 + ((i * 2654435761) % 90) * day + i * day,
+                i % 11 === 0 ? { revisionType: 'merge' } : {},
+            )).sort((a, b) => a.timestamp - b.timestamp),
+            maxFrames: 12,
+            endAnchor: workingCopy,
+        },
+    ];
+
+    for (const fixture of fixtures) {
+        const fromBrowser = browserSampler(fixture.timeline, fixture.maxFrames, fixture.endAnchor)
+            .map((source) => source.id);
+        const fromExtension = extensionSampler(fixture.timeline, fixture.maxFrames, fixture.endAnchor)
+            .map((source) => source.id);
+        assert.deepEqual(fromBrowser, fromExtension);
+    }
+});

@@ -4,6 +4,7 @@
     "stateAndUiAtoms.js",
     "timelineAndSources.js",
     "overlayAndPanel.js",
+    "offlineGitData.js",
     "playbackControlsAndMessages.js",
     "frameApplication.js",
     "evolutionCharts.js",

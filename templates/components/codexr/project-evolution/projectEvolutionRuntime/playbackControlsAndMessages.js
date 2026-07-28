@@ -174,9 +174,22 @@
     await root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
       reason: 'project-evolution-selection'
     });
-    // An exported copy cannot list git references or generate new movies:
-    // replay the exported one and say so instead of requesting references.
+    // An exported copy cannot ask a server for references. With exported
+    // per-revision payloads the panel works for real (synthesized references,
+    // local generation); without them, replay the exported movie only.
     if (client()?.isOfflineExport?.()) {
+      var offlineGitData = getOfflineGitData();
+      if (offlineGitData) {
+        state.references = synthesizeOfflineEvolutionReferences(offlineGitData);
+        refs.picker?.setReferences(state.references);
+        render();
+        setStatus(
+          'Offline export: generate a movie from the '
+          + offlineGitData.analyzedRevisionCount + ' exported revisions (Auto, Range or Manual).',
+          'info'
+        );
+        return true;
+      }
       var frameCount = state.result?.frames?.length || 0;
       setStatus(
         frameCount
@@ -195,6 +208,18 @@
 
   function startSelectedTimeline() {
     if (client()?.isOfflineExport?.()) {
+      if (getOfflineGitData()) {
+        if (state.timelineMode === 'range' && (!state.startSourceId || !state.endSourceId)) {
+          setStatus('Choose start and end commits for the range.', 'error');
+          return;
+        }
+        if (state.timelineMode === 'manual' && (state.manualSourceIds || []).length < 1) {
+          setStatus('Select at least one commit for the manual movie.', 'error');
+          return;
+        }
+        startOfflineTimeline();
+        return;
+      }
       setStatus('This export replays the movie generated before export: a new movie needs the live CodeXR session.', 'error');
       return;
     }
@@ -225,8 +250,14 @@
 
   function clearMovie() {
     // Clearing deletes server-side files; offline it would only wipe the
-    // replay this export exists to provide.
+    // replay this export exists to provide. With exported git payloads,
+    // clearing is fine: the movie can be regenerated locally at will.
     if (client()?.isOfflineExport?.()) {
+      if (getOfflineGitData()) {
+        stop();
+        applyClearedState('Project evolution movie cleared.');
+        return;
+      }
       setStatus('This exported movie is replay-only: it cannot be cleared or regenerated here.', 'error');
       return;
     }

@@ -215,7 +215,11 @@
       // The passive-entity contract (a movie snapshot must never steal the
       // table from another mode) is asserted by CALLING this, not by reading
       // its source.
-      applySharedState: applySharedState
+      applySharedState: applySharedState,
+      // Offline movie generation from exported git payloads: asserted by
+      // building frames for each timeline mode, not by reading source.
+      buildOfflineFrames: buildOfflineFrames,
+      synthesizeOfflineEvolutionReferences: synthesizeOfflineEvolutionReferences
     },
     getState: function () {
       return {

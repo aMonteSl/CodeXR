@@ -293,7 +293,11 @@
       // The comparison clones borrow decoration from the scene chart, so what
       // they must NOT borrow (orientation, a foreign chart component) is
       // asserted by running the builder.
-      createChartFromTemplate: createChartFromTemplate
+      createChartFromTemplate: createChartFromTemplate,
+      // The offline delta port is asserted by CALLING it over payload pairs,
+      // not by reading its source.
+      buildOfflineDelta: buildOfflineDelta,
+      synthesizeOfflineHistoricalReferences: synthesizeOfflineHistoricalReferences
     }
   };
 

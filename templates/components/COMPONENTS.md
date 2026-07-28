@@ -94,6 +94,17 @@ its parts directory. Manual harnesses load assembled copies from
     left active (the bug that made exported copies open in project evolution). Pinned by
     `test/analysis/dependencyGraph.test.cjs` (contract across all three runtimes) and behavior
     tests in `projectEvolutionRuntime.test.cjs`.
+  - **Exported git data (`manifest.gitData`)**: when the export pre-analyzed the git timeline,
+    the manifest carries a `gitData` section: synthesized references (every exported source plus
+    `payloadUrl` + `itemCount`), `timelineSourceIds` (ascending), `suggestedSourceIds` (computed
+    at export time with the SAME sampler), `maxFrames` and `workingCopyPayloadUrl`. Every payload
+    carries BOTH identity keys (`comparisonKey` and `evolutionKey`), so one file per revision
+    serves historical comparisons and movie frames alike. The git-mode runtimes gate on the
+    PRESENCE of `gitData`, never on `schemaVersion`: with it, historical compares any pair
+    locally (its `offlineGitData.js` part ports the server's delta counters) and evolution
+    generates Auto/Range/Manual movies locally (`CodeXRGitRefPickerRuntime.sampleTimeline`, a
+    parity-tested port of `gitTimelineSampler.ts`, lives in the shared picker runtime); without
+    it, both fall back to replaying whatever was computed before export.
   - **Offline-export contract**: when the `/api/collaboration/session` probe fails, the client
     fetches `./codexr-export-manifest.json` (written by Export Analysis Folder into the copy,
     never into the live session folder). A valid manifest (`kind: 'codexr-export'`) makes the

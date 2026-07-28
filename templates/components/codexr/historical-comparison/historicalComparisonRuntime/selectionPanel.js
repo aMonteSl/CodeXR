@@ -113,10 +113,18 @@
     refs.status?.setAttribute('position', '-2.82 -2.17 0.02');
     root.CodeXRMappingUiRuntime?.setPanelViewTitle?.('historical-selection', 'History comparison');
     root.CodeXRMappingUiRuntime?.setPanelViewHeight?.('historical-selection', 6.45);
-    // An exported copy has no git or Python behind it: references cannot be
-    // listed and new comparisons cannot be computed. Offer the computed
-    // comparisons as a replay list instead (Compare loads the next one).
+    // An exported copy has no git or Python behind it. With exported
+    // per-revision payloads (gitData) the panel works for real: the picker
+    // lists the exported sources and Compare composes any pair locally.
+    // Without them, fall back to replaying the computed comparisons.
     if (getClient()?.isOfflineExport?.()) {
+      var offlineGitData = getOfflineGitData();
+      if (offlineGitData) {
+        state.references = synthesizeOfflineHistoricalReferences(offlineGitData);
+        renderReferences();
+        setStatus('Offline export: pick any two exported revisions and press Compare.', 'info');
+        return;
+      }
       showOfflineReplayStatus();
       return;
     }

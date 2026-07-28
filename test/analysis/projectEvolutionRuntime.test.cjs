@@ -398,3 +398,122 @@ test('a movie snapshot received while ALREADY in evolution reroutes to the movie
     assert.equal(transitions.length, 1, 'the requester (already in evolution) must land on the movie');
     assert.deepEqual(transitions[0], ['project-evolution', 'project-evolution-ready']);
 });
+
+// == Offline movie generation from exported git payloads ==
+
+function buildOfflineGitDataFixture() {
+    const day = 24 * 60 * 60;
+    const commit = function (n, extras) {
+        return Object.assign({
+            id: 'commit:c' + n,
+            kind: 'gitRef',
+            refType: 'commit',
+            commitSha: 'sha' + n,
+            label: 'c' + n,
+            date: '',
+            timestamp: 1600000000 + n * day,
+            revisionType: 'commit',
+            payloadUrl: './git-revisions/sha' + n + '.json',
+            itemCount: n + 1,
+        }, extras || {});
+    };
+    const sources = [{
+        id: 'working-copy', kind: 'workingCopy', label: 'Working copy',
+        payloadUrl: './git-revisions/working-copy.json', itemCount: 9,
+    }];
+    for (let n = 0; n < 10; n += 1) {
+        sources.push(commit(n, n === 5 ? { revisionType: 'merge' } : {}));
+    }
+    return {
+        references: {
+            targetRelativePath: '', workingTreeDirty: false, activeBranch: 'main', pageSize: 5, sources,
+        },
+        timelineSourceIds: sources
+            .filter((source) => source.kind === 'gitRef')
+            .map((source) => source.id)
+            .concat(['working-copy']),
+        suggestedSourceIds: ['commit:c0', 'commit:c5', 'working-copy'],
+        maxFrames: 3,
+        workingCopyPayloadUrl: './git-revisions/working-copy.json',
+        analyzedRevisionCount: 11,
+    };
+}
+
+function loadRuntimeWithOfflineGitData(gitData) {
+    const pickerApi = require(path.join(
+        projectRoot, 'templates', 'components', 'common', 'codexrGitRefPickerRuntime.js',
+    ));
+    const document = {
+        readyState: 'loading',
+        addEventListener() {},
+        getElementById() { return null; },
+    };
+    const sandbox = {
+        window: null,
+        document,
+        console,
+        Date: { now: () => 123456789 },
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        encodeURIComponent,
+        CodeXRGitRefPickerRuntime: pickerApi,
+        CodeXRCollaborationRuntime: {
+            getClient() {
+                return {
+                    isOfflineExport: () => true,
+                    getOfflineExportManifest: () => ({ kind: 'codexr-export', gitData }),
+                    sendMessage: () => false,
+                };
+            },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'projectEvolutionRuntime.js' });
+    return sandbox.CodeXRProjectEvolutionRuntime;
+}
+
+test('offline auto movies use the shipped suggestion at the default frame budget', () => {
+    const gitData = buildOfflineGitDataFixture();
+    const runtime = loadRuntimeWithOfflineGitData(gitData);
+
+    const frames = runtime.__testing.buildOfflineFrames(gitData, 'auto', { maxFrames: 3 });
+    assert.deepEqual(frames.map((frame) => frame.source.id), ['commit:c0', 'commit:c5', 'working-copy']);
+    assert.deepEqual(frames.map((frame) => frame.index), [0, 1, 2]);
+    assert.equal(frames[2].url, './git-revisions/working-copy.json');
+    assert.equal(frames[0].itemCount, 1);
+
+    const resampled = runtime.__testing.buildOfflineFrames(gitData, 'auto', { maxFrames: 5 });
+    assert.equal(resampled.length, 5);
+    assert.equal(resampled[0].source.id, 'commit:c0');
+    assert.equal(resampled[resampled.length - 1].source.id, 'working-copy');
+    assert.ok(
+        resampled.some((frame) => frame.source.id === 'commit:c5'),
+        'the merge milestone should be picked',
+    );
+});
+
+test('offline range slices the timeline inclusively; manual keeps chronological order', () => {
+    const gitData = buildOfflineGitDataFixture();
+    const runtime = loadRuntimeWithOfflineGitData(gitData);
+
+    const range = runtime.__testing.buildOfflineFrames(gitData, 'range', {
+        maxFrames: 96, startSourceId: 'commit:c2', endSourceId: 'commit:c4',
+    });
+    assert.deepEqual(range.map((frame) => frame.source.id), ['commit:c2', 'commit:c3', 'commit:c4']);
+
+    const manual = runtime.__testing.buildOfflineFrames(gitData, 'manual', {
+        maxFrames: 96, sourceIds: ['commit:c7', 'commit:c1', 'working-copy'],
+    });
+    assert.deepEqual(manual.map((frame) => frame.source.id), ['commit:c1', 'commit:c7', 'working-copy']);
+    assert.deepEqual(manual.map((frame) => frame.url), [
+        './git-revisions/sha1.json', './git-revisions/sha7.json', './git-revisions/working-copy.json',
+    ]);
+});
+
+test('offline generation is wired through the panel, and the no-git replay path survives', () => {
+    assert.match(runtimeSource, /synthesizeOfflineEvolutionReferences\(offlineGitData\)/);
+    assert.match(runtimeSource, /startOfflineTimeline\(\)/);
+    assert.match(runtimeSource, /exported revisions \(Auto, Range or Manual\)/);
+    assert.match(runtimeSource, /replays the movie generated before export/);
+    assert.match(runtimeSource, /replay-only: it cannot be cleared or regenerated here/);
+});
