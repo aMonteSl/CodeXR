@@ -427,6 +427,18 @@ test('collision bumpers stop look-at, drag, and resize at walls and screens', ()
     assert.match(xrTemplate, /"anchoredPosition":\{"x":0,"y":4\.2,"z":-22\}/);
 });
 
+test('AR frees the screens from the invisible room shell', () => {
+    // In AR the room is hidden and functionally gone (its pieces drop the
+    // raycast class in codexrRoomRuntime); the bumpers must not keep pinning
+    // screens against walls nobody can see. The check is live, BEFORE the
+    // cache, so desktop/VR keep the cached room bounds exactly as before —
+    // and an explicit collisionBounds override still applies (it describes
+    // the caller's own space, not the virtual room).
+    assert.match(runtimeSource, /getScene\(\)\?\.is\?\.\('ar-mode'\) && !refs\.config\.collisionBounds/);
+    // Screen-vs-screen obstacles are untouched by the AR branch.
+    assert.match(runtimeSource, /function getScreenObstacles/);
+});
+
 test('grab-and-reach: the grabbing hand\'s stick pushes/pulls the screen per frame', () => {
     // The handler only RECORDS the deflection — thumbstickmoved fires on axis
     // CHANGE, so applying per event froze the screen while the stick was held

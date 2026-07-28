@@ -457,6 +457,74 @@ test('the stick gate ignores unknown hands and stays a passthrough by default', 
     assert.deepEqual({ x: target.x, y: target.y }, { x: 1, y: 1 });
 });
 
+// --- The AR fill light: aframe-environment-component parents its lights
+// under #env, #env hides in AR, and three.js does not descend into invisible
+// nodes — so in AR only the root ambient survives and standard-material
+// content (charts, pedestal, logo) goes flat. codexr-ar-fill-light sits on a
+// root-level directional that idles at 0 and only comes on for AR. ---
+
+function fillLightHarness() {
+    const context = {
+        AFRAME: {
+            components: {},
+            registerComponent(name, definition) {
+                this.components[name] = definition;
+            },
+        },
+    };
+    context.window = context;
+    context.globalThis = context;
+    vm.runInNewContext(runtimeSource, context, { filename: runtimePath });
+
+    const sceneEl = {
+        states: new Set(),
+        listeners: {},
+        is(state) { return this.states.has(state); },
+        addEventListener(name, handler) {
+            (this.listeners[name] = this.listeners[name] || []).push(handler);
+        },
+        removeEventListener() {},
+        emit(name) {
+            (this.listeners[name] || []).slice().forEach((handler) => handler({}));
+        },
+    };
+    const lightEl = {
+        sceneEl,
+        attrs: { light: { type: 'directional', intensity: 0 } },
+        setAttribute(name, key, value) {
+            const current = this.attrs[name] || {};
+            this.attrs[name] = Object.assign({}, current, { [key]: value });
+        },
+    };
+    const definition = context.AFRAME.components['codexr-ar-fill-light'];
+    assert.ok(definition, 'rig runtime must register codexr-ar-fill-light');
+    const component = Object.create(definition);
+    component.el = lightEl;
+    component.data = { intensity: 0.55 };
+    component.init();
+    return { sceneEl, lightEl };
+}
+
+test('AR turns the fill light on; exiting turns it back off', () => {
+    const { sceneEl, lightEl } = fillLightHarness();
+
+    sceneEl.states.add('ar-mode');
+    sceneEl.emit('enter-vr');
+    assert.equal(lightEl.attrs.light.intensity, 0.55,
+        'AR: the fill directional restores the modelling the hidden #env lights provided');
+
+    sceneEl.states.delete('ar-mode');
+    sceneEl.emit('exit-vr');
+    assert.equal(lightEl.attrs.light.intensity, 0, 'desktop look untouched after exit');
+});
+
+test('VR never touches the fill light — the environment lights are visible there', () => {
+    const { sceneEl, lightEl } = fillLightHarness();
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+    assert.equal(lightEl.attrs.light.intensity, 0);
+});
+
 test('the patch is applied exactly once', () => {
     function GamepadControls() {}
     GamepadControls.prototype.isConnected = function () { return false; };

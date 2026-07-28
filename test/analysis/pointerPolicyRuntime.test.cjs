@@ -170,12 +170,26 @@ test('desktop: only the mouse cursor raycaster is enabled', () => {
     assert.equal('cursor' in pointers.left.attrs, false);
 });
 
-test('VR without controllers: gaze becomes the single active pointer', () => {
+test('a REAL session without controllers: gaze becomes the single active pointer', () => {
     const { sceneEl, pointers, flush } = createHarness();
+    // A-Frame sets sceneEl.xrSession before emitting enter-vr for a real
+    // WebXR session (mobile AR, headset with sleeping controllers).
+    sceneEl.xrSession = {};
     sceneEl.emit('enter-vr');
     flush();
     assertSingleActivePointer(pointers, 'gaze');
     assert.equal(pointers.gaze.attrs.visible, true);
+});
+
+test('a SIMULATED entry without controllers keeps the mouse pointer', () => {
+    const { sceneEl, pointers, flush } = createHarness();
+    // CodeXRDebug.simulateVR/AR and emulator states add scene states and emit
+    // enter-vr but never set xrSession: the user is still at a desk, so the
+    // mouse stays the pointer and no gaze cursor ever activates.
+    sceneEl.emit('enter-vr');
+    flush();
+    assertSingleActivePointer(pointers, 'mouse');
+    assert.equal(pointers.gaze.attrs.visible, false);
 });
 
 test('VR with controllers: right laser only; left is re-neutralized after every injection', () => {
@@ -262,6 +276,7 @@ test('the fallback cursor (unknown controller) restores the pointing ray it may 
 
 test('single-controller headset: left becomes the pointer when right disconnects', () => {
     const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.xrSession = {}; // real headset: gaze is the no-controller fallback
     sceneEl.emit('enter-vr');
     pointers.right.emit('controllerconnected', { name: 'meta-touch-controls' });
     simulateLaserControlsInjection(pointers.right);

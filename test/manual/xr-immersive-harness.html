@@ -58,6 +58,12 @@
     </a-entity>
 
     <a-entity light="color: #fff; type: ambient; intensity: 0.85"></a-entity>
+    <!-- AR fill, exactly as the templates declare it: idles at 0, raised by
+         codexr-ar-fill-light for AR sessions only (the environment's own
+         lights hide with #env in AR). -->
+    <a-entity id="arFillLight" codexr-ar-fill-light
+      light="type: directional; color: #ffffff; intensity: 0"
+      position="1 4 2"></a-entity>
 
     <!-- Kept-in-AR set: pedestal (real runtime), chart, logo, screens, panel -->
     <a-entity
@@ -87,13 +93,13 @@
     <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
       codexr-immersive-rig="arX: 0.07; arZ: -14.7">
       <a-entity id="head" camera position="0 0 0" look-controls>
+        <!-- No reticle geometry on purpose: the white ring bothered headset
+             users; gaze keeps working through its raycaster alone. -->
         <a-entity
           id="gazeCursor"
           visible="false"
           cursor="rayOrigin: entity; fuse: false"
           raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
-          <a-ring position="0 0 -0.6" radius-inner="0.008" radius-outer="0.014"
-            material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
         </a-entity>
       </a-entity>
 
