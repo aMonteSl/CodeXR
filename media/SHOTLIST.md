@@ -33,7 +33,9 @@ The four analyses keep the same folder name everywhere they appear — `normal`,
 
 **Marketplace constraints.** README images need **absolute HTTPS URLs**; **SVG is not rendered**; **video cannot be embedded**. That is why videos live on YouTube and appear here as a linked thumbnail.
 
-**Referencing.** `https://raw.githubusercontent.com/aMonteSl/CodeXR/<ref>/media/v1.2.0/<file>`. Use the release **tag** once it exists — a tag is immutable, so a published listing can never lose its images.
+**Referencing.** `https://raw.githubusercontent.com/aMonteSl/CodeXR/<ref>/media/v1.2.0/<file>`. Use the release **tag** once it exists: a tag is immutable, so a published listing can never lose its images.
+
+**Careful: `v1.2.0` is currently both a branch and a tag**, and an ambiguous ref resolves to the **branch** (verified against `raw.githubusercontent.com`, which serves the branch's README and not the tag's). That is why shots added after the tag was cut still render. It also means the immutability above is not actually in effect right now: if the branch is ever deleted, the ref falls back to the tag and every image added after the tag was cut would 404. Before deleting the branch, move the tag to its tip (`git tag -f v1.2.0 <tip>` plus `git push --force origin refs/tags/v1.2.0:refs/tags/v1.2.0`) or repoint the README at `refs/heads/<branch>`.
 
 **Videos: three files per analysis.** Every folder under `videos/` holds the same trio, all three named after the same subject, and each one has exactly one destination:
 
@@ -152,6 +154,19 @@ XR, not just how it looks. JPEG ~1600 px, 115-152 KB each.
 | X4 | `ar-recentered-pedestal.jpeg` | captured | AR entry: recentered a step from the pedestal, room/environment gone, charts lit by the AR fill light, hover legend visible |
 | X5 | `ar-hover-legend-passthrough.jpeg` | captured | AR close-up: highlighted building with its metrics legend (easyrtc.js) floating in passthrough |
 | X6 | `ar-development.jpeg` | captured | Full AR workspace: pedestal, guide, screens and the Field Mapping panel with the emulator's key-map overlays (user-taken; the 551 KB PNG master stays untracked beside it) |
+
+### Cross-network joining (`v1.2.0/collaboration/`)
+
+The guest-facing pairing pages, used by the README's cross-network tutorial. Rendered from the **real production page** (`src/servers/runtime/remote/pairingPage.ts`, compiled and served as-is, so the HTML, CSS and client script are exactly what a guest gets) with only the three endpoints it calls stubbed: a faithful capture would otherwise need a live Cloudflare tunnel and a second machine. The alias, the code and the addresses shown are therefore invented, and nothing else is. Captured at 640 px wide, `deviceScaleFactor: 2`, dark scheme.
+
+| File | Size | What it shows |
+|---|---|---|
+| `remote-join-identity.png` | 174 KB | Step 1 of the join page: continue as anonymous with the alias CodeXR reserved, or use a custom name, then *Request access* |
+| `remote-join-code.png` | 114 KB | Step 2: the six-digit field and *Connect*, with "Request sent. Enter the code the host gives you." |
+| `remote-join-rejected.png` | 120 KB | A burnt code: the field is cleared and the page answers "The code is not valid." |
+| `remote-join-expired.png` | 72 KB | The page an expired or already-used invitation link lands on |
+
+The host side of the flow (the VS Code notifications carrying the code, the participant card and *Remove from Session*) is **not** captured: Playwright drives web pages, not the VS Code window, so those would have to be taken by hand.
 
 ## Open items
 
