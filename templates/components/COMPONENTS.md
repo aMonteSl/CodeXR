@@ -82,6 +82,18 @@ its parts directory. Manual harnesses load assembled copies from
   - Owns shared presence, identity, avatars, pointers and collaboration entities.
   - Terminal disconnects show a full-page screen (`disconnectScreen.js` part) and stop
     the reconnect loop: `session-ended` (host stopped the server) and `participant-kick`.
+  - **Offline-export contract**: when the `/api/collaboration/session` probe fails, the client
+    fetches `./codexr-export-manifest.json` (written by Export Analysis Folder into the copy,
+    never into the live session folder). A valid manifest (`kind: 'codexr-export'`) makes the
+    client the offline stand-in for the session: `getSessionInfoAsync()` resolves with the
+    manifest's `capabilities` (same field names the live session API uses, so every mode's
+    availability gate works unchanged), the manifest's `entities` are injected through the same
+    `applySharedState`/`pendingEntities` path a room snapshot uses (entities carrying a
+    `resultUrl` are fetched first), and no WebSocket is ever opened. `isOfflineExport()` and
+    `getOfflineExportManifest()` expose the flag; the dependency/historical/evolution runtimes
+    use it to turn server-only actions into notices, and project evolution flips its frame-URL
+    preference to each frame's own pre-generated file (`frame.url`) ONLY in this mode — the
+    online bridge preference is untouched.
 - `codexr/avatar/codexrAvatarRuntime.js`
   - Owns avatar rendering, the bundled glTF avatar asset (auto-fitted to a human
     height), per-player colour tinting and the billboarded name tags.

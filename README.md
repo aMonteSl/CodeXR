@@ -461,7 +461,7 @@ The **"Active Analyses"** section in the tree view provides comprehensive sessio
 - **Easy Cleanup**: Close analyses you no longer need to free system resources
 - **Session Details**: View detailed information about each active analysis
 - **Browser Integration**: Open analyses directly in your browser
-- **Export for Debugging**: Copy the full generated analysis folder to any location for manual inspection or debugging
+- **Export a self-contained copy**: Copy the full generated analysis folder to any location. Serve it with any static HTTP server (`npx serve`) and the scene works outside VS Code: the classic analysis fully, the dependency graph (generated during export if you never opened it), and every historical comparison and evolution movie you computed, as replays. A `README-EXPORT.md` inside the copy explains the details. Still handy for debugging and manual inspection, too
 
 ## Configuration and Customization
 
