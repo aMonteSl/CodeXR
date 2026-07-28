@@ -8,6 +8,8 @@ CodeXR is a Visual Studio Code extension that analyzes your code (complexity, si
 
 Everything runs on your machine: local analysis, local servers, no telemetry, no account, and nothing is downloaded without asking you first.
 
+[![VISSOFT 2025 Distinguished Artifact Award](https://img.shields.io/badge/VISSOFT%202025-Distinguished%20Artifact%20Award-FFD700)](https://conf.researchr.org/info/icsme-2025/icsme-2025-awards)
+[![DOI](https://img.shields.io/badge/DOI-10.1109%2FVISSOFT67405.2025.00034-1f6feb)](https://doi.org/10.1109/VISSOFT67405.2025.00034)
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-code--xr-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=aMonteSl.code-xr)
 [![Latest release](https://img.shields.io/github/v/release/aMonteSl/CodeXR?label=Release&color=blue)](https://github.com/aMonteSl/CodeXR/releases/latest)
@@ -20,6 +22,19 @@ Everything runs on your machine: local analysis, local servers, no telemetry, no
 [![Documentation](https://img.shields.io/badge/Docs-Official%20Website-blue)](https://code-xr.adrianmonteslinares.com/)
 [![Author](https://img.shields.io/badge/Author-adrianmonteslinares.com-lightgrey)](https://adrianmonteslinares.com/)
 [![Support](https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/adrianadyrx)
+
+## Published and awarded at VISSOFT 2025
+
+CodeXR is the artifact behind **"Real-Time XR Visualizations of Code Metrics in the IDE"** by David Moreno-Lumbreras, Gregorio Robles and Adrián Montes Linares, a paper accepted and presented at **VISSOFT 2025**, the IEEE Working Conference on Software Visualization, co-located with ICSME 2025.
+
+The artifact received the conference's **Distinguished Artifact Award**.
+
+| | |
+|---|---|
+| **Paper** | [IEEE Xplore](https://ieeexplore.ieee.org/document/11175653) · [DOI 10.1109/VISSOFT67405.2025.00034](https://doi.org/10.1109/VISSOFT67405.2025.00034) |
+| **Award** | [Official announcement](https://conf.researchr.org/info/icsme-2025/icsme-2025-awards) · [Certificate](https://adrianmonteslinares.com/documents/distinghuished_artifact_award.pdf) |
+
+If CodeXR is useful in your own research, citing the paper above is the best way to support it.
 
 ## Official Documentation
 
