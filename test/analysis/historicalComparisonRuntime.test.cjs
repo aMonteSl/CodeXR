@@ -52,3 +52,25 @@ test('comparison boats receive unique stable ids on each side without mutating m
     assert.equal(right[0].children[1].children[0].totalLines, 35);
     assert.equal(payload[0].uid, undefined);
 });
+
+test('historical runtime replays computed comparisons in a self-contained export', () => {
+    // The selection panel skips the references request offline (there is no
+    // git behind an export) and shows the replay status instead.
+    const requestIndex = runtimeSource.indexOf("sendMessage?.('historical-comparison-references-request'");
+    const offlineBranch = runtimeSource.indexOf('showOfflineReplayStatus()');
+    assert.ok(offlineBranch > -1 && requestIndex > -1);
+    assert.match(runtimeSource, /isOfflineExport\?\.\(\)[\s\S]{0,120}showOfflineReplayStatus\(\)/);
+
+    // Compare walks the replay list offline: newest first, wrapping around.
+    assert.match(runtimeSource, /function getOfflineReplayList\(\)/);
+    assert.match(runtimeSource, /getOfflineExportManifest\?\.\(\)/);
+    assert.match(runtimeSource, /function loadOfflineComparison\(entry\)/);
+    assert.match(runtimeSource, /state\.offlineReplayIndex = index \+ 1/);
+
+    // The replay rides the exact same applySharedState path a live room
+    // snapshot uses, so rendering cannot drift between online and offline.
+    assert.match(runtimeSource, /applySharedState\(\{\s*entityKind: 'historical-comparison',\s*entityId: 'main',\s*mode: 'historical-compare',\s*result: result\s*\}\)/);
+
+    // Without computed comparisons the mode says exactly why it cannot run.
+    assert.match(runtimeSource, /No comparison was computed before this export/);
+});

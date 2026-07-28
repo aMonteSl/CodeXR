@@ -262,3 +262,66 @@ test('suggested auto order tolerates never-loaded references (dependency-start r
     // and silently kill the dependency-graph start handshake.
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.__testing.getSuggestedAutoOrderById())), {});
 });
+
+// ── Self-contained exports: play from the pre-generated frame files ─────────
+
+function loadRuntimeWithClient(clientStub) {
+    const document = {
+        readyState: 'loading',
+        addEventListener() {},
+        getElementById() { return null; },
+    };
+    const sandbox = {
+        window: null,
+        document,
+        console,
+        Date: { now: () => 123456789 },
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        encodeURIComponent,
+        CodeXRCollaborationRuntime: {
+            getClient() { return clientStub; },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'projectEvolutionRuntime.js' });
+    return sandbox.CodeXRProjectEvolutionRuntime;
+}
+
+test('offline export plays each frame from its own file; online keeps the bridge preference', () => {
+    const frame = { index: 3, url: '/evolution/revision-3/data4.json' };
+    const appliedBridgeUrl = '/evolution/revision-3/data.json';
+
+    // Online (no offline flag): the bridge URL wins, exactly as before.
+    const online = loadRuntimeWithClient({ isOfflineExport: () => false, sendMessage: () => true });
+    const onlineUrl = online.__testing.frameUrlWithCache(frame, appliedBridgeUrl);
+    assert.match(onlineUrl, /^\/evolution\/revision-3\/data\.json\?/);
+
+    // Offline: the same call must point at the frame's own pre-generated file,
+    // because no server exists to swap the bridge content.
+    const offline = loadRuntimeWithClient({ isOfflineExport: () => true, sendMessage: () => true });
+    const offlineUrl = offline.__testing.frameUrlWithCache(frame, appliedBridgeUrl);
+    assert.match(offlineUrl, /^\/evolution\/revision-3\/data4\.json\?/);
+    assert.match(offlineUrl, /frame=4/);
+});
+
+test('offline export never sends playback or lifecycle messages to a server', () => {
+    // requestBridgeFrame resolves immediately (empty bridge URL) before any
+    // sendMessage: no timeout, no pending apply.
+    assert.match(runtimeSource, /isOfflineExport\?\.\(\)[\s\S]{0,220}bridgeUrl: ''/);
+    const offlineResolve = runtimeSource.indexOf("bridgeUrl: ''");
+    const applyFrameSend = runtimeSource.indexOf("'project-evolution-apply-frame'");
+    assert.ok(offlineResolve > -1 && applyFrameSend > -1 && offlineResolve < applyFrameSend,
+        'the offline resolution must run before the frame-apply send');
+
+    // References, generation and clearing are server work: offline they turn
+    // into plain notices instead of dead requests (Clear would even wipe the
+    // exported replay through its local fallback).
+    assert.match(runtimeSource, /play, pause and seek work here/);
+    assert.match(runtimeSource, /a new movie needs the live CodeXR session/);
+    assert.match(runtimeSource, /replay-only: it cannot be cleared or regenerated here/);
+    const clearGuard = runtimeSource.indexOf('replay-only: it cannot be cleared or regenerated here');
+    const clearSend = runtimeSource.indexOf("'project-evolution-clear'");
+    assert.ok(clearGuard > -1 && clearSend > -1 && clearGuard < clearSend,
+        'the offline guard must run before the clear request');
+});

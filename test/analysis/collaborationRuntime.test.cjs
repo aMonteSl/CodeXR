@@ -346,3 +346,146 @@ test('a session-ended message shows the disconnect screen once and stops the rec
     const screens = body.children.filter((child) => child.id === 'codexrDisconnectScreen');
     assert.equal(screens.length, 1);
 });
+
+// ── Self-contained exports ───────────────────────────────────────────────────
+// When the session endpoint is unreachable AND codexr-export-manifest.json is
+// served next to the scene, the client must switch to offline-export mode:
+// capabilities come from the manifest, its entity snapshots are injected
+// through the same path a room snapshot uses, and no WebSocket is ever opened.
+
+function buildOfflineFakeWindow(options) {
+    const sockets = [];
+    function FakeWebSocket() {
+        sockets.push(this);
+    }
+    FakeWebSocket.OPEN = 1;
+    FakeWebSocket.CONNECTING = 0;
+    FakeWebSocket.prototype.close = function () {};
+
+    const manifest = options.manifest;
+    const fakeWindow = {
+        document: null,
+        location: { protocol: 'http:', host: '127.0.0.1:7777' },
+        WebSocket: FakeWebSocket,
+        addEventListener() {},
+        setTimeout(fn) { return globalThis.setTimeout(fn, 0); },
+        clearTimeout(id) { globalThis.clearTimeout(id); },
+        console: { log() {}, warn() {}, error() {}, info() {} },
+        fetch(url) {
+            const target = String(url);
+            if (target.includes('/api/collaboration/session')) {
+                return options.sessionOk
+                    ? Promise.resolve({ ok: true, json: async () => ({ roomId: 'room-1', capabilities: { dependencyGraph: true } }) })
+                    : Promise.reject(new Error('offline'));
+            }
+            if (target.includes('codexr-export-manifest.json')) {
+                return manifest
+                    ? Promise.resolve({ ok: true, json: async () => manifest })
+                    : Promise.resolve({ ok: false });
+            }
+            if (target.includes('./comparison/revision-1.json')) {
+                return Promise.resolve({ ok: true, json: async () => ({ revision: 1, mode: 'historical-compare' }) });
+            }
+            return Promise.resolve({ ok: false });
+        },
+    };
+    return { fakeWindow, sockets };
+}
+
+const OFFLINE_MANIFEST = {
+    kind: 'codexr-export',
+    capabilities: {
+        dependencyGraph: true,
+        dependencyGraphReason: '',
+        historicalComparison: true,
+        historicalComparisonReason: 'Replay only: new comparisons need the live CodeXR session.',
+        projectEvolution: false,
+        projectEvolutionReason: 'No evolution movie was generated before export.',
+    },
+    entities: [
+        {
+            entityKind: 'dependency-graph',
+            entityId: 'main',
+            mode: 'dependency-graph',
+            status: 'ready',
+            datasetUrl: './dependencies/dependency-graph-3.json',
+            revision: 3,
+        },
+        {
+            entityKind: 'historical-comparison',
+            entityId: 'main',
+            mode: 'historical-compare',
+            resultUrl: './comparison/revision-1.json',
+        },
+    ],
+    historicalComparison: { comparisons: [] },
+};
+
+test('offline export: manifest capabilities stand in for the session, entities inject, and no socket opens', async () => {
+    const { fakeWindow, sockets } = buildOfflineFakeWindow({ sessionOk: false, manifest: OFFLINE_MANIFEST });
+    const client = collaborationRuntime.createClient(fakeWindow);
+
+    // A runtime registered BEFORE the manifest resolves must still get its
+    // snapshot (through pendingEntities or direct application).
+    const dependencyStates = [];
+    client.registerEntityRuntime({
+        entityKind: 'dependency-graph',
+        entityId: 'main',
+        applySharedState(state) { dependencyStates.push(state); },
+    });
+
+    client.connect({ presenceEnabled: false, cursorPresenceEnabled: false });
+    const info = await client.getSessionInfoAsync();
+    // Let the entity fetch/injection microtasks drain.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.equal(client.isOfflineExport(), true);
+    assert.equal(info.offlineExport, true);
+    assert.equal(info.capabilities.dependencyGraph, true);
+    assert.match(info.capabilities.historicalComparisonReason, /Replay only/);
+    assert.equal(sockets.length, 0, 'an offline export must never open a WebSocket');
+
+    assert.equal(dependencyStates.length, 1, 'the early registrant should receive its snapshot');
+    assert.equal(dependencyStates[0].datasetUrl, './dependencies/dependency-graph-3.json');
+
+    // A runtime registered AFTER the injection gets its entity replayed, with
+    // the resultUrl already resolved into a result.
+    const historicalStates = [];
+    client.registerEntityRuntime({
+        entityKind: 'historical-comparison',
+        entityId: 'main',
+        applySharedState(state) { historicalStates.push(state); },
+    });
+    assert.equal(historicalStates.length, 1, 'the late registrant should receive the pending snapshot');
+    assert.equal(historicalStates[0].result.revision, 1);
+
+    assert.equal(client.getOfflineExportManifest().kind, 'codexr-export');
+});
+
+test('online regression: a reachable session keeps the socket path and never flags offline', async () => {
+    const { fakeWindow, sockets } = buildOfflineFakeWindow({ sessionOk: true, manifest: OFFLINE_MANIFEST });
+    const client = collaborationRuntime.createClient(fakeWindow);
+
+    client.connect({ presenceEnabled: false, cursorPresenceEnabled: false });
+    const info = await client.getSessionInfoAsync();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.equal(client.isOfflineExport(), false);
+    assert.equal(info.offlineExport, undefined);
+    assert.equal(sockets.length, 1, 'a live session must open its WebSocket exactly as before');
+});
+
+test('offline export: a session failure WITHOUT a manifest keeps the plain fallback (no offline flag)', async () => {
+    const { fakeWindow, sockets } = buildOfflineFakeWindow({ sessionOk: false, manifest: null });
+    const client = collaborationRuntime.createClient(fakeWindow);
+
+    client.connect({ presenceEnabled: false, cursorPresenceEnabled: false });
+    const info = await client.getSessionInfoAsync();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.equal(client.isOfflineExport(), false);
+    assert.equal(info.offlineExport, undefined);
+    // No offline manifest: the client keeps trying to reach the room, exactly
+    // like a temporarily unreachable live server.
+    assert.equal(sockets.length, 1);
+});

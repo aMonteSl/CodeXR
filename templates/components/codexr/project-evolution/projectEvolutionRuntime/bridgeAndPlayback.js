@@ -4,7 +4,13 @@
   }
 
   function frameUrlWithCache(frame, rawUrl) {
-    var raw = String(rawUrl || bridgeUrl() || frame.url || '');
+    // In a self-contained export there is no server to swap the bridge file,
+    // so the bridge URL always serves the same snapshot: play directly from
+    // the pre-generated per-frame files instead. Online keeps the bridge
+    // preference untouched.
+    var raw = client()?.isOfflineExport?.()
+      ? String(frame.url || '')
+      : String(rawUrl || bridgeUrl() || frame.url || '');
     if (!raw) { return ''; }
     var separator = raw.indexOf('?') === -1 ? '?' : '&';
     return raw + separator
@@ -92,6 +98,16 @@
       }));
     }
     var runtimeClient = client();
+    // Offline there is nobody to apply the frame server-side: resolve at once
+    // with no bridge URL, which sends frameUrlWithCache to the frame's own
+    // pre-generated file.
+    if (runtimeClient?.isOfflineExport?.()) {
+      return Promise.resolve({
+        revision: revision,
+        frameIndex: frameIndex,
+        bridgeUrl: ''
+      });
+    }
     if (!runtimeClient?.sendMessage) {
       return Promise.resolve({
         revision: revision,
