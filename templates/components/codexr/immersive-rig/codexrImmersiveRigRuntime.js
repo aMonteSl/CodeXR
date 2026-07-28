@@ -11,7 +11,10 @@
 })(function (root) {
   'use strict';
 
-  // Immersive-entry adapter for CodeXR scenes: four small, independent jobs.
+  // Immersive-entry adapter for CodeXR scenes: four small, independent jobs
+  // on the component, plus two page-level compatibility patches for
+  // aframe-extras' gamepad locomotion (the IWER connected-flag shim and the
+  // per-hand stick gate `CodeXRStickGateRuntime`, both below).
   //
   // 1. Fly automatically in VR and AR. Desktop stays ground-based (WASD via
   //    movement-controls' own keyboard behaviour); entering any immersive
@@ -60,6 +63,60 @@
   //    would enter at floor level. Quest and the WebXR emulator both provide
   //    `local-floor`, which A-Frame requests by default.
 
+  // Per-hand locomotion gate. While a controller is doing something that
+  // OWNS its thumbstick (today: dragging a virtual screen, where the stick
+  // pushes and pulls the grabbed screen), that hand's stick must not also
+  // walk or turn the user. aframe-extras polls the gamepads directly every
+  // tick — events cannot intercept it — so the claim is honoured inside the
+  // getJoystick patch below. The other hand keeps its role: aframe-extras'
+  // fixed scheme reads MOVEMENT from the LEFT gamepad and ROTATION from the
+  // RIGHT one, so a claim only silences its own hand's function.
+  function ensureStickGate(root) {
+    if (!root.CodeXRStickGateRuntime) {
+      const claims = { left: false, right: false };
+      root.CodeXRStickGateRuntime = {
+        claim: function (hand) {
+          if (hand === 'left' || hand === 'right') { claims[hand] = true; }
+        },
+        release: function (hand) {
+          if (hand === 'left' || hand === 'right') { claims[hand] = false; }
+        },
+        claimed: function (hand) {
+          return claims[hand] === true;
+        },
+      };
+    }
+    return root.CodeXRStickGateRuntime;
+  }
+
+  function gamepadControlsPrototype(AFRAME) {
+    const record = AFRAME.components && AFRAME.components['gamepad-controls'];
+    return record
+      ? (record.Component ? record.Component.prototype : record.prototype)
+      : null;
+  }
+
+  function patchGamepadControlsJoystick(AFRAME, gate) {
+    const proto = gamepadControlsPrototype(AFRAME);
+    if (!proto || typeof proto.getJoystick !== 'function'
+      || proto.__codexrStickGateApplied) {
+      return;
+    }
+    proto.__codexrStickGateApplied = true;
+    const original = proto.getJoystick;
+    // aframe-extras' fixed joystick roles: 1 = MOVEMENT (left gamepad),
+    // 2 = ROTATION (right gamepad). Everything that moves the rig funnels
+    // through getJoystick, so zeroing here covers isVelocityActive,
+    // isRotationActive and getVelocityDelta at once.
+    proto.getJoystick = function (index, target) {
+      if ((index === 1 && gate.claimed('left'))
+        || (index === 2 && gate.claimed('right'))) {
+        return target.set(0, 0);
+      }
+      return original.call(this, index, target);
+    };
+  }
+
   // aframe-extras' gamepad-controls (the stick path of movement-controls)
   // gates ALL stick input on `gamepad.connected`. Per the WebXR Gamepads
   // Module, the gamepad of an input source the session lists is connected by
@@ -71,10 +128,7 @@
   // Trusting the session's input list — exactly what the spec promises —
   // makes the same build work on the emulator and on real headsets alike.
   function patchGamepadControlsConnected(AFRAME) {
-    const record = AFRAME.components && AFRAME.components['gamepad-controls'];
-    const proto = record
-      ? (record.Component ? record.Component.prototype : record.prototype)
-      : null;
+    const proto = gamepadControlsPrototype(AFRAME);
     if (!proto || typeof proto.isConnected !== 'function'
       || proto.__codexrTrustsSessionInputs) {
       return;
@@ -101,6 +155,7 @@
     }
 
     patchGamepadControlsConnected(AFRAME);
+    patchGamepadControlsJoystick(AFRAME, ensureStickGate(root));
 
     AFRAME.registerComponent('codexr-immersive-rig', {
       schema: {

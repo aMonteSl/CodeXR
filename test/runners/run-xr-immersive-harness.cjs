@@ -526,6 +526,83 @@ async function runScenario(browser) {
         'real VR: left line stays off after IWER re-announces the controller');
     assert.equal(state.pointers.right.showLine, true, 'real VR: the active line stays on');
 
+    // --- Ghost line: demote a laser WHILE it is intersecting something. ---
+    // A-Frame's raycaster queues its line redraw with setTimeout on every
+    // intersecting tick and redraws without re-checking showLine, so the
+    // redraw queued just before the demotion used to resurrect the line —
+    // with the raycaster disabled, permanently (the steady "two lasers" the
+    // emulator showed). The policy now sweeps it one macrotask later.
+    await run(`(function () {
+      const scene = document.getElementById('scene');
+      const target = document.createElement('a-box');
+      target.setAttribute('id', 'ghostTarget');
+      target.setAttribute('class', 'babiaxraycasterclass');
+      target.setAttribute('width', '6');
+      target.setAttribute('height', '6');
+      target.setAttribute('depth', '0.2');
+      target.setAttribute('position', '0.07 1.2 -13');
+      scene.appendChild(target);
+      const right = document.getElementById('rightController');
+      right.object3D.position.set(0.3, 1.3, -0.4);
+      right.object3D.rotation.set(0.6, 0, 0);
+    })()`);
+    await page.waitForFunction(() => {
+        const right = document.getElementById('rightController');
+        const ray = right.components && right.components.raycaster;
+        return !!(ray && ray.intersectedEls && ray.intersectedEls.length);
+    }, { timeout: 10000 });
+    await run('CodeXRImmersiveHarness.trigger("left")'); // demote right mid-intersection
+    await page.waitForTimeout(600); // sweep runs a macrotask after the queued redraw
+    state = await snap();
+    assert.equal(await active(), 'left', 'ghost scenario: left took the pointer');
+    assert.equal(state.pointers.right.showLine, false, 'ghost scenario: right line attribute off');
+    assert.equal(state.pointers.right.hasLine, false,
+        'ghost scenario: the demoted laser must not keep a RENDERED line — '
+        + 'a leftover line component here is the "two lasers" ghost');
+
+    // --- The per-hand stick gate: a claimed hand stops driving locomotion
+    // (this is what a virtual-screen drag claims while the stick pushes and
+    // pulls the grabbed screen); the OTHER hand keeps its role. ---
+    await run('CodeXRImmersiveHarness.clearStickAxes()');
+    let gateBefore = (await snap()).rig;
+    await run('CodeXRStickGateRuntime.claim("left")');
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, -1)');
+    await page.waitForTimeout(300);
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, 0)');
+    let gateAfter = (await snap()).rig;
+    assert.ok(Math.abs(gateBefore.z - gateAfter.z) < 0.02,
+        `stick gate: a claimed left stick must not walk the rig (z ${gateBefore.z} -> ${gateAfter.z})`);
+
+    gateBefore = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("right", 1, 0)');
+    await page.waitForTimeout(250);
+    await run('CodeXRImmersiveHarness.setStickAxes("right", 0, 0)');
+    gateAfter = (await snap()).rig;
+    assert.ok(gateAfter.yaw - gateBefore.yaw < -0.15,
+        `stick gate: the unclaimed right hand keeps turning (Δyaw ${gateAfter.yaw - gateBefore.yaw})`);
+
+    await run('CodeXRStickGateRuntime.release("left")');
+    gateBefore = (await snap()).rig;
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, -1)');
+    await page.waitForTimeout(300);
+    await run('CodeXRImmersiveHarness.setStickAxes("left", 0, 0)');
+    gateAfter = (await snap()).rig;
+    assert.ok(gateBefore.z - gateAfter.z > 0.3,
+        `stick gate: releasing the claim gives walking back (z ${gateBefore.z} -> ${gateAfter.z})`);
+
+    // --- An active screen drag owns the pointer (scene state set by the
+    // virtual-screen runtime): activity on the other hand steals nothing
+    // until the drag ends. ---
+    assert.equal(await active(), 'left', 'drag-hold: left holds the pointer going in');
+    await run('document.getElementById("scene").addState("codexr-screen-drag")');
+    await run('CodeXRImmersiveHarness.trigger("right")');
+    await settle();
+    assert.equal(await active(), 'left', 'drag-hold: the other trigger must not steal mid-grab');
+    await run('document.getElementById("scene").removeState("codexr-screen-drag")');
+    await run('CodeXRImmersiveHarness.trigger("right")');
+    await settle();
+    assert.equal(await active(), 'right', 'drag-hold: handover works again after release');
+
     // Sticks, exactly as IWER exposes them (gamepad.connected === false):
     // locomotion must work anyway.
     await run('CodeXRImmersiveHarness.clearStickAxes()');
