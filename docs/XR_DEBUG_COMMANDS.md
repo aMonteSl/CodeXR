@@ -47,7 +47,9 @@ is no headset pose, no stereo rendering and no camera passthrough — in AR the
 background is simply empty instead of your room. Use them to answer *what is
 hidden and where do I end up*; for the rest use a WebXR emulator (Chrome
 DevTools' **WebXR** panel, or the *Immersive Web Emulator* extension, which
-also emulates controller thumbsticks) or a real device.
+also emulates controller thumbsticks) or a real device. There is a full
+walkthrough of the emulator, in Spanish, in
+[`TUTORIAL_EMULADOR_WEBXR.md`](TUTORIAL_EMULADOR_WEBXR.md).
 
 `CodeXRDebug.status()` reports the active mode (`ar`, `vr` or `desktop`) while
 you are in there.
