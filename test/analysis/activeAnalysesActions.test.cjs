@@ -87,6 +87,10 @@ test('Export produces a self-contained copy: dependency pre-generation plus dest
     assert.match(source, /refreshRuntimeCopies\(destinationPath, extensionPath\)/);
     assert.match(source, /buildExportManifest\(destinationPath, \{/);
     assert.match(source, /writeExportReadme\(destinationPath, manifest\)/);
+    // The active view travels with the export so the copy opens in the mode
+    // the user actually left (getViewState is mode-agnostic: a plain string).
+    assert.match(source, /analysisRefreshCoordinator\.getViewState\(session\.id\)/);
+    assert.match(source, /viewState: \{/);
     assert.match(source, /isXrSceneFolder\(destinationPath\)/);
     assert.doesNotMatch(source, /relativizeExportArtifacts\(sourcePath\)/);
     assert.doesNotMatch(source, /buildExportManifest\(sourcePath/);

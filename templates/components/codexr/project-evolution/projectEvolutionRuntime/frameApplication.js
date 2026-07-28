@@ -35,6 +35,20 @@
     });
   }
 
+  function isEvolutionModeActiveOrActivating() {
+    var modeState = root.CodeXRAnalysisModeRuntime?.getState?.();
+    return modeState?.mode === MODE
+      || (modeState?.transitioning && modeState?.requestedMode === MODE);
+  }
+
+  // Mode-data entities are PASSIVE: receiving a movie result must never steal
+  // the table from whatever mode the participant is in. Only the authoritative
+  // `analysis-view` entity (or an explicit user action) changes the active
+  // mode — the server publishes it when a generation completes, and the mode
+  // lifecycle's activate() renders from the result stored here. Same contract
+  // as the historical and dependency runtimes; new modes must follow it too
+  // (see COMPONENTS.md). The unconditional transition that used to live here
+  // hijacked the scene on room-snapshot replays and in exported copies.
   function applySharedState(shared) {
     if (!shared || shared.entityKind !== ENTITY_KIND || !shared.result) {
       return;
@@ -42,12 +56,13 @@
     state.result = shared.result;
     state.frameIndex = 0;
     state.preparedChartIds = {};
+    if (!isEvolutionModeActiveOrActivating()) {
+      return;
+    }
     setStatus('Project evolution ready.', 'info');
-    client()?.sendMessage?.('analysis-mode-activate', { mode: MODE });
-    // Single entry path: no explicit controllerView/panelViewId — the mode's
-    // resolveControllerView routes (Field Mapping once a movie exists, the
-    // selection panel otherwise), so the local transition and the server echo
-    // can never disagree.
+    // Already in (or entering) evolution: reroute from the selection panel to
+    // the movie view and land on the first frame. resolveControllerView picks
+    // the view, so the local transition and the server echo cannot disagree.
     void root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
       reason: 'project-evolution-ready'
     }).then(function () {

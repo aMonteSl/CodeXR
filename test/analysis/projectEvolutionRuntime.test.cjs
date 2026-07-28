@@ -325,3 +325,76 @@ test('offline export never sends playback or lifecycle messages to a server', ()
     assert.ok(clearGuard > -1 && clearSend > -1 && clearGuard < clearSend,
         'the offline guard must run before the clear request');
 });
+
+// ── Passive-entity contract: mode data must never steal the table ───────────
+// The authoritative `analysis-view` entity (or an explicit user action) is the
+// only thing allowed to change the active mode. A movie snapshot arriving
+// while the user is in another mode is stored, nothing more — the hijack this
+// pins down is exactly what made exported copies (and room-snapshot replays)
+// land on project evolution regardless of the mode the user left active.
+
+function loadRuntimeForModeContract(activeMode) {
+    const transitions = [];
+    const sent = [];
+    const document = {
+        readyState: 'loading',
+        addEventListener() {},
+        getElementById() { return null; },
+    };
+    const sandbox = {
+        window: null,
+        document,
+        console,
+        Date: { now: () => 123456789 },
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        encodeURIComponent,
+        CodeXRCollaborationRuntime: {
+            getClient() {
+                return {
+                    sendMessage(type, payload) { sent.push([type, payload]); return true; },
+                };
+            },
+        },
+        CodeXRAnalysisModeRuntime: {
+            getState() { return { mode: activeMode, transitioning: false, requestedMode: null }; },
+            transitionTo(mode, options) {
+                transitions.push([mode, options?.reason]);
+                return Promise.resolve(true);
+            },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'projectEvolutionRuntime.js' });
+    return { runtime: sandbox.CodeXRProjectEvolutionRuntime, transitions, sent };
+}
+
+test('a movie snapshot received while in ANOTHER mode is stored passively', () => {
+    const { runtime, transitions, sent } = loadRuntimeForModeContract('single');
+
+    runtime.__testing.applySharedState({
+        entityKind: 'project-evolution',
+        entityId: 'main',
+        mode: 'project-evolution',
+        result: { revision: 1, frames: [{ index: 0, url: '/evolution/revision-1/data1.json' }] },
+    });
+
+    assert.deepEqual(transitions, [], 'no transition may fire from a passive snapshot');
+    assert.equal(sent.some(([type]) => type === 'analysis-mode-activate'), false,
+        'a passive snapshot must not push the room into evolution mode either');
+    assert.equal(runtime.getState().result.revision, 1, 'the result must still be stored for later activation');
+});
+
+test('a movie snapshot received while ALREADY in evolution reroutes to the movie view', () => {
+    const { runtime, transitions } = loadRuntimeForModeContract('project-evolution');
+
+    runtime.__testing.applySharedState({
+        entityKind: 'project-evolution',
+        entityId: 'main',
+        mode: 'project-evolution',
+        result: { revision: 2, frames: [{ index: 0, url: '/evolution/revision-2/data1.json' }] },
+    });
+
+    assert.equal(transitions.length, 1, 'the requester (already in evolution) must land on the movie');
+    assert.deepEqual(transitions[0], ['project-evolution', 'project-evolution-ready']);
+});

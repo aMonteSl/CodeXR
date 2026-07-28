@@ -82,6 +82,18 @@ its parts directory. Manual harnesses load assembled copies from
   - Owns shared presence, identity, avatars, pointers and collaboration entities.
   - Terminal disconnects show a full-page screen (`disconnectScreen.js` part) and stop
     the reconnect loop: `session-ended` (host stopped the server) and `participant-kick`.
+  - **Passive mode-entity contract** (applies to EVERY analysis-mode runtime, present and future):
+    a mode's shared entity (`dependency-graph`, `historical-comparison`, `project-evolution`, …)
+    carries DATA, never intent. `applySharedState` stores the payload and renders only if its own
+    mode is already active or activating (each runtime gates on its `is<Mode>ActiveOrActivating()`
+    helper); it must never call `transitionTo` toward its own mode from an inactive state nor send
+    `analysis-mode-activate`. The ONLY things that change the active mode are the authoritative
+    `analysis-view` entity (published by the server, and by the export manifest) and explicit user
+    actions. Rationale: entity snapshots replay on room joins and on offline-export boots, in
+    arbitrary order — an entity that self-activates steals the table from whatever mode the user
+    left active (the bug that made exported copies open in project evolution). Pinned by
+    `test/analysis/dependencyGraph.test.cjs` (contract across all three runtimes) and behavior
+    tests in `projectEvolutionRuntime.test.cjs`.
   - **Offline-export contract**: when the `/api/collaboration/session` probe fails, the client
     fetches `./codexr-export-manifest.json` (written by Export Analysis Folder into the copy,
     never into the live session folder). A valid manifest (`kind: 'codexr-export'`) makes the

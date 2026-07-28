@@ -332,6 +332,7 @@ export class ActiveAnalysesCommands {
                 if (extensionPath) {
                     await refreshRuntimeCopies(destinationPath, extensionPath);
                 }
+                const viewState = analysisRefreshCoordinator.getViewState(session.id);
                 const manifest = await buildExportManifest(destinationPath, {
                     target: {
                         name: session.targetName || path.basename(session.targetPath || '') || 'analysis',
@@ -340,6 +341,10 @@ export class ActiveAnalysesCommands {
                     },
                     serverCapabilities: capabilities,
                     dependencyGraphFailureReason,
+                    viewState: {
+                        mode: String(viewState.mode || 'single'),
+                        controllerView: viewState.controllerView,
+                    },
                 });
                 await writeExportReadme(destinationPath, manifest);
             }
