@@ -48,7 +48,7 @@ Three analysis modes share this pipeline: **XR** (A-Frame scene in browser/heads
 | `code_analysis/` | **The core (246 files).** Analysis engine, sessions, watchers, Python backend, dependency + historical analysis | `engine/launchers/launcherXRAnalysis.ts`, `engine/core/analysisSession.ts`, `engine/orchestrator` → `analysisOrchestrator.ts` |
 | `code_analysis/engine/` | Pipeline: launchers, parsers, processors/requirement rules, session servers, watchers, component-asset injection | `launchPipeline.ts`, `servers/sessionServerManager.ts`, `watchers/sessionWatcherManager.ts`, `utils/executePython.ts` |
 | `code_analysis/python/` | Python analysis backend (see `PYTHON_ANALYSIS.md`) | `main.py`, `tools/lizard_analyzer.py`, `utils/xr_field_schema.py` |
-| `code_analysis/dependencies/` | Dependency-graph analysis service (see `docs/DEPENDENCY_GRAPH_XR.md`) | `DependencyGraphService` *[inferred name from docs]* |
+| `code_analysis/dependencies/` | Dependency-graph analysis service (see `docs/features/DEPENDENCY_GRAPH_XR.md`) | `DependencyGraphService` *[inferred name from docs]* |
 | `code_analysis/historical/` | Git history: comparator + Project Evolution | `gitRepositoryService.ts`, `historicalComparisonService.ts`, `projectEvolutionService.ts` |
 | `code_analysis/services/` | Cross-cutting services | `xrFieldSchemaService.ts`, `workspaceSnapshotService.ts`, `serverWatcherIntegration.ts` |
 | `babia_templates/` | Chart template system: registry, models, dimension validation, HTML placeholder processing | `registry/chartRegistry.ts`, `processing/dimensionValidator.ts`, `processing/templateHTMLProcessor.ts` |

@@ -30,5 +30,5 @@ npm test                 # default gate
 
 ## Docs to touch in the same session
 
-- `docs/DEPENDENCY_GRAPH_XR.md` language table (if dependency support changed).
+- `docs/features/DEPENDENCY_GRAPH_XR.md` language table (if dependency support changed).
 - The language-count claims are inconsistent across README/roadmap/docs — if your change alters the real count, update the count **everywhere it appears** or record the remaining mismatch in `.claude/docs/V1.2.0_STATUS.md` §Documentation debt.

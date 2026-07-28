@@ -106,7 +106,7 @@ Four narrated videos, one per analysis:
 
 You don't have to take the immersive mode on faith. This release's VR and AR experience was driven and debugged **end to end inside real WebXR sessions**, emulated from a desktop browser with Meta's [Immersive Web Emulator](https://github.com/meta-quest/immersive-web-emulator): entry height and positioning, stick locomotion and flight, laser aim and hand switching, what AR hides and keeps, AR lighting, and grabbing screens with the controller. The screenshots below come straight from those test sessions — where you see extra panels and RGB gizmos around the controllers, that is the emulator's own tooling, not CodeXR.
 
-Want to reproduce it (or validate on your own headset)? The [WebXR emulator tutorial](docs/TUTORIAL_EMULADOR_WEBXR.md) explains the setup and the [manual VR/AR checklist](docs/XR_MANUAL_CHECKLIST.md) is the validation script.
+Want to reproduce it (or validate on your own headset)? The [WebXR emulator tutorial](docs/xr-testing/WEBXR_EMULATOR_TUTORIAL.md) explains the setup and the [manual VR/AR checklist](docs/xr-testing/XR_MANUAL_CHECKLIST.md) is the validation script.
 
 | | |
 |:---:|:---:|
@@ -448,7 +448,7 @@ Customize your scene:
 - **VR Navigation**: Take breaks during long analysis sessions to prevent fatigue
 - **Controller Setup**: Ensure controllers are charged before starting VR sessions — and please report any controller issue you hit, since this release could not be validated on physical hardware
 - **Lighting**: Ensure adequate room lighting for AR tracking
-- **Validate without a headset**: the whole immersive experience can be exercised from a desktop browser with Meta's Immersive Web Emulator — see the [emulator tutorial](docs/TUTORIAL_EMULADOR_WEBXR.md) and the [manual VR/AR checklist](docs/XR_MANUAL_CHECKLIST.md)
+- **Validate without a headset**: the whole immersive experience can be exercised from a desktop browser with Meta's Immersive Web Emulator — see the [emulator tutorial](docs/xr-testing/WEBXR_EMULATOR_TUTORIAL.md) and the [manual VR/AR checklist](docs/xr-testing/XR_MANUAL_CHECKLIST.md)
 
 ### Analysis Workflow
 1. **Start with LivePanel**: Get overview with LivePanel analysis
@@ -498,12 +498,12 @@ CodeXR automatically manages the following dependencies:
 
 ### Technical Documentation
 
-- [Cloudflare remote access](docs/CLOUDFLARE_REMOTE_ACCESS.md)
-- [Historical comparison XR](docs/HISTORICAL_COMPARISON_XR.md)
-- [Dependency graph XR](docs/DEPENDENCY_GRAPH_XR.md)
-- [XR browser diagnostics](docs/XR_DEBUG_COMMANDS.md)
-- [Testing VR/AR without a headset — WebXR emulator tutorial (Spanish)](docs/TUTORIAL_EMULADOR_WEBXR.md)
-- [Manual VR/AR validation checklist (Spanish)](docs/XR_MANUAL_CHECKLIST.md)
+- [Cloudflare remote access](docs/features/CLOUDFLARE_REMOTE_ACCESS.md)
+- [Historical comparison XR](docs/features/HISTORICAL_COMPARISON_XR.md)
+- [Dependency graph XR](docs/features/DEPENDENCY_GRAPH_XR.md)
+- [XR browser diagnostics](docs/xr-testing/XR_DEBUG_COMMANDS.md)
+- [Testing VR/AR without a headset — WebXR emulator tutorial](docs/xr-testing/WEBXR_EMULATOR_TUTORIAL.md)
+- [Manual VR/AR validation checklist](docs/xr-testing/XR_MANUAL_CHECKLIST.md)
 
 ### Optional Dependencies
 - **WebXR Browser**: For the immersive VR/AR experience
@@ -571,7 +571,7 @@ We welcome contributions! Here's how you can help:
 
 ### A note on VR hardware
 
-This release was validated on desktop browsers, through CodeXR's automated test suites (unit tests, Python analysis suites and browser harnesses), **and end to end on emulated WebXR sessions** using Meta's [Immersive Web Emulator](https://github.com/meta-quest/immersive-web-emulator) — that emulator is what let us find and fix real immersive bugs before shipping: entry height and positioning, what AR hides and keeps (environment, room walls, invisible colliders), stick locomotion and flight, laser aim and hand switching, AR lighting, and grabbing screens with the controller. It still **could not be tested on a physical VR headset**: everything is built on standard WebXR/A-Frame bindings and should work, so if you run CodeXR on real hardware and anything misbehaves — the [manual VR/AR checklist](docs/XR_MANUAL_CHECKLIST.md) is a good script to follow — **please [open an issue](https://github.com/aMonteSl/CodeXR/issues)**: a device name and a couple of lines about what went wrong are enough, and every report directly improves the next release.
+This release was validated on desktop browsers, through CodeXR's automated test suites (unit tests, Python analysis suites and browser harnesses), **and end to end on emulated WebXR sessions** using Meta's [Immersive Web Emulator](https://github.com/meta-quest/immersive-web-emulator) — that emulator is what let us find and fix real immersive bugs before shipping: entry height and positioning, what AR hides and keeps (environment, room walls, invisible colliders), stick locomotion and flight, laser aim and hand switching, AR lighting, and grabbing screens with the controller. It still **could not be tested on a physical VR headset**: everything is built on standard WebXR/A-Frame bindings and should work, so if you run CodeXR on real hardware and anything misbehaves — the [manual VR/AR checklist](docs/xr-testing/XR_MANUAL_CHECKLIST.md) is a good script to follow — **please [open an issue](https://github.com/aMonteSl/CodeXR/issues)**: a device name and a couple of lines about what went wrong are enough, and every report directly improves the next release.
 
 ### Getting Help
 - **GitHub Issues**: Report bugs and request features at [GitHub Issues](https://github.com/aMonteSl/CodeXR/issues)

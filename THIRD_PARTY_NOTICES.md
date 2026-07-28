@@ -114,7 +114,7 @@ Usage in this project:
   browser. CodeXR's immersive experience for v1.2.0 — entry positioning,
   locomotion and flight, laser interaction, AR behaviour and lighting — was
   driven, debugged and validated end to end in sessions emulated by it (see
-  `docs/TUTORIAL_EMULADOR_WEBXR.md`).
+  `docs/xr-testing/WEBXR_EMULATOR_TUTORIAL.md`).
 
 ### IWER — Immersive Web Emulation Runtime, and @iwer/extension-bridge
 - Project: immersive-web-emulation-runtime (IWER) and its MCP bridge

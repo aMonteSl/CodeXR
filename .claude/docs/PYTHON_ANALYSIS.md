@@ -58,7 +58,7 @@ src/code_analysis/python/
 
 ## Languages and metrics
 
-- Metrics: cyclomatic complexity (CCN), LOC/comment lines, function/class counts, parameters — primarily via **Lizard**. Dependency relations via **tree-sitter-language-pack** (pinned; confidence levels exact/best-effort/unsupported/ambiguous — see `docs/DEPENDENCY_GRAPH_XR.md`).
+- Metrics: cyclomatic complexity (CCN), LOC/comment lines, function/class counts, parameters — primarily via **Lizard**. Dependency relations via **tree-sitter-language-pack** (pinned; confidence levels exact/best-effort/unsupported/ambiguous — see `docs/features/DEPENDENCY_GRAPH_XR.md`).
 - Language support: README claims 24, dependency-graph doc and roadmap say 23, and `test/fixtures/dependency-languages/` holds ~25 fixture languages. **The source of truth is `src/utils/languageMetadata.ts` (TS side) + `python/utils/metric_language_contract.py` (Python side)** — check those, not the docs, when a language question matters. (Recorded as documentation debt in `V1.2.0_STATUS.md`.)
 
 ## Testing the Python side

@@ -48,8 +48,8 @@ background is simply empty instead of your room. Use them to answer *what is
 hidden and where do I end up*; for the rest use a WebXR emulator (Chrome
 DevTools' **WebXR** panel, or the *Immersive Web Emulator* extension, which
 also emulates controller thumbsticks) or a real device. There is a full
-walkthrough of the emulator, in Spanish, in
-[`TUTORIAL_EMULADOR_WEBXR.md`](TUTORIAL_EMULADOR_WEBXR.md).
+walkthrough of the emulator in
+[`WEBXR_EMULATOR_TUTORIAL.md`](WEBXR_EMULATOR_TUTORIAL.md).
 
 `CodeXRDebug.status()` reports the active mode (`ar`, `vr` or `desktop`) while
 you are in there.
