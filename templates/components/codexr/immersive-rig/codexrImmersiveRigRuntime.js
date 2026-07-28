@@ -149,6 +149,57 @@
     };
   }
 
+  // AR loses the environment's lights: aframe-environment-component parents
+  // its hemisphere + directional lights under #env, #env carries
+  // hide-on-enter-ar, and three.js does not descend into invisible nodes —
+  // so in AR only the root ambient survives and every standard-material
+  // object (charts, pedestal, logo) goes flat. This component sits on a
+  // root-level directional light that idles at intensity 0 and only comes on
+  // for AR sessions, restoring the directional modelling without touching
+  // how desktop or VR look.
+  function registerArFillLight(AFRAME) {
+    if (!AFRAME || AFRAME.components['codexr-ar-fill-light']) {
+      return;
+    }
+
+    AFRAME.registerComponent('codexr-ar-fill-light', {
+      schema: {
+        intensity: { type: 'number', default: 0.55 },
+      },
+
+      init: function () {
+        this.onEnterVR = this.onEnterVR.bind(this);
+        this.onExitVR = this.onExitVR.bind(this);
+        const sceneEl = this.el.sceneEl;
+        if (!sceneEl) {
+          return;
+        }
+        sceneEl.addEventListener('enter-vr', this.onEnterVR);
+        sceneEl.addEventListener('exit-vr', this.onExitVR);
+      },
+
+      remove: function () {
+        const sceneEl = this.el.sceneEl;
+        if (sceneEl) {
+          sceneEl.removeEventListener('enter-vr', this.onEnterVR);
+          sceneEl.removeEventListener('exit-vr', this.onExitVR);
+        }
+      },
+
+      onEnterVR: function () {
+        const sceneEl = this.el.sceneEl;
+        const inAR = sceneEl && typeof sceneEl.is === 'function' && sceneEl.is('ar-mode');
+        if (inAR) {
+          this.el.setAttribute('light', 'intensity', this.data.intensity);
+        }
+      },
+
+      onExitVR: function () {
+        this.el.setAttribute('light', 'intensity', 0);
+      },
+    });
+  }
+
   function registerComponent(AFRAME) {
     if (!AFRAME || AFRAME.components['codexr-immersive-rig']) {
       return;
@@ -156,6 +207,7 @@
 
     patchGamepadControlsConnected(AFRAME);
     patchGamepadControlsJoystick(AFRAME, ensureStickGate(root));
+    registerArFillLight(AFRAME);
 
     AFRAME.registerComponent('codexr-immersive-rig', {
       schema: {

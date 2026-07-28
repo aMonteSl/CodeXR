@@ -54,6 +54,10 @@ for (const [name, html] of [['file', fileTemplate], ['dom', domTemplate]]) {
     assert.match(html, /codexr-pointer-policy/, `${name}: pointer policy on the scene`);
     assert.match(html, /id="mouseCursor"/, `${name}: mouse cursor`);
     assert.match(html, /id="gazeCursor"/, `${name}: gaze cursor`);
+    // The gaze cursor works through its raycaster alone — the white reticle
+    // ring was removed on purpose (it bothered headset users) and must not
+    // come back.
+    assert.doesNotMatch(html, /<a-ring/, `${name}: no reticle geometry in the scene`);
     assert.match(html, /id="leftController"[\s\S]*?laser-controls="hand: left"/, `${name}: left laser`);
     assert.match(html, /id="rightController"[\s\S]*?laser-controls="hand: right"/, `${name}: right laser`);
     assert.match(html, /movement-controls/, `${name}: rig locomotion`);
@@ -91,6 +95,14 @@ for (const [name, html] of [['file', fileTemplate], ['dom', domTemplate]]) {
 // Rig adapter: AR recenter (x/z only) in the analysis scene, none in DOM.
 assert.match(fileTemplate, /codexr-immersive-rig="arX: 0\.07; arZ: -14\.7"/);
 assert.match(domTemplate, /codexr-immersive-rig="arRecenter: false"/);
+
+// AR fill light: the environment parents its lights under the entity hidden
+// in AR, so both scenes must carry a root-level directional that idles at 0
+// and is raised by codexr-ar-fill-light for AR sessions only.
+for (const [name, html] of [['file', fileTemplate], ['dom', domTemplate]]) {
+    assert.match(html, /codexr-ar-fill-light[\s\S]*?light="type: directional; color: #ffffff; intensity: 0"/,
+        `${name}: AR fill light declared idle at intensity 0`);
+}
 
 // THE height contract. Eye height lives on the RIG, permanently — never on
 // the camera. WebXR only ever touches the CAMERA entity's local transform
@@ -281,9 +293,12 @@ async function runScenario(browser) {
     assert.equal(state.rig.z, -10.75, 'VR: no recenter, the room is the point');
     assertStanding(state, 'VR');
     assert.equal(state.movement.fly, true, 'VR: flying turns on automatically');
-    assert.equal(state.pointers.gaze.enabled, true, 'VR without controllers: gaze pointer');
-    assert.equal(state.pointers.gaze.visible, true, 'VR: gaze reticle shown');
-    assert.equal(state.pointers.mouse.enabled, false, 'VR: mouse off');
+    // This is a SIMULATED entry (no xrSession): the user is still at a desk,
+    // so the MOUSE keeps the pointer and gaze never activates — the white
+    // gaze ring showing up in simulations is exactly what got this changed.
+    assert.equal(state.pointers.mouse.enabled, true, 'simulated VR: mouse keeps the pointer');
+    assert.equal(state.pointers.gaze.enabled, false, 'simulated VR: gaze stays off');
+    assert.equal(state.pointers.gaze.visible, false, 'simulated VR: gaze entity stays hidden');
 
     await run('CodeXRImmersiveHarness.connect("left")');
     await settle();
@@ -307,7 +322,8 @@ async function runScenario(browser) {
     await run('CodeXRImmersiveHarness.disconnect("left")');
     await settle();
     state = await snap();
-    assert.equal(state.pointers.gaze.enabled, true, 'VR: gaze returns when controllers drop');
+    assert.equal(state.pointers.mouse.enabled, true,
+        'simulated VR: controllers dropping hands the pointer back to the mouse, not gaze');
 
     // --- Pointer handover by trigger: both hands equal, unrelated to
     //     locomotion (driven by the raw controller DOM event, not axes). ---
@@ -416,10 +432,18 @@ async function runScenario(browser) {
 
     // VR.
     await run('CodeXRImmersiveHarness.setRealSession(true)');
+    await run('CodeXRImmersiveHarness.disconnect("left")');
+    await run('CodeXRImmersiveHarness.disconnect("right")');
     await run('CodeXRImmersiveHarness.enterVR()');
     await settle();
     await run(`CodeXRImmersiveHarness.fakeHeadsetPose(${DEVICE})`);
     state = await snap();
+    // A REAL session with no controllers is where gaze genuinely is the only
+    // pointer (mobile AR, sleeping controllers) — and the only place it may
+    // activate. It carries no reticle geometry any more; hover feedback comes
+    // from the content itself.
+    assert.equal(state.pointers.gaze.enabled, true, 'real VR without controllers: gaze pointer');
+    assert.equal(state.pointers.mouse.enabled, false, 'real VR: mouse off');
     assert.equal(state.rig.y, 0, 'real VR: the rig stops supplying height');
     assert.ok(
         Math.abs(state.geometry.eyeWorldY - DEVICE) < 0.02,
@@ -454,6 +478,13 @@ async function runScenario(browser) {
         `real AR: eye at device height, was ${state.geometry.eyeWorldY}`,
     );
     assert.equal(state.hidden.room, true, 'real AR: room hidden');
+    // The environment's own lights hide with #env in AR: the fill directional
+    // must come on or every standard-material object goes flat.
+    assert.equal(
+        await run('document.getElementById("arFillLight").getAttribute("light").intensity'),
+        0.55,
+        'real AR: the fill light comes on',
+    );
 
     await run('CodeXRImmersiveHarness.exit()');
     await run('CodeXRImmersiveHarness.fakeHeadsetPose(0)');
@@ -466,6 +497,11 @@ async function runScenario(browser) {
         { x: state.rig.x, z: state.rig.z },
         { x: 0.07, z: -10.75 },
         'after real AR: desktop spot restored',
+    );
+    assert.equal(
+        await run('document.getElementById("arFillLight").getAttribute("light").intensity'),
+        0,
+        'after real AR: fill light back to idle — desktop look untouched',
     );
 
     // --- Real session, controllers the way the emulator delivers them ------

@@ -18,8 +18,13 @@
   // legend show/hide cycle (orphan legends, NotFoundError). This component
   // guarantees exactly ONE pointer raycaster is enabled at a time:
   //   - desktop (not in VR): the mouse cursor;
-  //   - VR without controllers: the gaze cursor on the camera;
-  //   - VR with controllers: whichever controller you used last.
+  //   - a REAL immersive session without controllers (mobile AR, sleeping
+  //     controllers): the gaze cursor on the camera — it has no reticle
+  //     geometry, hover feedback comes from the content itself;
+  //   - simulated immersive entries (CodeXRDebug / emulator states with no
+  //     xrSession): the mouse keeps the pointer — the user is still at a
+  //     desk, and a gaze cursor there is dead weight;
+  //   - VR/AR with controllers: whichever controller you used last.
   //
   // That last rule is what makes both hands equal without breaking the
   // invariant. Any activity on a controller — trigger, any button, or a
@@ -121,7 +126,9 @@
         this.listenToController('left');
         this.listenToController('right');
 
-        this.inVR = typeof sceneEl.is === 'function' ? !!sceneEl.is('vr-mode') : false;
+        this.inVR = typeof sceneEl.is === 'function'
+          ? !!(sceneEl.is('vr-mode') || sceneEl.is('ar-mode'))
+          : false;
         this.applyPolicy();
       },
 
@@ -217,7 +224,17 @@
         if (this.connected[other]) {
           return other;
         }
-        return 'gaze';
+        // No controllers. Gaze is only a real pointer when an actual WebXR
+        // session drives the head (mobile AR, a headset with sleeping
+        // controllers) — A-Frame sets sceneEl.xrSession before enter-vr, and
+        // the simulated entries (CodeXRDebug / emulator states without a
+        // session) never do. There, the user is still at a desk with a mouse,
+        // so the mouse keeps the pointer instead of a dead gaze cursor.
+        const sceneEl = this.el.sceneEl || this.el;
+        if (sceneEl.xrSession) {
+          return 'gaze';
+        }
+        return 'mouse';
       },
 
       applyPolicy: function () {

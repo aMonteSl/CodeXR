@@ -59,8 +59,15 @@
             position="0 0 0">
         </a-entity>
 
-        <!-- Light -->
+        <!-- Light. The environment component parents its own hemisphere +
+             directional lights under #env, which is hidden in AR — this
+             ambient plus the AR fill below are the only lights that survive
+             there. The fill idles at 0 and codexr-ar-fill-light raises it for
+             AR sessions only, so desktop and VR keep their exact look. -->
         <a-entity light="color: #fff; type:ambient; intensity: 0.85"></a-entity>
+        <a-entity codexr-ar-fill-light
+        light="type: directional; color: #ffffff; intensity: 0"
+        position="1 4 2"></a-entity>
         
         <!-- Data -->
         <a-entity id="data" babia-queryjson="url: ${DATA_SOURCE}"></a-entity>
@@ -110,18 +117,16 @@
              recenters the rig next to the pedestal. -->
         <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
         codexr-immersive-rig="arX: 0.07; arZ: -14.7">
-        <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy) -->
+        <!-- Cámara + cursor de mirada (activo SOLO en sesión real sin mandos; lo
+             gobierna codexr-pointer-policy). Sin geometría de retícula a
+             propósito: el anillo blanco molestaba en el casco y el hover ya se
+             ve en el propio contenido. -->
         <a-entity id="head" camera position="0 0 0" look-controls>
             <a-entity
             id="gazeCursor"
             visible="false"
             cursor="rayOrigin: entity; fuse: false"
             raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
-                <a-ring
-                position="0 0 -0.6"
-                radius-inner="0.008"
-                radius-outer="0.014"
-                material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
             </a-entity>
         </a-entity>
 

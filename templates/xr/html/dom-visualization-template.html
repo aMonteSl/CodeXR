@@ -18,6 +18,12 @@
     <a-scene background="color: ${BACKGROUND_COLOR}" xr-mode-ui="enabled: true; XRMode: xr" codexr-pointer-policy>
         <a-entity environment="preset: ${ENVIRONMENT_PRESET}; groundColor: ${GROUND_COLOR}" hide-on-enter-ar></a-entity>
         <a-light type="point" intensity="1" position="-10 20 30"></a-light>
+        <!-- AR fill: the environment's lights hide with it in AR; this
+             directional idles at 0 and codexr-ar-fill-light raises it for AR
+             sessions only. -->
+        <a-entity codexr-ar-fill-light
+            light="type: directional; color: #ffffff; intensity: 0"
+            position="1 4 2"></a-entity>
 
         <a-entity id="htmlDOM"
             scale="0.3 0.3 0.3"
@@ -53,19 +59,17 @@
              the automatic fly-in-immersive behaviour applies. -->
         <a-entity id="cameraRig" movement-controls="fly: false; speed: 0.1" position="0 1.6 3"
             codexr-immersive-rig="arRecenter: false">
-            <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy).
-                 Sin babia-camera: creaba un segundo cursor de ratón y raycasters de mano duplicados. -->
+            <!-- Cámara + cursor de mirada (activo SOLO en sesión real sin mandos;
+                 lo gobierna codexr-pointer-policy). Sin geometría de retícula a
+                 propósito: el anillo blanco molestaba en el casco y el hover ya
+                 se ve en el propio contenido. Sin babia-camera: creaba un
+                 segundo cursor de ratón y raycasters de mano duplicados. -->
             <a-entity id="head" camera position="0 0 0" look-controls>
                 <a-entity
                     id="gazeCursor"
                     visible="false"
                     cursor="rayOrigin: entity; fuse: false"
                     raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
-                    <a-ring
-                        position="0 0 -0.6"
-                        radius-inner="0.008"
-                        radius-outer="0.014"
-                        material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
                 </a-entity>
             </a-entity>
 
