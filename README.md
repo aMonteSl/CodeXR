@@ -128,39 +128,57 @@ A VR session over your own network needs none of this: a headset on the same Wi-
 
 The whole point of the flow below is that a link alone is never enough to get in. Whoever opens it still has to receive a code from you, through a channel you already trust.
 
-### 1. Turn it on and start sharing
+Two people are involved, and each step below says which one acts: the **host** runs the analysis in VS Code and owns the session, and the **guest** joins from a browser anywhere in the world.
 
-Enable **Cross-network connections** in the server configuration (once), then open the server row in **ACTIVE SERVERS** and choose **Start remote access**. CodeXR opens the tunnel and puts the invitation link on your clipboard. Send it to your guest however you normally talk to them.
+### 1. Host: turn it on and start sharing
 
-### 2. Your guest picks how they will appear
+Enable **Cross-network connections** in the server configuration (once), then open the server row in **ACTIVE SERVERS** and choose **Start remote access**. CodeXR opens the tunnel, and the sidebar starts showing the **Cross-network address**, the `trycloudflare.com` invitation link, which also lands on your clipboard. Send it to your guest however you normally talk to them.
 
-The link opens this page. They either continue as anonymous, with an alias CodeXR reserves for them, or type a custom name of 2 to 32 characters. Then they press **Request access**, which puts them in the waiting room: no code, no entry.
+![The CodeXR sidebar with the cross-network address on a trycloudflare.com link, plus View remote status and Stop remote connection](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/host_user/control_panel.png)
 
-| | |
-|:---:|:---:|
-| ![The join page: continue as anonymous with a reserved alias, or choose a custom display name](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/remote-join-identity.png) | ![The same page after requesting access: a six-digit field and a Connect button, waiting for the host's code](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/remote-join-code.png) |
-| **Step 1**: how they appear in the room | **Step 2**: waiting for the code you are about to read out |
+Right below it sit **View remote status** and **Stop remote connection**, and further down the list of connected users, so the whole session lives in one place.
 
-### 3. You read them the code
+### 2. Guest: pick how you will appear
 
-The moment they request access, VS Code shows you *"Remote request from `<name>`. Temporary code: `123456`"* with a **Copy code** button. Pass those six digits to your guest through whatever channel you already use, a call or a message. They type them, press **Connect**, and they are in the session.
-
-### 4. If the code fails, issue a new one
-
-A wrong code is burnt immediately on the server, so it can never be retried. You get a warning naming the guest and their address, with a **Generate new code** button that mints a fresh one on the spot, and the new code arrives in the same kind of notification. There is no limit to how many times you can do this. If instead your guest runs out of attempts, the pairing request itself is over and they need a brand new invitation link.
+The link opens this page. Continue as anonymous, with an alias CodeXR reserves for you, or type a custom name of 2 to 32 characters. Then press **Request access**, which puts you in the waiting room: no code, no entry.
 
 | | |
 |:---:|:---:|
-| ![The join page rejecting a code: the field is cleared and a red message reads "The code is not valid"](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/remote-join-rejected.png) | ![An invitation that no longer works: "This invitation has expired or was already used. Ask the host for a new link."](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/remote-join-expired.png) |
-| **A burnt code**: the guest is told to ask you for a new one | **A dead link**: expired or already used, so it needs a new invitation |
+| ![The join page: continue as anonymous with a reserved alias, or choose a custom display name](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/invited_user/remote-join-identity.png) | ![The same page after requesting access: a six-digit field and a Connect button, waiting for the host's code](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/invited_user/remote-join-code.png) |
+| **Step 1**: how you appear in the room | **Step 2**: waiting for the code the host reads out |
 
-### 5. You stay in control of the room
+### 3. Host: read them the code
 
-Click any connected participant in the sidebar to open their card: display name, role, avatar, when they connected, whether they came through the tunnel or from your local network, and the IP address they connected from. Guests carry a **Remove from Session** action; the host cannot be removed.
+The moment the guest requests access, VS Code shows you the code with a **Copy code** button:
+
+![VS Code notification reading "Remote request from Anakin. Temporary code: 957797", with a Copy code button](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/host_user/user_code.png)
+
+The sidebar reflects the same thing, so a dismissed notification is never a dead end: the connection row reads **1 request waiting** and a **Generate new pairing code** action appears next to it.
+
+![The sidebar showing "Cross-network connection · Shared | 1 request waiting" and the Generate new pairing code action](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/host_user/waiting_invited_user.png)
+
+Pass those six digits to your guest through whatever channel you already use, a call or a message. **Guest**: type them, press **Connect**, and you are in the session.
+
+### 4. If the code fails, the host issues a new one
+
+A wrong code is burnt immediately on the server, so it can never be retried. The host gets a warning naming the guest and their address, with a **Generate new code** button that mints a fresh one on the spot, and the same **Generate new pairing code** action stays in the sidebar. There is no limit to how many times you can do this. If instead the guest runs out of attempts, the pairing request itself is over and they need a brand new invitation link.
+
+| | |
+|:---:|:---:|
+| ![The join page rejecting a code: the field is cleared and a red message reads "The code is not valid"](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/invited_user/remote-join-rejected.png) | ![An invitation that no longer works: "This invitation has expired or was already used. Ask the host for a new link."](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/invited_user/remote-join-expired.png) |
+| **A burnt code**: the guest is told to ask for a new one | **A dead link**: expired or already used, so it needs a new invitation |
+
+### 5. Host: stay in control of the room
+
+**Connected users** lists everyone in the session, and each row states how they got there, so a guest who came through the tunnel is never confused with someone on your own network:
+
+![Connected users (2): Anakin as Azure, CodeXR, Local; and Anakin 2 as Amber, Browser, Remote](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/host_user/control_host_users.png)
+
+Click any of them to open their card: display name, role, avatar, when they connected, whether they arrived through the tunnel or from your local network, and the IP address they connected from. Guests carry a **Remove from Session** action; the host cannot be removed.
 
 Removing a remote guest also revokes their session, so the link they have stops working and they need both a new invitation and a new code to come back. Someone on your local network can still reopen the server address, since nothing is gating that beyond the server itself, so stop the server if that is what you want. Either way the person sees a message telling them they were removed rather than the session dying on them.
 
-**Stop remote access** ends everything at once: invitations, sessions and credentials are revoked, and the random `trycloudflare.com` address simply stops existing.
+**Stop remote connection** ends everything at once: invitations, sessions and credentials are revoked, and the random `trycloudflare.com` address simply stops existing.
 
 > The tunnel is a Cloudflare Quick Tunnel: free, no account, and explicitly best effort. It has no SLA, it does not support Server-Sent Events, and the address changes every time. `cloudflared` is pinned to version 2026.5.2, downloaded only with your consent and checked against its SHA-256 before it ever runs. The full picture is in [the cross-network access document](docs/features/CLOUDFLARE_REMOTE_ACCESS.md).
 

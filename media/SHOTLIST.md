@@ -155,18 +155,29 @@ XR, not just how it looks. JPEG ~1600 px, 115-152 KB each.
 | X5 | `ar-hover-legend-passthrough.jpeg` | captured | AR close-up: highlighted building with its metrics legend (easyrtc.js) floating in passthrough |
 | X6 | `ar-development.jpeg` | captured | Full AR workspace: pedestal, guide, screens and the Field Mapping panel with the emulator's key-map overlays (user-taken; the 551 KB PNG master stays untracked beside it) |
 
-### Cross-network joining (`v1.2.0/collaboration/`)
+### Cross-network sessions (`v1.2.0/collaboration/`)
 
-The guest-facing pairing pages, used by the README's cross-network tutorial. Rendered from the **real production page** (`src/servers/runtime/remote/pairingPage.ts`, compiled and served as-is, so the HTML, CSS and client script are exactly what a guest gets) with only the three endpoints it calls stubbed: a faithful capture would otherwise need a live Cloudflare tunnel and a second machine. The alias, the code and the addresses shown are therefore invented, and nothing else is. Captured at 640 px wide, `deviceScaleFactor: 2`, dark scheme.
+The two sides of the joining flow, used by the README's cross-network tutorial. One folder per role, because every shot belongs to exactly one of them.
+
+**`invited_user/`** is what the person joining sees in their browser. Rendered from the **real production page** (`src/servers/runtime/remote/pairingPage.ts`, compiled and served as-is, so the HTML, CSS and client script are exactly what a guest gets) with only the three endpoints it calls stubbed: a faithful capture would otherwise need a live Cloudflare tunnel and a second machine. The alias and the code shown are therefore invented, and nothing else is. Captured at 640 px wide, `deviceScaleFactor: 2`, dark scheme.
 
 | File | Size | What it shows |
 |---|---|---|
-| `remote-join-identity.png` | 174 KB | Step 1 of the join page: continue as anonymous with the alias CodeXR reserved, or use a custom name, then *Request access* |
-| `remote-join-code.png` | 114 KB | Step 2: the six-digit field and *Connect*, with "Request sent. Enter the code the host gives you." |
-| `remote-join-rejected.png` | 120 KB | A burnt code: the field is cleared and the page answers "The code is not valid." |
-| `remote-join-expired.png` | 72 KB | The page an expired or already-used invitation link lands on |
+| `remote-join-identity.png` | 169 KB | Step 1 of the join page: continue as anonymous with the alias CodeXR reserved, or use a custom name, then *Request access* |
+| `remote-join-code.png` | 112 KB | Step 2: the six-digit field and *Connect*, with "Request sent. Enter the code the host gives you." |
+| `remote-join-rejected.png` | 117 KB | A burnt code: the field is cleared and the page answers "The code is not valid." |
+| `remote-join-expired.png` | 70 KB | The page an expired or already-used invitation link lands on |
 
-The host side of the flow (the VS Code notifications carrying the code, the participant card and *Remove from Session*) is **not** captured: Playwright drives web pages, not the VS Code window, so those would have to be taken by hand.
+**`host_user/`** is what the person sharing sees in VS Code. Taken by hand from a **live session** (Playwright drives web pages, not the VS Code window), which is why these are tight crops of the real sidebar and its notifications rather than framed shots.
+
+| File | Size | What it shows |
+|---|---|---|
+| `control_panel.png` | 42 KB | The whole COLLABORATION block: local address, the `trycloudflare.com` cross-network address, *View remote status*, *Stop remote connection*, connected users and server actions |
+| `user_code.png` | 6 KB | The notification carrying the pairing code: "Remote request from Anakin. Temporary code: 957797", with *Copy code* |
+| `waiting_invited_user.png` | 13 KB | The sidebar with somebody waiting: "Shared \| 1 request waiting" and the *Generate new pairing code* action |
+| `control_host_users.png` | 7 KB | Connected users, each row stating avatar colour, client and scope, so Local and Remote guests are told apart at a glance |
+
+Still missing on the host side: the participant card and its *Remove from Session* confirmation.
 
 ## Open items
 
