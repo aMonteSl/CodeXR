@@ -169,6 +169,12 @@
       getSessionInfoAsync() {
         return resolveSessionInfo();
       },
+      isOfflineExport() {
+        return Boolean(shared.offlineExport);
+      },
+      getOfflineExportManifest() {
+        return shared.offlineExport || null;
+      },
       getConfig() {
         return shared.config;
       },

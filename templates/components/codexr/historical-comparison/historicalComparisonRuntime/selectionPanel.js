@@ -113,6 +113,13 @@
     refs.status?.setAttribute('position', '-2.82 -2.17 0.02');
     root.CodeXRMappingUiRuntime?.setPanelViewTitle?.('historical-selection', 'History comparison');
     root.CodeXRMappingUiRuntime?.setPanelViewHeight?.('historical-selection', 6.45);
+    // An exported copy has no git or Python behind it: references cannot be
+    // listed and new comparisons cannot be computed. Offer the computed
+    // comparisons as a replay list instead (Compare loads the next one).
+    if (getClient()?.isOfflineExport?.()) {
+      showOfflineReplayStatus();
+      return;
+    }
     setStatus('Loading local Git references...', 'info');
     var client = getClient();
     if (!client?.sendMessage?.('historical-comparison-references-request', {})) {

@@ -10,6 +10,15 @@ import { UnifiedSessionRegistry } from '../../../../engine/core/sessionRegistry'
 import { ServerWatcherIntegration } from '../../../../services/serverWatcherIntegration';
 import { ActiveAnalysisItem, ActiveAnalysesDataService } from '../services/activeAnalysesDataService';
 import { CommandRegistration } from '../../../../commands/subsections/analysis_settings/analysis_file_mode';
+import { analysisRefreshCoordinator } from '../../../../refresh/analysisRefreshCoordinator';
+import { resolveAnalysisServerCapabilities } from '../../../../../servers/runtime/analysisServerCapabilities';
+import {
+    buildExportManifest,
+    isXrSceneFolder,
+    refreshRuntimeCopies,
+    relativizeExportArtifacts,
+    writeExportReadme,
+} from '../../../../export/exportManifest';
 
 export class ActiveAnalysesCommands {
     private static instance: ActiveAnalysesCommands;
@@ -299,6 +308,16 @@ export class ActiveAnalysesCommands {
             return;
         }
 
+        // The export is self-contained: every mode the session supports must be
+        // enjoyable from the copy. The dependency graph is the one dataset that
+        // can be produced without user choices, so if it was never opened,
+        // generate it now, before copying.
+        const capabilities = resolveAnalysisServerCapabilities(session.analysisMode);
+        const dependencyGraphFailureReason = capabilities.dependencyGraph
+            && !this.hasDependencyDataset(sourcePath)
+            ? await this.pregenerateDependencyDataset(session.id)
+            : undefined;
+
         try {
             await fs.promises.cp(sourcePath, destinationPath, {
                 recursive: true,
@@ -306,11 +325,73 @@ export class ActiveAnalysesCommands {
                 errorOnExist: true,
             });
 
-            vscode.window.showInformationMessage(`Analysis folder exported to ${destinationPath}`);
+            // Everything below touches the DESTINATION copy only.
+            await relativizeExportArtifacts(destinationPath);
+            if (isXrSceneFolder(destinationPath)) {
+                const extensionPath = vscode.extensions.getExtension('aMonteSl.code-xr')?.extensionPath;
+                if (extensionPath) {
+                    await refreshRuntimeCopies(destinationPath, extensionPath);
+                }
+                const manifest = await buildExportManifest(destinationPath, {
+                    target: {
+                        name: session.targetName || path.basename(session.targetPath || '') || 'analysis',
+                        type: session.targetType || 'directory',
+                        analysisMode: session.analysisMode || 'XR',
+                    },
+                    serverCapabilities: capabilities,
+                    dependencyGraphFailureReason,
+                });
+                await writeExportReadme(destinationPath, manifest);
+            }
+
+            vscode.window.showInformationMessage(
+                `Analysis folder exported to ${destinationPath}. Serve it with any static HTTP server (e.g. "npx serve") to open it outside VS Code.`,
+            );
         } catch (error) {
             vscode.window.showErrorMessage(
                 `Failed to export analysis folder: ${error instanceof Error ? error.message : String(error)}`,
             );
+        }
+    }
+
+    private hasDependencyDataset(sourcePath: string): boolean {
+        const dependenciesDir = path.join(sourcePath, 'dependencies');
+        if (!fs.existsSync(dependenciesDir)) {
+            return false;
+        }
+        return fs.readdirSync(dependenciesDir)
+            .some((name) => /^dependency-graph-\d+\.json$/.test(name));
+    }
+
+    /**
+     * Run the same dependency analysis the in-scene "dependency graph" mode
+     * would trigger, and wait for it, so the export ships a usable dataset.
+     * Returns a reason string when the dataset could not be produced (the
+     * export continues; the manifest disables the mode with that reason).
+     */
+    private async pregenerateDependencyDataset(sessionId: string): Promise<string | undefined> {
+        const timeoutMs = 120_000;
+        try {
+            const outcome = await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'CodeXR: preparing export (analyzing dependencies)…',
+                },
+                () => Promise.race([
+                    analysisRefreshCoordinator.forceRefreshMode(sessionId, 'dependency-graph')
+                        .then(() => 'done' as const),
+                    new Promise<'timeout'>((resolve) => {
+                        setTimeout(() => resolve('timeout'), timeoutMs);
+                    }),
+                ]),
+            );
+            if (outcome === 'timeout') {
+                return 'The dependency analysis did not finish in time for the export; '
+                    + 'open the dependency graph in the live session and export again.';
+            }
+            return undefined;
+        } catch (error) {
+            return `The dependency analysis failed during export: ${error instanceof Error ? error.message : String(error)}`;
         }
     }
 

@@ -1,5 +1,59 @@
 // == historicalComparisonRuntime.js | compareFlowAndMessages (assembled per manifest.json; see COMPONENTS.md) ==
+  // Replay support for self-contained exports: the manifest lists every
+  // comparison that was computed before the export, newest first.
+  function getOfflineReplayList() {
+    var manifest = getClient()?.getOfflineExportManifest?.();
+    var comparisons = manifest?.historicalComparison?.comparisons;
+    return Array.isArray(comparisons) ? comparisons : [];
+  }
+
+  function showOfflineReplayStatus() {
+    var replays = getOfflineReplayList();
+    if (replays.length === 0) {
+      setStatus('No comparison was computed before this export: computing one needs the live CodeXR session.', 'error');
+      return;
+    }
+    var next = replays[(state.offlineReplayIndex || 0) % replays.length];
+    setStatus(
+      'Offline export: ' + replays.length + ' computed comparison(s) available.\n'
+      + 'Compare replays the next one: #' + next.revision + ' ' + (next.leftLabel || '?') + ' vs ' + (next.rightLabel || '?'),
+      'info'
+    );
+  }
+
+  async function loadOfflineComparison(entry) {
+    try {
+      setStatus('Loading exported comparison #' + entry.revision + '...', 'info');
+      var response = await fetch(String(entry.url), { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Exported comparison #' + entry.revision + ' could not be loaded.');
+      }
+      var result = await response.json();
+      await applySharedState({
+        entityKind: 'historical-comparison',
+        entityId: 'main',
+        mode: 'historical-compare',
+        result: result
+      });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error), 'error');
+    }
+  }
+
   function startComparison() {
+    // Offline, Compare walks the replay list instead of computing: each press
+    // loads the next exported comparison, newest first.
+    if (getClient()?.isOfflineExport?.()) {
+      var replays = getOfflineReplayList();
+      if (replays.length === 0) {
+        setStatus('No comparison was computed before this export: computing one needs the live CodeXR session.', 'error');
+        return;
+      }
+      var index = (state.offlineReplayIndex || 0) % replays.length;
+      state.offlineReplayIndex = index + 1;
+      void loadOfflineComparison(replays[index]);
+      return;
+    }
     if (!state.selected.left || !state.selected.right) {
       setStatus('Select both comparison sources.', 'error');
       return;

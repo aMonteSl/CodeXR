@@ -120,6 +120,12 @@
       return;
     }
     if (state.transitionLocked) { return; }
+    // An exported copy has no server to analyze with: say so instead of
+    // entering the send-retry loop below, which would spin forever.
+    if (client()?.isOfflineExport?.()) {
+      setStatus('This exported analysis is read-only: re-analysis needs the live CodeXR session.', true);
+      return;
+    }
     var connection = client();
     if (!connection?.sendMessage) {
       setStatus('Dependency analysis is unavailable: no collaboration channel.', true);
@@ -154,6 +160,10 @@
   }
   async function reanalyze() {
     if (state.availability !== 'enabled' || state.transitionLocked) { return; }
+    if (client()?.isOfflineExport?.()) {
+      setStatus('This exported analysis is read-only: re-analysis needs the live CodeXR session.', true);
+      return;
+    }
     setTransitionLocked(true, 'Re-analyzing dependencies...');
     client()?.sendMessage?.('dependency-graph-start', { forceFull: true });
   }

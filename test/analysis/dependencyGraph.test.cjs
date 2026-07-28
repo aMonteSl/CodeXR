@@ -863,3 +863,28 @@ test('invisible cycle-button segments never write depth', () => {
     assert.equal(segments.length, 3, 'left/center/right segments must all be depth-inert');
     assert.doesNotMatch(source, /opacity: 0\.001; shader: flat',/);
 });
+
+test('dependency runtime is read-only in a self-contained export', () => {
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+
+  // start() bails with the read-only notice BEFORE the send-retry loop, which
+  // would otherwise spin every 500 ms against a server that does not exist.
+  assert.match(source, /isOfflineExport\?\.\(\)[\s\S]{0,220}read-only: re-analysis needs the live CodeXR session/);
+  const offlineGuardIndex = source.indexOf('read-only: re-analysis needs the live CodeXR session');
+  const retryLoopIndex = source.indexOf('retrying dependency-graph-start');
+  assert.ok(offlineGuardIndex > -1 && retryLoopIndex > -1 && offlineGuardIndex < retryLoopIndex,
+    'the offline guard must sit before the retry loop');
+
+  // Drilling into a file needs a server-side symbol extraction: offline it
+  // must explain itself instead of hanging on "Loading symbols...".
+  assert.match(source, /File symbols are not part of this export/);
+  const fileScopeGuard = source.indexOf('File symbols are not part of this export');
+  const fileScopeSend = source.indexOf("sendMessage?.('dependency-file-scope-request'");
+  assert.ok(fileScopeGuard > -1 && fileScopeSend > -1 && fileScopeGuard < fileScopeSend,
+    'the offline guard must run before the file-scope request');
+
+  // Availability still flows exclusively through the session capabilities the
+  // collaboration client resolved (live server or export manifest alike).
+  assert.match(source, /getSessionInfoAsync\?\.\(\)/);
+  assert.match(source, /capabilities\?\.dependencyGraph === true/);
+});

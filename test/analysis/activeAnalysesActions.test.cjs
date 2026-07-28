@@ -60,6 +60,44 @@ test('Active Analyses commands implement quick pick actions and recursive export
     assert.match(source, /fs\.promises\.cp\(sourcePath, destinationPath, \{/);
 });
 
+test('Export produces a self-contained copy: dependency pre-generation plus destination-only post-processing', () => {
+    const source = readProjectFile(
+        'src',
+        'code_analysis',
+        'views',
+        'subsections',
+        'active_analyses',
+        'commands',
+        'activeAnalysesCommands.ts',
+    );
+
+    // Scope A: a missing dependency dataset is generated BEFORE the copy,
+    // gated on the mode's capability, behind a progress notification with a
+    // timeout that lets the export continue.
+    assert.match(source, /resolveAnalysisServerCapabilities\(session\.analysisMode\)/);
+    assert.match(source, /capabilities\.dependencyGraph\s*&&\s*!this\.hasDependencyDataset\(sourcePath\)/);
+    assert.match(source, /forceRefreshMode\(sessionId, 'dependency-graph'\)/);
+    assert.match(source, /withProgress\(/);
+    assert.match(source, /\/\^dependency-graph-\\d\+\\\.json\$\//);
+
+    // Post-copy processing runs against the DESTINATION only, in order:
+    // relativize, refresh runtimes, manifest, README. The source folder is
+    // never written to.
+    assert.match(source, /relativizeExportArtifacts\(destinationPath\)/);
+    assert.match(source, /refreshRuntimeCopies\(destinationPath, extensionPath\)/);
+    assert.match(source, /buildExportManifest\(destinationPath, \{/);
+    assert.match(source, /writeExportReadme\(destinationPath, manifest\)/);
+    assert.match(source, /isXrSceneFolder\(destinationPath\)/);
+    assert.doesNotMatch(source, /relativizeExportArtifacts\(sourcePath\)/);
+    assert.doesNotMatch(source, /buildExportManifest\(sourcePath/);
+    assert.doesNotMatch(source, /refreshRuntimeCopies\(sourcePath/);
+
+    // The raw copy semantics stay: recursive, never overwriting an existing
+    // destination.
+    assert.match(source, /errorOnExist: true/);
+    assert.match(source, /Serve it with any static HTTP server/);
+});
+
 test('Close Analysis confirmation uses the improved modal copy', () => {
     const source = readProjectFile(
         'src',

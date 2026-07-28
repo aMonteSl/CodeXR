@@ -174,6 +174,18 @@
     await root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
       reason: 'project-evolution-selection'
     });
+    // An exported copy cannot list git references or generate new movies:
+    // replay the exported one and say so instead of requesting references.
+    if (client()?.isOfflineExport?.()) {
+      var frameCount = state.result?.frames?.length || 0;
+      setStatus(
+        frameCount
+          ? 'Exported movie: play, pause and seek work here. Generating a new movie needs the live CodeXR session.'
+          : 'No evolution movie was generated before this export: generating one needs the live CodeXR session.',
+        frameCount ? 'info' : 'error'
+      );
+      return true;
+    }
     setStatus('Loading project timeline...', 'info');
     if (!client()?.sendMessage?.('project-evolution-references-request', {})) {
       setStatus('Collaboration connection is not ready.', 'error');
@@ -182,6 +194,10 @@
   }
 
   function startSelectedTimeline() {
+    if (client()?.isOfflineExport?.()) {
+      setStatus('This export replays the movie generated before export: a new movie needs the live CodeXR session.', 'error');
+      return;
+    }
     var request = {
       mode: state.timelineMode,
       maxFrames: Number(state.references.maxFrames || 24)
@@ -208,6 +224,12 @@
   }
 
   function clearMovie() {
+    // Clearing deletes server-side files; offline it would only wipe the
+    // replay this export exists to provide.
+    if (client()?.isOfflineExport?.()) {
+      setStatus('This exported movie is replay-only: it cannot be cleared or regenerated here.', 'error');
+      return;
+    }
     stop();
     setStatus('Clearing project evolution movie...', 'info');
     if (!client()?.sendMessage?.('project-evolution-clear', {})) {

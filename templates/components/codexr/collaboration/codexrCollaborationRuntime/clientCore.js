@@ -100,6 +100,59 @@
       return `${protocol}//${location.host}${normalizedPath}`;
     }
 
+    // A self-contained export (README-EXPORT.md next to the scene) has no
+    // CodeXR server: the manifest written at export time stands in for the
+    // collaboration session, delivering the capabilities and the same entity
+    // snapshots the room would have sent. Only probed after the session
+    // endpoint fails, so a live session never pays for it.
+    async function resolveOfflineExportInfo(fallback) {
+      try {
+        const response = await win.fetch('./codexr-export-manifest.json', { cache: 'no-store' });
+        if (!response.ok) {
+          return null;
+        }
+        const manifest = await response.json();
+        if (!manifest || manifest.kind !== 'codexr-export') {
+          return null;
+        }
+        shared.offlineExport = manifest;
+        win.console?.info?.('[CodeXR][Collaboration] Offline export detected: replaying the exported analysis data.');
+        applyOfflineExportEntities(manifest);
+        return {
+          ...fallback,
+          offlineExport: true,
+          capabilities: manifest.capabilities || {},
+        };
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    function applyOfflineExportEntities(manifest) {
+      const entities = Array.isArray(manifest.entities) ? manifest.entities : [];
+      shared.snapshotReady = true;
+      entities.forEach(function (entity) {
+        if (!entity?.entityKind || !entity?.entityId) {
+          return;
+        }
+        // Git-mode snapshots ship as a resultUrl so the manifest stays small:
+        // fetch the exported result, then inject through the same path a live
+        // room snapshot uses (pendingEntities covers late registrants).
+        if (entity.resultUrl && !entity.result) {
+          void win.fetch(String(entity.resultUrl), { cache: 'no-store' })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (result) {
+              if (result) {
+                applyEntityStateToRuntime({ ...entity, result }, { source: 'offline-export' });
+              }
+            })
+            .catch(function () {});
+          return;
+        }
+        applyEntityStateToRuntime(entity, { source: 'offline-export' });
+      });
+    }
+
     async function resolveSessionInfo() {
       if (shared.sessionInfo) {
         return shared.sessionInfo;
@@ -129,9 +182,9 @@
         shared.sessionInfo = { ...fallback, ...(await response.json()) };
         applyExtensionConfiguration(shared.sessionInfo);
         return shared.sessionInfo;
-      }).catch(function () {
-        shared.sessionInfo = fallback;
-        return fallback;
+      }).catch(async function () {
+        shared.sessionInfo = (await resolveOfflineExportInfo(fallback)) || fallback;
+        return shared.sessionInfo;
       }).finally(function () {
         shared.sessionInfoPromise = null;
       });
@@ -169,6 +222,7 @@
         || shared.sessionEnded
         || shared.reconnectTimer
         || !shared.config.collaborationEnabled
+        || shared.offlineExport
       ) {
         return;
       }
@@ -193,6 +247,11 @@
       }
 
       const sessionInfo = await resolveSessionInfo();
+      // Resolving may have discovered an offline export: there is no room to
+      // join, and retrying would only churn the console.
+      if (shared.offlineExport) {
+        return;
+      }
       shared.roomId = String(sessionInfo.roomId || '').trim() || shared.roomId || 'codexr-session:local';
       const url = getSocketUrl(sessionInfo.roomSocketPath || shared.config.roomSignalingPath);
       if (!url) {

@@ -12,6 +12,12 @@
       publishState({ scope: { kind: 'file', relativePath: normalized } });
       return;
     }
+    // Extracting a file's symbols is a server-side analysis: an exported copy
+    // can only drill into files whose dataset was cached before export.
+    if (client()?.isOfflineExport?.()) {
+      setStatus('File symbols are not part of this export: drilling into ' + normalized + ' needs the live CodeXR session.', true);
+      return;
+    }
     setStatus('Loading symbols for ' + normalized + '...', false);
     client()?.sendMessage?.('dependency-file-scope-request', { relativePath: normalized });
   }

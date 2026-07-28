@@ -3,6 +3,21 @@
 
     const eventSource = new EventSource('/events');
     let isXRMode = false;
+
+    // A self-contained export (codexr-export-manifest.json next to the scene)
+    // has no /events endpoint: shut the live-reload channel down as soon as
+    // the manifest is detected so it cannot error-spam or reconnect forever.
+    let liveReloadDisabled = false;
+    fetch('./codexr-export-manifest.json', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((manifest) => {
+        if (manifest && manifest.kind === 'codexr-export') {
+          liveReloadDisabled = true;
+          console.log(' Offline export detected: live reload disabled.');
+          eventSource.close();
+        }
+      })
+      .catch(() => {});
     const CHART_COMPONENT_TYPES = [
       'babia-bars',
       'babia-barsmap',
@@ -89,9 +104,16 @@
     };
 
     eventSource.onerror = function(err) {
+      if (liveReloadDisabled) {
+        eventSource.close();
+        return;
+      }
       console.error(' EventSource error:', err);
       // Try to reconnect after a delay
       setTimeout(() => {
+        if (liveReloadDisabled) {
+          return;
+        }
         console.log(' Attempting to reconnect...');
         eventSource.close();
         new EventSource('/events');
