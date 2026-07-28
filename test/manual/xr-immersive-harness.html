@@ -293,6 +293,32 @@
         click(id) {
           document.getElementById(id).dispatchEvent(new Event('click', { bubbles: false }));
         },
+        // A real WebXR session's marker: A-Frame assigns sceneEl.xrSession
+        // BEFORE emitting enter-vr (a-scene.js), and the simulated entries
+        // never set it. codexr-immersive-rig keys its floor alignment on it.
+        setRealSession(on) {
+          if (on) {
+            // A real XRSession is an EventTarget — A-Frame's cursor component
+            // subscribes selectstart/selectend on it, so the fake must accept
+            // (and ignore) listener calls or cursor teardown throws.
+            scene().xrSession = {
+              addEventListener() {},
+              removeEventListener() {},
+            };
+          } else {
+            delete scene().xrSession;
+          }
+        },
+        // Stand-in for what three.js writes into the CAMERA entity from the
+        // device's local-floor pose: the user's height above their physical
+        // floor. look-controls freezes the camera matrix under a session, so
+        // refresh the matrices by hand exactly as the XR manager would.
+        fakeHeadsetPose(y) {
+          const head = document.getElementById('head');
+          head.object3D.position.set(0, y, 0);
+          head.object3D.updateMatrix();
+          head.object3D.updateMatrixWorld(true);
+        },
         // look-controls rewrites the camera's rotation from its own pitch/yaw
         // objects every tick (that is what a mouse drag does), so tilting the
         // head means telling IT — poking object3D.rotation directly would be

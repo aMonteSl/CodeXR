@@ -393,6 +393,68 @@ async function runScenario(browser) {
         assert.equal(state.movement.fly, false, `after ${command}: grounded again`);
         assert.equal(state.hidden.room, false, `after ${command}: room restored`);
     }
+
+    // --- A REAL WebXR session (emulator / headset), emulated faithfully ---
+    // A-Frame sets sceneEl.xrSession before emitting enter-vr, and three.js
+    // then writes the device's local-floor pose — the user's height above
+    // their physical floor — into the CAMERA entity. The rig must therefore
+    // stop supplying its own height, or the two stack: 1.75 + 1.6 = 3.35 m,
+    // the floating entry the user's emulator screenshots showed.
+    const DEVICE = 1.6;
+
+    // VR.
+    await run('CodeXRImmersiveHarness.setRealSession(true)');
+    await run('CodeXRImmersiveHarness.enterVR()');
+    await settle();
+    await run(`CodeXRImmersiveHarness.fakeHeadsetPose(${DEVICE})`);
+    state = await snap();
+    assert.equal(state.rig.y, 0, 'real VR: the rig stops supplying height');
+    assert.ok(
+        Math.abs(state.geometry.eyeWorldY - DEVICE) < 0.02,
+        `real VR: eye must be at the DEVICE height (${DEVICE}), not stacked at 3.35 — was ${state.geometry.eyeWorldY}`,
+    );
+    assert.equal(state.geometry.eyeAboveTable, true, 'real VR: still above the tabletop');
+    assert.equal(state.movement.fly, true, 'real VR: flying on');
+
+    await run('CodeXRImmersiveHarness.exit()');
+    // What look-controls' restoreCameraPose does with a real headset: the
+    // camera returns to the local origin it had before the session.
+    await run('CodeXRImmersiveHarness.fakeHeadsetPose(0)');
+    await run('CodeXRImmersiveHarness.setRealSession(false)');
+    await settle();
+    state = await snap();
+    assertStanding(state, 'after real VR');
+    assert.equal(state.movement.fly, false, 'after real VR: grounded');
+
+    // AR: recentered at the pedestal AND standing on your own floor.
+    await run('CodeXRImmersiveHarness.setRealSession(true)');
+    await run('CodeXRImmersiveHarness.enterAR()');
+    await settle();
+    await run(`CodeXRImmersiveHarness.fakeHeadsetPose(${DEVICE})`);
+    state = await snap();
+    assert.deepEqual(
+        { x: state.rig.x, y: state.rig.y, z: state.rig.z },
+        { x: 0.07, y: 0, z: -14.7 },
+        'real AR: pedestal in front of you, on your own floor',
+    );
+    assert.ok(
+        Math.abs(state.geometry.eyeWorldY - DEVICE) < 0.02,
+        `real AR: eye at device height, was ${state.geometry.eyeWorldY}`,
+    );
+    assert.equal(state.hidden.room, true, 'real AR: room hidden');
+
+    await run('CodeXRImmersiveHarness.exit()');
+    await run('CodeXRImmersiveHarness.fakeHeadsetPose(0)');
+    await run('CodeXRImmersiveHarness.setRealSession(false)');
+    await settle();
+    state = await snap();
+    assertStanding(state, 'after real AR');
+    assert.equal(state.hidden.room, false, 'after real AR: room back');
+    assert.deepEqual(
+        { x: state.rig.x, z: state.rig.z },
+        { x: 0.07, z: -10.75 },
+        'after real AR: desktop spot restored',
+    );
 }
 
 runPlaywrightIfAvailable().catch((error) => {

@@ -486,6 +486,7 @@ CodeXR automatically manages the following dependencies:
 - [Historical comparison XR](docs/HISTORICAL_COMPARISON_XR.md)
 - [Dependency graph XR](docs/DEPENDENCY_GRAPH_XR.md)
 - [XR browser diagnostics](docs/XR_DEBUG_COMMANDS.md)
+- [Testing VR/AR without a headset — WebXR emulator tutorial (Spanish)](docs/TUTORIAL_EMULADOR_WEBXR.md)
 
 ### Optional Dependencies
 - **WebXR Browser**: For the immersive VR/AR experience

@@ -42,6 +42,10 @@ function createHarness({ arX = 0.07, arZ = -14.7, arRecenter = true, autoFly = t
     const sceneEl = {
         states: new Set(),
         listeners: {},
+        // A-Frame sets this before emitting enter-vr for a REAL WebXR session;
+        // it stays undefined for the simulated entries. Tests flip it to
+        // exercise both paths.
+        xrSession: undefined,
         is(state) { return this.states.has(state); },
         addEventListener(name, handler) {
             (this.listeners[name] = this.listeners[name] || []).push(handler);
@@ -220,4 +224,67 @@ test('a double enter-vr does not clobber the saved fly value with "true"', () =>
 
     sceneEl.emit('exit-vr');
     assert.equal(rigEl.getAttribute('movement-controls').fly, false, 'restored to the real desktop baseline');
+});
+
+// --- Real WebXR sessions: the device's local-floor pose already carries the
+// user's height, written into the CAMERA on top of the rig. The rig must stop
+// supplying its desktop height or the two stack (1.75 + ~1.6 ≈ 3.35 m — the
+// floating entry the WebXR emulator exposed). ---
+
+test('a REAL session drops the rig to the floor and restores it on exit', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.xrSession = {};
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+    assert.equal(rigEl.object3D.position.y, 0, 'the device pose supplies the height now');
+
+    sceneEl.states.delete('vr-mode');
+    sceneEl.xrSession = undefined;
+    sceneEl.emit('exit-vr');
+    assert.equal(rigEl.object3D.position.y, 1.75, 'desktop height back on exit');
+});
+
+test('a SIMULATED entry keeps the desktop height — no pose will replace it', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.states.add('vr-mode'); // no xrSession: CodeXRDebug.simulateVR path
+    sceneEl.emit('enter-vr');
+
+    assert.equal(rigEl.object3D.position.y, 1.75, 'nothing writes a pose, so the rig keeps the eye height');
+});
+
+test('real AR session: recentered at (arX, arZ) AND standing on the real floor', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.xrSession = {};
+    sceneEl.states.add('ar-mode');
+    sceneEl.emit('enter-vr');
+
+    assert.deepEqual(
+        { x: rigEl.object3D.position.x, y: rigEl.object3D.position.y, z: rigEl.object3D.position.z },
+        { x: 0.07, y: 0, z: -14.7 },
+        'pedestal in front of you, on your own floor',
+    );
+
+    sceneEl.states.delete('ar-mode');
+    sceneEl.xrSession = undefined;
+    sceneEl.emit('exit-vr');
+    assert.deepEqual(
+        { x: rigEl.object3D.position.x, y: rigEl.object3D.position.y, z: rigEl.object3D.position.z },
+        { x: 0.07, y: 1.75, z: -10.75 },
+        'full desktop pose restored',
+    );
+});
+
+test('a double enter-vr in a real session keeps the ORIGINAL height saved', () => {
+    const { sceneEl, rigEl } = createHarness();
+
+    sceneEl.xrSession = {};
+    sceneEl.states.add('vr-mode');
+    sceneEl.emit('enter-vr');
+    sceneEl.emit('enter-vr'); // visibility blip: y is already 0 here
+
+    sceneEl.emit('exit-vr');
+    assert.equal(rigEl.object3D.position.y, 1.75, 'restored to 1.75, not to the adapted 0');
 });
