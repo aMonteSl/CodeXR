@@ -114,8 +114,8 @@ Want to reproduce it (or validate on your own headset)? The [WebXR emulator tuto
 | **The XR testing cockpit** — a live VR session with the emulator's controller panels and gizmos around the scene | **At the table** — standing in VR at the pedestal's edge, the city one step away |
 | ![Flying over the code city in VR](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/vr-flying-over-the-city.jpeg) | ![AR entry: the pedestal recentered into your own space, room and environment gone](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/ar-recentered-pedestal.jpeg) |
 | **Flying over the codebase** — look up, push the stick, and read the skyline of your project | **AR brings the table to you** — recentered a step away, virtual room gone, charts fully lit |
-| ![AR close-up: a highlighted building with its metrics legend floating in passthrough](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/ar-hover-legend-passthrough.jpeg) | |
-| **Point and read, in your own room** — a hovered building shows its file, lines, functions and complexity in passthrough | |
+| ![AR close-up: a highlighted building with its metrics legend floating in passthrough](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/ar-hover-legend-passthrough.jpeg) | ![Developing in AR: the pedestal, guide, screens and the Field Mapping panel in passthrough](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/xr_experiences/ar-development.jpeg) |
+| **Point and read, in your own room** — a hovered building shows its file, lines, functions and complexity in passthrough | **A full workspace in AR** — pedestal, guide, screens and the Field Mapping panel, with the emulator's key maps overlaid |
 
 ## Base tutorials
 

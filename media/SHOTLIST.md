@@ -151,6 +151,7 @@ XR, not just how it looks. JPEG ~1600 px, 115-152 KB each.
 | X3 | `vr-flying-over-the-city.jpeg` | captured | Flying above the codebase city, whole platform below |
 | X4 | `ar-recentered-pedestal.jpeg` | captured | AR entry: recentered a step from the pedestal, room/environment gone, charts lit by the AR fill light, hover legend visible |
 | X5 | `ar-hover-legend-passthrough.jpeg` | captured | AR close-up: highlighted building with its metrics legend (easyrtc.js) floating in passthrough |
+| X6 | `ar-development.jpeg` | captured | Full AR workspace: pedestal, guide, screens and the Field Mapping panel with the emulator's key-map overlays (user-taken; the 551 KB PNG master stays untracked beside it) |
 
 ## Open items
 
