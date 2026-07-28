@@ -27,6 +27,7 @@
 | `npm run test:htmlanalysis` | HTML/DOM analysis tests | After touching `python/html/html_dom_parser.py` or DOM mode |
 | `npm run test:xr-harness` | `test/runners/run-xr-containment-harness.cjs` (browser harness, uses Playwright) | After touching table/containment runtimes |
 | `npm run test:project-evolution-harness` | Project Evolution playback harness | After touching project-evolution runtime |
+| `npm run test:xr-immersive-harness` | `test/runners/run-xr-immersive-harness.cjs` — AR/VR semantics against real A-Frame: AR hide/keep sets, rig floor-align + AR recenter, pointer handover; plus a static contract over both scene templates | After touching the scene templates, pointer-policy or immersive-rig |
 | `npm run package` | Production webpack build (hidden source maps) | Pre-packaging |
 | `npm run package:vsix` | `package` + `scripts/package-vsix.mjs` → builds the `.vsix` | Release preparation |
 | `npm run test:integration` | `@vscode/test-cli` — **currently targets `out/test/**/*.test.js`, which doesn't exist; the integration layer is unpopulated** | Don't rely on it (needs verification/setup) |
@@ -41,7 +42,7 @@ Two launch configs in `.vscode/launch.json`:
 1. **"Run CodeXR Extension"** (primary): launches an Extension Development Host with an **isolated copy** of the extension staged under `.vscode-test/dev-extension`, with separate user-data and extensions dirs. preLaunchTask: `CodeXR: compile:dev-host`. Use this for realistic, isolated testing.
 2. **"Run CodeXR Extension (workspace direct)"**: loads `${workspaceFolder}` directly as the extension. preLaunchTask: `CodeXR: compile`. Faster, less isolated.
 
-Manual validation flow for a change: F5 → open a workspace with source files → right-click a file/folder → "Code-XR: Analysis" submenu → run the relevant mode (LivePanel / XR / DOM) → for XR, the browser opens the generated scene from a local server; check the Active Servers tree section. Debug APIs available in the browser console are documented in `docs/XR_DEBUG_COMMANDS.md`.
+Manual validation flow for a change: F5 → open a workspace with source files → right-click a file/folder → "Code-XR: Analysis" submenu → run the relevant mode (LivePanel / XR / DOM) → for XR, the browser opens the generated scene from a local server; check the Active Servers tree section. Debug APIs available in the browser console are documented in `docs/xr-testing/XR_DEBUG_COMMANDS.md`.
 
 ## Test layout
 

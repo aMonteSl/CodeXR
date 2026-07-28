@@ -9,7 +9,7 @@
 
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.5.4/dist/aframe-extras.min.js"></script>
-    <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
     <script src="https://unpkg.com/aframe-babia-components@1.3.4/dist/aframe-babia-components.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -18,6 +18,12 @@
     <a-scene background="color: ${BACKGROUND_COLOR}" xr-mode-ui="enabled: true; XRMode: xr" codexr-pointer-policy>
         <a-entity environment="preset: ${ENVIRONMENT_PRESET}; groundColor: ${GROUND_COLOR}" hide-on-enter-ar></a-entity>
         <a-light type="point" intensity="1" position="-10 20 30"></a-light>
+        <!-- AR fill: the environment's lights hide with it in AR; this
+             directional idles at 0 and codexr-ar-fill-light raises it for AR
+             sessions only. -->
+        <a-entity codexr-ar-fill-light
+            light="type: directional; color: #ffffff; intensity: 0"
+            position="1 4 2"></a-entity>
 
         <a-entity id="htmlDOM"
             scale="0.3 0.3 0.3"
@@ -48,56 +54,30 @@
                 rotation="0 0 0" text="value: Expand; color: white; align: center; width: 3;"></a-plane>
         </a-entity>
 
-        <a-entity id="cameraRig" movement-controls="fly: true; speed: 0.1" position="0 1.6 3">
-            <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy).
-                 Sin babia-camera: creaba un segundo cursor de ratón y raycasters de mano duplicados. -->
-            <a-entity id="head" camera look-controls>
+        <!-- Eye height lives on the RIG (see the analysis template for why).
+             No AR recenter here: the DOM tree already sits ~3 m away — only
+             the automatic fly-in-immersive behaviour applies. -->
+        <a-entity id="cameraRig" movement-controls="fly: false; speed: 0.1" position="0 1.6 3"
+            codexr-immersive-rig="arRecenter: false">
+            <!-- Cámara + cursor de mirada (activo SOLO en sesión real sin mandos;
+                 lo gobierna codexr-pointer-policy). Sin geometría de retícula a
+                 propósito: el anillo blanco molestaba en el casco y el hover ya
+                 se ve en el propio contenido. Sin babia-camera: creaba un
+                 segundo cursor de ratón y raycasters de mano duplicados. -->
+            <a-entity id="head" camera position="0 0 0" look-controls>
                 <a-entity
                     id="gazeCursor"
                     visible="false"
                     cursor="rayOrigin: entity; fuse: false"
                     raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
-                    <a-ring
-                        position="0 0 -0.6"
-                        radius-inner="0.008"
-                        radius-outer="0.014"
-                        material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
                 </a-entity>
             </a-entity>
 
-            <a-entity
-                id="leftController"
-                laser-controls="hand: left"
-                meta-touch-controls="hand: left; model: true"
-                daydream-controls="hand: left"
-                gearvr-controls="hand: left"
-                hp-mixed-reality-controls="hand: left"
-                magicleap-controls="hand: left"
-                oculus-go-controls="hand: left"
-                valve-index-controls="hand: left"
-                vive-controls="hand: left"
-                vive-focus-controls="hand: left"
-                windows-motion-controls="hand: left"
-                generic-tracked-controller-controls="hand: left">
-            </a-entity>
-
-            <a-entity
-                id="rightController"
-                laser-controls="hand: right"
-                meta-touch-controls="hand: right; model: true"
-                daydream-controls="hand: right"
-                gearvr-controls="hand: right"
-                hp-mixed-reality-controls="hand: right"
-                magicleap-controls="hand: right"
-                oculus-go-controls="hand: right"
-                valve-index-controls="hand: right"
-                vive-controls="hand: right"
-                vive-focus-controls="hand: right"
-                windows-motion-controls="hand: right"
-                generic-tracked-controller-controls="hand: right"
-                cursor="rayOrigin: entity; fuse: false"
-                raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
-            </a-entity>
+            <!-- laser-controls alone: it adds the per-device component itself
+                 and owns the raycaster origin/direction (Touch controllers
+                 point at an angle to the grip). See the analysis template. -->
+            <a-entity id="leftController" laser-controls="hand: left"></a-entity>
+            <a-entity id="rightController" laser-controls="hand: right"></a-entity>
 
             <a-entity
                 id="mouseCursor"
@@ -202,6 +182,7 @@
 <script nonce="${nonce}" src="./virtualScreenRuntime.js"></script>
 <script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js"></script>
 <script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js"></script>
+<script nonce="${nonce}" src="./codexrImmersiveRigRuntime.js"></script>
 <script nonce="${nonce}" src="./codexrDomSceneCollaborationRuntime.js"></script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

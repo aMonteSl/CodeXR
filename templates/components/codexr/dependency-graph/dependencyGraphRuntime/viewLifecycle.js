@@ -36,6 +36,7 @@
     if (state.transitionLocked) { return; }
     refs.graph?.components?.[COMPONENT]?.resetView?.();
     var rig = doc()?.getElementById('rig');
+    // Eye height lives on the rig itself — never on the camera.
     rig?.setAttribute?.('position', '0.07 1.75 -10.75');
     rig?.setAttribute?.('rotation', '0 0 0');
     setStatus('View reset.', false);

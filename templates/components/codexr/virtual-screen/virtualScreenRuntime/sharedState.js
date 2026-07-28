@@ -225,15 +225,44 @@
           }
           return true;
         }
-        if (typeof snapshot.broadcastStatus === 'string' && state.streamSourceType !== 'local') {
+        // The snapshot carries the SENDER's status. Mirror screens adopt it
+        // for display, but an active viewer's status describes its own
+        // connection — overwriting it faked "live" before any frame arrived.
+        if (
+          typeof snapshot.broadcastStatus === 'string'
+          && state.streamSourceType !== 'local'
+          && state.broadcastRole !== 'viewer'
+        ) {
           state.broadcastStatus = snapshot.broadcastStatus;
         }
         state.hasAudio = snapshot.hasAudio === true;
         const sharedBroadcast = normalizeBroadcastState(snapshot.broadcast);
+        const previousBroadcasterPeerId = refs.broadcastState?.broadcasterPeerId || '';
         setSharedBroadcastState(sharedBroadcast);
+        // A leave is scoped to one broadcast: the opt-out clears when the
+        // broadcast ends or the screen changes hands.
+        if (
+          !sharedBroadcast.active
+          || (
+            previousBroadcasterPeerId
+            && sharedBroadcast.broadcasterPeerId
+            && sharedBroadcast.broadcasterPeerId !== previousBroadcasterPeerId
+          )
+        ) {
+          state.viewerOptOut = false;
+        }
         if (state.streamSourceType !== 'local') {
           if (sharedBroadcast.active) {
-            setBroadcastState('viewer', state.streamSourceType === 'remote' ? 'live' : 'connecting');
+            if (state.viewerOptOut) {
+              // The viewer left on purpose: the screen offers Join instead of
+              // dragging them back in on every entity refresh.
+              setBroadcastState('none', 'idle');
+            } else {
+              // 'live' is earned by this viewer's first painted frame, never
+              // adopted from the sender's snapshot.
+              const alreadyLiveViewer = state.broadcastRole === 'viewer' && state.broadcastStatus === 'live';
+              setBroadcastState('viewer', alreadyLiveViewer ? 'live' : 'connecting');
+            }
           } else if (state.streamSourceType !== 'remote') {
             setBroadcastState('none', 'idle');
           }

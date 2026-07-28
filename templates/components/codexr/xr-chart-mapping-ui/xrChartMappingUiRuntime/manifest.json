@@ -5,6 +5,7 @@
     "placementGeometry.js",
     "chartDiscovery.js",
     "mappingProfiles.js",
+    "chartDataSlice.js",
     "statusAndSharedState.js",
     "pendingValidation.js",
     "dimensionAndViews.js",

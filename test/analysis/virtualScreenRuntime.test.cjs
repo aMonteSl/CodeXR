@@ -52,6 +52,7 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     const collaborationRuntimeSource = readAssembledRuntime('collaboration', 'codexrCollaborationRuntime.js');
     const avatarRuntimeSource = readProjectFile('templates', 'components', 'codexr', 'avatar', 'codexrAvatarRuntime.js');
     const httpServerSource = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const sessionApiSource = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts');
     const broadcastServerSource = readProjectFile('src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts');
     const runtimeIndexSource = readProjectFile('src', 'servers', 'runtime', 'index.ts');
 
@@ -146,8 +147,10 @@ test('virtual screen runtime includes WebRTC broadcasting primitives and shared-
     assert.match(httpServerSource, /CollaborationRoomServer/);
     assert.match(httpServerSource, /case '\/collaboration\/session'/);
     assert.match(httpServerSource, /case '\/collaboration\/avatar-model'/);
-    assert.match(httpServerSource, /CollaborationProfileManager/);
-    assert.match(httpServerSource, /roomId: `codexr-session:\$\{activeServerId\}`/);
+    // The session descriptor and room-id derivation live in the extracted
+    // CollaborationSessionApi module.
+    assert.match(sessionApiSource, /CollaborationProfileManager/);
+    assert.match(sessionApiSource, /roomId: `codexr-session:\$\{activeServerId\}`/);
     assert.match(httpServerSource, /new CollaborationRoomServer\(server, '\/codexr-room'/);
     assert.match(httpServerSource, /ScreenBroadcastSignalingServer/);
     assert.match(httpServerSource, /new ScreenBroadcastSignalingServer\(/);
@@ -422,4 +425,346 @@ test('collision bumpers stop look-at, drag, and resize at walls and screens', ()
     // Screens sit back on the wall; the bumper is what keeps them out of it.
     const xrTemplate = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
     assert.match(xrTemplate, /"anchoredPosition":\{"x":0,"y":4\.2,"z":-22\}/);
+});
+
+test('AR frees the screens from the invisible room shell', () => {
+    // In AR the room is hidden and functionally gone (its pieces drop the
+    // raycast class in codexrRoomRuntime); the bumpers must not keep pinning
+    // screens against walls nobody can see. The check is live, BEFORE the
+    // cache, so desktop/VR keep the cached room bounds exactly as before —
+    // and an explicit collisionBounds override still applies (it describes
+    // the caller's own space, not the virtual room).
+    assert.match(runtimeSource, /getScene\(\)\?\.is\?\.\('ar-mode'\) && !refs\.config\.collisionBounds/);
+    // Screen-vs-screen obstacles are untouched by the AR branch.
+    assert.match(runtimeSource, /function getScreenObstacles/);
+});
+
+test('grab-and-reach: the grabbing hand\'s stick pushes/pulls the screen per frame', () => {
+    // The handler only RECORDS the deflection — thumbstickmoved fires on axis
+    // CHANGE, so applying per event froze the screen while the stick was held
+    // (the shipped behaviour the emulator exposed). Motion happens per frame.
+    assert.match(runtimeSource, /state\.drag\.depthStickY = Math\.abs\(axisY\) < 0\.15 \? 0 : axisY/);
+    assert.doesNotMatch(runtimeSource, /adjustDragDepth\(axisY/);
+    assert.match(runtimeSource, /function applyStickDepth/);
+    assert.match(runtimeSource, /applyStickDepth\(\);\s*\n\s*updateDragDepthSmoothing\(\)/);
+    // Stick forward (negative y) pushes AWAY (Quest convention), stick right
+    // (positive x) slides the screen to the user's right — both scaled by
+    // time, not by event count, at the same speed.
+    assert.match(runtimeSource, /adjustDragDepth\(-deflectionY \* speed \* dtSeconds\)/);
+    assert.match(runtimeSource, /adjustDragLateral\(deflectionX \* speed \* dtSeconds\)/);
+    assert.match(runtimeSource, /state\.drag\.depthStickX = Math\.abs\(axisX\) < 0\.15 \? 0 : axisX/);
+    // The sideways axis is horizontal and perpendicular to the depth axis
+    // (depth x up), so it degenerates safely for an overhead screen.
+    assert.match(runtimeSource, /\.cross\(new global\.THREE\.Vector3\(0, 1, 0\)\)/);
+    // Depth shifts the interaction plane (that is what slides the ray-plane
+    // intersection); lateral must shift ONLY the screen reference — an
+    // in-plane plane shift does not move the intersection at all.
+    assert.match(runtimeSource, /const rootOffsetVector = currentDepthVector\.clone\(\)/);
+    assert.match(runtimeSource, /rootOffsetVector\.add\(state\.drag\.lateralAxis\.clone\(\)/);
+    assert.match(runtimeSource, /currentStartPoint = state\.drag\.startPoint\.clone\(\)\.add\(currentDepthVector\)/);
+    assert.match(runtimeSource, /currentStartRootWorldPosition = state\.drag\.startRootWorldPosition\.clone\(\)\.add\(rootOffsetVector\)/);
+    assert.match(runtimeSource, /controllerDepthSpeed: 1\.8/);
+    assert.doesNotMatch(runtimeSource, /controllerDepthStep/);
+    // The depth target is clamped: bounded lead (the collision bumper is a
+    // physical stop — unbounded accumulation made reversing dead) and a
+    // minimum pull distance so the screen stops before the user's head.
+    assert.match(runtimeSource, /dragDepthMaxLead: 1\.2/);
+    assert.match(runtimeSource, /dragDepthMinDistance: 0\.6/);
+    assert.match(runtimeSource, /Math\.min\(Math\.max\(target, current - maxLead\), current \+ maxLead\)/);
+    assert.match(runtimeSource, /minDistance - state\.drag\.startDepthDistance/);
+    // The per-frame depth log died with the per-event step: adjustDragDepth
+    // now runs every frame and must not spam the console.
+    assert.doesNotMatch(runtimeSource, /VIRTUAL_SCREEN: depth update/);
+});
+
+test('a controller drag claims its stick and owns the pointer for its duration', () => {
+    // The grabbing hand's stick is claimed away from aframe-extras locomotion
+    // (the gate lives in codexr-immersive-rig; lazy global lookup because
+    // screens load before the rig runtime) and the scene is marked so
+    // codexr-pointer-policy does not hand the laser away mid-grab.
+    assert.match(runtimeSource, /CodeXRStickGateRuntime\?\.claim\?\.\(state\.drag\.gateHand\)/);
+    assert.match(runtimeSource, /CodeXRStickGateRuntime\?\.release\?\.\(state\.drag\.gateHand\)/);
+    assert.match(runtimeSource, /addState\('codexr-screen-drag'\)/);
+    assert.match(runtimeSource, /removeState\?\.\('codexr-screen-drag'\)/);
+    // Claim/release and state add/remove are paired through endDrag, which
+    // runs on every drag-end path (handle/scene/window mouseup and blur).
+    assert.match(runtimeSource, /ownsSceneDragState/);
+    // Only the two known controller ids map to a claimable hand.
+    assert.match(runtimeSource, /'leftController'\s*\n?\s*\? 'left'/);
+});
+
+// ── Relay transport: media for viewers peer-to-peer cannot reach ─────────────
+
+test('the relay wire format matches the one the server relays and validates', () => {
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+
+    // Header layout has to agree on both ends or every frame is dropped.
+    assert.match(runtimeSource, /const RELAY_HEADER_BYTES = 12;/);
+    assert.match(serverSource, /const FRAME_HEADER_BYTES = 12;/);
+    assert.match(runtimeSource, /const RELAY_MAGIC_0 = 0x43;/);
+    assert.match(serverSource, /const FRAME_MAGIC_0 = 0x43;/);
+    assert.match(runtimeSource, /const RELAY_MAGIC_1 = 0x58;/);
+    assert.match(serverSource, /const FRAME_MAGIC_1 = 0x58;/);
+    // The server only ever drops delta video under backpressure, and the
+    // runtime must be numbering its kinds the same way for that to be true.
+    assert.match(runtimeSource, /videoDelta: 2,/);
+    assert.match(serverSource, /const FRAME_KIND_VIDEO_DELTA = 2;/);
+    assert.match(serverSource, /\(kindByte & FRAME_KIND_MASK\) === FRAME_KIND_VIDEO_DELTA/);
+    // Both ends pack the temporal layer into the same nibble of the same byte.
+    assert.match(runtimeSource, /const RELAY_VERSION = 2;/);
+    assert.match(runtimeSource, /const RELAY_LAYER_SHIFT = 4;/);
+    assert.match(serverSource, /const FRAME_LAYER_SHIFT = 4;/);
+    assert.match(runtimeSource, /\(layer << RELAY_LAYER_SHIFT\) \| \(kind & RELAY_KIND_MASK\)/);
+    assert.match(serverSource, /const temporalLayer = kindByte >> FRAME_LAYER_SHIFT;/);
+});
+
+test('the relay picks WebCodecs when available and whole images when not', () => {
+    // Encoded path: VP8 video plus Opus audio, both from track processors.
+    assert.match(runtimeSource, /function hasWebCodecs\(\)/);
+    assert.match(runtimeSource, /typeof win\.VideoEncoder === 'function'/);
+    assert.match(runtimeSource, /typeof win\.MediaStreamTrackProcessor === 'function'/);
+    assert.match(runtimeSource, /codec: 'vp8'/);
+    assert.match(runtimeSource, /codec: 'opus'/);
+    // Fallback path for browsers without WebCodecs.
+    assert.match(runtimeSource, /function startImagePump\(/);
+    assert.match(runtimeSource, /'image\/jpeg', RELAY_IMAGE_QUALITY/);
+    // Latency over fluidity: frames are skipped rather than queued.
+    assert.match(runtimeSource, /if \(encoder\.encodeQueueSize > 2\) \{/);
+    // The decoded picture reaches the existing texture through a canvas stream,
+    // so nothing downstream needs to know the media was relayed.
+    assert.match(runtimeSource, /canvas\.captureStream\(30\)/);
+    assert.match(runtimeSource, /updateVideoSource\(receiver\.stream\)/);
+});
+
+test('a viewer is only live once a real frame arrives, and falls back to the relay if none does', () => {
+    // ontrack no longer declares success by itself: that was the black screen.
+    const ontrack = runtimeSource.match(/connection\.ontrack = function[\s\S]*?\n        \};/)?.[0] || '';
+    assert.ok(ontrack, 'the viewer ontrack handler should still exist');
+    assert.match(ontrack, /setBroadcastState\('viewer', 'connecting'\)/);
+    assert.doesNotMatch(ontrack, /setBroadcastState\('viewer', 'live'\)/);
+    assert.match(ontrack, /watchForFirstRemoteFrame\(\)/);
+
+    // Live is declared by the frame watcher and by the relay painter, nowhere else.
+    assert.match(runtimeSource, /function markPeerBroadcastLive\(\)/);
+    assert.match(runtimeSource, /function markRelayLive\(receiver\)/);
+    assert.match(runtimeSource, /requestVideoFrameCallback/);
+    // Without media, the viewer asks the server to relay instead of waiting forever.
+    assert.match(runtimeSource, /const PEER_FIRST_FRAME_TIMEOUT_MS = 6000;/);
+    assert.match(runtimeSource, /type: 'relay-request'/);
+});
+
+test('relayed media is torn down with the broadcast, on both ends', () => {
+    // Encoders and decoders outliving their broadcast would keep encoding into
+    // the void and hold the capture alive.
+    assert.match(runtimeSource, /function stopRelaySender\(\)/);
+    assert.match(runtimeSource, /function stopRelayReceiver\(\)/);
+    // Viewer leaving a broadcast, and the screen being destroyed.
+    const detach = runtimeSource.match(/function detachRemoteBroadcast[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(detach, /stopRelayReceiver\(\);/);
+    // The sender stops when capture stops.
+    const stopCapture = runtimeSource.match(/function stopCapture[\s\S]*?\n    \}/)?.[0] || '';
+    assert.match(stopCapture, /stopRelaySender\(\);/);
+    // The socket carrying the frames must be in binary mode or every frame
+    // arrives as an unparseable string.
+    assert.match(runtimeSource, /socket\.binaryType = 'arraybuffer';/);
+    assert.match(runtimeSource, /if \(event\.data instanceof win\.ArrayBuffer\) \{\s*handleRelayFrame\(event\.data\);/);
+});
+
+test('one encoder serves the whole audience, reconfigured instead of duplicated', () => {
+    // A second viewer must never start a second encoding.
+    assert.match(runtimeSource, /function startRelaySender\(message\) \{\s*\n\s*\/\/[\s\S]*?\n\s*if \(refs\.relaySender \|\| state\.streamSourceType !== 'local' \|\| !state\.stream\) \{\s*\n\s*return;/);
+    // Audience changes retune that same encoder and resync viewers.
+    assert.match(runtimeSource, /function updateRelayAudience\(message\)/);
+    assert.match(runtimeSource, /sender\.appliedQuality !== sender\.quality/);
+    assert.match(runtimeSource, /encoder\.configure\(buildVideoEncoderConfig\(sender, rawFrame, sender\.temporalLayers\)\);/);
+    assert.match(runtimeSource, /sender\.keyframeRequested = true;/);
+    // Exactly one VideoEncoder is ever constructed.
+    assert.equal((runtimeSource.match(/new win\.VideoEncoder\(/g) || []).length, 1);
+});
+
+test('quality follows the audience down to a floor, because every viewer costs another copy', () => {
+    const tiers = runtimeSource.match(/const RELAY_QUALITY_TIERS = \[[\s\S]*?\];/)?.[0] || '';
+    assert.ok(tiers, 'the quality tiers should exist');
+    // Descending bitrate with a floor, and a widest tier that catches any size.
+    assert.match(tiers, /maxViewers: 2, bitrate: 1500000/);
+    assert.match(tiers, /maxViewers: Infinity, bitrate: 350000/);
+    const bitrates = [...tiers.matchAll(/bitrate: (\d+)/g)].map((match) => Number(match[1]));
+    assert.deepEqual(bitrates, [...bitrates].sort((left, right) => right - left), 'tiers must descend');
+    // The host is told the audience and what it is costing them upstream.
+    assert.match(runtimeSource, /function describeRelayBroadcast\(sender\)/);
+    assert.match(runtimeSource, /Mbps up/);
+});
+
+test('temporal layers are only requested when the browser confirms support', () => {
+    assert.match(runtimeSource, /config\.scalabilityMode = 'L1T3';/);
+    assert.match(runtimeSource, /await win\.VideoEncoder\.isConfigSupported\(layered\)/);
+    assert.match(runtimeSource, /if \(support\?\.supported\) \{\s*\n\s*sender\.temporalLayers = true;/);
+    // Without support the stream is still valid, just single-layer.
+    assert.match(runtimeSource, /sender\.temporalLayers = false;\s*\n\s*return buildVideoEncoderConfig\(sender, rawFrame, false\);/);
+    // The layer of each chunk comes from the encoder, not guessed.
+    assert.match(runtimeSource, /metadata\?\.svc\?\.temporalLayerId \|\| 0/);
+});
+
+test('no viewer is ever refused: the capacity rejection is gone from both ends', () => {
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.doesNotMatch(serverSource, /MAX_RELAY_VIEWERS/);
+    assert.doesNotMatch(serverSource, /relay-capacity/);
+    assert.doesNotMatch(runtimeSource, /relayCapacity/);
+    // Congestion is handled by thinning per viewer instead.
+    assert.match(serverSource, /private shouldThinFrame\(viewer: BroadcastClient, temporalLayer: number\): boolean/);
+    assert.match(serverSource, /const RELAY_THIN_TOP_LAYER_BYTES/);
+    assert.match(serverSource, /const RELAY_THIN_ALL_DELTAS_BYTES/);
+});
+
+test('viewers never publish broadcast state they do not own', () => {
+    // The room's screen entity belongs to the sender. A viewer publishing
+    // active:false from a server message once convinced the whole room a live
+    // broadcast had stopped ("Live sharing stopped" on every guest).
+    const stoppedCase = runtimeSource.match(/case 'broadcast-stopped':[\s\S]*?\n          return;/)?.[0] || '';
+    assert.ok(stoppedCase, 'the broadcast-stopped handler should exist');
+    const publishes = stoppedCase.match(/publishSharedScreenState\(\)/g) || [];
+    assert.equal(publishes.length, 1, 'only one publish, and it belongs to the sender branch');
+    assert.match(stoppedCase, /streamSourceType === 'local'[\s\S]*publishSharedScreenState\(\)/);
+    assert.match(stoppedCase, /skipSharedPublish: true/);
+    // Server-triggered detaches never publish the entity either: both ICE
+    // failure handlers use the exact non-publishing call.
+    assert.equal(
+        (runtimeSource.match(/detachRemoteBroadcast\(message, \{ notifyServer: false, skipSharedPublish: true \}\)/g) || []).length,
+        2,
+    );
+});
+
+test('an early viewer waits instead of giving up, and rejoins are only suppressed per socket', () => {
+    // Parked by the server: still connecting, nothing to tear down.
+    assert.match(runtimeSource, /case 'viewer-waiting':/);
+    // The rejoin guard compares the socket the join went out on, so a
+    // reconnected socket can rejoin instead of hanging on "connecting".
+    assert.match(runtimeSource, /refs\.joinAttemptSocket === refs\.signalingSocket/);
+    assert.match(runtimeSource, /function scheduleViewerJoinWatchdog\(\)/);
+    assert.match(runtimeSource, /const VIEWER_JOIN_RETRY_MS = 5000;/);
+});
+
+test('the relay takes ownership of the session away from the dying direct attempt', () => {
+    // Starting the receiver closes the abandoned peer connections and cancels
+    // the first-frame watchdog...
+    const receiverStart = runtimeSource.match(/function startRelayReceiver[\s\S]*?const canvas = /)?.[0] || '';
+    assert.match(receiverStart, /closeAllPeerConnections\(\);/);
+    assert.match(receiverStart, /refs\.remoteFrameWatchTimer = null;/);
+    // ...and both connection-state handlers stand down once a relay receiver
+    // exists (the guard only appears there, once per handler).
+    assert.equal((runtimeSource.match(/if \(refs\.relayReceiver\) \{\s*\n\s*return;\s*\n\s*\}/g) || []).length, 2);
+});
+
+test('a viewer only reaches live through its own first frame, never the sender snapshot', () => {
+    // The status adoption skips active viewers...
+    assert.match(runtimeSource, /state\.broadcastRole !== 'viewer'\s*\n\s*\) \{\s*\n\s*state\.broadcastStatus = snapshot\.broadcastStatus;/);
+    // ...and applying an active broadcast preserves live only for a viewer
+    // that already earned it.
+    assert.match(runtimeSource, /const alreadyLiveViewer = state\.broadcastRole === 'viewer' && state\.broadcastStatus === 'live';/);
+    // The server, for its part, parks early viewers instead of refusing them.
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.match(serverSource, /private parkViewer\(/);
+    assert.match(serverSource, /type: 'viewer-waiting'/);
+    assert.doesNotMatch(serverSource, /'no-signal'/);
+});
+
+// ── Role-aware screen controls: join / share / leave, without accidents ──────
+
+test('sharing over someone else\'s live broadcast is refused up front, with no detach', () => {
+    const startCaptureBlock = runtimeSource.match(/async function startCapture\(intent\) \{[\s\S]*?\n    \}/)?.[0] || '';
+    assert.ok(startCaptureBlock, 'startCapture should exist');
+    // The old accident: detaching the viewer from the stream they were
+    // watching before even opening the native picker.
+    assert.doesNotMatch(startCaptureBlock, /detachRemoteBroadcast/);
+    assert.match(startCaptureBlock, /if \(isForeignBroadcastActive\(\)\) \{/);
+    assert.match(startCaptureBlock, /labels\.screenBusy/);
+    // And the server guarantees it even if two clients race: the denied share
+    // rolls back and returns to being a viewer.
+    assert.match(runtimeSource, /case 'broadcast-denied':/);
+    assert.doesNotMatch(runtimeSource, /broadcast-replaced/);
+    const serverSource = readProjectFile(
+        'src', 'servers', 'runtime', 'broadcast', 'screenBroadcastSignalingServer.ts',
+    );
+    assert.match(serverSource, /type: 'broadcast-denied'/);
+    assert.doesNotMatch(serverSource, /broadcast-replaced/);
+    assert.match(serverSource, /previousBroadcaster\.socket\.readyState === WebSocket\.OPEN/);
+});
+
+test('leaving is explicit, local, and sticks until the viewer presses Join', () => {
+    // Any non-sender pressing stop takes the leave path: opt-out plus a
+    // detach that never publishes the room entity (it belongs to the sender).
+    const stopBlock = runtimeSource.match(/function stopCapture\(message, options\) \{[\s\S]*?function attachTrackEndedListener/)?.[0] || '';
+    assert.match(stopBlock, /state\.streamSourceType !== 'local'/);
+    assert.match(stopBlock, /state\.viewerOptOut = true;/);
+    assert.match(stopBlock, /skipSharedPublish: true/);
+    // Every auto-join path respects the opt-out...
+    assert.match(runtimeSource, /function ensureRemoteBroadcastSubscription[\s\S]*?if \(state\.viewerOptOut\) \{\s*\n\s*return;/);
+    assert.match(runtimeSource, /\|\| state\.viewerOptOut\s*\|\| state\.broadcastRole !== 'viewer'/);
+    // ...and only Join clears it (plus the broadcast ending or changing hands).
+    assert.match(runtimeSource, /function joinBroadcast\(\) \{\s*\n\s*state\.viewerOptOut = false;/);
+    assert.match(runtimeSource, /state\.viewerOptOut = false;\s*\n\s*\}\s*\n\s*if \(state\.streamSourceType !== 'local'\) \{/);
+});
+
+test('the center slot alternates Share and Join, and clicking content only shows who is sharing', () => {
+    // Mutually exclusive predicates on the same slot: share needs a free
+    // screen, join needs a live broadcast you are not watching.
+    assert.match(runtimeSource, /const showShareButton = !fixedContent && state\.mode === 'idle' && !foreignBroadcast;/);
+    assert.match(runtimeSource, /const showJoinButton = !fixedContent && expanded && foreignBroadcast && !watchingBroadcast;/);
+    // The join button names the broadcaster, resolved from the room.
+    assert.match(runtimeSource, /getBroadcasterDisplayName\(\)/);
+    assert.match(runtimeSource, /getParticipant\?\.\(peerId\)/);
+    // Clicking the content surface is wired to the info overlay and nothing else.
+    assert.match(runtimeSource, /refs\.interactionPlane\.addEventListener\('click', function \(\) \{\s*\n[\s\S]{0,220}?showSharingInfoOverlay\(\);/);
+    // The overlay is display-only: visible, never raycastable.
+    assert.match(runtimeSource, /setEntityVisible\(refs\.infoOverlay, showInfoOverlay\);/);
+    assert.doesNotMatch(runtimeSource, /setInteractive\(refs\.infoOverlay/);
+    // And it fades on its own.
+    assert.match(runtimeSource, /refs\.infoOverlayTimer = win\.setTimeout/);
+});
+
+test('a viewer auto-joins by default and settles to idle when the broadcast ends', () => {
+    const runtime = runtimeModule.createRuntime({
+        document: null,
+        location: { protocol: 'https:', host: 'localhost:8443', hostname: 'localhost' },
+        isSecureContext: true,
+        WebSocket: undefined,
+        setTimeout: () => 0,
+        clearTimeout: () => undefined,
+        __CODEXR_VIRTUAL_SCREEN_CONFIG__: { screenId: 'default', broadcastEnabled: true },
+    });
+
+    const activeEntity = {
+        entityKind: 'screen',
+        entityId: 'default',
+        screenId: 'default',
+        broadcastStatus: 'live',
+        hasAudio: false,
+        broadcast: { active: true, broadcasterPeerId: 'peer-sender', hasAudio: false, sourceKind: 'screen' },
+    };
+
+    // Default: an active broadcast pulls the viewer in (connecting), and
+    // 'live' is never adopted from the sender's own status.
+    runtime.applySharedScreenState(activeEntity);
+    assert.equal(runtime.getState().broadcastRole, 'viewer');
+    assert.equal(runtime.getState().broadcastStatus, 'connecting');
+    assert.equal(runtime.getState().viewerOptOut, false);
+
+    // The broadcast ends: back to idle, opt-out stays clear.
+    runtime.applySharedScreenState({
+        ...activeEntity,
+        broadcastStatus: 'idle',
+        broadcast: { active: false, broadcasterPeerId: '', hasAudio: false, sourceKind: 'screen' },
+    });
+    assert.equal(runtime.getState().broadcastStatus, 'idle');
+    assert.equal(runtime.getState().viewerOptOut, false);
+
+    // A new broadcast pulls them in again.
+    runtime.applySharedScreenState(activeEntity);
+    assert.equal(runtime.getState().broadcastStatus, 'connecting');
 });

@@ -439,9 +439,9 @@ test('boats runtime base comes from the injected chart-base config, with a faith
     assert.equal(injectedData.separation, 0.5);
 
     // Drift guard: the runtime fallback must spell out the SAME construction
-    // the generator publishes (templateCharts.BOATS_BASE_COMPONENT_ATTRIBUTES).
-    const templateCharts = fs.readFileSync(
-        path.join(projectRoot, 'src', 'babia_templates', 'charts', 'templateCharts.ts'),
+    // the generator publishes (chartPresentation.BOATS_BASE_COMPONENT_ATTRIBUTES).
+    const chartPresentation = fs.readFileSync(
+        path.join(projectRoot, 'src', 'babia_templates', 'charts', 'chartPresentation.ts'),
         'utf8',
     );
     for (const fragment of [
@@ -454,8 +454,26 @@ test('boats runtime base comes from the injected chart-base config, with a faith
         'height_quarter_legend_box: 0.01',
         'height_quarter_legend_title: 2.5',
     ]) {
-        assert.ok(templateCharts.includes(fragment), `templateCharts must declare ${fragment}`);
+        assert.ok(chartPresentation.includes(fragment), `chartPresentation must declare ${fragment}`);
         assert.ok(runtimeSource.includes(fragment), `runtime fallback must mirror ${fragment}`);
+    }
+});
+
+test('runtime presentation fallback mirrors the generator profiles field by field', () => {
+    // The compiled generator profile is the single source; the runtime carries
+    // a fallback mirror for scenes generated before the config existed. Any
+    // drift between the two is a bug.
+    const { CHART_PRESENTATION_PROFILES } = require(path.join(
+        projectRoot, 'out', 'babia_templates', 'charts', 'chartPresentation.js',
+    ));
+    const runtime = loadRuntime();
+    for (const [chartId, profile] of Object.entries(CHART_PRESENTATION_PROFILES)) {
+        const mirrored = plain(runtime.getChartPresentation(chartId));
+        assert.deepEqual(
+            mirrored,
+            JSON.parse(JSON.stringify(profile)),
+            `runtime presentation fallback for ${chartId} must equal the generator profile`,
+        );
     }
 });
 
@@ -520,7 +538,11 @@ test('mapping UI chart switch removes stale Babia-rendered children before creat
     assert.equal(chart.getAttribute('codexr-chart-containment'), 'preset: table');
 });
 
-test('mapping UI chart switch keeps pie and donut upright instead of inheriting a flat rotation', () => {
+test('mapping UI chart switch stands pie and donut upright and resets flat charts', () => {
+    // Pie slices and doughnut toruses lie flat by construction; Babia's own
+    // demos stand them with rotation 90 0 0. The switch applies the profile
+    // rotation in BOTH directions: circular charts stand up, and a chart
+    // switched away from them returns to 0 0 0.
     const runtime = loadRuntime();
     const donutChart = createChartEntityForSwitchTest({
         'codexr-chart-containment': 'preset: table',
@@ -529,15 +551,14 @@ test('mapping UI chart switch keeps pie and donut upright instead of inheriting 
             x_axis: 'fileName',
             height: 'totalLines',
         },
-        rotation: '90 0 0',
+        rotation: '0 0 0',
     });
-    const pieChart = createChartEntityForSwitchTest({
+    const barsChart = createChartEntityForSwitchTest({
         'codexr-chart-containment': 'preset: table',
-        'babia-bubbles': {
+        'babia-pie': {
             from: 'data',
-            x_axis: 'fileName',
-            height: 'totalLines',
-            radius: 'functionCount',
+            key: 'fileName',
+            size: 'totalLines',
         },
         rotation: '90 0 0',
     });
@@ -546,17 +567,137 @@ test('mapping UI chart switch keeps pie and donut upright instead of inheriting 
         key: 'language',
         size: 'totalLines',
     }), true);
-    assert.equal(runtime.__testing.applyChartTypeToEntity(pieChart, 'pie', {
-        key: 'language',
-        size: 'totalLines',
+    assert.equal(runtime.__testing.applyChartTypeToEntity(barsChart, 'bars', {
+        x_axis: 'fileName',
+        height: 'totalLines',
     }), true);
 
-    assert.equal(donutChart.getAttribute('rotation'), '0 0 0');
+    assert.equal(donutChart.getAttribute('rotation'), '90 0 0');
     assert.equal(donutChart.getAttribute('babia-bars'), undefined);
     assert.equal(donutChart.getAttribute('babia-doughnut').key, 'language');
-    assert.equal(pieChart.getAttribute('rotation'), '0 0 0');
-    assert.equal(pieChart.getAttribute('babia-bubbles'), undefined);
-    assert.equal(pieChart.getAttribute('babia-pie').size, 'totalLines');
+    // Base attributes travel with the switch for every chart, not just boats.
+    assert.equal(donutChart.getAttribute('babia-doughnut').titlePosition, '2.5 0 -3');
+    assert.equal(barsChart.getAttribute('rotation'), '0 0 0');
+    assert.equal(barsChart.getAttribute('babia-pie'), undefined);
+    assert.equal(barsChart.getAttribute('babia-bars').x_axis, 'fileName');
+});
+
+test('applying a mapping converts an entity still wearing the previous chart', () => {
+    // The selector can move without touching the entity — every mode change
+    // does `selectChart(id, { applyToEntities: false })` so a mode can own its
+    // own chart. Re-activating the normal analysis then re-applies the mapping,
+    // and stamping the new component on top used to leave the entity half
+    // converted: both babia components alive, the PREVIOUS chart's rotation
+    // still on it (a boats arriving after a pie stayed rotated 90°) and a stale
+    // chart-id marker, which also mis-routes the table's fit strategy.
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-pie': { from: 'data', key: 'fileName', size: 'functionCount' },
+        'data-codexr-active-chart-id': 'pie',
+        rotation: '90 0 0',
+    });
+
+    runtime.__testing.setActiveChartIdForTests('boats');
+    runtime.__testing.applyMappingToCharts([chart], 'babia-boats', {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber',
+    });
+
+    assert.equal(chart.getAttribute('rotation'), '0 0 0', 'boats is not left standing on its side');
+    assert.equal(chart.getAttribute('babia-pie'), undefined, 'the previous chart component is gone');
+    assert.equal(chart.getAttribute('data-codexr-active-chart-id'), 'boats');
+    assert.equal(chart.getAttribute('babia-boats').area, 'functionCount');
+    // Reconciling means a full build, so the chart's base attributes come too.
+    assert.equal(chart.getAttribute('babia-boats').extra, 1);
+
+    // An entity already wearing the active chart keeps the cheap path: the
+    // mapping is merged into the live component, nothing is rebuilt.
+    const previousComponent = chart.getAttribute('babia-boats');
+    runtime.__testing.applyMappingToCharts([chart], 'babia-boats', { height: 'codeLines' });
+    assert.equal(chart.getAttribute('babia-boats').height, 'codeLines');
+    assert.equal(chart.getAttribute('babia-boats').area, previousComponent.area);
+});
+
+test('bubbles chart switch always carries its normalization caps', () => {
+    // babia-bubbles declares heightMax/radiusMax WITHOUT schema defaults:
+    // losing them on a live switch rendered bubbles at raw metric scale
+    // (a 12k-line file became a 12k-unit column).
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-bars': { from: 'data', x_axis: 'fileName', height: 'totalLines' },
+    });
+    assert.equal(runtime.__testing.applyChartTypeToEntity(chart, 'bubbles', {
+        x_axis: 'fileName',
+        z_axis: 'cyclomaticComplexityNumber',
+        height: 'totalLines',
+        radius: 'functionCount',
+    }), true);
+    const bubbles = chart.getAttribute('babia-bubbles');
+    assert.equal(bubbles.heightMax, 5);
+    assert.equal(bubbles.radiusMax, 1.5);
+});
+
+test('orphan sweep never deletes a chart whose live component claims no root (boats)', () => {
+    // babia-boats appends its figures DIRECTLY to the entity and exposes no
+    // chartEl/titleEl/legendEl: the sweep cannot tell its children from
+    // residue, and sweeping deleted the freshly built boats — the table
+    // stayed empty until the next data push rebuilt it.
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({ 'codexr-chart-containment': 'preset: table' });
+    chart.components = { 'babia-boats': { /* no chartEl/titleEl/legendEl */ } };
+    const figure = createFakeElement('a-entity', () => {});
+    chart.appendChild(figure);
+
+    assert.equal(runtime.__testing.sweepOrphanChartChildren(chart), 0);
+    assert.equal(chart.children.length, 1);
+
+    // With a root-claiming component (bars-style), unclaimed children are
+    // still swept — the ghost-chart defence stays in force.
+    const claimedRoot = createFakeElement('a-entity', () => {});
+    const orphan = createFakeElement('a-entity', () => {});
+    const barsChart = createChartEntityForSwitchTest({ 'codexr-chart-containment': 'preset: table' });
+    barsChart.components = { 'babia-bars': { chartEl: claimedRoot } };
+    barsChart.appendChild(claimedRoot);
+    barsChart.appendChild(orphan);
+
+    assert.equal(runtime.__testing.sweepOrphanChartChildren(barsChart), 1);
+    assert.equal(barsChart.children.length, 1);
+    assert.equal(barsChart.children[0], claimedRoot);
+});
+
+test('chart data slice ranks, filters and de-duplicates rows for budgeted charts', () => {
+    const runtime = loadRuntime();
+    const compute = runtime.__testing.computeChartDataSlice;
+    const rows = [];
+    for (let i = 0; i < 40; i += 1) {
+        rows.push({ fileName: `file-${i}.js`, totalLines: 10 + i, functionCount: 1 + (i % 7) });
+    }
+    // Zero radius breaks babia-cylsmap (Math.max over `o != ''`-filtered radii
+    // yields -Infinity axis lengths) — the numeric-positive rule filters it.
+    rows.push({ fileName: 'zero-radius.js', totalLines: 9999, functionCount: 0 });
+    // Duplicate labels collapse onto one babia element: only the highest
+    // ranked duplicate may survive.
+    rows.push({ fileName: 'file-39.js', totalLines: 5000, functionCount: 3 });
+
+    const mapping = { x_axis: 'fileName', height: 'totalLines', radius: 'functionCount' };
+    const slice = compute('cyls', rows, mapping);
+
+    assert.equal(slice.length, 20, 'cyls row budget is 20');
+    assert.equal(slice.some((row) => row.fileName === 'zero-radius.js'), false, 'zero radius rows are dropped');
+    const top = slice[0];
+    assert.equal(top.fileName, 'file-39.js');
+    assert.equal(top.totalLines, 5000, 'the highest-ranked duplicate wins');
+    const names = slice.map((row) => row.fileName);
+    assert.equal(new Set(names).size, names.length, 'labels are unique after the slice');
+    for (let i = 1; i < slice.length; i += 1) {
+        assert.ok(slice[i - 1].totalLines >= slice[i].totalLines, 'slice is ordered by the height field, descending');
+    }
+
+    // Boats has no budget: the slice machinery leaves the dataset alone.
+    assert.equal(compute('boats', rows, mapping).length, rows.length);
 });
 
 test('mapping UI chart selector and dimension grids share safe panel margins', () => {
@@ -763,6 +904,102 @@ test('mapping UI disables interactive controls added to hidden panel views after
 
     runtime.showPanelView('mapping');
     assert.equal(lateButton.classList.contains('babiaxraycasterclass'), false);
+});
+
+// The fake document only indexes ids handed to createElement, and the runtime
+// stamps the id afterwards — so header buttons are found by walking the scene.
+function findEntityById(document, id) {
+    const seen = new Set();
+    const queue = [document.querySelector('#scene')].filter(Boolean);
+    while (queue.length) {
+        const node = queue.shift();
+        if (!node || seen.has(node)) { continue; }
+        seen.add(node);
+        if (node.getAttribute && node.getAttribute('id') === id) { return node; }
+        (node.children || []).forEach((child) => queue.push(child));
+    }
+    return null;
+}
+
+test('a header button carries a word, sizes its text and can mean something', () => {
+    // The analysis selector used to be a 0.34 square with the letter 'V' — at
+    // the panel's 0.2 world scale that is a ~7 cm plate holding a ~5 mm glyph
+    // that says nothing about where it leads.
+    const { runtime, document } = loadRuntimeWithFakeDom();
+
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        buttonLabel: 'Analyses',
+        buttonWidth: 0.9,
+        buttonColor: '#0e7490',
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+    const button = findEntityById(document, 'codexrMappingUiView-visualization-mode');
+
+    assert.ok(button, 'the header button keeps its id — the mode harness clicks it');
+    assert.equal(button.getAttribute('width'), 0.9);
+    assert.equal(button.getAttribute('text').value, 'Analyses', 'the label is not truncated to one letter');
+    // Text scales with the plate instead of the inherited width: 1.
+    assert.equal(button.getAttribute('text').width, 0.9 * 1.9);
+    assert.equal(button.getAttribute('material').color, '#0e7490');
+
+    // A declared colour outranks the open/closed default, and can be changed
+    // while the scene runs: that is how the button follows the active analysis.
+    runtime.showPanelView('visualization-mode');
+    assert.equal(button.getAttribute('material').color, '#0e7490', 'the declared colour survives opening the view');
+    assert.equal(runtime.setPanelViewButtonColor('visualization-mode', '#7c3aed'), true);
+    assert.equal(button.getAttribute('material').color, '#7c3aed');
+    assert.equal(runtime.setPanelViewButtonColor('not-a-view', '#000000'), false);
+
+    // Without a declared colour the button still reports whether its view is
+    // open, so any future header button keeps the old behaviour.
+    const { runtime: plainRuntime, document: plainDocument } = loadRuntimeWithFakeDom();
+    plainRuntime.registerPanelView({
+        id: 'plain-view',
+        title: 'Plain view',
+        content: plainDocument.createElement('a-entity'),
+        headerButton: true,
+    });
+    const plainButton = findEntityById(plainDocument, 'codexrMappingUiView-plain-view');
+    assert.equal(plainButton.getAttribute('width'), 0.34, 'the square plate stays the default');
+    assert.equal(plainButton.getAttribute('text').value, 'Plain view', 'the title is the fallback label');
+    assert.equal(plainButton.getAttribute('material').color, '#0e7490');
+    plainRuntime.showPanelView('plain-view');
+    assert.equal(plainButton.getAttribute('material').color, '#be123c');
+});
+
+test('header buttons are laid out by width, clear of the toggle and the title', () => {
+    // The old layout stepped by a fixed 0.42 pitch, which only works while
+    // every button is the same 0.34 square.
+    const { runtime, document } = loadRuntimeWithFakeDom();
+    runtime.registerPanelView({
+        id: 'visualization-mode',
+        title: 'Visualization mode',
+        buttonLabel: 'Analyses',
+        buttonWidth: 0.9,
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+    runtime.registerPanelView({
+        id: 'second-view',
+        title: 'Second',
+        content: document.createElement('a-entity'),
+        headerButton: true,
+    });
+
+    const readX = (id) => Number(String(findEntityById(document, id).getAttribute('position')).split(' ')[0]);
+    const wide = readX('codexrMappingUiView-visualization-mode');
+    const square = readX('codexrMappingUiView-second-view');
+    const toggleLeft = 3.1 - 0.15 - 0.17;
+
+    // Right edge of the wide button sits one gap left of the +/- toggle.
+    assert.ok(Math.abs((wide + 0.45) - (toggleLeft - 0.08)) < 0.0001);
+    // The square one follows it, still one gap apart, and neither reaches the
+    // title backdrop (which ends at x = 1.35).
+    assert.ok(Math.abs((square + 0.17) - (wide - 0.45 - 0.08)) < 0.0001);
+    assert.ok((square - 0.17) > 1.35, 'header buttons never overlap the panel title');
 });
 
 test('mapping UI emits confirmed mappings for local and collaborative updates', () => {

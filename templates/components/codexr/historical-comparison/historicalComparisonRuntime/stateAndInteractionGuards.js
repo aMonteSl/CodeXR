@@ -27,16 +27,17 @@
   var refs = {};
   var RAYCAST_CLASS = 'babiaxraycasterclass';
   var RAYCAST_SUSPENDED_ATTRIBUTE = 'data-codexr-raycast-suspended';
-  var CHART_COMPONENT_NAMES = [
-    'babia-bars',
-    'babia-barsmap',
-    'babia-cyls',
-    'babia-cylsmap',
-    'babia-pie',
-    'babia-doughnut',
-    'babia-bubbles',
-    'babia-boats'
-  ];
+  var CHART_ID_BY_COMPONENT = {
+    'babia-bars': 'bars',
+    'babia-barsmap': 'barsmap',
+    'babia-cyls': 'cyls',
+    'babia-cylsmap': 'cylsmap',
+    'babia-pie': 'pie',
+    'babia-doughnut': 'donut',
+    'babia-bubbles': 'bubbles',
+    'babia-boats': 'boats'
+  };
+  var CHART_COMPONENT_NAMES = Object.keys(CHART_ID_BY_COMPONENT);
 
   function getDocument() {
     return root.document;

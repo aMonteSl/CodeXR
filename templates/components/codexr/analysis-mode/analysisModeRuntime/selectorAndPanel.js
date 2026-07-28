@@ -238,7 +238,11 @@
     state.unregisterPanelView = mappingRuntime.registerPanelView({
       id: 'visualization-mode',
       title: 'Visualization mode',
-      buttonLabel: 'V',
+      // A word instead of the old 'V': the button names what it opens, and
+      // its colour says which analysis you are currently in.
+      buttonLabel: 'Analyses',
+      buttonWidth: 0.9,
+      buttonColor: MODE_ACCENT_BY_ID[state.mode] || MODE_ACCENT_BY_ID.single,
       headerButton: true,
       panelHeight: 3.35,
       content: state.panelRoot,

@@ -413,6 +413,28 @@ export class RemoteSessionAuthority {
         return this.pairingRequests.size;
     }
 
+    /**
+     * Revoke one session and every credential that resolves to it, so a guest
+     * removed from the room cannot walk back in with the link they already
+     * have. Pending browser identities are not tied to a session, so they stay.
+     */
+    public revokeSession(sessionId: string): boolean {
+        const existed = this.sessions.delete(sessionId);
+
+        for (const [tokenHash, mappedSessionId] of this.extensionTokens) {
+            if (mappedSessionId === sessionId) {
+                this.extensionTokens.delete(tokenHash);
+            }
+        }
+        for (const [tokenHash, token] of this.browserTokens) {
+            if (token.sessionId === sessionId) {
+                this.browserTokens.delete(tokenHash);
+            }
+        }
+
+        return existed;
+    }
+
     public revokeAll(): void {
         this.invitations.clear();
         this.pairingRequests.clear();

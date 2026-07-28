@@ -18,7 +18,10 @@ let analysisData = null;
 // Colors are CSS-variable driven (charts.css), so a theme change restyles them
 // without any re-render.
 const chartInstances = {};
-const dataTables = {};
+// The table registry (`dataTables`) and `upsertDataTable` come from the shared
+// panel shell, which is bundled ahead of this script into main.js. Declaring
+// them again here is a top-level redeclaration in the same scope: it makes the
+// whole bundle fail to parse, so nothing in the panel runs at all.
 
 // ── Theme management ─────────────────────────────────────────────────────────
 
@@ -370,11 +373,9 @@ function renderFunctionsTable() {
     ],
   };
 
-  if (dataTables.functions) {
-    dataTables.functions.setRows(functions);
-  } else {
-    dataTables.functions = new DataTable('functions-table', Object.assign({}, config, { rows: functions }));
-  }
+  // Shared upsert: re-renders the existing table on live updates instead of
+  // rebuilding it, so the user's current search and sort survive.
+  upsertDataTable('functions-table', config, functions);
 }
 
 function functionDensity(func) {

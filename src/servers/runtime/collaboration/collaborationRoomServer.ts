@@ -78,6 +78,14 @@ interface CollaborationRoomState {
     nextDisplayNameIndex: number;
 }
 
+/** Outcome of an extension-initiated participant removal. */
+export interface ParticipantRemovalResult {
+    removed: boolean;
+    /** Authenticated session behind the removed peer, when it had one. */
+    sessionId: string | null;
+    remote: boolean;
+}
+
 export interface CollaborationMessage {
     type: string;
     roomId?: string;
@@ -150,7 +158,15 @@ export class CollaborationRoomServer {
 
         for (const peer of this.peers.values()) {
             try {
-                peer.socket.close();
+                // Tell browsers this is a deliberate shutdown, not a network
+                // drop, so they can show the session-ended screen instead of
+                // reconnecting forever.
+                this.send(peer, {
+                    type: 'session-ended',
+                    roomId: peer.roomId || undefined,
+                    payload: { reason: 'host-closed' },
+                });
+                peer.socket.close(4002, 'Session closed by host');
             } catch {
                 // Best-effort cleanup.
             }
@@ -177,6 +193,28 @@ export class CollaborationRoomServer {
         return Array.from(room.participants.values())
             .map((participant) => this.toConnectedParticipantSummary(participant))
             .sort((left, right) => left.connectedAt.localeCompare(right.connectedAt));
+    }
+
+    /**
+     * Remove a participant on behalf of the extension that owns this server.
+     * No role check applies: the caller *is* the server, not a peer asking it
+     * for something. The authenticated session of the removed peer is reported
+     * back so the caller can revoke it (this room knows nothing about tokens).
+     */
+    public removeParticipant(roomId: string, peerId: string): ParticipantRemovalResult {
+        const room = this.rooms.get(this.resolveRoomId(roomId, null));
+        const normalizedPeerId = this.normalizeId(peerId);
+        const targetPeer = this.peers.get(normalizedPeerId);
+        if (!room || !targetPeer || !room.participants.has(normalizedPeerId)) {
+            return { removed: false, sessionId: null, remote: false };
+        }
+
+        this.disconnectRemovedPeer(room, targetPeer);
+        return {
+            removed: true,
+            sessionId: targetPeer.session?.sessionId || null,
+            remote: targetPeer.session?.remote === true,
+        };
     }
 
     public upsertServerEntity(roomId: string, entity: SharedEntityState): void {
@@ -492,11 +530,24 @@ export class CollaborationRoomServer {
             return;
         }
 
+        this.disconnectRemovedPeer(room, targetPeer, peer.id);
+    }
+
+    /**
+     * The single wire format for "you were removed": the browser shows its
+     * removal screen and stops reconnecting, and the socket close (4001)
+     * runs the normal leave path, which republishes the participant list.
+     */
+    private disconnectRemovedPeer(
+        room: CollaborationRoomState,
+        targetPeer: CollaborationPeer,
+        actorPeerId?: string,
+    ): void {
         this.send(targetPeer, {
             type: 'participant-kick',
-            peerId: peer.id,
+            peerId: actorPeerId || targetPeer.id,
             roomId: room.id,
-            payload: { peerId: targetPeerId },
+            payload: { peerId: targetPeer.id },
         });
         targetPeer.socket.close(4001, 'Removed by room host');
     }

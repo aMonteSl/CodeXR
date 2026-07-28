@@ -41,6 +41,13 @@
       },
 
       init: function () {
+        this.onEnterVR = this.onEnterVR.bind(this);
+        this.onExitVR = this.onExitVR.bind(this);
+        const sceneEl = this.el.sceneEl;
+        if (sceneEl) {
+          sceneEl.addEventListener('enter-vr', this.onEnterVR);
+          sceneEl.addEventListener('exit-vr', this.onExitVR);
+        }
         this.rebuildRoom();
       },
 
@@ -49,7 +56,49 @@
       },
 
       remove: function () {
+        const sceneEl = this.el.sceneEl;
+        if (sceneEl) {
+          sceneEl.removeEventListener('enter-vr', this.onEnterVR);
+          sceneEl.removeEventListener('exit-vr', this.onExitVR);
+        }
         this.clearRoom();
+      },
+
+      // In AR the room is hidden (hide-on-enter-ar on the template entity),
+      // but hiding is only visual: A-Frame's raycaster ignores `visible`, so
+      // the invisible walls kept truncating lasers and stealing hover. The
+      // room must be functionally GONE in AR: its pieces drop the raycast
+      // class (and every raycaster is refreshed — A-Frame does not watch
+      // class mutations) and get it back on exit. The screen bumpers ignore
+      // the room in AR separately (virtual-screen getCollisionBounds).
+      isInAR: function () {
+        const sceneEl = this.el.sceneEl;
+        return !!(sceneEl && typeof sceneEl.is === 'function' && sceneEl.is('ar-mode'));
+      },
+
+      onEnterVR: function () {
+        if (this.isInAR()) {
+          this.setRaycastable(false);
+        }
+      },
+
+      onExitVR: function () {
+        this.setRaycastable(true);
+      },
+
+      setRaycastable: function (on) {
+        const parts = this.el.querySelectorAll('[data-codexr-room-part]');
+        parts.forEach((part) => {
+          if (part.classList) {
+            part.classList.toggle('babiaxraycasterclass', !!on);
+          }
+        });
+        // One sweep per mode change; every raycaster re-reads its objects
+        // selector (same pattern as the virtual screens' setInteractive).
+        const doc = this.el.ownerDocument || (typeof document !== 'undefined' ? document : null);
+        doc?.querySelectorAll?.('[raycaster]').forEach((el) => {
+          el.components?.raycaster?.refreshObjects?.();
+        });
       },
 
       clearRoom: function () {
@@ -187,6 +236,12 @@
           data.railingRepeat,
           `${openSide}-railing`,
         ));
+
+        // Pieces are recreated from scratch with the class ON (createBox);
+        // a schema update mid-AR must not resurrect the invisible colliders.
+        if (this.isInAR()) {
+          this.setRaycastable(false);
+        }
       },
     });
   }

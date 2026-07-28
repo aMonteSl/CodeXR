@@ -21,7 +21,7 @@
         'CodeXR turns your source code metrics into an XR scene.',
         'The pedestal table is the stage for every analysis mode.',
         'The floating controller panel drives mappings and filters.',
-        'Open the mode selector (V button) to switch analyses.',
+        'Press Analyses on the controller panel to switch analyses.',
         'The room is collaborative: everyone shares the state.',
         'Move: WASD + mouse on desktop; sticks and rays in VR.',
         'Drag this screen by its edges; corners resize it.',

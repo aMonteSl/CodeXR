@@ -347,7 +347,10 @@ test('historical snapshots use private extension storage and publish only immuta
 });
 
 test('historical comparison is authoritative, shared per room, and rejects concurrent work', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisMessageRouter.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'projectEvolutionBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
     const service = readProjectFile(
         'src',
         'code_analysis',
@@ -366,12 +369,16 @@ test('historical comparison is authoritative, shared per room, and rejects concu
     assert.match(server, /message\.type === 'historical-comparison-start'/);
     assert.match(server, /allowsEmptyShell = mode === 'historical-compare'[\s\S]*\|\| mode === 'project-evolution'/);
     assert.match(server, /if \(!available && !allowsEmptyShell\)/);
-    assert.match(server, /this\.setAnalysisViewMode\('historical-compare', 'historical.selection'\);/);
-    assert.match(server, /this\.setAnalysisViewMode\('historical-compare', 'historical.mapping'\);/);
+    assert.match(server, /setAnalysisViewMode\('historical-compare', 'historical.selection'\);/);
+    assert.match(server, /setAnalysisViewMode\('historical-compare', 'historical.mapping'\);/);
     assert.doesNotMatch(server, /message\.type === 'historical-comparison-reset'/);
     assert.match(server, /historicalComparisonService\.isBusy\(\)/);
     assert.match(server, /await this\.historicalComparisonService\.getAvailability\(\)/);
-    assert.match(server, /historicalComparisonReason: historicalComparison\.reason/);
+    // The capability payload is built by the extracted CollaborationSessionApi.
+    assert.match(
+        readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts'),
+        /historicalComparisonReason: historicalComparison\.reason/,
+    );
     assert.match(server, /entityKind: 'historical-comparison'/);
     assert.match(server, /messageContext\.upsertSharedEntity/);
     assert.match(service, /activeRequest: this\.activeRequest \? \{ \.\.\.this\.activeRequest \} : null/);
@@ -382,7 +389,10 @@ test('historical comparison is authoritative, shared per room, and rejects concu
 });
 
 test('project evolution builds a chronological Git movie and publishes shared XR state', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisMessageRouter.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'projectEvolutionBridge.ts')
+        + readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
     const service = readProjectFile(
         'src',
         'code_analysis',
@@ -402,7 +412,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
         'gitRepositoryService.ts',
     );
     const runtime = readAssembledRuntime('project-evolution', 'projectEvolutionRuntime.js');
-    const docs = readProjectFile('docs', 'PROJECT_EVOLUTION_XR.md');
+    const docs = readProjectFile('docs', 'features', 'PROJECT_EVOLUTION_XR.md');
 
     assert.match(models, /\| 'project-evolution'/);
     assert.match(models, /export interface ProjectEvolutionRequest/);
@@ -462,8 +472,10 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(sampler, /function sampleByPosition/);
     assert.match(server, /new ProjectEvolutionService/);
     assert.match(server, /projectEvolutionService\.getAvailability/);
-    assert.match(server, /projectEvolution: projectEvolution\.enabled/);
-    assert.match(server, /projectEvolutionReason: projectEvolution\.reason/);
+    // The capability payload is built by the extracted CollaborationSessionApi.
+    const sessionApi = readProjectFile('src', 'servers', 'runtime', 'collaboration', 'collaborationSessionApi.ts');
+    assert.match(sessionApi, /projectEvolution: projectEvolution\.enabled/);
+    assert.match(sessionApi, /projectEvolutionReason: projectEvolution\.reason/);
     assert.match(server, /message\.type === 'project-evolution-references-request'/);
     assert.match(server, /message\.type === 'project-evolution-clear'/);
     assert.match(server, /removeSharedEntity\('project-evolution', 'main'\)/);
@@ -472,7 +484,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(server, /projectEvolutionService\.applyFrameToBridge/);
     assert.match(server, /type: 'project-evolution-frame-applied'/);
     assert.match(server, /message\.type === 'project-evolution-start'/);
-    assert.match(server, /this\.setAnalysisViewMode\('project-evolution', 'project-evolution'\);/);
+    assert.match(server, /setAnalysisViewMode\('project-evolution', 'project-evolution'\);/);
     assert.match(server, /projectEvolutionService\.isBusy\(\)/);
     assert.match(server, /entityKind: 'project-evolution'/);
     assert.match(server, /mode: 'project-evolution'/);
@@ -941,29 +953,109 @@ test('historical source selector keeps commit cards compact and identifies live 
 });
 
 test('Cloudflare remote access documentation states the official Quick Tunnel operating limits', () => {
-    const docs = readProjectFile('docs', 'CLOUDFLARE_REMOTE_ACCESS.md');
+    const docs = readProjectFile('docs', 'features', 'CLOUDFLARE_REMOTE_ACCESS.md');
 
-    assert.match(docs, /200 solicitudes simultáneas en curso por túnel/i);
+    assert.match(docs, /200 concurrent in-flight requests per tunnel/i);
     assert.match(docs, /HTTP `429`/);
-    assert.match(docs, /no se admite Server-Sent Events \(SSE\)/i);
-    assert.match(docs, /sin SLA/i);
+    assert.match(docs, /Server-Sent Events \(SSE\) are not supported/i);
+    assert.match(docs, /no SLA/i);
     assert.match(docs, /best effort/i);
     assert.match(docs, /Named Tunnels/i);
-    assert.match(docs, /relay propio de CodeXR/i);
+    assert.match(docs, /CodeXR-owned relay/i);
     assert.match(docs, /trycloudflare/i);
 });
 
 test('historical comparison documentation explains provider-neutral Git behavior and XR architecture', () => {
-    const docs = readProjectFile('docs', 'HISTORICAL_COMPARISON_XR.md');
+    const docs = readProjectFile('docs', 'features', 'HISTORICAL_COMPARISON_XR.md');
 
-    assert.match(docs, /depende de \*\*Git\*\*, no de la API de un proveedor concreto/i);
-    assert.match(docs, /\| GitHub \| Sí \|/);
-    assert.match(docs, /\| GitLab \| Sí \|/);
-    assert.match(docs, /CodeXR no ejecuta `git fetch` automáticamente/i);
+    assert.match(docs, /depends on \*\*Git\*\*, not on any provider's API/i);
+    assert.match(docs, /\| GitHub \| Yes \|/);
+    assert.match(docs, /\| GitLab \| Yes \|/);
+    assert.match(docs, /CodeXR never runs `git fetch` automatically/i);
     assert.match(docs, /`codexr-analysis-table`/);
     assert.match(docs, /`codexr-chart-containment`/);
     assert.match(docs, /CodeXRMappingUiRuntime/);
-    assert.match(docs, /`codexr-left:` o `codexr-right:`/);
+    assert.match(docs, /`codexr-left:` or `codexr-right:`/);
     assert.match(docs, /working-copy/);
     assert.match(docs, /Cloudflare Quick Tunnel/);
+});
+
+// The comparison clones borrow decoration from the scene chart. Running the
+// builder is the only way to prove what they must NOT borrow.
+function createComparisonFakeEntity(attributes) {
+    const bag = Object.assign({}, attributes);
+    return {
+        dataset: {},
+        getAttributeNames() { return Object.keys(bag); },
+        getAttribute(name) { return Object.prototype.hasOwnProperty.call(bag, name) ? bag[name] : null; },
+        setAttribute(name, value) { bag[name] = value; },
+        hasAttribute(name) { return Object.prototype.hasOwnProperty.call(bag, name); },
+    };
+}
+
+function loadHistoricalRuntime() {
+    const vm = require('node:vm');
+    const runtimeSource = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
+    const sandbox = {
+        window: null,
+        // readyState 'loading' keeps autoInit parked on DOMContentLoaded.
+        document: {
+            readyState: 'loading',
+            addEventListener() {},
+            getElementById() { return null; },
+            querySelector() { return null; },
+            querySelectorAll() { return []; },
+            createElement() { return createComparisonFakeEntity({}); },
+        },
+        console: { log() {}, warn() {}, error() {} },
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        CodeXRAnalysisTableRuntime: {
+            getContainmentProfile() { return null; },
+        },
+        CodeXRMappingUiRuntime: {
+            getChartPresentation(chartId) {
+                return { rotation: chartId === 'pie' || chartId === 'donut' ? '90 0 0' : '0 0 0' };
+            },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'historicalComparisonRuntime.js' });
+    return sandbox.CodeXRHistoricalComparisonRuntime;
+}
+
+test('comparison clones take their orientation from the chart they carry, not from the original entity', () => {
+    const runtime = loadHistoricalRuntime();
+    // A scene chart left rotated by a previous pie, now wearing boats: the
+    // clone must not inherit that rotation, and must not carry the stale
+    // marker either.
+    const original = createComparisonFakeEntity({
+        'babia-boats': { from: 'tree', area: 'functionCount' },
+        // A leftover component and a rotation from an earlier chart.
+        'babia-bars': { from: 'data', x_axis: 'fileName' },
+        'data-codexr-active-chart-id': 'boats',
+        rotation: '90 0 0',
+        palette: 'ubuntu',
+    });
+    const zone = { id: 'left', anchorX: -1.4, anchorZ: -18, width: 2.6, depth: 3.2 };
+
+    const clone = runtime.__testing.createChartFromTemplate(
+        original, 'codexrHistoricalLeftChart', 'codexrComparisonLeft', zone, 'directory',
+    );
+
+    assert.equal(clone.getAttribute('rotation'), '0 0 0', 'boats is cloned upright');
+    assert.equal(clone.getAttribute('babia-bars'), null, 'no foreign chart component is cloned');
+    assert.equal(clone.getAttribute('data-codexr-active-chart-id'), 'boats');
+    assert.equal(clone.getAttribute('babia-boats').from, 'codexrComparisonLeft');
+    assert.equal(clone.getAttribute('palette'), 'ubuntu', 'decoration still travels');
+
+    // A circular chart is cloned standing, from the same profile.
+    const pieOriginal = createComparisonFakeEntity({
+        'babia-pie': { from: 'data', key: 'fileName', size: 'functionCount' },
+        rotation: '0 0 0',
+    });
+    const pieClone = runtime.__testing.createChartFromTemplate(
+        pieOriginal, 'codexrHistoricalRightChart', 'codexrComparisonRight', zone, 'directory',
+    );
+    assert.equal(pieClone.getAttribute('rotation'), '90 0 0');
 });

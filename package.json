@@ -1,8 +1,25 @@
 {
   "name": "code-xr",
   "displayName": "CodeXR",
-  "description": "XR-powered extension for code metric visualization using BabiaXR and A-Frame",
+  "description": "Analyze your code and walk through it as a 3D city in your browser — metrics, dependency graph, Git history and collaboration, all local. VR optional.",
   "version": "1.2.0",
+  "keywords": [
+    "code visualization",
+    "code metrics",
+    "dependency graph",
+    "cyclomatic complexity",
+    "git history",
+    "code city",
+    "code analysis",
+    "static analysis",
+    "3D",
+    "WebXR",
+    "VR",
+    "A-Frame",
+    "BabiaXR",
+    "collaboration",
+    "lizard"
+  ],
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -30,7 +47,7 @@
     "resources/icon.png",
     "resources/icon.svg",
     "resources/avatars/**/*",
-    "resources/languages_icons/**/*",
+    "resources/languages_icons/color/**/*",
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
@@ -152,6 +169,12 @@
         "command": "codeXR.activeServers.showDetails",
         "title": "Show Details",
         "icon": "$(info)",
+        "enablement": "!codeXR.pythonEnv.uiLocked"
+      },
+      {
+        "command": "codeXR.activeServers.removeParticipant",
+        "title": "Remove from Session",
+        "icon": "$(circle-slash)",
         "enablement": "!codeXR.pythonEnv.uiLocked"
       },
       {
@@ -600,6 +623,11 @@
           "command": "codeXR.analysis.activeAnalyses.close",
           "when": "view == codexrTree && viewItem =~ /^activeAnalysis\\.(creating|analyzing|monitoring|completed|error|failed)$/ && !codeXR.pythonEnv.uiLocked",
           "group": "activeAnalyses@4"
+        },
+        {
+          "command": "codeXR.activeServers.removeParticipant",
+          "when": "view == codexrTree && viewItem == activeServerParticipantGuest && !codeXR.pythonEnv.uiLocked",
+          "group": "activeServerParticipant@1"
         }
       ],
       "codeXR.analysis.contextMenu": [
@@ -718,7 +746,7 @@
     "compile": "node ./node_modules/webpack/bin/webpack.js",
     "compile:dev-host": "npm run compile && node scripts/prepare-dev-extension.mjs",
     "watch": "node ./node_modules/webpack/bin/webpack.js --watch",
-    "package": "node ./node_modules/webpack/bin/webpack.js --mode production --devtool hidden-source-map",
+    "package": "node ./node_modules/webpack/bin/webpack.js --mode production",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit --incremental false -p .",
     "compile-tests": "node ./node_modules/typescript/bin/tsc -p . --outDir out",
     "watch-tests": "node ./node_modules/typescript/bin/tsc -p . -w --outDir out",
@@ -734,6 +762,7 @@
     "test:htmlanalysis": "node test/runners/run-html-analysis-tests.cjs",
     "test:xr-harness": "node test/runners/run-xr-containment-harness.cjs",
     "test:xr-mode-harness": "node test/runners/run-xr-mode-cycle-harness.cjs",
+    "test:xr-immersive-harness": "node test/runners/run-xr-immersive-harness.cjs",
     "test:project-evolution-harness": "node test/runners/run-project-evolution-harness.cjs",
     "report:manual-metrics": "node test/runners/run-analysis-tests.cjs --report-only"
   },

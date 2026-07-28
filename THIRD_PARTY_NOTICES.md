@@ -97,6 +97,37 @@ Usage in this project:
 - CodeXR retains explicit language fallbacks and reports when structured parsing is unavailable.
 - The package and its parsers are installed once per CodeXR environment, not once per analysis.
 
+## Development & Testing Tools
+
+The following tools are used to develop and validate CodeXR. They are **not
+bundled with, downloaded by, or distributed in** the extension — end users
+never receive them; they simply made this release better.
+
+### Immersive Web Emulator
+- Project: Immersive Web Emulator (browser extension)
+- Creator: Meta Platforms, Inc.
+- Source: https://github.com/meta-quest/immersive-web-emulator
+- License: MIT
+
+Usage in this project:
+- Emulates a WebXR device (headset + Touch controllers) inside a desktop
+  browser. CodeXR's immersive experience for v1.2.0 — entry positioning,
+  locomotion and flight, laser interaction, AR behaviour and lighting — was
+  driven, debugged and validated end to end in sessions emulated by it (see
+  `docs/xr-testing/WEBXR_EMULATOR_TUTORIAL.md`).
+
+### IWER — Immersive Web Emulation Runtime, and @iwer/extension-bridge
+- Project: immersive-web-emulation-runtime (IWER) and its MCP bridge
+- Creator: Meta Platforms, Inc.
+- Source: https://github.com/meta-quest/immersive-web-emulation-runtime
+- License: MIT
+
+Usage in this project:
+- IWER is the WebXR emulation runtime the browser extension injects; the
+  `@iwer/extension-bridge` MCP daemon lets tooling drive those emulated
+  sessions programmatically. Both were used during QA to reproduce, diagnose
+  and verify immersive input bugs before release.
+
 ## Notes
 
 - Third-party licenses remain the property of their respective authors.

@@ -18,8 +18,36 @@
   // legend show/hide cycle (orphan legends, NotFoundError). This component
   // guarantees exactly ONE pointer raycaster is enabled at a time:
   //   - desktop (not in VR): the mouse cursor;
-  //   - VR without controllers: the gaze cursor on the camera;
-  //   - VR with controllers: the right laser (left if only left is connected).
+  //   - a REAL immersive session without controllers (mobile AR, sleeping
+  //     controllers): the gaze cursor on the camera — it has no reticle
+  //     geometry, hover feedback comes from the content itself;
+  //   - simulated immersive entries (CodeXRDebug / emulator states with no
+  //     xrSession): the mouse keeps the pointer — the user is still at a
+  //     desk, and a gaze cursor there is dead weight;
+  //   - VR/AR with controllers: whichever controller you used last.
+  //
+  // That last rule is what makes both hands equal without breaking the
+  // invariant. Any activity on a controller — trigger, any button, or a
+  // thumbstick push — hands it the pointer. Because promotion happens on
+  // `triggerdown` and the cursor's click lands on `triggerup`, pulling the
+  // trigger on the idle controller both promotes it and clicks with it. The
+  // right hand is only the initial default, not a privilege.
+  //
+  // The raycaster is never REPLACED here, only toggled property by property:
+  // laser-controls owns its origin and direction, and those matter — a Touch
+  // controller is held at an angle to the direction it points, so a raycaster
+  // written from scratch fires the ray well above the visible aim.
+  //
+  // The `cursor` component is just as load-bearing: creating one with
+  // rayOrigin: entity runs A-Frame's cursor.resetRaycaster(), which OVERWRITES
+  // the raycaster's origin and direction with the bare entity axis (0,0,-1).
+  // laser-controls only installs the model-specific pointing direction once,
+  // from the controllermodelready event — so removing a controller's cursor
+  // and re-adding it on the next handover silently re-aims the laser ~40°
+  // above where a Touch controller points (found live in the WebXR emulator:
+  // every hand switch wiped the compensation). Inactive controllers therefore
+  // KEEP their cursor; with the raycaster disabled it can neither hover nor
+  // click, which is all the invariant needs.
   //
   // laser-controls re-injects `cursor` + an UNFILTERED raycaster (objects: '')
   // on every controllerconnected/controllermodelready, and its
@@ -28,6 +56,16 @@
   // rather than configured once. Disabling a raycaster fires its pending
   // intersection-cleared/mouseleave events (A-Frame clears intersections on
   // enabled → false), so open legends close on pointer handover.
+
+  // Events that count as "this hand is the one being used right now".
+  const ACTIVITY_EVENTS = ['triggerdown', 'buttondown', 'gripdown', 'thumbstickmoved'];
+  const THUMBSTICK_ACTIVITY = 0.5;
+
+  function isThumbstickPushed(event) {
+    const detail = (event && event.detail) || {};
+    return Math.abs(Number(detail.x) || 0) > THUMBSTICK_ACTIVITY
+      || Math.abs(Number(detail.y) || 0) > THUMBSTICK_ACTIVITY;
+  }
 
   function registerComponent(AFRAME) {
     if (!AFRAME || AFRAME.components['codexr-pointer-policy']) {
@@ -45,6 +83,9 @@
 
       init: function () {
         this.connected = { left: false, right: false };
+        // The hand that acted most recently owns the pointer; 'right' is only
+        // the starting default.
+        this.lastUsed = 'right';
         this.inVR = false;
         this.pointerEls = { mouse: null, gaze: null, left: null, right: null };
         this.applyTimer = null;
@@ -85,7 +126,9 @@
         this.listenToController('left');
         this.listenToController('right');
 
-        this.inVR = typeof sceneEl.is === 'function' ? !!sceneEl.is('vr-mode') : false;
+        this.inVR = typeof sceneEl.is === 'function'
+          ? !!(sceneEl.is('vr-mode') || sceneEl.is('ar-mode'))
+          : false;
         this.applyPolicy();
       },
 
@@ -111,11 +154,38 @@
           self.connected[side] = false;
           self.scheduleApply();
         });
+        // Any deliberate use of this controller hands it the pointer, so the
+        // user never has to think about which hand is "the" pointer.
+        ACTIVITY_EVENTS.forEach(function (eventName) {
+          self.listen(el, eventName, function (event) {
+            if (eventName === 'thumbstickmoved' && !isThumbstickPushed(event)) {
+              return;
+            }
+            self.markUsed(side);
+          });
+        });
         // laser-controls re-injects cursor + raycaster when the model loads,
         // after controllerconnected already ran — re-neutralize then too.
         this.listen(el, 'controllermodelready', function () {
           self.scheduleApply();
         });
+      },
+
+      markUsed: function (side) {
+        if (this.lastUsed === side) {
+          return;
+        }
+        // An active controller drag OWNS the pointer: while a screen is
+        // grabbed (virtual-screen sets this scene state), no activity on the
+        // other hand may steal the laser — disabling the dragging hand's
+        // raycaster mid-grab freezes the drag (its pointer ray goes null).
+        // Walking with the other stick during a grab is expressly supported.
+        const sceneEl = this.el.sceneEl || this.el;
+        if (typeof sceneEl.is === 'function' && sceneEl.is('codexr-screen-drag')) {
+          return;
+        }
+        this.lastUsed = side;
+        this.scheduleApply();
       },
 
       onEnterVR: function () {
@@ -145,13 +215,26 @@
         if (!this.inVR) {
           return 'mouse';
         }
-        if (this.connected.right) {
-          return 'right';
+        // The hand you used last wins; the other one only steps in when the
+        // preferred hand is not connected.
+        const other = this.lastUsed === 'right' ? 'left' : 'right';
+        if (this.connected[this.lastUsed]) {
+          return this.lastUsed;
         }
-        if (this.connected.left) {
-          return 'left';
+        if (this.connected[other]) {
+          return other;
         }
-        return 'gaze';
+        // No controllers. Gaze is only a real pointer when an actual WebXR
+        // session drives the head (mobile AR, a headset with sleeping
+        // controllers) — A-Frame sets sceneEl.xrSession before enter-vr, and
+        // the simulated entries (CodeXRDebug / emulator states without a
+        // session) never do. There, the user is still at a desk with a mouse,
+        // so the mouse keeps the pointer instead of a dead gaze cursor.
+        const sceneEl = this.el.sceneEl || this.el;
+        if (sceneEl.xrSession) {
+          return 'gaze';
+        }
+        return 'mouse';
       },
 
       applyPolicy: function () {
@@ -184,20 +267,48 @@
         }
         el.setAttribute('raycaster', 'enabled', active);
         el.setAttribute('raycaster', 'showLine', active);
-        if (active) {
-          // laser-controls injects raycasters with objects: '' (the whole
-          // scene) — the active laser must stay filtered to babia targets.
-          el.setAttribute('raycaster', 'objects', this.data.raycastSelector);
-          // laser-controls owns the cursor config on the active laser; make
-          // sure one exists even if injection was skipped (e.g. unknown
-          // controller name), so hover events reach babia.
-          if (typeof el.getAttribute !== 'function' || !el.getAttribute('cursor')) {
-            el.setAttribute('cursor', 'rayOrigin: entity; fuse: false');
+        if (!active) {
+          // A disabled raycaster neither hovers nor clicks; the cursor stays
+          // put on purpose — recreating it later would run A-Frame's cursor
+          // resetRaycaster() and wipe the pointing direction laser-controls
+          // installed from the controller model (see the header).
+          //
+          // The line needs one extra sweep: A-Frame's raycaster queues its
+          // updateLine with setTimeout on EVERY intersecting tick, and that
+          // callback redraws the line WITHOUT re-checking showLine — so a
+          // redraw queued just before this demotion resurrects the line right
+          // after it, and with the raycaster now disabled nothing ever clears
+          // it again. That ghost is the steady "two lasers" state the WebXR
+          // emulator showed. Sweeping one macrotask later runs after any
+          // already-queued redraw; the guard keeps a re-promoted laser safe.
+          setTimeout(function () {
+            if (typeof el.getAttribute !== 'function' || typeof el.removeAttribute !== 'function') {
+              return;
+            }
+            const ray = el.getAttribute('raycaster');
+            if (ray && ray.showLine !== true && el.getAttribute('line')) {
+              el.removeAttribute('line');
+            }
+          }, 0);
+          return;
+        }
+        // laser-controls injects raycasters with objects: '' (the whole
+        // scene) — the active laser must stay filtered to babia targets.
+        el.setAttribute('raycaster', 'objects', this.data.raycastSelector);
+        // laser-controls owns the cursor config on the active laser; make
+        // sure one exists even if injection was skipped (e.g. unknown
+        // controller name), so hover events reach babia. Creating a cursor
+        // runs resetRaycaster (see header): snapshot the pointing ray first
+        // and put it back, so even this fallback cannot re-aim the laser.
+        if (typeof el.getAttribute === 'function' && !el.getAttribute('cursor')) {
+          const ray = el.getAttribute('raycaster') || {};
+          const origin = ray.origin;
+          const direction = ray.direction;
+          el.setAttribute('cursor', 'rayOrigin: entity; fuse: false');
+          if (origin && direction) {
+            el.setAttribute('raycaster', 'origin', origin);
+            el.setAttribute('raycaster', 'direction', direction);
           }
-        } else if (typeof el.removeAttribute === 'function') {
-          // An inactive controller keeps its model but must not stay a live
-          // pointer: drop the cursor laser-controls injected.
-          el.removeAttribute('cursor');
         }
       },
     });

@@ -19,7 +19,7 @@
 ## Playbook: new feature
 
 1. Read: `ARCHITECTURE.md`, `V1.2.0_STATUS.md`, plus the area doc (`XR_COMPONENTS.md` and/or `PYTHON_ANALYSIS.md`) and any relevant `docs/*.md` feature doc.
-2. Check the roadmap (`docs/ROADMAP_V1.2.0.md`) — is the feature in scope for this version? Respect scope decisions (e.g., boats/Code City is paused).
+2. Check the roadmap (`docs/project/ROADMAP_V1.2.0.md`) — is the feature in scope for this version? Respect scope decisions (e.g., boats/Code City is paused).
 3. Follow the per-feature module convention (`commands/` + `model/` + `runtime|services/` + `views/{items,interactions}`); register commands through the module's registration array consumed by `src/commands/index.ts` (IDs must be unique — `assertUniqueCommandIds` enforces this).
 4. If the feature adds metrics or chart dimensions, plan the Python schema ↔ TS validator sync first (`PYTHON_ANALYSIS.md` → field-schema contract).
 5. Add tests: unit `.test.cjs` in `test/<area>/`; runtime changes under `templates/components/` get a runtime test; consider a manual harness for visual behavior.
@@ -51,7 +51,7 @@
 
 ## Playbook: release preparation
 
-1. Read: `V1.2.0_STATUS.md` (entire file), `docs/ROADMAP_V1.2.0.md` (exit criteria + delivery sequence), `DEVELOPMENT.md` (packaging).
+1. Read: `V1.2.0_STATUS.md` (entire file), `docs/project/ROADMAP_V1.2.0.md` (exit criteria + delivery sequence), `DEVELOPMENT.md` (packaging).
 2. Resolve every "Needs verification" row in `V1.2.0_STATUS.md` (each has a how-to-verify hint).
 3. Reconcile docs: README "What's New" → v1.2.0 content; CHANGELOG `[1.2.0] – Unreleased` → dated release entry; roadmap statuses; language-count claim fixed against `src/utils/languageMetadata.ts`; rename leftovers.
 4. Quality gate: `npm run test:all` + `npm run test:analysis` + harnesses for touched runtimes; F5 smoke of the three analysis modes.
@@ -64,7 +64,7 @@
 - Never list/scan: `node_modules/`, `dist/`, `out/`, `output/`, `artifacts/`, `.vscode-test/`, `tsconfig.tsbuildinfo`, `package-lock.json`.
 - Prefer targeted `Grep`/`Glob` over directory listings; prefer the module map in `ARCHITECTURE.md` over exploration.
 - `package.json` is ~1,000+ lines (70 commands) — grep for the section you need instead of reading it whole.
-- Large existing docs (`README.md` ~674 lines, `docs/DEPENDENCY_GRAPH_XR.md` ~477 lines) are summarized in `.claude/docs/` — read the originals only when the summary is insufficient for your task.
+- Large existing docs (`README.md` ~674 lines, `docs/features/DEPENDENCY_GRAPH_XR.md` ~477 lines) are summarized in `.claude/docs/` — read the originals only when the summary is insufficient for your task.
 
 ## How future agents should use this document
 

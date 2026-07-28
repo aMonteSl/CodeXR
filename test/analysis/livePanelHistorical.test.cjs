@@ -35,22 +35,24 @@ test('the historical comparison service admits LivePanel sessions and still thro
 });
 
 test('HttpServer exposes LivePanel REST endpoints for references and async compare', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
-    assert.match(server, /case '\/historical\/references':/);
-    assert.match(server, /case '\/historical\/compare':/);
-    assert.match(server, /private async handleHistoricalReferences\(/);
-    assert.match(server, /private async handleHistoricalCompare\(/);
+    // Routing stays in the façade; the handlers live in the historical bridge.
+    const routing = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'historicalComparisonBridge.ts');
+    assert.match(routing, /case '\/historical\/references':/);
+    assert.match(routing, /case '\/historical\/compare':/);
+    assert.match(server, /public async handleHistoricalReferences\(/);
+    assert.match(server, /public async handleHistoricalCompare\(/);
     // References report availability instead of failing on non-Git targets.
-    assert.match(server, /this\.sendJsonResponse\(res, 200, \{ enabled: false, reason: availability\.reason \}\)/);
+    assert.match(server, /sendJsonResponse\(res, 200, \{ enabled: false, reason: availability\.reason \}\)/);
     // Compare answers 202 and runs the comparison in the background.
-    assert.match(server, /this\.sendJsonResponse\(res, 202, \{ accepted: true \}\)/);
+    assert.match(server, /sendJsonResponse\(res, 202, \{ accepted: true \}\)/);
     assert.match(server, /A historical comparison is already running\./);
 });
 
-test('HttpServer pushes historical progress and results to LivePanel over SSE', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
-    assert.match(server, /private notifyLivePanelHistoricalProgress\(/);
-    assert.match(server, /private notifyLivePanelHistoricalUpdated\(/);
+test('the analysis host pushes historical progress and results to LivePanel over SSE', () => {
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
+    assert.match(server, /public notifyLivePanelHistoricalProgress\(/);
+    assert.match(server, /public notifyLivePanelHistoricalUpdated\(/);
     assert.match(server, /type: 'historical-progress'/);
     assert.match(server, /type: 'historical-updated'/);
     // The SSE target helper keeps every notify call a no-op outside LivePanel.
@@ -59,7 +61,7 @@ test('HttpServer pushes historical progress and results to LivePanel over SSE', 
 });
 
 test('a live comparison refreshes after every incremental re-analysis and republishes over SSE', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
     // LivePanel sessions schedule the refresh straight from analysisUpdateEvents
     // (no XR view-mode gate); the schedule itself no-ops without a live source.
     assert.match(server, /if \(this\.analysisMode === 'LivePanel'\) \{[\s\S]*?this\.scheduleHistoricalComparisonRefresh\(\);[\s\S]*?return;/);
@@ -100,10 +102,54 @@ test('file comparisons analyze only the analyzed file itself, at function scope'
 });
 
 test('LivePanel dependency seeding covers file sessions as well as directories', () => {
-    const server = readProjectFile('src', 'servers', 'runtime', 'httpServer.ts');
+    const server = readProjectFile('src', 'servers', 'runtime', 'analysis', 'analysisFeatureHost.ts');
     // The old directory-only guard is gone; any LivePanel session seeds and
     // background-refreshes its dependency dataset (the service resolves the
     // project root for file targets).
     assert.doesNotMatch(server, /this\.analysisMode === 'LivePanel' && session\?\.targetType === 'directory'/);
     assert.match(server, /if \(this\.analysisMode === 'LivePanel'\) \{[\s\S]*?setBackgroundRefresh\(livePanelSessionId, 'dependency-graph', true\)/);
+});
+
+test('derived metric values are shown at the precision the metrics themselves use', () => {
+    // formatMetricValue is executed for real: a regex over the source would not
+    // catch the float noise this exists to remove.
+    const shell = readProjectFile('templates', 'components', 'livepanel', 'panelShell.js');
+    const source = shell.match(/function formatMetricValue[\s\S]*?\n\}/)?.[0];
+    assert.ok(source, 'panelShell must define formatMetricValue');
+    const formatMetricValue = new Function(`${source}; return formatMetricValue;`)();
+
+    // The exact case seen in the comparison table: 5.44 - 8.86.
+    assert.equal(formatMetricValue(5.44 - 8.86), '-3.42');
+    assert.equal(formatMetricValue(4.82 - 5.51), '-0.69');
+    // Integers keep their exact form — no ".00" tail on counts.
+    assert.equal(formatMetricValue(3548), '3548');
+    assert.equal(formatMetricValue(0), '0');
+    assert.equal(formatMetricValue(-7), '-7');
+    // Trailing zeros are dropped rather than padded.
+    assert.equal(formatMetricValue(5.4), '5.4');
+    assert.equal(formatMetricValue(5.401), '5.4');
+    // Junk never reaches the DOM as "NaN"/"undefined".
+    assert.equal(formatMetricValue(undefined), '0');
+    assert.equal(formatMetricValue(null), '0');
+    assert.equal(formatMetricValue(Number.NaN), '0');
+    assert.equal(formatMetricValue(Number.POSITIVE_INFINITY), '0');
+});
+
+test('the comparison delta cell formats every number and never signs a rounded-away change', () => {
+    const panel = readProjectFile('templates', 'components', 'livepanel', 'historicalPanel.js');
+    const cell = panel.match(/key: `delta:\$\{metric\}`[\s\S]*?\n        \},/)?.[0] || '';
+    assert.ok(cell, 'the delta column renderer should exist');
+
+    // All three numbers go through the formatter — printing any of them raw is
+    // what produced "8.86 → 5.44 (-3.419999999999999)".
+    assert.equal((cell.match(/formatMetricValue\(/g) || []).length, 3);
+    for (const side of ['left', 'right', 'delta']) {
+        assert.match(
+            cell,
+            new RegExp(`const ${side} = formatMetricValue\\(row\\[\`${side}:`),
+            `${side} must be formatted before it reaches the cell`,
+        );
+    }
+    // The sign is decided from the displayed value, so "+0" cannot happen.
+    assert.match(cell, /const sign = Number\(delta\) > 0 \? '\+' : '';/);
 });

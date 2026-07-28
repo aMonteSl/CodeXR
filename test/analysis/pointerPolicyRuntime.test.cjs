@@ -170,12 +170,26 @@ test('desktop: only the mouse cursor raycaster is enabled', () => {
     assert.equal('cursor' in pointers.left.attrs, false);
 });
 
-test('VR without controllers: gaze becomes the single active pointer', () => {
+test('a REAL session without controllers: gaze becomes the single active pointer', () => {
     const { sceneEl, pointers, flush } = createHarness();
+    // A-Frame sets sceneEl.xrSession before emitting enter-vr for a real
+    // WebXR session (mobile AR, headset with sleeping controllers).
+    sceneEl.xrSession = {};
     sceneEl.emit('enter-vr');
     flush();
     assertSingleActivePointer(pointers, 'gaze');
     assert.equal(pointers.gaze.attrs.visible, true);
+});
+
+test('a SIMULATED entry without controllers keeps the mouse pointer', () => {
+    const { sceneEl, pointers, flush } = createHarness();
+    // CodeXRDebug.simulateVR/AR and emulator states add scene states and emit
+    // enter-vr but never set xrSession: the user is still at a desk, so the
+    // mouse stays the pointer and no gaze cursor ever activates.
+    sceneEl.emit('enter-vr');
+    flush();
+    assertSingleActivePointer(pointers, 'mouse');
+    assert.equal(pointers.gaze.attrs.visible, false);
 });
 
 test('VR with controllers: right laser only; left is re-neutralized after every injection', () => {
@@ -194,20 +208,75 @@ test('VR with controllers: right laser only; left is re-neutralized after every 
     simulateLaserControlsInjection(pointers.left);
     flush();
     assertSingleActivePointer(pointers, 'right');
-    assert.equal('cursor' in pointers.left.attrs, false, 'left cursor injected by laser-controls must be removed');
+    // The cursor STAYS: with the raycaster disabled it can neither hover nor
+    // click, and removing it is what used to wipe the raycaster direction on
+    // the next handover (recreating a cursor runs A-Frame's resetRaycaster).
+    assert.ok(pointers.left.attrs.cursor, 'left keeps its inert cursor while demoted');
     assert.equal(pointers.left.attrs.raycaster.enabled, false);
     assert.equal(pointers.left.attrs.raycaster.showLine, false);
 
-    // controllermodelready re-injects cursor/raycaster — must be undone again.
+    // controllermodelready re-injects cursor/raycaster — must be re-disabled.
     simulateLaserControlsInjection(pointers.left);
     pointers.left.emit('controllermodelready', {});
     flush();
-    assert.equal('cursor' in pointers.left.attrs, false);
     assert.equal(pointers.left.attrs.raycaster.enabled, false);
+    assert.equal(pointers.left.attrs.raycaster.showLine, false);
+});
+
+test('a handover never rewrites the raycaster laser-controls configured', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected', { name: 'meta-touch-controls' });
+        simulateLaserControlsInjection(pointers[side]);
+        // What laser-controls installs from controllermodelready: the
+        // model-specific pointing direction (~40° below the grip axis).
+        pointers[side].setAttribute('raycaster', 'origin', { x: 0, y: -0.0186, z: -0.05 });
+        pointers[side].setAttribute('raycaster', 'direction', { x: 0, y: -0.594, z: -0.795 });
+    });
+    flush();
+
+    // Hand the pointer back and forth; the cursors must survive (never be
+    // recreated) and the direction must stay the model one.
+    pointers.left.emit('triggerdown');
+    flush();
+    pointers.right.emit('triggerdown');
+    flush();
+    ['left', 'right'].forEach((side) => {
+        assert.ok(pointers[side].attrs.cursor, `${side}: cursor survives handovers`);
+        assert.deepEqual(
+            pointers[side].attrs.raycaster.direction,
+            { x: 0, y: -0.594, z: -0.795 },
+            `${side}: pointing direction survives handovers`,
+        );
+    });
+});
+
+test('the fallback cursor (unknown controller) restores the pointing ray it may clobber', () => {
+    const { sceneEl, pointers, flush } = createHarness();
+    sceneEl.emit('enter-vr');
+    // A controller laser-controls did NOT recognize: raycaster exists (the
+    // policy will enable it) but no cursor was injected.
+    pointers.right.setAttribute('raycaster', {
+        enabled: false,
+        showLine: false,
+        origin: { x: 0, y: -0.0186, z: -0.05 },
+        direction: { x: 0, y: -0.594, z: -0.795 },
+    });
+    pointers.right.emit('controllerconnected', { name: 'unknown-controls' });
+    flush();
+
+    assert.ok(pointers.right.attrs.cursor, 'fallback cursor created so hover events flow');
+    assert.deepEqual(
+        pointers.right.attrs.raycaster.direction,
+        { x: 0, y: -0.594, z: -0.795 },
+        'creating the fallback cursor must re-apply origin/direction (A-Frame cursor init resets them)',
+    );
 });
 
 test('single-controller headset: left becomes the pointer when right disconnects', () => {
     const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.xrSession = {}; // real headset: gaze is the no-controller fallback
     sceneEl.emit('enter-vr');
     pointers.right.emit('controllerconnected', { name: 'meta-touch-controls' });
     simulateLaserControlsInjection(pointers.right);
@@ -229,6 +298,122 @@ test('single-controller headset: left becomes the pointer when right disconnects
     pointers.left.emit('controllerdisconnected', { name: 'meta-touch-controls' });
     flush();
     assertSingleActivePointer(pointers, 'gaze');
+});
+
+test('using the left controller hands it the pointer, and back again', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // Pull the trigger on the idle hand: it takes over, so the click that
+    // follows on triggerup lands with the controller the user actually used.
+    pointers.left.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'left');
+
+    // And back — neither hand is privileged.
+    pointers.right.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+});
+
+test('any deliberate use counts: buttons and a pushed thumbstick', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+
+    pointers.left.emit('buttondown');
+    flush();
+    assertSingleActivePointer(pointers, 'left');
+
+    pointers.right.emit('thumbstickmoved', { x: 0, y: -1 });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // Stick noise must not steal the pointer mid-gesture.
+    pointers.left.emit('thumbstickmoved', { x: 0.05, y: -0.02 });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+});
+
+test('the hand you last used keeps the pointer through a laser-controls re-injection', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+
+    pointers.left.emit('triggerdown');
+    flush();
+
+    // laser-controls re-injects an unfiltered raycaster on model load.
+    simulateLaserControlsInjection(pointers.right);
+    pointers.right.emit('controllermodelready');
+    flush();
+
+    assertSingleActivePointer(pointers, 'left');
+    assert.equal(pointers.left.attrs.raycaster.objects, '.babiaxraycasterclass');
+});
+
+test('an active screen drag owns the pointer: no handover until it ends', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // virtual-screen marks the scene while a controller drag is live:
+    // stealing the laser mid-grab would disable the dragging hand's raycaster
+    // and freeze the drag. Walking with the other stick stays possible, so
+    // its activity events MUST NOT promote it.
+    sceneEl.states.add('codexr-screen-drag');
+    pointers.left.emit('thumbstickmoved', { x: 0, y: -1 });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+    pointers.left.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // Drag released: the next activity hands over normally again.
+    sceneEl.states.delete('codexr-screen-drag');
+    pointers.left.emit('triggerdown');
+    flush();
+    assertSingleActivePointer(pointers, 'left');
+});
+
+test('demotion sweeps the ghost line A-Frame\'s queued redraw resurrects', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected');
+        simulateLaserControlsInjection(pointers[side]);
+    });
+    flush();
+    assertSingleActivePointer(pointers, 'right');
+
+    // A-Frame's raycaster queues updateLine with setTimeout on every
+    // intersecting tick and redraws WITHOUT re-checking showLine — model the
+    // resurrected line component on the hand about to be demoted.
+    pointers.right.attrs.line = { start: {}, end: {} };
+    pointers.left.emit('triggerdown');
+    flush(); // applyPolicy demotes right… and its sweep timer runs too
+    assertSingleActivePointer(pointers, 'left');
+    assert.equal('line' in pointers.right.attrs, false,
+        'the demoted hand must not keep a rendered line component');
 });
 
 test('exit-vr hands the pointer back to the mouse', () => {

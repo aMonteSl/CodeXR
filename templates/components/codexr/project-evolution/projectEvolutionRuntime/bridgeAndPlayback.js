@@ -68,6 +68,10 @@
       await nextRenderFrame();
     }
     chart.setAttribute('visible', true);
+    // Put the chart back on its full-redraw path before the frame's data
+    // arrives: a movie advances between unrelated revisions, which is not
+    // what Babia's incremental morph expects.
+    resetChartRedrawState(chart, componentName);
     refreshEvolutionDataSource(frameUrl);
     root.CodeXRMappingUiRuntime?.setChartEntityIds?.(getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean));
     scheduleFrameRenormalization();

@@ -3,14 +3,10 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import {
-    AUTO_AVATAR_ID,
     CollaborationProfile,
     DEFAULT_COLLABORATION_PROFILE,
     normalizeCollaborationProfile,
 } from '../model/collaborationProfile';
-
-/** The colour every profile used to default to before `auto` existed. */
-const LEGACY_DEFAULT_AVATAR_ID = 'avatar-1';
 
 /**
  * The avatar shipped inside the extension. It is CC0, so it can be
@@ -58,18 +54,6 @@ export class CollaborationProfileManager implements vscode.Disposable {
         this.avatarPath = path.join(context.extensionPath, ...AVATAR_ASSET_SEGMENTS);
         this.installationId = this.readInstallationId();
         this.profile = this.readProfile();
-        this.removeLegacyDownloadedAvatar();
-    }
-
-    /**
-     * Earlier versions downloaded the avatar into global storage. The model now
-     * ships with the extension, so that copy is dead weight.
-     */
-    private removeLegacyDownloadedAvatar(): void {
-        const legacyDirectory = path.join(this.configurationDirectory, 'assets');
-        fs.promises.rm(legacyDirectory, { recursive: true, force: true }).catch(() => {
-            // Nothing to clean up, or it is already gone.
-        });
     }
 
     public static initialize(context: vscode.ExtensionContext): CollaborationProfileManager {
@@ -115,31 +99,14 @@ export class CollaborationProfileManager implements vscode.Disposable {
     private readProfile(): CollaborationProfile {
         try {
             if (fs.existsSync(this.profilePath)) {
-                const stored = normalizeCollaborationProfile(
+                return normalizeCollaborationProfile(
                     JSON.parse(fs.readFileSync(this.profilePath, 'utf8')),
                 );
-                // 'avatar-1' used to be the default nobody actively picked, so
-                // it becomes automatic; any other colour was a real choice.
-                if (stored.avatarId === LEGACY_DEFAULT_AVATAR_ID) {
-                    const migrated = { ...stored, avatarId: AUTO_AVATAR_ID };
-                    void this.persistProfile(migrated);
-                    return migrated;
-                }
-                return stored;
             }
         } catch {
             // Invalid persisted data is replaced by defaults on the next update.
         }
         return { ...DEFAULT_COLLABORATION_PROFILE };
-    }
-
-    private async persistProfile(profile: CollaborationProfile): Promise<void> {
-        try {
-            await fs.promises.mkdir(this.configurationDirectory, { recursive: true });
-            await fs.promises.writeFile(this.profilePath, JSON.stringify(profile, null, 2), 'utf8');
-        } catch (error) {
-            console.error('COLLABORATION: Failed to persist profile:', error);
-        }
     }
 
     private readInstallationId(): string {

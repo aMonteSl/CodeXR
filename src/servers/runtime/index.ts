@@ -6,7 +6,7 @@
  */
 
 // Core server implementations
-export { HttpServer, HttpServerConfig } from './httpServer';
+export { HttpServer, HttpServerConfig, ParticipantRemovalOutcome } from './httpServer';
 export { HttpsDefaultServer, HttpsDefaultServerConfig } from './httpsDefaultServer';
 export { HttpsCustomServer, HttpsCustomServerConfig } from './httpsCustomServer';
 

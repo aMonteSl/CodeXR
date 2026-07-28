@@ -56,7 +56,17 @@
     minimizedWidth: 2.1,
     minimizedHeight: 0.42,
     dragDepthStep: 0.45,
-    controllerDepthStep: 0.08,
+    // Push/pull while dragging with a controller: metres per second at full
+    // thumbstick deflection, applied per frame (thumbstickmoved only fires on
+    // CHANGE, so a per-event step froze the screen while the stick was held).
+    controllerDepthSpeed: 1.8,
+    // How far the smoothed depth target may run ahead of the applied offset.
+    // Unbounded, it kept accumulating while a collision bumper pinned the
+    // screen, and reversing the stick had to unwind it all before anything
+    // moved again.
+    dragDepthMaxLead: 1.2,
+    // Pulling stops before the screen reaches the user's head.
+    dragDepthMinDistance: 0.6,
     instanceId: '',
     screenId: '',
     ownerPeerId: '',
@@ -102,10 +112,14 @@
       broadcastUnavailable: 'Live broadcasting requires HTTPS or localhost.',
       broadcastError: 'Unable to connect the live broadcast.',
       iceFailed: 'The shared screen could not cross this network (restrictive NAT). Collaboration remains active.',
+      relayFallback: 'Direct connection unavailable, switching to the server relay...',
       broadcastStopped: 'Live sharing stopped.',
       collaborationLocked: 'This screen is currently being edited by another user.',
+      join: 'Join',
+      screenBusy: 'is already sharing on this screen. Use another screen or ask them to stop.',
+      sharedBy: 'is sharing this screen.',
+      someone: 'Another participant',
       audioUnlock: 'Enable Audio',
-      audioUnlockPrompt: 'Tap to enable this shared screen audio.',
     },
   };
 
@@ -275,6 +289,11 @@
       streamSourceType: null,
       hasAudio: false,
       audioUnlockRequired: false,
+      // The viewer chose to leave this screen's broadcast: nothing may
+      // auto-rejoin them until they press Join, the broadcast ends, or the
+      // broadcaster changes. Local preference — never travels in the entity.
+      viewerOptOut: false,
+      infoOverlayVisible: false,
       screenWidth: DEFAULT_CONFIG.sizeSteps[DEFAULT_CONFIG.defaultSizeIndex],
       sizeIndex: DEFAULT_CONFIG.defaultSizeIndex,
       lastIntent: 'screen',
@@ -315,6 +334,9 @@
       legendText: null,
       legendToggle: null,
       shareButton: null,
+      joinButton: null,
+      infoOverlay: null,
+      infoOverlayTimer: null,
       audioUnlockButton: null,
       headerButtons: {},
       cornerHandles: {},
@@ -335,6 +357,16 @@
         sourceKind: '',
       },
       broadcastRegistered: false,
+      // Media relayed through the server, for viewers peer-to-peer cannot
+      // reach (see relayTransport.js). sender: encoders + pumps; receiver:
+      // decoders drawing into a canvas that feeds the usual video texture.
+      relaySender: null,
+      relayReceiver: null,
+      remoteFrameWatchTimer: null,
+      // Which socket the current viewer-join went out on: duplicates are only
+      // suppressed for the same socket, so reconnects can rejoin.
+      joinAttemptSocket: null,
+      viewerJoinWatchdogTimer: null,
       destroyed: false,
       sharedTransformTimer: null,
       managerCallbacks: null,

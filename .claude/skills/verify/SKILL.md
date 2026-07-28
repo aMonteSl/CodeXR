@@ -35,7 +35,7 @@ Both must be green. Report the actual counts (e.g. "339/339").
 If the change affects generated scenes, LivePanel pages, or servers, automated tests are not sufficient evidence on their own:
 
 - F5 **"Run CodeXR Extension"** (isolated host under `.vscode-test/dev-extension`) → open a workspace → right-click file/folder → "Code-XR: Analysis" → run the affected mode (LivePanel / XR / DOM).
-- XR scenes: browser console debug APIs are documented in `docs/XR_DEBUG_COMMANDS.md` (`CodeXR.help()`).
+- XR scenes: browser console debug APIs are documented in `docs/xr-testing/XR_DEBUG_COMMANDS.md` (`CodeXR.help()`).
 - If you could not run the live check (e.g. non-interactive session), say so explicitly and label the claim: tests confirmed, browser behavior **inferred**.
 
 ## 4. Report with claim labels

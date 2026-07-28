@@ -15,6 +15,13 @@
     bubbles: 'babia-bubbles',
     boats: 'babia-boats'
   };
+  // Derived from the map above rather than guessed from the attribute name:
+  // `donut` maps to `babia-doughnut`, so stripping the `babia-` prefix and
+  // looking the key up missed exactly that one and let a doughnut component
+  // ride along onto the movie's chart entity.
+  var CHART_COMPONENT_NAMES = Object.keys(COMPONENT_BY_CHART).map(function (chartId) {
+    return COMPONENT_BY_CHART[chartId];
+  });
   var state = {
     initialized: false,
     availability: 'loading',

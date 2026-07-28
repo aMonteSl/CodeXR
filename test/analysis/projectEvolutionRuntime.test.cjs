@@ -124,6 +124,135 @@ test('project evolution treats only active Babia boats as hierarchical charts', 
     assert.equal(runtime.__testing.isHierarchicalBoatsChart('bars', 'babia-bars'), false);
 });
 
+// Fake entity good enough for buildEvolutionChart: attribute bag + the
+// getAttributeNames/getAttribute pair it copies decoration through.
+function createSceneChart(attributes) {
+    const bag = Object.assign({}, attributes);
+    return {
+        getAttributeNames() { return Object.keys(bag); },
+        getAttribute(name) { return Object.prototype.hasOwnProperty.call(bag, name) ? bag[name] : null; },
+        setAttribute(name, value) { bag[name] = value; },
+        hasAttribute(name) { return Object.prototype.hasOwnProperty.call(bag, name); },
+    };
+}
+
+function loadRuntimeWithSceneChart(sceneChart, config) {
+    const created = [];
+    const document = {
+        readyState: 'loading',
+        addEventListener() {},
+        getElementById(id) {
+            if (id === 'codexr-tooling-config-xr-mapping-ui' && config) {
+                return { textContent: JSON.stringify(config) };
+            }
+            return null;
+        },
+        querySelector() { return sceneChart; },
+        querySelectorAll() { return [sceneChart]; },
+        createElement() {
+            const element = createSceneChart({});
+            created.push(element);
+            return element;
+        },
+    };
+    const sandbox = {
+        window: null,
+        document,
+        console,
+        Date: { now: () => 123456789 },
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        encodeURIComponent,
+        // The canonical presentation profile, reached exactly as the runtime
+        // reaches it in a real scene.
+        CodeXRMappingUiRuntime: {
+            getChartPresentation(chartId) {
+                return { rotation: chartId === 'pie' || chartId === 'donut' ? '90 0 0' : '0 0 0' };
+            },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.runInNewContext(runtimeSource, sandbox, { filename: 'projectEvolutionRuntime.js' });
+    return { runtime: sandbox.CodeXRProjectEvolutionRuntime, created };
+}
+
+test('the movie chart never inherits the scene chart orientation or component', () => {
+    // The scene had been switched to donut: rotated 90°, wearing
+    // babia-doughnut. The movie borrows DECORATION from it, and borrowing
+    // those two turned the boats movie into a rotated doughnut.
+    const sceneChart = createSceneChart({
+        'babia-doughnut': { from: 'data', key: 'fileName', size: 'functionCount' },
+        'data-codexr-active-chart-id': 'donut',
+        rotation: '90 0 0',
+        palette: 'ubuntu',
+        'babia-queryjson': 'url: ./data.json',
+    });
+    const { runtime } = loadRuntimeWithSceneChart(sceneChart, { chartId: 'donut' });
+
+    const movieChart = runtime.__testing.buildEvolutionChart('boats');
+
+    assert.ok(movieChart);
+    assert.equal(movieChart.getAttribute('rotation'), '0 0 0', 'boats stands upright in the movie');
+    assert.equal(movieChart.getAttribute('babia-doughnut'), null, 'no foreign chart component rides along');
+    assert.equal(movieChart.getAttribute('data-codexr-project-evolution-chart-id'), 'boats');
+    // Decoration still travels — that is the whole point of the style source.
+    assert.equal(movieChart.getAttribute('palette'), 'ubuntu');
+
+    // And a movie that IS circular gets the profile rotation, not a default.
+    const circular = runtime.__testing.buildEvolutionChart('donut');
+    assert.equal(circular.getAttribute('rotation'), '90 0 0');
+});
+
+test('boats is the identity chart of the movie whatever the scene was generated with', () => {
+    // A pie scene used to open the movie as a pie. The movie resolves its own
+    // default from the available charts, and only falls back to the scene's
+    // chart when the scene has no boats template at all.
+    const pieScene = loadRuntime({
+        chartId: 'pie',
+        availableCharts: [{ id: 'pie' }, { id: 'bars' }, { id: 'boats' }],
+    });
+    assert.equal(pieScene.__testing.getDefaultChartId(), 'boats');
+
+    const boatlessScene = loadRuntime({
+        chartId: 'bars',
+        availableCharts: [{ id: 'pie' }, { id: 'bars' }],
+    });
+    assert.equal(boatlessScene.__testing.getDefaultChartId(), 'bars');
+});
+
+test('every frame puts the boats chart back on its full-redraw path', () => {
+    // Babia's boats only wipes and redraws while it has no previous figures
+    // (`if (this.figures_old.length == 0)`); otherwise it morphs the old tree
+    // into the new one. A movie frame is a different revision with different
+    // files, so the morph dropped geometry it never restored and the chart
+    // decayed frame after frame.
+    const runtime = loadRuntime();
+    const reset = runtime.__testing.resetChartRedrawState;
+    const boats = {
+        figures: [{ name: 'stale' }],
+        figures_old: [{ name: 'older' }],
+        figures_del: [{ name: 'pending-delete' }],
+        figures_in: [{ name: 'pending-insert' }],
+        animation: true,
+    };
+    const chart = { components: { 'babia-boats': boats } };
+
+    assert.equal(reset(chart, 'babia-boats'), true);
+    assert.deepEqual([...boats.figures], []);
+    assert.deepEqual([...boats.figures_old], [], 'an empty figure list is what triggers the redraw');
+    assert.deepEqual([...boats.figures_del], []);
+    assert.deepEqual([...boats.figures_in], []);
+    assert.equal(boats.animation, false);
+
+    // Only boats keeps that morph state; the flat charts rebuild themselves on
+    // every data push, so nothing is poked for them.
+    const bars = { bar_array: [1, 2, 3] };
+    assert.equal(reset({ components: { 'babia-bars': bars } }, 'babia-bars'), false);
+    assert.deepEqual([...bars.bar_array], [1, 2, 3]);
+    assert.equal(reset({ components: {} }, 'babia-boats'), false, 'a chart without the component is a no-op');
+    assert.equal(reset(null, 'babia-boats'), false);
+});
+
 test('suggested auto order tolerates never-loaded references (dependency-start regression)', () => {
     const runtime = loadRuntime();
 

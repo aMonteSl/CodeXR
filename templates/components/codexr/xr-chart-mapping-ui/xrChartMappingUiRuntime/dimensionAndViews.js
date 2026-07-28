@@ -279,15 +279,21 @@
       // Follows the (possibly widened) right edge of the re-centred panel.
       refs.toggle.setAttribute('position', (rightEdge - centreShift - 0.15) + ' ' + (height * 0.5 + 0.17) + ' 0.04');
     }
+    // Header buttons are laid out from the right, each against the previous
+    // one: they no longer share a width, so a fixed pitch would either overlap
+    // the +/- toggle or leave a hole.
+    var headerCursor = rightEdge - centreShift - 0.32 - HEADER_BUTTON_GAP;
     Object.keys(state.panelViews).map(function (viewId) {
       return state.panelViews[viewId];
     }).filter(function (view) {
       return !!view.button;
-    }).forEach(function (view, index) {
+    }).forEach(function (view) {
+      var width = view.buttonWidth || HEADER_BUTTON_MIN_WIDTH;
       view.button?.setAttribute(
         'position',
-        (rightEdge - centreShift - 0.57 - (index * 0.42)) + ' ' + (height * 0.5 + 0.17) + ' 0.04'
+        (headerCursor - (width * 0.5)) + ' ' + (height * 0.5 + 0.17) + ' 0.04'
       );
+      headerCursor -= width + HEADER_BUTTON_GAP;
     });
   }
 
@@ -295,8 +301,12 @@
     Object.keys(state.panelViews).forEach(function (viewId) {
       var view = state.panelViews[viewId];
       var active = state.activePanelView === viewId;
+      var width = view.buttonWidth || HEADER_BUTTON_MIN_WIDTH;
       view.button?.setAttribute('material', {
-        color: active ? '#be123c' : '#0e7490',
+        // A declared colour is the view saying what the button MEANS (the
+        // analysis selector paints it with the colour of the analysis you are
+        // in); without one, the button just reports whether its view is open.
+        color: view.buttonColor || (active ? '#be123c' : '#0e7490'),
         opacity: 0.98,
         shader: 'flat',
         transparent: true
@@ -305,11 +315,21 @@
         value: view.buttonLabel,
         align: 'center',
         color: '#ffffff',
-        width: 1,
+        width: width * HEADER_BUTTON_TEXT_RATIO,
         baseline: 'center',
         anchor: 'center'
       });
     });
+  }
+
+  function setPanelViewButtonColor(viewId, color) {
+    var view = state.panelViews[viewId];
+    if (!view) {
+      return false;
+    }
+    view.buttonColor = color ? String(color) : '';
+    syncPanelViewButtons();
+    return true;
   }
 
   function showPanelView(viewId) {

@@ -31,37 +31,77 @@
             hasAudio: message.hasAudio === true,
             sourceKind: refs.broadcastState?.sourceKind || 'screen',
           });
-          void startViewerConnection(message.broadcasterId || '');
+          if (!state.viewerOptOut) {
+            void startViewerConnection(message.broadcasterId || '');
+          }
           return;
         case 'broadcast-stopped':
+          // Ownership invariant: the room's screen entity belongs to the
+          // sender. A viewer updates only itself — publishing active:false
+          // from here once poisoned the whole room out of a live broadcast.
           if (state.streamSourceType === 'remote') {
-            detachRemoteBroadcast(refs.config.labels.broadcastStopped, { notifyServer: false });
+            detachRemoteBroadcast(refs.config.labels.broadcastStopped, {
+              notifyServer: false,
+              skipSharedPublish: true,
+            });
+            setSharedBroadcastState({
+              active: false,
+              broadcasterPeerId: '',
+              hasAudio: false,
+              sourceKind: refs.broadcastState?.sourceKind || '',
+            });
           } else if (state.streamSourceType === 'local') {
             setBroadcastState('sender', 'idle');
+            setSharedBroadcastState({
+              active: false,
+              broadcasterPeerId: '',
+              hasAudio: false,
+              sourceKind: refs.broadcastState?.sourceKind || '',
+            });
+            publishSharedScreenState();
           }
-          setSharedBroadcastState({
-            active: false,
-            broadcasterPeerId: '',
-            hasAudio: false,
-            sourceKind: refs.broadcastState?.sourceKind || '',
-          });
-          publishSharedScreenState();
           return;
-        case 'broadcast-replaced':
-          if (state.streamSourceType === 'local') {
-            setBroadcastState('none', 'idle');
-            updateStatus(refs.config.labels.broadcastStopped);
+        case 'viewer-waiting':
+          // Parked by the server until the broadcast starts: still connecting.
+          if (state.streamSourceType !== 'local') {
+            updateStatus(refs.config.labels.connecting);
           }
-          setSharedBroadcastState({
-            active: false,
-            broadcasterPeerId: '',
-            hasAudio: false,
-            sourceKind: refs.broadcastState?.sourceKind || '',
-          });
-          publishSharedScreenState();
+          return;
+        case 'broadcast-denied':
+          // Server-side guarantee of one broadcaster per screen: roll the
+          // refused share back and return to being a viewer. The room entity
+          // is not touched — it belongs to the broadcaster that holds the
+          // screen.
+          if (state.streamSourceType === 'local') {
+            releaseStream(true);
+            state.hasAudio = false;
+            state.currentSourceLabel = '';
+            setBroadcastState('none', 'idle');
+            setMode('idle', `${getBroadcasterDisplayName()} ${refs.config.labels.screenBusy}`);
+            if (refs.broadcastState?.active && !state.viewerOptOut) {
+              void startViewerConnection(refs.broadcastState.broadcasterPeerId || '');
+            }
+          }
           return;
         case 'viewer-join':
           void handleViewerJoin(message.viewerId || '');
+          return;
+        // Relay control: the server routes viewers it knows peer-to-peer
+        // cannot reach (see relayTransport.js).
+        case 'relay-start':
+          startRelaySender(message);
+          return;
+        case 'relay-keyframe':
+          requestRelayKeyframe();
+          return;
+        case 'relay-audience':
+          updateRelayAudience(message);
+          return;
+        case 'relay-stop':
+          stopRelaySender();
+          return;
+        case 'relay-ready':
+          startRelayReceiver(message);
           return;
         case 'signal-offer':
           void applyRemoteOffer(message.clientId || '', message.description);
@@ -91,6 +131,8 @@
       }
 
       const socket = new win.WebSocket(signalingUrl);
+      // Relayed media arrives on this same socket as binary frames.
+      socket.binaryType = 'arraybuffer';
       refs.signalingSocket = socket;
       refs.broadcastRegistered = false;
 
@@ -104,6 +146,10 @@
       };
 
       socket.onmessage = function (event) {
+        if (event.data instanceof win.ArrayBuffer) {
+          handleRelayFrame(event.data);
+          return;
+        }
         try {
           handleSignalMessage(JSON.parse(event.data));
         } catch (_error) {
@@ -142,7 +188,17 @@
 
       refs.activeBroadcasterId = '';
       closeAllPeerConnections();
+      stopRelayReceiver();
       refs.remoteStream = null;
+      refs.joinAttemptSocket = null;
+      if (refs.viewerJoinWatchdogTimer) {
+        win.clearTimeout(refs.viewerJoinWatchdogTimer);
+        refs.viewerJoinWatchdogTimer = null;
+      }
+      if (refs.remoteFrameWatchTimer) {
+        win.clearTimeout(refs.remoteFrameWatchTimer);
+        refs.remoteFrameWatchTimer = null;
+      }
 
       if (state.streamSourceType === 'remote') {
         releaseStream(false);
@@ -171,7 +227,11 @@
     }
 
     function stopCapture(message, options) {
-      if (state.streamSourceType === 'remote') {
+      if (state.streamSourceType !== 'local') {
+        // A viewer — watching or still connecting — leaves locally only: the
+        // opt-out sticks until they press Join, and the room entity is never
+        // touched (it belongs to the broadcaster).
+        state.viewerOptOut = true;
         detachRemoteBroadcast(message || refs.config.labels.broadcastStopped, {
           notifyServer: true,
           skipSharedPublish: true,
@@ -190,6 +250,7 @@
         reason: message || refs.config.labels.broadcastStopped,
       });
       closeAllPeerConnections();
+      stopRelaySender();
       const shouldMinimize = options?.minimizeAfterStop === true;
       releaseStream(true);
       state.hasAudio = false;
@@ -227,8 +288,14 @@
         setMode('idle', 'Local screen capture is disabled for this scene.');
         return;
       }
-      if (state.streamSourceType === 'remote') {
-        detachRemoteBroadcast('', { notifyServer: true, preserveStatus: true });
+      // One screen, one broadcaster. While somebody else's broadcast is live
+      // here, sharing is refused up front — the old behavior detached the
+      // viewer from the stream they were watching before even opening the
+      // picker, so a stray click cost them the content.
+      if (isForeignBroadcastActive()) {
+        showChrome();
+        updateStatus(`${getBroadcasterDisplayName()} ${refs.config.labels.screenBusy}`);
+        return;
       }
       const previousStream = state.stream;
       const previousLabel = state.currentSourceLabel;
@@ -289,4 +356,10 @@
 
     function switchSource() {
       void startCapture('screen');
+    }
+
+    /** Explicitly (re)join this screen's live broadcast as a viewer. */
+    function joinBroadcast() {
+      state.viewerOptOut = false;
+      void startViewerConnection(refs.broadcastState?.broadcasterPeerId || '');
     }

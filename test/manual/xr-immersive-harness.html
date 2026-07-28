@@ -1,0 +1,451 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CodeXR immersive (AR/VR) semantics harness</title>
+  <!-- The REAL libraries the generated scenes load: the point of this harness
+       is to run CodeXR's immersive contract against actual A-Frame internals
+       (hide-on-enter-ar, laser-controls injection, movement-controls), not
+       against mocks of them. -->
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.4/dist/aframe-extras.min.js"></script>
+  <script src="https://unpkg.com/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
+  <style>
+    body { margin: 0; }
+    #test-status {
+      position: fixed; left: 12px; bottom: 12px; z-index: 10;
+      padding: 8px 12px; color: #dff7ff; background: rgba(5, 15, 30, .82);
+      font: 13px/1.35 monospace; white-space: pre;
+    }
+    #test-controls {
+      position: fixed; right: 12px; bottom: 12px; z-index: 10;
+      display: flex; gap: 6px;
+    }
+    #test-controls button {
+      padding: 7px 10px; color: white; border: 1px solid #67e8f9;
+      background: #0f3a5a; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="test-status">CodeXR immersive harness</div>
+  <div id="test-controls">
+    <button onclick="CodeXRImmersiveHarness.enterAR()">Enter AR</button>
+    <button onclick="CodeXRImmersiveHarness.enterVR()">Enter VR</button>
+    <button onclick="CodeXRImmersiveHarness.exit()">Exit</button>
+    <button onclick="CodeXRImmersiveHarness.connect('right')">Right ctrl</button>
+    <button onclick="CodeXRImmersiveHarness.connect('left')">Left ctrl</button>
+    <button onclick="CodeXRImmersiveHarness.disconnect('right')">Drop right</button>
+  </div>
+
+  <!-- Scene skeleton mirrors templates/xr/file/xr-visualization.html: the same
+       ids, the same hide-on-enter-ar placement (env + room, nothing else), the
+       same pointer trio and controller entities, the same rig line. The runner
+       separately asserts the REAL template still matches this contract. -->
+  <a-scene id="scene"
+    light="defaultLightsEnabled: false"
+    background="color: #223"
+    codexr-pointer-policy
+    device-orientation-permission-ui>
+
+    <a-entity id="env" environment="preset: forest" hide-on-enter-ar></a-entity>
+
+    <!-- Room stand-in: the real codexr-room needs texture assets; what this
+         harness verifies is what hide-on-enter-ar DOES to the entity. -->
+    <a-entity id="codexrRoom" position="0 0 -10" hide-on-enter-ar>
+      <a-box position="0 5.5 -13" width="22" height="11" depth="0.3" color="#8899aa"></a-box>
+      <a-box position="-11 5.5 0" width="0.3" height="11" depth="26" color="#8899aa"></a-box>
+    </a-entity>
+
+    <a-entity light="color: #fff; type: ambient; intensity: 0.85"></a-entity>
+    <!-- AR fill, exactly as the templates declare it: idles at 0, raised by
+         codexr-ar-fill-light for AR sessions only (the environment's own
+         lights hide with #env in AR). -->
+    <a-entity id="arFillLight" codexr-ar-fill-light
+      light="type: directional; color: #ffffff; intensity: 0"
+      position="1 4 2"></a-entity>
+
+    <!-- Kept-in-AR set: pedestal (real runtime), chart, logo, screens, panel -->
+    <a-entity
+      id="codexrAnalysisTable"
+      codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
+    </a-entity>
+    <a-entity id="codexrBrandLogo" position="0 1.62 -18">
+      <a-box width="1.8" height="0.4" depth="0.2" color="#06b6d4"></a-box>
+    </a-entity>
+    <a-entity id="codexrAnalysisSurface" data-codexr-analysis-surface="true">
+      <a-entity id="codexrNormalAnalysisRoot" data-codexr-analysis-root="true">
+        <a-box id="chartStandIn" class="babiaxraycasterclass"
+          position="0 1.6 -18" width="1" height="1" depth="1" color="#f97316"></a-box>
+      </a-entity>
+    </a-entity>
+    <a-entity id="codexrScreenManager" position="0 0 0">
+      <a-plane id="screenStandIn" class="babiaxraycasterclass"
+        position="-6 3 -14" width="3" height="1.8" color="#111827"></a-plane>
+    </a-entity>
+    <a-plane id="panelStandIn" class="babiaxraycasterclass"
+      position="4 2.6 -15" width="2.4" height="3" color="#0b1526"></a-plane>
+
+    <!-- Rig copied from the template: eye height lives on the rig, camera at
+         local origin, movement-controls with its default `controls` (gamepad
+         included — excluding it is what silently killed VR movement once).
+         The runner asserts the real templates still match. -->
+    <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
+      codexr-immersive-rig="arX: 0.07; arZ: -14.7">
+      <a-entity id="head" camera position="0 0 0" look-controls>
+        <!-- No reticle geometry on purpose: the white ring bothered headset
+             users; gaze keeps working through its raycaster alone. -->
+        <a-entity
+          id="gazeCursor"
+          visible="false"
+          cursor="rayOrigin: entity; fuse: false"
+          raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
+        </a-entity>
+      </a-entity>
+
+      <!-- Declared exactly like the real templates: laser-controls and nothing
+           else, both hands alike. -->
+      <a-entity id="leftController" laser-controls="hand: left"></a-entity>
+      <a-entity id="rightController" laser-controls="hand: right"></a-entity>
+
+      <a-entity
+        id="mouseCursor"
+        cursor="rayOrigin: mouse"
+        raycaster="objects: .babiaxraycasterclass; far: 100">
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script src="../../templates/components/codexr/pointer-policy/codexrPointerPolicyRuntime.js?v=immersive1"></script>
+  <script src="../../templates/components/codexr/immersive-rig/codexrImmersiveRigRuntime.js?v=immersive1"></script>
+  <!-- The real debug runtime, so CodeXRDebug.simulateAR()/simulateVR() are
+       exercised here exactly as a user runs them in a generated scene. -->
+  <script src="../../templates/components/codexr/debug/codexrDebugRuntime.js?v=immersive1"></script>
+  <script src="assembled/analysisTableRuntime.js"></script>
+
+  <script>
+    (function (root) {
+      'use strict';
+
+      const scene = () => document.getElementById('scene');
+
+      // A fake `tracked-controls` SYSTEM, seeded as early as possible (this
+      // script runs right after the <a-scene> element exists, well before its
+      // 'loaded' event — which is when movement-controls attaches its
+      // gamepad-controls behaviour and captures a reference to whatever this
+      // system is at that moment). Locomotion in VR/AR is 100% native
+      // aframe-extras: gamepad-controls reads real controllers through this
+      // exact system/shape (`system.controllers[i].gamepad`, matched by
+      // `.handedness`) — feeding it fake entries here exercises the REAL
+      // library code, not a stand-in for it.
+      const trackedControlsSystem = (function () {
+        const sceneEl = scene();
+        sceneEl.systems = sceneEl.systems || {};
+        sceneEl.systems['tracked-controls'] = sceneEl.systems['tracked-controls'] || { controllers: [] };
+        return sceneEl.systems['tracked-controls'];
+      })();
+
+      // Gamepads modelled on what IWER (the Immersive Web Emulator's runtime)
+      // actually exposes — including its bug: `connected` starts FALSE and is
+      // only synced by a setter nothing invokes on session start, even though
+      // the WebXR Gamepads Module says a listed input source's gamepad is
+      // connected by definition. aframe-extras' gamepad-controls gates all
+      // stick input on that flag, so a `connected: true` fake here would hide
+      // the exact way the emulator kills locomotion (it did, once).
+      function fakeGamepad(hand) {
+        let entry = trackedControlsSystem.controllers.find((c) => c.handedness === hand);
+        if (!entry) {
+          entry = {
+            handedness: hand,
+            gamepad: {
+              // IWER's Quest layout: axes [null, null, stick-x, stick-y].
+              axes: [null, null, 0, 0],
+              buttons: [],
+              mapping: 'xr-standard',
+              connected: false,
+              hand: hand,
+            },
+          };
+          trackedControlsSystem.controllers.push(entry);
+        }
+        return entry.gamepad;
+      }
+      const clicks = { chartStandIn: 0, screenStandIn: 0, panelStandIn: 0 };
+      ['chartStandIn', 'screenStandIn', 'panelStandIn'].forEach(function (id) {
+        document.getElementById(id).addEventListener('click', function () {
+          clicks[id] += 1;
+        });
+      });
+
+      function visible(id) {
+        const el = document.getElementById(id);
+        return !!(el && el.object3D && el.object3D.visible);
+      }
+
+      function pointer(id) {
+        const el = document.getElementById(id);
+        if (!el) { return null; }
+        const raycaster = el.getAttribute('raycaster');
+        const direction = raycaster && raycaster.direction ? raycaster.direction : null;
+        return {
+          enabled: !!(raycaster && raycaster.enabled !== false),
+          showLine: !!(raycaster && raycaster.showLine === true),
+          objects: raycaster ? raycaster.objects : null,
+          direction: direction ? { x: direction.x, y: direction.y, z: direction.z } : null,
+          hasCursor: !!el.getAttribute('cursor'),
+          // The VISUAL truth, distinct from showLine: A-Frame's raycaster
+          // queues its line redraw with setTimeout and redraws without
+          // re-checking showLine, so a demoted laser can keep a rendered
+          // line while its attributes look correct (the "second laser").
+          hasLine: !!el.getAttribute('line'),
+          visible: el.getAttribute('visible') !== false,
+        };
+      }
+
+      function rigPose() {
+        const rig = document.getElementById('rig');
+        const p = rig.object3D.position;
+        const r = rig.object3D.rotation;
+        return { x: p.x, y: p.y, z: p.z, yaw: r.y };
+      }
+
+      function worldPosition(id) {
+        const el = document.getElementById(id);
+        if (!el || !el.object3D) { return null; }
+        el.object3D.updateMatrixWorld(true);
+        const out = new AFRAME.THREE.Vector3();
+        el.object3D.getWorldPosition(out);
+        return out;
+      }
+
+      // What the USER perceives, not what any component wrote into a variable:
+      // how high the eye actually sits, and whether it clears the tabletop.
+      // The previous harness asserted the rig's own y — the value the rig
+      // component itself had just written — and happily passed while the eye
+      // was on the floor and the pedestal overhead.
+      function geometry() {
+        const eye = worldPosition('head');
+        const rig = worldPosition('rig');
+        const tableEl = document.getElementById('codexrAnalysisTable');
+        let tableTopY = null;
+        let tableCentre = null;
+        if (tableEl && tableEl.object3D) {
+          const box = new AFRAME.THREE.Box3().setFromObject(tableEl.object3D);
+          if (Number.isFinite(box.max.y) && box.max.y > -Infinity) {
+            tableTopY = box.max.y;
+            tableCentre = box.getCenter(new AFRAME.THREE.Vector3());
+          }
+        }
+        const horizontalToTable = (eye && tableCentre)
+          ? Math.hypot(eye.x - tableCentre.x, eye.z - tableCentre.z)
+          : null;
+        return {
+          eyeWorldY: eye ? eye.y : null,
+          rigWorldY: rig ? rig.y : null,
+          tableTopY,
+          eyeAboveTable: (eye && tableTopY !== null) ? eye.y > tableTopY : null,
+          horizontalToTable,
+        };
+      }
+
+      root.CodeXRImmersiveHarness = {
+        clicks,
+        // A-Frame's own enterVR() needs a real WebXR session; the states +
+        // events below are exactly what it sets/emits around one, which is
+        // the surface every CodeXR component and A-Frame's hide-on-enter-ar
+        // subscribe to.
+        enterAR() { scene().addState('ar-mode'); scene().emit('enter-vr'); },
+        enterVR() { scene().addState('vr-mode'); scene().emit('enter-vr'); },
+        exit() {
+          const el = scene();
+          el.emit('exit-vr');
+          el.removeState('ar-mode');
+          el.removeState('vr-mode');
+        },
+        connect(side) {
+          document.getElementById(side + 'Controller')
+            .emit('controllerconnected', { name: 'generic-tracked-controller-controls' });
+        },
+        // The REAL Quest/emulator event sequence: laser-controls reacts to
+        // controllerconnected with a default raycaster, then meta-touch's
+        // model load emits controllermodelready carrying the model-specific
+        // rayOrigin — the ~40°-down direction that maps the grip axis onto
+        // where the controller actually points (verbatim payload from
+        // A-Frame 1.7.1's meta-touch-controls for the touch-plus models).
+        // Everything downstream (laser-controls createRay, cursor injection,
+        // codexr-pointer-policy) is the real library code reacting.
+        metaRayOrigin(side) {
+          const sx = side === 'left' ? 1 : -1;
+          return {
+            origin: { x: sx * 0.0065, y: -0.0186, z: -0.05 },
+            direction: { x: sx * 0.12394785839500175, y: -0.5944043672340157, z: -0.7945567170519814 },
+          };
+        },
+        connectMeta(side) {
+          const el = document.getElementById(side + 'Controller');
+          el.emit('controllerconnected', { name: 'meta-touch-controls' });
+          el.emit('controllermodelready', {
+            name: 'meta-touch-controls',
+            model: true,
+            rayOrigin: this.metaRayOrigin(side),
+          });
+        },
+        // IWER re-announces input sources (visibility blips, remote
+        // set_connected calls): every re-fire makes laser-controls re-apply
+        // `showLine: true` on that controller. The policy must win each time
+        // or a second laser stays lit.
+        reannounce(side) {
+          document.getElementById(side + 'Controller')
+            .emit('controllerconnected', { name: 'meta-touch-controls' });
+        },
+        // The DOM event A-Frame's controller components publish from the
+        // gamepad's thumbstick — drives codexr-pointer-policy's handover,
+        // which is independent of locomotion.
+        stick(side, x, y) {
+          document.getElementById(side + 'Controller')
+            .emit('thumbstickmoved', { x: x, y: y });
+        },
+        // The actual input path for VR/AR locomotion: aframe-extras'
+        // gamepad-controls polls `system.controllers[i].gamepad.axes` every
+        // tick — it does not listen for thumbstickmoved at all. Movement
+        // always reads the LEFT-handed gamepad's axes[2]/[3]; turning always
+        // reads the RIGHT-handed gamepad's axes[2] (verbatim from
+        // aframe-extras' getJoystick(), which is a fixed, not configurable,
+        // scheme).
+        setStickAxes(hand, x, y) {
+          const gamepad = fakeGamepad(hand);
+          gamepad.axes[2] = x;
+          gamepad.axes[3] = y;
+        },
+        clearStickAxes() {
+          ['left', 'right'].forEach((hand) => {
+            const gamepad = fakeGamepad(hand);
+            gamepad.axes[2] = 0;
+            gamepad.axes[3] = 0;
+          });
+        },
+        movementControlsFly() {
+          const attr = document.getElementById('rig').getAttribute('movement-controls');
+          return !!(attr && attr.fly);
+        },
+        trigger(side) {
+          document.getElementById(side + 'Controller').emit('triggerdown');
+        },
+        activePointer() {
+          const names = ['mouse', 'gaze', 'left', 'right'];
+          const ids = ['mouseCursor', 'gazeCursor', 'leftController', 'rightController'];
+          const live = ids
+            .map((id, index) => ({ name: names[index], state: pointer(id) }))
+            .filter((entry) => entry.state && entry.state.enabled);
+          // More than one live pointer is the bug this policy exists to stop.
+          return live.length === 1 ? live[0].name : live.map((e) => e.name).join('+') || 'none';
+        },
+        disconnect(side) {
+          document.getElementById(side + 'Controller')
+            .emit('controllerdisconnected', { name: 'generic-tracked-controller-controls' });
+        },
+        click(id) {
+          document.getElementById(id).dispatchEvent(new Event('click', { bubbles: false }));
+        },
+        // A real WebXR session's marker: A-Frame assigns sceneEl.xrSession
+        // BEFORE emitting enter-vr (a-scene.js), and the simulated entries
+        // never set it. codexr-immersive-rig keys its floor alignment on it.
+        setRealSession(on) {
+          if (on) {
+            // A real XRSession is an EventTarget — A-Frame's cursor component
+            // subscribes selectstart/selectend on it, so the fake must accept
+            // (and ignore) listener calls or cursor teardown throws.
+            scene().xrSession = {
+              addEventListener() {},
+              removeEventListener() {},
+            };
+          } else {
+            delete scene().xrSession;
+          }
+        },
+        // Stand-in for what three.js writes into the CAMERA entity from the
+        // device's local-floor pose: the user's height above their physical
+        // floor. look-controls freezes the camera matrix under a session, so
+        // refresh the matrices by hand exactly as the XR manager would.
+        fakeHeadsetPose(y) {
+          const head = document.getElementById('head');
+          head.object3D.position.set(0, y, 0);
+          head.object3D.updateMatrix();
+          head.object3D.updateMatrixWorld(true);
+        },
+        // look-controls rewrites the camera's rotation from its own pitch/yaw
+        // objects every tick (that is what a mouse drag does), so tilting the
+        // head means telling IT — poking object3D.rotation directly would be
+        // undone on the next tick. This is also exactly what gamepad-controls'
+        // updateVelocity reads (cameraEl.object3D.quaternion) to fly toward
+        // wherever the camera is looking, pitch included.
+        pitchCamera(radians) {
+          const head = document.getElementById('head');
+          const look = head.components && head.components['look-controls'];
+          if (look && look.pitchObject) {
+            look.pitchObject.rotation.x = radians;
+            return;
+          }
+          head.object3D.rotation.x = radians;
+          head.object3D.updateMatrix();
+          head.object3D.updateMatrixWorld(true);
+        },
+        snapshot() {
+          return {
+            states: { ar: scene().is('ar-mode'), vr: scene().is('vr-mode') },
+            hidden: { env: !visible('env'), room: !visible('codexrRoom') },
+            kept: {
+              table: visible('codexrAnalysisTable'),
+              chart: visible('chartStandIn'),
+              logo: visible('codexrBrandLogo'),
+              screens: visible('screenStandIn'),
+              panel: visible('panelStandIn'),
+              rig: visible('rig'),
+            },
+            pointers: {
+              mouse: pointer('mouseCursor'),
+              gaze: pointer('gazeCursor'),
+              left: pointer('leftController'),
+              right: pointer('rightController'),
+            },
+            rig: rigPose(),
+            geometry: geometry(),
+            movement: {
+              attached: !!document.getElementById('rig').components['movement-controls'],
+              gamepadRegistered: !!AFRAME.components['gamepad-controls'],
+              keyboardRegistered: !!AFRAME.components['keyboard-controls'],
+              fly: this.movementControlsFly(),
+              // Diagnostic: did gamepad-controls actually pick up OUR fake
+              // system, or did it initialize before this script seeded it and
+              // fall back to a disconnected local one? If this is ever false,
+              // the axes we set are being read by nobody.
+              usingOurTrackedControlsSystem: (function () {
+                const gp = document.getElementById('rig').components['gamepad-controls'];
+                return !!gp && gp.system === trackedControlsSystem;
+              })(),
+            },
+            clicks: Object.assign({}, clicks),
+          };
+        },
+      };
+
+      setInterval(function () {
+        const status = document.getElementById('test-status');
+        if (!status || !scene() || !scene().hasLoaded) { return; }
+        const snap = root.CodeXRImmersiveHarness.snapshot();
+        const g = snap.geometry;
+        status.textContent = 'mode: ' + (snap.states.ar ? 'AR' : snap.states.vr ? 'VR' : 'desktop')
+          + ' | env hidden: ' + snap.hidden.env
+          + ' | room hidden: ' + snap.hidden.room
+          + '\neye height: ' + (g.eyeWorldY === null ? '?' : g.eyeWorldY.toFixed(2))
+          + ' | above table: ' + g.eyeAboveTable
+          + ' | rig y: ' + (g.rigWorldY === null ? '?' : g.rigWorldY.toFixed(2))
+          + ' | fly: ' + snap.movement.fly
+          + '\npointers m/g/l/r: '
+          + [snap.pointers.mouse, snap.pointers.gaze, snap.pointers.left, snap.pointers.right]
+            .map((p) => (p && p.enabled ? 'ON' : 'off')).join('/');
+      }, 400);
+    })(window);
+  </script>
+</body>
+</html>

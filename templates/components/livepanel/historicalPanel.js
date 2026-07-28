@@ -234,10 +234,12 @@ class CodexrHistoricalPanel {
       columns.push({
         key: `delta:${metric}`, label: `Δ ${metric}`, align: 'right', defaultDir: 'desc', searchable: false,
         render: (row) => {
-          const left = row[`left:${metric}`];
-          const right = row[`right:${metric}`];
-          const delta = row[`delta:${metric}`];
-          const sign = delta > 0 ? '+' : '';
+          const left = formatMetricValue(row[`left:${metric}`]);
+          const right = formatMetricValue(row[`right:${metric}`]);
+          const delta = formatMetricValue(row[`delta:${metric}`]);
+          // The sign follows the DISPLAYED delta, so a change too small to
+          // survive rounding never shows up as "+0".
+          const sign = Number(delta) > 0 ? '+' : '';
           return escapeHtml(`${left} → ${right} (${sign}${delta})`);
         },
       });

@@ -49,7 +49,12 @@ const config = {
         {
           from: 'templates',
           to: 'templates',
-          noErrorOnMissing: true
+          noErrorOnMissing: true,
+          // Copied as data, not built: multi-part runtimes under
+          // templates/components/codexr/*/<runtimeBase>/*.js are fragments that
+          // only parse once concatenated per their manifest.json, so the
+          // production minifier must never touch them.
+          info: { minimized: true }
         },
         {
           from: 'examples',
@@ -59,7 +64,10 @@ const config = {
       ],
     }),
   ],
-  devtool: 'nosources-source-map',
+  // Source maps help the F5 dev flow; the packaged VSIX must not carry them
+  // (extension.js.map alone is ~3.5 MB). scripts/package-vsix.mjs sets this
+  // variable for the vsce run, whose vscode:prepublish hook re-runs webpack.
+  devtool: process.env.CODEXR_NO_SOURCEMAPS ? false : 'nosources-source-map',
   infrastructureLogging: {
     level: 'log',
   },

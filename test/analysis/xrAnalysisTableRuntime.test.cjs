@@ -376,6 +376,58 @@ function makeMetaEntity(attributes) {
     };
 }
 
+test('per-chart fit strategy and surface lift come from the chart id, with a component fallback', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const { resolveChartFitMode, resolveChartSurfaceLift } = runtime.__testing;
+
+    // Circular charts scale on one factor, row charts keep x and z equal,
+    // everything else stays on the per-axis pipeline.
+    assert.equal(resolveChartFitMode(makeMetaEntity({ 'data-codexr-active-chart-id': 'pie' })), 'uniform');
+    assert.equal(resolveChartFitMode(makeMetaEntity({ 'data-codexr-active-chart-id': 'bubbles' })), 'uniform');
+    assert.equal(resolveChartFitMode(makeMetaEntity({ 'data-codexr-active-chart-id': 'cyls' })), 'planar-uniform');
+    assert.equal(resolveChartFitMode(makeMetaEntity({ 'data-codexr-active-chart-id': 'boats' })), 'per-axis');
+    // Scenes generated before the chart-id attribute existed: the live babia
+    // component identifies the chart.
+    assert.equal(resolveChartFitMode(makeMetaEntity({ 'babia-doughnut': 'from: data' })), 'uniform');
+
+    // Only spheres need clearance: the anchor plane is under the glass, and
+    // round bottoms are the geometry that surface visibly slices.
+    assert.equal(resolveChartSurfaceLift(makeMetaEntity({ 'data-codexr-active-chart-id': 'bubbles' })) > 0, true);
+    assert.equal(resolveChartSurfaceLift(makeMetaEntity({ 'data-codexr-active-chart-id': 'bars' })), 0);
+    assert.equal(resolveChartSurfaceLift(makeMetaEntity({ 'data-codexr-active-chart-id': 'pie' })), 0);
+    assert.equal(resolveChartSurfaceLift(null), 0);
+});
+
+test('the anchor offset lifts a chart by its declared surface clearance', () => {
+    const { runtime } = loadRuntimeSandbox();
+    const { computeAnchorOffset, getTableTopY } = runtime.__testing;
+
+    const data = {
+        anchorX: 0,
+        anchorY: 1,
+        anchorZ: -18,
+        tableTopSurfaceOffsetY: -0.08,
+        tabletopAnchorEpsilon: 0.004,
+    };
+    const bounds = {
+        bounds: { min: { x: -1, y: 0.9, z: -19 }, max: { x: 1, y: 1.6, z: -17 } },
+        size: { x: 2, y: 0.7, z: 2 },
+        center: { x: 0, y: 1.25, z: -18 },
+    };
+    const measurements = { full: bounds, primary: bounds, containment: bounds, content: null, peakHeight: 0.6 };
+
+    const flat = computeAnchorOffset(measurements, data);
+    assert.equal(+flat.deltaY.toFixed(4), +(getTableTopY(data) - 0.9).toFixed(4));
+
+    const lifted = computeAnchorOffset(measurements, data, 0.03);
+    assert.equal(+(lifted.deltaY - flat.deltaY).toFixed(4), 0.03);
+    // The lift is vertical only, and a negative one can never pull a chart
+    // into the table.
+    assert.equal(lifted.deltaX, flat.deltaX);
+    assert.equal(lifted.deltaZ, flat.deltaZ);
+    assert.equal(computeAnchorOffset(measurements, data, -5).deltaY, flat.deltaY);
+});
+
 test('bootstrap planar fit only guarantees visibility and containment', () => {
     const { runtime } = loadRuntimeSandbox();
     const helpers = runtime.__testing;
@@ -614,6 +666,7 @@ test('tabletop anchor uses primary geometry floor instead of full auxiliary boun
     assert.equal(Number(offset.deltaZ.toFixed(6)), 2);
     assert.deepEqual(JSON.parse(JSON.stringify(diagnostics)), {
         tableTopY: 0.924,
+        surfaceLift: 0,
         primaryMinY: 0.924,
         deltaY: 0,
         epsilon: 0.004,

@@ -39,7 +39,7 @@
       || text.indexOf('update') !== -1;
   }
 
-  function buildContainmentCorrectionState(measurements, object3D, data) {
+  function buildContainmentCorrectionState(measurements, object3D, data, fitMode) {
     if (!hasUsableMeasurements(measurements) || !object3D || !object3D.scale || !data) {
       return null;
     }
@@ -90,6 +90,15 @@
 
     xTarget = constrainPlanarTargetForHeightCompromise(xTarget, object3D.scale.x, yTarget, measurements.peakHeight, heightTargets.maxHeight);
     zTarget = constrainPlanarTargetForHeightCompromise(zTarget, object3D.scale.z, yTarget, measurements.peakHeight, heightTargets.maxHeight);
+
+    if (fitMode === 'planar-uniform') {
+      // Mirror the steady controller: both planar axes aim at the same scale
+      // value, so the non-binding axis's under-occupancy is by design and
+      // must not keep the chart "correcting" forever.
+      var unified = unifyPlanarTargets(xTarget, zTarget);
+      xTarget = unified.x;
+      zTarget = unified.z;
+    }
 
     var xNeedsCorrection = targetNeedsCorrection(xTarget, object3D.scale.x);
     var yNeedsCorrection = targetNeedsCorrection(yTarget, object3D.scale.y) || !!hardHeightGuard.overflowing;
@@ -236,11 +245,12 @@
     };
   }
 
-  function computeAnchorOffset(measurements, data) {
+  function computeAnchorOffset(measurements, data, surfaceLift) {
     if (!measurements || !isFiniteBoundsInfo(measurements.full) || !isFiniteBoundsInfo(measurements.primary) || !data) {
       return null;
     }
-    var tableTopY = getTableTopY(data);
+    var lift = Number.isFinite(surfaceLift) ? Math.max(0, surfaceLift) : 0;
+    var tableTopY = getTableTopY(data) + lift;
 
     return {
       deltaX: data.anchorX - measurements.primary.center.x,
@@ -249,14 +259,18 @@
     };
   }
 
-  function buildTabletopAnchorDiagnostics(measurements, data) {
+  function buildTabletopAnchorDiagnostics(measurements, data, surfaceLift) {
     if (!measurements || !isFiniteBoundsInfo(measurements.primary) || !data) {
       return null;
     }
-    var tableTopY = getTableTopY(data);
+    var lift = Number.isFinite(surfaceLift) ? Math.max(0, surfaceLift) : 0;
+    // Report against the chart's OWN anchor target: a chart that declares a
+    // surface lift is correctly placed above the plane, not misaligned.
+    var tableTopY = getTableTopY(data) + lift;
     var primaryMinY = measurements.primary.bounds.min.y;
     return {
       tableTopY: toFixedNumber(tableTopY),
+      surfaceLift: toFixedNumber(lift),
       primaryMinY: toFixedNumber(primaryMinY),
       deltaY: toFixedNumber(tableTopY - primaryMinY),
       epsilon: toFixedNumber(Number.isFinite(data.tabletopAnchorEpsilon) ? data.tabletopAnchorEpsilon : DEFAULTS.tabletopAnchorEpsilon),

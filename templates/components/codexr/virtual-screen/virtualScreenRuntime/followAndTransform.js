@@ -19,6 +19,16 @@
       if (refs.config.collisionEnabled === false) {
         return null;
       }
+      // In AR the room is functionally gone (hidden, and its pieces drop
+      // their raycast class): screens must move freely instead of bumping
+      // into invisible walls. Checked live and BEFORE the cache so the
+      // cached room bounds stay intact for when the session ends — desktop
+      // and VR keep colliding exactly as before. An explicit collisionBounds
+      // override still applies (it describes the caller's own space, not the
+      // virtual room). Screen-vs-screen obstacles are untouched.
+      if (getScene()?.is?.('ar-mode') && !refs.config.collisionBounds) {
+        return null;
+      }
       if (refs.collisionBoundsCache) {
         return refs.collisionBoundsCache;
       }

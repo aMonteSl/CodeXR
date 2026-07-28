@@ -42,6 +42,7 @@ Full matrix and manual-validation flow: `.claude/docs/DEVELOPMENT.md`.
 | `session-close` | Ending a session — status doc + CHANGELOG + doc sync + commit hygiene checklist |
 | `runtime-component` | Touching JS/CSS under `templates/components/` — injection paths, load order, required tests |
 | `add-language` | Language-support changes — Python contract ↔ TS metadata sync, fixtures, test matrix |
+| `capture-media` | Producing README/website screenshots — drives a real running analysis with Playwright and reviews every shot (list in `media/SHOTLIST.md`) |
 
 ## AI workflow rules
 

@@ -59,8 +59,15 @@
             position="0 0 0">
         </a-entity>
 
-        <!-- Light -->
+        <!-- Light. The environment component parents its own hemisphere +
+             directional lights under #env, which is hidden in AR — this
+             ambient plus the AR fill below are the only lights that survive
+             there. The fill idles at 0 and codexr-ar-fill-light raises it for
+             AR sessions only, so desktop and VR keep their exact look. -->
         <a-entity light="color: #fff; type:ambient; intensity: 0.85"></a-entity>
+        <a-entity codexr-ar-fill-light
+        light="type: directional; color: #ffffff; intensity: 0"
+        position="1 4 2"></a-entity>
         
         <!-- Data -->
         <a-entity id="data" babia-queryjson="url: ${DATA_SOURCE}"></a-entity>
@@ -69,6 +76,14 @@
         <a-entity
             id="codexrAnalysisTable"
             codexr-analysis-table="mode: single; width: 6.514; depth: 4.118; anchorX: 0; anchorY: 1; anchorZ: -18">
+        </a-entity>
+        <!-- Brand mark over the table while no analysis is loaded. Decoration
+             only: it carries no raycaster class, and it lives outside the
+             analysis surface so the selection sweep never owns it. -->
+        <a-entity
+            id="codexrBrandLogo"
+            data-codexr-role="brand-logo auxiliary"
+            codexr-logo="anchorX: 0; anchorY: 1.62; anchorZ: -18; width: 1.8">
         </a-entity>
         <a-entity
             id="codexrAnalysisSurface"
@@ -89,57 +104,43 @@
         <!-- Babia UI panel and toggle (optional) -->
         ${BABIA_UI_COMPONENT}
 
-        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75">
-        <!-- Cámara + cursor de mirada (activo SOLO en VR sin mandos; lo gobierna codexr-pointer-policy) -->
+        <!-- Eye height lives on the RIG, never on the camera. WebXR only ever
+             touches the CAMERA entity's local transform (look-controls zeroes
+             it when a real session starts, restores it on exit) — the rig's
+             position is its own and survives any enter-vr/exit-vr untouched.
+             That is what keeps you standing at the same height in the browser,
+             in VR and in AR alike. movement-controls drives the rig with its
+             native gamepad support: left stick walks, right stick turns —
+             both by quaternion, so there is no Euler-angle math to get wrong.
+             codexr-immersive-rig turns on `fly` for the duration of any
+             immersive session (see requirement below) and, in AR only,
+             recenters the rig next to the pedestal. -->
+        <a-entity id="rig" movement-controls="fly: false" position="0.07 1.75 -10.75"
+        codexr-immersive-rig="arX: 0.07; arZ: -14.7">
+        <!-- Cámara + cursor de mirada (activo SOLO en sesión real sin mandos; lo
+             gobierna codexr-pointer-policy). Sin geometría de retícula a
+             propósito: el anillo blanco molestaba en el casco y el hover ya se
+             ve en el propio contenido. -->
         <a-entity id="head" camera position="0 0 0" look-controls>
             <a-entity
             id="gazeCursor"
             visible="false"
             cursor="rayOrigin: entity; fuse: false"
             raycaster="objects: .babiaxraycasterclass; far: 100; enabled: false">
-                <a-ring
-                position="0 0 -0.6"
-                radius-inner="0.008"
-                radius-outer="0.014"
-                material="color: #ffffff; shader: flat; opacity: 0.85"></a-ring>
             </a-entity>
         </a-entity>
 
-        <!-- Mando izquierdo: modelo visible; codexr-pointer-policy le retira el cursor/raycaster que laser-controls inyecta -->
-        <a-entity
-        id="leftController"
-        laser-controls="hand: left"
-        meta-touch-controls="hand: left; model: true"
-        daydream-controls="hand: left"
-        gearvr-controls="hand: left"
-        hp-mixed-reality-controls="hand: left"
-        magicleap-controls="hand: left"
-        oculus-go-controls="hand: left"
-        valve-index-controls="hand: left"
-        vive-controls="hand: left"
-        vive-focus-controls="hand: left"
-        windows-motion-controls="hand: left"
-        generic-tracked-controller-controls="hand: left">
-        </a-entity>
-
-        <!-- Mando derecho: puntero por defecto cuando hay mandos conectados -->
-        <a-entity
-        id="rightController"
-        laser-controls="hand: right"
-        meta-touch-controls="hand: right; model: true"
-        daydream-controls="hand: right"
-        gearvr-controls="hand: right"
-        hp-mixed-reality-controls="hand: right"
-        magicleap-controls="hand: right"
-        oculus-go-controls="hand: right"
-        valve-index-controls="hand: right"
-        vive-controls="hand: right"
-        vive-focus-controls="hand: right"
-        windows-motion-controls="hand: right"
-        generic-tracked-controller-controls="hand: right"
-        cursor="rayOrigin: entity; fuse: false"
-        raycaster="objects: .babiaxraycasterclass; far: 100; showLine: true; lineColor: blue; lineOpacity: 0.5">
-        </a-entity>
+        <!-- Both controllers are declared IDENTICALLY, with laser-controls and
+             nothing else. It already adds the right per-device component
+             (meta-touch-controls, vive-controls, …) itself, and it owns the
+             raycaster's origin and direction — which matters: Touch controllers
+             are held at an angle to the direction they point (A-Frame rotates
+             their model by ~40°), so a hand-written raycaster with no direction
+             shoots the ray high above where the controller is aiming.
+             codexr-pointer-policy only toggles enabled/objects/showLine on top,
+             and hands the pointer to whichever controller you last used. -->
+        <a-entity id="leftController" laser-controls="hand: left"></a-entity>
+        <a-entity id="rightController" laser-controls="hand: right"></a-entity>
 
         <!-- Cursor para interacción con ratón (puntero activo en navegador normal) -->
         <a-entity
@@ -158,9 +159,11 @@
 <script nonce="${nonce}" src="./codexrMultiScreenManagerRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./guideScreenRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrRoomRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrLogoRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrCommonRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrGitRefPickerRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./codexrPointerPolicyRuntime.js?v=${nonce}"></script>
+<script nonce="${nonce}" src="./codexrImmersiveRigRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartMappingUiRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./xrChartDebugRuntime.js?v=${nonce}"></script>
 <script nonce="${nonce}" src="./analysisTableRuntime.js?v=${nonce}"></script>
