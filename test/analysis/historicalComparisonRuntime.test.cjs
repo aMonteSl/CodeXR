@@ -59,7 +59,9 @@ test('historical runtime replays computed comparisons in a self-contained export
     const requestIndex = runtimeSource.indexOf("sendMessage?.('historical-comparison-references-request'");
     const offlineBranch = runtimeSource.indexOf('showOfflineReplayStatus()');
     assert.ok(offlineBranch > -1 && requestIndex > -1);
-    assert.match(runtimeSource, /isOfflineExport\?\.\(\)[\s\S]{0,120}showOfflineReplayStatus\(\)/);
+    // The offline branch now checks for exported git data first; the replay
+    // status remains its fallback within the same guarded block.
+    assert.match(runtimeSource, /isOfflineExport\?\.\(\)[\s\S]{0,700}showOfflineReplayStatus\(\)/);
 
     // Compare walks the replay list offline: newest first, wrapping around.
     assert.match(runtimeSource, /function getOfflineReplayList\(\)/);
@@ -73,4 +75,71 @@ test('historical runtime replays computed comparisons in a self-contained export
 
     // Without computed comparisons the mode says exactly why it cannot run.
     assert.match(runtimeSource, /No comparison was computed before this export/);
+});
+
+// == Offline comparisons from exported git payloads ==
+
+test('exported git payloads turn Compare into a real offline comparison', () => {
+    assert.match(runtimeSource, /getOfflineGitData\(\)/);
+    assert.match(runtimeSource, /synthesizeOfflineHistoricalReferences\(offlineGitData\)/);
+    assert.match(runtimeSource, /pick any two exported revisions/);
+    assert.match(runtimeSource, /startOfflineGitComparison\(\)/);
+    assert.match(runtimeSource, /showOfflineReplayStatus\(\)/);
+});
+
+test('the offline delta port matches the server semantics over payload pairs', () => {
+    const runtime = loadRuntime();
+    const del = runtime.__testing.buildOfflineDelta;
+
+    const left = [
+        { comparisonKey: 'file:a.py', totalLines: 10, filePath: 'x/a.py' },
+        { comparisonKey: 'file:b.py', totalLines: 5 },
+        { comparisonKey: 'file:c.py', totalLines: 7, language: 'Python' },
+    ];
+    const right = [
+        { comparisonKey: 'file:a.py', totalLines: 10, filePath: 'y/a.py' },
+        { comparisonKey: 'file:b.py', totalLines: 6 },
+        { comparisonKey: 'file:d.py', totalLines: 1 },
+    ];
+
+    const directory = del(left, right, 'directory');
+    assert.deepEqual(
+        { added: directory.added, removed: directory.removed, modified: directory.modified, unchanged: directory.unchanged },
+        { added: 1, removed: 1, modified: 1, unchanged: 1 },
+    );
+    // metrics stays empty offline (XR never reads it); length-checked because
+    // the runtime's array comes from another vm realm.
+    assert.equal(directory.metrics.length, 0);
+
+    const stringLeft = [{ comparisonKey: 'k', signature: 'foo(a)' }];
+    const stringRight = [{ comparisonKey: 'k', signature: 'foo(a, b)' }];
+    assert.equal(del(stringLeft, stringRight, 'directory').unchanged, 1);
+    assert.equal(del(stringLeft, stringRight, 'file').modified, 1);
+
+    const withEvolutionKey = del(
+        [{ comparisonKey: 'k', evolutionKey: 'file:x', totalLines: 2 }],
+        [{ comparisonKey: 'k', evolutionKey: 'file:y', totalLines: 2 }],
+        'file',
+    );
+    assert.equal(withEvolutionKey.unchanged, 1);
+});
+
+test('synthesized historical references keep the picker contract', () => {
+    const runtime = loadRuntime();
+    const references = runtime.__testing.synthesizeOfflineHistoricalReferences({
+        references: {
+            repositoryRoot: '/repo',
+            targetRelativePath: 'src',
+            workingTreeDirty: true,
+            activeBranch: 'main',
+            pageSize: 5,
+            sources: [{ id: 'working-copy', kind: 'workingCopy' }, { id: 'commit:a', kind: 'gitRef' }],
+        },
+        workingCopyPayloadUrl: './git-revisions/working-copy.json',
+    });
+    assert.equal(references.pageSize, 5);
+    assert.equal(references.workingTreeDirty, true);
+    assert.equal(references.activeBranch, 'main');
+    assert.equal(references.sources.length, 2);
+    assert.equal(references.activeRequest, null);
 });

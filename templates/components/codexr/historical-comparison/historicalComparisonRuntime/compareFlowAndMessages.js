@@ -41,9 +41,22 @@
   }
 
   function startComparison() {
-    // Offline, Compare walks the replay list instead of computing: each press
-    // loads the next exported comparison, newest first.
+    // Offline with exported git payloads, Compare works for real: validate
+    // the selection like online and compose the comparison locally. Without
+    // payloads, walk the replay list of precomputed comparisons.
     if (getClient()?.isOfflineExport?.()) {
+      if (getOfflineGitData()) {
+        if (!state.selected.left || !state.selected.right) {
+          setStatus('Select both comparison sources.', 'error');
+          return;
+        }
+        if (state.selected.left === state.selected.right) {
+          setStatus('Choose two different comparison sources.', 'error');
+          return;
+        }
+        void startOfflineGitComparison();
+        return;
+      }
       var replays = getOfflineReplayList();
       if (replays.length === 0) {
         setStatus('No comparison was computed before this export: computing one needs the live CodeXR session.', 'error');

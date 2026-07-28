@@ -463,7 +463,7 @@
   }
 
   function findSource(sourceId) {
-    var sources = Array.isArray(state.references.sources) ? state.references.sources : [];
+    var sources = Array.isArray(state.references?.sources) ? state.references.sources : [];
     return sources.find(function (source) { return source.id === sourceId; }) || null;
   }
 

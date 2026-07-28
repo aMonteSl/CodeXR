@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { ExportGitData } from './gitRevisionExportCore';
 
 /**
  * Self-contained export support.
@@ -50,6 +51,17 @@ export interface ExportManifestOptions {
      * the user left it.
      */
     viewState?: { mode: string; controllerView?: string };
+    /**
+     * Shared per-revision git payloads produced at export time. Present only
+     * when the user selected historical/evolution in the export modal and the
+     * timeline analysis produced usable data. Runtimes gate on its PRESENCE,
+     * never on schemaVersion, so older manifests keep their replay behavior.
+     */
+    gitData?: ExportGitData;
+    /** Set when git data was selected but could not be produced. */
+    gitDataFailureReason?: string;
+    /** True when the user ticked historical/evolution in the modal. */
+    gitDataSelected?: boolean;
 }
 
 interface ComparisonReplayEntry {
@@ -75,6 +87,7 @@ export interface ExportManifest {
     };
     entities: Record<string, unknown>[];
     historicalComparison: { comparisons: ComparisonReplayEntry[] };
+    gitData?: ExportGitData;
 }
 
 export function isXrSceneFolder(folderPath: string): boolean {
@@ -286,8 +299,21 @@ export async function buildExportManifest(
         });
     }
 
+    // Shared git payloads unlock the real offline flows: any pair compares,
+    // any movie generates. Without them the capabilities fall back to the
+    // artifact-based replay gating, exactly as before gitData existed.
+    const gitData = options.gitData && options.gitData.references.sources.length >= 2
+        ? options.gitData
+        : undefined;
+    const partialSuffix = gitData?.partial
+        ? ` Partial: the git analysis was cancelled after ${gitData.analyzedRevisionCount} revisions.`
+        : '';
+    const gitMissingSuffix = options.gitDataSelected && !gitData
+        ? ` ${options.gitDataFailureReason || 'The git timeline analysis produced no usable data.'}`
+        : '';
+
     const manifest: ExportManifest = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         kind: 'codexr-export',
         exportedAt: new Date().toISOString(),
         target: options.target,
@@ -299,17 +325,22 @@ export async function buildExportManifest(
                     || (options.serverCapabilities.dependencyGraph
                         ? 'No dependency dataset was generated before export.'
                         : 'This analysis mode has no dependency graph.'),
-            historicalComparison: historicalReady,
-            historicalComparisonReason: historicalReady
-                ? 'Replay only: new comparisons need the live CodeXR session.'
-                : 'No comparison was computed before export.',
-            projectEvolution: evolutionReady,
-            projectEvolutionReason: evolutionReady
-                ? 'Replay only: generating a new movie needs the live CodeXR session.'
-                : 'No evolution movie was generated before export.',
+            historicalComparison: gitData ? true : historicalReady,
+            historicalComparisonReason: gitData
+                ? `Offline comparisons: pick any two of the ${gitData.analyzedRevisionCount} exported revisions.${partialSuffix}`
+                : (historicalReady
+                    ? 'Replay only: new comparisons need the live CodeXR session.'
+                    : `No comparison was computed before export.${gitMissingSuffix}`),
+            projectEvolution: gitData ? true : evolutionReady,
+            projectEvolutionReason: gitData
+                ? `Offline movies from the ${gitData.analyzedRevisionCount} exported revisions (Auto, Range or Manual).${partialSuffix}`
+                : (evolutionReady
+                    ? 'Replay only: generating a new movie needs the live CodeXR session.'
+                    : `No evolution movie was generated before export.${gitMissingSuffix}`),
         },
         entities,
         historicalComparison: { comparisons },
+        ...(gitData ? { gitData } : {}),
     };
 
     await writeJson(path.join(destinationPath, EXPORT_MANIFEST_FILE_NAME), manifest);
@@ -386,7 +417,11 @@ export async function writeExportReadme(
     manifest: ExportManifest,
 ): Promise<void> {
     const modeLine = (available: boolean, name: string, reason: string): string => (
-        available ? `- **${name}**: works (replay of what was computed before export).` : `- **${name}**: not available in this export. ${reason}`
+        available
+            ? (manifest.gitData
+                ? `- **${name}**: fully interactive offline. ${reason}`
+                : `- **${name}**: works (replay of what was computed before export).`)
+            : `- **${name}**: not available in this export. ${reason}`
     );
     const content = `# CodeXR exported analysis
 

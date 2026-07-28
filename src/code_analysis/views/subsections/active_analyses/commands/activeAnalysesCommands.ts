@@ -19,6 +19,9 @@ import {
     relativizeExportArtifacts,
     writeExportReadme,
 } from '../../../../export/exportManifest';
+import { buildExportModeItems, interpretExportSelection } from '../../../../export/exportModeSelection';
+import { exportGitRevisionData } from '../../../../export/gitRevisionExporter';
+import { GitExportOutcome } from '../../../../export/gitRevisionExportCore';
 
 export class ActiveAnalysesCommands {
     private static instance: ActiveAnalysesCommands;
@@ -27,6 +30,7 @@ export class ActiveAnalysesCommands {
     private constructor(
         private sessionRegistry: UnifiedSessionRegistry,
         private serverWatcher: ServerWatcherIntegration,
+        private extensionContext?: vscode.ExtensionContext,
     ) {
         this.commands = [
             {
@@ -77,12 +81,17 @@ export class ActiveAnalysesCommands {
     public static getInstance(
         sessionRegistry?: UnifiedSessionRegistry,
         serverWatcher?: ServerWatcherIntegration,
+        extensionContext?: vscode.ExtensionContext,
     ): ActiveAnalysesCommands {
         if (!ActiveAnalysesCommands.instance) {
             if (!sessionRegistry || !serverWatcher) {
                 throw new Error('SessionRegistry and ServerWatcher are required for first initialization');
             }
-            ActiveAnalysesCommands.instance = new ActiveAnalysesCommands(sessionRegistry, serverWatcher);
+            ActiveAnalysesCommands.instance = new ActiveAnalysesCommands(
+                sessionRegistry, serverWatcher, extensionContext,
+            );
+        } else if (extensionContext && !ActiveAnalysesCommands.instance.extensionContext) {
+            ActiveAnalysesCommands.instance.extensionContext = extensionContext;
         }
         return ActiveAnalysesCommands.instance;
     }
@@ -286,6 +295,21 @@ export class ActiveAnalysesCommands {
             return;
         }
 
+        // The modal comes first: what goes into the copy decides how long the
+        // export takes, so the user chooses before picking a destination.
+        const capabilities = resolveAnalysisServerCapabilities(session.analysisMode);
+        const selection = interpretExportSelection(await vscode.window.showQuickPick(
+            buildExportModeItems(capabilities),
+            {
+                canPickMany: true,
+                title: 'Export Analysis Folder: choose the analyses to include',
+                placeHolder: 'Normal is always included; the git analyses pre-compute the whole timeline',
+            },
+        ));
+        if (selection.cancelled) {
+            return;
+        }
+
         const selectedFolder = await vscode.window.showOpenDialog({
             canSelectFiles: false,
             canSelectFolders: true,
@@ -308,12 +332,11 @@ export class ActiveAnalysesCommands {
             return;
         }
 
-        // The export is self-contained: every mode the session supports must be
-        // enjoyable from the copy. The dependency graph is the one dataset that
-        // can be produced without user choices, so if it was never opened,
-        // generate it now, before copying.
-        const capabilities = resolveAnalysisServerCapabilities(session.analysisMode);
-        const dependencyGraphFailureReason = capabilities.dependencyGraph
+        // The dependency dataset is the one artifact produced without user
+        // choices: when its item was ticked and it does not exist yet,
+        // generate it now, before copying (it lives in the live folder).
+        const dependencyGraphFailureReason = selection.dependencyGraph
+            && capabilities.dependencyGraph
             && !this.hasDependencyDataset(sourcePath)
             ? await this.pregenerateDependencyDataset(session.id)
             : undefined;
@@ -327,11 +350,36 @@ export class ActiveAnalysesCommands {
 
             // Everything below touches the DESTINATION copy only.
             await relativizeExportArtifacts(destinationPath);
+            let analyzedRevisions = 0;
             if (isXrSceneFolder(destinationPath)) {
                 const extensionPath = vscode.extensions.getExtension('aMonteSl.code-xr')?.extensionPath;
                 if (extensionPath) {
                     await refreshRuntimeCopies(destinationPath, extensionPath);
                 }
+
+                // Git timeline pre-analysis: one shared pass serves both
+                // historical comparison and project evolution offline.
+                let gitOutcome: GitExportOutcome | undefined;
+                if (selection.gitTimeline && this.extensionContext) {
+                    const context = this.extensionContext;
+                    gitOutcome = await vscode.window.withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: 'CodeXR: analyzing the git timeline for the export…',
+                            cancellable: true,
+                        },
+                        (progress, token) => exportGitRevisionData(
+                            context, session, destinationPath, { progress, token },
+                        ),
+                    );
+                    analyzedRevisions = gitOutcome?.gitData?.analyzedRevisionCount || 0;
+                } else if (selection.gitTimeline) {
+                    gitOutcome = {
+                        cancelled: false,
+                        failureReason: 'The extension context was not available for the git analysis.',
+                    };
+                }
+
                 const viewState = analysisRefreshCoordinator.getViewState(session.id);
                 const manifest = await buildExportManifest(destinationPath, {
                     target: {
@@ -345,12 +393,18 @@ export class ActiveAnalysesCommands {
                         mode: String(viewState.mode || 'single'),
                         controllerView: viewState.controllerView,
                     },
+                    gitData: gitOutcome?.gitData,
+                    gitDataFailureReason: gitOutcome?.failureReason,
+                    gitDataSelected: selection.gitTimeline,
                 });
                 await writeExportReadme(destinationPath, manifest);
             }
 
+            const revisionsNote = analyzedRevisions
+                ? ` ${analyzedRevisions} git revisions travel with it.`
+                : '';
             vscode.window.showInformationMessage(
-                `Analysis folder exported to ${destinationPath}. Serve it with any static HTTP server (e.g. "npx serve") to open it outside VS Code.`,
+                `Analysis folder exported to ${destinationPath}.${revisionsNote} Serve it with any static HTTP server (e.g. "npx serve") to open it outside VS Code.`,
             );
         } catch (error) {
             vscode.window.showErrorMessage(

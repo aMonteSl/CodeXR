@@ -608,6 +608,148 @@
     return (sessionInfo && sessionInfo.capabilities) || {};
   }
 
+  // ── Timeline sampling (browser port of gitTimelineSampler.ts) ─────────────
+  // Faithful transliteration of the extension's pure sampler so exported
+  // copies build the SAME movies offline that the live server would: even
+  // spacing in time (not commit count), milestones (merges/tags) win ties,
+  // anchors at both ends, widest-gap fill. Parity is pinned by tests that run
+  // both implementations over the same fixtures.
+
+  function sampleRevisionTime(source) {
+    if (!source || source.kind !== 'gitRef') {
+      return null;
+    }
+    if (typeof source.timestamp === 'number' && isFinite(source.timestamp)) {
+      return source.timestamp * 1000;
+    }
+    if (!source.date) {
+      return null;
+    }
+    var parsed = Date.parse(source.date);
+    return isFinite(parsed) ? parsed : null;
+  }
+
+  function sampleIsMilestone(source) {
+    if (!source || source.kind !== 'gitRef') {
+      return false;
+    }
+    return source.revisionType === 'merge' || source.refType === 'tag';
+  }
+
+  function sampleByPosition(sources, maxFrames) {
+    var selected = [];
+    var seen = {};
+    var last = sources.length - 1;
+    var slots = Math.max(2, maxFrames);
+    for (var index = 0; index < slots; index += 1) {
+      var source = sources[Math.round((index / (slots - 1)) * last)];
+      if (source && !seen[source.id]) {
+        seen[source.id] = true;
+        selected.push(source);
+      }
+    }
+    return selected;
+  }
+
+  function fillWidestGaps(ordered, selectedIds, limit) {
+    while (selectedIds.size < limit) {
+      var bestIndex = -1;
+      var bestGap = -1;
+      for (var index = 0; index < ordered.length; index += 1) {
+        var candidate = ordered[index];
+        if (selectedIds.has(candidate.id)) {
+          continue;
+        }
+        var previousSelected = index - 1;
+        while (previousSelected >= 0 && !selectedIds.has(ordered[previousSelected].id)) {
+          previousSelected -= 1;
+        }
+        var nextSelected = index + 1;
+        while (nextSelected < ordered.length && !selectedIds.has(ordered[nextSelected].id)) {
+          nextSelected += 1;
+        }
+        var previousTime = sampleRevisionTime(ordered[previousSelected]);
+        var nextTime = sampleRevisionTime(ordered[nextSelected]);
+        var gap = previousTime !== null && nextTime !== null
+          ? nextTime - previousTime
+          : nextSelected - previousSelected;
+        if (gap > bestGap) {
+          bestGap = gap;
+          bestIndex = index;
+        }
+      }
+      if (bestIndex < 0) {
+        return;
+      }
+      selectedIds.add(ordered[bestIndex].id);
+    }
+  }
+
+  function sampleTimeline(timeline, maxFrames, endAnchor) {
+    var ordered = timeline.slice();
+    if (endAnchor && !ordered.some(function (source) { return source.id === endAnchor.id; })) {
+      ordered.push(endAnchor);
+    }
+    var limit = Math.max(1, Math.floor(maxFrames));
+    if (ordered.length <= limit) {
+      return ordered;
+    }
+
+    var first = ordered[0];
+    var last = ordered[ordered.length - 1];
+    var firstTime = sampleRevisionTime(first);
+    var lastTime = sampleRevisionTime(last);
+    if (lastTime === null) {
+      for (var back = ordered.length - 1; back >= 0 && lastTime === null; back -= 1) {
+        lastTime = sampleRevisionTime(ordered[back]);
+      }
+    }
+
+    if (firstTime === null || lastTime === null || lastTime <= firstTime) {
+      var positional = sampleByPosition(ordered, limit);
+      if (positional.length && positional[positional.length - 1].id !== last.id) {
+        positional[positional.length - 1] = last;
+      }
+      return positional;
+    }
+
+    var selectedIds = new Set([first.id, last.id]);
+    var span = lastTime - firstTime;
+    var innerSlots = limit - 2;
+
+    for (var slot = 1; slot <= innerSlots; slot += 1) {
+      var target = firstTime + ((span * slot) / (innerSlots + 1));
+      var halfWindow = span / ((innerSlots + 1) * 2);
+      var best = null;
+      var bestScore = Number.POSITIVE_INFINITY;
+      for (var candidateIndex = 0; candidateIndex < ordered.length; candidateIndex += 1) {
+        var candidate = ordered[candidateIndex];
+        if (selectedIds.has(candidate.id)) {
+          continue;
+        }
+        var time = sampleRevisionTime(candidate);
+        if (time === null) {
+          continue;
+        }
+        var distance = Math.abs(time - target);
+        var score = sampleIsMilestone(candidate) && distance <= halfWindow
+          ? distance - halfWindow
+          : distance;
+        if (score < bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
+      }
+      if (best) {
+        selectedIds.add(best.id);
+      }
+    }
+
+    fillWidestGaps(ordered, selectedIds, limit);
+
+    return ordered.filter(function (source) { return selectedIds.has(source.id); });
+  }
+
   var api = {
     describeSource: describeSource,
     sourceCategory: sourceCategory,
@@ -621,7 +763,8 @@
     buildSourceNameplateText: buildSourceNameplateText,
     setSourceNameplate: setSourceNameplate,
     registerGitGatedMode: registerGitGatedMode,
-    resolveCapabilities: resolveCapabilities
+    resolveCapabilities: resolveCapabilities,
+    sampleTimeline: sampleTimeline
   };
 
   root.CodeXRGitRefPickerRuntime = root.CodeXRGitRefPickerRuntime || api;

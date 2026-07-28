@@ -3,6 +3,7 @@
   "parts": [
     "stateAndInteractionGuards.js",
     "chartParkingAndUiHelpers.js",
+    "offlineGitData.js",
     "selectionPanel.js",
     "compareFlowAndMessages.js",
     "comparisonCharts.js",

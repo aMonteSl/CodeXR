@@ -241,3 +241,78 @@ test('the manifest carries the active analysis view, whatever the mode is called
     });
     assert.equal(manifestB.entities.some((entity) => entity.entityKind === 'analysis-view'), false);
 });
+
+test('schema v2: exported git data unlocks the real offline capabilities', async () => {
+    const folder = buildFullFixture();
+    await relativizeExportArtifacts(folder);
+
+    const gitData = {
+        references: {
+            targetRelativePath: '',
+            workingTreeDirty: false,
+            activeBranch: 'main',
+            pageSize: 5,
+            sources: [
+                { id: 'working-copy', kind: 'workingCopy', label: 'Working copy', payloadUrl: './git-revisions/working-copy.json', itemCount: 3 },
+                { id: 'commit:abc', kind: 'gitRef', commitSha: 'abc123', label: 'abc', payloadUrl: './git-revisions/abc123.json', itemCount: 3 },
+            ],
+        },
+        timelineSourceIds: ['commit:abc', 'working-copy'],
+        suggestedSourceIds: ['commit:abc', 'working-copy'],
+        maxFrames: 24,
+        workingCopyPayloadUrl: './git-revisions/working-copy.json',
+        analyzedRevisionCount: 2,
+    };
+
+    const manifest = await buildExportManifest(folder, {
+        target: { name: 'demo', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        gitData,
+        gitDataSelected: true,
+    });
+
+    assert.equal(manifest.schemaVersion, 2);
+    assert.deepEqual(manifest.gitData, gitData);
+    assert.equal(manifest.capabilities.historicalComparison, true);
+    assert.match(manifest.capabilities.historicalComparisonReason, /pick any two of the 2 exported revisions/);
+    assert.equal(manifest.capabilities.projectEvolution, true);
+    assert.match(manifest.capabilities.projectEvolutionReason, /Auto, Range or Manual/);
+
+    // Partial runs say so.
+    const partialManifest = await buildExportManifest(buildFullFixture(), {
+        target: { name: 'demo', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        gitData: { ...gitData, partial: true },
+        gitDataSelected: true,
+    });
+    assert.match(partialManifest.capabilities.projectEvolutionReason, /cancelled after 2 revisions/);
+});
+
+test('schema v2: without git data the artifact-based replay gating is exactly the old one', async () => {
+    const folder = makeTempFolder();
+    fs.writeFileSync(path.join(folder, 'xrChartMappingUiRuntime.js'), '// stale copy', 'utf8');
+
+    const manifest = await buildExportManifest(folder, {
+        target: { name: 'empty', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        gitDataSelected: true,
+        gitDataFailureReason: 'The git timeline could not be listed for the export: no repo.',
+    });
+
+    assert.equal(manifest.schemaVersion, 2);
+    assert.equal(manifest.gitData, undefined);
+    assert.equal(manifest.capabilities.historicalComparison, false);
+    assert.match(manifest.capabilities.historicalComparisonReason, /could not be listed/);
+    // A single-source gitData is useless and must be dropped too.
+    const single = await buildExportManifest(makeTempFolder(), {
+        target: { name: 'empty', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        gitData: {
+            references: { targetRelativePath: '', workingTreeDirty: false, activeBranch: null, pageSize: 5, sources: [{ id: 'only', payloadUrl: './x.json', itemCount: 1 }] },
+            timelineSourceIds: [], suggestedSourceIds: [], maxFrames: 24,
+            workingCopyPayloadUrl: './git-revisions/working-copy.json', analyzedRevisionCount: 1,
+        },
+        gitDataSelected: true,
+    });
+    assert.equal(single.gitData, undefined);
+});
