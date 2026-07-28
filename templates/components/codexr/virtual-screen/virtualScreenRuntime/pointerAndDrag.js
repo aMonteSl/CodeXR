@@ -200,11 +200,24 @@
       state.drag.targetDepthOffset = target;
     }
 
-    // Depth from the grabbing controller's thumbstick, applied every frame of
-    // the drag loop: thumbstickmoved only fires when the axis CHANGES, so the
+    function adjustDragLateral(delta) {
+      if (!state.drag || state.drag.kind !== 'move' || !state.drag.lateralAxis?.clone) {
+        return;
+      }
+      // Same lead clamp as depth: the bumpers stop the screen at walls and
+      // other screens, and the target must not run away while it is pinned.
+      const maxLead = refs.config.dragDepthMaxLead ?? 1.2;
+      const current = state.drag.currentLateralOffset;
+      const target = state.drag.targetLateralOffset + delta;
+      state.drag.targetLateralOffset = Math.min(Math.max(target, current - maxLead), current + maxLead);
+    }
+
+    // Reach from the grabbing controller's thumbstick, applied every frame of
+    // the drag loop: thumbstickmoved only fires when an axis CHANGES, so the
     // handler merely records the deflection and this converts it into motion
     // for as long as the stick is held. Stick forward (negative y) pushes the
-    // screen away — the Quest convention.
+    // screen away — the Quest convention — and stick right (positive x)
+    // slides it to the user's right, both at the same speed.
     function applyStickDepth() {
       if (!state.drag) {
         return;
@@ -212,13 +225,19 @@
       const now = global.performance?.now ? global.performance.now() : Date.now();
       const last = state.drag.lastDepthTick ?? now;
       state.drag.lastDepthTick = now;
-      const deflection = state.drag.depthStickY || 0;
-      if (!deflection) {
+      const deflectionY = state.drag.depthStickY || 0;
+      const deflectionX = state.drag.depthStickX || 0;
+      if (!deflectionY && !deflectionX) {
         return;
       }
       const dtSeconds = Math.min(Math.max(now - last, 0), 50) / 1000;
       const speed = refs.config.controllerDepthSpeed ?? 1.8;
-      adjustDragDepth(-deflection * speed * dtSeconds);
+      if (deflectionY) {
+        adjustDragDepth(-deflectionY * speed * dtSeconds);
+      }
+      if (deflectionX) {
+        adjustDragLateral(deflectionX * speed * dtSeconds);
+      }
     }
 
     function updateDragDepthSmoothing() {
@@ -231,10 +250,27 @@
       } else {
         state.drag.currentDepthOffset += depthDelta * 0.18;
       }
+      const lateralDelta = state.drag.targetLateralOffset - state.drag.currentLateralOffset;
+      if (Math.abs(lateralDelta) < 0.0005) {
+        state.drag.currentLateralOffset = state.drag.targetLateralOffset;
+      } else {
+        state.drag.currentLateralOffset += lateralDelta * 0.18;
+      }
 
+      // Depth moves the interaction PLANE (so the ray's intersection slides
+      // along the ray — that is what makes push/pull work). Lateral must NOT
+      // touch the plane: shifting a plane parallel to itself leaves the
+      // ray-plane intersection where it was, so an in-plane offset would only
+      // move the screen by its tiny out-of-plane residual (observed live as
+      // "slow and coupled to depth"). Instead it shifts only the screen's
+      // reference position, which applyMove translates 1:1.
       const currentDepthVector = state.drag.depthAxis.clone().multiplyScalar(state.drag.currentDepthOffset);
+      const rootOffsetVector = currentDepthVector.clone();
+      if (state.drag.lateralAxis?.clone && state.drag.currentLateralOffset) {
+        rootOffsetVector.add(state.drag.lateralAxis.clone().multiplyScalar(state.drag.currentLateralOffset));
+      }
       state.drag.currentStartPoint = state.drag.startPoint.clone().add(currentDepthVector);
-      state.drag.currentStartRootWorldPosition = state.drag.startRootWorldPosition.clone().add(currentDepthVector);
+      state.drag.currentStartRootWorldPosition = state.drag.startRootWorldPosition.clone().add(rootOffsetVector);
       state.drag.plane = buildDragPlane(state.drag.currentStartPoint, state.drag.planeNormal);
     }
 
@@ -265,13 +301,23 @@
         : Array.isArray(evt.detail?.axis) && typeof evt.detail.axis[1] === 'number'
           ? evt.detail.axis[1]
           : null;
-      if (typeof axisY !== 'number') {
+      const axisX = typeof evt.detail?.x === 'number'
+        ? evt.detail.x
+        : Array.isArray(evt.detail?.axis) && typeof evt.detail.axis[0] === 'number'
+          ? evt.detail.axis[0]
+          : null;
+      if (typeof axisY !== 'number' && typeof axisX !== 'number') {
         return;
       }
       // Record only — applyStickDepth turns this into per-frame motion.
       // Recording is idempotent, so the double listener (scene + controller,
       // see wireDepthInputHandlers) needs no stopPropagation games.
-      state.drag.depthStickY = Math.abs(axisY) < 0.15 ? 0 : axisY;
+      if (typeof axisY === 'number') {
+        state.drag.depthStickY = Math.abs(axisY) < 0.15 ? 0 : axisY;
+      }
+      if (typeof axisX === 'number') {
+        state.drag.depthStickX = Math.abs(axisX) < 0.15 ? 0 : axisX;
+      }
     }
 
     function updateDrag() {
@@ -323,14 +369,29 @@
         planeNormal,
         plane: buildDragPlane(startPoint, planeNormal),
         depthAxis: kind === 'move' ? getDragDepthAxis(rootWorldPosition) : null,
+        lateralAxis: null,
         currentDepthOffset: 0,
         targetDepthOffset: 0,
+        currentLateralOffset: 0,
+        targetLateralOffset: 0,
         depthStickY: 0,
+        depthStickX: 0,
         lastDepthTick: null,
         startDepthDistance: null,
         gateHand: null,
         ownsSceneDragState: false,
       };
+      if (state.drag.depthAxis && global.THREE) {
+        // The stick's x axis slides the screen sideways: horizontal, and
+        // perpendicular to the camera->screen depth axis. depth x up = the
+        // user's right. Degenerates when the screen is straight overhead —
+        // then there is no meaningful "sideways" and it stays off.
+        const lateral = state.drag.depthAxis.clone()
+          .cross(new global.THREE.Vector3(0, 1, 0));
+        if (lateral.lengthSq() > 1e-6) {
+          state.drag.lateralAxis = lateral.normalize();
+        }
+      }
       if (state.drag.depthAxis) {
         const cameraWorldPosition = getCameraWorldPosition();
         if (cameraWorldPosition?.clone) {

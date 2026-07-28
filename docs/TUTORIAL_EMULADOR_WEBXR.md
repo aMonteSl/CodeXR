@@ -75,12 +75,13 @@ En la pestaña WebXR verás una vista 3D con el casco y los dos mandos:
    rayo debe salir **recto, hacia donde apunta el mando** — y aprieta el
    **gatillo**. El puntero pertenece a la mano que usaste por última vez:
    aprieta el gatillo del otro mando y el láser cambia de mano.
-6. **Agarrar y acercar/alejar pantallas**: apunta al borde de una pantalla
-   virtual, mantén el gatillo para agarrarla y, sin soltar, empuja el **stick
-   de esa misma mano**: adelante la aleja, atrás la acerca (el equivalente a
-   arrastrar con el ratón y usar la rueda). Mientras agarras, ese stick no te
-   mueve — la otra mano sigue andando y girando — y el láser no cambia de
-   mano aunque uses la otra.
+6. **Agarrar y mover pantallas con el stick**: apunta al borde de una
+   pantalla virtual, mantén el gatillo para agarrarla y, sin soltar, usa el
+   **stick de esa misma mano**: adelante la aleja, atrás la acerca (el
+   equivalente a arrastrar con el ratón y usar la rueda), izquierda/derecha
+   la desliza en lateral, y en diagonal se combinan. Mientras agarras, ese
+   stick no te mueve — la otra mano sigue andando y girando — y el láser no
+   cambia de mano aunque uses la otra.
 7. **Salir** (botón de salida o tecla Esc): debes volver al punto y la
    altura exactos donde estabas en escritorio, andando por el suelo otra vez.
 

@@ -435,9 +435,22 @@ test('grab-and-reach: the grabbing hand\'s stick pushes/pulls the screen per fra
     assert.doesNotMatch(runtimeSource, /adjustDragDepth\(axisY/);
     assert.match(runtimeSource, /function applyStickDepth/);
     assert.match(runtimeSource, /applyStickDepth\(\);\s*\n\s*updateDragDepthSmoothing\(\)/);
-    // Stick forward (negative y) pushes AWAY (Quest convention), scaled by
-    // time, not by event count.
-    assert.match(runtimeSource, /adjustDragDepth\(-deflection \* speed \* dtSeconds\)/);
+    // Stick forward (negative y) pushes AWAY (Quest convention), stick right
+    // (positive x) slides the screen to the user's right — both scaled by
+    // time, not by event count, at the same speed.
+    assert.match(runtimeSource, /adjustDragDepth\(-deflectionY \* speed \* dtSeconds\)/);
+    assert.match(runtimeSource, /adjustDragLateral\(deflectionX \* speed \* dtSeconds\)/);
+    assert.match(runtimeSource, /state\.drag\.depthStickX = Math\.abs\(axisX\) < 0\.15 \? 0 : axisX/);
+    // The sideways axis is horizontal and perpendicular to the depth axis
+    // (depth x up), so it degenerates safely for an overhead screen.
+    assert.match(runtimeSource, /\.cross\(new global\.THREE\.Vector3\(0, 1, 0\)\)/);
+    // Depth shifts the interaction plane (that is what slides the ray-plane
+    // intersection); lateral must shift ONLY the screen reference — an
+    // in-plane plane shift does not move the intersection at all.
+    assert.match(runtimeSource, /const rootOffsetVector = currentDepthVector\.clone\(\)/);
+    assert.match(runtimeSource, /rootOffsetVector\.add\(state\.drag\.lateralAxis\.clone\(\)/);
+    assert.match(runtimeSource, /currentStartPoint = state\.drag\.startPoint\.clone\(\)\.add\(currentDepthVector\)/);
+    assert.match(runtimeSource, /currentStartRootWorldPosition = state\.drag\.startRootWorldPosition\.clone\(\)\.add\(rootOffsetVector\)/);
     assert.match(runtimeSource, /controllerDepthSpeed: 1\.8/);
     assert.doesNotMatch(runtimeSource, /controllerDepthStep/);
     // The depth target is clamped: bounded lead (the collision bumper is a
