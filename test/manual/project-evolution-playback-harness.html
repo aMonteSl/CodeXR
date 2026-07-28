@@ -161,6 +161,12 @@
 
       window.CodeXRAnalysisModeRuntime = {
         register: function () { return function () {}; },
+        // The harness models a user already standing in evolution mode: under
+        // the passive mode-entity contract, applySharedState only renders a
+        // movie when its own mode is active or activating.
+        getState: function () {
+          return { mode: 'project-evolution', transitioning: false, requestedMode: null };
+        },
         transitionTo: function (mode) {
           window.CodeXRAnalysisTableRuntime.setMode(mode);
           window.CodeXRAnalysisSurfaceRuntime.activateMode(mode);
