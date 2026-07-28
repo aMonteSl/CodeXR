@@ -194,16 +194,70 @@ test('VR with controllers: right laser only; left is re-neutralized after every 
     simulateLaserControlsInjection(pointers.left);
     flush();
     assertSingleActivePointer(pointers, 'right');
-    assert.equal('cursor' in pointers.left.attrs, false, 'left cursor injected by laser-controls must be removed');
+    // The cursor STAYS: with the raycaster disabled it can neither hover nor
+    // click, and removing it is what used to wipe the raycaster direction on
+    // the next handover (recreating a cursor runs A-Frame's resetRaycaster).
+    assert.ok(pointers.left.attrs.cursor, 'left keeps its inert cursor while demoted');
     assert.equal(pointers.left.attrs.raycaster.enabled, false);
     assert.equal(pointers.left.attrs.raycaster.showLine, false);
 
-    // controllermodelready re-injects cursor/raycaster — must be undone again.
+    // controllermodelready re-injects cursor/raycaster — must be re-disabled.
     simulateLaserControlsInjection(pointers.left);
     pointers.left.emit('controllermodelready', {});
     flush();
-    assert.equal('cursor' in pointers.left.attrs, false);
     assert.equal(pointers.left.attrs.raycaster.enabled, false);
+    assert.equal(pointers.left.attrs.raycaster.showLine, false);
+});
+
+test('a handover never rewrites the raycaster laser-controls configured', () => {
+    const { sceneEl, pointers, flush, simulateLaserControlsInjection } = createHarness();
+    sceneEl.emit('enter-vr');
+    ['left', 'right'].forEach((side) => {
+        pointers[side].emit('controllerconnected', { name: 'meta-touch-controls' });
+        simulateLaserControlsInjection(pointers[side]);
+        // What laser-controls installs from controllermodelready: the
+        // model-specific pointing direction (~40° below the grip axis).
+        pointers[side].setAttribute('raycaster', 'origin', { x: 0, y: -0.0186, z: -0.05 });
+        pointers[side].setAttribute('raycaster', 'direction', { x: 0, y: -0.594, z: -0.795 });
+    });
+    flush();
+
+    // Hand the pointer back and forth; the cursors must survive (never be
+    // recreated) and the direction must stay the model one.
+    pointers.left.emit('triggerdown');
+    flush();
+    pointers.right.emit('triggerdown');
+    flush();
+    ['left', 'right'].forEach((side) => {
+        assert.ok(pointers[side].attrs.cursor, `${side}: cursor survives handovers`);
+        assert.deepEqual(
+            pointers[side].attrs.raycaster.direction,
+            { x: 0, y: -0.594, z: -0.795 },
+            `${side}: pointing direction survives handovers`,
+        );
+    });
+});
+
+test('the fallback cursor (unknown controller) restores the pointing ray it may clobber', () => {
+    const { sceneEl, pointers, flush } = createHarness();
+    sceneEl.emit('enter-vr');
+    // A controller laser-controls did NOT recognize: raycaster exists (the
+    // policy will enable it) but no cursor was injected.
+    pointers.right.setAttribute('raycaster', {
+        enabled: false,
+        showLine: false,
+        origin: { x: 0, y: -0.0186, z: -0.05 },
+        direction: { x: 0, y: -0.594, z: -0.795 },
+    });
+    pointers.right.emit('controllerconnected', { name: 'unknown-controls' });
+    flush();
+
+    assert.ok(pointers.right.attrs.cursor, 'fallback cursor created so hover events flow');
+    assert.deepEqual(
+        pointers.right.attrs.raycaster.direction,
+        { x: 0, y: -0.594, z: -0.795 },
+        'creating the fallback cursor must re-apply origin/direction (A-Frame cursor init resets them)',
+    );
 });
 
 test('single-controller headset: left becomes the pointer when right disconnects', () => {

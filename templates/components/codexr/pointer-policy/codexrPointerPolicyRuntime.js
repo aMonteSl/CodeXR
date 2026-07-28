@@ -33,6 +33,17 @@
   // controller is held at an angle to the direction it points, so a raycaster
   // written from scratch fires the ray well above the visible aim.
   //
+  // The `cursor` component is just as load-bearing: creating one with
+  // rayOrigin: entity runs A-Frame's cursor.resetRaycaster(), which OVERWRITES
+  // the raycaster's origin and direction with the bare entity axis (0,0,-1).
+  // laser-controls only installs the model-specific pointing direction once,
+  // from the controllermodelready event — so removing a controller's cursor
+  // and re-adding it on the next handover silently re-aims the laser ~40°
+  // above where a Touch controller points (found live in the WebXR emulator:
+  // every hand switch wiped the compensation). Inactive controllers therefore
+  // KEEP their cursor; with the raycaster disabled it can neither hover nor
+  // click, which is all the invariant needs.
+  //
   // laser-controls re-injects `cursor` + an UNFILTERED raycaster (objects: '')
   // on every controllerconnected/controllermodelready, and its
   // controllerdisconnected handler instantiates a default raycaster even on
@@ -230,20 +241,30 @@
         }
         el.setAttribute('raycaster', 'enabled', active);
         el.setAttribute('raycaster', 'showLine', active);
-        if (active) {
-          // laser-controls injects raycasters with objects: '' (the whole
-          // scene) — the active laser must stay filtered to babia targets.
-          el.setAttribute('raycaster', 'objects', this.data.raycastSelector);
-          // laser-controls owns the cursor config on the active laser; make
-          // sure one exists even if injection was skipped (e.g. unknown
-          // controller name), so hover events reach babia.
-          if (typeof el.getAttribute !== 'function' || !el.getAttribute('cursor')) {
-            el.setAttribute('cursor', 'rayOrigin: entity; fuse: false');
+        if (!active) {
+          // A disabled raycaster neither hovers nor clicks; the cursor stays
+          // put on purpose — recreating it later would run A-Frame's cursor
+          // resetRaycaster() and wipe the pointing direction laser-controls
+          // installed from the controller model (see the header).
+          return;
+        }
+        // laser-controls injects raycasters with objects: '' (the whole
+        // scene) — the active laser must stay filtered to babia targets.
+        el.setAttribute('raycaster', 'objects', this.data.raycastSelector);
+        // laser-controls owns the cursor config on the active laser; make
+        // sure one exists even if injection was skipped (e.g. unknown
+        // controller name), so hover events reach babia. Creating a cursor
+        // runs resetRaycaster (see header): snapshot the pointing ray first
+        // and put it back, so even this fallback cannot re-aim the laser.
+        if (typeof el.getAttribute === 'function' && !el.getAttribute('cursor')) {
+          const ray = el.getAttribute('raycaster') || {};
+          const origin = ray.origin;
+          const direction = ray.direction;
+          el.setAttribute('cursor', 'rayOrigin: entity; fuse: false');
+          if (origin && direction) {
+            el.setAttribute('raycaster', 'origin', origin);
+            el.setAttribute('raycaster', 'direction', direction);
           }
-        } else if (typeof el.removeAttribute === 'function') {
-          // An inactive controller keeps its model but must not stay a live
-          // pointer: drop the cursor laser-controls injected.
-          el.removeAttribute('cursor');
         }
       },
     });
