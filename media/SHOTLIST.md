@@ -122,7 +122,7 @@ All around 0.9-1.0 MB each.
 
 ### Videos (`videos/`)
 
-All recorded at 1920×1080. The raw takes are near-lossless masters — they are big on purpose; only the GIF and the YouTube upload are meant to travel.
+All recorded at 1920×1080 (except the Project Evolution master, 2536×1306). The raw takes are near-lossless masters — they are big on purpose; only the GIF and the YouTube upload are meant to travel. **Every YouTube link lives in [`v1.2.0/videos/VIDEOS.md`](v1.2.0/videos/VIDEOS.md)**, which is the single place to look one up or change one after a re-recording.
 
 | Folder | Narrated (→ YouTube) | Raw master | Length | GIF (×8, 10 fps) |
 |---|---|---|---|---|
@@ -132,6 +132,19 @@ All recorded at 1920×1080. The raw takes are near-lossless masters — they are
 | `project_evolution/` | [`youtu.be/QDN8tcKx60w`](https://youtu.be/QDN8tcKx60w) (314 MB) | `project_evolution_demo.mp4` (209 MB) | 3:02 | `project_evolution_demo.gif` — 4.02 MB, 600×308, 22.7 s |
 
 The `<subject>_explanation.mp4` files are uploaded (links above); like the demos they are over GitHub's 100 MB limit and stay out of git.
+
+#### Tutorial and project tours (`videos/tutorial/`, `videos/testedProjects/`)
+
+| Folder | YouTube | Raw master | Length | GIF |
+|---|---|---|---|---|
+| `tutorial/` | [`youtu.be/dtvFhUQ1uKY`](https://youtu.be/dtvFhUQ1uKY) | `Tutorial CodeXR_v1.2.0.mp4` (1.72 GB) | 12:24 | none, on purpose |
+| `testedProjects/BabiaXR/` | [`youtu.be/ZJo2eFBEPKA`](https://youtu.be/ZJo2eFBEPKA) | `BabiaXR.mp4` (472 MB) | 3:18 | `BabiaXR.gif` — 4.70 MB, 520×292, 12.4 s |
+| `testedProjects/ExpressJS/` | [`youtu.be/ExHQhj6ibWU`](https://youtu.be/ExHQhj6ibWU) | `ExpressJS.mp4` (569 MB) | 3:59 | `ExpressJS.gif` — 4.68 MB, 480×270, 15.0 s |
+| `testedProjects/JetUML/` | [`youtu.be/Wy0T7dR2F-k`](https://youtu.be/Wy0T7dR2F-k) | `JetUML.mp4` (608 MB) | 4:16 | `JetUML.gif` — 4.22 MB, 460×258, 16.0 s |
+
+The tutorial ships **without a GIF**: at ×8 a twelve-minute take is a 93-second loop, which does not fit 5 MB at any width worth watching. Its README entry is a YouTube thumbnail instead.
+
+**The three project tours use ×16, not ×8**, and that is deliberate. They run three to four minutes, so ×8 would have produced 25 to 32 second loops, and squeezing those under the budget meant about 355 px wide, too small to read a panel. ×16 halves the frames and spends the savings on pixels: 12 to 16 second loops at a width you can see, which is the same reading experience as the analysis GIFs. One factor per family, consistent inside it, which is what the rule below is really protecting.
 
 **The `.mp4` files are not in git** (`.gitignore`: `media/**/*.mp4`). Each one is 168-439 MB, and GitHub refuses any file over 100 MB, so the masters could not be pushed even if we wanted them to be — they live on the recording machine, and what leaves is the GIF beside them plus the narrated cut on YouTube. If they ever need to be in the repo, that means Git LFS, deliberately.
 

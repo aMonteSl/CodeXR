@@ -50,6 +50,30 @@ Our official documentation includes:
 
 *You can also access the documentation directly from VS Code through the CodeXR tree view → "Learn More" section.*
 
+## See it working
+
+If you only have time for one thing, watch the **complete tutorial**: the whole extension in twelve minutes, from the VS Code sidebar to the four analyses inside the XR room.
+
+[![CodeXR complete tutorial: the whole extension, from the sidebar to XR](https://img.youtube.com/vi/dtvFhUQ1uKY/hqdefault.jpg)](https://youtu.be/dtvFhUQ1uKY)
+
+### Tried on three real projects
+
+Not on toy fixtures. These are silent walkthroughs of the four analyses on three real, public codebases, the same three used to test every release.
+
+**BabiaXR** ([aframe-babia-components](https://github.com/babiaxr/aframe-babia-components)), the A-Frame library CodeXR renders its charts with, so the code being measured is the code drawing the scene. [Watch the walkthrough](https://youtu.be/ZJo2eFBEPKA)
+
+![BabiaXR analyzed with CodeXR: the four analyses on the aframe-babia-components repository](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/testedProjects/BabiaXR/BabiaXR.gif)
+
+**Express** ([expressjs/express](https://github.com/expressjs/express)), a small core with a very long history, which makes fan-in obvious and the evolution movie long. [Watch the walkthrough](https://youtu.be/ExHQhj6ibWU)
+
+![Express analyzed with CodeXR: the four analyses on the expressjs/express repository](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/testedProjects/ExpressJS/ExpressJS.gif)
+
+**JetUML** ([prmr/JetUML](https://github.com/prmr/JetUML)), a Java desktop application whose deliberate package layering is exactly what the dependency graph is for. [Watch the walkthrough](https://youtu.be/Wy0T7dR2F-k)
+
+![JetUML analyzed with CodeXR: the four analyses on the prmr/JetUML repository](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/videos/testedProjects/JetUML/JetUML.gif)
+
+Every video on the channel, with its GIF and duration, is listed in [media/v1.2.0/videos/VIDEOS.md](media/v1.2.0/videos/VIDEOS.md).
+
 ## What's New in v1.2.0: "Threads, Timelines & Global Networks"
 
 **Threads** are the new dependency graph: the lines that tie your codebase together. **Timelines** are the two Git analyses: compare two points in your project's history, or replay the whole thing as a film. **Global Networks** are the sessions you can now open to someone who is not on your network at all.
