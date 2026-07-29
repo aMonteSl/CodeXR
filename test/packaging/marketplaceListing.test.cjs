@@ -24,6 +24,27 @@ function contrastRatio(a, b) {
     return (lighter + 0.05) / (darker + 0.05);
 }
 
+/**
+ * Display names are unique across the whole Marketplace, not just per
+ * publisher, and the check runs at upload time: a taken name is a rejected
+ * VSIX, after the build and after the release asset went out.
+ *
+ * `CodeXR` without the hyphen is taken by `nekumelon.codexr` (confirmed
+ * 2026-07-30 against the gallery API), which is what bounced the 1.2.0 upload.
+ * `Code-XR` is held by this extension itself, published with 1.1.0.
+ *
+ * The product rename to "CodeXR" therefore stops at the store title: in-product
+ * strings say CodeXR, the listing says Code-XR. That inconsistency is deliberate
+ * and this test is where it is recorded, so nobody tidies it up and rediscovers
+ * the rejection the hard way. Changing this title means finding a name no other
+ * extension holds.
+ */
+test('the store title is one this publisher can actually publish', () => {
+    assert.equal(packageJson.displayName, 'Code-XR');
+    assert.equal(packageJson.name, 'code-xr');
+    assert.equal(packageJson.publisher, 'aMonteSl');
+});
+
 test('the store one-liner survives being truncated on the listing card', () => {
     const { description } = packageJson;
 

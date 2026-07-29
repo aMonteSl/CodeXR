@@ -121,6 +121,7 @@ A guide screen lives inside the scene, so the answer to *what am I looking at* n
 - Public documentation was reorganized by purpose (`docs/features/`, `docs/xr-testing/`, `docs/project/`) and is now entirely in English (the WebXR emulator tutorial, the XR manual checklist and the roadmap were translated from Spanish).
 - The packaged VSIX shrank from 39.2 MB to 6.1 MB: webpack source maps are no longer shipped (they remain in dev builds for F5 debugging) and the unused `no_color/` icon set stays out of the package.
 - Marketplace listing metadata: the store card now links to the project site, the header renders on the site's own dark surface (`galleryBanner`), and the one-line description no longer carries an em dash, which the store card truncates awkwardly. Listing fields only, no runtime effect.
+- The store title stays **Code-XR**, the name 1.1.0 was published under. Display names are unique across the entire Marketplace and `CodeXR` without the hyphen belongs to another extension, so the upload is rejected with it. The product rename to "CodeXR" therefore applies to in-product strings, not to the store title. The extension identifier is unchanged (`aMonteSl.code-xr`), so existing installs update normally.
 
 #### Validation & feedback
 

@@ -1,6 +1,6 @@
 {
   "name": "code-xr",
-  "displayName": "CodeXR",
+  "displayName": "Code-XR",
   "description": "Analyze your code and walk through it as a 3D city in your browser: metrics, dependency graph, Git history and collaboration, all local. VR optional.",
   "version": "1.2.0",
   "keywords": [
