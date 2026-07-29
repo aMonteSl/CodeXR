@@ -3,9 +3,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
     ComparisonSource,
+    GitAnalysisExclusion,
     HistoricalComparisonReferences,
     buildBabiaStyleFilePath,
 } from '../historical/historicalComparisonModels';
+import {
+    createGitAnalysisExclusion,
+    validateGitAnalysisPayload,
+} from '../historical/gitAnalysisEligibility';
 import { sampleTimeline } from '../historical/gitTimelineSampler';
 import {
     GitRevisionExportRequest,
@@ -63,7 +68,7 @@ export interface ExportGitData {
     timelineSourceIds: string[];
     suggestedSourceIds: string[];
     maxFrames: number;
-    workingCopyPayloadUrl: string;
+    workingCopyPayloadUrl?: string;
     timelineSelection?: {
         kind: 'all' | 'latest';
         requestedCommitCount: number | null;
@@ -73,7 +78,7 @@ export interface ExportGitData {
     };
     pipelineStatistics?: GitBlobPipelineStatistics;
     analyzedRevisionCount: number;
-    skippedRevisions?: { id: string; reason: string }[];
+    skippedRevisions?: GitAnalysisExclusion[];
     partial?: boolean;
 }
 
@@ -90,7 +95,7 @@ export interface GitRevisionExportDeps {
         dispose(): Promise<void> | void;
     };
     prepareRevisionStore: (sources: ComparisonSource[]) => Promise<PreparedGitRevisionStore>;
-    readWorkingCopyPayload: () => Promise<Record<string, unknown>[] | undefined>;
+    readWorkingCopyPayload: () => Promise<unknown>;
 }
 
 export interface GitRevisionExportOptions {
@@ -192,7 +197,7 @@ export async function runGitRevisionExport(
         performanceProfile: 'balanced',
     };
     const revisionsDir = path.join(options.destinationPath, GIT_REVISIONS_FOLDER);
-    const skippedRevisions: { id: string; reason: string }[] = [];
+    const skippedRevisions: GitAnalysisExclusion[] = [];
     let preparedStore: PreparedGitRevisionStore | undefined;
 
     let references: HistoricalComparisonReferences;
@@ -238,9 +243,13 @@ export async function runGitRevisionExport(
         const itemCountBySourceId = new Map<string, number>();
         const workingCopySource = references.sources.find((source) => source.kind === 'workingCopy');
         const workingCopyEntries = await deps.readWorkingCopyPayload();
-        if (workingCopySource && Array.isArray(workingCopyEntries)) {
+        const workingCopyValidation = validateGitAnalysisPayload(workingCopyEntries);
+        if (workingCopySource && workingCopyValidation.usable) {
             const decorated = decorateRevisionPayload(
-                workingCopyEntries, options.targetType, options.targetPath, options.targetPath,
+                workingCopyValidation.entries,
+                options.targetType,
+                options.targetPath,
+                options.targetPath,
             );
             await fs.promises.writeFile(
                 path.join(revisionsDir, WORKING_COPY_PAYLOAD_FILE),
@@ -250,7 +259,12 @@ export async function runGitRevisionExport(
             payloadUrlBySourceId.set(workingCopySource.id, `./${GIT_REVISIONS_FOLDER}/${WORKING_COPY_PAYLOAD_FILE}`);
             itemCountBySourceId.set(workingCopySource.id, decorated.length);
         } else if (workingCopySource) {
-            skippedRevisions.push({ id: workingCopySource.id, reason: 'The working copy data.json could not be read.' });
+            skippedRevisions.push(createGitAnalysisExclusion(
+                workingCopySource,
+                workingCopyValidation.code || 'invalid-payload',
+                'index',
+                workingCopyValidation.reason || 'The working copy data.json could not be read.',
+            ));
         }
 
         // The prepared store indexes all selected revisions and analyzes every
@@ -268,6 +282,7 @@ export async function runGitRevisionExport(
                 preparedStore = await deps.prepareRevisionStore(primarySources);
             } catch (error) {
                 if (options.token?.isCancellationRequested || String(error).includes('git-export-cancelled')) {
+                    await fs.promises.rm(revisionsDir, { recursive: true, force: true });
                     return {
                         cancelled: true,
                         failureReason: 'The git analysis was cancelled before enough revisions completed.',
@@ -289,8 +304,12 @@ export async function runGitRevisionExport(
                     throw new Error('git-revision-store-unavailable');
                 }
                 const prepared = await preparedStore.get(source);
+                const validation = validateGitAnalysisPayload(prepared.entries);
+                if (!validation.usable) {
+                    throw new Error(validation.reason || 'git-revision-no-analyzable-content');
+                }
                 const decorated = decorateRevisionPayload(
-                    Array.isArray(prepared.entries) ? prepared.entries : [],
+                    validation.entries,
                     options.targetType,
                     options.targetPath,
                     prepared.analyzedTargetPath,
@@ -309,10 +328,22 @@ export async function runGitRevisionExport(
                 }
             } catch (error) {
                 for (const member of group) {
-                    skippedRevisions.push({
-                        id: member.id,
-                        reason: error instanceof Error ? error.message : String(error),
-                    });
+                    const reason = error instanceof Error ? error.message : String(error);
+                    const code = /target does not exist|target-missing/i.test(reason)
+                        ? 'target-missing'
+                        : /no analyzable|no data records|no-analyzable-content/i.test(reason)
+                            ? 'no-analyzable-content'
+                            : /(?:file|size)-limit|exceeds the configured/i.test(reason)
+                                ? 'limit-exceeded'
+                                : 'analysis-failed';
+                    skippedRevisions.push(createGitAnalysisExclusion(
+                        member,
+                        code,
+                        /no analyzable|target does not exist|limit/i.test(reason)
+                            ? 'index'
+                            : 'analysis',
+                        reason,
+                    ));
                 }
             }
             completed += 1;
@@ -326,8 +357,12 @@ export async function runGitRevisionExport(
         const usableSources = references.sources
             .concat(timeline.filter((source) => !references.sources.some((ref) => ref.id === source.id)))
             .filter((source) => payloadUrlBySourceId.has(source.id));
-
-        if (usableSources.length < 2) {
+        const exportedTimeline = timeline.filter((source) => payloadUrlBySourceId.has(source.id));
+        const hasUsableWorkingCopy = !!workingCopySource
+            && payloadUrlBySourceId.has(workingCopySource.id);
+        const exportedFrameSourceCount = exportedTimeline.length + (hasUsableWorkingCopy ? 1 : 0);
+        if (usableSources.length < 2 || exportedFrameSourceCount < 2) {
+            await fs.promises.rm(revisionsDir, { recursive: true, force: true });
             return {
                 cancelled,
                 failureReason: cancelled
@@ -336,8 +371,7 @@ export async function runGitRevisionExport(
             };
         }
 
-        const exportedTimeline = timeline.filter((source) => payloadUrlBySourceId.has(source.id));
-        const endAnchor = workingCopySource && payloadUrlBySourceId.has(workingCopySource.id)
+        const endAnchor = hasUsableWorkingCopy
             ? workingCopySource
             : exportedTimeline[exportedTimeline.length - 1];
         // Mirror of the live suggestion: buildAutomaticTimeline + default sample.
@@ -361,7 +395,12 @@ export async function runGitRevisionExport(
                 .concat(endAnchor && endAnchor.kind === 'workingCopy' ? [endAnchor.id] : []),
             suggestedSourceIds: suggested.map((source) => source.id),
             maxFrames: EXPORT_DEFAULT_MAX_FRAMES,
-            workingCopyPayloadUrl: `./${GIT_REVISIONS_FOLDER}/${WORKING_COPY_PAYLOAD_FILE}`,
+            ...(workingCopySource && payloadUrlBySourceId.has(workingCopySource.id)
+                ? {
+                    workingCopyPayloadUrl:
+                        `./${GIT_REVISIONS_FOLDER}/${WORKING_COPY_PAYLOAD_FILE}`,
+                }
+                : {}),
             timelineSelection: {
                 kind: request.scope.kind,
                 requestedCommitCount: request.scope.kind === 'latest'
@@ -378,6 +417,7 @@ export async function runGitRevisionExport(
         };
         return { gitData, cancelled };
     } catch (error) {
+        await fs.promises.rm(revisionsDir, { recursive: true, force: true }).catch(() => undefined);
         return {
             cancelled: false,
             failureReason: `The git revision export failed: ${error instanceof Error ? error.message : String(error)}`,

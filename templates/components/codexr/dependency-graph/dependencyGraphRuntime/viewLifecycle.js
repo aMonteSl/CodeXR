@@ -114,12 +114,40 @@
     }
   }
 
+  function hasReadySnapshot() {
+    return state.snapshot?.status === 'ready' && !!state.snapshot?.datasetUrl;
+  }
+
+  function activateReadySnapshot(reason) {
+    if (!hasReadySnapshot()) { return false; }
+    var offline = client()?.isOfflineExport?.() === true;
+    root.console?.log?.('[CodeXR.Debug]: Activating existing dependency graph snapshot', {
+      offline: offline,
+      hasDataset: !!state.dataset,
+      datasetUrl: state.snapshot.datasetUrl
+    });
+    if (!offline) {
+      client()?.sendMessage?.('analysis-mode-activate', {
+        mode: 'dependency-graph'
+      });
+    }
+    void root.CodeXRAnalysisModeRuntime?.changeAnalysis?.('dependency-graph', {
+      reason: reason || 'local-dependency-mode-option',
+      panelViewId: 'dependency-graph'
+    });
+    return true;
+  }
+
   async function start() {
     if (state.availability !== 'enabled') {
       setStatus(state.unavailableReason, true);
       return;
     }
     if (state.transitionLocked) { return; }
+    if (hasReadySnapshot() && client()?.isOfflineExport?.()) {
+      activateReadySnapshot('offline-dependency-snapshot');
+      return;
+    }
     // An exported copy has no server to analyze with: say so instead of
     // entering the send-retry loop below, which would spin forever.
     if (client()?.isOfflineExport?.()) {
@@ -168,18 +196,7 @@
     client()?.sendMessage?.('dependency-graph-start', { forceFull: true });
   }
   function selectDependencyMode() {
-    if (state.dataset && state.snapshot?.datasetUrl) {
-      root.console?.log?.('[CodeXR.Debug]: Dependency graph mode selected from visualization panel', {
-        hasDataset: true,
-        datasetUrl: state.snapshot.datasetUrl
-      });
-      client()?.sendMessage?.('analysis-mode-activate', {
-        mode: 'dependency-graph'
-      });
-      void root.CodeXRAnalysisModeRuntime?.changeAnalysis?.('dependency-graph', {
-        reason: 'local-dependency-mode-option',
-        panelViewId: 'dependency-graph'
-      });
+    if (activateReadySnapshot('local-dependency-mode-option')) {
       return;
     }
     root.console?.log?.('[CodeXR.Debug]: Dependency graph mode selected; starting dependency analysis', {

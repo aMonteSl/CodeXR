@@ -4,7 +4,7 @@ import {
     isMetricAnalysisFile,
     shouldIgnoreDirectoryName,
 } from '../engine/watchers/analysisFilePolicy';
-import { ComparisonSource } from '../historical/historicalComparisonModels';
+import { ComparisonSource } from './historicalComparisonModels';
 import {
     GitBatchObject,
     GitBatchObjectReader,
@@ -84,9 +84,10 @@ function portableJoin(prefix: string, name: string): string {
 }
 
 /**
- * Export-only Git index. It reads commit trees through persistent cat-file
+ * Shared Git content index. It reads commit trees through persistent cat-file
  * transports and records references to blobs instead of materializing a full
- * working tree for every revision.
+ * working tree for every revision. Historical comparison, project evolution
+ * and offline export use the same eligibility contract.
  */
 export class GitTimelineBlobIndex {
     private readonly objects: GitBatchObjectReader;
@@ -204,7 +205,7 @@ export class GitTimelineBlobIndex {
                 relativePath: fileName,
                 blobSha: entry.objectName,
                 extension: path.extname(fileName).toLowerCase(),
-                metricAnalyzable: true,
+                metricAnalyzable: isMetricAnalysisFile(fileName),
             }];
         }
 
@@ -226,7 +227,7 @@ export class GitTimelineBlobIndex {
             this.throwIfCancelled();
             const relativePath = portableJoin(prefix, entry.name);
             if (entry.kind === 'tree') {
-                if (!shouldIgnoreDirectoryName(entry.name)) {
+                if (this.recursive && !shouldIgnoreDirectoryName(entry.name)) {
                     result.push(...await this.flattenDirectory(entry.objectName, relativePath));
                     if (result.length > MAX_SNAPSHOT_FILES) {
                         throw new Error('comparison-snapshot-file-limit');
@@ -241,8 +242,7 @@ export class GitTimelineBlobIndex {
                 relativePath,
                 blobSha: entry.objectName,
                 extension: path.extname(relativePath).toLowerCase(),
-                metricAnalyzable: isMetricAnalysisFile(relativePath)
-                    && (this.recursive || !relativePath.includes('/')),
+                metricAnalyzable: isMetricAnalysisFile(relativePath),
             });
             if (result.length > MAX_SNAPSHOT_FILES) {
                 throw new Error('comparison-snapshot-file-limit');
@@ -281,7 +281,10 @@ export class GitTimelineBlobIndex {
             if (totalBytes > MAX_SNAPSHOT_BYTES) {
                 throw new Error('comparison-snapshot-size-limit');
             }
-            if (file.metricAnalyzable) {
+            if (
+                file.metricAnalyzable
+                && (this.targetType !== 'file' || metadata.size > 0)
+            ) {
                 files.push({
                     relativePath: file.relativePath,
                     blobSha: file.blobSha,

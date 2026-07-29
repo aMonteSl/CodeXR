@@ -7,6 +7,28 @@ export type AnalysisTableMode =
 
 export type GitReferenceType = 'branch' | 'tag' | 'commit';
 export type GitRevisionType = 'working-copy' | 'branch' | 'tag' | 'commit' | 'merge';
+export type GitAnalysisExclusionCode =
+    | 'target-missing'
+    | 'no-analyzable-content'
+    | 'invalid-payload'
+    | 'analysis-failed'
+    | 'limit-exceeded';
+
+export interface GitAnalysisExclusion {
+    /** Source id; kept as `id` for backwards compatibility with skippedRevisions. */
+    id: string;
+    label: string;
+    commitSha?: string;
+    code: GitAnalysisExclusionCode;
+    stage: 'index' | 'analysis';
+    reason: string;
+}
+
+export interface GitAnalysisEligibility {
+    scannedSourceCount: number;
+    usableSourceCount: number;
+    excludedSources: GitAnalysisExclusion[];
+}
 
 export type ComparisonSource =
     | {
@@ -84,6 +106,7 @@ export interface HistoricalComparisonReferences {
     sources: ComparisonSource[];
     pageSize: number;
     activeRequest?: HistoricalComparisonRequest | null;
+    eligibility?: GitAnalysisEligibility;
 }
 
 export interface HistoricalComparisonProgress {
@@ -118,6 +141,7 @@ export interface ProjectEvolutionResult {
     generatedAt: string;
     manifestUrl: string;
     bridgeUrl: string;
+    excludedSources: GitAnalysisExclusion[];
 }
 
 export interface ProjectEvolutionReferences extends Omit<HistoricalComparisonReferences, 'activeRequest'> {

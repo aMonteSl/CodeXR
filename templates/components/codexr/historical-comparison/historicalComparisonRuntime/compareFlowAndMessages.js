@@ -121,7 +121,13 @@
     // Category/paging now live inside the shared picker; the panel only feeds
     // it the references and keeps the selection detail.
     renderReferences();
-    setStatus('', 'info');
+    var excludedCount = Number(state.references?.eligibility?.excludedSources?.length || 0);
+    setStatus(
+      excludedCount
+        ? excludedCount + ' revision(s) were hidden because they contain no analyzable data.'
+        : '',
+      'info'
+    );
   }
 
   function handleProgress(message) {
@@ -135,6 +141,8 @@
       ? 'History compare requires an analysis inside a local Git repository.'
       : code === 'comparison-busy'
         ? 'Another comparison is already being generated.'
+        : code === 'comparison-source-no-data'
+          ? rawMessage
         : 'Historical comparison failed. Please try again.';
     setStatus(friendlyMessage, 'error');
   }

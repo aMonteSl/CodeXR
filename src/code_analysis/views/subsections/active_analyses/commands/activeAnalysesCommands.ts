@@ -548,12 +548,15 @@ export class ActiveAnalysesCommands {
                 ? ` ${analyzedRevisions} git revisions travel with it.`
                 : '';
             const partialNote = partialGitSources
-                ? ` ${partialGitSources} revision source(s) were unavailable for the analyzed target and are listed in the manifest.`
+                ? ` ${partialGitSources} revision source(s) were discarded because they had no usable data; details are listed in the manifest.`
                 : '';
-            vscode.window.showInformationMessage(
-                `Analysis folder exported to ${destinationPath}.${revisionsNote}${partialNote} `
-                + 'Serve it with any static HTTP server (e.g. "npx serve") to open it outside VS Code.',
-            );
+            const completionMessage = `Analysis folder exported to ${destinationPath}.${revisionsNote}${partialNote} `
+                + 'Serve it with any static HTTP server (e.g. "npx serve") to open it outside VS Code.';
+            if (partialGitSources) {
+                vscode.window.showWarningMessage(completionMessage);
+            } else {
+                vscode.window.showInformationMessage(completionMessage);
+            }
         } catch (error) {
             await abortExportPackage(transaction);
             if (error instanceof ExportCancelledError) {

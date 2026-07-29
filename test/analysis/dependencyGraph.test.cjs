@@ -756,6 +756,54 @@ test('dependency-graph start still reaches the server when the selection hop rej
   assert.deepEqual(sent, ['dependency-graph-start']);
 });
 
+test('an offline dependency snapshot activates locally before its dataset has been loaded', async () => {
+  const source = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
+  const context = { setTimeout, clearTimeout, console };
+  vm.runInNewContext(source, context);
+  const runtime = context.CodeXRDependencyGraphRuntime;
+  const sent = [];
+  const transitions = [];
+  context.CodeXRCollaborationRuntime = {
+    getClient() {
+      return {
+        isOfflineExport() {
+          return true;
+        },
+        sendMessage(type) {
+          sent.push(type);
+          return true;
+        },
+      };
+    },
+  };
+  context.CodeXRAnalysisModeRuntime = {
+    changeAnalysis(mode, options) {
+      transitions.push({ mode, options });
+      return Promise.resolve();
+    },
+  };
+  runtime.getState().availability = 'enabled';
+  runtime.getState().snapshot = {
+    status: 'ready',
+    datasetUrl: './dependencies/dependency-graph-1.json',
+    revision: 1,
+  };
+  runtime.getState().dataset = null;
+
+  runtime.__testing.selectDependencyMode();
+  await runtime.start();
+
+  assert.equal(sent.length, 0, 'offline activation must never request server work');
+  assert.deepEqual(
+    transitions.map((entry) => entry.mode),
+    ['dependency-graph', 'dependency-graph'],
+  );
+  assert.deepEqual(
+    transitions.map((entry) => entry.options.reason),
+    ['local-dependency-mode-option', 'offline-dependency-snapshot'],
+  );
+});
+
 test('edge batches rely on seeded instance colours, not vertex colours (black-edge regression)', () => {
   const runtime = readAssembledRuntime('dependency-graph', 'dependencyGraphRuntime.js');
   // vertexColors on the batch materials multiplied a missing vertex-colour

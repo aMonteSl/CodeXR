@@ -86,11 +86,10 @@ export async function exportGitRevisionData(
     const workerScriptPath = fs.existsSync(distWorkerPath) ? distWorkerPath : srcWorkerPath;
     const workerPlan = calculateGitExportWorkerPlan(request.performanceProfile);
 
-    const readWorkingCopyPayload = async (): Promise<Record<string, unknown>[] | undefined> => {
+    const readWorkingCopyPayload = async (): Promise<unknown> => {
         try {
             const raw = await fs.promises.readFile(path.join(destinationPath, 'data.json'), 'utf8');
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed : undefined;
+            return JSON.parse(raw);
         } catch {
             return undefined;
         }

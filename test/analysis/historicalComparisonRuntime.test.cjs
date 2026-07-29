@@ -133,7 +133,26 @@ test('synthesized historical references keep the picker contract', () => {
             workingTreeDirty: true,
             activeBranch: 'main',
             pageSize: 5,
-            sources: [{ id: 'working-copy', kind: 'workingCopy' }, { id: 'commit:a', kind: 'gitRef' }],
+            sources: [
+                {
+                    id: 'working-copy',
+                    kind: 'workingCopy',
+                    payloadUrl: './git-revisions/working-copy.json',
+                    itemCount: 1,
+                },
+                {
+                    id: 'commit:a',
+                    kind: 'gitRef',
+                    payloadUrl: './git-revisions/a.json',
+                    itemCount: 1,
+                },
+                {
+                    id: 'commit:empty',
+                    kind: 'gitRef',
+                    payloadUrl: './git-revisions/empty.json',
+                    itemCount: 0,
+                },
+            ],
         },
         workingCopyPayloadUrl: './git-revisions/working-copy.json',
     });
@@ -141,5 +160,6 @@ test('synthesized historical references keep the picker contract', () => {
     assert.equal(references.workingTreeDirty, true);
     assert.equal(references.activeBranch, 'main');
     assert.equal(references.sources.length, 2);
+    assert.equal(references.sources.some((source) => source.id === 'commit:empty'), false);
     assert.equal(references.activeRequest, null);
 });

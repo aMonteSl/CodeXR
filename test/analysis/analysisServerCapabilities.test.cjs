@@ -135,8 +135,8 @@ test('The XR-only services still throw for non-XR sessions, so gating their cons
     const projectEvolution = readProjectFile('src', 'code_analysis', 'historical', 'projectEvolutionService.ts');
 
     // Constructors resolve the session eagerly (this is what aborted the launch).
-    assert.match(historical, /this\.gitService = new GitRepositoryService\(this\.getSession\(\)\.targetPath/);
-    assert.match(projectEvolution, /this\.getSession\(\)\.targetPath/);
+    assert.match(historical, /const session = this\.getSession\(\)[\s\S]*new GitRepositoryService\(session\.targetPath/);
+    assert.match(projectEvolution, /const session = this\.getSession\(\)[\s\S]*new GitRepositoryService\([\s\S]*session\.targetPath/);
 
     // getSession() rejects anything that is not an XR session.
     assert.match(historical, /session\.analysisMode !== 'XR'[\s\S]*throw new Error\('historical-comparison-session-unavailable'\)/);

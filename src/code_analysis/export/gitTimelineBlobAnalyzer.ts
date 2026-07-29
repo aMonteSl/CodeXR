@@ -11,7 +11,7 @@ import {
     GitTimelineBlobIndex,
     IndexedGitFile,
     IndexedGitRevision,
-} from './gitTimelineBlobIndex';
+} from '../historical/gitTimelineBlobIndex';
 
 export interface GitBlobAnalysisProgressSink {
     report(value: { message?: string; increment?: number }): void;
@@ -254,6 +254,10 @@ export class GitTimelineBlobAnalyzer {
             let fileOccurrences = 0;
             for (const revision of revisions) {
                 if (revision.failureReason || revision.missingTarget) {
+                    continue;
+                }
+                if (revision.files.length < 1) {
+                    revision.failureReason = 'git-revision-no-analyzable-content';
                     continue;
                 }
                 for (const file of revision.files) {

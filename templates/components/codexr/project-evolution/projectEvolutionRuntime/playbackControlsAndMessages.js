@@ -272,7 +272,14 @@
     var count = (refs.picker?.getVisibleSources?.() || []).filter(function (source) {
       return source && source.kind === 'gitRef';
     }).length;
-    setStatus(count ? 'Ready to generate ' + count + ' timeline frames.' : 'No commits available for evolution.', count ? 'info' : 'error');
+    var excludedCount = Number(state.references?.eligibility?.excludedSources?.length || 0);
+    var suffix = excludedCount
+      ? ' ' + excludedCount + ' revision(s) were hidden because they contain no analyzable data.'
+      : '';
+    setStatus(
+      count ? 'Ready to generate ' + count + ' timeline frames.' + suffix : 'Fewer than two revisions contain analyzable data.' + suffix,
+      count >= 2 ? 'info' : 'error'
+    );
     render();
   }
 

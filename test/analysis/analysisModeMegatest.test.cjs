@@ -150,7 +150,9 @@ test('XR mode panel exposes one labelled Analyses button and no dependency heade
   // stale server controllerView can no longer strand the panel.
   assert.match(modeRuntime, /var echoView = lifecycles\[visibleMode\]\?\.resolveControllerView\?\.\(\)/);
   assert.doesNotMatch(historyRuntime, /transitionTo\?\.\('selection', \{[\s\S]*historical-selection/);
-  assert.match(dependencyRuntime, /function selectDependencyMode\(\)[\s\S]*if \(state\.dataset && state\.snapshot\?\.datasetUrl\)[\s\S]*analysis-mode-activate/);
+  assert.match(dependencyRuntime, /function selectDependencyMode\(\)[\s\S]*activateReadySnapshot\('local-dependency-mode-option'\)/);
+  assert.match(dependencyRuntime, /function hasReadySnapshot\(\)[\s\S]*snapshot\?\.status === 'ready'[\s\S]*snapshot\?\.datasetUrl/);
+  assert.match(dependencyRuntime, /function activateReadySnapshot\([\s\S]*analysis-mode-activate/);
   assert.ok(
     historyRuntime.indexOf('state.result = result;')
       < historyRuntime.indexOf('await renderComparison(result, datasets[0], datasets[1]);'),

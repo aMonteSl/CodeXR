@@ -19,12 +19,15 @@
   }
 
   function synthesizeOfflineHistoricalReferences(gitData) {
+    var sources = gitData.references.sources.filter(function (source) {
+      return source && Number(source.itemCount || 0) > 0 && !!resolveOfflinePayloadUrl(gitData, source.id);
+    });
     return {
       repositoryRoot: gitData.references.repositoryRoot || '',
       targetRelativePath: gitData.references.targetRelativePath || '',
       workingTreeDirty: gitData.references.workingTreeDirty === true,
       activeBranch: gitData.references.activeBranch || null,
-      sources: gitData.references.sources,
+      sources: sources,
       pageSize: gitData.references.pageSize || 5,
       activeRequest: null
     };
@@ -120,7 +123,17 @@
       throw new Error('An exported revision payload could not be loaded.');
     }
     var payload = await response.json();
-    return Array.isArray(payload) ? payload : [];
+    if (
+      !Array.isArray(payload)
+      || !payload.some(function (entry) {
+        return entry && typeof entry === 'object' && !Array.isArray(entry);
+      })
+    ) {
+      throw new Error('The exported revision contains no usable analysis data.');
+    }
+    return payload.filter(function (entry) {
+      return entry && typeof entry === 'object' && !Array.isArray(entry);
+    });
   }
 
   async function startOfflineGitComparison() {

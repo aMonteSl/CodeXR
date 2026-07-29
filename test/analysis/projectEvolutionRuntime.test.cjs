@@ -557,6 +557,22 @@ test('offline range slices the timeline inclusively; manual keeps chronological 
     ]);
 });
 
+test('offline movies discard zero-item sources and compact their frame indices', () => {
+    const gitData = buildOfflineGitDataFixture();
+    const empty = gitData.references.sources.find((source) => source.id === 'commit:c5');
+    empty.itemCount = 0;
+    const runtime = loadRuntimeWithOfflineGitData(gitData);
+
+    const frames = runtime.__testing.buildOfflineFrames(gitData, 'manual', {
+        maxFrames: 96,
+        sourceIds: ['commit:c1', 'commit:c5', 'commit:c7'],
+    });
+    assert.deepEqual(frames.map((frame) => frame.source.id), ['commit:c1', 'commit:c7']);
+    assert.deepEqual(frames.map((frame) => frame.index), [0, 1]);
+    const references = runtime.__testing.synthesizeOfflineEvolutionReferences(gitData);
+    assert.equal(references.sources.some((source) => source.id === 'commit:c5'), false);
+});
+
 test('offline generation is wired through the panel, and the no-git replay path survives', () => {
     assert.match(runtimeSource, /synthesizeOfflineEvolutionReferences\(offlineGitData\)/);
     assert.match(runtimeSource, /startOfflineTimeline\(\)/);

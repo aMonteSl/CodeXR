@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { sseManager } from '../sse/SSEManager';
 import { fileToServerMap } from '../../../utils/fileToServerMap';
 import { CollaborationRoomServer } from '../collaboration/collaborationRoomServer';
 import {
     HistoricalComparisonProgress,
     HistoricalComparisonService,
+    GitAnalysisSourceCatalog,
     ProjectEvolutionService,
     analysisUpdateEvents,
 } from '../../../code_analysis/historical';
@@ -45,6 +47,7 @@ export class AnalysisFeatureHost {
     public dependencyGraphService: DependencyGraphService | null = null;
     public historicalComparisonService: HistoricalComparisonService | null = null;
     public projectEvolutionService: ProjectEvolutionService | null = null;
+    public gitAnalysisSourceCatalog: GitAnalysisSourceCatalog | null = null;
 
     private analysisUpdateSubscription: (() => void) | null = null;
     private historicalRefreshTimer: NodeJS.Timeout | null = null;
@@ -67,6 +70,19 @@ export class AnalysisFeatureHost {
                 .getSession(this.config.analysisSessionId);
             this.analysisMode = session?.analysisMode;
             const capabilities = resolveAnalysisServerCapabilities(session?.analysisMode);
+            if (
+                session
+                && (capabilities.historicalComparison || capabilities.projectEvolution)
+            ) {
+                this.gitAnalysisSourceCatalog = new GitAnalysisSourceCatalog(
+                    session.targetType,
+                    session.isDeep === true,
+                    path.join(
+                        session.savedFilesPath || this.config.staticRoot,
+                        'data.json',
+                    ),
+                );
+            }
 
             if (capabilities.dependencyGraph) {
                 this.dependencyGraphService = new DependencyGraphService(
@@ -103,6 +119,7 @@ export class AnalysisFeatureHost {
                     this.config.extensionContext,
                     this.config.analysisSessionId,
                     this.config.staticRoot,
+                    this.gitAnalysisSourceCatalog || undefined,
                 );
                 this.analysisUpdateSubscription = analysisUpdateEvents.on((event) => {
                     if (event.sessionId !== this.config.analysisSessionId) {
@@ -127,6 +144,7 @@ export class AnalysisFeatureHost {
                     this.config.extensionContext,
                     this.config.analysisSessionId,
                     this.config.staticRoot,
+                    this.gitAnalysisSourceCatalog || undefined,
                 );
             }
 
@@ -363,6 +381,8 @@ export class AnalysisFeatureHost {
         this.historicalComparisonService = null;
         void this.projectEvolutionService?.dispose();
         this.projectEvolutionService = null;
+        void this.gitAnalysisSourceCatalog?.dispose();
+        this.gitAnalysisSourceCatalog = null;
         void this.dependencyGraphService?.dispose();
         this.dependencyGraphService = null;
     }

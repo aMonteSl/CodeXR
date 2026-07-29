@@ -139,6 +139,17 @@ export class GitRepositoryService {
         };
     }
 
+    public async getRepositoryContext(): Promise<{
+        repositoryRoot: string;
+        targetRelativePath: string;
+    }> {
+        const repositoryRoot = await this.resolveRepositoryRoot();
+        return {
+            repositoryRoot,
+            targetRelativePath: this.resolveTargetRelativePath(repositoryRoot),
+        };
+    }
+
     public async resolveSource(sourceId: string): Promise<ComparisonSource> {
         if (sourceId === 'working-copy' || this.sourceById.size === 0) {
             await this.listReferences();
@@ -281,17 +292,6 @@ export class GitRepositoryService {
         }
         this.resolveTargetRelativePath(repositoryRoot);
         return repositoryRoot;
-    }
-
-    /**
-     * Whether the analyzed target exists in the given commit. Lets a
-     * single-file comparison hide references the file is absent from
-     * (deleted, renamed, or not yet created in that version).
-     */
-    public async targetExistsInCommit(commitSha: string): Promise<boolean> {
-        const repositoryRoot = await this.resolveRepositoryRoot();
-        const targetRelativePath = this.resolveTargetRelativePath(repositoryRoot);
-        return this.gitObjectExists(repositoryRoot, `${commitSha}:${targetRelativePath}`);
     }
 
     private async materializeFile(

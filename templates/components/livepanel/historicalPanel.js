@@ -149,6 +149,12 @@ class CodexrHistoricalPanel {
       this.setStatus(message.message || 'Analyzing...', message.state === 'error');
       if (message.state === 'error') {
         this.setBusy(false);
+        // A source that produced no data is removed from the session catalogue.
+        // Reload both selectors immediately, then keep the precise server
+        // reason visible instead of leaving the rejected option selected.
+        this.initialize().then(() => {
+          this.setStatus(message.message || 'The selected revision has no usable data.', true);
+        });
       }
       return true;
     }

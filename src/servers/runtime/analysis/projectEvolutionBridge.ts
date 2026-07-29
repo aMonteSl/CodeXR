@@ -2,7 +2,10 @@ import {
     CollaborationApplicationMessageContext,
     CollaborationMessage,
 } from '../collaboration/collaborationRoomServer';
-import { ProjectEvolutionRequest } from '../../../code_analysis/historical';
+import {
+    GitAnalysisSourceError,
+    ProjectEvolutionRequest,
+} from '../../../code_analysis/historical';
 import { analysisRefreshCoordinator } from '../../../code_analysis/refresh';
 import { SessionWatcherManager } from '../../../code_analysis/engine/watchers/sessionWatcherManager';
 import { AnalysisFeatureHost } from './analysisFeatureHost';
@@ -211,10 +214,32 @@ export class ProjectEvolutionBridge {
                 if (error instanceof Error && error.message === 'project-evolution-cleared') {
                     return;
                 }
+                if (error instanceof GitAnalysisSourceError) {
+                    const [historical, evolution] = await Promise.all([
+                        this.host.historicalComparisonService?.getReferences(),
+                        this.host.projectEvolutionService?.getReferences(),
+                    ]);
+                    if (historical) {
+                        messageContext.broadcast({
+                            type: 'historical-comparison-references',
+                            payload: historical,
+                        });
+                    }
+                    if (evolution) {
+                        messageContext.broadcast({
+                            type: 'project-evolution-references',
+                            payload: evolution,
+                        });
+                    }
+                }
                 messageContext.broadcast({
                     type: 'project-evolution-error',
                     payload: {
-                        code: error instanceof Error ? error.message : 'project-evolution-failed',
+                        code: error instanceof GitAnalysisSourceError
+                            ? error.code
+                            : error instanceof Error
+                                ? error.message
+                                : 'project-evolution-failed',
                         message: error instanceof Error ? error.message : String(error),
                     },
                 });

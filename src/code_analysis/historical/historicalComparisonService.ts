@@ -8,9 +8,16 @@ import { UnifiedSessionRegistry } from '../engine/core/sessionRegistry';
 import { ExecutePython } from '../engine/utils/executePython';
 import { GitRepositoryService } from './gitRepositoryService';
 import {
+    GitAnalysisSourceCatalog,
+    GitAnalysisSourceError,
+    isDeterministicNoDataError,
+    validateGitAnalysisPayload,
+} from './gitAnalysisEligibility';
+import {
     ComparisonDataset,
     ComparisonDeltaSummary,
     ComparisonSource,
+    GitAnalysisExclusionCode,
     HistoricalComparisonProgress,
     HistoricalComparisonReferences,
     HistoricalComparisonRequest,
@@ -28,6 +35,8 @@ interface CachedPayload {
 
 export class HistoricalComparisonService {
     private readonly gitService: GitRepositoryService;
+    private readonly sourceCatalog: GitAnalysisSourceCatalog;
+    private readonly ownsSourceCatalog: boolean;
     private readonly cache = new Map<string, CachedPayload>();
     private references: HistoricalComparisonReferences | null = null;
     private activeJob: Promise<HistoricalComparisonResult> | null = null;
@@ -38,7 +47,9 @@ export class HistoricalComparisonService {
         private readonly context: vscode.ExtensionContext,
         private readonly sessionId: string,
         private readonly staticRoot: string,
+        sourceCatalog?: GitAnalysisSourceCatalog,
     ) {
+        const session = this.getSession();
         const privateStorageRoot = context.storageUri?.fsPath || context.globalStorageUri.fsPath;
         const snapshotRoot = path.join(
             privateStorageRoot,
@@ -46,35 +57,29 @@ export class HistoricalComparisonService {
             sessionId,
             'snapshots',
         );
-        this.gitService = new GitRepositoryService(this.getSession().targetPath, snapshotRoot);
+        this.gitService = new GitRepositoryService(session.targetPath, snapshotRoot);
+        this.ownsSourceCatalog = !sourceCatalog;
+        this.sourceCatalog = sourceCatalog || new GitAnalysisSourceCatalog(
+            session.targetType,
+            session.isDeep === true,
+            path.join(session.savedFilesPath || staticRoot, 'data.json'),
+        );
     }
 
     public async getReferences(): Promise<HistoricalComparisonReferences> {
         const references = await this.gitService.listReferences();
+        const filtered = await this.sourceCatalog.filterSources({
+            repositoryRoot: references.repositoryRoot,
+            targetRelativePath: references.targetRelativePath,
+            sources: references.sources,
+        });
         this.references = {
             ...references,
-            sources: await this.filterSourcesForTarget(references.sources),
+            sources: filtered.sources,
+            eligibility: filtered.eligibility,
             activeRequest: this.activeRequest ? { ...this.activeRequest } : null,
         };
         return this.references;
-    }
-
-    /**
-     * A single-file comparison can only target versions that actually contain
-     * that file: hide every Git reference the file is absent from (deleted,
-     * renamed, or not yet created there). Directory targets keep all
-     * references — per-file presence is what the comparison itself reports.
-     */
-    private async filterSourcesForTarget(sources: ComparisonSource[]): Promise<ComparisonSource[]> {
-        if (this.getSession().targetType !== 'file') {
-            return sources;
-        }
-        const present = await Promise.all(sources.map((source) => (
-            source.kind === 'workingCopy'
-                ? Promise.resolve(true)
-                : this.gitService.targetExistsInCommit(source.commitSha)
-        )));
-        return sources.filter((_, index) => present[index]);
     }
 
     public getAvailability(): Promise<{ enabled: boolean; reason: string | null }> {
@@ -125,6 +130,9 @@ export class HistoricalComparisonService {
 
     public async dispose(): Promise<void> {
         await this.gitService.dispose();
+        if (this.ownsSourceCatalog) {
+            await this.sourceCatalog.dispose();
+        }
         this.cache.clear();
     }
 
@@ -200,9 +208,23 @@ export class HistoricalComparisonService {
         const session = this.getSession();
         if (source.kind === 'workingCopy') {
             const dataPath = path.join(session.savedFilesPath || this.staticRoot, 'data.json');
-            const payload = JSON.parse(await fs.promises.readFile(dataPath, 'utf8'));
+            let payload: unknown;
+            try {
+                payload = JSON.parse(await fs.promises.readFile(dataPath, 'utf8'));
+            } catch {
+                throw this.excludeSource(
+                    source,
+                    'invalid-payload',
+                    'The working copy data.json is missing or unreadable.',
+                );
+            }
+            const validation = this.requireUsablePayload(source, payload);
             return {
-                payload: this.decoratePayload(Array.isArray(payload) ? payload : [], session, session.targetPath),
+                payload: this.decoratePayload(
+                    validation,
+                    session,
+                    session.targetPath,
+                ),
                 missingTarget: false,
                 warnings: [],
             };
@@ -224,13 +246,11 @@ export class HistoricalComparisonService {
 
         const materialized = await this.gitService.materialize(source);
         if (!materialized.targetPath) {
-            const missing = {
-                payload: [],
-                missingTarget: true,
-                warnings: materialized.warnings,
-            };
-            this.cache.set(cacheKey, missing);
-            return missing;
+            throw this.excludeSource(
+                source,
+                'target-missing',
+                'The analyzed target does not exist in this revision.',
+            );
         }
 
         const historicalSession: UnifiedAnalysisSession = {
@@ -244,9 +264,21 @@ export class HistoricalComparisonService {
             templatePaths: new Map(),
             metadata: { comparisonSource: source },
         };
-        const analysisResult = await new ExecutePython(this.context).executeAnalysis(historicalSession);
+        let analysisResult: unknown;
+        try {
+            analysisResult = await new ExecutePython(this.context).executeAnalysis(historicalSession);
+        } catch (error) {
+            if (isDeterministicNoDataError(error)) {
+                throw this.excludeSource(
+                    source,
+                    'invalid-payload',
+                    'The analyzer did not produce a readable JSON payload.',
+                );
+            }
+            throw error;
+        }
         const payload = this.decoratePayload(
-            Array.isArray(analysisResult) ? analysisResult : [],
+            this.requireUsablePayload(source, analysisResult),
             session,
             materialized.targetPath,
         );
@@ -257,6 +289,38 @@ export class HistoricalComparisonService {
         };
         this.cache.set(cacheKey, result);
         return result;
+    }
+
+    private requireUsablePayload(
+        source: ComparisonSource,
+        payload: unknown,
+    ): Record<string, unknown>[] {
+        const validation = validateGitAnalysisPayload(payload);
+        if (!validation.usable) {
+            throw this.excludeSource(
+                source,
+                validation.code || 'invalid-payload',
+                validation.reason || 'The analysis produced no usable data.',
+            );
+        }
+        return validation.entries;
+    }
+
+    private excludeSource(
+        source: ComparisonSource,
+        code: GitAnalysisExclusionCode,
+        reason: string,
+    ): GitAnalysisSourceError {
+        const exclusion = this.sourceCatalog.recordDeterministicExclusion(
+            source,
+            code,
+            reason,
+        );
+        return new GitAnalysisSourceError(
+            'comparison-source-no-data',
+            `"${source.label}" was removed from Git analyses: ${reason}`,
+            [exclusion],
+        );
     }
 
     private decoratePayload(

@@ -13,13 +13,22 @@
     return gitData && Array.isArray(gitData.references?.sources) ? gitData : null;
   }
 
+  function isOfflineSourceUsable(gitData, source) {
+    return !!source
+      && Number(source.itemCount || 0) > 0
+      && !!offlinePayloadUrl(gitData, source);
+  }
+
   function synthesizeOfflineEvolutionReferences(gitData) {
+    var sources = gitData.references.sources.filter(function (source) {
+      return isOfflineSourceUsable(gitData, source);
+    });
     return {
       repositoryRoot: gitData.references.repositoryRoot || '',
       targetRelativePath: gitData.references.targetRelativePath || '',
       workingTreeDirty: gitData.references.workingTreeDirty === true,
       activeBranch: gitData.references.activeBranch || null,
-      sources: gitData.references.sources,
+      sources: sources,
       pageSize: gitData.references.pageSize || 5,
       suggestedSourceIds: gitData.suggestedSourceIds || [],
       maxFrames: gitData.maxFrames || 24,
@@ -36,7 +45,7 @@
   function offlineTimeline(gitData) {
     return (gitData.timelineSourceIds || [])
       .map(function (sourceId) { return offlineSourceById(gitData, sourceId); })
-      .filter(function (source) { return !!source; });
+      .filter(function (source) { return isOfflineSourceUsable(gitData, source); });
   }
 
   function offlinePayloadUrl(gitData, source) {
@@ -79,7 +88,7 @@
     if (mode === 'manual' && Array.isArray(options.sourceIds) && options.sourceIds.length) {
       selected = options.sourceIds
         .map(function (sourceId) { return offlineSourceById(gitData, sourceId); })
-        .filter(function (source) { return !!source; })
+        .filter(function (source) { return isOfflineSourceUsable(gitData, source); })
         .sort(function (a, b) {
           return offlineTimelineIndex(timeline, a.id, gitData) - offlineTimelineIndex(timeline, b.id, gitData);
         })
@@ -101,7 +110,7 @@
       if (maxFrames === (gitData.maxFrames || 24) && Array.isArray(gitData.suggestedSourceIds) && gitData.suggestedSourceIds.length) {
         selected = gitData.suggestedSourceIds
           .map(function (sourceId) { return offlineSourceById(gitData, sourceId); })
-          .filter(function (source) { return !!source; });
+          .filter(function (source) { return isOfflineSourceUsable(gitData, source); });
       } else {
         var endAnchor = offlineSourceById(gitData, 'working-copy') || timeline[timeline.length - 1] || null;
         selected = sampler ? sampler(timeline, maxFrames, endAnchor) : timeline.slice(0, maxFrames);
@@ -110,6 +119,9 @@
 
     return selected
       .map(function (source, index) {
+        if (!isOfflineSourceUsable(gitData, source)) {
+          return null;
+        }
         var url = offlinePayloadUrl(gitData, source);
         if (!url) {
           return null;
@@ -141,8 +153,8 @@
       endSourceId: state.endSourceId,
       sourceIds: (state.manualSourceIds || []).slice()
     });
-    if (!frames.length) {
-      setStatus('No exported revisions match that selection.', 'error');
+    if (frames.length < 2) {
+      setStatus('Project evolution needs at least two exported revisions with usable data.', 'error');
       return;
     }
     clearChartVisualization();
@@ -159,6 +171,7 @@
         revision: state.offlineMovieRevision,
         mode: MODE,
         frames: frames,
+        excludedSources: [],
         generatedAt: new Date().toISOString()
       }
     });

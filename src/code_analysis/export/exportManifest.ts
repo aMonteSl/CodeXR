@@ -402,6 +402,7 @@ export async function buildExportManifest(
     const gitData = gitTimelineSelected
         && options.gitData
         && options.gitData.references.sources.length >= 2
+        && options.gitData.timelineSourceIds.length >= 2
         ? options.gitData
         : undefined;
     const partialSuffix = gitData?.partial

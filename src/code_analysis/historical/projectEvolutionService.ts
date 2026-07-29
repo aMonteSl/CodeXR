@@ -6,9 +6,17 @@ import { UnifiedAnalysisSession } from '../engine/core/analysisSession';
 import { UnifiedSessionRegistry } from '../engine/core/sessionRegistry';
 import { ExecutePython } from '../engine/utils/executePython';
 import { GitRepositoryService } from './gitRepositoryService';
+import {
+    GitAnalysisSourceCatalog,
+    GitAnalysisSourceError,
+    createGitAnalysisExclusion,
+    isDeterministicNoDataError,
+    validateGitAnalysisPayload,
+} from './gitAnalysisEligibility';
 import { sampleTimeline } from './gitTimelineSampler';
 import {
     ComparisonSource,
+    GitAnalysisExclusion,
     ProjectEvolutionProgress,
     ProjectEvolutionReferences,
     ProjectEvolutionRequest,
@@ -27,8 +35,15 @@ interface CachedPayload {
     warnings: string[];
 }
 
+interface ResolvedEvolutionSources {
+    sources: ComparisonSource[];
+    exclusions: GitAnalysisExclusion[];
+}
+
 export class ProjectEvolutionService {
     private readonly gitService: GitRepositoryService;
+    private readonly sourceCatalog: GitAnalysisSourceCatalog;
+    private readonly ownsSourceCatalog: boolean;
     private readonly cache = new Map<string, CachedPayload>();
     private activeJob: Promise<ProjectEvolutionResult> | null = null;
     private activeRequest: ProjectEvolutionRequest | null = null;
@@ -39,11 +54,19 @@ export class ProjectEvolutionService {
         private readonly context: vscode.ExtensionContext,
         private readonly sessionId: string,
         private readonly staticRoot: string,
+        sourceCatalog?: GitAnalysisSourceCatalog,
     ) {
+        const session = this.getSession();
         const privateStorageRoot = context.storageUri?.fsPath || context.globalStorageUri.fsPath;
         this.gitService = new GitRepositoryService(
-            this.getSession().targetPath,
+            session.targetPath,
             path.join(privateStorageRoot, 'project-evolution', sessionId, 'snapshots'),
+        );
+        this.ownsSourceCatalog = !sourceCatalog;
+        this.sourceCatalog = sourceCatalog || new GitAnalysisSourceCatalog(
+            session.targetType,
+            session.isDeep === true,
+            path.join(session.savedFilesPath || staticRoot, 'data.json'),
         );
     }
 
@@ -56,10 +79,20 @@ export class ProjectEvolutionService {
     public async getReferences(): Promise<ProjectEvolutionReferences> {
         const references = await this.gitService.listReferences();
         const timeline = await this.buildAutomaticTimeline(references);
-        const suggested = this.sampleSources(timeline, DEFAULT_MAX_FRAMES).map((source) => source.id);
+        const mergedSources = this.mergeSources(references.sources, timeline);
+        const filtered = await this.sourceCatalog.filterSources({
+            repositoryRoot: references.repositoryRoot,
+            targetRelativePath: references.targetRelativePath,
+            sources: mergedSources,
+        });
+        const usableIds = new Set(filtered.sources.map((source) => source.id));
+        const usableTimeline = timeline.filter((source) => usableIds.has(source.id));
+        const suggested = this.sampleSources(usableTimeline, DEFAULT_MAX_FRAMES)
+            .map((source) => source.id);
         return {
             ...references,
-            sources: this.mergeSources(references.sources, timeline),
+            sources: filtered.sources,
+            eligibility: filtered.eligibility,
             activeRequest: this.activeRequest ? { ...this.activeRequest } : null,
             suggestedSourceIds: suggested,
             maxFrames: DEFAULT_MAX_FRAMES,
@@ -90,6 +123,9 @@ export class ProjectEvolutionService {
 
     public async dispose(): Promise<void> {
         await this.gitService.dispose();
+        if (this.ownsSourceCatalog) {
+            await this.sourceCatalog.dispose();
+        }
         this.cache.clear();
     }
 
@@ -139,17 +175,18 @@ export class ProjectEvolutionService {
     ): Promise<ProjectEvolutionResult> {
         onProgress?.({ state: 'analyzing', message: 'Resolving project timeline...' });
         const cancellationToken = this.cancellationRevision;
-        const sources = await this.resolveTimelineSources(request);
-        if (sources.length < 1) {
-            throw new Error('project-evolution-empty-timeline');
+        const resolved = await this.resolveTimelineSources(request);
+        const sources = resolved.sources;
+        if (sources.length < 2) {
+            throw new GitAnalysisSourceError(
+                'project-evolution-insufficient-data',
+                `Project evolution needs at least two revisions with data; ${sources.length} remain after filtering.`,
+                resolved.exclusions,
+            );
         }
-        const revision = ++this.revision;
-        const evolutionDirectory = path.join(this.staticRoot, 'evolution');
-        const revisionDirectory = path.join(evolutionDirectory, `revision-${revision}`);
-        await fs.promises.rm(revisionDirectory, { recursive: true, force: true });
-        await fs.promises.mkdir(revisionDirectory, { recursive: true });
 
-        const frames: ProjectEvolutionResult['frames'] = new Array(sources.length);
+        const analyzed = new Array<CachedPayload | undefined>(sources.length);
+        const exclusionsByIndex = new Array<GitAnalysisExclusion | undefined>(sources.length);
         const concurrency = Math.min(DEFAULT_ANALYSIS_CONCURRENCY, sources.length);
         let nextIndex = 0;
         let completed = 0;
@@ -172,30 +209,50 @@ export class ProjectEvolutionService {
                     frameIndex: index,
                     frameCount: sources.length,
                 });
-                const payload = await this.analyzeSource(source);
+                try {
+                    const payload = await this.analyzeSource(source);
+                    if (payload.missingTarget) {
+                        exclusionsByIndex[index] = this.sourceCatalog.recordDeterministicExclusion(
+                            source,
+                            'target-missing',
+                            'The analyzed target does not exist in this revision.',
+                        );
+                    } else {
+                        const validation = validateGitAnalysisPayload(payload.payload);
+                        if (!validation.usable) {
+                            exclusionsByIndex[index] = this.sourceCatalog.recordDeterministicExclusion(
+                                source,
+                                validation.code || 'invalid-payload',
+                                validation.reason || 'The analysis produced no usable data.',
+                            );
+                        } else {
+                            analyzed[index] = {
+                                ...payload,
+                                payload: validation.entries,
+                            };
+                        }
+                    }
+                } catch (error) {
+                    exclusionsByIndex[index] = error instanceof GitAnalysisSourceError
+                        && error.exclusions.length
+                        ? error.exclusions[0]
+                        : createGitAnalysisExclusion(
+                            source,
+                            'analysis-failed',
+                            'analysis',
+                            error instanceof Error ? error.message : String(error),
+                        );
+                }
                 if (cancellationToken !== this.cancellationRevision) {
                     throw new Error('project-evolution-cleared');
                 }
-                const fileName = `data${index + 1}.json`;
-                await fs.promises.writeFile(
-                    path.join(revisionDirectory, fileName),
-                    JSON.stringify(payload.payload, null, 2),
-                    'utf8',
-                );
-                frames[index] = {
-                    index,
-                    source,
-                    label: source.label,
-                    date: this.extractDate(source) || '',
-                    url: `/evolution/revision-${revision}/${fileName}`,
-                    itemCount: payload.payload.length,
-                    missingTarget: payload.missingTarget,
-                    warnings: payload.warnings,
-                };
                 completed += 1;
+                const exclusion = exclusionsByIndex[index];
                 onProgress?.({
                     state: 'analyzing',
-                    message: `Analyzed ${completed} / ${sources.length} project revisions. Last completed: ${this.describeRevisionType(source)} ${source.label}`,
+                    message: exclusion
+                        ? `Discarded ${source.label}: ${exclusion.reason}`
+                        : `Analyzed ${completed} / ${sources.length} project revisions. Last completed: ${this.describeRevisionType(source)} ${source.label}`,
                     frameIndex: index,
                     frameCount: sources.length,
                 });
@@ -206,6 +263,49 @@ export class ProjectEvolutionService {
             throw new Error('project-evolution-cleared');
         }
 
+        const valid = analyzed
+            .map((payload, index) => payload ? { payload, source: sources[index] } : undefined)
+            .filter((entry): entry is { payload: CachedPayload; source: ComparisonSource } => !!entry);
+        const excludedSources = [
+            ...resolved.exclusions,
+            ...exclusionsByIndex.filter(
+                (entry): entry is GitAnalysisExclusion => !!entry,
+            ),
+        ];
+        if (valid.length < 2) {
+            throw new GitAnalysisSourceError(
+                'project-evolution-insufficient-data',
+                `Project evolution needs at least two revisions with data; ${valid.length} remain after analysis.`,
+                excludedSources,
+            );
+        }
+
+        const revision = ++this.revision;
+        const evolutionDirectory = path.join(this.staticRoot, 'evolution');
+        const revisionDirectory = path.join(evolutionDirectory, `revision-${revision}`);
+        await fs.promises.rm(revisionDirectory, { recursive: true, force: true });
+        await fs.promises.mkdir(revisionDirectory, { recursive: true });
+        const frames: ProjectEvolutionResult['frames'] = [];
+        for (let index = 0; index < valid.length; index += 1) {
+            const entry = valid[index];
+            const fileName = `data${index + 1}.json`;
+            await fs.promises.writeFile(
+                path.join(revisionDirectory, fileName),
+                JSON.stringify(entry.payload.payload, null, 2),
+                'utf8',
+            );
+            frames.push({
+                index,
+                source: entry.source,
+                label: entry.source.label,
+                date: this.extractDate(entry.source) || '',
+                url: `/evolution/revision-${revision}/${fileName}`,
+                itemCount: entry.payload.payload.length,
+                missingTarget: false,
+                warnings: entry.payload.warnings,
+            });
+        }
+
         const result: ProjectEvolutionResult = {
             revision,
             mode: 'project-evolution',
@@ -213,6 +313,7 @@ export class ProjectEvolutionService {
             generatedAt: new Date().toISOString(),
             manifestUrl: `/evolution/revision-${revision}/manifest.json`,
             bridgeUrl: `/evolution/revision-${revision}/data.json`,
+            excludedSources,
         };
         await this.copyFileAtomically(
             path.join(revisionDirectory, 'data1.json'),
@@ -225,20 +326,44 @@ export class ProjectEvolutionService {
         );
         onProgress?.({
             state: 'ready',
-            message: 'Project evolution ready.',
+            message: excludedSources.length
+                ? `Project evolution ready. ${excludedSources.length} revision(s) were discarded because they had no usable data.`
+                : 'Project evolution ready.',
             revision,
             frameCount: frames.length,
         });
         return result;
     }
 
-    private async resolveTimelineSources(request: ProjectEvolutionRequest): Promise<ComparisonSource[]> {
+    private async resolveTimelineSources(request: ProjectEvolutionRequest): Promise<ResolvedEvolutionSources> {
         const mode = request.mode || 'auto';
         const maxFrames = Math.max(1, Math.min(96, Math.floor(Number(request.maxFrames || DEFAULT_MAX_FRAMES))));
+        let candidates: ComparisonSource[];
         if (mode === 'manual' && Array.isArray(request.sourceIds) && request.sourceIds.length) {
-            return this.gitService.resolveSourcesInChronologicalOrder(request.sourceIds.slice(0, maxFrames));
+            candidates = await this.gitService.resolveSourcesInChronologicalOrder(
+                request.sourceIds.slice(0, maxFrames),
+            );
+        } else {
+            candidates = await this.resolveAutomaticOrRangeSources(request);
         }
+        const repository = await this.gitService.getRepositoryContext();
+        const filtered = await this.sourceCatalog.filterSources({
+            ...repository,
+            sources: candidates,
+        });
+        return {
+            sources: mode === 'manual'
+                ? filtered.sources.slice(0, maxFrames)
+                : this.sampleSources(filtered.sources, maxFrames),
+            exclusions: filtered.eligibility.excludedSources,
+        };
+    }
+
+    private async resolveAutomaticOrRangeSources(
+        request: ProjectEvolutionRequest,
+    ): Promise<ComparisonSource[]> {
         const timeline = await this.buildAutomaticTimeline();
+        const mode = request.mode || 'auto';
         if (mode === 'range' && request.startSourceId && request.endSourceId) {
             const startIndex = await this.resolveTimelineIndex(timeline, request.startSourceId);
             const endIndex = await this.resolveTimelineIndex(timeline, request.endSourceId);
@@ -250,9 +375,9 @@ export class ProjectEvolutionService {
             }
             const from = Math.min(startIndex, endIndex);
             const to = Math.max(startIndex, endIndex);
-            return this.sampleSources(timeline.slice(from, to + 1), maxFrames);
+            return timeline.slice(from, to + 1);
         }
-        return this.sampleSources(timeline, maxFrames);
+        return timeline;
     }
 
     /**
@@ -335,9 +460,22 @@ export class ProjectEvolutionService {
         const session = this.getSession();
         if (source.kind === 'workingCopy') {
             const dataPath = path.join(session.savedFilesPath || this.staticRoot, 'data.json');
-            const payload = JSON.parse(await fs.promises.readFile(dataPath, 'utf8'));
+            let payload: unknown;
+            try {
+                payload = JSON.parse(await fs.promises.readFile(dataPath, 'utf8'));
+            } catch {
+                throw this.excludeSource(
+                    source,
+                    'invalid-payload',
+                    'The working copy data.json is missing or unreadable.',
+                );
+            }
             return {
-                payload: this.decoratePayload(Array.isArray(payload) ? payload : [], session, session.targetPath),
+                payload: this.decoratePayload(
+                    this.requireUsablePayload(source, payload),
+                    session,
+                    session.targetPath,
+                ),
                 missingTarget: false,
                 warnings: [],
             };
@@ -379,10 +517,22 @@ export class ProjectEvolutionService {
             templatePaths: new Map(),
             metadata: { projectEvolutionSource: source },
         };
-        const analysisResult = await new ExecutePython(this.context).executeAnalysis(evolutionSession);
+        let analysisResult: unknown;
+        try {
+            analysisResult = await new ExecutePython(this.context).executeAnalysis(evolutionSession);
+        } catch (error) {
+            if (isDeterministicNoDataError(error)) {
+                throw this.excludeSource(
+                    source,
+                    'invalid-payload',
+                    'The analyzer did not produce a readable JSON payload.',
+                );
+            }
+            throw error;
+        }
         const result = {
             payload: this.decoratePayload(
-                Array.isArray(analysisResult) ? analysisResult : [],
+                this.requireUsablePayload(source, analysisResult),
                 session,
                 materialized.targetPath,
             ),
@@ -391,6 +541,38 @@ export class ProjectEvolutionService {
         };
         this.cache.set(cacheKey, result);
         return result;
+    }
+
+    private requireUsablePayload(
+        source: ComparisonSource,
+        payload: unknown,
+    ): Record<string, unknown>[] {
+        const validation = validateGitAnalysisPayload(payload);
+        if (!validation.usable) {
+            throw this.excludeSource(
+                source,
+                validation.code || 'invalid-payload',
+                validation.reason || 'The analysis produced no usable data.',
+            );
+        }
+        return validation.entries;
+    }
+
+    private excludeSource(
+        source: ComparisonSource,
+        code: GitAnalysisExclusion['code'],
+        reason: string,
+    ): GitAnalysisSourceError {
+        const exclusion = this.sourceCatalog.recordDeterministicExclusion(
+            source,
+            code,
+            reason,
+        );
+        return new GitAnalysisSourceError(
+            'project-evolution-insufficient-data',
+            `"${source.label}" was removed from Git analyses: ${reason}`,
+            [exclusion],
+        );
     }
 
     private decoratePayload(

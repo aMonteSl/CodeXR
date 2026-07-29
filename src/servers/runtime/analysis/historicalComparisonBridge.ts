@@ -3,7 +3,10 @@ import {
     CollaborationApplicationMessageContext,
     CollaborationMessage,
 } from '../collaboration/collaborationRoomServer';
-import { HistoricalComparisonRequest } from '../../../code_analysis/historical';
+import {
+    GitAnalysisSourceError,
+    HistoricalComparisonRequest,
+} from '../../../code_analysis/historical';
 import { analysisRefreshCoordinator } from '../../../code_analysis/refresh';
 import { SessionWatcherManager } from '../../../code_analysis/engine/watchers/sessionWatcherManager';
 import { readJsonBody, sendErrorResponse, sendJsonResponse } from '../http/httpRespond';
@@ -200,15 +203,43 @@ export class HistoricalComparisonBridge {
                     );
                 }
             } catch (error) {
+                if (error instanceof GitAnalysisSourceError) {
+                    await this.broadcastFilteredGitReferences(messageContext);
+                }
                 messageContext.broadcast({
                     type: 'historical-comparison-error',
                     payload: {
-                        code: error instanceof Error ? error.message : 'comparison-failed',
+                        code: error instanceof GitAnalysisSourceError
+                            ? error.code
+                            : error instanceof Error
+                                ? error.message
+                                : 'comparison-failed',
                         message: error instanceof Error ? error.message : String(error),
                     },
                 });
             }
         })();
         return true;
+    }
+
+    private async broadcastFilteredGitReferences(
+        messageContext: CollaborationApplicationMessageContext,
+    ): Promise<void> {
+        const [historical, evolution] = await Promise.all([
+            this.host.historicalComparisonService?.getReferences(),
+            this.host.projectEvolutionService?.getReferences(),
+        ]);
+        if (historical) {
+            messageContext.broadcast({
+                type: 'historical-comparison-references',
+                payload: historical,
+            });
+        }
+        if (evolution) {
+            messageContext.broadcast({
+                type: 'project-evolution-references',
+                payload: evolution,
+            });
+        }
     }
 }

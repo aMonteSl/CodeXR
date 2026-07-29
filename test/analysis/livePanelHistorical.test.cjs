@@ -70,19 +70,20 @@ test('a live comparison refreshes after every incremental re-analysis and republ
 });
 
 test('file comparisons only offer versions that actually contain the analyzed file', () => {
-    const gitService = readProjectFile('src', 'code_analysis', 'historical', 'gitRepositoryService.ts');
     const service = readProjectFile('src', 'code_analysis', 'historical', 'historicalComparisonService.ts');
-    // The read-only existence probe on the Git service...
-    assert.match(gitService, /public async targetExistsInCommit\(commitSha: string\): Promise<boolean>/);
-    assert.match(gitService, /gitObjectExists\(repositoryRoot, `\$\{commitSha\}:\$\{targetRelativePath\}`\)/);
-    // ...filters the reference list for file sessions (working copy always stays,
-    // directory sessions keep every reference)...
-    assert.match(service, /sources: await this\.filterSourcesForTarget\(references\.sources\)/);
-    assert.match(service, /targetType !== 'file'/);
-    assert.match(service, /source\.kind === 'workingCopy'/);
-    assert.match(service, /targetExistsInCommit\(source\.commitSha\)/);
-    // ...and a raw API request against a version lacking the file is refused.
-    assert.match(service, /comparison-target-missing-in-version/);
+    const catalog = readProjectFile('src', 'code_analysis', 'historical', 'gitAnalysisEligibility.ts');
+    const index = readProjectFile('src', 'code_analysis', 'historical', 'gitTimelineBlobIndex.ts');
+    // The shared read-only Git catalogue filters target absence before either
+    // Historical or Evolution publishes its reference list.
+    assert.match(service, /this\.sourceCatalog\.filterSources\([\s\S]*sources: references\.sources/);
+    assert.match(service, /sources: filtered\.sources/);
+    assert.match(catalog, /revision\.missingTarget[\s\S]*code: 'target-missing'/);
+    assert.match(index, /if \(this\.targetType === 'file'\)/);
+    assert.match(index, /metricAnalyzable: isMetricAnalysisFile\(fileName\)/);
+    // A raw API request is protected as well and removes the SHA from both
+    // selectors through the same deterministic exclusion catalogue.
+    assert.match(service, /if \(!materialized\.targetPath\)[\s\S]*this\.excludeSource\([\s\S]*'target-missing'/);
+    assert.match(service, /recordDeterministicExclusion/);
 });
 
 test('file comparisons analyze only the analyzed file itself, at function scope', () => {
