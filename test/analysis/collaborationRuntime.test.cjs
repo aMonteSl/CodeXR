@@ -355,6 +355,7 @@ test('a session-ended message shows the disconnect screen once and stops the rec
 
 function buildOfflineFakeWindow(options) {
     const sockets = [];
+    const requests = [];
     function FakeWebSocket() {
         sockets.push(this);
     }
@@ -373,6 +374,7 @@ function buildOfflineFakeWindow(options) {
         console: { log() {}, warn() {}, error() {}, info() {} },
         fetch(url) {
             const target = String(url);
+            requests.push(target);
             if (target.includes('/api/collaboration/session')) {
                 return options.sessionOk
                     ? Promise.resolve({ ok: true, json: async () => ({ roomId: 'room-1', capabilities: { dependencyGraph: true } }) })
@@ -389,7 +391,7 @@ function buildOfflineFakeWindow(options) {
             return Promise.resolve({ ok: false });
         },
     };
-    return { fakeWindow, sockets };
+    return { fakeWindow, sockets, requests };
 }
 
 const OFFLINE_MANIFEST = {
@@ -460,6 +462,34 @@ test('offline export: manifest capabilities stand in for the session, entities i
     assert.equal(historicalStates[0].result.revision, 1);
 
     assert.equal(client.getOfflineExportManifest().kind, 'codexr-export');
+});
+
+test('offline export marker loads the manifest without probing a CodeXR endpoint', async () => {
+    const { fakeWindow, sockets, requests } = buildOfflineFakeWindow({
+        sessionOk: false,
+        manifest: OFFLINE_MANIFEST,
+    });
+    const client = collaborationRuntime.createClient(fakeWindow);
+
+    client.connect({
+        offlineExport: true,
+        presenceEnabled: false,
+        cursorPresenceEnabled: false,
+    });
+    const info = await client.getSessionInfoAsync();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.equal(info.offlineExport, true);
+    assert.equal(client.isOfflineExport(), true);
+    assert.equal(sockets.length, 0);
+    assert.equal(
+        requests.some((url) => url.includes('/api/collaboration/session')),
+        false,
+    );
+    assert.equal(
+        requests.filter((url) => url.includes('codexr-export-manifest.json')).length,
+        1,
+    );
 });
 
 test('online regression: a reachable session keeps the socket path and never flags offline', async () => {

@@ -166,9 +166,8 @@ test('mode activation reconciles watcher hashes without forcing a full analysis'
     assert.match(fileWatcher, /public async reconcileNow\(\): Promise<boolean>/);
     assert.match(directoryWatcher, /public async reconcileNow\(\): Promise<boolean>/);
     assert.match(server, /await SessionWatcherManager\.reconcileSession/);
-    assert.match(coordinator, /return this\.setActiveMode\(sessionId, mode, controllerView\)/);
-    assert.doesNotMatch(
-        coordinator.match(/public activateMode[\s\S]*?\n    \}/)?.[0] || '',
-        /force|sourceRevision - 1/,
-    );
+    assert.match(coordinator, /public changeActiveMode\(/);
+    assert.match(coordinator, /if \(ownerChanged\) \{\s*state\.viewRevision \+= 1;/);
+    assert.doesNotMatch(coordinator, /public setActiveMode\(/);
+    assert.doesNotMatch(coordinator, /public activateMode\(/);
 });

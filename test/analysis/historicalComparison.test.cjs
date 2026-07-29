@@ -369,8 +369,8 @@ test('historical comparison is authoritative, shared per room, and rejects concu
     assert.match(server, /message\.type === 'historical-comparison-start'/);
     assert.match(server, /allowsEmptyShell = mode === 'historical-compare'[\s\S]*\|\| mode === 'project-evolution'/);
     assert.match(server, /if \(!available && !allowsEmptyShell\)/);
-    assert.match(server, /setAnalysisViewMode\('historical-compare', 'historical.selection'\);/);
-    assert.match(server, /setAnalysisViewMode\('historical-compare', 'historical.mapping'\);/);
+    assert.match(server, /changeAnalysisViewMode\('historical-compare', 'historical.selection'\);/);
+    assert.match(server, /updateAnalysisViewIfCurrent\([\s\S]*'historical.mapping'/);
     assert.doesNotMatch(server, /message\.type === 'historical-comparison-reset'/);
     assert.match(server, /historicalComparisonService\.isBusy\(\)/);
     assert.match(server, /await this\.historicalComparisonService\.getAvailability\(\)/);
@@ -484,7 +484,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(server, /projectEvolutionService\.applyFrameToBridge/);
     assert.match(server, /type: 'project-evolution-frame-applied'/);
     assert.match(server, /message\.type === 'project-evolution-start'/);
-    assert.match(server, /setAnalysisViewMode\('project-evolution', 'project-evolution'\);/);
+    assert.match(server, /changeAnalysisViewMode\('project-evolution', 'project-evolution'\);/);
     assert.match(server, /projectEvolutionService\.isBusy\(\)/);
     assert.match(server, /entityKind: 'project-evolution'/);
     assert.match(server, /mode: 'project-evolution'/);
@@ -521,48 +521,50 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(runtime, /function getSuggestedAutoOrderById\(\)/);
     assert.match(runtime, /function ensurePlaybackOverlay\(\)/);
     assert.match(runtime, /function waitForFrameStable\(generation\)/);
-    assert.match(runtime, /wait\(chartIds, \{ timeoutMs: 12000, pollMs: 160, stablePasses: 2 \}\)/);
-    assert.match(runtime, /function ensureEvolutionRoot\(\)/);
+    assert.match(runtime, /wait\(ids, \{ timeoutMs: 12000, pollMs: 160, stablePasses: 2 \}\)/);
+    assert.match(runtime, /function ensureEvolutionRoot\(frame\)/);
     assert.match(runtime, /id: 'codexrProjectEvolutionRoot'/);
     assert.match(runtime, /mountRoot\(MODE, refs\.evolutionRoot\)/);
-    assert.match(runtime, /function ensureEvolutionChart\(chartId\)/);
-    assert.match(runtime, /id', 'codexrProjectEvolutionChart'/);
-    assert.match(runtime, /function prepareChartForEvolution\(chart, chartId, options\)/);
-    // NOT forced per frame: re-applying the containment profile wrote the raw
-    // anchor position over the fit the containment had just computed, so every
-    // frame invalidated the measurement signature and forced a full re-fit.
-    assert.match(runtime, /prepareChartForEvolution\(chart, chartId\);/);
-    assert.doesNotMatch(runtime, /prepareChartForEvolution\(chart, chartId, \{ force: true \}\)/);
-    // The movie chart is BUILT, not cloned from a `[babia-*]` DOM template: the
-    // mapping UI's removeAttribute wiped the only such attribute on the first
-    // chart switch, and every later chart failed to build.
+    assert.match(runtime, /function ensureEvolutionDataSource\(frameUrl\)/);
+    assert.match(runtime, /scene\.appendChild\(refs\.evolutionDataSource\)/);
+    assert.match(runtime, /function ensureEvolutionTreeBuilder\(rootEl\)/);
+    assert.match(runtime, /rootEl\.insertBefore\?\.\(refs\.evolutionTreeBuilder, rootEl\.firstChild \|\| null\)/);
+    assert.match(runtime, /function ensureEvolutionChart\(chartId, rootEl\)/);
+    assert.match(runtime, /EVOLUTION_CHART_ID = 'codexrProjectEvolutionChart'/);
+    assert.match(runtime, /rootEl\.appendChild\(nextChart\)/);
+    assert.doesNotMatch(runtime, /codexrProjectEvolutionChartSurface/);
+    assert.doesNotMatch(runtime, /codexrProjectEvolutionPlaybackRoot/);
+    assert.doesNotMatch(runtime, /releaseEvolutionFrameSurface/);
+    // The producer and chart use the same declarative factory as Single. No
+    // parked chart is cloned and no object component setter can leave an empty
+    // A-Frame attribute in outerHTML.
     assert.match(runtime, /function buildEvolutionChart\(chartId\)/);
-    assert.match(runtime, /function getChartStyleSource\(chartId\)/);
+    assert.match(runtime, /buildDeclarativeTreeEntity\?\.\(\{/);
+    assert.match(runtime, /buildDeclarativeChartEntity\?\.\(/);
+    assert.match(runtime, /configureDeclarativeChartEntity\?\.\(/);
+    assert.match(runtime, /serializeEvolutionComponentData\(\{ url: frameUrl \}\)/);
+    assert.doesNotMatch(runtime, /getChartStyleSource/);
     assert.doesNotMatch(runtime, /function getTemplateChart\(/);
-    // Replacement is built before the current chart is detached.
-    assert.match(runtime, /var nextChart = buildEvolutionChart\(chartId\);\s*if \(!nextChart\) \{ return null; \}/);
-    // A programmatic component leaves no DOM attribute, so the guard that used
-    // hasAttribute re-set the component on every frame.
-    assert.match(runtime, /!chart\.components\?\.\[componentName\]/);
+    // Explicit chart changes build one replacement; frame changes keep it.
+    assert.match(runtime, /var nextChart = buildEvolutionChart\(chartId\);\s*if \(!nextChart\) \{\s*return null;\s*\}/);
     // A discarded chart must be unsubscribed from its data producer: Babia
     // never does it, so it would repaint over the new chart on every frame.
-    assert.match(runtime, /releaseChartEntity\?\.\(chart\)/);
     assert.match(runtime, /releaseChartEntity\?\.\(refs\.evolutionChart\)/);
     assert.match(runtime, /function isHierarchicalBoatsChart\(chartId, componentName\)/);
     assert.match(runtime, /function projectEvolutionContainmentProfile\(\)/);
-    assert.match(runtime, /getContainmentProfile\?\.\('project-evolution'\)/);
-    assert.match(runtime, /applyContainmentProfile\(chart, profile\)/);
+    assert.match(runtime, /getContainmentProfile\?\.\(MODE\)/);
+    assert.match(runtime, /containmentProfile: projectEvolutionContainmentProfile\(\)/);
     assert.doesNotMatch(runtime, /planarUnderflowCorrectionEnabled: false; heightUnderflowCorrectionEnabled: false/);
     assert.match(runtime, /heightBandMinRatio: 0\.38/);
-    assert.match(runtime, /function projectEvolutionInitialScale\(chartId\)/);
-    assert.match(runtime, /return isBoats \? '0\.01 0\.05 0\.01' : '1 1 1'/);
-    assert.match(runtime, /setChartEntityIds\?\.\(getChartEntities\(\)\.map/);
+    assert.match(runtime, /applyInitialScale: applyTransform !== false/);
+    assert.match(runtime, /setChartEntityIds\?\.\(\[chart\.id\]/);
     assert.match(runtime, /Next frame in ' \+ seconds \+ 's/);
     assert.match(runtime, /color: '#f59e0b'/);
     assert.match(runtime, /frameDurationMs: 5000/);
     assert.match(runtime, /settleDelayMs: 5000/);
     assert.match(runtime, /Project evolution finished\./);
-    assert.match(runtime, /transitionTo\?\.\(MODE/);
+    assert.match(runtime, /changeAnalysis\?\.\(MODE, context \|\| \{\}\)/);
+    assert.doesNotMatch(runtime, /transitionTo/);
     assert.doesNotMatch(runtime, /setNormalVisible\?\.\(!!state\.result\)/);
     assert.match(runtime, /activateMode\?\.\(MODE\)/);
     assert.match(runtime, /state\.startSourceId = ''/);
@@ -649,7 +651,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     // Leaving hands chart-entity targeting back to the scene: the override
     // pointed at the movie chart and the NORMAL analysis' chart switches
     // landed on it.
-    assert.match(runtime, /hidePlaybackOverlay\(\);\s*\/\/[\s\S]{0,400}setChartEntityIds\?\.\(\[\]\);\s*\}/);
+    assert.match(runtime, /hidePlaybackOverlay\(\);\s*\/\/[\s\S]{0,400}setChartEntityIds\?\.\(\[\], \{ renormalize: false \}\);\s*\}/);
     // With a movie the mode lives on the Field Mapping view (chart/axis
     // controls left, movie companion right); the lifecycle resolver keeps the
     // local transition and the authoritative server echo in agreement — same
@@ -657,8 +659,8 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(runtime, /resolveControllerView: function \(\) \{\s*return state\.result \? 'project-evolution\.mapping' : 'project-evolution';/);
     // Single entry paths: movie-ready and mode entry carry no forced
     // controllerView/panelViewId — the resolver routes both.
-    assert.match(runtime, /transitionTo\?\.\(MODE, \{\s*reason: 'project-evolution-ready'\s*\}\)/);
-    assert.match(runtime, /transitionTo\?\.\(MODE, \{\s*reason: 'project-evolution-selection'\s*\}\)/);
+    assert.match(runtime, /changeToEvolutionAnalysis\(\{ reason: 'project-evolution-ready' \}\)/);
+    assert.match(runtime, /changeToEvolutionAnalysis\(\{ reason: 'project-evolution-selection' \}\)/);
     // Both directions between the selection panel and the mapping view exist
     // without regenerating: companion "Change movie" + panel "Field mapping".
     assert.match(runtime, /button\('Change movie', '0 0 0', 2\.2, showMovieSelectionView, '#be123c'/);
@@ -670,8 +672,7 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     // movie remembers whether it was playing and resumes on re-entry.
     assert.match(runtime, /function releaseEvolutionOnLeave\(\)/);
     assert.match(runtime, /deactivate: function \(\) \{\s*releaseEvolutionOnLeave\(\);/);
-    // Leaving runs the release twice (deactivate + the selector's disposeView
-    // sweep); OR-ing preserves the flag the first pass saved before stop().
+    // Leaving preserves the running flag before stop() so re-entry can resume.
     assert.match(runtime, /state\.resumePlayback = state\.resumePlayback \|\| state\.playing/);
     // Resume is deferred, not one-shot: re-entry re-applies the chart mapping,
     // whose safety lock silently rejected a plain play(); the flag survives and
@@ -692,27 +693,28 @@ test('project evolution builds a chronological Git movie and publishes shared XR
     assert.match(runtime, /startSourceId/);
     assert.match(runtime, /sourceIds/);
     assert.doesNotMatch(runtime, /function createEvolutionFrameRoot\(frame\)/);
-    assert.match(runtime, /function ensureEvolutionPlaybackRoot\(frame\)/);
-    assert.match(runtime, /function ensureEvolutionDataSource\(playbackRoot, initialUrl\)/);
+    assert.match(runtime, /function ensureEvolutionDataSource\(frameUrl\)/);
     assert.match(runtime, /function refreshEvolutionDataSource\(frameUrl\)/);
-    assert.match(runtime, /refs\.evolutionDataSource\?\.emit\('data-loaded', \{\}\)/);
-    assert.match(runtime, /function ensureEvolutionTreeBuilder\(playbackRoot, targetType\)/);
+    assert.match(runtime, /serializeEvolutionComponentData\(\{ url: frameUrl \}\)/);
+    assert.doesNotMatch(runtime, /setAttribute\('babia-queryjson', 'url'/);
+    assert.match(runtime, /function ensureEvolutionTreeBuilder\(rootEl\)/);
     assert.match(runtime, /function applyBridgeFrameToChart\(frame, appliedBridgeUrl\)/);
     assert.match(runtime, /function requestBridgeFrame\(frameIndex\)/);
     assert.match(runtime, /project-evolution-apply-frame/);
     assert.match(runtime, /project-evolution-frame-applied/);
-    assert.match(runtime, /data\.from = 'codexrProjectEvolutionTree'/);
-    assert.match(runtime, /data\.from = 'codexrProjectEvolutionData'/);
-    assert.match(runtime, /function scheduleFrameRenormalization\(\)/);
-    assert.doesNotMatch(runtime, /function buildEvolutionBoatsTree/);
-    assert.doesNotMatch(runtime, /data\.field = 'uid'/);
+    assert.match(runtime, /chartId === 'boats' \? EVOLUTION_TREE_ID : EVOLUTION_DATA_ID/);
+    assert.doesNotMatch(runtime, /function scheduleFrameRenormalization\(\)/);
+    assert.match(runtime, /function namespaceEvolutionTreeNodes/);
+    assert.match(runtime, /copy\.uid = rawUid\.indexOf\(safeNamespace \+ ':'\)/);
     assert.match(service, /if \(!path\.isAbsolute\(candidate\)\)/);
     assert.ok(service.includes(".replace(/\\\\/g, '/')"));
     assert.match(runtime, /play: play/);
     assert.match(runtime, /seek: seek/);
     assert.doesNotMatch(runtime, /data\.data = prepared\.payload/);
     assert.doesNotMatch(runtime, /buildEvolutionVisualPayload/);
-    assert.match(runtime, /renormalizeAll\?\.\('project-evolution-frame'\)/);
+    assert.match(runtime, /beginChartDataTransition/);
+    assert.match(runtime, /finishChartDataTransition/);
+    assert.match(runtime, /waitForEvolutionChartAnimation/);
     assert.match(docs, /Clear movie/);
     assert.match(docs, /Project Evolution XR/);
     assert.match(docs, /chronological XR analysis mode/);
@@ -868,7 +870,7 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.doesNotMatch(runtime, /sendMessage\?\.\('analysis-mode-selection'/);
     // Single entry path: no explicit controllerView/panelViewId — the mode's
     // resolveControllerView routes, so local and echo can never disagree.
-    assert.match(runtime, /transitionTo\?\.\('historical-compare', \{\s*reason: 'historical-mode-entry'\s*\}/);
+    assert.match(runtime, /changeAnalysis\('historical-compare', \{\s*reason: 'historical-mode-entry'\s*\}/);
     assert.doesNotMatch(runtime, /panelViewId: 'historical-selection'/);
     assert.match(runtime, /function showHistoricalSelectionPanel\(\)/);
     assert.match(runtime, /function disposeComparisonGeometry/);
@@ -892,12 +894,11 @@ test('XR historical runtime renders two contained charts and restores the single
     assert.match(runtime, /refs\.renderedRevision = result\.revision/);
     assert.match(runtime, /state\.result\.revision !== refs\.renderedRevision/);
     assert.match(runtime, /deactivate: function \(\) \{\s*releaseComparisonOnLeave\(\);/);
-    assert.match(runtime, /disposeView: function \(\) \{\s*releaseComparisonOnLeave\(\);/);
     assert.match(runtime, /resolveControllerView: function \(\) \{\s*return state\.result \? 'historical\.mapping' : 'historical\.selection';/);
     assert.doesNotMatch(runtime, /setAttribute\('codexr-analysis-table', 'mode', 'single'\)/);
     assert.doesNotMatch(runtime, /sendMessage\?\.\('historical-comparison-reset'/);
     assert.match(runtime, /loadGeneration/);
-    assert.match(runtime, /mappingRuntime\.setChartEntityIds\(ids\)/);
+    assert.match(runtime, /mappingRuntime\.setChartEntityIds\(ids, \{ renormalize: false \}\)/);
     assert.match(runtime, /CodeXRMappingUiRuntime\.switchMappingContext\?\.\('historical-comparison'/);
     assert.match(runtime, /'historical-compare'/);
     assert.match(runtime, /'single'/);
@@ -1034,6 +1035,7 @@ test('comparison clones take their orientation from the chart they carry, not fr
         // A leftover component and a rotation from an earlier chart.
         'babia-bars': { from: 'data', x_axis: 'fileName' },
         'data-codexr-active-chart-id': 'boats',
+        'codexr-boats-layout-stability': 'enabled: true',
         rotation: '90 0 0',
         palette: 'ubuntu',
     });
@@ -1047,6 +1049,7 @@ test('comparison clones take their orientation from the chart they carry, not fr
     assert.equal(clone.getAttribute('babia-bars'), null, 'no foreign chart component is cloned');
     assert.equal(clone.getAttribute('data-codexr-active-chart-id'), 'boats');
     assert.equal(clone.getAttribute('babia-boats').from, 'codexrComparisonLeft');
+    assert.equal(clone.getAttribute('codexr-boats-layout-stability'), 'enabled: true');
     assert.equal(clone.getAttribute('palette'), 'ubuntu', 'decoration still travels');
 
     // A circular chart is cloned standing, from the same profile.
@@ -1058,4 +1061,16 @@ test('comparison clones take their orientation from the chart they carry, not fr
         pieOriginal, 'codexrHistoricalRightChart', 'codexrComparisonRight', zone, 'directory',
     );
     assert.equal(pieClone.getAttribute('rotation'), '90 0 0');
+});
+
+test('historical inline Babia data remains lossless inside declarative component strings', () => {
+    const runtime = loadHistoricalRuntime();
+    const serialized = runtime.__testing.serializeInlineBabiaData([
+        { uid: 'codexr-left:path;with:semicolon', name: 'part;name' },
+    ]);
+
+    assert.doesNotMatch(serialized, /;/);
+    assert.deepEqual(JSON.parse(serialized), [
+        { uid: 'codexr-left:path;with:semicolon', name: 'part;name' },
+    ]);
 });

@@ -33,13 +33,13 @@
       var pathField = comparisonTreeField(config?.targetType);
       var chartData = Object.assign({}, chart.getAttribute(componentName) || {});
       delete chartData.from;
-      chartData.data = JSON.stringify(buildComparisonBoatsTree(
+      chartData.data = serializeInlineBabiaData(buildComparisonBoatsTree(
         state.payloads[liveSide],
         pathField,
         liveSide === 'left' ? 'codexr-left' : 'codexr-right'
       ));
       chartData.field = 'uid';
-      chart.setAttribute(componentName, chartData);
+      setDeclarativeBabiaComponent(chart, componentName, chartData);
     } else {
       var dataEntity = getDocument().getElementById(
         liveSide === 'left' ? 'codexrComparisonDataLeft' : 'codexrComparisonDataRight'
@@ -178,6 +178,7 @@
     }
     state.initialized = true;
     state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime?.register?.('historical-compare', {
+      mappingContextId: 'historical-comparison',
       activate: function () {
         if (state.result) {
           // Comparison geometry still mounted (preserved on leave, or a
@@ -224,9 +225,6 @@
       // (local + authoritative echo) agrees on historical.mapping when a
       // comparison exists, historical.selection otherwise.
       deactivate: function () {
-        releaseComparisonOnLeave();
-      },
-      disposeView: function () {
         releaseComparisonOnLeave();
       },
       // Authoritative default view for this mode: with a live comparison the
@@ -289,6 +287,7 @@
     },
     __testing: {
       buildComparisonBoatsTree: buildComparisonBoatsTree,
+      serializeInlineBabiaData: serializeInlineBabiaData,
       selectHistoricalMode: selectHistoricalMode,
       // The comparison clones borrow decoration from the scene chart, so what
       // they must NOT borrow (orientation, a foreign chart component) is

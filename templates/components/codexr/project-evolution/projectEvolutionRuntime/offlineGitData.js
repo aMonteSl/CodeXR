@@ -145,7 +145,6 @@
       setStatus('No exported revisions match that selection.', 'error');
       return;
     }
-    state.preparedChartIds = {};
     clearChartVisualization();
     state.offlineMovieRevision = (state.offlineMovieRevision || 0) + 1;
     setStatus('Movie built from ' + frames.length + ' exported revisions.', 'info');

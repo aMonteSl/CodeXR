@@ -1,12 +1,12 @@
 // == analysisModeRuntime.js | transitionsAndViews (assembled per manifest.json; see COMPONENTS.md) ==
-  function transitionTo(mode, context) {
+  function changeAnalysis(mode, context) {
     if (!VALID_MODES.has(mode)) {
       return Promise.reject(new Error('Unsupported CodeXR analysis mode: ' + mode));
     }
     // Same-mode dedupe: entering the mode that is already fully active only
     // re-applies the controller/panel routing — it must NOT queue another
     // deactivate/activate cycle. Every entry fires twice (the runtime's direct
-    // transitionTo plus the server's authoritative analysis-view echo), and the
+    // local change plus the server's authoritative analysis-view echo), and the
     // duplicated lifecycle pass re-parked and re-built everything: the entry
     // flicker, and — with a comparison result present — a full chart rebuild
     // with the scene left empty for its stabilization wait.
@@ -62,9 +62,9 @@
 
   function deactivate(mode, context) {
     if (state.mode !== mode) {
-      return invoke(lifecycles[mode], 'disposeView', context || null);
+      return Promise.resolve(false);
     }
-    return transitionTo('single', context);
+    return changeAnalysis('single', context);
   }
 
   function getConfig() {
@@ -206,4 +206,151 @@
       controllerView: controllerView,
       panelView: panelViewId
     };
+  }
+
+  function getLifecycleMappingContext(mode) {
+    var value = lifecycles[mode]?.mappingContextId;
+    if (typeof value === 'function') {
+      value = value();
+    }
+    if (value === undefined) {
+      value = mode === 'single'
+        ? 'normal-analysis'
+        : mode === 'historical-compare'
+          ? 'historical-comparison'
+          : mode === 'project-evolution'
+            ? 'project-evolution'
+            : null;
+    }
+    return value == null ? null : String(value);
+  }
+
+  function createActivationToken(mode, generation) {
+    return {
+      mode: mode,
+      generation: generation,
+      isCurrent: function () {
+        return generation === state.generation
+          && (
+            state.pendingTransitionMode === mode
+            || (!state.transitioning && state.mode === mode)
+          );
+      }
+    };
+  }
+
+  function captureElementTransform(element) {
+    var object = element?.object3D;
+    if (!element || !object) { return null; }
+    return {
+      id: element.id || '',
+      position: {
+        x: Number(object.position?.x || 0),
+        y: Number(object.position?.y || 0),
+        z: Number(object.position?.z || 0)
+      },
+      rotation: {
+        x: Number(object.rotation?.x || 0),
+        y: Number(object.rotation?.y || 0),
+        z: Number(object.rotation?.z || 0)
+      },
+      scale: {
+        x: Number(object.scale?.x || 1),
+        y: Number(object.scale?.y || 1),
+        z: Number(object.scale?.z || 1)
+      }
+    };
+  }
+
+  function captureChartTransforms(chartIds) {
+    return (chartIds || []).map(function (chartId) {
+      return captureElementTransform(root.document?.getElementById?.(chartId));
+    }).filter(Boolean);
+  }
+
+  function restoreChartTransforms(snapshots) {
+    (snapshots || []).forEach(function (snapshot) {
+      var element = snapshot?.id ? root.document?.getElementById?.(snapshot.id) : null;
+      var object = element?.object3D;
+      if (!element || !object) { return; }
+      object.position?.set?.(
+        snapshot.position.x,
+        snapshot.position.y,
+        snapshot.position.z
+      );
+      object.rotation?.set?.(
+        snapshot.rotation.x,
+        snapshot.rotation.y,
+        snapshot.rotation.z
+      );
+      object.scale?.set?.(
+        snapshot.scale.x,
+        snapshot.scale.y,
+        snapshot.scale.z
+      );
+      object.updateMatrixWorld?.(true);
+      element.setAttribute?.(
+        'position',
+        snapshot.position.x + ' ' + snapshot.position.y + ' ' + snapshot.position.z
+      );
+      element.setAttribute?.(
+        'rotation',
+        (snapshot.rotation.x * 180 / Math.PI) + ' '
+          + (snapshot.rotation.y * 180 / Math.PI) + ' '
+          + (snapshot.rotation.z * 180 / Math.PI)
+      );
+      element.setAttribute?.(
+        'scale',
+        snapshot.scale.x + ' ' + snapshot.scale.y + ' ' + snapshot.scale.z
+      );
+      var containment = element.components?.['codexr-chart-containment'];
+      if (containment) {
+        containment.pendingRenormalizeReason = null;
+        containment.captureStableTransform?.();
+      }
+    });
+  }
+
+  /**
+   * Clear the globally-owned routing left by the outgoing analysis before the
+   * incoming lifecycle is allowed to mount anything. Mode-owned data/geometry
+   * remains the lifecycle's responsibility and can be preserved for re-entry.
+   */
+  function releasePrimaryAnalysisOwnership(nextMode) {
+    var mappingRuntime = root.CodeXRMappingUiRuntime;
+    mappingRuntime?.setMappingControlsEnabled?.(true, '');
+    mappingRuntime?.setChartEntityIds?.([], { renormalize: false });
+    if (nextMode !== 'project-evolution') {
+      var sceneChartId = mappingRuntime?.getSceneChartId?.();
+      var restoredChartId = nextMode === 'single'
+        ? state.modeSnapshots.single?.chartId
+        : null;
+      if (restoredChartId && mappingRuntime?.getState?.()?.chartId !== restoredChartId) {
+        mappingRuntime?.selectChart?.(restoredChartId, { applyToEntities: false });
+      } else if (
+        !restoredChartId
+        && sceneChartId
+        && mappingRuntime?.getState?.()?.chartId !== sceneChartId
+      ) {
+        mappingRuntime?.selectChart?.(sceneChartId, { applyToEntities: false });
+      }
+    }
+    var mappingContextId = getLifecycleMappingContext(nextMode);
+    if (nextMode === 'single') {
+      mappingRuntime?.switchMappingContext?.('normal-analysis', {
+        reason: 'analysis-mode-change-single',
+        // Switching ownership must never rewrite the parked normal chart.
+        // Its lifecycle restores the saved selector state and exact transform.
+        applyToEntities: false
+      });
+      return;
+    }
+    if (mappingContextId) {
+      mappingRuntime?.switchMappingContext?.(mappingContextId, {
+        reason: 'analysis-mode-change-' + nextMode,
+        // Git modes build/restore their own targets and consume the profile
+        // only after their lifecycle has mounted its visual surface.
+        applyToEntities: false
+      });
+    }
   }

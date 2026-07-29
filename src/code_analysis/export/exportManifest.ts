@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExportGitData } from './gitRevisionExportCore';
+import type { ExportSelection } from './exportModeSelection';
 
 /**
  * Self-contained export support.
@@ -62,6 +63,8 @@ export interface ExportManifestOptions {
     gitDataFailureReason?: string;
     /** True when the user ticked historical/evolution in the modal. */
     gitDataSelected?: boolean;
+    /** Exact modal selection. Omitted only by legacy callers/tests. */
+    selectedModes?: ExportSelection;
 }
 
 interface ComparisonReplayEntry {
@@ -77,6 +80,12 @@ export interface ExportManifest {
     kind: 'codexr-export';
     exportedAt: string;
     target: { name: string; type: string; analysisMode: string };
+    selectedModes: {
+        normal: true;
+        dependencyGraph: boolean;
+        historicalComparison: boolean;
+        projectEvolution: boolean;
+    };
     capabilities: {
         dependencyGraph: boolean;
         dependencyGraphReason: string;
@@ -126,6 +135,41 @@ function listNumberedArtifacts(dirPath: string, pattern: RegExp): { revision: nu
         })
         .filter((entry): entry is { revision: number; fileName: string } => entry !== undefined)
         .sort((a, b) => b.revision - a.revision);
+}
+
+function resolveSelectedModes(options: ExportManifestOptions): ExportManifest['selectedModes'] {
+    const selected = options.selectedModes;
+    if (selected) {
+        return {
+            normal: true,
+            dependencyGraph: selected.dependencyGraph === true,
+            historicalComparison: selected.historicalComparison === true,
+            projectEvolution: selected.projectEvolution === true,
+        };
+    }
+    // Backward-compatible default for callers created before schema v3. The
+    // real export command always supplies selectedModes.
+    return {
+        normal: true,
+        dependencyGraph: options.serverCapabilities.dependencyGraph,
+        historicalComparison: options.serverCapabilities.historicalComparison,
+        projectEvolution: options.serverCapabilities.projectEvolution,
+    };
+}
+
+function defaultControllerView(mode: string): string {
+    switch (mode) {
+        case 'selection':
+            return 'visualization-menu';
+        case 'dependency-graph':
+            return 'dependency.settings';
+        case 'historical-compare':
+            return 'historical.selection';
+        case 'project-evolution':
+            return 'project-evolution';
+        default:
+            return 'single.mapping';
+    }
 }
 
 /**
@@ -196,6 +240,62 @@ export async function relativizeExportArtifacts(destinationPath: string): Promis
 }
 
 /**
+ * Stamp export-only runtime configuration into the copied HTML. Collaboration
+ * remains enabled long enough to load the offline manifest, but live screen
+ * broadcast must be disabled synchronously: otherwise that independent
+ * runtime opens and retries `/codexr-broadcast` before manifest discovery.
+ */
+export async function configureOfflineExportHtml(destinationPath: string): Promise<boolean> {
+    const indexPath = path.join(destinationPath, 'index.html');
+    if (!fs.existsSync(indexPath)) {
+        return false;
+    }
+    const original = await fs.promises.readFile(indexPath, 'utf8');
+    const updateConfig = (
+        html: string,
+        scriptId: string,
+        values: Record<string, unknown>,
+    ): string => {
+        const escapedId = scriptId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(
+            `(<script\\b[^>]*\\bid=["']${escapedId}["'][^>]*>)([\\s\\S]*?)(<\\/script>)`,
+            'i',
+        );
+        const match = pattern.exec(html);
+        if (!match) {
+            return html;
+        }
+        let config: Record<string, unknown>;
+        try {
+            config = JSON.parse(match[2]) as Record<string, unknown>;
+        } catch {
+            return html;
+        }
+        Object.assign(config, values);
+        const replacement = `${match[1]}${JSON.stringify(config)}${match[3]}`;
+        return html.slice(0, match.index)
+            + replacement
+            + html.slice(match.index + match[0].length);
+    };
+
+    // These blocks precede every runtime script in generated XR HTML. The
+    // marker prevents even a single optimistic request to live-only CodeXR
+    // endpoints; the manifest remains the collaboration snapshot substitute.
+    let updated = updateConfig(original, 'codexr-tooling-config-collaboration', {
+        offlineExport: true,
+    });
+    updated = updateConfig(updated, 'codexr-tooling-config-virtual-screen', {
+        broadcastEnabled: false,
+        offlineExport: true,
+    });
+    if (updated !== original) {
+        await fs.promises.writeFile(indexPath, updated, 'utf8');
+        return true;
+    }
+    return false;
+}
+
+/**
  * Build and write `codexr-export-manifest.json` from the artifacts present in
  * the destination copy. Must run AFTER `relativizeExportArtifacts` so the
  * snapshots it derives already carry relative URLs.
@@ -213,12 +313,15 @@ export async function buildExportManifest(
 ): Promise<ExportManifest> {
     const entities: Record<string, unknown>[] = [];
     const comparisons: ComparisonReplayEntry[] = [];
+    const selectedModes = resolveSelectedModes(options);
 
     const dependencyDatasets = listNumberedArtifacts(
         path.join(destinationPath, 'dependencies'),
         /^dependency-graph-(\d+)\.json$/,
     );
-    const dependencyReady = options.serverCapabilities.dependencyGraph && dependencyDatasets.length > 0;
+    const dependencyReady = selectedModes.dependencyGraph
+        && options.serverCapabilities.dependencyGraph
+        && dependencyDatasets.length > 0;
     if (dependencyReady) {
         const newest = dependencyDatasets[0];
         const dataset = await readJsonIfPresent(path.join(destinationPath, 'dependencies', newest.fileName));
@@ -237,7 +340,9 @@ export async function buildExportManifest(
     }
 
     const comparisonDir = path.join(destinationPath, 'comparison');
-    const comparisonArtifacts = listNumberedArtifacts(comparisonDir, /^revision-(\d+)\.json$/);
+    const comparisonArtifacts = selectedModes.historicalComparison
+        ? listNumberedArtifacts(comparisonDir, /^revision-(\d+)\.json$/)
+        : [];
     for (const entry of comparisonArtifacts) {
         const result = await readJsonIfPresent(path.join(comparisonDir, entry.fileName));
         if (!result) {
@@ -253,8 +358,10 @@ export async function buildExportManifest(
             generatedAt: String(result.generatedAt ?? ''),
         });
     }
-    const historicalReady = options.serverCapabilities.historicalComparison && comparisons.length > 0;
-    if (historicalReady) {
+    const historicalArtifactReady = selectedModes.historicalComparison
+        && options.serverCapabilities.historicalComparison
+        && comparisons.length > 0;
+    if (historicalArtifactReady) {
         entities.push({
             entityKind: 'historical-comparison',
             entityId: 'main',
@@ -263,17 +370,19 @@ export async function buildExportManifest(
         });
     }
 
-    const evolutionRevisions = fs.existsSync(path.join(destinationPath, 'evolution'))
+    const evolutionRevisions = selectedModes.projectEvolution
+        && fs.existsSync(path.join(destinationPath, 'evolution'))
         ? fs.readdirSync(path.join(destinationPath, 'evolution'))
             .map((name) => /^revision-(\d+)$/.exec(name))
             .filter((match): match is RegExpExecArray => match !== null)
             .map((match) => Number(match[1]))
             .sort((a, b) => b - a)
         : [];
-    const evolutionReady = options.serverCapabilities.projectEvolution
+    const evolutionArtifactReady = selectedModes.projectEvolution
+        && options.serverCapabilities.projectEvolution
         && evolutionRevisions.length > 0
         && fs.existsSync(path.join(destinationPath, 'evolution', `revision-${evolutionRevisions[0]}`, 'manifest.json'));
-    if (evolutionReady) {
+    if (evolutionArtifactReady) {
         entities.push({
             entityKind: 'project-evolution',
             entityId: 'main',
@@ -286,57 +395,88 @@ export async function buildExportManifest(
     // server publishes it and the mode runtime obeys it. Exporting it is what
     // makes the copy open in the mode the user was actually in — the mode-data
     // entities above are passive by contract and never change the view.
+    // Shared git payloads unlock the real offline flows: any pair compares,
+    // any movie generates. Without them the capabilities fall back to the
+    // artifact-based replay gating, exactly as before gitData existed.
+    const gitTimelineSelected = selectedModes.historicalComparison || selectedModes.projectEvolution;
+    const gitData = gitTimelineSelected
+        && options.gitData
+        && options.gitData.references.sources.length >= 2
+        ? options.gitData
+        : undefined;
+    const partialSuffix = gitData?.partial
+        ? ` Partial export: ${gitData.skippedRevisions?.length || 0} revision source(s) could not be prepared.`
+        : '';
+    const gitMissingSuffix = options.gitDataSelected && !gitData
+        ? ` ${options.gitDataFailureReason || 'The git timeline analysis produced no usable data.'}`
+        : '';
+    const historicalReady = selectedModes.historicalComparison
+        && options.serverCapabilities.historicalComparison
+        && (!!gitData || historicalArtifactReady);
+    const evolutionReady = selectedModes.projectEvolution
+        && options.serverCapabilities.projectEvolution
+        && (!!gitData || evolutionArtifactReady);
+
+    // If the captured active mode was excluded, or its data preparation
+    // failed, publish a valid Single owner rather than an impossible view.
     if (options.viewState?.mode) {
+        const requestedMode = options.viewState.mode;
+        const requestedAvailable = requestedMode === 'single'
+            || requestedMode === 'selection'
+            || (requestedMode === 'dependency-graph' && dependencyReady)
+            || (requestedMode === 'historical-compare' && historicalReady)
+            || (requestedMode === 'project-evolution' && evolutionReady);
+        const mode = requestedAvailable ? requestedMode : 'single';
         entities.push({
             entityKind: 'analysis-view',
             entityId: 'main',
-            mode: options.viewState.mode,
-            ...(options.viewState.controllerView
-                ? { controllerView: options.viewState.controllerView }
-                : {}),
+            mode,
+            controllerView: mode === requestedMode && options.viewState.controllerView
+                ? options.viewState.controllerView
+                : defaultControllerView(mode),
             status: 'ready',
             hasUsableSnapshot: true,
         });
     }
 
-    // Shared git payloads unlock the real offline flows: any pair compares,
-    // any movie generates. Without them the capabilities fall back to the
-    // artifact-based replay gating, exactly as before gitData existed.
-    const gitData = options.gitData && options.gitData.references.sources.length >= 2
-        ? options.gitData
-        : undefined;
-    const partialSuffix = gitData?.partial
-        ? ` Partial: the git analysis was cancelled after ${gitData.analyzedRevisionCount} revisions.`
-        : '';
-    const gitMissingSuffix = options.gitDataSelected && !gitData
-        ? ` ${options.gitDataFailureReason || 'The git timeline analysis produced no usable data.'}`
-        : '';
-
     const manifest: ExportManifest = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         kind: 'codexr-export',
         exportedAt: new Date().toISOString(),
         target: options.target,
+        selectedModes,
         capabilities: {
             dependencyGraph: dependencyReady,
             dependencyGraphReason: dependencyReady
                 ? ''
-                : options.dependencyGraphFailureReason
-                    || (options.serverCapabilities.dependencyGraph
-                        ? 'No dependency dataset was generated before export.'
-                        : 'This analysis mode has no dependency graph.'),
-            historicalComparison: gitData ? true : historicalReady,
-            historicalComparisonReason: gitData
-                ? `Offline comparisons: pick any two of the ${gitData.analyzedRevisionCount} exported revisions.${partialSuffix}`
-                : (historicalReady
-                    ? 'Replay only: new comparisons need the live CodeXR session.'
-                    : `No comparison was computed before export.${gitMissingSuffix}`),
-            projectEvolution: gitData ? true : evolutionReady,
-            projectEvolutionReason: gitData
-                ? `Offline movies from the ${gitData.analyzedRevisionCount} exported revisions (Auto, Range or Manual).${partialSuffix}`
-                : (evolutionReady
-                    ? 'Replay only: generating a new movie needs the live CodeXR session.'
-                    : `No evolution movie was generated before export.${gitMissingSuffix}`),
+                : !selectedModes.dependencyGraph
+                    ? 'Not selected for this export.'
+                    : options.dependencyGraphFailureReason
+                        || (options.serverCapabilities.dependencyGraph
+                            ? 'No dependency dataset was generated before export.'
+                            : 'This analysis mode has no dependency graph.'),
+            historicalComparison: historicalReady,
+            historicalComparisonReason: !selectedModes.historicalComparison
+                ? 'Not selected for this export.'
+                : gitData
+                    ? `Offline comparisons: pick any two of the ${
+                        gitData.timelineSelection?.exportedSourceCount
+                        || gitData.analyzedRevisionCount
+                    } exported sources.${partialSuffix}`
+                    : (historicalArtifactReady
+                        ? 'Replay only: new comparisons need the live CodeXR session.'
+                        : `No comparison was computed before export.${gitMissingSuffix}`),
+            projectEvolution: evolutionReady,
+            projectEvolutionReason: !selectedModes.projectEvolution
+                ? 'Not selected for this export.'
+                : gitData
+                    ? `Offline movies from the ${
+                        gitData.timelineSelection?.exportedSourceCount
+                        || gitData.analyzedRevisionCount
+                    } exported sources (Auto, Range or Manual).${partialSuffix}`
+                    : (evolutionArtifactReady
+                        ? 'Replay only: generating a new movie needs the live CodeXR session.'
+                        : `No evolution movie was generated before export.${gitMissingSuffix}`),
         },
         entities,
         historicalComparison: { comparisons },
@@ -416,13 +556,22 @@ export async function writeExportReadme(
     destinationPath: string,
     manifest: ExportManifest,
 ): Promise<void> {
-    const modeLine = (available: boolean, name: string, reason: string): string => (
-        available
-            ? (manifest.gitData
-                ? `- **${name}**: fully interactive offline. ${reason}`
-                : `- **${name}**: works (replay of what was computed before export).`)
-            : `- **${name}**: not available in this export. ${reason}`
+    const unavailableLine = (name: string, reason: string): string => (
+        `- **${name}**: not available in this export. ${reason}`
     );
+    const dependencyLine = manifest.capabilities.dependencyGraph
+        ? '- **Dependency graph**: interactive exploration of the exported dataset; re-analysis requires CodeXR.'
+        : unavailableLine('Dependency graph', manifest.capabilities.dependencyGraphReason);
+    const historicalLine = manifest.capabilities.historicalComparison
+        ? (manifest.gitData
+            ? `- **Historical comparison**: fully interactive across the exported revisions. ${manifest.capabilities.historicalComparisonReason}`
+            : '- **Historical comparison**: replay of the comparison computed before export.')
+        : unavailableLine('Historical comparison', manifest.capabilities.historicalComparisonReason);
+    const evolutionLine = manifest.capabilities.projectEvolution
+        ? (manifest.gitData
+            ? `- **Project evolution**: create and play movies from the exported revisions. ${manifest.capabilities.projectEvolutionReason}`
+            : '- **Project evolution**: replay of the movie computed before export.')
+        : unavailableLine('Project evolution', manifest.capabilities.projectEvolutionReason);
     const content = `# CodeXR exported analysis
 
 This folder is a self-contained snapshot of a CodeXR analysis
@@ -445,14 +594,14 @@ python -m http.server 8080
 ## What works in this export
 
 - **Classic analysis**: fully, including the Field Mapping panel and the in-room guide.
-${modeLine(manifest.capabilities.dependencyGraph, 'Dependency graph', manifest.capabilities.dependencyGraphReason)}
-${modeLine(manifest.capabilities.historicalComparison, 'Historical comparison', manifest.capabilities.historicalComparisonReason)}
-${modeLine(manifest.capabilities.projectEvolution, 'Project evolution', manifest.capabilities.projectEvolutionReason)}
+${dependencyLine}
+${historicalLine}
+${evolutionLine}
 
-Live re-analysis, collaboration and computing NEW comparisons or movies need
-the live CodeXR session in VS Code: reopen the project there to continue
-working. An internet connection is still required for the A-Frame/BabiaXR
-CDN scripts the scene loads.
+Live source re-analysis and collaboration require CodeXR. Historical
+comparisons and Project Evolution movies can be created without CodeXR when
+their git timeline was selected for this export. An internet connection is
+still required for the A-Frame/BabiaXR CDN scripts the scene loads.
 `;
     await fs.promises.writeFile(path.join(destinationPath, EXPORT_README_FILE_NAME), content, 'utf8');
 }

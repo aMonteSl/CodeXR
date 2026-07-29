@@ -5,6 +5,7 @@
     "geometryUtils.js",
     "containmentLimits.js",
     "chartFitProfiles.js",
+    "boatsLayoutStability.js",
     "diagnosticsAndPid.js",
     "containmentComponentCore.js",
     "measurementAndScaling.js",

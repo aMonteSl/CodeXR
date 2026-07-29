@@ -96,7 +96,7 @@
     getClient().sendMessage?.('analysis-mode-activate', {
       mode: 'historical-compare'
     });
-    await root.CodeXRAnalysisModeRuntime.transitionTo?.('historical-compare', {
+    await root.CodeXRAnalysisModeRuntime.changeAnalysis('historical-compare', {
       reason: 'historical-mode-entry'
     });
   }

@@ -7,6 +7,8 @@
   <script src="https://unpkg.com/aframe-babia-components@1.3.4/dist/aframe-babia-components.min.js"></script>
   <script src="assembled/analysisTableRuntime.js"></script>
   <script src="assembled/codexrGitRefPickerRuntime.js"></script>
+  <script>window.__CODEXR_DISABLE_MAPPING_AUTO_INIT__ = true;</script>
+  <script src="assembled/xrChartMappingUiRuntime.js"></script>
   <style>
     body { margin: 0; background: #0f172a; color: #dff7ff; font: 13px/1.35 monospace; }
     #controls {
@@ -62,11 +64,19 @@
       "chartEntityId": "chart",
       "chartEntityIds": ["chart"],
       "targetType": "directory",
+      "availableCharts": [
+        { "id": "boats", "name": "Boats" },
+        { "id": "bars", "name": "Bars" }
+      ],
       "defaultMappingsByChart": {
         "boats": {
           "area": "functionCount",
           "height": "totalLines",
           "color": "cyclomaticComplexityNumber"
+        },
+        "bars": {
+          "x_axis": "fileName",
+          "height": "totalLines"
         }
       }
     }
@@ -74,6 +84,7 @@
 
   <script>
     (function () {
+      var declarativeMappingRuntime = window.CodeXRMappingUiRuntime;
       var revision = 1;
       var bridgeUrl = '/output/project-evolution-harness/evolution/revision-1/data.json';
       var frames = [
@@ -83,6 +94,22 @@
       ];
       var handlers = {};
       var registeredRuntime = null;
+      var evolutionLifecycle = null;
+      var activeMode = 'project-evolution';
+      var frameRequestCount = 0;
+      var activeChartId = 'boats';
+      var mappingControlsLocked = false;
+      var mappingsByChart = {
+        boats: {
+          area: 'functionCount',
+          height: 'totalLines',
+          color: 'cyclomaticComplexityNumber'
+        },
+        bars: {
+          x_axis: 'fileName',
+          height: 'totalLines'
+        }
+      };
 
       function emit(type, payload) {
         (handlers[type] || []).forEach(function (handler) {
@@ -124,6 +151,7 @@
                 return true;
               }
               if (type === 'project-evolution-apply-frame') {
+                frameRequestCount += 1;
                 var frameIndex = Math.max(0, Math.min(frames.length - 1, Number(payload.frameIndex) || 0));
                 fetch('/__project_evolution_apply_frame?revision=' + revision + '&frameIndex=' + frameIndex)
                   .then(function (response) { return response.ok ? response.json() : Promise.reject(new Error('apply-frame failed')); })
@@ -156,21 +184,49 @@
           document.querySelectorAll('[data-codexr-analysis-root]').forEach(function (root) {
             root.setAttribute('visible', root.getAttribute('data-codexr-analysis-mode') === mode);
           });
+        },
+        preserveModeRoots: function (mode) {
+          document.querySelectorAll('[data-codexr-analysis-mode="' + mode + '"]').forEach(function (root) {
+            root.setAttribute('visible', false);
+          });
         }
       };
 
       window.CodeXRAnalysisModeRuntime = {
-        register: function () { return function () {}; },
+        register: function (mode, lifecycle) {
+          if (mode === 'project-evolution') {
+            evolutionLifecycle = lifecycle;
+          }
+          return function () {};
+        },
         // The harness models a user already standing in evolution mode: under
         // the passive mode-entity contract, applySharedState only renders a
         // movie when its own mode is active or activating.
         getState: function () {
-          return { mode: 'project-evolution', transitioning: false, requestedMode: null };
+          return { mode: activeMode, transitioning: false, requestedMode: null };
         },
-        transitionTo: function (mode) {
-          window.CodeXRAnalysisTableRuntime.setMode(mode);
-          window.CodeXRAnalysisSurfaceRuntime.activateMode(mode);
-          return Promise.resolve(true);
+        changeAnalysis: function (mode) {
+          var previousMode = activeMode;
+          var deactivate = previousMode === 'project-evolution'
+            && mode !== previousMode
+            && evolutionLifecycle?.deactivate
+            ? Promise.resolve(evolutionLifecycle.deactivate())
+            : Promise.resolve(true);
+          return deactivate.then(function () {
+            activeMode = mode;
+            window.CodeXRAnalysisTableRuntime.setMode(mode);
+            window.CodeXRAnalysisSurfaceRuntime.activateMode(mode);
+            if (
+              mode === 'project-evolution'
+              && previousMode !== mode
+              && evolutionLifecycle?.activate
+            ) {
+              return evolutionLifecycle.activate({
+                token: { isCurrent: function () { return activeMode === mode; } }
+              });
+            }
+            return true;
+          });
         }
       };
 
@@ -179,19 +235,86 @@
       };
 
       window.CodeXRMappingUiRuntime = {
+        getChartPresentation: function (chartId) {
+          return chartId === 'boats'
+            ? {
+                rotation: '0 0 0',
+                initialScale: '0.01 0.05 0.01',
+                preserveRelativeHierarchyLayers: true,
+                baseAttributes: {
+                  legend: true,
+                  legend_text: '{name}\n{fheight} (height): {height}\n{farea} (area): {area}\n{fcolor} (color): {color}',
+                  height_building_legend: -0.5,
+                  legend_scale: 0.25,
+                  legend_lookat: '[camera]',
+                  axis_name: true,
+                  extra: 1,
+                  separation: 0.5,
+                  zone_elevation: 0.01,
+                  height_quarter_legend_box: 0.01,
+                  height_quarter_legend_title: 2.5
+                }
+              }
+            : { rotation: '0 0 0', initialScale: '1.5 1.5 1.5', baseAttributes: {} };
+        },
+        buildRuntimeChartData: function (chartId, existingData, mapping) {
+          return Object.assign(
+            {},
+            this.getChartPresentation(chartId).baseAttributes,
+            mapping || {},
+            {
+              from: existingData && existingData.from || 'tree',
+              palette: existingData && existingData.palette || 'ubuntu',
+              title: existingData && existingData.title || 'CodeXR Analysis'
+            }
+          );
+        },
+        getChartBaseConfig: declarativeMappingRuntime.getChartBaseConfig,
+        serializeDeclarativeComponentData: declarativeMappingRuntime.serializeDeclarativeComponentData,
+        setDeclarativeAttribute: declarativeMappingRuntime.setDeclarativeAttribute,
+        buildDeclarativeTreeEntity: declarativeMappingRuntime.buildDeclarativeTreeEntity,
+        configureDeclarativeChartEntity: declarativeMappingRuntime.configureDeclarativeChartEntity,
+        buildDeclarativeChartEntity: declarativeMappingRuntime.buildDeclarativeChartEntity,
+        releaseChartEntity: declarativeMappingRuntime.releaseChartEntity,
         getState: function () {
           return {
             mappingContextId: 'project-evolution',
-            chartId: 'boats',
-            selectedByDimension: {
-              area: 'functionCount',
-              height: 'totalLines',
-              color: 'cyclomaticComplexityNumber'
-            }
+            chartId: activeChartId,
+            selectedByDimension: Object.assign({}, mappingsByChart[activeChartId]),
+            lastKnownGoodMapping: Object.assign({}, mappingsByChart[activeChartId])
           };
         },
         switchMappingContext: function () {},
-        selectChart: function () {},
+        selectChart: function (chartId, options) {
+          if (mappingControlsLocked && !(options && options.forceWhenLocked)) {
+            return false;
+          }
+          if (!mappingsByChart[chartId] || chartId === activeChartId) {
+            return false;
+          }
+          activeChartId = chartId;
+          if (!options || options.applyToEntities !== false) {
+            document.dispatchEvent(new CustomEvent('codexr-mapping-confirmed', {
+              detail: this.getState()
+            }));
+          }
+          return true;
+        },
+        restoreState: function (snapshot, options) {
+          if (mappingControlsLocked && !(options && options.forceWhenLocked)) {
+            return false;
+          }
+          activeChartId = snapshot.chartId || activeChartId;
+          mappingsByChart[activeChartId] = Object.assign(
+            {},
+            snapshot.lastKnownGoodMapping || snapshot.selectedByDimension || mappingsByChart[activeChartId]
+          );
+          return true;
+        },
+        setMappingControlsEnabled: function (enabled) {
+          mappingControlsLocked = !enabled;
+          return enabled;
+        },
         setChartEntityIds: function (ids) {
           log('active chart ids', ids);
         }
@@ -214,16 +337,124 @@
           }
           setTimeout(window.CodeXRProjectEvolutionHarness.updateStatus, 1200);
         },
+        changeChart: function (chartId) {
+          return window.CodeXRMappingUiRuntime.selectChart(chartId);
+        },
+        mappingState: function () {
+          return {
+            chartId: activeChartId,
+            locked: mappingControlsLocked,
+            mapping: Object.assign({}, mappingsByChart[activeChartId])
+          };
+        },
+        switchMode: function (mode) {
+          return window.CodeXRAnalysisModeRuntime.changeAnalysis(mode);
+        },
+        frameRequestCount: function () {
+          return frameRequestCount;
+        },
+        refreshSingle: function (frameIndex) {
+          var index = Math.max(0, Math.min(frames.length - 1, Number(frameIndex) || 0));
+          var data = document.getElementById('data');
+          declarativeMappingRuntime.setDeclarativeAttribute(
+            data,
+            'babia-queryjson',
+            'url: ' + frames[index].url + '?single-refresh=' + Date.now()
+          );
+          return index;
+        },
+        switchSingleChart: function (chartId) {
+          var chart = document.getElementById('chart');
+          var mapping = mappingsByChart[chartId] || {};
+          return declarativeMappingRuntime.__testing.applyChartTypeToEntity(
+            chart,
+            chartId,
+            mapping
+          );
+        },
         updateStatus: function () {
+          var root = document.getElementById('codexrProjectEvolutionRoot');
           var data = document.getElementById('codexrProjectEvolutionData');
           var tree = document.getElementById('codexrProjectEvolutionTree');
           var chart = document.getElementById('codexrProjectEvolutionChart');
+          var normalChart = document.getElementById('chart');
+          var componentName = activeChartId === 'boats' ? 'babia-boats' : 'babia-bars';
+          var chartComponent = chart?.components?.[componentName] || null;
+          var boatsComponent = chart?.components?.['babia-boats'] || null;
+          var boatsData = boatsComponent?.data || null;
+          var normalBoatsComponent = normalChart?.components?.['babia-boats'] || null;
+          window.__codexrHarnessIdentity = window.__codexrHarnessIdentity || 0;
+          function identity(value, prefix) {
+            if (!value) { return null; }
+            if (!value.__codexrHarnessIdentity) {
+              Object.defineProperty(value, '__codexrHarnessIdentity', {
+                value: prefix + '-' + (++window.__codexrHarnessIdentity)
+              });
+            }
+            return value.__codexrHarnessIdentity;
+          }
+          function collectLayerMetrics(targetChart, targetBoats) {
+            var greenLayerY = [];
+            targetChart?.object3D?.traverse(function (node) {
+              if (
+                !node.isMesh
+                || !node.material?.color
+                || node.material.color.getHexString?.() !== '98e690'
+              ) {
+                return;
+              }
+              var worldPosition = new THREE.Vector3();
+              node.getWorldPosition(worldPosition);
+              greenLayerY.push(Number(worldPosition.y.toFixed(6)));
+            });
+            var uniqueLayerY = Array.from(new Set(greenLayerY)).sort(function (a, b) { return a - b; });
+            var scaleY = Number(targetChart?.object3D?.scale?.y);
+            var gaps = uniqueLayerY.slice(1).map(function (value, index) {
+              return Number((value - uniqueLayerY[index]).toFixed(6));
+            });
+            return {
+              localHeights: Array.from(targetChart?.querySelectorAll?.('a-box') || [])
+                .filter(function (box) {
+                  var color = String(box.getAttribute('color') || '');
+                  var material = box.getAttribute('material') || {};
+                  return color.toLowerCase() === '#98e690'
+                    || String(material.color || '').toLowerCase() === '#98e690';
+                })
+                .map(function (box) {
+                  var height = box.getAttribute('height');
+                  if (!Number.isFinite(Number(height))) {
+                    height = box.getAttribute('geometry')?.height;
+                  }
+                  return Number(Number(height).toFixed(6));
+                })
+                .filter(Number.isFinite),
+              figureHeights: Array.isArray(targetBoats?.figures)
+                ? targetBoats.figures
+                  .filter(function (figure) { return Array.isArray(figure?.children); })
+                  .map(function (figure) { return Number(Number(figure.height).toFixed(6)); })
+                  .filter(Number.isFinite)
+                : [],
+              gaps: gaps,
+              normalizedGaps: Number.isFinite(scaleY) && scaleY > 0
+                ? gaps.map(function (gap) { return Number((gap / scaleY).toFixed(6)); })
+                : []
+            };
+          }
+          var evolutionLayers = collectLayerMetrics(chart, boatsComponent);
+          var normalLayers = collectLayerMetrics(normalChart, normalBoatsComponent);
+          var allIds = Array.from(document.querySelectorAll('[id]')).map(function (node) { return node.id; });
+          var duplicateIds = allIds.filter(function (id, index) {
+            return allIds.indexOf(id) !== index;
+          });
+          var boxIds = Array.from(chart?.querySelectorAll?.('a-box[id]') || [])
+            .map(function (box) { return box.id; });
           var status = {
             runtime: window.CodeXRProjectEvolutionRuntime.getState(),
             dataUrl: data && data.getAttribute('babia-queryjson'),
             hasQueryComponent: !!(data && data.components && data.components['babia-queryjson']),
             hasTreeComponent: !!(tree && tree.components && tree.components['babia-treebuilder']),
-            hasChartComponent: !!(chart && chart.components && chart.components['babia-boats']),
+            hasChartComponent: !!chartComponent,
+            chartType: activeChartId,
             chartChildren: chart ? chart.children.length : 0,
             // Boats keeps a handful of top-level children whatever the data,
             // so only the mesh count reveals whether the frame actually
@@ -235,8 +466,51 @@
               }
               return meshes;
             }()),
+            chartNodeToken: chart?.object3D?.uuid || null,
+            chartComponentToken: identity(chartComponent, activeChartId),
+            figuresOldCount: Array.isArray(boatsComponent?.figures_old)
+              ? boatsComponent.figures_old.length
+              : 0,
+            chartAnimating: boatsComponent?.animation === true,
+            dataNodeToken: data?.object3D?.uuid || null,
+            treeNodeToken: tree?.object3D?.uuid || null,
+            rootChildren: Array.from(root?.children || []).map(function (child) { return child.id; }),
+            dataParentTag: data?.parentNode?.tagName || null,
+            treeParentId: tree?.parentNode?.id || null,
+            chartParentId: chart?.parentNode?.id || null,
+            hasLegacySurface: !!document.getElementById('codexrProjectEvolutionChartSurface'),
+            dataHtml: data ? data.cloneNode(false).outerHTML : null,
+            treeHtml: tree ? tree.cloneNode(false).outerHTML : null,
+            chartHtml: chart ? chart.cloneNode(false).outerHTML : null,
+            boxIds: boxIds,
+            duplicateIds: duplicateIds,
             chartVisible: chart ? chart.getAttribute('visible') : null,
             chartScale: chart ? chart.getAttribute('scale') : null,
+            boatsStyle: boatsData ? {
+              separation: boatsData.separation,
+              zoneElevation: boatsData.zone_elevation,
+              quarterLegendBoxHeight: boatsData.height_quarter_legend_box,
+              quarterLegendTitleHeight: boatsData.height_quarter_legend_title,
+              legendScale: boatsData.legend_scale,
+              buildingLegendHeight: boatsData.height_building_legend
+            } : null,
+            greenLayerGaps: evolutionLayers.gaps,
+            normalizedGreenLayerGaps: evolutionLayers.normalizedGaps,
+            greenLayerLocalHeights: evolutionLayers.localHeights,
+            hierarchyFigureHeights: evolutionLayers.figureHeights,
+            normalChartTransform: normalChart ? {
+              position: normalChart.getAttribute('position'),
+              scale: normalChart.getAttribute('scale')
+            } : null,
+            normalChartHtml: normalChart ? normalChart.cloneNode(false).outerHTML : null,
+            normalChartComponentToken: identity(normalBoatsComponent, 'normal-boats'),
+            normalBoatsStyle: normalBoatsComponent ? {
+              zoneElevation: normalBoatsComponent.data.zone_elevation
+            } : null,
+            normalGreenLayerGaps: normalLayers.gaps,
+            normalNormalizedGreenLayerGaps: normalLayers.normalizedGaps,
+            normalGreenLayerLocalHeights: normalLayers.localHeights,
+            normalHierarchyFigureHeights: normalLayers.figureHeights,
             tableDiagnostics: window.CodeXRAnalysisTableRuntime.getActiveContainmentDiagnostics('#codexrProjectEvolutionChart')
           };
           document.getElementById('status').textContent = JSON.stringify(status, null, 2);
@@ -291,6 +565,7 @@
                        zone_elevation: 0.01;
                        height_quarter_legend_box: 0.01;
                        height_quarter_legend_title: 2.5"
+          codexr-boats-layout-stability="enabled: true"
           codexr-chart-containment="enabled: true"
           position="0 1 -18"
           rotation="0 0 0"

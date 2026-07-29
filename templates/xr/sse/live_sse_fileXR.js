@@ -1,23 +1,44 @@
 
-    console.log(' Setting up EventSource for unified live reload...');
+    function hasOfflineExportMarker() {
+      try {
+        const node = document.getElementById('codexr-tooling-config-virtual-screen');
+        const config = JSON.parse(node && node.textContent ? node.textContent : '{}');
+        return config.offlineExport === true;
+      } catch (_error) {
+        return false;
+      }
+    }
 
-    const eventSource = new EventSource('/events');
+    const liveReloadDisabled = hasOfflineExportMarker();
+    const disabledEventSource = {
+      close: function () {},
+      addEventListener: function () {},
+      onopen: null,
+      onerror: null,
+      onmessage: null
+    };
+    const eventSource = liveReloadDisabled
+      ? disabledEventSource
+      : new EventSource('/events');
     let isXRMode = false;
 
-    // A self-contained export (codexr-export-manifest.json next to the scene)
-    // has no /events endpoint: shut the live-reload channel down as soon as
-    // the manifest is detected so it cannot error-spam or reconnect forever.
-    let liveReloadDisabled = false;
-    fetch('./codexr-export-manifest.json', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((manifest) => {
-        if (manifest && manifest.kind === 'codexr-export') {
-          liveReloadDisabled = true;
-          console.log(' Offline export detected: live reload disabled.');
-          eventSource.close();
-        }
-      })
-      .catch(() => {});
+    if (liveReloadDisabled) {
+      console.log(' Offline export detected: live reload disabled.');
+    } else {
+      console.log(' Setting up EventSource for unified live reload...');
+      // Defensive compatibility for copies produced before the synchronous
+      // marker existed. Current exports never open the channel in the first
+      // place; older ones still close it as soon as their manifest is found.
+      fetch('./codexr-export-manifest.json', { cache: 'no-store' })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((manifest) => {
+          if (manifest && manifest.kind === 'codexr-export') {
+            console.log(' Offline export detected: live reload disabled.');
+            eventSource.close();
+          }
+        })
+        .catch(() => {});
+    }
     const CHART_COMPONENT_TYPES = [
       'babia-bars',
       'babia-barsmap',

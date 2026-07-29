@@ -9,6 +9,7 @@ const {
     EXPORT_MANIFEST_FILE_NAME,
     EXPORT_README_FILE_NAME,
     buildExportManifest,
+    configureOfflineExportHtml,
     isXrSceneFolder,
     refreshRuntimeCopies,
     relativizeExportArtifacts,
@@ -20,6 +21,19 @@ const XR_CAPABILITIES = {
     historicalComparison: true,
     projectEvolution: true,
 };
+
+function selectedModes(overrides = {}) {
+    const historicalComparison = overrides.historicalComparison ?? true;
+    const projectEvolution = overrides.projectEvolution ?? true;
+    return {
+        cancelled: false,
+        normal: true,
+        dependencyGraph: overrides.dependencyGraph ?? true,
+        historicalComparison,
+        projectEvolution,
+        gitTimeline: historicalComparison || projectEvolution,
+    };
+}
 
 function makeTempFolder() {
     return fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-export-test-'));
@@ -153,6 +167,68 @@ test('buildExportManifest disables missing modes with actionable reasons', async
     assert.equal(manifest.entities.length, 0);
 });
 
+test('offline HTML disables broadcast before any WebSocket runtime initializes', async () => {
+    const folder = makeTempFolder();
+    fs.writeFileSync(path.join(folder, 'index.html'), [
+        '<!doctype html>',
+        '<script id="codexr-tooling-config-collaboration" type="application/json">',
+        '{"enabled":true,"collaborationEnabled":true}',
+        '</script>',
+        '<script id="codexr-tooling-config-virtual-screen" type="application/json">',
+        '{"enabled":true,"broadcastEnabled":true,"signalingPath":"/codexr-broadcast"}',
+        '</script>',
+    ].join(''), 'utf8');
+
+    assert.equal(await configureOfflineExportHtml(folder), true);
+    const html = fs.readFileSync(path.join(folder, 'index.html'), 'utf8');
+    const virtualConfig = JSON.parse(
+        /codexr-tooling-config-virtual-screen[^>]*>([^<]+)/.exec(html)[1],
+    );
+    assert.equal(virtualConfig.enabled, true);
+    assert.equal(virtualConfig.broadcastEnabled, false);
+    assert.equal(virtualConfig.offlineExport, true);
+    const collaborationConfig = JSON.parse(
+        /codexr-tooling-config-collaboration[^>]*>([^<]+)/.exec(html)[1],
+    );
+    assert.equal(collaborationConfig.collaborationEnabled, true);
+    assert.equal(collaborationConfig.offlineExport, true);
+});
+
+test('stale artifacts never reactivate modes excluded by the export selector', async () => {
+    const folder = buildFullFixture();
+    await relativizeExportArtifacts(folder);
+    const manifest = await buildExportManifest(folder, {
+        target: { name: 'normal-only', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        selectedModes: selectedModes({
+            dependencyGraph: false,
+            historicalComparison: false,
+            projectEvolution: false,
+        }),
+        viewState: { mode: 'project-evolution', controllerView: 'project-evolution.playback' },
+    });
+
+    assert.deepEqual(manifest.capabilities, {
+        dependencyGraph: false,
+        dependencyGraphReason: 'Not selected for this export.',
+        historicalComparison: false,
+        historicalComparisonReason: 'Not selected for this export.',
+        projectEvolution: false,
+        projectEvolutionReason: 'Not selected for this export.',
+    });
+    assert.equal(
+        manifest.entities.some((entity) => [
+            'dependency-graph',
+            'historical-comparison',
+            'project-evolution',
+        ].includes(entity.entityKind)),
+        false,
+    );
+    assert.deepEqual(manifest.historicalComparison.comparisons, []);
+    const view = manifest.entities.find((entity) => entity.entityKind === 'analysis-view');
+    assert.equal(view.mode, 'single');
+});
+
 test('refreshRuntimeCopies overwrites existing runtime files only, from the real templates', async () => {
     const folder = makeTempFolder();
     fs.writeFileSync(path.join(folder, 'xrChartMappingUiRuntime.js'), '// stale', 'utf8');
@@ -172,6 +248,7 @@ test('refreshRuntimeCopies overwrites existing runtime files only, from the real
     assert.match(collaboration, /isOfflineExport/);
     const sse = fs.readFileSync(path.join(folder, 'main.js'), 'utf8');
     assert.match(sse, /codexr-export-manifest\.json/);
+    assert.match(sse, /hasOfflineExportMarker/);
 
     // Overwrite-existing-only: a runtime the copy never had must not appear.
     assert.equal(fs.existsSync(path.join(folder, 'virtualScreenRuntime.js')), false);
@@ -204,16 +281,16 @@ test('writeExportReadme documents serving and the replay-only limits', async () 
     assert.match(readme, /npx serve/);
     assert.match(readme, /python -m http\.server/);
     assert.match(readme, /file:\/\//);
-    assert.match(readme, /replay of what was computed before export/);
-    assert.match(readme, /live CodeXR session/);
+    assert.match(readme, /replay of the comparison computed before export/);
+    assert.match(readme, /Live source re-analysis and collaboration require CodeXR/);
 });
 
-test('the manifest carries the active analysis view, whatever the mode is called', async () => {
+test('the manifest normalizes an unknown or excluded active view to Single', async () => {
     const folder = buildFullFixture();
     await relativizeExportArtifacts(folder);
 
-    // Deliberately a mode this codebase has never heard of: the export must
-    // carry it verbatim, so adding modes never touches this code path.
+    // A mode not represented by the exact export selection cannot own the
+    // static scene.
     const manifest = await buildExportManifest(folder, {
         target: { name: 'demo-project', type: 'directory', analysisMode: 'XR' },
         serverCapabilities: XR_CAPABILITIES,
@@ -222,8 +299,8 @@ test('the manifest carries the active analysis view, whatever the mode is called
 
     const view = manifest.entities.find((entity) => entity.entityKind === 'analysis-view');
     assert.equal(view.entityId, 'main');
-    assert.equal(view.mode, 'time-travel');
-    assert.equal(view.controllerView, 'time-travel.mapping');
+    assert.equal(view.mode, 'single');
+    assert.equal(view.controllerView, 'single.mapping');
     assert.equal(view.status, 'ready');
 
     // The view entity comes after the data entities, but ordering must not
@@ -242,7 +319,7 @@ test('the manifest carries the active analysis view, whatever the mode is called
     assert.equal(manifestB.entities.some((entity) => entity.entityKind === 'analysis-view'), false);
 });
 
-test('schema v2: exported git data unlocks the real offline capabilities', async () => {
+test('schema v3: exported git data unlocks only the selected offline capabilities', async () => {
     const folder = buildFullFixture();
     await relativizeExportArtifacts(folder);
 
@@ -271,10 +348,10 @@ test('schema v2: exported git data unlocks the real offline capabilities', async
         gitDataSelected: true,
     });
 
-    assert.equal(manifest.schemaVersion, 2);
+    assert.equal(manifest.schemaVersion, 3);
     assert.deepEqual(manifest.gitData, gitData);
     assert.equal(manifest.capabilities.historicalComparison, true);
-    assert.match(manifest.capabilities.historicalComparisonReason, /pick any two of the 2 exported revisions/);
+    assert.match(manifest.capabilities.historicalComparisonReason, /pick any two of the 2 exported sources/);
     assert.equal(manifest.capabilities.projectEvolution, true);
     assert.match(manifest.capabilities.projectEvolutionReason, /Auto, Range or Manual/);
 
@@ -282,13 +359,43 @@ test('schema v2: exported git data unlocks the real offline capabilities', async
     const partialManifest = await buildExportManifest(buildFullFixture(), {
         target: { name: 'demo', type: 'directory', analysisMode: 'XR' },
         serverCapabilities: XR_CAPABILITIES,
-        gitData: { ...gitData, partial: true },
+        gitData: {
+            ...gitData,
+            partial: true,
+            skippedRevisions: [{ id: 'commit:missing', reason: 'target absent' }],
+        },
         gitDataSelected: true,
     });
-    assert.match(partialManifest.capabilities.projectEvolutionReason, /cancelled after 2 revisions/);
+    assert.match(partialManifest.capabilities.projectEvolutionReason, /1 revision source/);
+
+    const historicalOnly = await buildExportManifest(buildFullFixture(), {
+        target: { name: 'demo', type: 'directory', analysisMode: 'XR' },
+        serverCapabilities: XR_CAPABILITIES,
+        gitData,
+        gitDataSelected: true,
+        selectedModes: selectedModes({
+            dependencyGraph: false,
+            historicalComparison: true,
+            projectEvolution: false,
+        }),
+        viewState: { mode: 'project-evolution', controllerView: 'project-evolution.playback' },
+    });
+    assert.equal(historicalOnly.capabilities.historicalComparison, true);
+    assert.equal(historicalOnly.capabilities.projectEvolution, false);
+    assert.match(historicalOnly.capabilities.projectEvolutionReason, /Not selected/);
+    assert.equal(historicalOnly.capabilities.dependencyGraph, false);
+    assert.deepEqual(historicalOnly.selectedModes, {
+        normal: true,
+        dependencyGraph: false,
+        historicalComparison: true,
+        projectEvolution: false,
+    });
+    const normalizedView = historicalOnly.entities.find((entity) => entity.entityKind === 'analysis-view');
+    assert.equal(normalizedView.mode, 'single');
+    assert.equal(normalizedView.controllerView, 'single.mapping');
 });
 
-test('schema v2: without git data the artifact-based replay gating is exactly the old one', async () => {
+test('schema v3: without git data the selected artifact-based replay gating remains available', async () => {
     const folder = makeTempFolder();
     fs.writeFileSync(path.join(folder, 'xrChartMappingUiRuntime.js'), '// stale copy', 'utf8');
 
@@ -299,7 +406,7 @@ test('schema v2: without git data the artifact-based replay gating is exactly th
         gitDataFailureReason: 'The git timeline could not be listed for the export: no repo.',
     });
 
-    assert.equal(manifest.schemaVersion, 2);
+    assert.equal(manifest.schemaVersion, 3);
     assert.equal(manifest.gitData, undefined);
     assert.equal(manifest.capabilities.historicalComparison, false);
     assert.match(manifest.capabilities.historicalComparisonReason, /could not be listed/);

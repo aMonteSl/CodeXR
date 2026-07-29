@@ -47,9 +47,10 @@
     if (!ids.length || !mappingRuntime?.setChartEntityIds) {
       return;
     }
-    mappingRuntime.setChartEntityIds(ids);
+    mappingRuntime.setChartEntityIds(ids, { renormalize: false });
     mappingRuntime.switchMappingContext?.('normal-analysis', {
-      reason: 'historical-restore-normal-targets'
+      reason: 'historical-restore-normal-targets',
+      applyToEntities: false
     });
   }
 

@@ -16,7 +16,11 @@ export interface ExportModeItem {
 
 export interface ExportSelection {
     cancelled: boolean;
+    /** The base scene and data.json are required to boot every XR export. */
+    normal: true;
     dependencyGraph: boolean;
+    historicalComparison: boolean;
+    projectEvolution: boolean;
     /**
      * True when historical and/or evolution were picked: both feed from the
      * same per-revision payloads, so one shared git analysis covers either.
@@ -48,7 +52,7 @@ export function buildExportModeItems(capabilities: ExportServerCapabilities): Ex
     if (capabilities.historicalComparison) {
         items.push({
             label: 'Historical comparison',
-            description: 'Pre-analyzes the whole git timeline (up to 240 revisions), can take a while',
+            description: 'Pre-analyzes all or the latest N Git commits for offline comparisons',
             picked: true,
             modeId: 'historical',
         });
@@ -56,7 +60,7 @@ export function buildExportModeItems(capabilities: ExportServerCapabilities): Ex
     if (capabilities.projectEvolution) {
         items.push({
             label: 'Project evolution',
-            description: 'Shares the git timeline analysis with historical comparison, no duplicate work',
+            description: 'Shares the selected Git timeline with historical comparison, no duplicate work',
             picked: true,
             modeId: 'evolution',
         });
@@ -73,12 +77,24 @@ export function interpretExportSelection(
     selected: ExportModeItem[] | undefined,
 ): ExportSelection {
     if (!selected) {
-        return { cancelled: true, dependencyGraph: false, gitTimeline: false };
+        return {
+            cancelled: true,
+            normal: true,
+            dependencyGraph: false,
+            historicalComparison: false,
+            projectEvolution: false,
+            gitTimeline: false,
+        };
     }
     const picked = new Set(selected.map((item) => item.modeId));
+    const historicalComparison = picked.has('historical');
+    const projectEvolution = picked.has('evolution');
     return {
         cancelled: false,
+        normal: true,
         dependencyGraph: picked.has('dependency-graph'),
-        gitTimeline: picked.has('historical') || picked.has('evolution'),
+        historicalComparison,
+        projectEvolution,
+        gitTimeline: historicalComparison || projectEvolution,
     };
 }

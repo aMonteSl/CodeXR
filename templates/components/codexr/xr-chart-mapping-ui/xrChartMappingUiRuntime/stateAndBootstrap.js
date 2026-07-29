@@ -13,6 +13,7 @@
       return false;
     }
     var nextContextId = String(contextId || 'default');
+    var applyToEntities = !options || options.applyToEntities !== false;
     // Idempotent: re-applying the profile already in force would run
     // applyMappingRuntimeState → renderRows, which clears and rebuilds every
     // panel row — the visible controller flash when an entry applies its state
@@ -26,7 +27,10 @@
     state.activeMappingContextId = nextContextId;
     var profileKey = getMappingProfileKey(nextContextId, getActiveChartId(config));
     var profile = state.mappingProfiles[profileKey] || buildDefaultMappingSnapshot(config);
-    applyMappingRuntimeState(config, profile, (options && options.reason) || ('mapping-ui-context-' + nextContextId));
+    applyMappingRuntimeState(config, profile,
+      (options && options.reason) || ('mapping-ui-context-' + nextContextId),
+      { applyToEntities: applyToEntities }
+    );
     // The mapping view is context-sensitive: swap in the new context's
     // companion section (child title + content) if one is registered.
     syncMappingCompanion();
@@ -46,14 +50,23 @@
     };
   }
 
-  function restoreState(runtimeState) {
+  function restoreState(runtimeState, options) {
     var config = getConfig();
     if (!config || !runtimeState || typeof runtimeState !== 'object' || Array.isArray(runtimeState)) {
       console.warn('[CodeXR][MappingUI] Invalid state snapshot; restore skipped.');
       return false;
     }
+    if (state.mappingControlsLocked && !(options && options.forceWhenLocked === true)) {
+      setStatusMessage('Playback running - pause to change chart or axes.', 'info', 0);
+      return false;
+    }
 
-    return applyMappingRuntimeState(config, runtimeState, 'mapping-ui-restore');
+    return applyMappingRuntimeState(
+      config,
+      runtimeState,
+      'mapping-ui-restore',
+      { applyToEntities: !options || options.applyToEntities !== false }
+    );
   }
 
   var sceneLoadHookInstalled = false;
@@ -160,6 +173,18 @@
     // Canonical per-chart presentation (rotation, base attributes, row
     // budget) — injected by the generator with a runtime fallback mirror.
     getChartPresentation: getChartPresentation,
+    // Canonical chart-data constructor for analysis runtimes that create
+    // their own entities. This is production API, not a test-only escape hatch.
+    buildRuntimeChartData: buildRuntimeChartData,
+    // Declarative construction is the shared DOM contract for every runtime
+    // that creates a Babia producer or chart after the initial HTML load.
+    // Component values are complete A-Frame strings, so outerHTML remains as
+    // readable and auditable as the generated Single analysis.
+    buildDeclarativeTreeEntity: buildDeclarativeTreeEntity,
+    buildDeclarativeChartEntity: buildDeclarativeChartEntity,
+    configureDeclarativeChartEntity: configureDeclarativeChartEntity,
+    serializeDeclarativeComponentData: serializeDeclarativeComponentData,
+    setDeclarativeAttribute: setDeclarativeAttribute,
     registerPanelView: registerPanelView,
     registerMappingCompanion: registerMappingCompanion,
     showPanelView: showPanelView,
@@ -175,17 +200,24 @@
       return !!(refs.panel && refs.panelContent);
     },
     whenPanelReady: whenPanelReady,
-    setChartEntityIds: function (chartEntityIds) {
+    setChartEntityIds: function (chartEntityIds, options) {
       state.chartEntityIdsOverride = Array.isArray(chartEntityIds)
         ? chartEntityIds.filter(Boolean).map(String)
         : null;
-      requestChartContainmentRenormalize('mapping-ui-targets-changed');
+      if (!options || options.renormalize !== false) {
+        requestChartContainmentRenormalize('mapping-ui-targets-changed');
+      }
       return state.chartEntityIdsOverride ? state.chartEntityIdsOverride.slice() : [];
     },
     __testing: {
       getInvalidOptionReason: getInvalidOptionReason,
       buildChartComponentUpdate: buildChartComponentUpdate,
       buildRuntimeChartData: buildRuntimeChartData,
+      buildDeclarativeTreeEntity: buildDeclarativeTreeEntity,
+      buildDeclarativeChartEntity: buildDeclarativeChartEntity,
+      configureDeclarativeChartEntity: configureDeclarativeChartEntity,
+      serializeDeclarativeComponentData: serializeDeclarativeComponentData,
+      setDeclarativeAttribute: setDeclarativeAttribute,
       // Applying a mapping must also RECONCILE an entity still wearing a
       // previous chart type — the path that used to leave a pie's rotation on
       // a boats — so it is exercised directly.
@@ -228,7 +260,7 @@
     }, 250);
   }
 
-  if (root.document) {
+  if (root.document && root.__CODEXR_DISABLE_MAPPING_AUTO_INIT__ !== true) {
     if (root.document.readyState === 'loading') {
       root.document.addEventListener('DOMContentLoaded', function () {
         bootstrapWhenConfigReady(0);

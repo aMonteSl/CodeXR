@@ -171,6 +171,18 @@
         return fallback;
       }
 
+      if (shared.config.offlineExport === true) {
+        shared.sessionInfoPromise = resolveOfflineExportInfo(fallback)
+          .then(function (offlineInfo) {
+            shared.sessionInfo = offlineInfo || fallback;
+            return shared.sessionInfo;
+          })
+          .finally(function () {
+            shared.sessionInfoPromise = null;
+          });
+        return shared.sessionInfoPromise;
+      }
+
       shared.sessionInfoPromise = win.fetch(shared.config.sessionEndpoint || '/api/collaboration/session', {
         method: 'GET',
         cache: 'no-store',
@@ -238,6 +250,7 @@
         || shared.kicked
         || shared.sessionEnded
         || !shared.config.collaborationEnabled
+        || shared.config.offlineExport === true
         || typeof win.WebSocket !== 'function'
       ) {
         return;

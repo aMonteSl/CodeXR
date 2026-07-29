@@ -62,21 +62,23 @@ function buildChartEntityHtml(options: {
     chartId: string;
     componentName: string;
     componentBody: string;
-    scale?: string;
 }): string {
     const profile = getChartPresentationProfile(options.chartId);
     const baseAttributes = serializeComponentAttributes(profile.baseAttributes);
     const componentValue = baseAttributes
         ? `${options.componentBody};\n                                 ${baseAttributes}`
         : options.componentBody;
+    const hierarchyLayerStability = profile.preserveRelativeHierarchyLayers
+        ? '\n                    codexr-boats-layout-stability="enabled: true"'
+        : '';
     return `<!-- ${options.comment} -->
                 <a-entity id="chart"
                     data-codexr-active-chart-id="${options.chartId}"
-                    ${options.componentName}="${componentValue}"
+                    ${options.componentName}="${componentValue}"${hierarchyLayerStability}
                     codexr-chart-containment="${UNIVERSAL_XR_TABLE_SETTINGS}"
                     position="0 1 -18"
                     rotation="${profile.rotation}"
-                    scale="${options.scale ?? '1.5 1.5 1.5'}">
+                    scale="${profile.initialScale}">
                 </a-entity>`;
 }
 
@@ -432,7 +434,6 @@ export const chartTemplates: ChartMetadata[] = [
                                  area: {{AREA_FIELD}};
                                  height: {{HEIGHT_FIELD}};
                                  color: {{COLOR_FIELD}}`,
-            scale: '0.01 0.05 0.01',
         })
     }
 ];

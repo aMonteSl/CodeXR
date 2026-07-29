@@ -89,6 +89,7 @@ export class TemplateProcessor {
                 chartId,
                 chartEntityId,
                 mappings,
+                title,
                 isDirectoryAnalysis,
                 options,
             );
@@ -240,6 +241,7 @@ export class TemplateProcessor {
         chartId: string,
         chartEntityId: string | undefined,
         mappings: DimensionMapping[],
+        analysisTitle: string,
         isDirectoryAnalysis: boolean,
         options?: XRVisualizationGenerationOptions,
     ): { componentHtml: string; scriptHtml: string } {
@@ -445,9 +447,11 @@ export class TemplateProcessor {
             chartId,
             chartEntityId,
             chartEntityIds: chartEntityId ? [chartEntityId] : [],
+            analysisTitle,
             normalSurfaceId: 'codexrAnalysisSurface',
             normalRootId: 'codexrNormalAnalysisRoot',
             normalEntityIds: ['codexrNormalAnalysisRoot'],
+            normalDataEntityIds: ['data'],
             targetType,
             panelId,
             toggleId,

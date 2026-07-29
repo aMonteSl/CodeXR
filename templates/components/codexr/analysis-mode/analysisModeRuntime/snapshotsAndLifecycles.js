@@ -3,14 +3,80 @@
     return Number(snapshot?.modeRevision?.[mode] || 0);
   }
 
+  function getProducerId(componentData) {
+    if (componentData && typeof componentData === 'object') {
+      return componentData.from ? String(componentData.from) : '';
+    }
+    var match = String(componentData || '').match(/(?:^|;)\s*from\s*:\s*([^;]+)/);
+    return match ? match[1].trim() : '';
+  }
+
+  function getNormalDataEntities(config) {
+    var document = root.document;
+    if (!document) { return []; }
+    var queue = [];
+    var visited = new Set();
+    var dataEntities = [];
+    collectConfiguredIds(config, [
+      'normalDataEntityIds',
+      'dataEntityIds',
+      'dataEntityId'
+    ]).forEach(function (id) {
+      var element = document.getElementById?.(id);
+      if (element) { queue.push(element); }
+    });
+    getNormalVisualizationRoots().forEach(function (element) {
+      queue.push(element);
+      element.querySelectorAll?.('[babia-queryjson], [babia-treebuilder], [data-codexr-normal-visualization="true"]')
+        ?.forEach(function (child) { queue.push(child); });
+    });
+    getNormalMappingTargetIds(config).forEach(function (id) {
+      var element = document.getElementById?.(id);
+      if (element) { queue.push(element); }
+    });
+    while (queue.length) {
+      var element = queue.shift();
+      if (!element || visited.has(element)) { continue; }
+      visited.add(element);
+      var queryData = element.getAttribute?.('babia-queryjson');
+      if (queryData) {
+        dataEntities.push(element);
+      }
+      var attributeNames = element.getAttributeNames?.() || [];
+      var componentNames = Object.keys(element.components || {});
+      Array.from(new Set(attributeNames.concat(componentNames)))
+        .filter(function (name) {
+          return name === 'babia-treebuilder'
+            || (name.indexOf('babia-') === 0 && name !== 'babia-queryjson');
+        })
+        .forEach(function (name) {
+          var producerId = getProducerId(
+            element.getAttribute?.(name) || element.components?.[name]?.data
+          );
+          var producer = producerId ? document.getElementById?.(producerId) : null;
+          if (producer) { queue.push(producer); }
+        });
+    }
+    // Old generated scenes predate normalDataEntityIds but use this canonical
+    // producer id. Keep the fallback scoped to that one entity, never to every
+    // babia-queryjson in the document (which includes parked Evolution data).
+    if (!dataEntities.length) {
+      var canonical = document.getElementById?.('data');
+      if (canonical?.getAttribute?.('babia-queryjson')) {
+        dataEntities.push(canonical);
+      }
+    }
+    return Array.from(new Set(dataEntities));
+  }
+
   async function refreshNormalDataSources(modeRevision) {
     var doc = root.document;
-    if (!doc?.querySelectorAll || modeRevision <= state.lastNormalModeRevision) {
+    if (!doc || modeRevision <= state.lastNormalModeRevision) {
       return false;
     }
     var mappingRuntime = root.CodeXRMappingUiRuntime;
     var mappingState = mappingRuntime?.getState?.() || null;
-    var dataEntities = Array.from(new Set(doc.querySelectorAll('[babia-queryjson]')));
+    var dataEntities = getNormalDataEntities(getConfig());
     var timestamp = Date.now();
     dataEntities.forEach(function (dataEntity) {
       var current = dataEntity.getAttribute?.('babia-queryjson');
@@ -24,10 +90,11 @@
       var nextUrl = currentUrl.split('?')[0]
         + '?codexrModeRevision=' + modeRevision
         + '&t=' + timestamp;
-      if (typeof current === 'string') {
-        dataEntity.setAttribute('babia-queryjson', nextUrl);
+      var declarativeUrl = 'url: ' + nextUrl;
+      if (mappingRuntime && typeof mappingRuntime.setDeclarativeAttribute === 'function') {
+        mappingRuntime.setDeclarativeAttribute(dataEntity, 'babia-queryjson', declarativeUrl);
       } else {
-        dataEntity.setAttribute('babia-queryjson', Object.assign({}, current, { url: nextUrl }));
+        dataEntity.setAttribute('babia-queryjson', declarativeUrl);
       }
     });
     await new Promise(function (resolve) {
@@ -45,8 +112,10 @@
     var modeRevision = getSnapshotModeRevision(snapshot, 'single');
     var refreshedFromRevision = await refreshNormalDataSources(modeRevision);
     var pending = state.pendingNormalRefresh;
+    var completedPendingRefresh = false;
     if (pending && !refreshedFromRevision) {
-      await getNormalRefreshRuntime().waitForCompletionAfter(pending.baseline, 5000);
+      var completion = await getNormalRefreshRuntime().waitForCompletionAfter(pending.baseline, 5000);
+      completedPendingRefresh = !!completion?.completed;
     }
     var chartIds = getNormalMappingTargetIds(config);
     if (chartIds.length && root.CodeXRAnalysisTableRuntime?.waitForChartsStable) {
@@ -57,15 +126,45 @@
       });
     }
     state.pendingNormalRefresh = null;
+    return refreshedFromRevision || completedPendingRefresh;
   }
 
   function registerBuiltInLifecycles() {
     register('selection', {
+      mappingContextId: null,
       activate: async function (activation) {
         await clearVisualizationsForSelection(activation);
       }
     });
     register('single', {
+      mappingContextId: 'normal-analysis',
+      captureState: function () {
+        var config = getConfig();
+        var mappingState = root.CodeXRMappingUiRuntime?.getState?.();
+        var chartIds = getNormalMappingTargetIds(config);
+        return {
+          chartId: mappingState?.chartId || root.CodeXRMappingUiRuntime?.getSceneChartId?.() || null,
+          chartIds: chartIds,
+          mappingState: mappingState || null,
+          chartTransforms: captureChartTransforms(chartIds)
+        };
+      },
+      restoreState: function (activation) {
+        var saved = activation?.savedState;
+        if (!saved) { return; }
+        var mappingRuntime = root.CodeXRMappingUiRuntime;
+        if (saved.chartId && mappingRuntime?.getState?.()?.chartId !== saved.chartId) {
+          mappingRuntime.selectChart?.(saved.chartId, { applyToEntities: false });
+        }
+        mappingRuntime?.switchMappingContext?.('normal-analysis', {
+          reason: 'normal-analysis-state-restore',
+          applyToEntities: false
+        });
+        if (saved.mappingState) {
+          mappingRuntime?.restoreState?.(saved.mappingState, { applyToEntities: false });
+        }
+        restoreChartTransforms(saved.chartTransforms);
+      },
       // The authoritative analysis-view snapshot is this mode's data-refresh
       // path (waitForNormalChartReady reads its modeRevision), so a snapshot
       // echo must re-activate it. Modes with their own shared entity don't
@@ -74,19 +173,23 @@
       activate: function (activation) {
         var config = getConfig();
         ensureAnalysisSurfaceRuntime().activateMode('single');
-        var chartIds = getNormalMappingTargetIds(config);
+        var chartIds = activation?.savedState?.chartIds || getNormalMappingTargetIds(config);
         if (chartIds.length) {
-          root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds);
+          root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds, { renormalize: false });
         }
-        root.CodeXRMappingUiRuntime?.switchMappingContext?.('normal-analysis', {
-          reason: 'normal-analysis-activate'
-        });
-        void waitForNormalChartReady(config, activation).then(function () {
+        restoreChartTransforms(activation?.savedState?.chartTransforms);
+        void waitForNormalChartReady(config, activation).then(function (dataChanged) {
           if (state.mode !== 'single' && state.activeLifecycleMode !== 'single') {
             return;
           }
           setNormalVisualizationVisible(true);
-          root.CodeXRAnalysisTableRuntime?.renormalizeAll?.('normal-analysis-restored');
+          restoreChartTransforms(activation?.savedState?.chartTransforms);
+          if (dataChanged && chartIds.length) {
+            root.CodeXRAnalysisTableRuntime?.renormalizeCharts?.(
+              chartIds,
+              'normal-analysis-data-refreshed'
+            );
+          }
         });
       },
       deactivate: function () {
@@ -110,6 +213,24 @@
       entityId: 'main',
       applySharedState: function (snapshot) {
         if (VALID_MODES.has(snapshot?.mode)) {
+          var viewRevision = Number(snapshot?.viewRevision || 0);
+          if (
+            viewRevision > 0
+            && viewRevision < state.lastAuthoritativeViewRevision
+          ) {
+            debugLog('Ignored stale authoritative analysis view', {
+              mode: snapshot.mode,
+              viewRevision: viewRevision,
+              lastApplied: state.lastAuthoritativeViewRevision
+            });
+            return;
+          }
+          if (viewRevision > 0) {
+            state.lastAuthoritativeViewRevision = Math.max(
+              state.lastAuthoritativeViewRevision,
+              viewRevision
+            );
+          }
           if (snapshot.mode === 'single' && snapshot.status !== 'ready') {
             state.pendingNormalRefresh = {
               baseline: getNormalRefreshRuntime().getState().completedGeneration,
@@ -120,7 +241,7 @@
           var visibleMode = snapshot.mode;
           // Echo dedupe: a transition toward this exact mode is already in
           // flight (the runtime that sent analysis-mode-activate also called
-          // transitionTo directly). Queueing the echo behind it would repeat
+          // changeAnalysis directly). Queueing the echo behind it would repeat
           // the whole deactivate/activate cycle — the double park/rebuild
           // behind the entry flicker.
           if (state.transitioning && state.pendingTransitionMode === visibleMode) {
@@ -135,7 +256,7 @@
           var echoView = lifecycles[visibleMode]?.resolveControllerView?.()
             || snapshot.controllerView
             || getDefaultControllerViewForMode(visibleMode);
-          void transitionTo(visibleMode, {
+          void changeAnalysis(visibleMode, {
             reason: 'authoritative-analysis-view',
             snapshot: snapshot,
             controllerView: echoView,
@@ -157,7 +278,7 @@
     setSelectionPanel: function (viewId) {
       state.selectionPanelView = String(viewId || 'visualization-mode');
     },
-    transitionTo: transitionTo,
+    changeAnalysis: changeAnalysis,
     deactivate: deactivate,
     getState: function () {
       return {
@@ -166,6 +287,8 @@
         controllerView: state.controllerView,
         activeLifecycleMode: state.activeLifecycleMode,
         transitioning: state.transitioning,
+        pendingTransitionMode: state.pendingTransitionMode,
+        lastAuthoritativeViewRevision: state.lastAuthoritativeViewRevision,
         generation: state.generation
       };
     },
@@ -182,6 +305,8 @@
         state.pendingTransitionMode = null;
         state.generation = 0;
         state.transition = Promise.resolve();
+        state.modeSnapshots = {};
+        state.lastAuthoritativeViewRevision = 0;
         state.collaborationRegistered = false;
         state.pendingNormalRefresh = null;
         state.lastNormalModeRevision = 0;

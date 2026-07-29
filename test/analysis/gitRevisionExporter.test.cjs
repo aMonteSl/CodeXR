@@ -9,6 +9,16 @@ const {
     decorateRevisionPayload,
     runGitRevisionExport,
 } = require('../../out/code_analysis/export/gitRevisionExportCore.js');
+const {
+    calculateGitExportWorkerPlan,
+    validateGitRevisionScope,
+} = require('../../out/code_analysis/export/gitExportOptions.js');
+const {
+    GitTimelineBlobAnalyzer,
+} = require('../../out/code_analysis/export/gitTimelineBlobAnalyzer.js');
+const {
+    GitExportPythonWorkerPool,
+} = require('../../out/code_analysis/export/gitExportPythonWorkerPool.js');
 const { sampleTimeline } = require('../../out/code_analysis/historical/gitTimelineSampler.js');
 
 function loadGitRepositoryService() {
@@ -49,16 +59,79 @@ function makeDestination() {
     return destination;
 }
 
-function stubAnalyzer(callLog) {
-    return async (snapshotTargetPath, source) => {
-        callLog.push(source.kind === 'gitRef' ? source.commitSha : source.id);
-        return [{
-            fileName: 'module.py',
-            filePath: path.join(snapshotTargetPath, 'module.py'),
-            totalLines: 3,
-            analyzedSha: source.kind === 'gitRef' ? source.commitSha : 'working-copy',
-        }];
-    };
+function stubRevisionStore(callLog, overrides = {}) {
+    return async (sources) => ({
+        statistics: {
+            revisionCount: sources.length,
+            fileOccurrences: sources.length,
+            uniqueAnalysisCount: sources.length,
+            maxActiveWorkers: Math.min(2, sources.length),
+        },
+        async get(source) {
+            const sha = source.kind === 'gitRef' ? source.commitSha : source.id;
+            callLog.push(sha);
+            if (overrides.failSha === sha) {
+                throw new Error(overrides.failureReason || 'boom');
+            }
+            return {
+                entries: [{
+                    fileName: 'module.py',
+                    filePath: 'module.py',
+                    totalLines: 3,
+                    analyzedSha: sha,
+                }],
+                analyzedTargetPath: '/snapshot',
+                warnings: [],
+            };
+        },
+        async dispose() {},
+    });
+}
+
+function buildRepeatedBlobRepository() {
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-export-blobs-'));
+    const repositoryPath = path.join(temporaryRoot, 'repository');
+    fs.mkdirSync(repositoryPath, { recursive: true });
+    runGit(repositoryPath, ['init', '--initial-branch=main']);
+    runGit(repositoryPath, ['config', 'user.email', 'test@example.com']);
+    runGit(repositoryPath, ['config', 'user.name', 'CodeXR Test']);
+    fs.writeFileSync(path.join(repositoryPath, 'stable.py'), 'def stable():\n    return 1\n', 'utf8');
+    fs.writeFileSync(path.join(repositoryPath, 'stable.js'), 'def stable():\n    return 1\n', 'utf8');
+    fs.writeFileSync(
+        path.join(repositoryPath, 'unicodé name.py'),
+        'def unicode_name():\n    return 2\n',
+        'utf8',
+    );
+    for (let index = 1; index <= 6; index += 1) {
+        fs.writeFileSync(
+            path.join(repositoryPath, 'changing.py'),
+            `def changing():\n    return ${index}\n`,
+            'utf8',
+        );
+        runGit(repositoryPath, ['add', '.']);
+        runGit(repositoryPath, ['commit', '-m', `commit ${index}`]);
+    }
+    return { temporaryRoot, repositoryPath };
+}
+
+function writeStubPersistentWorker(temporaryRoot) {
+    const workerPath = path.join(temporaryRoot, 'stub-worker.cjs');
+    fs.writeFileSync(workerPath, [
+        "const fs=require('node:fs');",
+        "const readline=require('node:readline');",
+        "const send=(value)=>process.stdout.write(JSON.stringify(value)+'\\n');",
+        "send({type:'ready',protocol:1,pid:process.pid});",
+        "const lines=readline.createInterface({input:process.stdin});",
+        "lines.on('line',(line)=>{",
+        " const job=JSON.parse(line);",
+        " if(job.type==='shutdown'){send({type:'stopped'});process.exit(0);}",
+        " const text=fs.readFileSync(job.inputPath,'utf8');",
+        " const result=job.targetType==='file'?[]:{filePath:job.inputPath,totalLines:text.split(/\\r?\\n/).length-1};",
+        " fs.writeFileSync(job.outputPath,JSON.stringify(result),'utf8');",
+        " send({type:'complete',id:job.id});",
+        "});",
+    ].join('\n'), 'utf8');
+    return workerPath;
 }
 
 test('the export analyzes each unique commit once and shares the payload with its refs', async () => {
@@ -71,7 +144,7 @@ test('the export analyzes each unique commit once and shares the payload with it
     const outcome = await runGitRevisionExport(
         {
             gitService: new GitRepositoryService(repositoryPath, snapshotRoot),
-            analyzeSnapshot: stubAnalyzer(calls),
+            prepareRevisionStore: stubRevisionStore(calls),
             readWorkingCopyPayload: async () => JSON.parse(
                 fs.readFileSync(path.join(destination, 'data.json'), 'utf8'),
             ),
@@ -118,6 +191,146 @@ test('the export analyzes each unique commit once and shares the payload with it
     assert.deepEqual(gitData.suggestedSourceIds, expectedSuggestion);
 });
 
+test('export requests the complete Git timeline while live callers keep bounded scans', async () => {
+    const destination = makeDestination();
+    const sha = 'a'.repeat(40);
+    let requestedLimit = 'not-called';
+    const source = {
+        id: 'commit-a',
+        kind: 'gitRef',
+        refType: 'commit',
+        refName: sha,
+        commitSha: sha,
+        label: 'commit a',
+    };
+    const outcome = await runGitRevisionExport(
+        {
+            gitService: {
+                async listReferences() {
+                    return {
+                        repositoryRoot: '/repo',
+                        targetRelativePath: '.',
+                        workingTreeDirty: false,
+                        activeBranch: 'main',
+                        pageSize: 5,
+                        sources: [
+                            { id: 'working-copy', kind: 'workingCopy', label: 'Working copy' },
+                            source,
+                        ],
+                    };
+                },
+                async listTimelineSources(maxCount) {
+                    requestedLimit = maxCount;
+                    return [source];
+                },
+                async dispose() {},
+            },
+            prepareRevisionStore: stubRevisionStore([]),
+            async readWorkingCopyPayload() {
+                return [{ fileName: 'a.js', filePath: 'a.js', totalLines: 1 }];
+            },
+        },
+        {
+            targetPath: '/repo',
+            targetType: 'directory',
+            destinationPath: destination,
+            request: { scope: { kind: 'all' }, performanceProfile: 'balanced' },
+        },
+    );
+
+    assert.equal(requestedLimit, null, 'null is the explicit complete-timeline contract');
+    assert.ok(outcome.gitData);
+});
+
+test('latest N limits both commits and refs while keeping the working copy separately', async () => {
+    const destination = makeDestination();
+    const commits = ['a', 'b', 'c'].map((letter, index) => ({
+        id: `commit-${letter}`,
+        kind: 'gitRef',
+        refType: 'commit',
+        refName: letter.repeat(40),
+        commitSha: letter.repeat(40),
+        label: `commit ${letter}`,
+        timestamp: index + 1,
+    }));
+    const oldBranch = {
+        ...commits[0],
+        id: 'branch-old',
+        refType: 'branch',
+        refName: 'refs/heads/old',
+        label: 'old',
+    };
+    const selectedBranch = {
+        ...commits[2],
+        id: 'branch-current',
+        refType: 'branch',
+        refName: 'refs/heads/current',
+        label: 'current',
+    };
+    let requestedLimit;
+    let preparedSources = [];
+    const outcome = await runGitRevisionExport(
+        {
+            gitService: {
+                async listReferences() {
+                    return {
+                        repositoryRoot: '/repo',
+                        targetRelativePath: '.',
+                        workingTreeDirty: false,
+                        activeBranch: 'current',
+                        pageSize: 5,
+                        sources: [
+                            { id: 'working-copy', kind: 'workingCopy', label: 'Working copy' },
+                            oldBranch,
+                            selectedBranch,
+                        ],
+                    };
+                },
+                async listTimelineSources(limit) {
+                    requestedLimit = limit;
+                    return commits.slice(-limit);
+                },
+                async dispose() {},
+            },
+            prepareRevisionStore: async (sources) => {
+                preparedSources = sources;
+                return stubRevisionStore([])(sources);
+            },
+            async readWorkingCopyPayload() {
+                return [{ fileName: 'a.js', filePath: 'a.js', totalLines: 1 }];
+            },
+        },
+        {
+            targetPath: '/repo',
+            targetType: 'directory',
+            destinationPath: destination,
+            request: { scope: { kind: 'latest', count: 2 }, performanceProfile: 'maximum' },
+        },
+    );
+
+    assert.equal(requestedLimit, 2);
+    assert.deepEqual(
+        preparedSources.map((source) => source.commitSha),
+        [commits[1].commitSha, commits[2].commitSha],
+    );
+    assert.equal(
+        outcome.gitData.references.sources.some((source) => source.id === oldBranch.id),
+        false,
+    );
+    assert.equal(
+        outcome.gitData.references.sources.some((source) => source.id === selectedBranch.id),
+        true,
+    );
+    assert.deepEqual(outcome.gitData.timelineSelection, {
+        kind: 'latest',
+        requestedCommitCount: 2,
+        selectedCommitCount: 2,
+        exportedCommitCount: 2,
+        exportedSourceCount: 4,
+    });
+    assert.equal(outcome.gitData.analyzedRevisionCount, 2);
+});
+
 test('cancellation keeps what completed; a failing revision is skipped, not fatal', async () => {
     const { repositoryPath } = buildFixtureRepository();
     const GitRepositoryService = loadGitRepositoryService();
@@ -131,12 +344,7 @@ test('cancellation keeps what completed; a failing revision is skipped, not fata
             gitService: new GitRepositoryService(
                 repositoryPath, fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-export-snap-')),
             ),
-            analyzeSnapshot: async (_snapshotPath, source) => {
-                if (source.kind === 'gitRef' && source.commitSha === failingSha) {
-                    throw new Error('boom');
-                }
-                return [{ fileName: 'module.py', totalLines: 1 }];
-            },
+            prepareRevisionStore: stubRevisionStore([], { failSha: failingSha }),
             readWorkingCopyPayload: async () => [{ fileName: 'module.py', totalLines: 3 }],
         },
         { targetPath: repositoryPath, targetType: 'directory', destinationPath: destinationA },
@@ -158,7 +366,9 @@ test('cancellation keeps what completed; a failing revision is skipped, not fata
             gitService: new GitRepositoryService(
                 repositoryPath, fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-export-snap-')),
             ),
-            analyzeSnapshot: async () => [{ fileName: 'module.py', totalLines: 1 }],
+            prepareRevisionStore: async () => {
+                throw new Error('git-export-cancelled');
+            },
             readWorkingCopyPayload: async () => undefined,
         },
         {
@@ -181,7 +391,7 @@ test('a folder that is not a git repository fails softly with a reason', async (
             gitService: new GitRepositoryService(
                 plainFolder, fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-export-snap-')),
             ),
-            analyzeSnapshot: async () => [],
+            prepareRevisionStore: stubRevisionStore([]),
             readWorkingCopyPayload: async () => undefined,
         },
         { targetPath: plainFolder, targetType: 'directory', destinationPath: makeDestination() },
@@ -218,4 +428,162 @@ test('the unified decorator serves both modes: shared key for directories, both 
     assert.equal(file[0].evolutionKey, 'function:foo');
     assert.equal(file[2].evolutionKey, 'function:bar');
     assert.equal(file[0].filePath, 'module.py');
+});
+
+test('worker plans are bounded by CPU and memory and revision counts are validated', () => {
+    const resources = {
+        availableParallelism: 12,
+        freeMemoryBytes: 16 * 1024 * 1024 * 1024,
+    };
+    assert.equal(calculateGitExportWorkerPlan('balanced', resources).workerCount, 9);
+    assert.equal(calculateGitExportWorkerPlan('maximum', resources).workerCount, 32);
+    assert.equal(calculateGitExportWorkerPlan('balanced', {
+        availableParallelism: 12,
+        freeMemoryBytes: 512 * 1024 * 1024,
+    }).workerCount, 2);
+    assert.deepEqual(validateGitRevisionScope({ kind: 'latest', count: 15 }, 100), {
+        kind: 'latest',
+        count: 15,
+    });
+    assert.throws(
+        () => validateGitRevisionScope({ kind: 'latest', count: 101 }, 100),
+        /between 1 and 100/,
+    );
+});
+
+test('the real Git blob pipeline analyzes unchanged files once across revisions', async (t) => {
+    const { temporaryRoot, repositoryPath } = buildRepeatedBlobRepository();
+    const cacheRoot = path.join(temporaryRoot, 'pipeline-cache');
+    const snapshotRoot = path.join(temporaryRoot, 'snapshots');
+    const workerPath = writeStubPersistentWorker(temporaryRoot);
+    const GitRepositoryService = loadGitRepositoryService();
+    const service = new GitRepositoryService(repositoryPath, snapshotRoot);
+    t.after(async () => {
+        await service.dispose();
+        fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    });
+
+    const references = await service.listReferences();
+    const sources = await service.listTimelineSources(null);
+    const analyzer = new GitTimelineBlobAnalyzer({
+        repositoryRoot: references.repositoryRoot,
+        targetRelativePath: references.targetRelativePath,
+        originalTargetPath: repositoryPath,
+        targetType: 'directory',
+        recursive: true,
+        pythonExecutable: process.execPath,
+        workerScriptPath: workerPath,
+        workerCount: 2,
+        temporaryRoot: cacheRoot,
+    });
+    const store = await analyzer.prepare(sources);
+    assert.equal(store.statistics.revisionCount, 6);
+    assert.equal(store.statistics.fileOccurrences, 24);
+    assert.equal(
+        store.statistics.uniqueAnalysisCount,
+        9,
+        'same bytes with different extensions must remain distinct analyzer jobs',
+    );
+    assert.ok(store.statistics.maxActiveWorkers <= 2);
+
+    const latest = await store.get(sources[sources.length - 1]);
+    assert.deepEqual(
+        latest.entries.map((entry) => entry.relativePath),
+        ['changing.py', 'stable.js', 'stable.py', 'unicodé name.py'],
+    );
+    assert.ok(latest.entries.every((entry) => entry.modifiedAtMs > 0));
+    await store.dispose();
+    assert.equal(fs.existsSync(cacheRoot), false, 'the per-export cache must be removed');
+});
+
+test('the persistent worker pool retries a crashed job and respects its worker bound', async (t) => {
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-worker-retry-'));
+    t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+    const workerPath = path.join(temporaryRoot, 'retry-worker.cjs');
+    fs.writeFileSync(workerPath, [
+        "const fs=require('node:fs');",
+        "const readline=require('node:readline');",
+        "const send=(value)=>process.stdout.write(JSON.stringify(value)+'\\n');",
+        "send({type:'ready',protocol:1,pid:process.pid});",
+        "readline.createInterface({input:process.stdin}).on('line',(line)=>{",
+        " const job=JSON.parse(line);",
+        " if(job.type==='shutdown'){process.exit(0);}",
+        " const marker=job.inputPath+'.retried';",
+        " if(job.id==='retry'&&!fs.existsSync(marker)){fs.writeFileSync(marker,'1');process.exit(7);}",
+        " fs.writeFileSync(job.outputPath,JSON.stringify({ok:true,id:job.id}));",
+        " send({type:'complete',id:job.id});",
+        "});",
+    ].join('\n'), 'utf8');
+    const jobs = ['retry', 'normal'].map((id) => {
+        const inputPath = path.join(temporaryRoot, `${id}.py`);
+        fs.writeFileSync(inputPath, 'print(1)\n', 'utf8');
+        return {
+            id,
+            inputPath,
+            outputPath: path.join(temporaryRoot, `${id}.json`),
+            targetType: 'directory',
+            prepareInput: async () => {},
+        };
+    });
+    const pool = new GitExportPythonWorkerPool(
+        process.execPath,
+        workerPath,
+        2,
+    );
+    const result = await pool.run(jobs);
+    assert.equal(result.failures.size, 0);
+    assert.ok(result.maxActiveWorkers <= 2);
+    assert.deepEqual(
+        jobs.map((job) => JSON.parse(fs.readFileSync(job.outputPath, 'utf8')).id).sort(),
+        ['normal', 'retry'],
+    );
+    await pool.dispose();
+});
+
+test('cancelling the persistent pool terminates active work without publishing a result', async (t) => {
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codexr-worker-cancel-'));
+    t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+    const workerPath = path.join(temporaryRoot, 'slow-worker.cjs');
+    fs.writeFileSync(workerPath, [
+        "const readline=require('node:readline');",
+        "const send=(value)=>process.stdout.write(JSON.stringify(value)+'\\n');",
+        "send({type:'ready',protocol:1,pid:process.pid});",
+        "readline.createInterface({input:process.stdin}).on('line',(line)=>{",
+        " const job=JSON.parse(line);",
+        " if(job.type==='shutdown'){process.exit(0);}",
+        " setTimeout(()=>send({type:'complete',id:job.id}),10000);",
+        "});",
+    ].join('\n'), 'utf8');
+    const inputPath = path.join(temporaryRoot, 'input.py');
+    const outputPath = path.join(temporaryRoot, 'output.json');
+    fs.writeFileSync(inputPath, 'print(1)\n', 'utf8');
+    let cancellationListener;
+    const cancellationState = { requested: false };
+    const token = {
+        get isCancellationRequested() {
+            return cancellationState.requested;
+        },
+        onCancellationRequested(listener) {
+            cancellationListener = listener;
+            return { dispose() {} };
+        },
+    };
+    const pool = new GitExportPythonWorkerPool(
+        process.execPath,
+        workerPath,
+        1,
+        token,
+    );
+    const running = pool.run([{
+        id: 'slow',
+        inputPath,
+        outputPath,
+        targetType: 'directory',
+        prepareInput: async () => {},
+    }]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    cancellationState.requested = true;
+    cancellationListener();
+    await assert.rejects(running, /cancelled/);
+    assert.equal(fs.existsSync(outputPath), false);
 });

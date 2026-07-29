@@ -16,6 +16,7 @@ export interface AnalysisViewState {
     entityId: 'main';
     mode: AnalysisViewMode;
     controllerView: string;
+    viewRevision: number;
     status: 'selecting' | 'loading' | 'updating' | 'ready' | 'error';
     hasUsableSnapshot: boolean;
     sourceRevision: number;
@@ -29,6 +30,8 @@ type PathChangeKind = 'changed' | 'added' | 'removed';
 interface SessionRefreshState {
     activeMode: AnalysisViewMode;
     controllerView: string;
+    controllerViewByMode: Record<AnalysisViewMode, string>;
+    viewRevision: number;
     sourceRevision: number;
     appliedRevision: Record<AnalysisRefreshMode, number>;
     modeRevision: Record<AnalysisRefreshMode, number>;
@@ -146,14 +149,32 @@ export class AnalysisRefreshCoordinator {
         }
     }
 
-    public setActiveMode(
+    /**
+     * Canonical analysis-view ownership transition.
+     *
+     * The outgoing controller view is retained per mode. viewRevision is the
+     * visual-ownership epoch: it advances only when ownership actually moves
+     * to another mode. Refining the panel route inside the same mode must not
+     * invalidate a frame/comparison that started under the same owner.
+     */
+    public changeActiveMode(
         sessionId: string,
         mode: AnalysisViewMode,
-        controllerView: string,
+        controllerView?: string,
     ): AnalysisViewState {
         const state = this.getOrCreateState(sessionId);
+        state.controllerViewByMode[state.activeMode] =
+            state.controllerView || defaultControllerView(state.activeMode);
+        const ownerChanged = state.activeMode !== mode;
         state.activeMode = mode;
-        state.controllerView = controllerView || defaultControllerView(mode);
+        state.controllerView =
+            controllerView
+            || state.controllerViewByMode[mode]
+            || defaultControllerView(mode);
+        state.controllerViewByMode[mode] = state.controllerView;
+        if (ownerChanged) {
+            state.viewRevision += 1;
+        }
         this.emitState(sessionId, state);
         if (mode !== 'selection') {
             void this.runIfNeeded(sessionId, mode);
@@ -161,12 +182,30 @@ export class AnalysisRefreshCoordinator {
         return this.getViewState(sessionId);
     }
 
-    public activateMode(
+    /**
+     * Compare-and-set controller routing for async mode work.
+     *
+     * Returns null when the user has changed mode (or left and re-entered it)
+     * since the operation started. This is deliberately the only safe way for
+     * a delayed generation/clear/comparison to refine the active view.
+     */
+    public updateActiveViewIfCurrent(
         sessionId: string,
-        mode: AnalysisRefreshMode,
+        expectedMode: AnalysisViewMode,
+        expectedViewRevision: number,
         controllerView: string,
-    ): AnalysisViewState {
-        return this.setActiveMode(sessionId, mode, controllerView);
+    ): AnalysisViewState | null {
+        const state = this.getOrCreateState(sessionId);
+        if (
+            state.activeMode !== expectedMode
+            || state.viewRevision !== expectedViewRevision
+        ) {
+            return null;
+        }
+        state.controllerView = controllerView || defaultControllerView(expectedMode);
+        state.controllerViewByMode[expectedMode] = state.controllerView;
+        this.emitState(sessionId, state);
+        return this.getViewState(sessionId);
     }
 
     public requestRefresh(sessionId: string, mode?: AnalysisRefreshMode): void {
@@ -191,6 +230,68 @@ export class AnalysisRefreshCoordinator {
 
     public async forceRefreshMode(sessionId: string, mode: AnalysisRefreshMode): Promise<void> {
         await this.runIfNeeded(sessionId, mode, true);
+    }
+
+    /**
+     * Export-safe refresh. forceRefreshMode() preserves the non-blocking
+     * runtime contract when a mode is already running; an export instead needs
+     * a concrete dataset before it copies the folder. This method waits for a
+     * successful mode revision that covers the source revision visible at the
+     * start of the call.
+     */
+    public async forceRefreshModeAndWait(
+        sessionId: string,
+        mode: AnalysisRefreshMode,
+        timeoutMs = 600_000,
+    ): Promise<AnalysisViewState> {
+        const state = this.getOrCreateState(sessionId);
+        if (!state.handlers[mode]) {
+            throw new Error(`No refresh handler is registered for ${mode}.`);
+        }
+        if (!state.refreshEnabled[mode]) {
+            throw new Error(`Refresh is disabled for ${mode}.`);
+        }
+        const requiredSourceRevision = state.sourceRevision;
+        const baselineModeRevision = state.modeRevision[mode];
+        await this.runIfNeeded(sessionId, mode, true);
+
+        return new Promise<AnalysisViewState>((resolve, reject) => {
+            let settled = false;
+            let timeout: NodeJS.Timeout;
+            const finish = (error?: Error) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                clearTimeout(timeout);
+                state.stateListeners.delete(check);
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(this.getViewState(sessionId));
+                }
+            };
+            const check = () => {
+                const error = state.errors[mode];
+                if (error && !state.running[mode]) {
+                    finish(new Error(error));
+                    return;
+                }
+                if (
+                    !state.running[mode]
+                    && state.modeRevision[mode] > baselineModeRevision
+                    && state.appliedRevision[mode] >= requiredSourceRevision
+                    && state.snapshotAvailable[mode]
+                ) {
+                    finish();
+                }
+            };
+            timeout = setTimeout(() => {
+                finish(new Error(`Timed out waiting for ${mode} export data.`));
+            }, Math.max(1, timeoutMs));
+            state.stateListeners.add(check);
+            check();
+        });
     }
 
     public setSnapshotAvailable(
@@ -239,6 +340,7 @@ export class AnalysisRefreshCoordinator {
             entityId: 'main',
             mode: state.activeMode,
             controllerView: state.controllerView || defaultControllerView(state.activeMode),
+            viewRevision: state.viewRevision,
             status,
             hasUsableSnapshot,
             sourceRevision: state.sourceRevision,
@@ -257,6 +359,14 @@ export class AnalysisRefreshCoordinator {
             state = {
                 activeMode: 'single',
                 controllerView: 'single.mapping',
+                controllerViewByMode: {
+                    selection: 'visualization-menu',
+                    single: 'single.mapping',
+                    'historical-compare': 'historical.selection',
+                    'project-evolution': 'project-evolution',
+                    'dependency-graph': 'dependency.settings',
+                },
+                viewRevision: 0,
                 sourceRevision: 0,
                 appliedRevision: {
                     single: 0,

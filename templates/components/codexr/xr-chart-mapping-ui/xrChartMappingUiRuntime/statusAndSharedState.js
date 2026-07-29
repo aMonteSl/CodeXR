@@ -128,17 +128,27 @@
     if (!snapshot || typeof snapshot !== 'object' || !snapshot.selectedByDimension) {
       return false;
     }
+    if (state.mappingControlsLocked) {
+      setStatusMessage('Playback running - pause to change chart or axes.', 'info', 0);
+      return false;
+    }
 
     state.suppressSharedPublish = true;
     try {
       clearPendingValidationTimers();
       state.pendingMapping = null;
+      var delegatedEntityApply = state.activeMappingContextId === 'project-evolution';
       if (snapshot.chartId && snapshot.chartId !== getActiveChartId(config)) {
-        selectChart(snapshot.chartId);
+        selectChart(
+          snapshot.chartId,
+          delegatedEntityApply ? { applyToEntities: false } : undefined
+        );
       }
       state.selectedByDimension = cloneMapping(snapshot.selectedByDimension);
       state.lastKnownGoodMapping = cloneMapping(snapshot.selectedByDimension);
-      applyMappingSnapshot(config, snapshot.selectedByDimension, 'mapping-ui-room-sync');
+      if (!delegatedEntityApply) {
+        applyMappingSnapshot(config, snapshot.selectedByDimension, 'mapping-ui-room-sync');
+      }
       saveActiveMappingProfile();
       renderRows(config);
       notifyMappingConfirmed(state.lastKnownGoodMapping);

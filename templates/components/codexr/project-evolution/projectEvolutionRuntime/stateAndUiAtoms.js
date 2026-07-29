@@ -34,6 +34,7 @@
     frameDurationMs: 5000,
     settleDelayMs: 5000,
     playbackGeneration: 0,
+    viewGeneration: 0,
     frameApplyRequestId: 0,
     supersededFrameApplyIds: {},
     timelineMode: 'auto',
@@ -55,10 +56,11 @@
     startSourceId: '',
     endSourceId: '',
     manualSourceIds: [],
-    preparedChartIds: {},
     pendingFrameApply: null,
     dataRefreshGeneration: 0,
-    chartDataSignature: '',
+    appliedFrameIndex: -1,
+    appliedResultRevision: 0,
+    playbackMappingSnapshot: null,
     timer: null,
     status: '',
     statusLevel: 'info',
@@ -102,6 +104,11 @@
 
   function doc() { return root.document; }
   function client() { return root.CodeXRCollaborationRuntime?.getClient?.(root) || null; }
+
+  function changeToEvolutionAnalysis(context) {
+    return root.CodeXRAnalysisModeRuntime?.changeAnalysis?.(MODE, context || {})
+      || Promise.resolve(false);
+  }
 
   function config() {
     var script = doc().getElementById?.('codexr-tooling-config-xr-mapping-ui');

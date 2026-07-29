@@ -1,5 +1,9 @@
 // == xrChartMappingUiRuntime.js | dimensionAndViews (assembled per manifest.json; see COMPONENTS.md) ==
   function applyDimensionSelection(config, dimensionId, fieldName, options) {
+    if (state.mappingControlsLocked && !(options && options.forceWhenLocked === true)) {
+      setStatusMessage('Playback running - pause to change chart or axes.', 'info', 0);
+      return false;
+    }
     var chartEntities = getChartEntities(config);
     var componentName = getChartComponentName(config);
     var alreadySelected = state.selectedByDimension[dimensionId] === fieldName;
@@ -29,13 +33,24 @@
     var previousMapping = cloneMapping(state.selectedByDimension);
     var nextMapping = cloneMapping(previousMapping);
     nextMapping[dimensionId] = fieldName;
+    var delegatedEntityApply = state.activeMappingContextId === 'project-evolution';
 
-    applyMappingToCharts(chartEntities, componentName, nextMapping);
+    if (!delegatedEntityApply) {
+      applyMappingToCharts(chartEntities, componentName, nextMapping);
+    }
 
     state.selectedByDimension = cloneMapping(nextMapping);
     clearStatusTimer();
 
-    if (!options || options.trackPending !== false) {
+    if (delegatedEntityApply) {
+      clearPendingValidationTimers();
+      clearInvalidOption(dimensionId, fieldName);
+      state.lastKnownGoodMapping = cloneMapping(nextMapping);
+      state.pendingMapping = null;
+      saveActiveMappingProfile();
+      publishSharedMappingState(config);
+      notifyMappingConfirmed(state.lastKnownGoodMapping);
+    } else if (!options || options.trackPending !== false) {
       clearPendingValidationTimers();
       state.pendingMappingToken += 1;
       state.pendingMapping = {
@@ -53,7 +68,7 @@
       state.pendingMapping = null;
     }
 
-    if (!options || options.renormalize !== false) {
+    if (!delegatedEntityApply && (!options || options.renormalize !== false)) {
       requestChartContainmentRenormalize('mapping-ui-change');
     }
 

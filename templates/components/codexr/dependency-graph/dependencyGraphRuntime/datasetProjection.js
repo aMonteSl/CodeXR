@@ -122,8 +122,10 @@
   }
   function isDependencyModeActiveOrActivating() {
     var modeState = root.CodeXRAnalysisModeRuntime?.getState?.();
-    return modeState?.mode === 'dependency-graph'
-      || (modeState?.transitioning && modeState?.requestedMode === 'dependency-graph');
+    if (modeState?.transitioning) {
+      return modeState?.pendingTransitionMode === 'dependency-graph';
+    }
+    return modeState?.mode === 'dependency-graph';
   }
 
   // intensityBucket / edgeStyle live in edgeEncoding.js (shared IIFE scope).

@@ -15,6 +15,7 @@ test('CodeXRDebug exposes status, monitoring and desktop HUD commands', () => {
   const context = {
     console: {
       log: (...args) => messages.push(args),
+      info: (...args) => messages.push(args),
       groupCollapsed() {},
       groupEnd() {},
       table() {},
@@ -41,6 +42,23 @@ test('CodeXRDebug exposes status, monitoring and desktop HUD commands', () => {
         widths: [.0025, .004, .006, .008, .01],
       }),
     },
+    CodeXRAnalysisModeRuntime: {
+      getState: () => ({
+        mode: 'project-evolution',
+        activeLifecycleMode: 'project-evolution',
+        controllerView: 'project-evolution.mapping',
+        generation: 7,
+      }),
+    },
+    CodeXRMappingUiRuntime: {
+      getState: () => ({ mappingContextId: 'project-evolution' }),
+      getActivePanelView: () => 'mapping',
+    },
+    CodeXRAnalysisSurfaceRuntime: {
+      getSnapshot: () => ({
+        roots: [{ id: 'codexrProjectEvolutionRoot', mode: 'project-evolution', visible: true }],
+      }),
+    },
   };
   vm.runInNewContext(source, context);
 
@@ -51,6 +69,12 @@ test('CodeXRDebug exposes status, monitoring and desktop HUD commands', () => {
   assert.equal(typeof debug.hud, 'function');
   assert.equal(typeof debug.toggleHud, 'function');
   assert.equal(typeof debug.help, 'function');
+  assert.equal(typeof debug.currentAnalysis, 'function');
+  assert.equal(typeof debug.currentAnalsysis, 'function');
+  const analysis = debug.currentAnalsysis();
+  assert.equal(analysis.analysis, 'project-evolution');
+  assert.equal(analysis.mappingContext, 'project-evolution');
+  assert.deepEqual(Array.from(analysis.visibleRoots), ['project-evolution']);
   const status = debug.getStatus();
   assert.equal(status.performance.averageFps, 54.2);
   assert.equal(status.performance.targetFps, 60);
@@ -63,6 +87,7 @@ test('CodeXRDebug exposes status, monitoring and desktop HUD commands', () => {
   assert.ok(debug.help().every(command => command.startsWith('CodeXRDebug.')));
   assert.equal(typeof context.CodeXR.help, 'function');
   assert.ok(context.CodeXR.help().some(command => command.command === 'CodeXRDebug.status()'));
+  assert.ok(context.CodeXR.help().some(command => command.command === 'CodeXRDebug.currentAnalysis()'));
   assert.ok(context.CodeXR.help().some(
     command => command.command === 'CodeXRDependencyGraphRuntime.openModeSelector()',
   ));

@@ -163,14 +163,16 @@ export class GitRepositoryService {
         return { ...source, commitSha: resolved };
     }
 
-    public async listTimelineSources(maxCount = 200): Promise<ComparisonSource[]> {
+    public async listTimelineSources(maxCount: number | null = 200): Promise<ComparisonSource[]> {
         const repositoryRoot = await this.resolveRepositoryRoot();
-        const safeMaxCount = Math.max(1, Math.min(1000, Math.floor(maxCount)));
+        const limitArguments = maxCount === null
+            ? []
+            : [`--max-count=${Math.max(1, Math.min(1000, Math.floor(maxCount)))}`];
         const commitLines = (await this.runGit(repositoryRoot, [
             'log',
             '--all',
             '--reverse',
-            `--max-count=${safeMaxCount}`,
+            ...limitArguments,
             '--date=short',
             '--format=%H%x00%ad%x00%ct%x00%P%x00%s',
         ])).stdout.split(/\r?\n/).filter(Boolean);
@@ -197,6 +199,25 @@ export class GitRepositoryService {
             this.sourceById.set(source.id, source);
         }
         return sources;
+    }
+
+    /**
+     * Lightweight export preflight. Unlike listTimelineSources(), this does
+     * not enumerate or materialize commits; it only tells the user how much
+     * work the complete offline timeline will require.
+     */
+    public async countTimelineCommits(): Promise<number> {
+        const repositoryRoot = await this.resolveRepositoryRoot();
+        const rawCount = (await this.runGit(repositoryRoot, [
+            'rev-list',
+            '--all',
+            '--count',
+        ])).stdout.trim();
+        const count = Number.parseInt(rawCount, 10);
+        if (!Number.isFinite(count) || count < 0) {
+            throw new Error('git-timeline-count-invalid');
+        }
+        return count;
     }
 
     public async resolveSourcesInChronologicalOrder(sourceIds: string[]): Promise<ComparisonSource[]> {
