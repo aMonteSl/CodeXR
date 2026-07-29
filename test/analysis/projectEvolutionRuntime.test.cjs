@@ -35,24 +35,39 @@ function loadRuntime(config = null) {
     return sandbox.CodeXRProjectEvolutionRuntime;
 }
 
-test('project evolution runtime keeps one bridge datasource and chart during playback', () => {
+test('project evolution owns one declarative datasource and a direct tree-chart root', () => {
     assert.doesNotMatch(runtimeSource, /function createEvolutionFrameRoot\(frame\)/);
     assert.doesNotMatch(runtimeSource, /id: 'codexrProjectEvolutionFrameRoot'/);
-    assert.match(runtimeSource, /function ensureEvolutionPlaybackRoot\(frame\)/);
-    assert.match(runtimeSource, /id: 'codexrProjectEvolutionPlaybackRoot'/);
-    assert.match(runtimeSource, /function ensureEvolutionDataSource\(playbackRoot, initialUrl\)/);
-    assert.match(runtimeSource, /id: 'codexrProjectEvolutionData'/);
+    assert.doesNotMatch(runtimeSource, /codexrProjectEvolutionPlaybackRoot/);
+    assert.doesNotMatch(runtimeSource, /releaseEvolutionFrameSurface/);
+    assert.doesNotMatch(runtimeSource, /codexrProjectEvolutionChartSurface/);
+    assert.doesNotMatch(runtimeSource, /function buildEvolutionChartSurface/);
+    assert.doesNotMatch(runtimeSource, /evolutionCharts\.js/);
+    assert.doesNotMatch(runtimeSource, /bridgeAndPlayback\.js/);
+    assert.match(runtimeSource, /function ensureEvolutionRoot\(frame\)/);
+    assert.match(runtimeSource, /id: 'codexrProjectEvolutionRoot'/);
+    assert.match(runtimeSource, /function ensureDeclarativeEvolutionPipeline\(frame, frameUrl, viewGeneration\)/);
+    assert.match(runtimeSource, /releaseChartEntity\?\.\(refs\.evolutionChart\)/);
+    assert.match(runtimeSource, /function ensureEvolutionDataSource\(frameUrl\)/);
+    assert.match(runtimeSource, /EVOLUTION_DATA_ID = 'codexrProjectEvolutionData'/);
+    assert.match(runtimeSource, /scene\.appendChild\(refs\.evolutionDataSource\)/);
+    assert.match(runtimeSource, /function ensureEvolutionTreeBuilder\(rootEl\)/);
+    assert.match(runtimeSource, /EVOLUTION_TREE_ID = 'codexrProjectEvolutionTree'/);
+    assert.match(runtimeSource, /buildDeclarativeTreeEntity\?\.\(\{/);
+    assert.match(runtimeSource, /rootEl\.insertBefore\?\.\(refs\.evolutionTreeBuilder, rootEl\.firstChild \|\| null\)/);
+    assert.match(runtimeSource, /EVOLUTION_CHART_ID = 'codexrProjectEvolutionChart'/);
+    assert.match(runtimeSource, /buildDeclarativeChartEntity\?\.\(/);
+    assert.match(runtimeSource, /rootEl\.appendChild\(nextChart\)/);
     assert.match(runtimeSource, /function refreshEvolutionDataSource\(frameUrl\)/);
-    assert.match(runtimeSource, /setAttribute\('babia-queryjson', 'url: ' \+ frameUrl\)/);
-    assert.match(runtimeSource, /refs\.evolutionDataSource\?\.emit\('data-loaded', \{\}\)/);
+    assert.match(runtimeSource, /serializeEvolutionComponentData\(\{ url: frameUrl \}\)/);
+    assert.doesNotMatch(runtimeSource, /setAttribute\('babia-queryjson', 'url'/);
+    assert.doesNotMatch(runtimeSource, /setAttribute\(pipeline\.componentName, data\)/);
+    assert.doesNotMatch(runtimeSource, /emit\('data-loaded'/);
     assert.match(runtimeSource, /function waitForComponent\(element, componentName, timeoutMs\)/);
     assert.match(runtimeSource, /await waitForComponent\(dataSource, 'babia-queryjson', 1200\)/);
-    assert.match(runtimeSource, /await waitForComponent\(treeBuilder, 'babia-treebuilder', 1200\)/);
+    assert.match(runtimeSource, /await waitForComponent\(treeBuilder, EVOLUTION_TREE_COMPONENT, 1200\)/);
     assert.match(runtimeSource, /await waitForComponent\(chart, componentName, 1200\)/);
-    assert.doesNotMatch(runtimeSource, /clone\.setAttribute\(componentName/);
-    assert.match(runtimeSource, /function ensureEvolutionTreeBuilder\(playbackRoot, targetType\)/);
-    assert.match(runtimeSource, /id: 'codexrProjectEvolutionTree'/);
-    assert.match(runtimeSource, /var treeAttr = 'field: ' \+ field \+ '; split_by: \/; from: codexrProjectEvolutionData'/);
+    assert.match(runtimeSource, /configureDeclarativeChartEntity\?\.\(/);
     // The git-ref-picker runtime is presentation chrome: every describeSource
     // use goes through the guarded helper, so a missing picker can no longer
     // throw inside play() and freeze the movie with `playing` stuck on.
@@ -66,23 +81,49 @@ test('project evolution runtime keeps one bridge datasource and chart during pla
     assert.match(runtimeSource, /treeFields\?\.directory \|\| 'filePath'/);
     assert.doesNotMatch(runtimeSource, /targetType === 'directory' \? 'filePath'/);
     assert.match(runtimeSource, /function applyBridgeFrameToChart\(frame, appliedBridgeUrl\)/);
-    assert.match(runtimeSource, /data\.from = 'codexrProjectEvolutionTree'/);
-    assert.match(runtimeSource, /data\.from = 'codexrProjectEvolutionData'/);
-    assert.match(runtimeSource, /playbackRoot\.appendChild\(chart\)/);
+    assert.match(runtimeSource, /return chartId === 'boats' \? EVOLUTION_TREE_ID : EVOLUTION_DATA_ID/);
+    assert.match(runtimeSource, /beginEvolutionDataTransition\('project-evolution-frame'\)/);
+    assert.match(runtimeSource, /finishEvolutionDataTransition\('project-evolution-frame'\)/);
+    assert.match(runtimeSource, /waitForEvolutionChartAnimation/);
+    assert.doesNotMatch(runtimeSource, /scheduleFrameRenormalization/);
     assert.match(runtimeSource, /project-evolution-apply-frame/);
     assert.match(runtimeSource, /project-evolution-frame-applied/);
     assert.match(runtimeSource, /requestId: requestId/);
     assert.match(runtimeSource, /project-evolution-frame-apply-superseded/);
-    assert.match(runtimeSource, /return false;\s*\}\s*setStatus\(error instanceof Error \? error\.message/);
+    assert.match(runtimeSource, /Project evolution frame could not be applied/);
 });
 
-test('project evolution runtime no longer builds manual boats trees in browser', () => {
-    assert.doesNotMatch(runtimeSource, /function buildEvolutionBoatsTree/);
+test('project evolution namespaces stable boats identities away from other analyses', () => {
+    const runtime = loadRuntime();
+    const payload = [
+        {
+            name: 'repo',
+            uid: 'repo',
+            children: [{
+                name: 'src',
+                uid: 'repo/src',
+                children: [
+                    { name: 'a.js', uid: 'repo/src/a.js', totalLines: 10 },
+                    { name: 'b.js', uid: 'repo/src/b.js', totalLines: 20 },
+                ],
+            }],
+        },
+    ];
+    const first = runtime.__testing.namespaceEvolutionTreeNodes(payload, 'project-evolution');
+    const second = runtime.__testing.namespaceEvolutionTreeNodes(payload, 'project-evolution');
+    const collectUids = (nodes) => nodes.flatMap((node) => [
+        node.uid,
+        ...collectUids(Array.isArray(node.children) ? node.children : []),
+    ]);
+
+    const firstUids = collectUids(first);
+    assert.deepEqual(firstUids, collectUids(second));
+    assert.equal(firstUids.length, 4);
+    assert.ok(firstUids.every((uid) => uid.startsWith('project-evolution:')));
     assert.doesNotMatch(runtimeSource, /function buildEvolutionVisualPayload/);
     assert.doesNotMatch(runtimeSource, /fetch\(frame\.url\)/);
     assert.doesNotMatch(runtimeSource, /data\.data = JSON\.stringify/);
-    assert.doesNotMatch(runtimeSource, /data\.field = 'uid'/);
-    assert.doesNotMatch(runtimeSource, /__codexrEvolution/);
+    assert.match(runtimeSource, /buffer\.__codexrEvolutionNamespace = MODE/);
 });
 
 test('project evolution bridge URL is cache-busted without changing its path', () => {
@@ -167,7 +208,27 @@ function loadRuntimeWithSceneChart(sceneChart, config) {
         // reaches it in a real scene.
         CodeXRMappingUiRuntime: {
             getChartPresentation(chartId) {
-                return { rotation: chartId === 'pie' || chartId === 'donut' ? '90 0 0' : '0 0 0' };
+                return {
+                    rotation: chartId === 'pie' || chartId === 'donut' ? '90 0 0' : '0 0 0',
+                    initialScale: chartId === 'boats' ? '0.01 0.05 0.01' : '1.5 1.5 1.5',
+                };
+            },
+            buildDeclarativeChartEntity(options) {
+                const chart = createSceneChart({});
+                const componentByChart = {
+                    boats: 'babia-boats',
+                    donut: 'babia-doughnut',
+                };
+                chart.setAttribute('id', options.entityId);
+                chart.setAttribute('data-codexr-active-chart-id', options.chartId);
+                chart.setAttribute(
+                    componentByChart[options.chartId],
+                    `from: ${options.sourceId}`,
+                );
+                const presentation = this.getChartPresentation(options.chartId);
+                chart.setAttribute('rotation', presentation.rotation);
+                chart.setAttribute('scale', presentation.initialScale);
+                return chart;
             },
         },
     };
@@ -176,7 +237,7 @@ function loadRuntimeWithSceneChart(sceneChart, config) {
     return { runtime: sandbox.CodeXRProjectEvolutionRuntime, created };
 }
 
-test('the movie chart never inherits the scene chart orientation or component', () => {
+test('the movie chart is built declaratively without reading the parked scene chart', () => {
     // The scene had been switched to donut: rotated 90°, wearing
     // babia-doughnut. The movie borrows DECORATION from it, and borrowing
     // those two turned the boats movie into a rotated doughnut.
@@ -184,7 +245,6 @@ test('the movie chart never inherits the scene chart orientation or component', 
         'babia-doughnut': { from: 'data', key: 'fileName', size: 'functionCount' },
         'data-codexr-active-chart-id': 'donut',
         rotation: '90 0 0',
-        palette: 'ubuntu',
         'babia-queryjson': 'url: ./data.json',
     });
     const { runtime } = loadRuntimeWithSceneChart(sceneChart, { chartId: 'donut' });
@@ -196,11 +256,15 @@ test('the movie chart never inherits the scene chart orientation or component', 
     assert.equal(movieChart.getAttribute('babia-doughnut'), null, 'no foreign chart component rides along');
     assert.equal(movieChart.getAttribute('data-codexr-project-evolution-chart-id'), 'boats');
     // Decoration still travels — that is the whole point of the style source.
-    assert.equal(movieChart.getAttribute('palette'), 'ubuntu');
+    assert.equal(movieChart.getAttribute('babia-boats'), 'from: codexrProjectEvolutionTree');
+    assert.equal(movieChart.getAttribute('scale'), '0.01 0.05 0.01');
 
     // And a movie that IS circular gets the profile rotation, not a default.
     const circular = runtime.__testing.buildEvolutionChart('donut');
     assert.equal(circular.getAttribute('rotation'), '90 0 0');
+    assert.equal(circular.getAttribute('babia-boats'), null);
+    assert.equal(circular.getAttribute('babia-doughnut'), 'from: codexrProjectEvolutionData');
+    assert.doesNotMatch(runtimeSource, /getChartStyleSource/);
 });
 
 test('boats is the identity chart of the movie whatever the scene was generated with', () => {
@@ -220,37 +284,20 @@ test('boats is the identity chart of the movie whatever the scene was generated 
     assert.equal(boatlessScene.__testing.getDefaultChartId(), 'bars');
 });
 
-test('every frame puts the boats chart back on its full-redraw path', () => {
-    // Babia's boats only wipes and redraws while it has no previous figures
-    // (`if (this.figures_old.length == 0)`); otherwise it morphs the old tree
-    // into the new one. A movie frame is a different revision with different
-    // files, so the morph dropped geometry it never restored and the chart
-    // decayed frame after frame.
-    const runtime = loadRuntime();
-    const reset = runtime.__testing.resetChartRedrawState;
-    const boats = {
-        figures: [{ name: 'stale' }],
-        figures_old: [{ name: 'older' }],
-        figures_del: [{ name: 'pending-delete' }],
-        figures_in: [{ name: 'pending-insert' }],
-        animation: true,
-    };
-    const chart = { components: { 'babia-boats': boats } };
-
-    assert.equal(reset(chart, 'babia-boats'), true);
-    assert.deepEqual([...boats.figures], []);
-    assert.deepEqual([...boats.figures_old], [], 'an empty figure list is what triggers the redraw');
-    assert.deepEqual([...boats.figures_del], []);
-    assert.deepEqual([...boats.figures_in], []);
-    assert.equal(boats.animation, false);
-
-    // Only boats keeps that morph state; the flat charts rebuild themselves on
-    // every data push, so nothing is poked for them.
-    const bars = { bar_array: [1, 2, 3] };
-    assert.equal(reset({ components: { 'babia-bars': bars } }, 'babia-bars'), false);
-    assert.deepEqual([...bars.bar_array], [1, 2, 3]);
-    assert.equal(reset({ components: {} }, 'babia-boats'), false, 'a chart without the component is a no-op');
-    assert.equal(reset(null, 'babia-boats'), false);
+test('frames rely on Babia morphing without mutating its internal state', () => {
+    assert.doesNotMatch(runtimeSource, /resetChartRedrawState/);
+    assert.match(runtimeSource, /function captureEvolutionChartTransition/);
+    assert.match(runtimeSource, /component\.figures !== previousTransition\.figures/);
+    assert.match(runtimeSource, /component\.figures_old !== previousTransition\.figuresOld/);
+    assert.doesNotMatch(runtimeSource, /component\.figures\s*=/);
+    assert.doesNotMatch(runtimeSource, /component\.figures_old\s*=/);
+    assert.match(runtimeSource, /var pipeline = await ensureDeclarativeEvolutionPipeline\(/);
+    assert.match(runtimeSource, /var refreshGeneration = pipeline\.dataSourceCreated/);
+    assert.match(runtimeSource, /await waitForEvolutionChartAnimation/);
+    assert.doesNotMatch(
+        runtimeSource,
+        /function applyBridgeFrameToChart[\s\S]*?releaseEvolutionChart\(\)/,
+    );
 });
 
 test('suggested auto order tolerates never-loaded references (dependency-start regression)', () => {
@@ -358,7 +405,7 @@ function loadRuntimeForModeContract(activeMode) {
         },
         CodeXRAnalysisModeRuntime: {
             getState() { return { mode: activeMode, transitioning: false, requestedMode: null }; },
-            transitionTo(mode, options) {
+            changeAnalysis(mode, options) {
                 transitions.push([mode, options?.reason]);
                 return Promise.resolve(true);
             },

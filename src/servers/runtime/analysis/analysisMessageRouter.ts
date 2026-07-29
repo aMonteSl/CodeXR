@@ -44,7 +44,7 @@ export class AnalysisMessageRouter {
         message: CollaborationMessage,
     ): Promise<boolean> {
         if (message.type === 'analysis-mode-selection') {
-            this.host.setAnalysisViewMode('selection', 'visualization-menu');
+            this.host.changeAnalysisViewMode('selection', 'visualization-menu');
             return true;
         }
         if (message.type === 'analysis-mode-activate') {
@@ -116,7 +116,7 @@ export class AnalysisMessageRouter {
                 const allowsEmptyShell = mode === 'historical-compare'
                     || mode === 'project-evolution';
                 if (!available && !allowsEmptyShell) {
-                    this.host.setAnalysisViewMode('selection', 'visualization-menu');
+                    this.host.changeAnalysisViewMode('selection', 'visualization-menu');
                     return true;
                 }
                 controllerView = mode === 'historical-compare' && available

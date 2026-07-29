@@ -8,17 +8,6 @@
     state.activeLifecycleMode = nextMode;
     state.mode = nextMode;
     state.controllerView = controllerView;
-    // The chart selector follows the mode: project evolution selects its own
-    // movie chart (boats) in its activate; every other mode shows the chart
-    // the scene was generated with. UI-only — converting entities is the
-    // target mode's own business, and chart selection is global otherwise.
-    if (nextMode !== 'project-evolution') {
-      var mappingRuntime = root.CodeXRMappingUiRuntime;
-      var sceneChartId = mappingRuntime?.getSceneChartId?.();
-      if (sceneChartId && mappingRuntime?.getState?.()?.chartId !== sceneChartId) {
-        mappingRuntime?.selectChart?.(sceneChartId, { applyToEntities: false });
-      }
-    }
     setTableMode(nextMode);
     // The selector's header button carries the accent of the analysis you are
     // in, so the panel tells you where you are before you open anything.
@@ -72,30 +61,18 @@
   }
 
   async function clearVisualizationsForSelection(activation) {
-    var context = {
-      reason: 'visualization-mode-selection',
-      generation: activation?.generation
-    };
+    var reason = 'visualization-mode-selection';
     debugLog('Clearing active visualizations for visualization selector', {
       generation: activation?.generation,
       activeLifecycleMode: state.activeLifecycleMode,
       mode: state.mode
     });
-    // invokeSafely, not invoke: a synchronous throw inside one mode's cleanup
-    // would escape the .map() before Promise.allSettled could contain it,
-    // rejecting the whole transition (and silently killing anything awaiting
-    // it, like the dependency-graph start handshake).
-    await Promise.allSettled(
-      ['single', 'historical-compare', 'project-evolution', 'dependency-graph'].map(function (mode) {
-        var lifecycle = lifecycles[mode];
-        return typeof lifecycle?.disposeView === 'function'
-          ? invokeSafely(lifecycle, 'disposeView', context)
-          : invokeSafely(lifecycle, 'deactivate', context);
-      })
-    );
-    ensureAnalysisSurfaceRuntime().clearForSelection(context.reason);
+    // The outgoing lifecycle was already deactivated transactionally by
+    // performTransition. Sweeping every lifecycle here ran cleanup twice and
+    // let inactive modes cancel or rebuild state they no longer owned.
+    ensureAnalysisSurfaceRuntime().clearForSelection(reason);
     removeResidualVisualRoots();
-    root.CodeXRMappingUiRuntime?.setChartEntityIds?.([]);
+    root.CodeXRMappingUiRuntime?.setChartEntityIds?.([], { renormalize: false });
     debugLog('Visualization selector cleanup completed', {
       generation: activation?.generation
     });

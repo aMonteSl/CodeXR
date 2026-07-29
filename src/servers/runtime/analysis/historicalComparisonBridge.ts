@@ -158,7 +158,14 @@ export class HistoricalComparisonBridge {
             'historical-compare',
             request.leftSourceId === 'working-copy' || request.rightSourceId === 'working-copy',
         );
-        this.host.setAnalysisViewMode('historical-compare', 'historical.selection');
+        const currentView = this.host.getAnalysisViewState();
+        if (currentView?.mode !== 'historical-compare') {
+            this.host.changeAnalysisViewMode('historical-compare', 'historical.selection');
+        }
+        const operationView = currentView?.mode === 'historical-compare'
+            ? currentView
+            : this.host.getAnalysisViewState();
+        const operationViewRevision = operationView?.viewRevision;
         void (async () => {
             try {
                 await SessionWatcherManager.reconcileSession(
@@ -185,7 +192,13 @@ export class HistoricalComparisonBridge {
                     'historical-compare',
                     true,
                 );
-                this.host.setAnalysisViewMode('historical-compare', 'historical.mapping');
+                if (operationViewRevision !== undefined) {
+                    this.host.updateAnalysisViewIfCurrent(
+                        'historical-compare',
+                        operationViewRevision,
+                        'historical.mapping',
+                    );
+                }
             } catch (error) {
                 messageContext.broadcast({
                     type: 'historical-comparison-error',

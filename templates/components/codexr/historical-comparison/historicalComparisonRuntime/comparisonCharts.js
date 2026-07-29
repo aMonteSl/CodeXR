@@ -59,6 +59,32 @@
     });
   }
 
+  function setDeclarativeBabiaComponent(entity, componentName, componentData) {
+    var mappingRuntime = root.CodeXRMappingUiRuntime;
+    if (
+      mappingRuntime
+      && typeof mappingRuntime.setDeclarativeAttribute === 'function'
+      && typeof mappingRuntime.serializeDeclarativeComponentData === 'function'
+    ) {
+      mappingRuntime.setDeclarativeAttribute(
+        entity,
+        componentName,
+        mappingRuntime.serializeDeclarativeComponentData(componentData)
+      );
+      return true;
+    }
+    entity.setAttribute(componentName, componentData);
+    return true;
+  }
+
+  function serializeInlineBabiaData(payload) {
+    // A-Frame component strings use semicolons as property separators. Keep
+    // user-controlled names/paths lossless inside inline JSON by encoding the
+    // character before the shared component serializer sees it; JSON.parse
+    // restores it transparently for Babia.
+    return JSON.stringify(payload).replace(/;/g, '\\u003b');
+  }
+
   function vectorToPositionAttribute(position) {
     var source = position || {};
     return [
@@ -132,13 +158,13 @@
       var chartData = Object.assign({}, original.getAttribute(componentName) || {});
       if (options?.inlineData) {
         delete chartData.from;
-        chartData.data = JSON.stringify(options.inlineData);
+        chartData.data = serializeInlineBabiaData(options.inlineData);
         chartData.field = 'uid';
       } else {
         delete chartData.data;
         chartData.from = sourceId;
       }
-      clone.setAttribute(componentName, chartData);
+      setDeclarativeBabiaComponent(clone, componentName, chartData);
     }
     var containmentProfile = getHistoricalContainmentProfile(zone);
     clone.setAttribute('scale', '0.01 0.05 0.01');
@@ -306,7 +332,10 @@
 
     await nextFrame();
     refs.comparisonChartIds = activeChartIds.slice();
-    root.CodeXRMappingUiRuntime?.setChartEntityIds?.(activeChartIds);
+    root.CodeXRMappingUiRuntime?.setChartEntityIds?.(
+      activeChartIds,
+      { renormalize: false }
+    );
     root.CodeXRMappingUiRuntime.switchMappingContext?.('historical-comparison', {
       reason: 'historical-comparison-ready'
     });
@@ -341,7 +370,10 @@
     }
     var chartIds = Array.isArray(refs.comparisonChartIds) ? refs.comparisonChartIds : [];
     if (chartIds.length) {
-      root.CodeXRMappingUiRuntime?.setChartEntityIds?.(chartIds);
+      root.CodeXRMappingUiRuntime?.setChartEntityIds?.(
+        chartIds,
+        { renormalize: false }
+      );
     }
     root.CodeXRMappingUiRuntime?.switchMappingContext?.('historical-comparison', {
       reason: 'historical-comparison-restored'

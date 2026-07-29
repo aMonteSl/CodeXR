@@ -70,6 +70,8 @@
       this.lastNormalizationIssue = null;
       this.lastSuccessfulNormalizeAt = 0;
       this.pendingRenormalizeReason = null;
+      this.dataTransitionActive = false;
+      this.dataTransitionReason = '';
       this.containmentTransition = { active: false, reason: '', startedAt: 0, duration: 0 };
       this.containmentTransitionTimer = null;
       this.lastHardHeightGuardAt = 0;
@@ -211,6 +213,10 @@
 
     requestRenormalize: function (reason) {
       this.ensureRuntimeState();
+      if (this.dataTransitionActive) {
+        this.pendingRenormalizeReason = reason || 'chart-data-transition';
+        return;
+      }
       if (this.containmentTransition && this.containmentTransition.active) {
         this.pendingRenormalizeReason = reason || 'containment-transition-active';
         return;
@@ -230,6 +236,20 @@
 
     getChartStatus: function () {
       this.ensureRuntimeState();
+      if (this.dataTransitionActive) {
+        return {
+          ready: false,
+          valid: true,
+          stabilized: false,
+          geometryState: 'rebuilding',
+          reason: 'chart-data-transition',
+          message: 'The chart is applying a new dataset.',
+          details: {
+            phase: this.renderPhase,
+            source: this.dataTransitionReason || 'chart-data-transition'
+          }
+        };
+      }
       var axisIssue = this.inspectAxisIssue();
       if (axisIssue) {
         return {
@@ -384,7 +404,13 @@
     },
 
     tick: function (time, timeDelta) {
-      if (!this.data.enabled || !this.normalized || !this.el || !this.el.object3D) {
+      if (
+        !this.data.enabled
+        || this.dataTransitionActive
+        || !this.normalized
+        || !this.el
+        || !this.el.object3D
+      ) {
         return;
       }
 
@@ -463,6 +489,54 @@
       this.cancelContainmentTransition();
       // Re-evaluate the shared warning surface without this chart.
       scheduleTableDiagnosticsRefresh('containment-removed');
+    },
+
+    beginDataTransition: function (reason) {
+      this.ensureRuntimeState();
+      this.dataTransitionActive = true;
+      this.dataTransitionReason = reason || 'chart-data-transition';
+      this.pendingRenormalizeReason = this.dataTransitionReason;
+      this.bumpNormalizationGeneration();
+      this.captureStableTransform();
+      this.cancelContainmentTransition();
+      this.deactivateSteadyController();
+      this.stopStabilizationLoop();
+      this.unsettle(this.dataTransitionReason);
+      this.renderPhase = 'waiting-geometry';
+      scheduleTableDiagnosticsRefresh('chart-data-transition-start');
+      return true;
+    },
+
+    finishDataTransition: function (reason) {
+      this.ensureRuntimeState();
+      this.dataTransitionActive = false;
+      this.dataTransitionReason = '';
+      this.normalizedSignature = null;
+      this.lastMeasurementSignature = null;
+      this.pendingRenormalizeReason = null;
+      this.renormalize(reason || 'chart-data-transition-finished');
+      return true;
+    },
+
+    cancelDataTransition: function (reason) {
+      this.ensureRuntimeState();
+      if (!this.dataTransitionActive) {
+        return false;
+      }
+      this.bumpNormalizationGeneration();
+      this.dataTransitionActive = false;
+      this.dataTransitionReason = '';
+      this.pendingRenormalizeReason = null;
+      this.cancelContainmentTransition();
+      this.deactivateSteadyController();
+      this.stopStabilizationLoop();
+      if (this.el?.object3D && this.lastStableTransform) {
+        restoreTransform(this.el.object3D, this.lastStableTransform);
+        this.syncTransformAttributes();
+      }
+      this.renderPhase = this.normalized ? 'steady-fit' : 'waiting-geometry';
+      scheduleTableDiagnosticsRefresh(reason || 'chart-data-transition-cancelled');
+      return true;
     },
 
     ensureInitialPlacement: function () {

@@ -8,7 +8,7 @@
 
   /**
    * Like invoke(), but failures are logged and swallowed (sync throws too).
-   * Cleanup hooks (deactivate/disposeView) run through this: a mode that
+   * Lifecycle hooks run through this: a mode that
    * fails to clean up may degrade itself, but it must never abort the
    * transition — otherwise the table keeps the old mode's theme and the
    * suspended interactions are never restored (dead clicks).
@@ -129,7 +129,7 @@
     });
     var client = root.CodeXRCollaborationRuntime?.getClient?.(root);
     client?.sendMessage?.('analysis-mode-activate', { mode: mode });
-    return transitionTo(mode, {
+    return changeAnalysis(mode, {
       reason: 'local-analysis-mode-option',
       controllerView: getDefaultControllerViewForMode(mode),
       panelViewId: getPanelViewForControllerView(getDefaultControllerViewForMode(mode))
@@ -183,7 +183,7 @@
     debugLog('Resuming requested analysis mode', state.requestedMode || 'single');
     root.CodeXRCollaborationRuntime?.getClient?.(root)
       ?.sendMessage?.('analysis-mode-activate', { mode: state.requestedMode || 'single' });
-    void transitionTo(state.requestedMode || 'single', {
+    void changeAnalysis(state.requestedMode || 'single', {
       reason: 'local-visualization-mode-toggle',
       controllerView: getDefaultControllerViewForMode(state.requestedMode || 'single')
     });
@@ -196,7 +196,7 @@
       transitioning: state.transitioning
     });
     state.selectionPanelView = 'visualization-mode';
-    return transitionTo('selection', {
+    return changeAnalysis('selection', {
       reason: 'local-mode-selection',
       controllerView: 'visualization-menu',
       panelViewId: 'visualization-mode'
@@ -277,6 +277,7 @@
 
   async function performTransition(mode, context, generation) {
     var previousMode = state.activeLifecycleMode;
+    var activationToken = createActivationToken(mode, generation);
     debugLog('Analysis mode transition started', {
       from: previousMode,
       to: mode,
@@ -284,15 +285,34 @@
       reason: context?.reason || ''
     });
     if (previousMode !== mode) {
-      await invokeSafely(lifecycles[previousMode], 'deactivate', {
+      var capturedState = await invokeSafely(lifecycles[previousMode], 'captureState', {
         from: previousMode,
         to: mode,
         generation: generation
+      });
+      if (capturedState !== undefined) {
+        state.modeSnapshots[previousMode] = capturedState;
+      }
+      await invokeSafely(lifecycles[previousMode], 'deactivate', {
+        from: previousMode,
+        to: mode,
+        generation: generation,
+        token: activationToken
       });
       if (state.activeLifecycleMode === previousMode) {
         state.activeLifecycleMode = null;
       }
     }
+    if (generation !== state.generation) { return false; }
+    releasePrimaryAnalysisOwnership(mode);
+    await invokeSafely(lifecycles[mode], 'restoreState', {
+      from: previousMode,
+      to: mode,
+      generation: generation,
+      savedState: state.modeSnapshots[mode],
+      context: context || null,
+      token: activationToken
+    });
     if (generation !== state.generation) { return false; }
     applyAnalysisMode(mode, context || null);
     try {
@@ -300,15 +320,18 @@
         from: previousMode,
         to: mode,
         generation: generation,
-        context: context || null
+        context: context || null,
+        savedState: state.modeSnapshots[mode],
+        token: activationToken
       });
     } catch (error) {
       if (generation === state.generation) {
-        await invokeSafely(lifecycles[mode], 'disposeView', {
+        await invokeSafely(lifecycles[mode], 'deactivate', {
           from: mode,
           to: 'selection',
           generation: generation,
-          context: { reason: 'activation-error', error: error }
+          context: { reason: 'activation-error', error: error },
+          token: activationToken
         });
         applyAnalysisMode('selection', { panelViewId: state.selectionPanelView });
         await clearVisualizationsForSelection({ generation: generation });
@@ -329,7 +352,8 @@
         from: mode,
         to: null,
         generation: generation,
-        context: { reason: 'superseded-activation' }
+        context: { reason: 'superseded-activation' },
+        token: activationToken
       });
       if (state.activeLifecycleMode === mode) {
         state.activeLifecycleMode = null;

@@ -402,9 +402,9 @@ test('analysis mode coordinator deactivates the previous view before activating 
     deactivate: () => events.push('history:deactivate'),
   });
 
-  await runtime.transitionTo('dependency-graph');
-  await runtime.transitionTo('historical-compare');
-  await runtime.transitionTo('single');
+  await runtime.changeAnalysis('dependency-graph');
+  await runtime.changeAnalysis('historical-compare');
+  await runtime.changeAnalysis('single');
 
   assert.deepEqual(events, [
     'dependency:activate',
@@ -438,9 +438,9 @@ test('analysis mode coordinator disposes an activation superseded while it is lo
   });
   events.length = 0;
 
-  const dependencyTransition = runtime.transitionTo('dependency-graph');
+  const dependencyTransition = runtime.changeAnalysis('dependency-graph');
   await new Promise(resolve => setTimeout(resolve, 0));
-  const singleTransition = runtime.transitionTo('single');
+  const singleTransition = runtime.changeAnalysis('single');
   releaseDependency();
 
   assert.equal(await dependencyTransition, false);
@@ -471,7 +471,10 @@ test('normal analysis restores its cached chart immediately and refreshes its re
   };
   const table = { setAttribute() {} };
   const config = {
-    textContent: JSON.stringify({ chartEntityId: 'normalChart' }),
+    textContent: JSON.stringify({
+      chartEntityId: 'normalChart',
+      normalDataEntityIds: ['data'],
+    }),
   };
   let sharedRuntime;
   let restoredMapping = null;
@@ -484,6 +487,7 @@ test('normal analysis restores its cached chart immediately and refreshes its re
       getElementById(id) {
         if (id === 'codexr-tooling-config-xr-mapping-ui') return config;
         if (id === 'normalChart') return chart;
+        if (id === 'data') return dataEntity;
         if (id === 'codexrAnalysisTable') return table;
         return null;
       },
@@ -543,7 +547,9 @@ test('normal analysis restores its cached chart immediately and refreshes its re
   await new Promise(resolve => setTimeout(resolve, 520));
   assert.equal(attributes.get('visible'), true);
   assert.equal(context.CodeXRAnalysisModeRuntime.getState().mode, 'single');
-  assert.match(dataSource.url, /codexrModeRevision=1/);
+  const refreshedDataSource = typeof dataSource === 'string' ? dataSource : dataSource.url;
+  assert.match(refreshedDataSource, /^url: data\.json/);
+  assert.match(refreshedDataSource, /codexrModeRevision=1/);
   assert.deepEqual(activeChartIds, ['normalChart']);
   assert.equal(restoredMapping.lastKnownGoodMapping.area, 'totalLines');
 });
@@ -739,7 +745,7 @@ test('dependency-graph start still reaches the server when the selection hop rej
   // rejects, the rejection used to abort start() before the send, leaving
   // the scene in total silence until the 20s watchdog fired.
   context.CodeXRAnalysisModeRuntime = {
-    transitionTo() {
+    changeAnalysis() {
       return Promise.reject(new Error('selection hop broken'));
     },
   };

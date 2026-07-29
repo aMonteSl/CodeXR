@@ -207,9 +207,12 @@
         applyChartTypeToEntity(chartEntity, activeChartId, mappingSnapshot);
         return;
       }
-      chartEntity.setAttribute(
+      setDeclarativeAttribute(
+        chartEntity,
         componentName,
-        buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot)
+        serializeDeclarativeComponentData(
+          buildChartComponentUpdate(chartEntity, componentName, mappingSnapshot)
+        )
       );
     });
     // A re-mapping changes the fields that rank and filter the top-N slice:
@@ -251,14 +254,19 @@
     // attributes beyond the mapped fields, and how many data rows the chart
     // can express legibly (applied as a top-N slice by chartDataSlice.js).
     presentation: {
-      bars: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 20, orderBy: 'height', keyBy: ['x_axis'], baseAttributes: {} },
-      barsmap: { rotation: '0 0 0', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: {} },
-      cyls: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 20, orderBy: 'height', keyBy: ['x_axis'], baseAttributes: { radiusMax: 1 } },
-      cylsmap: { rotation: '0 0 0', fit: 'planar-uniform', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: { radiusMax: 1 } },
-      pie: { rotation: '90 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
-      donut: { rotation: '90 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
-      bubbles: { rotation: '0 0 0', fit: 'uniform', rowBudget: 12, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], surfaceLift: 0.03, baseAttributes: { heightMax: 5, radiusMax: 1.5 } },
-      boats: { rotation: '0 0 0', baseAttributes: BOATS_BASE_ATTRIBUTES_FALLBACK }
+      bars: { rotation: '0 0 0', initialScale: '1.5 1.5 1.5', fit: 'planar-uniform', rowBudget: 20, orderBy: 'height', keyBy: ['x_axis'], baseAttributes: {} },
+      barsmap: { rotation: '0 0 0', initialScale: '1.5 1.5 1.5', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: {} },
+      cyls: { rotation: '0 0 0', initialScale: '1.5 1.5 1.5', fit: 'planar-uniform', rowBudget: 20, orderBy: 'height', keyBy: ['x_axis'], baseAttributes: { radiusMax: 1 } },
+      cylsmap: { rotation: '0 0 0', initialScale: '1.5 1.5 1.5', fit: 'planar-uniform', rowBudget: 30, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], baseAttributes: { radiusMax: 1 } },
+      pie: { rotation: '90 0 0', initialScale: '1.5 1.5 1.5', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
+      donut: { rotation: '90 0 0', initialScale: '1.5 1.5 1.5', fit: 'uniform', rowBudget: 12, orderBy: 'size', keyBy: ['key'], baseAttributes: { titlePosition: '2.5 0 -3' } },
+      bubbles: { rotation: '0 0 0', initialScale: '1.5 1.5 1.5', fit: 'uniform', rowBudget: 12, orderBy: 'height', keyBy: ['x_axis', 'z_axis'], surfaceLift: 0.03, baseAttributes: { heightMax: 5, radiusMax: 1.5 } },
+      boats: {
+        rotation: '0 0 0',
+        initialScale: '0.01 0.05 0.01',
+        preserveRelativeHierarchyLayers: true,
+        baseAttributes: BOATS_BASE_ATTRIBUTES_FALLBACK
+      }
     },
     treeFields: { directory: 'filePath', file: 'treePath' }
   };
@@ -303,7 +311,11 @@
 
   function getChartPresentation(chartId) {
     var presentation = getChartBaseConfig().presentation;
-    return presentation[chartId] || { rotation: '0 0 0', baseAttributes: {} };
+    return presentation[chartId] || {
+      rotation: '0 0 0',
+      initialScale: '1.5 1.5 1.5',
+      baseAttributes: {}
+    };
   }
 
   function getChartFromSource(chartId, existingData) {
@@ -338,6 +350,182 @@
     // switch used to drop them for everything but boats, which is how
     // bubbles lost heightMax/radiusMax and exploded to raw metric scale.
     return Object.assign({}, getChartPresentation(chartId).baseAttributes, data);
+  }
+
+  function serializeDeclarativeComponentData(componentData) {
+    return Object.keys(componentData || {})
+      .filter(function (key) {
+        var value = componentData[key];
+        return value !== undefined && value !== null && value !== '';
+      })
+      .map(function (key) {
+        var value = componentData[key];
+        if (Array.isArray(value)) {
+          value = value.join(',');
+        } else if (value && typeof value === 'object') {
+          value = JSON.stringify(value);
+        }
+        return key + ': ' + String(value).replace(/;/g, ',');
+      })
+      .join(';\n');
+  }
+
+  function setDeclarativeAttribute(element, name, value) {
+    if (!element || !name) {
+      return false;
+    }
+    var serialized = String(value ?? '');
+    var nativeSetter = root.Element?.prototype?.setAttribute;
+    if (typeof nativeSetter !== 'function') {
+      element.setAttribute?.(name, serialized);
+      return true;
+    }
+    // Once mounted, A-Frame's setter is still responsible for updating the
+    // live component. It serializes component attributes as "", however, so
+    // restore the authoritative declarative string with the native DOM setter.
+    if (element.isConnected) {
+      element.setAttribute(name, serialized);
+    }
+    nativeSetter.call(element, name, serialized);
+    return true;
+  }
+
+  function syncHierarchyLayerStability(chart, presentation) {
+    if (!chart) {
+      return false;
+    }
+    var attributeName = 'codexr-boats-layout-stability';
+    if (presentation && presentation.preserveRelativeHierarchyLayers === true) {
+      return setDeclarativeAttribute(chart, attributeName, 'enabled: true');
+    }
+    if (typeof chart.removeAttribute === 'function') {
+      chart.removeAttribute(attributeName);
+    }
+    return false;
+  }
+
+  function declarativePosition(position) {
+    if (typeof position === 'string' && position.trim()) {
+      return position;
+    }
+    var value = position || {};
+    return [
+      Number.isFinite(Number(value.x)) ? Number(value.x) : 0,
+      Number.isFinite(Number(value.y)) ? Number(value.y) : 1,
+      Number.isFinite(Number(value.z)) ? Number(value.z) : -18
+    ].join(' ');
+  }
+
+  function buildDeclarativeTreeEntity(options) {
+    var settings = options || {};
+    var document = getDoc();
+    if (!document?.createElement) {
+      return null;
+    }
+    var tree = document.createElement('a-entity');
+    setDeclarativeAttribute(tree, 'id', String(settings.entityId || 'tree'));
+    setDeclarativeAttribute(
+      tree,
+      'babia-treebuilder',
+      serializeDeclarativeComponentData({
+        field: settings.field || 'filePath',
+        split_by: settings.splitBy || '/',
+        from: settings.sourceId || 'data'
+      })
+    );
+    return tree;
+  }
+
+  function buildDeclarativeChartComponentData(options) {
+    var settings = options || {};
+    var chartId = String(settings.chartId || '');
+    var existingData = {
+      from: settings.sourceId || (isHierarchicalChart(chartId) ? 'tree' : 'data'),
+      palette: settings.palette || 'ubuntu',
+      title: settings.title || 'CodeXR Analysis'
+    };
+    var mapping = settings.mapping || {};
+    var data = buildRuntimeChartData(chartId, existingData, mapping);
+    var ordered = {
+      from: existingData.from,
+      title: data.title,
+      palette: data.palette
+    };
+    Object.keys(mapping).forEach(function (key) {
+      ordered[key] = data[key];
+    });
+    Object.keys(data).forEach(function (key) {
+      if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+        ordered[key] = data[key];
+      }
+    });
+    return Object.assign(ordered, settings.componentData || {});
+  }
+
+  function configureDeclarativeChartEntity(chart, options) {
+    var settings = options || {};
+    var chartId = String(settings.chartId || '');
+    var componentName = COMPONENT_BY_CHART[chartId];
+    if (!chart || !componentName) {
+      return false;
+    }
+    var presentation = getChartPresentation(chartId);
+    setDeclarativeAttribute(chart, 'data-codexr-active-chart-id', chartId);
+    if (settings.role) {
+      setDeclarativeAttribute(chart, 'data-codexr-role', String(settings.role));
+    }
+    if (settings.applyTransform !== false) {
+      if (settings.containmentProfile) {
+        var containmentProfile = settings.containmentProfile;
+        setDeclarativeAttribute(
+          chart,
+          'codexr-chart-containment',
+          serializeDeclarativeComponentData(containmentProfile.containment || {})
+        );
+        setDeclarativeAttribute(chart, 'data-codexr-chart-containment', 'true');
+        setDeclarativeAttribute(
+          chart,
+          'position',
+          declarativePosition(containmentProfile.position)
+        );
+      } else if (settings.position) {
+        setDeclarativeAttribute(chart, 'position', declarativePosition(settings.position));
+      }
+      setDeclarativeAttribute(
+        chart,
+        'rotation',
+        settings.rotation || presentation.rotation || '0 0 0'
+      );
+      if (settings.applyInitialScale !== false) {
+        setDeclarativeAttribute(
+          chart,
+          'scale',
+          settings.initialScale || presentation.initialScale || '1.5 1.5 1.5'
+        );
+      }
+    }
+    syncHierarchyLayerStability(chart, presentation);
+    // Install/update Babia last. On a connected entity the component may
+    // synchronously build during setAttribute(), so its canonical scale and
+    // hierarchy-layer policy must already be in force before that first
+    // generateElements call.
+    setDeclarativeAttribute(
+      chart,
+      componentName,
+      serializeDeclarativeComponentData(buildDeclarativeChartComponentData(settings))
+    );
+    return true;
+  }
+
+  function buildDeclarativeChartEntity(options) {
+    var settings = options || {};
+    var document = getDoc();
+    if (!document?.createElement) {
+      return null;
+    }
+    var chart = document.createElement('a-entity');
+    setDeclarativeAttribute(chart, 'id', String(settings.entityId || 'chart'));
+    return configureDeclarativeChartEntity(chart, settings) ? chart : null;
   }
 
   function readCurrentChartData(chartEntity) {
@@ -481,7 +669,7 @@
     }
     // Canonical orientation from the presentation profile: pie/donut lie flat
     // by construction and Babia's own demos stand them with 90 0 0.
-    chartEntity.setAttribute('rotation', getChartPresentation(chartId).rotation);
+    setDeclarativeAttribute(chartEntity, 'rotation', getChartPresentation(chartId).rotation);
   }
 
   // A scene generated by an older extension build can carry a chart entity
@@ -503,6 +691,7 @@
         chartEntity.setAttribute('data-codexr-active-chart-id', chartId);
       }
       applyChartDefaultTransform(chartEntity, chartId);
+      syncHierarchyLayerStability(chartEntity, getChartPresentation(chartId));
     });
   }
 
@@ -512,11 +701,28 @@
       return false;
     }
     var existingData = readCurrentChartData(chartEntity);
+    var presentation = getChartPresentation(chartId);
     clearChartComponents(chartEntity);
     clearChartGeneratedChildren(chartEntity);
+    // An explicit chart-type change starts a new Babia instance. Reset its
+    // REAL object3D scale before installing the component: the DOM may still
+    // say 0.01 0.05 0.01 while containment has raised object3D.scale.y. Boats
+    // reads that live Y scale synchronously during its first layout.
+    setDeclarativeAttribute(chartEntity, 'data-codexr-active-chart-id', chartId);
     applyChartDefaultTransform(chartEntity, chartId);
-    chartEntity.setAttribute(componentName, buildRuntimeChartData(chartId, existingData, mappingSnapshot));
-    chartEntity.setAttribute('data-codexr-active-chart-id', chartId);
+    setDeclarativeAttribute(
+      chartEntity,
+      'scale',
+      presentation.initialScale || '1.5 1.5 1.5'
+    );
+    syncHierarchyLayerStability(chartEntity, presentation);
+    setDeclarativeAttribute(
+      chartEntity,
+      componentName,
+      serializeDeclarativeComponentData(
+        buildRuntimeChartData(chartId, existingData, mappingSnapshot)
+      )
+    );
     scheduleOrphanChartSweep(chartEntity);
     return true;
   }

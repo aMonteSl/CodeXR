@@ -107,6 +107,7 @@
     activeChartId: null,
     mode: 'single',
     activeControllerView: 'single.mapping',
+    mappingControlsLocked: false,
     // Mapping profile currently rendered (context + chart); guards the
     // idempotent context switch.
     appliedMappingProfileKey: null

@@ -7,8 +7,8 @@
     "offlineGitData.js",
     "playbackControlsAndMessages.js",
     "frameApplication.js",
-    "evolutionCharts.js",
-    "bridgeAndPlayback.js",
+    "declarativePipeline.js",
+    "framePlaybackEngine.js",
     "transportAndRegistration.js"
   ]
 }

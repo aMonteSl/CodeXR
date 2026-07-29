@@ -138,7 +138,7 @@
     // start message (start() is called as `void start()` — an escaped
     // rejection here is total silence in the scene).
     try {
-      await root.CodeXRAnalysisModeRuntime?.transitionTo?.('selection', {
+      await root.CodeXRAnalysisModeRuntime?.changeAnalysis?.('selection', {
         reason: 'dependency-refresh'
       });
     } catch (error) {
@@ -176,7 +176,7 @@
       client()?.sendMessage?.('analysis-mode-activate', {
         mode: 'dependency-graph'
       });
-      void root.CodeXRAnalysisModeRuntime?.transitionTo?.('dependency-graph', {
+      void root.CodeXRAnalysisModeRuntime?.changeAnalysis?.('dependency-graph', {
         reason: 'local-dependency-mode-option',
         panelViewId: 'dependency-graph'
       });
@@ -201,6 +201,19 @@
       state.availability = 'disabled';
       state.unavailableReason = 'Dependency graph availability could not be checked.';
     }
+    registerDependencyModeOption();
+  }
+  function registerDependencyModeOption() {
+    state.unregisterMode?.();
+    state.unregisterMode = root.CodeXRAnalysisModeRuntime?.registerModeOption?.({
+      id: 'dependency-graph',
+      label: 'Dependency graph',
+      color: '#7c3aed',
+      disabled: state.availability !== 'enabled',
+      disabledReason: state.unavailableReason
+        || 'Dependency graphs require an XR file, directory, or project analysis.',
+      onSelect: selectDependencyMode
+    }) || null;
   }
   function registerCollaboration() {
     var connection = client();
@@ -223,6 +236,7 @@
     buildPanel();
     if (!state.unregisterLifecycle && root.CodeXRAnalysisModeRuntime?.register) {
       state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime.register('dependency-graph', {
+        mappingContextId: null,
         activate: function () {
           state.active = true;
           state.viewGeneration += 1;
@@ -240,17 +254,11 @@
         },
         deactivate: function () {
           disposeView();
-        },
-        disposeView: disposeView
+        }
       });
     }
     if (!state.unregisterMode && root.CodeXRAnalysisModeRuntime?.registerModeOption) {
-      state.unregisterMode = root.CodeXRAnalysisModeRuntime.registerModeOption({
-        id: 'dependency-graph',
-        label: 'Dependency graph',
-        color: '#7c3aed',
-        onSelect: selectDependencyMode
-      });
+      registerDependencyModeOption();
     }
     if ((!refs.controls || !state.unregisterMode || !state.unregisterLifecycle) && attempt < 30) {
       setTimeout(function () { mount(attempt + 1); }, 100);

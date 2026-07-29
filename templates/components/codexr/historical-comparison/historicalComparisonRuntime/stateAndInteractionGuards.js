@@ -61,8 +61,10 @@
 
   function isHistoricalModeActiveOrActivating() {
     var modeState = root.CodeXRAnalysisModeRuntime?.getState?.();
-    return modeState?.mode === 'historical-compare'
-      || (modeState?.transitioning && modeState?.requestedMode === 'historical-compare');
+    if (modeState?.transitioning) {
+      return modeState?.pendingTransitionMode === 'historical-compare';
+    }
+    return modeState?.mode === 'historical-compare';
   }
 
   var HISTORICAL_UNAVAILABLE_REASON = 'Historical comparison requires a local Git repository.';

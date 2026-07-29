@@ -171,9 +171,7 @@
     // resolveControllerView routes (Field Mapping when a movie exists, the
     // selection panel otherwise) and the lifecycle's activate shows it, so
     // the local transition and the server echo can never disagree.
-    await root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
-      reason: 'project-evolution-selection'
-    });
+    await changeToEvolutionAnalysis({ reason: 'project-evolution-selection' });
     // An exported copy cannot ask a server for references. With exported
     // per-revision payloads the panel works for real (synthesized references,
     // local generation); without them, replay the exported movie only.
@@ -243,7 +241,6 @@
       }
     }
     setStatus('Analyzing project evolution. Please wait...', 'info');
-    state.preparedChartIds = {};
     clearChartVisualization();
     client()?.sendMessage?.('project-evolution-start', request);
   }

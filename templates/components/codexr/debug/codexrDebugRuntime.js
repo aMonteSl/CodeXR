@@ -113,6 +113,34 @@
     updateHud(snapshot);
     return snapshot;
   }
+  function currentAnalysis() {
+    var modeState = root.CodeXRAnalysisModeRuntime?.getState?.() || {};
+    var mappingState = root.CodeXRMappingUiRuntime?.getState?.() || {};
+    var controllerState = root.CodeXRAnalysisControllerRuntime?.getControllerState?.() || {};
+    var surface = surfaceStats();
+    var value = {
+      analysis: modeState.mode || controllerState.mode || mappingState.mode || 'unknown',
+      activeLifecycle: modeState.activeLifecycleMode || null,
+      controllerView: modeState.controllerView || controllerState.controllerView || null,
+      panelView: controllerState.panelView
+        || root.CodeXRMappingUiRuntime?.getActivePanelView?.()
+        || null,
+      mappingContext: mappingState.mappingContextId
+        || root.CodeXRMappingUiRuntime?.getMappingContext?.()
+        || null,
+      transitioning: !!modeState.transitioning,
+      pendingAnalysis: modeState.pendingTransitionMode || null,
+      generation: Number(modeState.generation || 0),
+      authoritativeRevision: Number(modeState.lastAuthoritativeViewRevision || 0),
+      visibleRoots: (surface.roots || []).filter(function (entry) {
+        return entry.visible !== false;
+      }).map(function (entry) {
+        return entry.mode || entry.id;
+      })
+    };
+    root.console?.info?.('[CodeXR][Debug] Current analysis: ' + value.analysis, value);
+    return value;
+  }
   function stopWatch() {
     if (watchHandle !== null) {
       root.clearInterval?.(watchHandle);
@@ -237,6 +265,8 @@
   function help() {
     var commands = [
       'CodeXRDebug.status()',
+      'CodeXRDebug.currentAnalysis()',
+      'CodeXRDebug.currentAnalsysis()',
       'CodeXRDebug.watch(1000)',
       'CodeXRDebug.stopWatch()',
       'CodeXRDebug.hud(true)',
@@ -351,6 +381,8 @@
     root.CodeXR.help = facadeHelp;
     register('Diagnostics', [
       { command: 'CodeXRDebug.status()', description: 'Print current FPS, graph, density, and renderer status.' },
+      { command: 'CodeXRDebug.currentAnalysis()', description: 'Print the active analysis, controller route, mapping context, and visual owner.' },
+      { command: 'CodeXRDebug.currentAnalsysis()', description: 'Alias for currentAnalysis() kept for the requested console spelling.' },
       { command: 'CodeXRDebug.watch(1000)', description: 'Print visualization status repeatedly at the requested interval.' },
       { command: 'CodeXRDebug.stopWatch()', description: 'Stop the periodic status monitor.' },
       { command: 'CodeXRDebug.hud(true)', description: 'Show or hide the desktop diagnostics HUD.' },
@@ -392,6 +424,8 @@
   registerDesktopOnlyComponent();
   root.CodeXRDebug = {
     status: status,
+    currentAnalysis: currentAnalysis,
+    currentAnalsysis: currentAnalysis,
     watch: watch,
     stopWatch: stopWatch,
     hud: hud,

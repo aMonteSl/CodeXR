@@ -1,6 +1,9 @@
 // == projectEvolutionRuntime.js | transportAndRegistration (assembled per manifest.json; see COMPONENTS.md) ==
   function play() {
-    if (!state.result.frames.length) {
+    if (!isEvolutionViewCurrent(state.viewGeneration)) {
+      return false;
+    }
+    if (!state.result?.frames?.length) {
       setStatus('Generate a project evolution movie first.', 'error');
       return false;
     }
@@ -9,6 +12,7 @@
       setStatus('Applying chart change - playback starts when it settles.', 'info');
       return false;
     }
+    state.playbackMappingSnapshot = root.CodeXRMappingUiRuntime?.getState?.() || null;
     state.playing = true;
     state.playbackGeneration += 1;
     render();
@@ -52,13 +56,13 @@
   }
 
   function nextFrame() {
-    if (state.applyingMapping) { return false; }
+    if (state.applyingMapping || !isEvolutionViewCurrent(state.viewGeneration)) { return false; }
     stop();
     return seek(state.frameIndex + 1);
   }
 
   function previousFrame() {
-    if (state.applyingMapping) { return false; }
+    if (state.applyingMapping || !isEvolutionViewCurrent(state.viewGeneration)) { return false; }
     stop();
     return seek(state.frameIndex - 1);
   }
@@ -75,29 +79,96 @@
     }
   }
 
+  function isEvolutionViewCurrent(viewGeneration) {
+    if (Number(viewGeneration) !== Number(state.viewGeneration)) {
+      return false;
+    }
+    var modeState = root.CodeXRAnalysisModeRuntime?.getState?.() || {};
+    if (modeState.transitioning) {
+      return modeState.pendingTransitionMode === MODE;
+    }
+    return modeState.mode === MODE;
+  }
+
+  function invalidateEvolutionView(reason) {
+    state.viewGeneration += 1;
+    state.dataRefreshGeneration += 1;
+    cancelEvolutionDataTransition(reason || 'project-evolution-view-released');
+    if (state.pendingFrameApply?.requestId) {
+      state.supersededFrameApplyIds[state.pendingFrameApply.requestId] = true;
+    }
+    state.pendingFrameApply?.reject?.(Object.assign(
+      new Error(reason || 'project-evolution-view-released'),
+      { code: reason || 'project-evolution-view-released' }
+    ));
+    state.pendingFrameApply = null;
+    return state.viewGeneration;
+  }
+
+  function captureEvolutionState() {
+    return {
+      resultRevision: Number(state.result?.revision || 0),
+      frameIndex: state.frameIndex,
+      resumePlayback: state.resumePlayback || state.playing,
+      speed: state.speed,
+      activeChartId: state.activeChartId,
+      timelineMode: state.timelineMode,
+      rangeSide: state.rangeSide,
+      startSourceId: state.startSourceId,
+      endSourceId: state.endSourceId,
+      manualSourceIds: state.manualSourceIds.slice()
+    };
+  }
+
+  function restoreEvolutionState(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return;
+    }
+    state.speed = Number(snapshot.speed) || state.speed;
+    state.activeChartId = snapshot.activeChartId || state.activeChartId;
+    state.timelineMode = snapshot.timelineMode || state.timelineMode;
+    state.rangeSide = snapshot.rangeSide === 'end' ? 'end' : 'start';
+    state.startSourceId = String(snapshot.startSourceId || '');
+    state.endSourceId = String(snapshot.endSourceId || '');
+    state.manualSourceIds = Array.isArray(snapshot.manualSourceIds)
+      ? snapshot.manualSourceIds.slice()
+      : [];
+    if (
+      state.result
+      && Number(state.result.revision || 0) === Number(snapshot.resultRevision || 0)
+    ) {
+      state.frameIndex = Math.max(
+        0,
+        Math.min((state.result.frames || []).length - 1, Number(snapshot.frameIndex) || 0)
+      );
+      state.resumePlayback = !!snapshot.resumePlayback;
+    }
+  }
+
   // Leaving the mode, per scenario: a generation in flight is CANCELLED and
   // everything cleaned (the server aborts its workers on project-evolution-clear
   // and broadcasts -cleared, which resets the local state too); a generated
   // movie is paused, remembering whether it was playing so re-entry resumes it.
   function releaseEvolutionOnLeave() {
+    invalidateEvolutionView('project-evolution-view-released');
     if (state.generating) {
       state.generating = false;
       renderGenerationProgress({ state: 'idle' });
       clearMovie();
     } else {
-      // Leaving runs this twice (the mode's deactivate, then the selector's
-      // disposeView sweep) and the first pass already stopped playback — a
-      // plain assignment would erase the flag it just saved.
       state.resumePlayback = state.resumePlayback || state.playing;
     }
     stop();
+    root.CodeXRAnalysisSurfaceRuntime?.preserveModeRoots?.(MODE);
+    setNodeVisible(refs.frameNameplate, false);
+    root.CodeXRMappingUiRuntime?.setMappingControlsEnabled?.(true, '');
     hidePlaybackOverlay();
     // Hand the chart entity targeting back to the scene: while a movie is
     // loaded the override points at the evolution chart, and leaving it in
     // place made the NORMAL analysis' chart switches and mapping applies land
     // on the parked movie chart. Re-entry re-claims it on the next frame
     // apply.
-    root.CodeXRMappingUiRuntime?.setChartEntityIds?.([]);
+    root.CodeXRMappingUiRuntime?.setChartEntityIds?.([], { renormalize: false });
   }
 
   function registerCollaboration() {
@@ -127,10 +198,22 @@
     if (state.initialized || !doc()) { return; }
     state.initialized = true;
     state.unregisterLifecycle = root.CodeXRAnalysisModeRuntime?.register?.(MODE, {
-      activate: function () {
+      mappingContextId: MODE,
+      captureState: captureEvolutionState,
+      restoreState: function (activation) {
+        if (activation?.token?.isCurrent && !activation.token.isCurrent()) {
+          return;
+        }
+        restoreEvolutionState(activation?.savedState);
+      },
+      activate: function (activation) {
+        if (activation?.token?.isCurrent && !activation.token.isCurrent()) {
+          return false;
+        }
+        state.viewGeneration += 1;
+        var viewGeneration = state.viewGeneration;
         root.CodeXRAnalysisSurfaceRuntime?.activateMode?.(MODE);
         state.activeChartId = state.activeChartId || getDefaultChartId();
-        root.CodeXRMappingUiRuntime?.switchMappingContext?.(MODE, { reason: 'project-evolution-ready' });
         var mappingState = root.CodeXRMappingUiRuntime?.getState?.() || {};
         if (mappingState.chartId !== state.activeChartId && root.CodeXRMappingUiRuntime?.selectChart) {
           // UI-only: the movie pipeline applies the chart to ITS entity when
@@ -156,11 +239,37 @@
           render();
           return true;
         }
-        // A generated movie RESUMES where it was left: same frame, and if it
-        // was playing when the user walked away, it starts playing again once
-        // the safety locks release (tryResumePlayback keeps the flag alive
-        // through the chart re-mapping that activation itself triggers).
-        return Promise.resolve(seek(state.frameIndex)).then(function (applied) {
+        // Reclaim the preserved surface immediately. The bridge refresh below
+        // may take several seconds, but the already-rendered frame is valid
+        // saved state and must be visible as soon as the mode owns the table.
+        var currentFrame = state.result.frames?.[state.frameIndex];
+        if (currentFrame && refs.evolutionRoot) {
+          ensureEvolutionRoot(currentFrame);
+          refs.evolutionChart.setAttribute?.('visible', true);
+          root.CodeXRMappingUiRuntime?.setChartEntityIds?.(
+            getChartEntities().map(function (chart) { return chart.id; }).filter(Boolean),
+            { renormalize: false }
+          );
+          updateFrameNameplate(currentFrame);
+          updatePlaybackOverlay(currentFrame, state.result.frames.length, false);
+        }
+        // A preserved pipeline already represents this exact frame. Re-entry
+        // remounts it without a server request or datasource refresh.
+        var hasPreservedFrame = !!(
+          refs.evolutionRoot
+          && refs.evolutionDataSource
+          && refs.evolutionTreeBuilder
+          && refs.evolutionChart
+          && Number(state.appliedResultRevision) === Number(state.result.revision)
+          && Number(state.appliedFrameIndex) === Number(state.frameIndex)
+        );
+        var activation = hasPreservedFrame
+          ? Promise.resolve(waitForEvolutionContainmentStable(viewGeneration))
+          : Promise.resolve(seek(state.frameIndex, viewGeneration));
+        return activation.then(function (applied) {
+          if (!isEvolutionViewCurrent(viewGeneration)) {
+            return false;
+          }
           if (applied) {
             tryResumePlayback();
           } else {
@@ -170,9 +279,6 @@
         });
       },
       deactivate: function () {
-        releaseEvolutionOnLeave();
-      },
-      disposeView: function () {
         releaseEvolutionOnLeave();
       },
       // With a generated movie the mode lives on the Field Mapping view
@@ -206,12 +312,12 @@
       projectEvolutionContainmentProfile: projectEvolutionContainmentProfile,
       getActiveMappingForChart: getActiveMappingForChart,
       getSuggestedAutoOrderById: getSuggestedAutoOrderById,
-      // The movie borrows decoration from the scene chart: what it must NOT
-      // borrow (orientation, another chart's component) is asserted by running
-      // the builder, not by reading its source.
+      // Declarative chart construction is exercised directly so the movie
+      // cannot regress to cloning the parked Single chart.
       buildEvolutionChart: buildEvolutionChart,
+      namespaceEvolutionTreeNodes: namespaceEvolutionTreeNodes,
       getDefaultChartId: getDefaultChartId,
-      resetChartRedrawState: resetChartRedrawState,
+      releaseEvolutionVisualization: releaseEvolutionVisualization,
       // The passive-entity contract (a movie snapshot must never steal the
       // table from another mode) is asserted by CALLING this, not by reading
       // its source.
@@ -232,11 +338,14 @@
         // Interlock observability: which safety state is holding playback.
         generating: state.generating,
         applyingMapping: state.applyingMapping,
-        resumePlayback: state.resumePlayback
+        resumePlayback: state.resumePlayback,
+        appliedFrameIndex: state.appliedFrameIndex,
+        appliedResultRevision: state.appliedResultRevision
       };
     },
     destroy: function () {
       stop();
+      releaseEvolutionVisualization();
       state.disposables.forEach(function (dispose) { dispose?.(); });
       state.disposables = [];
       doc().removeEventListener?.('codexr-mapping-confirmed', onMappingConfirmed);

@@ -343,6 +343,32 @@
     applyTableWarning(buildActiveContainmentDiagnostics());
     return count;
   };
+  function callChartDataTransition(chartIds, methodName, reason) {
+    var doc = root.document;
+    if (!doc || !doc.getElementById || !Array.isArray(chartIds)) {
+      return 0;
+    }
+    var count = 0;
+    chartIds.forEach(function (chartId) {
+      var chartEl = chartId ? doc.getElementById(String(chartId)) : null;
+      var component = chartEl && chartEl.components && chartEl.components[COMPONENT_NAME];
+      if (component && typeof component[methodName] === 'function') {
+        component[methodName](reason);
+        count += 1;
+      }
+    });
+    applyTableWarning(buildActiveContainmentDiagnostics(chartIds));
+    return count;
+  }
+  root[RUNTIME_GLOBAL_NAME].beginChartDataTransition = function (chartIds, reason) {
+    return callChartDataTransition(chartIds, 'beginDataTransition', reason || 'chart-data-transition');
+  };
+  root[RUNTIME_GLOBAL_NAME].finishChartDataTransition = function (chartIds, reason) {
+    return callChartDataTransition(chartIds, 'finishDataTransition', reason || 'chart-data-transition-finished');
+  };
+  root[RUNTIME_GLOBAL_NAME].cancelChartDataTransition = function (chartIds, reason) {
+    return callChartDataTransition(chartIds, 'cancelDataTransition', reason || 'chart-data-transition-cancelled');
+  };
   root[RUNTIME_GLOBAL_NAME].enableDebug = function () {
     DEBUG_STATE.enabled = true;
     return true;
@@ -402,7 +428,8 @@
     resolveContainmentProfile: resolveContainmentProfile,
     buildActiveContainmentDiagnostics: buildActiveContainmentDiagnostics,
     collectNonFiniteValueIssues: collectNonFiniteValueIssues,
-    inspectInvalidAxisState: inspectInvalidAxisState
+    inspectInvalidAxisState: inspectInvalidAxisState,
+    computeStableBoatsZoneElevation: computeStableBoatsZoneElevation
   };
   root[DEBUG_GLOBAL_NAME] = root[DEBUG_GLOBAL_NAME] || {
     _els: [],

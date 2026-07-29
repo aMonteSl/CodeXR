@@ -126,10 +126,12 @@ test('boats base construction is canonical: one object feeds the template, no du
     assert.match(boats.htmlTemplate, /legend_text: \{name\}/);
     assert.match(boats.htmlTemplate, /height_quarter_legend_title: 2\.5/);
     assert.match(boats.htmlTemplate, /scale="0\.01 0\.05 0\.01"/);
+    assert.match(boats.htmlTemplate, /codexr-boats-layout-stability="enabled: true"/);
 
     const donut = chartTemplates.find((chart) => chart.id === 'donut');
     assert.ok(donut);
     assert.equal(donut.htmlTemplate.includes('legend_text'), false);
+    assert.equal(donut.htmlTemplate.includes('codexr-boats-layout-stability'), false);
 
     // The dead boats duplicate is gone from createChart: every chart comes
     // from the canonical template list.
@@ -176,6 +178,7 @@ test('XR template keeps babia-queryjson bound to the injected DATA_SOURCE placeh
 test('XR template owns the initial chart through a CodeXR analysis surface', () => {
     const template = readProjectFile('templates', 'xr', 'file', 'xr-visualization.html');
     const processor = readProjectFile('src', 'babia_templates', 'processing', 'templateProcessor.ts');
+    const modeRuntime = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
 
     assert.match(template, /id="codexrAnalysisSurface"[\s\S]*data-codexr-analysis-surface="true"/);
     assert.match(template, /id="codexrNormalAnalysisRoot"[\s\S]*data-codexr-analysis-mode="single"/);
@@ -184,7 +187,10 @@ test('XR template owns the initial chart through a CodeXR analysis surface', () 
     assert.match(processor, /normalSurfaceId: 'codexrAnalysisSurface'/);
     assert.match(processor, /normalRootId: 'codexrNormalAnalysisRoot'/);
     assert.match(processor, /normalEntityIds: \['codexrNormalAnalysisRoot'\]/);
+    assert.match(processor, /normalDataEntityIds: \['data'\]/);
     assert.match(processor, /chartEntityIds: chartEntityId \? \[chartEntityId\] : \[\]/);
+    assert.match(modeRuntime, /getNormalDataEntities\(getConfig\(\)\)/);
+    assert.doesNotMatch(modeRuntime, /querySelectorAll\('\[babia-queryjson\]'\)/);
 });
 
 test('XR template includes local CodeXR room component while preserving configurable environment', () => {
@@ -333,7 +339,8 @@ test('mapping UI renormalizes all active comparison charts transactionally', () 
     // re-fit over an already-correct scene — the flash on entering an analysis.
     assert.doesNotMatch(mappingUiRuntime, /'-settled'/);
     assert.match(mappingUiRuntime, /function getChartEntities\(config\)/);
-    assert.match(mappingUiRuntime, /setChartEntityIds: function \(chartEntityIds\)/);
+    assert.match(mappingUiRuntime, /setChartEntityIds: function \(chartEntityIds, options\)/);
+    assert.match(mappingUiRuntime, /if \(!options \|\| options\.renormalize !== false\) \{/);
     assert.match(mappingUiRuntime, /applyDimensionSelection\(config, dimensionId, fieldName, options\)/);
     assert.match(mappingUiRuntime, /var alreadySelected = state\.selectedByDimension\[dimensionId\] === fieldName;/);
     assert.match(mappingUiRuntime, /var forceSelection = !!\(options && options\.force === true\);/);

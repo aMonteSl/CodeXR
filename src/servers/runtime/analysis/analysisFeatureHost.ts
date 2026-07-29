@@ -11,6 +11,7 @@ import {
 import { DependencyGraphService } from '../../../code_analysis/dependencies';
 import {
     AnalysisSourceChangeBatch,
+    AnalysisViewState,
     AnalysisViewMode,
     analysisRefreshCoordinator,
 } from '../../../code_analysis/refresh';
@@ -182,21 +183,51 @@ export class AnalysisFeatureHost {
         };
     }
 
-    public setAnalysisViewMode(mode: AnalysisViewMode, controllerView: string): void {
+    public changeAnalysisViewMode(
+        mode: AnalysisViewMode,
+        controllerView?: string,
+    ): AnalysisViewState | null {
         if (!this.config.analysisSessionId) {
-            return;
+            return null;
         }
-        analysisRefreshCoordinator.setActiveMode(this.config.analysisSessionId, mode, controllerView);
+        return analysisRefreshCoordinator.changeActiveMode(
+            this.config.analysisSessionId,
+            mode,
+            controllerView,
+        );
+    }
+
+    public getAnalysisViewState(): AnalysisViewState | null {
+        if (!this.config.analysisSessionId) {
+            return null;
+        }
+        return analysisRefreshCoordinator.getViewState(this.config.analysisSessionId);
+    }
+
+    public updateAnalysisViewIfCurrent(
+        expectedMode: AnalysisViewMode,
+        expectedViewRevision: number,
+        controllerView: string,
+    ): AnalysisViewState | null {
+        if (!this.config.analysisSessionId) {
+            return null;
+        }
+        return analysisRefreshCoordinator.updateActiveViewIfCurrent(
+            this.config.analysisSessionId,
+            expectedMode,
+            expectedViewRevision,
+            controllerView,
+        );
     }
 
     public async activateAnalysisViewMode(
         mode: Exclude<AnalysisViewMode, 'selection'>,
         controllerView: string,
-    ): Promise<void> {
+    ): Promise<AnalysisViewState | null> {
         if (!this.config.analysisSessionId) {
-            return;
+            return null;
         }
-        analysisRefreshCoordinator.activateMode(this.config.analysisSessionId, mode, controllerView);
+        const snapshot = this.changeAnalysisViewMode(mode, controllerView);
         // Watcher reconciliation must never gate the collaboration reply: a
         // slow or stuck reconcile left dependency-graph-start unanswered
         // (total silence in the scene) while historical — which does not
@@ -204,6 +235,7 @@ export class AnalysisFeatureHost {
         void SessionWatcherManager.reconcileSession(this.config.analysisSessionId).catch((error) => {
             console.warn('[Code-XR Fix][Server] Session watcher reconciliation failed:', error);
         });
+        return snapshot;
     }
 
     public publishAnalysisViewState(): void {

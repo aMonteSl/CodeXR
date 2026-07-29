@@ -4,6 +4,7 @@
 
   var AFRAME = root.AFRAME;
   var COMPONENT_NAME = 'codexr-chart-containment';
+  var BOATS_LAYOUT_STABILITY_COMPONENT_NAME = 'codexr-boats-layout-stability';
   // Plain DOM marker stamped next to the component so runtime-built charts
   // (whose component is set programmatically and therefore leaves no DOM
   // attribute) stay discoverable by attribute selectors.
@@ -16,7 +17,8 @@
   }
   var registerContainment = !AFRAME.components[COMPONENT_NAME];
   var registerTable = !AFRAME.components[TABLE_COMPONENT_NAME];
-  if (!registerContainment && !registerTable) {
+  var registerBoatsLayoutStability = !AFRAME.components[BOATS_LAYOUT_STABILITY_COMPONENT_NAME];
+  if (!registerContainment && !registerTable && !registerBoatsLayoutStability) {
     return;
   }
 

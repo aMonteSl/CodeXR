@@ -37,6 +37,7 @@ function loadRuntimeSandbox() {
         sandbox,
         runtime: sandbox.CodeXRAnalysisTableRuntime,
         componentDefinition: registered['codexr-chart-containment'],
+        boatsLayoutDefinition: registered['codexr-boats-layout-stability'],
     };
 }
 
@@ -72,6 +73,121 @@ test('analysis table runtime exposes the scale policy API', () => {
     assert.equal(typeof runtime.getContainmentProfile, 'function');
     assert.equal(typeof runtime.applyContainmentProfile, 'function');
     assert.equal(typeof runtime.getActiveContainmentDiagnostics, 'function');
+});
+
+test('boats layout stability preserves local hierarchy layers across Y-scale changes', () => {
+    const { runtime, boatsLayoutDefinition, sandbox } = loadRuntimeSandbox();
+    assert.ok(boatsLayoutDefinition);
+    assert.equal(boatsLayoutDefinition.schema.enabled.default, true);
+    assert.equal(boatsLayoutDefinition.schema.referenceScaleY.default, 0);
+    assert.ok(Math.abs(
+        runtime.__testing.computeStableBoatsZoneElevation(0.01, 0.05, 0.285) - 0.057,
+    ) < 1e-12);
+
+    sandbox.CodeXRMappingUiRuntime = {
+        getChartPresentation(chartId) {
+            assert.equal(chartId, 'boats');
+            return { initialScale: '0.01 0.05 0.01' };
+        },
+    };
+
+    const listeners = new Map();
+    const observedZoneElevations = [];
+    const originalGenerateElements = function (recursive) {
+        observedZoneElevations.push(this.data.zone_elevation);
+        if (!recursive) {
+            return this.generateElements(true);
+        }
+        return 'generated';
+    };
+    const boats = {
+        data: { zone_elevation: 0.01 },
+        generateElements: originalGenerateElements,
+    };
+    const element = {
+        components: { 'babia-boats': boats },
+        object3D: { scale: { x: 0.1, y: 0.285, z: 0.1 } },
+        getAttribute(name) {
+            return name === 'scale' ? { x: 0.1, y: 0.05, z: 0.1 } : null;
+        },
+        addEventListener(name, callback) {
+            listeners.set(name, callback);
+        },
+        removeEventListener(name, callback) {
+            if (listeners.get(name) === callback) {
+                listeners.delete(name);
+            }
+        },
+    };
+    const adapter = Object.assign({
+        el: element,
+        data: { enabled: true, referenceScaleY: 0 },
+    }, boatsLayoutDefinition);
+
+    adapter.init();
+    const installedWrapper = boats.generateElements;
+    assert.notEqual(installedWrapper, originalGenerateElements);
+    assert.equal(boats.generateElements(false), 'generated');
+    assert.equal(observedZoneElevations.length, 2);
+    observedZoneElevations.forEach((value) => {
+        assert.ok(Math.abs(value - 0.057) < 1e-12);
+    });
+    assert.equal(boats.data.zone_elevation, 0.01);
+
+    // Idempotent attachment must not wrap the same Babia instance twice.
+    assert.equal(adapter.attachToCurrentBoats(), true);
+    assert.equal(boats.generateElements, installedWrapper);
+
+    // Replacing the Babia component restores the old instance and decorates
+    // only the new one.
+    const replacementOriginal = function () {
+        observedZoneElevations.push(this.data.zone_elevation);
+    };
+    const replacement = {
+        data: { zone_elevation: 0.01 },
+        generateElements: replacementOriginal,
+    };
+    element.components['babia-boats'] = replacement;
+    adapter.tick();
+    assert.equal(boats.generateElements, originalGenerateElements);
+    assert.notEqual(replacement.generateElements, replacementOriginal);
+
+    adapter.remove();
+    assert.equal(replacement.generateElements, replacementOriginal);
+    assert.equal(replacement.data.zone_elevation, 0.01);
+    assert.equal(listeners.size, 0);
+});
+
+test('boats layout stability leaves invalid scale values untouched', () => {
+    const { boatsLayoutDefinition } = loadRuntimeSandbox();
+    let observedZoneElevation = null;
+    const originalGenerateElements = function () {
+        observedZoneElevation = this.data.zone_elevation;
+    };
+    const boats = {
+        data: { zone_elevation: 0.01 },
+        generateElements: originalGenerateElements,
+    };
+    const element = {
+        components: { 'babia-boats': boats },
+        object3D: { scale: { y: Number.NaN } },
+        getAttribute() {
+            return { y: Number.NaN };
+        },
+        addEventListener() {},
+        removeEventListener() {},
+    };
+    const adapter = Object.assign({
+        el: element,
+        data: { enabled: true, referenceScaleY: 0.05 },
+    }, boatsLayoutDefinition);
+
+    adapter.init();
+    boats.generateElements();
+    assert.equal(observedZoneElevation, 0.01);
+    assert.equal(boats.data.zone_elevation, 0.01);
+    adapter.remove();
+    assert.equal(boats.generateElements, originalGenerateElements);
 });
 
 test('analysis table exposes reusable containment profiles by analysis mode', () => {
@@ -706,10 +822,10 @@ test('analysis table runtime exposes tabletop debug plane controls and defers du
     assert.match(runtimeSource, /showTabletopAnchorPlane = function \(visible\)/);
     assert.match(runtimeSource, /hideTabletopAnchorPlane = function \(\)/);
     assert.match(runtimeSource, /id', 'codexr-analysis-table-anchor-plane'/);
-    // codexr-boats was removed with its runtime: the containment no longer
-    // listens for its render event or its component; a re-fit request during a
-    // containment transition is parked and honoured later.
-    assert.doesNotMatch(runtimeSource, /codexr-boats/);
+    // The old codexr-boats renderer remains removed: containment no longer
+    // listens for its render event or its component. The narrowly scoped
+    // codexr-boats-layout-stability companion is deliberately independent.
+    assert.doesNotMatch(runtimeSource, /['"]codexr-boats['"]/);
     assert.doesNotMatch(runtimeSource, /isChartAnimationActive/);
     assert.match(runtimeSource, /pendingRenormalizeReason = reason \|\| 'containment-transition-active'/);
     // The parked request's real consumer: the first periodic pass with the

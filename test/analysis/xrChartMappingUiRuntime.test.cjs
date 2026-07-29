@@ -179,6 +179,36 @@ function loadRuntimeWithFakeDom(configOverride = {}) {
 
 function createChartEntityForSwitchTest(initialAttributes = {}) {
     const chart = createFakeElement('a-entity', () => {});
+    const nativeSetAttribute = chart.setAttribute.bind(chart);
+    const nativeGetAttribute = chart.getAttribute.bind(chart);
+    chart.attributeWrites = [];
+    chart.setAttribute = function setAttribute(name, value) {
+        this.attributeWrites.push({ name, value });
+        nativeSetAttribute(name, value);
+    };
+    chart.getRawAttribute = function getRawAttribute(name) {
+        return nativeGetAttribute(name);
+    };
+    chart.getAttribute = function getAttribute(name) {
+        const value = nativeGetAttribute(name);
+        if (!name.startsWith('babia-') || typeof value !== 'string') {
+            return value;
+        }
+        return Object.fromEntries(
+            value.split(/;\s*/).filter(Boolean).map((entry) => {
+                const separator = entry.indexOf(':');
+                const key = separator === -1 ? entry.trim() : entry.slice(0, separator).trim();
+                const raw = separator === -1 ? '' : entry.slice(separator + 1).trim();
+                if (/^-?(?:\d+\.?\d*|\.\d+)$/.test(raw)) {
+                    return [key, Number(raw)];
+                }
+                if (raw === 'true' || raw === 'false') {
+                    return [key, raw === 'true'];
+                }
+                return [key, raw];
+            }),
+        );
+    };
     Object.entries(initialAttributes).forEach(([name, value]) => {
         chart.setAttribute(name, value);
     });
@@ -395,7 +425,8 @@ test('boats runtime base comes from the injected chart-base config, with a faith
     // With no document at all the runtime must fall back to the canonical
     // values it mirrors from the generator.
     const fallbackRuntime = loadRuntime();
-    const fallbackData = fallbackRuntime.__testing.buildRuntimeChartData('boats', {}, { area: 'functionCount' });
+    const fallbackData = fallbackRuntime.buildRuntimeChartData('boats', {}, { area: 'functionCount' });
+    assert.equal(typeof fallbackRuntime.buildRuntimeChartData, 'function');
     assert.equal(
         fallbackData.legend_text,
         '{name}\n{fheight} (height): {height}\n{farea} (area): {area}\n{fcolor} (color): {color}',
@@ -432,7 +463,7 @@ test('boats runtime base comes from the injected chart-base config, with a faith
     sandbox.globalThis = sandbox;
     vm.runInNewContext(runtimeSource, sandbox, { filename: 'xrChartMappingUiRuntime.js' });
     const injectedRuntime = sandbox.module.exports;
-    const injectedData = injectedRuntime.__testing.buildRuntimeChartData('boats', {}, { area: 'functionCount' });
+    const injectedData = injectedRuntime.buildRuntimeChartData('boats', {}, { area: 'functionCount' });
     assert.equal(injectedData.legend_text, '{name} only');
     assert.equal(injectedData.extra, 2);
     // Keys the injected config does not override keep the canonical value.
@@ -477,14 +508,71 @@ test('runtime presentation fallback mirrors the generator profiles field by fiel
     }
 });
 
+test('shared declarative factories emit the same complete A-Frame contract used by Single', () => {
+    const { runtime } = loadRuntimeWithFakeDom();
+    const containmentProfile = {
+        position: { x: 0, y: 1, z: -18 },
+        containment: {
+            enabled: true,
+            targetWidth: 5.614,
+            targetHeight: 1.8,
+            targetDepth: 3.218,
+        },
+    };
+    const tree = runtime.buildDeclarativeTreeEntity({
+        entityId: 'codexrProjectEvolutionTree',
+        sourceId: 'codexrProjectEvolutionData',
+        field: 'filePath',
+    });
+    const chart = runtime.buildDeclarativeChartEntity({
+        entityId: 'codexrProjectEvolutionChart',
+        chartId: 'boats',
+        sourceId: 'codexrProjectEvolutionTree',
+        mapping: {
+            area: 'functionCount',
+            height: 'totalLines',
+            color: 'cyclomaticComplexityNumber',
+        },
+        title: 'Project Evolution',
+        containmentProfile,
+    });
+
+    assert.equal(
+        tree.getAttribute('babia-treebuilder'),
+        'field: filePath;\nsplit_by: /;\nfrom: codexrProjectEvolutionData',
+    );
+    const boats = chart.getAttribute('babia-boats');
+    assert.equal(typeof boats, 'string');
+    for (const fragment of [
+        'from: codexrProjectEvolutionTree',
+        'title: Project Evolution',
+        'area: functionCount',
+        'height: totalLines',
+        'color: cyclomaticComplexityNumber',
+        'legend: true',
+        'axis_name: true',
+        'separation: 0.5',
+    ]) {
+        assert.match(boats, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    }
+    assert.equal(chart.getAttribute('position'), '0 1 -18');
+    assert.equal(chart.getAttribute('rotation'), '0 0 0');
+    assert.equal(chart.getAttribute('scale'), '0.01 0.05 0.01');
+    assert.equal(chart.getAttribute('codexr-boats-layout-stability'), 'enabled: true');
+    assert.match(chart.getAttribute('codexr-chart-containment'), /enabled: true/);
+    assert.match(chart.getAttribute('codexr-chart-containment'), /targetWidth: 5\.614/);
+    assert.notEqual(chart.getAttribute('babia-boats'), '');
+    assert.notEqual(chart.getAttribute('codexr-chart-containment'), '');
+});
+
 test('mapping UI exposes live chart switching with chart-specific defaults', () => {
     const runtime = loadRuntime();
-    const chartData = runtime.__testing.buildRuntimeChartData('boats', { from: 'data', palette: 'ubuntu' }, {
+    const chartData = runtime.buildRuntimeChartData('boats', { from: 'data', palette: 'ubuntu' }, {
         area: 'functionCount',
         height: 'totalLines',
         color: 'language',
     });
-    const barsData = runtime.__testing.buildRuntimeChartData('bars', { from: 'codexrComparisonLeft' }, {
+    const barsData = runtime.buildRuntimeChartData('bars', { from: 'codexrComparisonLeft' }, {
         x_axis: 'fileName',
         height: 'totalLines',
     });
@@ -497,6 +585,9 @@ test('mapping UI exposes live chart switching with chart-specific defaults', () 
     assert.match(runtimeSource, /function renderChartSelector\(config\)/);
     assert.match(runtimeSource, /data-codexr-chart-id/);
     assert.match(runtimeSource, /function selectChart\(chartId, options\)/);
+    assert.match(runtimeSource, /state\.mappingControlsLocked && !\(options && options\.forceWhenLocked === true\)/);
+    assert.match(runtimeSource, /state\.activeMappingContextId === 'project-evolution'/);
+    assert.match(runtimeSource, /var applyToEntities = requestedEntityApply && !delegatedEntityApply/);
     assert.match(runtimeSource, /chartId: getActiveChartId\(getConfig\(\)\)/);
     assert.match(runtimeSource, /chartId: getActiveChartId\(config\)/);
 });
@@ -535,7 +626,40 @@ test('mapping UI chart switch removes stale Babia-rendered children before creat
     assert.equal(chart.getAttribute('babia-bubbles').x_axis, 'fileName');
     assert.equal(chart.getAttribute('babia-bubbles').radius, 'functionCount');
     assert.equal(chart.getAttribute('data-codexr-active-chart-id'), 'bubbles');
+    assert.equal(chart.getAttribute('codexr-boats-layout-stability'), undefined);
     assert.equal(chart.getAttribute('codexr-chart-containment'), 'preset: table');
+});
+
+test('mapping UI installs the Boats layer contract and removes it on chart change', () => {
+    const runtime = loadRuntime();
+    const chart = createChartEntityForSwitchTest({
+        'codexr-chart-containment': 'preset: table',
+        'babia-bars': {
+            from: 'data',
+            x_axis: 'fileName',
+            height: 'totalLines',
+        },
+    });
+
+    assert.equal(runtime.__testing.applyChartTypeToEntity(chart, 'boats', {
+        area: 'functionCount',
+        height: 'totalLines',
+        color: 'cyclomaticComplexityNumber',
+    }), true);
+    assert.equal(chart.getAttribute('codexr-boats-layout-stability'), 'enabled: true');
+    assert.match(chart.getRawAttribute('babia-boats'), /zone_elevation: 0\.01/);
+    assert.notEqual(chart.getRawAttribute('babia-boats'), '');
+    const scaleWrite = chart.attributeWrites.findIndex((entry) => (
+        entry.name === 'scale' && entry.value === '0.01 0.05 0.01'
+    ));
+    const boatsWrite = chart.attributeWrites.findIndex((entry) => entry.name === 'babia-boats');
+    assert.ok(scaleWrite >= 0 && boatsWrite > scaleWrite, 'Boats must be installed after its initial scale');
+
+    assert.equal(runtime.__testing.applyChartTypeToEntity(chart, 'bars', {
+        x_axis: 'fileName',
+        height: 'totalLines',
+    }), true);
+    assert.equal(chart.getAttribute('codexr-boats-layout-stability'), undefined);
 });
 
 test('mapping UI chart switch stands pie and donut upright and resets flat charts', () => {

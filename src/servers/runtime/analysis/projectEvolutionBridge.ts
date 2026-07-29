@@ -49,6 +49,7 @@ export class ProjectEvolutionBridge {
         if (!this.projectEvolutionService) {
             return false;
         }
+        const viewAtStart = this.host.getAnalysisViewState();
         try {
             await this.projectEvolutionService.clearGeneratedMovie();
             messageContext.removeSharedEntity('project-evolution', 'main');
@@ -58,7 +59,13 @@ export class ProjectEvolutionBridge {
                     'project-evolution',
                     false,
                 );
-                this.host.setAnalysisViewMode('project-evolution', 'project-evolution');
+                if (viewAtStart?.mode === 'project-evolution') {
+                    this.host.updateAnalysisViewIfCurrent(
+                        'project-evolution',
+                        viewAtStart.viewRevision,
+                        'project-evolution',
+                    );
+                }
             }
             messageContext.broadcast({
                 type: 'project-evolution-cleared',
@@ -85,6 +92,10 @@ export class ProjectEvolutionBridge {
         if (!this.projectEvolutionService) {
             return false;
         }
+        const viewAtStart = this.host.getAnalysisViewState();
+        if (viewAtStart?.mode !== 'project-evolution') {
+            return true;
+        }
         try {
             const payload = message.payload || {};
             const revision = Number(payload.revision);
@@ -93,6 +104,13 @@ export class ProjectEvolutionBridge {
                 ? payload.requestId
                 : undefined;
             const result = await this.projectEvolutionService.applyFrameToBridge(revision, frameIndex);
+            const currentView = this.host.getAnalysisViewState();
+            if (
+                currentView?.mode !== 'project-evolution'
+                || currentView.viewRevision !== viewAtStart.viewRevision
+            ) {
+                return true;
+            }
             messageContext.broadcast({
                 type: 'project-evolution-frame-applied',
                 payload: {
@@ -152,7 +170,14 @@ export class ProjectEvolutionBridge {
             'project-evolution',
             false,
         );
-        this.host.setAnalysisViewMode('project-evolution', 'project-evolution');
+        const currentView = this.host.getAnalysisViewState();
+        if (currentView?.mode !== 'project-evolution') {
+            this.host.changeAnalysisViewMode('project-evolution', 'project-evolution');
+        }
+        const operationView = currentView?.mode === 'project-evolution'
+            ? currentView
+            : this.host.getAnalysisViewState();
+        const operationViewRevision = operationView?.viewRevision;
         void (async () => {
             try {
                 await SessionWatcherManager.reconcileSession(
@@ -175,7 +200,13 @@ export class ProjectEvolutionBridge {
                     'project-evolution',
                     true,
                 );
-                this.host.setAnalysisViewMode('project-evolution', 'project-evolution');
+                if (operationViewRevision !== undefined) {
+                    this.host.updateAnalysisViewIfCurrent(
+                        'project-evolution',
+                        operationViewRevision,
+                        'project-evolution',
+                    );
+                }
             } catch (error) {
                 if (error instanceof Error && error.message === 'project-evolution-cleared') {
                     return;

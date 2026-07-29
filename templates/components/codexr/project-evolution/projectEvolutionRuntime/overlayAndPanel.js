@@ -236,16 +236,12 @@
 
   function handlePanelShown() {
     render();
-    var modeState = root.CodeXRAnalysisModeRuntime?.getState?.() || {};
-    if (
-      modeState.mode === MODE
-      || (modeState.transitioning && modeState.requestedMode === MODE)
-    ) {
+    if (isEvolutionModeActiveOrActivating()) {
       return;
     }
     root.CodeXRAnalysisModeRuntime?.setSelectionPanel?.(MODE);
     client()?.sendMessage?.('analysis-mode-activate', { mode: MODE });
-    void root.CodeXRAnalysisModeRuntime?.transitionTo?.(MODE, {
+    void changeToEvolutionAnalysis({
       reason: 'project-evolution-panel-shown',
       controllerView: 'project-evolution',
       panelViewId: MODE

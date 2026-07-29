@@ -79,12 +79,12 @@ test('XR mode panel exposes one labelled Analyses button and no dependency heade
   assert.match(mappingRuntime, /state\.runtimeConfig \? \(state\.runtimeConfig\.chartId \|\| null\) : null/);
   // Boot steps are isolated so one failure cannot cascade into the others.
   assert.match(modeRuntime, /boot step failed/);
-  // Cleanup lifecycle hooks run fault-isolated: a throwing deactivate or
-  // disposeView must never abort a transition (it left the table stuck in the
+  // Cleanup lifecycle hooks run fault-isolated: a throwing deactivate must
+  // never abort a transition (it left the table stuck in the
   // old mode's theme with all interactions suspended - dead clicks).
   assert.match(modeRuntime, /function invokeSafely\(lifecycle, method, context\)/);
   assert.match(modeRuntime, /await invokeSafely\(lifecycles\[previousMode\], 'deactivate'/);
-  assert.match(modeRuntime, /await invokeSafely\(lifecycles\[mode\], 'disposeView'/);
+  assert.doesNotMatch(modeRuntime, /invokeSafely\(lifecycles\[mode\], 'disposeView'/);
   assert.match(historyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(dependencyRuntime, /whenPanelReady\?\.\(function \(\) \{/);
   assert.match(tableRuntime, /oneOf: \['selection', 'single', 'historical-compare', 'project-evolution', 'dependency-graph'\]/);
@@ -105,7 +105,7 @@ test('XR mode panel exposes one labelled Analyses button and no dependency heade
   // Zombie modeMemory API removed (no callers existed).
   assert.doesNotMatch(mappingRuntime, /modeMemory/);
   assert.doesNotMatch(evolutionRuntime, /setProjectEvolutionTableMode/);
-  assert.match(evolutionRuntime, /transitionTo\?\.\(MODE, \{[\s\S]*panelViewId: MODE/);
+  assert.match(evolutionRuntime, /changeAnalysis\?\.\(MODE, context \|\| \{\}\)/);
   assert.match(modeRuntime, /setTableMode\(mode\)/);
   assert.match(modeRuntime, /MODE_CONTROLLER_VIEW_BY_ID = \{/);
   assert.match(modeRuntime, /'historical-compare': 'historical.selection'/);
@@ -138,7 +138,7 @@ test('XR mode panel exposes one labelled Analyses button and no dependency heade
   // Single historical entry path: no result-dependent branching in the entry —
   // the lifecycle's resolveControllerView routes (restore vs source selector).
   assert.match(historyRuntime, /function selectHistoricalMode\(\)[\s\S]*enterHistoricalSelection\(\)/);
-  assert.match(historyRuntime, /async function enterHistoricalSelection\(\)[\s\S]*transitionTo\?\.\('historical-compare'/);
+  assert.match(historyRuntime, /async function enterHistoricalSelection\(\)[\s\S]*changeAnalysis\('historical-compare'/);
   // Preserve pass: the surface hides preserved roots instead of removing them,
   // and the residual cleanup skips them (saved state, not residue).
   assert.match(modeRuntime, /function isPreservedRoot\(element\)/);
@@ -221,7 +221,7 @@ test('Visualization mode is neutral and removes every analysis root before showi
     activate: runtime.__testing.clearVisualizationsForSelection,
   });
 
-  await runtime.transitionTo('selection', { reason: 'test-empty-selector' });
+  await runtime.changeAnalysis('selection', { reason: 'test-empty-selector' });
 
   assert.equal(original.visible, false);
   assert.equal(roots.size, 0);
@@ -270,10 +270,10 @@ test('Project evolution leaves the neutral selection table theme through the aut
     },
   });
 
-  assert.equal(await runtime.transitionTo('selection', { panelViewId: 'visualization-mode' }), true);
+  assert.equal(await runtime.changeAnalysis('selection', { panelViewId: 'visualization-mode' }), true);
   assert.equal(tableModes.at(-1), 'selection');
 
-  assert.equal(await runtime.transitionTo('project-evolution', { panelViewId: 'project-evolution' }), true);
+  assert.equal(await runtime.changeAnalysis('project-evolution', { panelViewId: 'project-evolution' }), true);
 
   assert.equal(runtime.getState().mode, 'project-evolution');
   assert.equal(runtime.getState().requestedMode, 'project-evolution');
@@ -319,11 +319,11 @@ test('Historical selection lives under the historical table theme', async () => 
     },
   });
 
-  assert.equal(await runtime.transitionTo('selection', { panelViewId: 'visualization-mode' }), true);
+  assert.equal(await runtime.changeAnalysis('selection', { panelViewId: 'visualization-mode' }), true);
   assert.equal(tableModes.at(-1), 'selection');
 
   assert.equal(
-    await runtime.transitionTo('historical-compare', { panelViewId: 'historical-selection' }),
+    await runtime.changeAnalysis('historical-compare', { panelViewId: 'historical-selection' }),
     true,
   );
 
@@ -337,12 +337,12 @@ test('Historical selection lives under the historical table theme', async () => 
   // default resolve to historical.mapping — so a re-entry with no explicit
   // controllerView (e.g. the authoritative echo) restores instead of showing the
   // selector. Reproduces the fix for the leave-and-return bug.
-  await runtime.transitionTo('selection', { panelViewId: 'visualization-mode' });
+  await runtime.changeAnalysis('selection', { panelViewId: 'visualization-mode' });
   runtime.register('historical-compare', {
     activate() { return true; },
     resolveControllerView() { return 'historical.mapping'; },
   });
-  assert.equal(await runtime.transitionTo('historical-compare', {}), true);
+  assert.equal(await runtime.changeAnalysis('historical-compare', {}), true);
   assert.equal(runtime.getState().controllerView, 'historical.mapping');
   assert.equal(shownControllerViews.at(-1).viewId, 'historical.mapping');
 });
@@ -653,7 +653,7 @@ test('XR mode megatest keeps one visual root and preserves mode-owned state', as
     'single',
   ];
   for (const mode of sequence) {
-    assert.equal(await runtime.transitionTo(mode, { reason: 'megatest' }), true);
+    assert.equal(await runtime.changeAnalysis(mode, { reason: 'megatest' }), true);
     assert.equal(roots.size, mode === 'selection' ? 0 : 1);
     assert.deepEqual(memory.single, { mapping: 'lines/complexity/color' });
     assert.deepEqual(memory['historical-compare'], {
@@ -731,11 +731,11 @@ test('a superseded dependency activation cannot recreate its visual root', async
     deactivate() { roots.delete('single'); },
   });
 
-  const dependency = runtime.transitionTo('dependency-graph');
+  const dependency = runtime.changeAnalysis('dependency-graph');
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(runtime.getState().mode, 'dependency-graph');
   assert.equal(runtime.getState().transitioning, true);
-  const normal = runtime.transitionTo('single');
+  const normal = runtime.changeAnalysis('single');
   releaseDependency();
 
   assert.equal(await dependency, false);
@@ -768,9 +768,9 @@ test('Visualization mode waits for a long historical activation and then clears 
     },
   });
 
-  const history = runtime.transitionTo('historical-compare');
+  const history = runtime.changeAnalysis('historical-compare');
   await new Promise(resolve => setTimeout(resolve, 0));
-  const selection = runtime.transitionTo('selection');
+  const selection = runtime.changeAnalysis('selection');
 
   assert.equal(runtime.getState().transitioning, true);
   releaseHistory();
@@ -805,9 +805,9 @@ test('late dependency activation is disposed after user returns to normal', asyn
     deactivate() { roots.delete('single'); },
   });
 
-  const dependency = runtime.transitionTo('dependency-graph');
+  const dependency = runtime.changeAnalysis('dependency-graph');
   await new Promise(resolve => setTimeout(resolve, 0));
-  const normal = runtime.transitionTo('single');
+  const normal = runtime.changeAnalysis('single');
   releaseDependency();
 
   assert.equal(await dependency, false);
@@ -830,7 +830,7 @@ test('a failed mode activation returns to an empty selection state', async () =>
     activate() {
       throw new Error('fixture activation failure');
     },
-    disposeView() {
+    deactivate() {
       disposed = true;
     },
   });
@@ -838,13 +838,13 @@ test('a failed mode activation returns to an empty selection state', async () =>
     activate() {},
   });
 
-  assert.equal(await runtime.transitionTo('historical-compare'), false);
+  assert.equal(await runtime.changeAnalysis('historical-compare'), false);
   assert.equal(disposed, true);
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(runtime.getState().transitioning, false);
 });
 
-test('a mode whose disposeView throws synchronously cannot abort the selection transition', async () => {
+test('a mode whose deactivate throws synchronously cannot abort the selection transition', async () => {
   const source = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
   const context = { setTimeout, clearTimeout, console };
   vm.runInNewContext(source, context);
@@ -857,17 +857,15 @@ test('a mode whose disposeView throws synchronously cannot abort the selection t
   runtime.register('selection', {
     activate: runtime.__testing.clearVisualizationsForSelection,
   });
-  // Reproduces the dependency-graph start bug: project evolution's disposeView
-  // threw a synchronous TypeError, which escaped the cleanup .map() before
-  // Promise.allSettled could contain it and rejected the whole transition.
   runtime.register('project-evolution', {
     activate() {},
-    disposeView() {
+    deactivate() {
       throw new TypeError("Cannot read properties of null (reading 'suggestedSourceIds')");
     },
   });
 
-  assert.equal(await runtime.transitionTo('selection', { reason: 'broken-cleanup-regression' }), true);
+  assert.equal(await runtime.changeAnalysis('project-evolution'), true);
+  assert.equal(await runtime.changeAnalysis('selection', { reason: 'broken-cleanup-regression' }), true);
   assert.equal(runtime.getState().mode, 'selection');
   assert.equal(runtime.getState().transitioning, false);
 });
@@ -875,7 +873,7 @@ test('a mode whose disposeView throws synchronously cannot abort the selection t
 test('same-mode transitions dedupe instead of re-running the lifecycle', () => {
     const modeRuntime = readAssembledRuntime('analysis-mode', 'analysisModeRuntime.js');
     const historyRuntime = readAssembledRuntime('historical-comparison', 'historicalComparisonRuntime.js');
-    // Every entry fires twice (direct transitionTo + authoritative echo, in
+    // Every entry fires twice (direct changeAnalysis + authoritative echo, in
     // either order). Duplicates must not queue a second deactivate/activate
     // cycle — that double park/rebuild was the historical entry flicker and,
     // with a comparison result present, the empty-scene stall.

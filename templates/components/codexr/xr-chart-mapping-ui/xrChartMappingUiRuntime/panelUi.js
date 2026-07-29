@@ -292,7 +292,18 @@
   // while the resolved entity ids may still point at ANOTHER mode's parked
   // chart — a full switch converted the normal analysis' chart in place.
   function selectChart(chartId, options) {
-    var applyToEntities = !options || options.applyToEntities !== false;
+    if (state.mappingControlsLocked && !(options && options.forceWhenLocked === true)) {
+      setStatusMessage('Playback running - pause to change chart or axes.', 'info', 0);
+      return false;
+    }
+    var requestedEntityApply = !options || options.applyToEntities !== false;
+    // Project Evolution owns the identity of its chart. The selector updates
+    // its profile and emits the normal confirmation event; the mode runtime
+    // then replaces exactly one chart node without temporarily converting the
+    // old one in place.
+    var delegatedEntityApply = requestedEntityApply
+      && state.activeMappingContextId === 'project-evolution';
+    var applyToEntities = requestedEntityApply && !delegatedEntityApply;
     var config = getConfig();
     if (!config || !chartId || chartId === getActiveChartId(config)) {
       return false;
@@ -335,15 +346,19 @@
     applyMappingRuntimeState(config, nextSnapshot, 'mapping-ui-chart-switch-' + chartId, { applyToEntities: applyToEntities });
     renderChartSelector(config);
     renderRows(config);
-    if (applyToEntities) {
-      requestChartContainmentRenormalize('mapping-ui-chart-switch');
-      scheduleContainmentValidationBursts('mapping-ui-chart-switch');
+    if (requestedEntityApply) {
+      if (applyToEntities) {
+        requestChartContainmentRenormalize('mapping-ui-chart-switch');
+        scheduleContainmentValidationBursts('mapping-ui-chart-switch');
+      }
       setStatusMessage('Chart changed to ' + (chart.name || chartId) + '.', 'info', 2600);
       publishSharedMappingState(config);
       notifyMappingConfirmed(state.lastKnownGoodMapping);
       // Reverts by itself if the new chart turns out geometrically invalid,
       // instead of leaving a broken chart under a success message.
-      scheduleChartSwitchValidation(config, chartId, previousChartId);
+      if (applyToEntities) {
+        scheduleChartSwitchValidation(config, chartId, previousChartId);
+      }
     }
     return true;
   }

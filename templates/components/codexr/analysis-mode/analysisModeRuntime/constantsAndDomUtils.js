@@ -52,6 +52,8 @@
     pendingTransitionMode: null,
     generation: 0,
     transition: Promise.resolve(),
+    modeSnapshots: {},
+    lastAuthoritativeViewRevision: 0,
     collaborationRegistered: false,
     pendingNormalRefresh: null,
     lastNormalModeRevision: 0,

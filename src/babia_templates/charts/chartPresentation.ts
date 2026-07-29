@@ -63,6 +63,21 @@ export interface ChartPresentationProfile {
     /** Entity rotation the chart needs to stand the way Babia designed it. */
     rotation: string;
     /**
+     * Canonical scale at which Babia must build the chart's local geometry.
+     * Containment may scale an owning surface afterwards, but dynamic charts
+     * must keep this value stable while their data changes.
+     */
+    initialScale: string;
+    /**
+     * Keep Babia Boats hierarchy layers proportional to the scale at which
+     * their local geometry was first built. Babia treats zone_elevation as an
+     * absolute world-space measure and divides it by the entity's current Y
+     * scale on every data refresh. CodeXR containment changes that scale, so
+     * dynamic Boats need the shared layout-stability adapter to preserve the
+     * original local layer height.
+     */
+    preserveRelativeHierarchyLayers?: boolean;
+    /**
      * How the table may scale the chart. 'uniform' (circular charts) applies
      * one factor to all axes — per-axis scaling would squash a rotated disk
      * and turn a circle into an ellipse. 'planar-uniform' (row charts with
@@ -113,6 +128,7 @@ export interface ChartPresentationProfile {
 export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfile> = {
     bars: {
         rotation: '0 0 0',
+        initialScale: '1.5 1.5 1.5',
         fit: 'planar-uniform',
         rowBudget: 20,
         orderBy: 'height',
@@ -121,6 +137,7 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     barsmap: {
         rotation: '0 0 0',
+        initialScale: '1.5 1.5 1.5',
         rowBudget: 30,
         orderBy: 'height',
         keyBy: ['x_axis', 'z_axis'],
@@ -128,6 +145,7 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     cyls: {
         rotation: '0 0 0',
+        initialScale: '1.5 1.5 1.5',
         fit: 'planar-uniform',
         rowBudget: 20,
         orderBy: 'height',
@@ -136,6 +154,7 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     cylsmap: {
         rotation: '0 0 0',
+        initialScale: '1.5 1.5 1.5',
         fit: 'planar-uniform',
         rowBudget: 30,
         orderBy: 'height',
@@ -144,6 +163,7 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     pie: {
         rotation: '90 0 0',
+        initialScale: '1.5 1.5 1.5',
         fit: 'uniform',
         rowBudget: 12,
         orderBy: 'size',
@@ -152,6 +172,7 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     donut: {
         rotation: '90 0 0',
+        initialScale: '1.5 1.5 1.5',
         fit: 'uniform',
         rowBudget: 12,
         orderBy: 'size',
@@ -160,6 +181,7 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     bubbles: {
         rotation: '0 0 0',
+        initialScale: '1.5 1.5 1.5',
         // Bubbles are SPHERES: any anisotropy (even planar-uniform's free y
         // axis) stretches them into ellipsoids — one factor on all axes.
         fit: 'uniform',
@@ -174,12 +196,18 @@ export const CHART_PRESENTATION_PROFILES: Record<string, ChartPresentationProfil
     },
     boats: {
         rotation: '0 0 0',
+        initialScale: '0.01 0.05 0.01',
+        preserveRelativeHierarchyLayers: true,
         baseAttributes: BOATS_BASE_COMPONENT_ATTRIBUTES,
     },
 };
 
 export function getChartPresentationProfile(chartId: string): ChartPresentationProfile {
-    return CHART_PRESENTATION_PROFILES[chartId] ?? { rotation: '0 0 0', baseAttributes: {} };
+    return CHART_PRESENTATION_PROFILES[chartId] ?? {
+        rotation: '0 0 0',
+        initialScale: '1.5 1.5 1.5',
+        baseAttributes: {},
+    };
 }
 
 export function serializeComponentAttributes(attributes: Record<string, string | number | boolean>): string {
