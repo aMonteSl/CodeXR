@@ -6,7 +6,7 @@ CodeXR is a Visual Studio Code extension that analyzes your code (complexity, si
 
 **No VR headset required.** Everything works on a normal desktop with mouse and keyboard, and the 2D LivePanel mode doesn't even leave VS Code. If you do have a headset, the same scene becomes immersive. That's the XR in CodeXR: an extra dimension when you want it, never a requirement.
 
-Everything runs on your machine: local analysis, local servers, no telemetry, no account, and nothing is downloaded without asking you first.
+Everything runs on your machine: local analysis, local servers, no telemetry, no account, and nothing is downloaded without asking you first (your answer is remembered, so you are asked once).
 
 [![VISSOFT 2025 Distinguished Artifact Award](https://img.shields.io/badge/VISSOFT%202025-Distinguished%20Artifact%20Award-FFD700)](https://conf.researchr.org/info/icsme-2025/icsme-2025-awards)
 [![DOI](https://img.shields.io/badge/DOI-10.1109%2FVISSOFT67405.2025.00034-1f6feb)](https://doi.org/10.1109/VISSOFT67405.2025.00034)
@@ -111,7 +111,7 @@ Where the comparison shows two photographs, Project Evolution plays the movie: t
 ### And the rest of 1.2.0
 
 - **Collaboration 2.0**: persistent identities, host/guest roles with automatic promotion, and a bundled animated avatar (CC0, works offline) with a per-participant colour and a name tag that always faces you.
-- **Cross-network sessions, optional and off by default**: share a session with someone outside your network through an outbound Cloudflare tunnel: no router changes, no published IP, a six-digit pairing code that expires and burns itself on a wrong attempt, and full revocation the moment you stop sharing.
+- **Cross-network sessions, ready out of the box**: every server you start opens an outbound Cloudflare tunnel automatically, so sharing with someone outside your network is one link away: no router changes, no published IP, a six-digit pairing code that burns itself on a wrong attempt, and full revocation the moment you stop sharing. The invitation link stays valid for as long as you keep sharing, and the whole capability can be turned off in Server Configuration.
 - **Screen sharing that survives the trip**: guests arriving through the tunnel are served by your own CodeXR server; one encode for the whole audience, quality that follows the audience size.
 - **An in-room user guide**: six colour-coded tabs plus a 24-term metric glossary generated from the real analysis contracts, also served as `guide.html` for reading outside XR.
 - **LivePanel grows two sections**: *Dependency Summary* (counters, top fan-in/fan-out, cycles) and *Historical Comparison* in 2D with a searchable delta table.
@@ -124,15 +124,15 @@ The complete list, including a long round of chart, containment and collaboratio
 
 ## Tutorial: sharing a session across networks
 
-A VR session over your own network needs none of this: a headset on the same Wi-Fi opens the scene directly. Cross-network access exists for the other case, someone who is **not** on your network, and it is **off by default**. When you turn it on, `cloudflared` opens an **outbound** tunnel, so your router never has to accept an incoming connection and your IP is never published.
+A VR session over your own network needs none of this: a headset on the same Wi-Fi opens the scene directly. Cross-network access exists for the other case, someone who is **not** on your network. It is enabled by default (turn it off in Server Configuration if you prefer): `cloudflared` opens an **outbound** tunnel, so your router never has to accept an incoming connection and your IP is never published, and nobody enters without the code you read out.
 
 The whole point of the flow below is that a link alone is never enough to get in. Whoever opens it still has to receive a code from you, through a channel you already trust.
 
 Two people are involved, and each step below says which one acts: the **host** runs the analysis in VS Code and owns the session, and the **guest** joins from a browser anywhere in the world.
 
-### 1. Host: turn it on and start sharing
+### 1. Host: start the server, the tunnel follows
 
-Enable **Cross-network connections** in the server configuration (once), then open the server row in **ACTIVE SERVERS** and choose **Start remote access**. CodeXR opens the tunnel, and the sidebar starts showing the **Cross-network address**, the `trycloudflare.com` invitation link, which also lands on your clipboard. Send it to your guest however you normally talk to them.
+Cross-network connections are enabled by default, so when your analysis server starts, CodeXR opens the tunnel with it (the first time it will offer to download `cloudflared`, once). The sidebar shows the **Cross-network address**, the `trycloudflare.com` invitation link, which also lands on your clipboard; the link stays valid for as long as you keep sharing. If you stopped the connection, **Start remote access** on the server row brings it back. Send the link to your guest however you normally talk to them.
 
 ![The CodeXR sidebar with the cross-network address on a trycloudflare.com link, plus View remote status and Stop remote connection](https://raw.githubusercontent.com/aMonteSl/CodeXR/v1.2.0/media/v1.2.0/collaboration/host_user/control_panel.png)
 
@@ -473,7 +473,7 @@ Access settings directly from the tree view or VS Code preferences:
 - **Debounce Timing**: Adjust how quickly analysis responds to code changes
 - **Auto-analysis**: Enable/disable automatic re-analysis on file save
 - **File Filtering**: Configure which file types to include/exclude from analysis
-- **Cross-network Connections**: Enable or disable remote-access actions on your servers (off by default)
+- **Cross-network Connections**: Enable or disable remote access on your servers (on by default; disabling stops every tunnel)
 
 ### XR Environment Settings
 Customize your scene:

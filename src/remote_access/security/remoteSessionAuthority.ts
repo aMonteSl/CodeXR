@@ -13,9 +13,17 @@ import {
     CollaborationClientKind,
 } from '../model/remoteAccessModel';
 
+/**
+ * An invitation lives for as long as the host keeps sharing: it is minted once
+ * per share and dies only through revocation (`revokeSession`/`revokeAll` when
+ * sharing stops). It used to carry a 30-minute TTL, which silently outlived
+ * the sidebar's copy of the link: the tunnel stayed up, the sidebar kept
+ * showing the address, and guests got a 404. The real gate against a leaked
+ * link is the six-digit pairing code (5 attempts, burnt on the first wrong
+ * try), not the invitation's age.
+ */
 interface InvitationRecord {
     hash: string;
-    expiresAt: number;
 }
 
 interface PairingRequest {
@@ -80,7 +88,6 @@ export interface PairingResult {
     expiresAt: number;
 }
 
-const INVITATION_TTL_MS = 30 * 60 * 1000;
 const PAIRING_TTL_MS = 5 * 60 * 1000;
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const BROWSER_TOKEN_TTL_MS = 2 * 60 * 1000;
@@ -120,17 +127,13 @@ export class RemoteSessionAuthority {
         this.cleanup();
         const token = this.randomToken(32);
         const hash = this.hash(token);
-        this.invitations.set(hash, {
-            hash,
-            expiresAt: Date.now() + INVITATION_TTL_MS,
-        });
+        this.invitations.set(hash, { hash });
         return token;
     }
 
     public isInvitationValid(invitationToken: string): boolean {
         this.cleanup();
-        const invitation = this.invitations.get(this.hash(invitationToken));
-        return !!invitation && invitation.expiresAt > Date.now();
+        return this.invitations.has(this.hash(invitationToken));
     }
 
     public createLocalBrowserToken(
@@ -326,7 +329,7 @@ export class RemoteSessionAuthority {
         }
 
         const invitation = this.invitations.get(request.invitationHash);
-        if (!invitation || invitation.expiresAt <= Date.now()) {
+        if (!invitation) {
             throw new Error('invalid-invitation');
         }
         this.pairingRequests.delete(requestId);
@@ -480,11 +483,8 @@ export class RemoteSessionAuthority {
     private cleanup(): void {
         const now = Date.now();
         let pendingChanged = false;
-        for (const [key, invitation] of this.invitations) {
-            if (invitation.expiresAt <= now) {
-                this.invitations.delete(key);
-            }
-        }
+        // Invitations are not time-boxed: they die through revocation when
+        // sharing stops, never through this sweep.
         for (const [key, request] of this.pairingRequests) {
             if (request.expiresAt <= now) {
                 this.pairingRequests.delete(key);
@@ -570,7 +570,7 @@ export class RemoteSessionAuthority {
     private requireInvitation(invitationToken: string): string {
         const invitationHash = this.hash(invitationToken);
         const invitation = this.invitations.get(invitationHash);
-        if (!invitation || invitation.expiresAt <= Date.now()) {
+        if (!invitation) {
             throw new Error('invalid-invitation');
         }
         return invitationHash;

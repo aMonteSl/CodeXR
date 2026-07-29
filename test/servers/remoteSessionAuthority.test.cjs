@@ -361,3 +361,29 @@ test('a revoked session cannot be resurrected through an unspent browser token',
     assert.equal(authority.revokeSession(sessionId), true);
     assert.equal(authority.exchangeBrowserToken(paired.browserToken), null);
 });
+
+test('invitation links never age out: they live until the share is revoked', () => {
+    const RemoteSessionAuthority = loadAuthority();
+    const authority = new RemoteSessionAuthority();
+    const invitationToken = authority.createInvitation();
+    assert.equal(authority.isInvitationValid(invitationToken), true);
+
+    // The link used to die 30 minutes in while the tunnel stayed up and the
+    // sidebar kept showing it: guests landed on a 404. Jump the clock a full
+    // day ahead and the invitation must still admit new guests.
+    const realNow = Date.now;
+    Date.now = () => realNow() + 24 * 60 * 60 * 1000;
+    try {
+        assert.equal(
+            authority.isInvitationValid(invitationToken),
+            true,
+            'an invitation must survive any amount of wall-clock time while sharing continues',
+        );
+    } finally {
+        Date.now = realNow;
+    }
+
+    // Revocation remains the one true off switch.
+    authority.revokeAll();
+    assert.equal(authority.isInvitationValid(invitationToken), false);
+});

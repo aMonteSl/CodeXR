@@ -67,10 +67,11 @@ local server. It does not decide who may enter a CodeXR session.
 
 CodeXR adds its own authorization:
 
-- invitation link with a cryptographic token;
+- invitation link with a cryptographic token (valid for as long as the share
+  is active; revoked the moment sharing stops);
 - pending request visible to the host;
 - temporary six-digit code;
-- expiry and attempt limits;
+- expiry and attempt limits on the code;
 - single-use browser token;
 - `HttpOnly` and `Secure` session cookie;
 - authorization of HTTP, WebSocket and signaling;

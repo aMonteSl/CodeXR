@@ -7,6 +7,14 @@ export type CollaborationClientKind = 'codexr' | 'browser';
 export interface RemoteAccessSettings {
     enabled: boolean;
     provider: RemoteAccessProvider;
+    /**
+     * One-shot migration marker: cross-network became enabled by default, and
+     * settings persisted before that carried `enabled: false` (saved values
+     * win over defaults on merge). Its absence means the stored value predates
+     * the new default and gets flipped once; once sealed, the user's own
+     * choice always wins.
+     */
+    enabledByDefaultApplied?: boolean;
 }
 
 export interface RemoteAccessState {
@@ -28,8 +36,9 @@ export interface AuthenticatedCollaborationSession {
 }
 
 export const DEFAULT_REMOTE_ACCESS_SETTINGS: RemoteAccessSettings = {
-    enabled: false,
+    enabled: true,
     provider: 'cloudflare-quick',
+    enabledByDefaultApplied: true,
 };
 
 export const DEFAULT_REMOTE_ACCESS_STATE: RemoteAccessState = {
